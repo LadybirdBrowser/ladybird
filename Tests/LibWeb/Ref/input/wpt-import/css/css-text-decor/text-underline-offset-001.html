@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>text-underline-offset test case</title>
+    <meta name="assert" content="text-decoration:underline; there is a line at or under the alphabetic baseline">
+    <link rel="author" title="Charlie Marlow" href="mailto:cmarlow@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#underline-offset">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-underline-offset-001-notref.html">
+    <link rel="stylesheet" type="text/css" href="../..../../fonts/ahem.css" />
+    <style>
+        #main {
+            margin: 2em;
+            display:flex
+        }
+        div span {
+            text-decoration: green underline;
+            text-decoration-skip-ink: none;
+            font: 20px/1 Ahem;
+            color: transparent;
+            padding-bottom: 20px;
+            border: 1px dotted transparent;
+            border-bottom-color: cyan;
+        }
+        #rightbox {
+            text-underline-offset: 24px;
+        }
+    </style>
+</head>
+<body>
+    <p class="instructions">Test passes if the box on the right has a lower underline than the box on the left</p>
+    <div id="main">
+        <div>
+            <p>left<span>XXXX</span></p>
+        </div>
+        <div>
+            <p><span id="rightbox">XXXX</span>right</p>
+        </div>
+    </div>
+</body>
+</html>
