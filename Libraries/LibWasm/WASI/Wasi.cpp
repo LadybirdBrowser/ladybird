@@ -685,7 +685,6 @@ ErrorOr<Result<Timestamp>> Implementation::impl$clock_time_get(Configuration&, C
     case ClockID::ProcessCPUTimeID:
     case ClockID::ThreadCPUTimeID:
         return Errno::NoSys;
-        break;
     }
 
     struct timespec ts;
