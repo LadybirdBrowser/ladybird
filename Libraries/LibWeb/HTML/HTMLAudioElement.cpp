@@ -32,7 +32,7 @@ void HTMLAudioElement::initialize(JS::Realm& realm)
 
 GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
-    return heap().allocate<Layout::AudioBox>(document(), *this, move(style));
+    return heap().allocate<Layout::AudioBox>(document(), *this, style);
 }
 
 void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties& style)
