@@ -58,6 +58,7 @@ static bool is_platform_object(Type const& type)
         "CSSNumericArray"sv,
         "CSSNumericValue"sv,
         "CSSStyleValue"sv,
+        "CSSTransformComponent"sv,
         "CSSUnitValue"sv,
         "CSSUnparsedValue"sv,
         "CSSVariableReferenceValue"sv,

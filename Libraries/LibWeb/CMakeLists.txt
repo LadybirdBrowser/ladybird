@@ -142,6 +142,7 @@ set(SOURCES
     CSS/CSSStyleSheet.cpp
     CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
+    CSS/CSSTransformComponent.cpp
     CSS/CSSTransition.cpp
     CSS/CSSUnitValue.cpp
     CSS/CSSUnparsedValue.cpp

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-287 Pass
-258 Fail
+296 Pass
+249 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -267,15 +267,15 @@ Pass	CSSStyleValue interface: transformValue must inherit property "parse(USVStr
 Pass	CSSStyleValue interface: calling parse(USVString, USVString) on transformValue with too few arguments must throw TypeError
 Pass	CSSStyleValue interface: transformValue must inherit property "parseAll(USVString, USVString)" with the proper type
 Pass	CSSStyleValue interface: calling parseAll(USVString, USVString) on transformValue with too few arguments must throw TypeError
-Fail	CSSTransformComponent interface: existence and properties of interface object
-Fail	CSSTransformComponent interface object length
-Fail	CSSTransformComponent interface object name
-Fail	CSSTransformComponent interface: existence and properties of interface prototype object
-Fail	CSSTransformComponent interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSTransformComponent interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSTransformComponent interface: stringifier
-Fail	CSSTransformComponent interface: attribute is2D
-Fail	CSSTransformComponent interface: operation toMatrix()
+Pass	CSSTransformComponent interface: existence and properties of interface object
+Pass	CSSTransformComponent interface object length
+Pass	CSSTransformComponent interface object name
+Pass	CSSTransformComponent interface: existence and properties of interface prototype object
+Pass	CSSTransformComponent interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSTransformComponent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSTransformComponent interface: stringifier
+Pass	CSSTransformComponent interface: attribute is2D
+Pass	CSSTransformComponent interface: operation toMatrix()
 Fail	CSSTranslate interface: existence and properties of interface object
 Fail	CSSTranslate interface object length
 Fail	CSSTranslate interface object name
