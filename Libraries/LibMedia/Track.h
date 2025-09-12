@@ -42,7 +42,7 @@ public:
         }
     }
 
-    TrackType type() { return m_type; }
+    TrackType type() const { return m_type; }
     size_t identifier() const { return m_identifier; }
 
     void set_video_data(VideoData data)
