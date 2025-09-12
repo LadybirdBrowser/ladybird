@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'display' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('display', [
+  { syntax: 'none' },
+  { syntax: 'block' },
+  { syntax: 'inline' },
+  { syntax: 'flow-root' },
+  { syntax: 'table' },
+  { syntax: 'flex' },
+  { syntax: 'grid' },
+  { syntax: 'list-item' },
+  { syntax: 'table-row-group' },
+  { syntax: 'table-header-group' },
+  { syntax: 'table-footer-group' },
+  { syntax: 'table-row' },
+  { syntax: 'table-cell' },
+  { syntax: 'table-column-group' },
+  { syntax: 'table-column' },
+  { syntax: 'table-caption' },
+  { syntax: 'contents' },
+  { syntax: 'inline-block' },
+  { syntax: 'inline-table' },
+  { syntax: 'inline-flex' },
+  { syntax: 'inline-grid' },
+]);
+
+// We can not set 'inline math' or 'math inline' via Typed OM.
+// On the other hand, we might get a CSSKeywordValue instance for them instead
+// of a CSSStyleValue because they can be represented as just 'math' in
+// internal representations.
+for (let value of ['inline math', 'math inline']) {
+  test(t => {
+    let element = createDivWithStyle(t);
+    element.style.display = value;
+    const result = element.attributeStyleMap.get('display');
+    assert_not_equals(result, null);
+    assert_in_array({}.toString.call(result),
+                    ['[object CSSStyleValue]', '[object CSSKeywordValue]']);
+  }, `'display' does not support setting '${value}'`);
+}
+
+runUnsupportedPropertyTests('display', [
+  'block math', 'math block'
+]);
+
+</script>
