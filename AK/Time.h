@@ -239,6 +239,7 @@ public:
     [[nodiscard]] i64 to_truncated_microseconds() const;
     // Rounds away from zero (2.3s to 3s, -2.3s to -3s).
     [[nodiscard]] i64 to_seconds() const;
+    [[nodiscard]] f64 to_seconds_f64() const;
     [[nodiscard]] i64 to_milliseconds() const;
     [[nodiscard]] i64 to_microseconds() const;
     [[nodiscard]] i64 to_nanoseconds() const;
