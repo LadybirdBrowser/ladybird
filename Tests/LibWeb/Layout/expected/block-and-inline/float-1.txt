@@ -46,43 +46,51 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 342 0+0+0] children: inline
-        frag 0 from TextNode start: 1, length: 47, rect: [228,8 414.5625x18] baseline: 13.796875
+        frag 0 from TextNode start: 5, length: 47, rect: [228,8 414.5625x18] baseline: 13.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 1 from TextNode start: 49, length: 47, rect: [228,26 414.5625x18] baseline: 13.796875
+        frag 1 from TextNode start: 53, length: 47, rect: [228,26 414.5625x18] baseline: 13.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 2 from TextNode start: 97, length: 53, rect: [228,44 466.90625x18] baseline: 13.796875
+        frag 2 from TextNode start: 101, length: 53, rect: [228,44 466.90625x18] baseline: 13.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 3 from TextNode start: 151, length: 65, rect: [188,62 573.5x18] baseline: 13.796875
+        frag 3 from TextNode start: 155, length: 65, rect: [188,62 573.5x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 4 from TextNode start: 217, length: 65, rect: [188,80 572.546875x18] baseline: 13.796875
-            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 5 from TextNode start: 283, length: 77, rect: [108,98 679.140625x18] baseline: 13.796875
+        frag 4 from TextNode start: 221, length: 60, rect: [188,80 528.203125x18] baseline: 13.796875
+            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum "
+        frag 5 from TextNode start: 285, length: 5, rect: [716.203125,80 44.34375x18] baseline: 13.796875
+            "lorem"
+        frag 6 from TextNode start: 291, length: 77, rect: [108,98 679.140625x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
-        frag 6 from TextNode start: 361, length: 89, rect: [8,116 783.828125x18] baseline: 13.796875
+        frag 7 from TextNode start: 369, length: 89, rect: [8,116 783.828125x18] baseline: 13.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 7 from TextNode start: 451, length: 83, rect: [8,134 731.484375x18] baseline: 13.796875
+        frag 8 from TextNode start: 459, length: 83, rect: [8,134 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 8 from TextNode start: 535, length: 83, rect: [8,152 731.484375x18] baseline: 13.796875
+        frag 9 from TextNode start: 543, length: 18, rect: [8,152 158.9375x18] baseline: 13.796875
+            "ipsum lorem ipsum "
+        frag 10 from TextNode start: 565, length: 65, rect: [166.9375,152 572.546875x18] baseline: 13.796875
+            "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
+        frag 11 from TextNode start: 631, length: 83, rect: [8,170 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 9 from TextNode start: 619, length: 83, rect: [8,170 731.484375x18] baseline: 13.796875
+        frag 12 from TextNode start: 715, length: 83, rect: [8,188 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 10 from TextNode start: 703, length: 83, rect: [8,188 731.484375x18] baseline: 13.796875
+        frag 13 from TextNode start: 799, length: 42, rect: [8,206 370.21875x18] baseline: 13.796875
+            "ipsum lorem ipsum lorem ipsum lorem ipsum "
+        frag 14 from TextNode start: 845, length: 41, rect: [378.21875,206 361.265625x18] baseline: 13.796875
+            "lorem ipsum lorem ipsum lorem ipsum lorem"
+        frag 15 from TextNode start: 887, length: 83, rect: [8,224 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 11 from TextNode start: 787, length: 83, rect: [8,206 731.484375x18] baseline: 13.796875
+        frag 16 from TextNode start: 971, length: 83, rect: [8,242 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 12 from TextNode start: 871, length: 83, rect: [8,224 731.484375x18] baseline: 13.796875
+        frag 17 from TextNode start: 1055, length: 66, rect: [8,260 581.5x18] baseline: 13.796875
+            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum "
+        frag 18 from TextNode start: 1125, length: 17, rect: [589.5,260 149.984375x18] baseline: 13.796875
+            "lorem ipsum lorem"
+        frag 19 from TextNode start: 1143, length: 83, rect: [8,278 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 13 from TextNode start: 955, length: 83, rect: [8,242 731.484375x18] baseline: 13.796875
+        frag 20 from TextNode start: 1227, length: 83, rect: [8,296 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 14 from TextNode start: 1039, length: 83, rect: [8,260 731.484375x18] baseline: 13.796875
+        frag 21 from TextNode start: 1311, length: 83, rect: [8,314 731.484375x18] baseline: 13.796875
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 15 from TextNode start: 1123, length: 83, rect: [8,278 731.484375x18] baseline: 13.796875
-            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 16 from TextNode start: 1207, length: 83, rect: [8,296 731.484375x18] baseline: 13.796875
-            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 17 from TextNode start: 1291, length: 83, rect: [8,314 731.484375x18] baseline: 13.796875
-            "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
-        frag 18 from TextNode start: 1375, length: 5, rect: [8,332 45.296875x18] baseline: 13.796875
+        frag 22 from TextNode start: 1395, length: 5, rect: [8,332 45.296875x18] baseline: 13.796875
             "ipsum"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,350] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline

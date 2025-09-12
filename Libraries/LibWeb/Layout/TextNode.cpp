@@ -282,10 +282,9 @@ static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTran
         return apply_math_auto_text_transform(string);
     case CSS::TextTransform::Capitalize:
         return string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting);
-    case CSS::TextTransform::FullSizeKana: {
+    case CSS::TextTransform::FullSizeKana:
         dbgln("FIXME: Implement text-transform full-size-kana");
         return string;
-    }
     case CSS::TextTransform::FullWidth:
         return string.to_fullwidth();
     }
@@ -306,7 +305,6 @@ Utf16String const& TextNode::text_for_rendering() const
     return *m_text_for_rendering;
 }
 
-// NOTE: This collapses whitespace into a single ASCII space if the CSS white-space property tells us to.
 void TextNode::compute_text_for_rendering()
 {
     if (dom_node().is_password_input()) {
@@ -314,53 +312,85 @@ void TextNode::compute_text_for_rendering()
         return;
     }
 
-    bool collapse = first_is_one_of(computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
-
+    // Apply text-transform
+    // FIXME: This can generate more code points than there were before; we need to find a better way to map the
+    //        resulting paintable fragments' offsets into the original text node data.
+    //        See: https://github.com/LadybirdBrowser/ladybird/issues/6177
     auto parent_element = dom_node().parent_element();
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
+    auto text = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
 
-    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
-
-    // NOTE: A couple fast returns to avoid unnecessarily allocating a StringBuilder.
-    if (!collapse || data.is_empty()) {
-        m_text_for_rendering = move(data);
+    // The logic below deals with converting whitespace characters. If we don't have them, return early.
+    if (text.is_empty() || !any_of(text, is_ascii_space)) {
+        m_text_for_rendering = move(text);
         return;
     }
 
-    if (data.length_in_code_units() == 1) {
-        if (data.is_ascii_whitespace())
-            m_text_for_rendering = " "_utf16;
-        else
-            m_text_for_rendering = move(data);
-        return;
-    }
+    // https://drafts.csswg.org/css-text-4/#white-space-phase-1
+    bool convert_newlines = false;
+    bool convert_tabs = false;
 
-    if (!any_of(data, is_ascii_space)) {
-        m_text_for_rendering = move(data);
-        return;
-    }
+    // If white-space-collapse is set to collapse or preserve-breaks, white space characters are considered collapsible
+    // and are processed by performing the following steps:
+    auto white_space_collapse = computed_values().white_space_collapse();
+    if (first_is_one_of(white_space_collapse, CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks)) {
+        // 1. FIXME: Any sequence of collapsible spaces and tabs immediately preceding or following a segment break is removed.
 
-    StringBuilder builder { StringBuilder::Mode::UTF16, data.length_in_code_units() };
-    size_t index = 0;
+        // 2. Collapsible segment breaks are transformed for rendering according to the segment break transformation
+        //    rules.
+        {
+            // https://drafts.csswg.org/css-text-4/#line-break-transform
+            // FIXME: When white-space-collapse is not collapse, segment breaks are not collapsible. For values other than
+            // collapse or preserve-spaces (which transforms them into spaces), segment breaks are instead transformed
+            // into a preserved line feed (U+000A).
 
-    auto skip_over_whitespace = [&] {
-        while (index < data.length_in_code_units() && is_ascii_space(data.code_unit_at(index)))
-            ++index;
-    };
+            // When white-space-collapse is collapse, segment breaks are collapsible, and are collapsed as follows:
+            if (white_space_collapse == CSS::WhiteSpaceCollapse::Collapse) {
+                // 1. FIXME: First, any collapsible segment break immediately following another collapsible segment break is
+                //    removed.
 
-    while (index < data.length_in_code_units()) {
-        if (is_ascii_space(data.code_unit_at(index))) {
-            builder.append(' ');
-            ++index;
-            skip_over_whitespace();
-        } else {
-            builder.append_code_unit(data.code_unit_at(index));
-            ++index;
+                // 2. FIXME: Then any remaining segment break is either transformed into a space (U+0020) or removed depending
+                //    on the context before and after the break. The rules for this operation are UA-defined in this
+                //    level.
+                convert_newlines = true;
+            }
         }
+
+        // 3. Every collapsible tab is converted to a collapsible space (U+0020).
+        convert_tabs = true;
+
+        // 4. Any collapsible space immediately following another collapsible space—even one outside the boundary of the
+        //    inline containing that space, provided both spaces are within the same inline formatting context—is
+        //    collapsed to have zero advance width. (It is invisible, but retains its soft wrap opportunity, if any.)
+        // AD-HOC: This is handled by TextNode::ChunkIterator by removing the space.
     }
 
-    m_text_for_rendering = builder.to_utf16_string();
+    // If white-space-collapse is set to preserve-spaces, each tab and segment break is converted to a space.
+    if (white_space_collapse == CSS::WhiteSpaceCollapse::PreserveSpaces) {
+        convert_tabs = true;
+        convert_newlines = true;
+    }
+
+    // AD-HOC: Prevent allocating a StringBuilder for a single space/newline/tab.
+    if (text == " "sv || (convert_tabs && text == "\t"sv) || (convert_newlines && text == "\n"sv)) {
+        m_text_for_rendering = " "_utf16;
+        return;
+    }
+
+    // AD-HOC: It's important to not change the amount of code units in the resulting transformed text, so ChunkIterator
+    //         can pass views to this string with associated code unit offsets that still match the original text.
+    if (convert_newlines || convert_tabs) {
+        StringBuilder text_builder { StringBuilder::Mode::UTF16, text.length_in_code_units() };
+        for (auto code_point : text) {
+            if ((convert_newlines && code_point == '\n') || (convert_tabs && code_point == '\t'))
+                code_point = ' ';
+            text_builder.append_code_point(code_point);
+        }
+        text = text_builder.to_utf16_string();
+    }
+
+    m_text_for_rendering = move(text);
 }
 
 Unicode::Segmenter& TextNode::grapheme_segmenter() const
@@ -373,22 +403,20 @@ Unicode::Segmenter& TextNode::grapheme_segmenter() const
     return *m_grapheme_segmenter;
 }
 
-TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool wrap_lines, bool respect_linebreaks)
-    : m_wrap_lines(wrap_lines)
-    , m_respect_linebreaks(respect_linebreaks)
-    , m_view(text_node.text_for_rendering())
-    , m_font_cascade_list(text_node.computed_values().font_list())
-    , m_grapheme_segmenter(text_node.grapheme_segmenter())
+TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool should_wrap_lines, bool should_respect_linebreaks)
+    : ChunkIterator(text_node, text_node.text_for_rendering(), text_node.grapheme_segmenter(), should_wrap_lines, should_respect_linebreaks)
 {
 }
 
-TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, Utf16View const& text, Unicode::Segmenter& grapheme_segmenter, bool wrap_lines, bool respect_linebreaks)
-    : m_wrap_lines(wrap_lines)
-    , m_respect_linebreaks(respect_linebreaks)
+TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, Utf16View const& text,
+    Unicode::Segmenter& grapheme_segmenter, bool should_wrap_lines, bool should_respect_linebreaks)
+    : m_should_wrap_lines(should_wrap_lines)
+    , m_should_respect_linebreaks(should_respect_linebreaks)
     , m_view(text)
     , m_font_cascade_list(text_node.computed_values().font_list())
     , m_grapheme_segmenter(grapheme_segmenter)
 {
+    m_should_collapse_whitespace = first_is_one_of(text_node.computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
 }
 
 static Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
@@ -456,11 +484,16 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
     if (m_current_index >= m_view.length_in_code_units())
         return {};
 
-    auto current_code_point = [this]() {
+    auto current_code_point = [this] {
         return m_view.code_point_at(m_current_index);
     };
-    auto next_grapheme_boundary = [this]() {
+    auto next_grapheme_boundary = [this] {
         return m_grapheme_segmenter.next_boundary(m_current_index).value_or(m_view.length_in_code_units());
+    };
+
+    // https://drafts.csswg.org/css-text-4/#collapsible-white-space
+    auto is_collapsible = [this](u32 code_point) {
+        return m_should_collapse_whitespace && is_ascii_space(code_point);
     };
 
     auto code_point = current_code_point();
@@ -489,7 +522,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
                 return result.release_value();
         }
 
-        if (m_respect_linebreaks && code_point == '\n') {
+        if (m_should_respect_linebreaks && code_point == '\n') {
             // Newline encountered, and we're supposed to preserve them.
             // If we have accumulated some code points in the current chunk, commit them now and continue with the newline next time.
             if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
@@ -502,7 +535,19 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
             return result.release_value();
         }
 
-        if (m_wrap_lines) {
+        // If both this code point and the previous code point are collapsible, skip code points until we're at a non-
+        // collapsible code point.
+        if (is_collapsible(code_point) && m_current_index > 0 && is_collapsible(m_view.code_point_at(m_current_index - 1))) {
+            auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type);
+
+            while (m_current_index < m_view.length_in_code_units() && is_collapsible(current_code_point()))
+                m_current_index = next_grapheme_boundary();
+
+            if (result.has_value())
+                return result.release_value();
+        }
+
+        if (m_should_wrap_lines) {
             if (text_type != text_type_for_code_point(code_point)) {
                 if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                     return result.release_value();

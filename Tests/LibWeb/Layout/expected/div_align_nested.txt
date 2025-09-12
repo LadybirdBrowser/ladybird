@@ -11,9 +11,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
           TextNode <#text> (not painted)
         BlockContainer <div> at [8,126] [0+0+0 784 0+0+0] [0+0+0 136 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [8,126] [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: inline
-            frag 0 from TextNode start: 1, length: 87, rect: [8,126 711.4375x18] baseline: 13.796875
+            frag 0 from TextNode start: 9, length: 87, rect: [8,126 711.4375x18] baseline: 13.796875
                 "This text and the green square are both left aligned despite being nested in a div with"
-            frag 1 from TextNode start: 89, length: 14, rect: [8,144 94.296875x18] baseline: 13.796875
+            frag 1 from TextNode start: 97, length: 14, rect: [8,144 94.296875x18] baseline: 13.796875
                 "align="right":"
             TextNode <#text> (not painted)
           BlockContainer <div.square> at [8,162] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: inline

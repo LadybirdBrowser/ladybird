@@ -35,7 +35,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
                   TextNode <#text> (not painted)
               BlockContainer <(anonymous)> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: not-inline continuation
                 BlockContainer <p> at [235,65] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: inline
-                  frag 0 from TextNode start: 1, length: 5, rect: [235,65 27.5x19] baseline: 12.5
+                  frag 0 from TextNode start: 33, length: 5, rect: [235,65 27.5x19] baseline: 12.5
                       "bang "
                   frag 1 from RadioButton start: 0, length: 0, rect: [262.5,65 12x12] baseline: 12
                   TextNode <#text> (not painted)
@@ -46,7 +46,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
                   TextNode <#text> (not painted)
               BlockContainer <(anonymous)> at [235,84] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: not-inline continuation
                 BlockContainer <p> at [235,84] [0+0+0 139.96875 0+0+0] [0+0+0 19 0+0+0] children: inline
-                  frag 0 from TextNode start: 1, length: 8, rect: [235,84 45.171875x19] baseline: 12.5
+                  frag 0 from TextNode start: 33, length: 8, rect: [235,84 45.171875x19] baseline: 12.5
                       "whimper "
                   frag 1 from RadioButton start: 0, length: 0, rect: [280.171875,84 12x12] baseline: 12
                   TextNode <#text> (not painted)
@@ -94,19 +94,27 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
       BlockContainer <(anonymous)> at [20,30] [0+0+0 480 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <p> at [20,335] [0+0+0 480 0+0+0] [0+0+0 65 0+0+0] children: inline
-        frag 0 from TextNode start: 1, length: 90, rect: [20,335 473.6875x13] baseline: 9.5
-            "This is a nonsensical document, but syntactically valid HTML 4.0. All 100%-conformant CSS1"
-        frag 1 from TextNode start: 92, length: 74, rect: [20,348 396.96875x13] baseline: 9.5
+        frag 0 from TextNode start: 13, length: 86, rect: [20,335 448.296875x13] baseline: 9.5
+            "This is a nonsensical document, but syntactically valid HTML 4.0. All 100%-conformant "
+        frag 1 from TextNode start: 111, length: 4, rect: [468.296875,335 25.390625x13] baseline: 9.5
+            "CSS1"
+        frag 2 from TextNode start: 116, length: 74, rect: [20,348 396.96875x13] baseline: 9.5
             "agents should be able to render the document elements above this paragraph"
-        frag 2 from TextNode start: 167, length: 43, rect: [20,361 207.9375x13] baseline: 9.5
+        frag 3 from TextNode start: 203, length: 43, rect: [20,361 207.9375x13] baseline: 9.5
             "indistinguishably (to the pixel) from this "
-        frag 3 from TextNode start: 0, length: 31, rect: [330.96875,361 159.671875x13] baseline: 9.5
-            " (except font rasterization and"
-        frag 4 from TextNode start: 32, length: 89, rect: [20,374 465.09375x13] baseline: 9.5
-            "form widgets). All discrepancies should be traceable to CSS1 implementation shortcomings."
-        frag 5 from TextNode start: 122, length: 67, rect: [20,387 345.59375x13] baseline: 9.5
-            "Once you have finished evaluating this test, you can return to the "
-        frag 6 from TextNode start: 0, length: 1, rect: [425.5,387 2.71875x13] baseline: 9.5
+        frag 4 from TextNode start: 0, length: 1, rect: [330.96875,361 5x13] baseline: 9.5
+            " "
+        frag 5 from TextNode start: 13, length: 30, rect: [335.96875,361 154.671875x13] baseline: 9.5
+            "(except font rasterization and"
+        frag 6 from TextNode start: 44, length: 56, rect: [20,374 286.6875x13] baseline: 9.5
+            "form widgets). All discrepancies should be traceable to "
+        frag 7 from TextNode start: 112, length: 33, rect: [306.6875,374 178.40625x13] baseline: 9.5
+            "CSS1 implementation shortcomings."
+        frag 8 from TextNode start: 146, length: 53, rect: [20,387 271.421875x13] baseline: 9.5
+            "Once you have finished evaluating this test, you can "
+        frag 9 from TextNode start: 211, length: 14, rect: [291.421875,387 74.171875x13] baseline: 9.5
+            "return to the "
+        frag 10 from TextNode start: 0, length: 1, rect: [425.5,387 2.71875x13] baseline: 9.5
             "."
         TextNode <#text> (not painted)
         InlineNode <a> at [227.9375,361] [0+0+0 103.03125 0+0+0] [0+0+0 13 0+0+0]
