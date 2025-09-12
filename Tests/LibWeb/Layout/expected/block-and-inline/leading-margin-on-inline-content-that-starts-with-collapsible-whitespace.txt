@@ -5,8 +5,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
         frag 0 from TextNode start: 1, length: 9, rect: [28,8 82.125x18] baseline: 13.796875
             "Download "
         TextNode <#text> (not painted)
-      InlineNode <div> at [150.125,8] [20+0+0 39.5625 0+0+20] [0+0+0 18 0+0+0]
-        frag 0 from TextNode start: 1, length: 4, rect: [150.125,8 39.5625x18] baseline: 13.796875
+      InlineNode <div> at [130.125,8] [20+0+0 39.5625 0+0+20] [0+0+0 18 0+0+0]
+        frag 0 from TextNode start: 1, length: 4, rect: [130.125,8 39.5625x18] baseline: 13.796875
             "News"
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
@@ -16,7 +16,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
       PaintableWithLines (InlineNode<DIV>) [28,8 82.125x18]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (InlineNode<DIV>) [150.125,8 39.5625x18]
+      PaintableWithLines (InlineNode<DIV>) [130.125,8 39.5625x18]
         TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
