@@ -369,8 +369,6 @@ public:
         m_fragments.append(PaintableFragment { fragment });
     }
 
-    void set_fragments(Vector<PaintableFragment>&& fragments) { m_fragments = move(fragments); }
-
     template<typename Callback>
     void for_each_fragment(Callback callback) const
     {

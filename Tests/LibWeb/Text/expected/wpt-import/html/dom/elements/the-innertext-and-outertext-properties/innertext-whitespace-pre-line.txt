@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	innerText should be the same for the pre-line and pre examples
-Fail	innerText has collapsed whitespace but preserved newlines with pre-line
+2 Pass
+Pass	innerText should be the same for the pre-line and pre examples
+Pass	innerText has collapsed whitespace but preserved newlines with pre-line

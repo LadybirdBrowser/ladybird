@@ -2,23 +2,23 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 304 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 288 0+0+8] children: not-inline
       BlockContainer <div.margin-left> at [243.1875,8] [235.1875+0+0 548.8125 0+0+0] [0+0+0 162 0+0+0] children: inline
-        frag 0 from TextNode start: 1, length: 62, rect: [243.1875,8 515.390625x18] baseline: 13.796875
+        frag 0 from TextNode start: 2, length: 62, rect: [243.1875,8 515.390625x18] baseline: 13.796875
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce"
-        frag 1 from TextNode start: 64, length: 68, rect: [243.1875,26 543.484375x18] baseline: 13.796875
+        frag 1 from TextNode start: 65, length: 68, rect: [243.1875,26 543.484375x18] baseline: 13.796875
             "cursus est eget nisl porta, id vulputate velit imperdiet. Vestibulum"
-        frag 2 from TextNode start: 133, length: 69, rect: [243.1875,44 533.765625x18] baseline: 13.796875
+        frag 2 from TextNode start: 134, length: 69, rect: [243.1875,44 533.765625x18] baseline: 13.796875
             "mollis ligula sit amet ligula aliquam, vitae vulputate magna iaculis."
-        frag 3 from TextNode start: 203, length: 68, rect: [243.1875,62 533.015625x18] baseline: 13.796875
+        frag 3 from TextNode start: 204, length: 68, rect: [243.1875,62 533.015625x18] baseline: 13.796875
             "Nulla et augue fringilla, molestie nulla blandit, condimentum risus."
-        frag 4 from TextNode start: 272, length: 58, rect: [243.1875,80 488.140625x18] baseline: 13.796875
+        frag 4 from TextNode start: 273, length: 58, rect: [243.1875,80 488.140625x18] baseline: 13.796875
             "Suspendisse lectus augue, sodales vitae metus ac, interdum"
-        frag 5 from TextNode start: 331, length: 63, rect: [243.1875,98 526.546875x18] baseline: 13.796875
+        frag 5 from TextNode start: 332, length: 63, rect: [243.1875,98 526.546875x18] baseline: 13.796875
             "volutpat arcu. Aenean eu placerat risus, at dictum lectus. Nunc"
-        frag 6 from TextNode start: 395, length: 64, rect: [243.1875,116 524.5x18] baseline: 13.796875
+        frag 6 from TextNode start: 396, length: 64, rect: [243.1875,116 524.5x18] baseline: 13.796875
             "maximus est eu risus porta tincidunt. Cras nec felis tellus. Sed"
-        frag 7 from TextNode start: 460, length: 66, rect: [243.1875,134 523.078125x18] baseline: 13.796875
+        frag 7 from TextNode start: 461, length: 66, rect: [243.1875,134 523.078125x18] baseline: 13.796875
             "euismod ultricies ipsum, eget ultricies nisl dignissim nec. Mauris"
-        frag 8 from TextNode start: 527, length: 21, rect: [243.1875,152 178.53125x18] baseline: 13.796875
+        frag 8 from TextNode start: 528, length: 21, rect: [243.1875,152 178.53125x18] baseline: 13.796875
             "aliquet rhoncus urna."
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,170] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
