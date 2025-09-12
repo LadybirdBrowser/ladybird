@@ -124,6 +124,12 @@ i64 Duration::to_seconds() const
     return m_seconds;
 }
 
+f64 Duration::to_seconds_f64() const
+{
+    VERIFY(m_nanoseconds < 1'000'000'000);
+    return static_cast<double>(m_seconds) + (m_nanoseconds / 1'000'000'000.0);
+}
+
 i64 Duration::to_milliseconds() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);
