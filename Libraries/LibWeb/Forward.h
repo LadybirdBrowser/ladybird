@@ -235,6 +235,7 @@ class CSSDescriptors;
 class CSSFontFaceDescriptors;
 class CSSFontFaceRule;
 class CSSGroupingRule;
+class CSSImageValue;
 class CSSImportRule;
 class CSSKeyframeRule;
 class CSSKeyframesRule;
