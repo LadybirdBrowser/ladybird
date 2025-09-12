@@ -40,6 +40,8 @@ public:
     virtual void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
+
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, String const& associated_property) const override;
 };
 
 // And now, some gradient related things. Maybe these should live somewhere else.
