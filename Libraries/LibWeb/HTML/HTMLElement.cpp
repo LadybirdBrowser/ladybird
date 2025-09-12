@@ -318,7 +318,8 @@ struct RequiredLineBreakCount {
 // https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
 static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collection_steps(DOM::Node const& node)
 {
-    // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree order, and then concatenating the results to a single list.
+    // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree
+    //    order, and then concatenating the results to a single list.
     Vector<Variant<Utf16String, RequiredLineBreakCount>> items;
     node.for_each_child([&](auto const& child) {
         auto child_items = rendered_text_collection_steps(child);
@@ -348,18 +349,22 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
     if (computed_values.content_visibility() == CSS::ContentVisibility::Hidden)
         return items;
 
-    // 4. If node is a Text node, then for each CSS text box produced by node, in content order,
-    //    compute the text of the box after application of the CSS 'white-space' processing rules
-    //    and 'text-transform' rules, set items to the list of the resulting strings, and return items.
+    // 4. If node is a Text node, then for each CSS text box produced by node, in content order, compute the text of the
+    //    box after application of the CSS 'white-space' processing rules and 'text-transform' rules, set items to the
+    //    list of the resulting strings, and return items.
 
-    //    FIXME: The CSS 'white-space' processing rules are slightly modified:
-    //           collapsible spaces at the end of lines are always collapsed,
-    //           but they are only removed if the line is the last line of the block,
-    //           or it ends with a br element. Soft hyphens should be preserved. [CSSTEXT]
+    //    FIXME: The CSS 'white-space' processing rules are slightly modified: collapsible spaces at the end of lines are
+    //    always collapsed, but they are only removed if the line is the last line of the block, or it ends with a br
+    //    element. Soft hyphens should be preserved. [CSSTEXT]
 
-    if (is<DOM::Text>(node)) {
-        auto const* layout_text_node = as<Layout::TextNode>(layout_node);
-        items.append(layout_text_node->text_for_rendering());
+    if (auto const* layout_text_node = as_if<Layout::TextNode>(layout_node)) {
+        Layout::TextNode::ChunkIterator iterator { *layout_text_node, false, false };
+        while (true) {
+            auto chunk = iterator.next();
+            if (!chunk.has_value())
+                break;
+            items.append(Utf16String::from_utf16(chunk.release_value().view));
+        }
         return items;
     }
 
@@ -430,9 +435,8 @@ Utf16String HTMLElement::get_the_text_steps()
     while (!results.is_empty() && results.last().has<RequiredLineBreakCount>())
         results.take_last();
 
-    // 6. Replace each remaining run of consecutive required line break count items
-    //    with a string consisting of as many U+000A LF code points as the maximum of the values
-    //    in the required line break count items.
+    // 6. Replace each remaining run of consecutive required line break count items with a string consisting of as many
+    //    U+000A LF code points as the maximum of the values in the required line break count items.
     StringBuilder builder(StringBuilder::Mode::UTF16);
     for (size_t i = 0; i < results.size(); ++i) {
         results[i].visit(

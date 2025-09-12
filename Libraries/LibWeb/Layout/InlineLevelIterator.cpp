@@ -490,11 +490,9 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
     if (!m_current_node)
         return {};
 
-    if (is<Layout::TextNode>(*m_current_node)) {
-        auto& text_node = static_cast<Layout::TextNode const&>(*m_current_node);
-
+    if (auto* text_node = as_if<Layout::TextNode>(*m_current_node)) {
         if (!m_text_node_context.has_value())
-            enter_text_node(text_node);
+            enter_text_node(*text_node);
 
         auto chunk_opt = m_text_node_context->chunk_iterator.next();
         if (!chunk_opt.has_value()) {
@@ -511,7 +509,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         if (text_type == Gfx::GlyphRun::TextType::Ltr || text_type == Gfx::GlyphRun::TextType::Rtl)
             m_text_node_context->last_known_direction = text_type;
 
-        if (m_text_node_context->do_respect_linebreaks && chunk.has_breaking_newline) {
+        auto do_respect_linebreak = m_text_node_context->chunk_iterator.should_respect_linebreaks();
+        if (do_respect_linebreak && chunk.has_breaking_newline) {
             m_text_node_context->is_last_chunk = true;
             if (chunk.is_all_whitespace)
                 text_type = Gfx::GlyphRun::TextType::EndPadding;
@@ -520,15 +519,12 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         if (text_type == Gfx::GlyphRun::TextType::ContextDependent)
             text_type = resolve_text_direction_from_context();
 
-        if (m_text_node_context->do_respect_linebreaks && chunk.has_breaking_newline) {
-            return Item {
-                .type = Item::Type::ForcedBreak,
-            };
-        }
+        if (do_respect_linebreak && chunk.has_breaking_newline)
+            return Item { .type = Item::Type::ForcedBreak };
 
-        auto letter_spacing = text_node.computed_values().letter_spacing();
+        auto letter_spacing = text_node->computed_values().letter_spacing();
         // FIXME: We should apply word spacing to all word-separator characters not just breaking tabs
-        auto word_spacing = text_node.computed_values().word_spacing();
+        auto word_spacing = text_node->computed_values().word_spacing();
 
         auto x = 0.0f;
         if (chunk.has_breaking_tab) {
@@ -541,13 +537,13 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             }
 
             // https://drafts.csswg.org/css-text/#tab-size-property
-            CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node) };
-            auto tab_size = text_node.computed_values().tab_size();
+            CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*text_node) };
+            auto tab_size = text_node->computed_values().tab_size();
             CSSPixels tab_width;
             tab_width = tab_size.visit(
                 [&](CSS::LengthOrCalculated const& t) -> CSSPixels {
                     return t.resolved(calculation_context)
-                        .map([&](auto& it) { return it.to_px(text_node); })
+                        .map([&](auto& it) { return it.to_px(*text_node); })
                         .value_or(0);
                 },
                 [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
@@ -585,16 +581,17 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
-        bool is_generated_empty_string = text_node.is_generated() && chunk.length == 0;
+        bool is_generated_empty_string = text_node->is_generated() && chunk.length == 0;
+        auto collapse_whitespace = m_text_node_context->chunk_iterator.should_collapse_whitespace();
 
         Item item {
             .type = Item::Type::Text,
-            .node = &text_node,
+            .node = text_node,
             .glyph_run = move(glyph_run),
             .offset_in_node = chunk.start,
             .length_in_node = chunk.length,
             .width = chunk_width,
-            .is_collapsible_whitespace = m_text_node_context->do_collapse && chunk.is_all_whitespace && !is_generated_empty_string,
+            .is_collapsible_whitespace = collapse_whitespace && chunk.is_all_whitespace && !is_generated_empty_string,
         };
 
         add_extra_box_model_metrics_to_item(item, m_text_node_context->is_first_chunk, m_text_node_context->is_last_chunk);
@@ -671,17 +668,11 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
     auto white_space_collapse = text_node.computed_values().white_space_collapse();
     auto text_wrap_mode = text_node.computed_values().text_wrap_mode();
 
-    bool do_collapse = white_space_collapse == CSS::WhiteSpaceCollapse::Collapse || white_space_collapse == CSS::WhiteSpaceCollapse::PreserveBreaks;
+    // https://drafts.csswg.org/css-text-4/#collapse
     bool do_wrap_lines = text_wrap_mode == CSS::TextWrapMode::Wrap;
-    bool do_respect_linebreaks = white_space_collapse == CSS::WhiteSpaceCollapse::Preserve || white_space_collapse == CSS::WhiteSpaceCollapse::PreserveBreaks || white_space_collapse == CSS::WhiteSpaceCollapse::BreakSpaces;
-
-    if (text_node.dom_node().is_editable() && !text_node.dom_node().is_uninteresting_whitespace_node())
-        do_collapse = false;
+    bool do_respect_linebreaks = first_is_one_of(white_space_collapse, CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces);
 
     m_text_node_context = TextNodeContext {
-        .do_collapse = do_collapse,
-        .do_wrap_lines = do_wrap_lines,
-        .do_respect_linebreaks = do_respect_linebreaks,
         .is_first_chunk = true,
         .is_last_chunk = false,
         .chunk_iterator = TextNode::ChunkIterator { text_node, do_wrap_lines, do_respect_linebreaks },

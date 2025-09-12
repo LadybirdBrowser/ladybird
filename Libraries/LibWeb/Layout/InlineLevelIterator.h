@@ -81,9 +81,6 @@ private:
     LayoutMode const m_layout_mode;
 
     struct TextNodeContext {
-        bool do_collapse {};
-        bool do_wrap_lines {};
-        bool do_respect_linebreaks {};
         bool is_first_chunk {};
         bool is_last_chunk {};
         TextNode::ChunkIterator chunk_iterator;

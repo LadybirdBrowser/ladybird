@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 272 tests
 
-210 Pass
-62 Fail
+212 Pass
+60 Fail
 Pass	Simplest possible test ("<div>abc")
 Fail	Leading whitespace removed ("<div> abc")
 Fail	Trailing whitespace removed ("<div>abc ")
@@ -35,8 +35,8 @@ Pass	\t preserved ("<span style='white-space:pre'>abc\tdef")
 Fail	Leading whitespace removed ("<div style='white-space:pre-line'> abc")
 Fail	Trailing whitespace removed ("<div style='white-space:pre-line'>abc ")
 Pass	Internal whitespace collapsed ("<div style='white-space:pre-line'>abc  def")
-Fail	\n preserved ("<div style='white-space:pre-line'>abc\ndef")
-Fail	\r converted to newline ("<div style='white-space:pre-line'>abc\rdef")
+Pass	\n preserved ("<div style='white-space:pre-line'>abc\ndef")
+Pass	\r converted to newline ("<div style='white-space:pre-line'>abc\rdef")
 Pass	\t converted to space ("<div style='white-space:pre-line'>abc\tdef")
 Fail	Whitespace collapses across element boundaries ("<div><span>abc </span> def")
 Fail	Whitespace collapses across element boundaries ("<div><span>abc </span><span></span> def")

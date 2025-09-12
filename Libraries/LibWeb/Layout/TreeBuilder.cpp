@@ -490,10 +490,10 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
 
 static bool is_ignorable_whitespace(Layout::Node const& node)
 {
-    if (node.is_text_node() && static_cast<TextNode const&>(node).text_for_rendering().is_ascii_whitespace())
+    if (auto* text_node = as_if<TextNode>(node); text_node && text_node->text_for_rendering().is_ascii_whitespace())
         return true;
 
-    if (node.is_anonymous() && node.is_block_container() && static_cast<BlockContainer const&>(node).children_are_inline()) {
+    if (node.is_anonymous() && node.is_block_container() && node.children_are_inline()) {
         bool contains_only_white_space = true;
         node.for_each_in_inclusive_subtree([&contains_only_white_space](auto& descendant) {
             if (auto* text_node = as_if<TextNode>(descendant)) {

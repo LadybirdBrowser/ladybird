@@ -21,7 +21,7 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
     , m_size(fragment.size())
     , m_baseline(fragment.baseline())
     , m_start_offset(fragment.start())
-    , m_length_in_code_units(fragment.length())
+    , m_length_in_code_units(fragment.length_in_code_units())
     , m_glyph_run(fragment.glyph_run())
     , m_writing_mode(fragment.writing_mode())
 {

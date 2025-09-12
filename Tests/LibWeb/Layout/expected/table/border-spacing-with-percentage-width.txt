@@ -28,7 +28,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       BlockContainer <div.right> at [603.828125,8] floating [0+0+0 188.15625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-        frag 0 from TextNode start: 1, length: 1, rect: [603.828125,8 10.3125x18] baseline: 13.796875
+        frag 0 from TextNode start: 5, length: 1, rect: [603.828125,8 10.3125x18] baseline: 13.796875
             "C"
         TextNode <#text> (not painted)
 

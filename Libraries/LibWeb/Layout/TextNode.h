@@ -42,8 +42,12 @@ public:
 
     class ChunkIterator {
     public:
-        ChunkIterator(TextNode const&, bool wrap_lines, bool respect_linebreaks);
-        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter&, bool wrap_lines, bool respect_linebreaks);
+        ChunkIterator(TextNode const&, bool should_wrap_lines, bool should_respect_linebreaks);
+        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter&, bool should_wrap_lines, bool should_respect_linebreaks);
+
+        bool should_wrap_lines() const { return m_should_wrap_lines; }
+        bool should_respect_linebreaks() const { return m_should_respect_linebreaks; }
+        bool should_collapse_whitespace() const { return m_should_collapse_whitespace; }
 
         Optional<Chunk> next();
         Optional<Chunk> peek(size_t);
@@ -52,8 +56,9 @@ public:
         Optional<Chunk> next_without_peek();
         Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
 
-        bool const m_wrap_lines;
-        bool const m_respect_linebreaks;
+        bool const m_should_wrap_lines;
+        bool const m_should_respect_linebreaks;
+        bool m_should_collapse_whitespace;
         Utf16View m_view;
         Gfx::FontCascadeList const& m_font_cascade_list;
 

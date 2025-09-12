@@ -289,7 +289,7 @@ void LayoutState::commit(Box& root)
             if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box)) {
                 for (size_t line_index = 0; line_index < used_values.line_boxes.size(); ++line_index) {
                     auto& line_box = used_values.line_boxes[line_index];
-                    for (auto& fragment : line_box.fragments()) {
+                    for (auto const& fragment : line_box.fragments()) {
                         if (auto const* text_node = as_if<TextNode>(fragment.layout_node()))
                             text_nodes.set(const_cast<TextNode*>(text_node));
                         auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_index);
