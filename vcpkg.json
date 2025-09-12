@@ -28,7 +28,7 @@
     {
       "name": "dbus",
       "default-features": false,
-      "platform": "linux"
+      "platform": "linux | freebsd"
     },
     {
       "name": "dirent",
