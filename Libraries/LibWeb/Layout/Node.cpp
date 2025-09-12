@@ -608,6 +608,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
     computed_values.set_text_rendering(computed_style.text_rendering());
+    computed_values.set_text_underline_offset(computed_style.text_underline_offset());
 
     if (auto text_indent = computed_style.length_percentage(CSS::PropertyID::TextIndent, *this, CSS::ComputedProperties::ClampNegativeLengths::No); text_indent.has_value())
         computed_values.set_text_indent(text_indent.release_value());

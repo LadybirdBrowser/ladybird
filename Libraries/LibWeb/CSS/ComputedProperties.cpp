@@ -859,6 +859,31 @@ TextRendering ComputedProperties::text_rendering() const
     return keyword_to_text_rendering(value.to_keyword()).release_value();
 }
 
+CSSPixels ComputedProperties::text_underline_offset() const
+{
+    auto const& computed_text_underline_offset = property(PropertyID::TextUnderlineOffset);
+
+    // auto
+    if (computed_text_underline_offset.to_keyword() == Keyword::Auto)
+        return InitialValues::text_underline_offset();
+
+    // <length>
+    if (computed_text_underline_offset.is_length())
+        return computed_text_underline_offset.as_length().length().absolute_length_to_px();
+
+    // <percentage>
+    if (computed_text_underline_offset.is_percentage())
+        return font_size().scaled(computed_text_underline_offset.as_percentage().percentage().as_fraction());
+
+    // NOTE: We also support calc()'d <length-percentage>
+    if (computed_text_underline_offset.is_calculated())
+        // NOTE: We don't need to pass a length resolution context here as lengths have already been absolutized in
+        //       StyleComputer::compute_text_underline_offset
+        return computed_text_underline_offset.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
+
+    VERIFY_NOT_REACHED();
+}
+
 PointerEvents ComputedProperties::pointer_events() const
 {
     auto const& value = property(PropertyID::PointerEvents);

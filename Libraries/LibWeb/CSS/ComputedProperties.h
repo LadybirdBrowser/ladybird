@@ -91,6 +91,7 @@ public:
     TextJustify text_justify() const;
     TextOverflow text_overflow() const;
     TextRendering text_rendering() const;
+    CSSPixels text_underline_offset() const;
     Length border_spacing_horizontal(Layout::Node const&) const;
     Length border_spacing_vertical(Layout::Node const&) const;
     CaptionSide caption_side() const;

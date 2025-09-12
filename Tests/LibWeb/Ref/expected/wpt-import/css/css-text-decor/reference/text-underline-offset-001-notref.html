@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Non-reference case for text-underline-offset</title>
+    <link rel="stylesheet" type="text/css" href="../../..../../../fonts/ahem.css" />
+    <style>
+        #main {
+            margin: 2em;
+            display:flex
+        }
+        div span {
+            text-decoration: green underline;
+            text-decoration-skip-ink: none;
+            font: 20px/1 Ahem;
+            color: transparent;
+            padding-bottom: 20px;
+            border: 1px dotted transparent;
+            border-bottom-color: cyan;
+        }
+    </style>
+</head>
+<body>
+    <p class="instructions">Test passes if the box on the right has a lower underline than the box on the left</p>
+    <div id="main">
+        <div>
+            <p>left<span>XXXX</span></p>
+        </div>
+        <div>
+            <p><span id="rightbox">XXXX</span>right</p>
+        </div>
+    </div>
+</body>
+</html>

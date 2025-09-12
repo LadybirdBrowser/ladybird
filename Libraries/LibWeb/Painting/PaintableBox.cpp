@@ -814,6 +814,7 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
     auto line_style = paintable.computed_values().text_decoration_style();
     auto device_line_thickness = context.rounded_device_pixels(fragment.text_decoration_thickness());
     auto text_decoration_lines = paintable.computed_values().text_decoration_line();
+    auto text_underline_offset = paintable.computed_values().text_underline_offset();
     for (auto line : text_decoration_lines) {
         DevicePixelPoint line_start_point {};
         DevicePixelPoint line_end_point {};
@@ -826,6 +827,11 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
             device_line_thickness = context.rounded_device_pixels(1);
             line_style = CSS::TextDecorationStyle::Wavy;
             line = CSS::TextDecorationLine::Underline;
+
+            // https://drafts.csswg.org/css-text-decor-4/#underline-offset
+            // When the value of the text-decoration-line property is either spelling-error or grammar-error, the UA
+            // must ignore the value of text-underline-position.
+            text_underline_offset = CSS::InitialValues::text_underline_offset();
         } else if (line == CSS::TextDecorationLine::GrammarError) {
             // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-line-grammar-error
             // This value indicates the type of text decoration used by the user agent to highlight grammar mistakes.
@@ -834,14 +840,19 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
             device_line_thickness = context.rounded_device_pixels(1);
             line_style = CSS::TextDecorationStyle::Wavy;
             line = CSS::TextDecorationLine::Underline;
+
+            // https://drafts.csswg.org/css-text-decor-4/#underline-offset
+            // When the value of the text-decoration-line property is either spelling-error or grammar-error, the UA
+            // must ignore the value of text-underline-position.
+            text_underline_offset = CSS::InitialValues::text_underline_offset();
         }
 
         switch (line) {
         case CSS::TextDecorationLine::None:
             return;
         case CSS::TextDecorationLine::Underline:
-            line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline + 2));
-            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline + 2));
+            line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline + text_underline_offset));
+            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline + text_underline_offset));
             break;
         case CSS::TextDecorationLine::Overline:
             line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline - glyph_height));

@@ -152,6 +152,7 @@ public:
     static CSS::LengthPercentage text_indent() { return CSS::Length::make_px(0); }
     static CSS::TextWrapMode text_wrap_mode() { return CSS::TextWrapMode::Wrap; }
     static CSS::TextRendering text_rendering() { return CSS::TextRendering::Auto; }
+    static CSSPixels text_underline_offset() { return 2; }
     static CSS::Display display() { return CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow }; }
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
@@ -481,6 +482,7 @@ public:
     CSS::LengthPercentage const& text_indent() const { return m_inherited.text_indent; }
     CSS::TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
     CSS::TextRendering text_rendering() const { return m_inherited.text_rendering; }
+    CSSPixels text_underline_offset() const { return m_inherited.text_underline_offset; }
     Vector<CSS::TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
     TextDecorationThickness const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
     CSS::TextDecorationStyle text_decoration_style() const { return m_noninherited.text_decoration_style; }
@@ -698,6 +700,7 @@ protected:
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
         CSS::TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
         CSS::TextRendering text_rendering { InitialValues::text_rendering() };
+        CSSPixels text_underline_offset { InitialValues::text_underline_offset() };
         CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
         CSSPixels word_spacing { InitialValues::word_spacing() };
@@ -915,6 +918,7 @@ public:
     void set_text_wrap_mode(CSS::TextWrapMode value) { m_inherited.text_wrap_mode = value; }
     void set_text_overflow(CSS::TextOverflow value) { m_noninherited.text_overflow = value; }
     void set_text_rendering(CSS::TextRendering value) { m_inherited.text_rendering = value; }
+    void set_text_underline_offset(CSSPixels value) { m_inherited.text_underline_offset = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
