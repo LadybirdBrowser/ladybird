@@ -1227,7 +1227,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         //    named resize at the media element.
         if (video_track && is<HTMLVideoElement>(*this)) {
             auto duration = video_track ? video_track->duration() : audio_track->duration();
-            set_duration(static_cast<double>(duration.to_milliseconds()) / 1000.0);
+            set_duration(duration.to_seconds_f64());
 
             auto& video_element = as<HTMLVideoElement>(*this);
             video_element.set_video_width(video_track->pixel_width());
@@ -1238,7 +1238,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
             });
         } else {
             auto duration = audio_track ? audio_track->duration() : video_track->duration();
-            set_duration(static_cast<double>(duration.to_milliseconds()) / 1000.0);
+            set_duration(duration.to_seconds_f64());
         }
 
         // 6. Set the readyState attribute to HAVE_METADATA.
