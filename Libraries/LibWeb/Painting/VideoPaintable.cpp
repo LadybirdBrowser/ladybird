@@ -74,10 +74,15 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto current_playback_position = video_element.current_playback_position();
     auto ready_state = video_element.ready_state();
 
+    // NOTE: We combine the values of...
+    //       - The first frame of the video
+    //       - The last frame of the video to have been rendered
+    //       - The frame of video corresponding to the current playback position
+    //       ...into the value of VideoFrame below, as the playback system itself implements
+    //       the details of the selection of a video frame to match the specification in this
+    //       respect.
     enum class Representation : u8 {
-        FirstVideoFrame,
-        CurrentVideoFrame,
-        LastRenderedVideoFrame,
+        VideoFrame,
         PosterFrame,
         TransparentBlack,
     };
@@ -99,23 +104,27 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         //    show poster flag is set
         if (video_element.paused() && current_playback_position == 0 && video_element.show_poster()) {
             // The video element represents its poster frame, if any, or else the first frame of the video.
-            return poster_frame ? Representation::PosterFrame : Representation::FirstVideoFrame;
+            return poster_frame ? Representation::PosterFrame : Representation::VideoFrame;
         }
 
         // -> When the video element is paused, and the frame of video corresponding to the current playback position
         //    is not available (e.g. because the video is seeking or buffering)
+        //
+        //     The video element represents the last frame of the video to have been rendered.
+        //
+        // NOTE: We don't need to check this condition, as seeking is asynchronous, and the last available frame
+        //       will be kept until the seek completes.
+
         // -> When the video element is neither potentially playing nor paused (e.g. when seeking or stalled)
-        if (
-            (video_element.paused() && current_playback_position != current_frame.position)
-            || (!video_element.potentially_playing() && !video_element.paused())) {
+        if (!video_element.potentially_playing() && !video_element.paused()) {
             // The video element represents the last frame of the video to have been rendered.
-            return Representation::LastRenderedVideoFrame;
+            return Representation::VideoFrame;
         }
 
         // -> When the video element is paused
         if (video_element.paused()) {
             // The video element represents the frame of video corresponding to the current playback position.
-            return Representation::CurrentVideoFrame;
+            return Representation::VideoFrame;
         }
 
         // -> Otherwise (the video element has a video channel and is potentially playing)
@@ -123,7 +132,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         //     The video element represents the frame of video at the continuously increasing "current" position. When the
         //     current playback position changes such that the last frame rendered is no longer the frame corresponding to
         //     the current playback position in the video, the new frame must be rendered.
-        return Representation::CurrentVideoFrame;
+        return Representation::VideoFrame;
     }();
 
     auto paint_frame = [&](auto const& frame) {
@@ -148,11 +157,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto paint_user_agent_controls = video_element.has_attribute(HTML::AttributeNames::controls) || video_element.is_scripting_disabled();
 
     switch (representation) {
-    case Representation::FirstVideoFrame:
-    case Representation::CurrentVideoFrame:
-    case Representation::LastRenderedVideoFrame:
-        // FIXME: We likely need to cache all (or a subset of) decoded video frames along with their position. We at least
-        //        will need the first video frame and the last-rendered video frame.
+    case Representation::VideoFrame:
         if (current_frame.frame)
             paint_frame(current_frame.frame);
         if (paint_user_agent_controls)
