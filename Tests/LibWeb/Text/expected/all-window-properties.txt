@@ -74,6 +74,7 @@ CSSStyleRule
 CSSStyleSheet
 CSSStyleValue
 CSSSupportsRule
+CSSTransformComponent
 CSSTransition
 CSSUnitValue
 CSSUnparsedValue
