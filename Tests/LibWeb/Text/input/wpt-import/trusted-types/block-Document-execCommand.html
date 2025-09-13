@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<link rel="author" title="Daniel Vogelheim" href="mailto:vogelheim@chromium.org"></link>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/"></link>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+  // Tests that certain execCommand commands will observe Trusted Types if
+  // it's enforced.
+  const commands = [ "insertHTML", "paste" ];
+  const tt_commands = [ "insertHTML" ];
+
+  // A pass-through policy for testing.
+  const a_policy = trustedTypes.createPolicy("a policy", {"createHTML": x => x});
+
+  for (const command of commands) {
+    const requires_tt = tt_commands.includes(command);
+
+    // Test that execCommand with String throws, but only for commands that
+    // require TT.
+    if (requires_tt) {
+      test(t => {
+        assert_throws_js(TypeError, _ => document.execCommand(command, false, "<em>Hello World</em>"));
+      }, `Document.execCommand("${command}") throws.`);
+    } else {
+      test(t => {
+        document.execCommand(command, false, "<em>Hello World</em>");
+      }, `Document.execCommand("${command}") works as usual."`);
+    }
+    // Test that execCommand succeeds with a TrustedHTML argument.
+    test(t => {
+      document.execCommand(command, false, a_policy.createHTML("<em>Hello World</em>"));
+    }, `Document.execCommand("${command}") works with a TrustedHTML argument.`);
+  }
+
+  // Test that with a default policy, all comamnds will work again.
+  trustedTypes.createPolicy("default", {"createHTML": (x, _, sink) => {
+    assert_equals(sink, 'Document execCommand');
+    return x;
+  }});
+
+  for (const command of commands) {
+    test(t => {
+      document.execCommand(command, false, "<em>Hello World</em>");
+    }, `Document.execCommand("${command}") works as usual with a default policy.`);
+  }
+</script>
