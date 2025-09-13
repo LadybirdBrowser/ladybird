@@ -18,26 +18,21 @@ class Credential : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Credential);
 
 public:
-    [[nodiscard]] static GC::Ref<Credential> create(JS::Realm&);
-
     static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::VM&);
     static GC::Ref<WebIDL::Promise> will_request_conditional_creation(JS::VM&);
 
     virtual ~Credential() override;
 
     String const& id() { return m_id; }
-    String const& name() { return m_name; }
-    String const& icon_url() { return m_icon_url; }
 
     virtual String type() = 0;
 
 protected:
     explicit Credential(JS::Realm&);
+    Credential(JS::Realm&, String id);
     virtual void initialize(JS::Realm&) override;
 
     String m_id;
-    String m_name;
-    String m_icon_url;
 };
 
 struct CredentialData {
