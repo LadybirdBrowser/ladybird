@@ -3197,7 +3197,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<Sty
 
     // NOTE: We also support calc()'d numbers
     if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_number())
-        return NumberStyleValue::create(clamp(specified_value->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value(), 0, 1));
+        return NumberStyleValue::create(specified_value->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value());
 
     // <percentage>
     if (specified_value->is_percentage())
@@ -3205,7 +3205,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<Sty
 
     // NOTE: We also support calc()'d percentages
     if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_percentage())
-        return NumberStyleValue::create(clamp(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction(), 0, 1));
+        return NumberStyleValue::create(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction());
 
     VERIFY_NOT_REACHED();
 }
