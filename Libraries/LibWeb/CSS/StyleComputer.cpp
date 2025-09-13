@@ -1339,7 +1339,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         bool has_completed_transition = existing_transition && existing_transition->is_finished();
 
         auto start_a_transition = [&](auto delay, auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value.to_string(SerializationMode::Normal), end_value.to_string(SerializationMode::Normal));
 
             auto transition = CSSTransition::start_a_transition(abstract_element, property_id,
                 document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
