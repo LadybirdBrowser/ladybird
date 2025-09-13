@@ -1193,6 +1193,108 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             interpolated_left.release_nonnull(),
             from_border_image_slice.fill());
     }
+    case StyleValue::Type::BasicShape: {
+        auto& from_shape = from.as_basic_shape().basic_shape();
+        auto& to_shape = to.as_basic_shape().basic_shape();
+        if (from_shape.index() != to_shape.index())
+            return {};
+
+        auto interpolate_length_box = [](CalculationContext const& calculation_context, LengthBox const& from, LengthBox const& to, float delta) -> Optional<LengthBox> {
+            auto interpolated_top = interpolate_length_percentage_or_auto(calculation_context, from.top(), to.top(), delta);
+            auto interpolated_right = interpolate_length_percentage_or_auto(calculation_context, from.right(), to.right(), delta);
+            auto interpolated_bottom = interpolate_length_percentage_or_auto(calculation_context, from.bottom(), to.bottom(), delta);
+            auto interpolated_left = interpolate_length_percentage_or_auto(calculation_context, from.left(), to.left(), delta);
+            if (!interpolated_top.has_value() || !interpolated_right.has_value() || !interpolated_bottom.has_value() || !interpolated_left.has_value())
+                return {};
+            return LengthBox { *interpolated_top, *interpolated_right, *interpolated_bottom, *interpolated_left };
+        };
+
+        Optional<BasicShape> interpolated_shape;
+        from_shape.visit(
+            [&](Inset const& from_inset) {
+                auto& to_inset = to_shape.get<Inset>();
+                auto interpolated_inset_box = interpolate_length_box(calculation_context, from_inset.inset_box, to_inset.inset_box, delta);
+                if (!interpolated_inset_box.has_value())
+                    return;
+                interpolated_shape = Inset { *interpolated_inset_box };
+            },
+            [&](Xywh const& from_xywh) {
+                auto& to_xywh = to_shape.get<Xywh>();
+                auto interpolated_x = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
+                auto interpolated_y = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
+                auto interpolated_width = interpolate_length_percentage(calculation_context, from_xywh.width, to_xywh.width, delta);
+                auto interpolated_height = interpolate_length_percentage(calculation_context, from_xywh.height, to_xywh.height, delta);
+                if (!interpolated_x.has_value() || !interpolated_y.has_value() || !interpolated_width.has_value() || !interpolated_height.has_value())
+                    return;
+                interpolated_shape = Xywh { *interpolated_x, *interpolated_y, *interpolated_width, *interpolated_height };
+            },
+            [&](Rect const& from_rect) {
+                auto const& to_rect = to_shape.get<Rect>();
+                auto from_rect_box = from_rect.box;
+                auto to_rect_box = to_rect.box;
+                auto interpolated_rect_box = interpolate_length_box(calculation_context, from_rect_box, to_rect_box, delta);
+                if (!interpolated_rect_box.has_value())
+                    return;
+                interpolated_shape = Rect { *interpolated_rect_box };
+            },
+            [&](Circle const& from_circle) {
+                auto const& to_circle = to_shape.get<Circle>();
+                if (!from_circle.radius.has<LengthPercentage>() || !to_circle.radius.has<LengthPercentage>())
+                    return;
+                auto interpolated_radius = interpolate_length_percentage(calculation_context, from_circle.radius.get<LengthPercentage>(), to_circle.radius.get<LengthPercentage>(), delta);
+                if (!interpolated_radius.has_value())
+                    return;
+                auto interpolated_position = interpolate_value(element, calculation_context, from_circle.position, to_circle.position, delta, allow_discrete);
+                if (!interpolated_position)
+                    return;
+                interpolated_shape = Circle { *interpolated_radius, interpolated_position->as_position() };
+            },
+            [&](Ellipse const& from_ellipse) {
+                auto const& to_ellipse = to_shape.get<Ellipse>();
+                if (!from_ellipse.radius_x.has<LengthPercentage>() || !to_ellipse.radius_x.has<LengthPercentage>())
+                    return;
+                if (!from_ellipse.radius_y.has<LengthPercentage>() || !to_ellipse.radius_y.has<LengthPercentage>())
+                    return;
+                auto interpolated_radius_x = interpolate_length_percentage(calculation_context, from_ellipse.radius_x.get<LengthPercentage>(), to_ellipse.radius_x.get<LengthPercentage>(), delta);
+                if (!interpolated_radius_x.has_value())
+                    return;
+                auto interpolated_radius_y = interpolate_length_percentage(calculation_context, from_ellipse.radius_y.get<LengthPercentage>(), to_ellipse.radius_y.get<LengthPercentage>(), delta);
+                if (!interpolated_radius_y.has_value())
+                    return;
+                auto interpolated_position = interpolate_value(element, calculation_context, from_ellipse.position, to_ellipse.position, delta, allow_discrete);
+                if (!interpolated_position)
+                    return;
+                interpolated_shape = Ellipse { *interpolated_radius_x, *interpolated_radius_y, interpolated_position->as_position() };
+            },
+            [&](Polygon const& from_polygon) {
+                auto const& to_polygon = to_shape.get<Polygon>();
+                if (from_polygon.fill_rule != to_polygon.fill_rule)
+                    return;
+                if (from_polygon.points.size() != to_polygon.points.size())
+                    return;
+                Vector<Polygon::Point> interpolated_points;
+                interpolated_points.ensure_capacity(from_polygon.points.size());
+                for (size_t i = 0; i < from_polygon.points.size(); i++) {
+                    auto const& from_point = from_polygon.points[i];
+                    auto const& to_point = to_polygon.points[i];
+                    auto interpolated_point_x = interpolate_length_percentage(calculation_context, from_point.x, to_point.x, delta);
+                    auto interpolated_point_y = interpolate_length_percentage(calculation_context, from_point.y, to_point.y, delta);
+                    if (!interpolated_point_x.has_value() || !interpolated_point_y.has_value())
+                        return;
+                    interpolated_points.unchecked_append(Polygon::Point { *interpolated_point_x, *interpolated_point_y });
+                }
+
+                interpolated_shape = Polygon { from_polygon.fill_rule, move(interpolated_points) };
+            },
+            [](auto&) {
+                // FIXME: Implement interpolation for all shapes
+            });
+
+        if (!interpolated_shape.has_value())
+            return {};
+
+        return BasicShapeStyleValue::create(*interpolated_shape);
+    }
     case StyleValue::Type::Color: {
         ColorResolutionContext color_resolution_context {};
         if (auto node = element.layout_node()) {
