@@ -18,6 +18,10 @@
 #    include <LibGfx/MetalContext.h>
 #endif
 
+#if defined(AK_OS_WINDOWS)
+struct ID3D12Resource;
+#endif
+
 class SkCanvas;
 class SkSurface;
 
@@ -37,6 +41,10 @@ public:
 
 #ifdef AK_OS_MACOS
     static NonnullRefPtr<PaintingSurface> create_from_iosurface(Core::IOSurfaceHandle&&, NonnullRefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
+#endif
+
+#if defined(AK_OS_WINDOWS)
+    static NonnullRefPtr<PaintingSurface> create_from_d3dtexture(NonnullRefPtr<SkiaBackendContext> context, ID3D12Resource& d3d_shared_texture, Origin origin);
 #endif
 
 #ifdef USE_VULKAN_IMAGES
