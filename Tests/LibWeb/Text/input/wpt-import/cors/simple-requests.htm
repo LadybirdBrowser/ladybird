@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CORS - simple requests</title>
+<meta name=author title="Odin Hørthe Omdal" href="mailto:odiho@opera.com">
+
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src=support.js?pipe=sub></script>
+<script src=../common/utils.js></script>
+
+<h1>Simple requests</h1>
+<p>Simple requests shouldn't trigger preflight</p>
+
+<div id=log></div>
+<script>
+
+var test_c = 0;
+
+function check_simple(method, headers)
+{
+    test(function() {
+        var client = new XMLHttpRequest()
+        var uuid_token = token();
+        client.open(method, CROSSDOMAIN + 'resources/preflight.py?token='
+                            + uuid_token, false)
+        for (head in headers)
+            client.setRequestHeader(head, headers[head])
+        client.send("data")
+        assert_equals(client.getResponseHeader('content-type'), "text/plain")
+        if (method == 'HEAD')
+            assert_equals(client.response, '', 'response')
+        else
+            assert_equals(client.response, 'NO', 'response')
+
+        client.open('GET', 'resources/preflight.py?check&token='
+                          + uuid_token, false)
+        client.send("data")
+        assert_equals(client.response, "0", "Found preflight log")
+    },
+    'No preflight ' + method + ' and ' + JSON.stringify(headers))
+}
+
+function check_simple_headers(headers) {
+    check_simple('GET', headers)
+    check_simple('HEAD', headers)
+    check_simple('POST', headers)
+}
+
+check_simple_headers({'Accept': 'test'})
+check_simple_headers({'accept-language': 'test'})
+check_simple_headers({'CONTENT-language': 'test'})
+
+check_simple_headers({'Content-Type': 'application/x-www-form-urlencoded'})
+check_simple_headers({'content-type': 'multipart/form-data'})
+check_simple_headers({'content-type': 'text/plain'})
+
+check_simple_headers({
+                        'accept': 'test',
+                        'accept-language': 'test',
+                        'content-language': 'test',
+                        'content-type': 'text/plain; parameter=whatever'
+                     })
+
+check_simple('Get', {'content-type': 'text/plain; parameter=extra_bonus'})
+check_simple('post', {'content-type': 'text/plain'})
+
+/* Extra async test */
+
+var simple_async = async_test("Check simple headers (async)")
+simple_async.step(function (){
+    var time = new Date().getTime(),
+        client = new XMLHttpRequest()
+    var uuid_token = token();
+    client.open('POST', CROSSDOMAIN + 'resources/preflight.py?token='
+                        + uuid_token, true)
+
+    client.setRequestHeader('Accept', 'jewelry')
+    client.setRequestHeader('accept-language', 'nn-NO,nn,en')
+    client.setRequestHeader('content-type', 'text/plain; parameter=extra')
+    client.setRequestHeader('content-Language', 'nn-NO')
+
+    client.onload = simple_async.step_func(function() {
+        assert_equals(client.getResponseHeader('content-type'), "text/plain", 'content-type response header')
+        assert_equals(client.response, 'NO', 'response')
+        simple_async.done()
+    })
+    client.onerror = simple_async.step_func(function () { assert_unreached('onerror') })
+    client.send()
+})
+</script>

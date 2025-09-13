@@ -49,6 +49,22 @@ public:
         return m_headers;
     }
 
+    void sanitize_request_headers_for_method(const ByteString& method)
+    {
+        auto method_allows_body = method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv);
+
+        if (!method_allows_body) {
+            m_map.remove_all_matching([](auto const& header_name, auto const&) {
+                auto& name = header_name;
+                return name.is_one_of("content-length"sv, "content-type"sv, "transfer-encoding"sv, "content-encoding"sv, "expect"sv);
+            });
+            m_headers.remove_all_matching([](auto const& header) {
+                auto& name = header.name;
+                return name.is_one_of("Content-Length"sv, "Content-Type"sv, "Transfer-Encoding"sv, "Content-Encoding"sv, "Expect"sv);
+            });
+        }
+    }
+
 private:
     HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> m_map;
     Vector<Header> m_headers;
