@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 56 tests
 
-17 Pass
-39 Fail
-Fail	Compositing: property <border-image-slice> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (-0.25) should be [0]
+19 Pass
+37 Fail
+Pass	Compositing: property <border-image-slice> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (-0.25) should be [0]
 Fail	Compositing: property <border-image-slice> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (0) should be [2 4 6 8]
 Fail	Compositing: property <border-image-slice> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (0.25) should be [27 29 31 33]
 Fail	Compositing: property <border-image-slice> underlying [1 2 3 4] from add [1 2 3 4] to add [101 102 103 104] at (0.5) should be [52 54 56 58]
@@ -18,7 +18,7 @@ Fail	Compositing: property <border-image-slice> underlying [100 200 300 400 fill
 Fail	Compositing: property <border-image-slice> underlying [100 200 300 400 fill] from add [100 fill] to add [200 300 500 fill] at (0.75) should be [275 450 700 650 fill]
 Fail	Compositing: property <border-image-slice> underlying [100 200 300 400 fill] from add [100 fill] to add [200 300 500 fill] at (1) should be [300 500 800 700 fill]
 Fail	Compositing: property <border-image-slice> underlying [100 200 300 400 fill] from add [100 fill] to add [200 300 500 fill] at (1.25) should be [325 550 900 750 fill]
-Fail	Compositing: property <border-image-slice> underlying [1 2 3% 4%] from add [1 2 3% 4%] to add [101 102 103% 104%] at (-0.25) should be [0 0 0% 0%]
+Pass	Compositing: property <border-image-slice> underlying [1 2 3% 4%] from add [1 2 3% 4%] to add [101 102 103% 104%] at (-0.25) should be [0 0 0% 0%]
 Fail	Compositing: property <border-image-slice> underlying [1 2 3% 4%] from add [1 2 3% 4%] to add [101 102 103% 104%] at (0) should be [2 4 6% 8%]
 Fail	Compositing: property <border-image-slice> underlying [1 2 3% 4%] from add [1 2 3% 4%] to add [101 102 103% 104%] at (0.25) should be [27 29 31% 33%]
 Fail	Compositing: property <border-image-slice> underlying [1 2 3% 4%] from add [1 2 3% 4%] to add [101 102 103% 104%] at (0.5) should be [52 54 56% 58%]

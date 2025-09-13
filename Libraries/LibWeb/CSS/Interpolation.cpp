@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -1173,6 +1174,24 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             return {};
 
         return BackgroundSizeStyleValue::create(*interpolated_x, *interpolated_y);
+    }
+    case StyleValue::Type::BorderImageSlice: {
+        auto& from_border_image_slice = from.as_border_image_slice();
+        auto& to_border_image_slice = to.as_border_image_slice();
+        if (from_border_image_slice.fill() != to_border_image_slice.fill())
+            return {};
+        auto interpolated_top = interpolate_value(element, calculation_context, from_border_image_slice.top(), to_border_image_slice.top(), delta, allow_discrete);
+        auto interpolated_right = interpolate_value(element, calculation_context, from_border_image_slice.right(), to_border_image_slice.right(), delta, allow_discrete);
+        auto interpolated_bottom = interpolate_value(element, calculation_context, from_border_image_slice.bottom(), to_border_image_slice.bottom(), delta, allow_discrete);
+        auto interpolated_left = interpolate_value(element, calculation_context, from_border_image_slice.left(), to_border_image_slice.left(), delta, allow_discrete);
+        if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left)
+            return {};
+        return BorderImageSliceStyleValue::create(
+            interpolated_top.release_nonnull(),
+            interpolated_right.release_nonnull(),
+            interpolated_bottom.release_nonnull(),
+            interpolated_left.release_nonnull(),
+            from_border_image_slice.fill());
     }
     case StyleValue::Type::Color: {
         ColorResolutionContext color_resolution_context {};
