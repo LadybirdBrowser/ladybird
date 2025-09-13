@@ -13,9 +13,6 @@
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <crt_externs.h>
-#elif defined(AK_OS_FREEBSD)
-// FIXME: Remove this once FreeBSD exports environ from libc
-extern "C" __attribute__((weak)) char** environ;
 #elif !defined(AK_OS_WINDOWS)
 extern "C" char** environ;
 #endif
