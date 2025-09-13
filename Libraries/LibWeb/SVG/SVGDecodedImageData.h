@@ -40,7 +40,7 @@ public:
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
-    RefPtr<Gfx::Bitmap> render(Gfx::IntSize) const;
+    RefPtr<Gfx::ImmutableBitmap> render(Gfx::IntSize) const;
 
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::ImmutableBitmap>> m_cached_rendered_bitmaps;
 
