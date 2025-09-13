@@ -180,10 +180,10 @@
       "platform": "windows",
       "default-features": false,
       "features": [
+        "direct3d",
         "freetype",
         "harfbuzz",
-        "icu",
-        "vulkan"
+        "icu"
       ]
     },
     {

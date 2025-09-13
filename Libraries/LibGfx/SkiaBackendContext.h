@@ -25,6 +25,7 @@ namespace Gfx {
 
 struct VulkanContext;
 class MetalContext;
+class Direct3DContext;
 
 class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
     AK_MAKE_NONCOPYABLE(SkiaBackendContext);
@@ -39,6 +40,10 @@ public:
     static RefPtr<SkiaBackendContext> create_metal_context(NonnullRefPtr<MetalContext>);
 #endif
 
+#if defined(AK_OS_WINDOWS)
+    static RefPtr<SkiaBackendContext> create_direct3d_context(NonnullOwnPtr<Direct3DContext>);
+#endif
+
     SkiaBackendContext() { }
     virtual ~SkiaBackendContext() { }
 
@@ -47,6 +52,7 @@ public:
 
     virtual MetalContext& metal_context() = 0;
     virtual VulkanContext const& vulkan_context() = 0;
+    virtual Direct3DContext const& direct3d_context() = 0;
 
     void lock() { m_mutex.lock(); }
     void unlock() { m_mutex.unlock(); }
