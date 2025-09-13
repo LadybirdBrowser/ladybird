@@ -182,24 +182,25 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
                 db->wait_for_connections_to_close(open_connections, GC::create_function(realm.heap(), [&realm, connection, version, request, on_complete] {
                     // 6. Run upgrade a database using connection, version and request.
-                    upgrade_a_database(realm, connection, version, request);
+                    upgrade_a_database(realm, connection, version, request, GC::create_function(realm.heap(), [&realm, connection, request, on_complete] {
+                        // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
+                        if (connection->state() == ConnectionState::Closed) {
+                            on_complete->function()(WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
+                            return;
+                        }
 
-                    // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
-                    if (connection->state() == ConnectionState::Closed) {
-                        on_complete->function()(WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
-                        return;
-                    }
+                        // 8. If request's error is set, run the steps to close a database connection with connection,
+                        //    return a newly created "AbortError" DOMException and abort these steps.
+                        if (request->has_error()) {
+                            close_a_database_connection(*connection, GC::create_function(realm.heap(), [&realm, on_complete] {
+                                on_complete->function()(WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
+                            }));
+                            return;
+                        }
 
-                    // 8. If request's error is set, run the steps to close a database connection with connection,
-                    //    return a newly created "AbortError" DOMException and abort these steps.
-                    if (request->has_error()) {
-                        close_a_database_connection(*connection);
-                        on_complete->function()(WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
-                        return;
-                    }
-
-                    // 11. Return connection.
-                    on_complete->function()(connection);
+                        // 11. Return connection.
+                        on_complete->function()(connection);
+                    }));
                 }));
             });
 
@@ -356,7 +357,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 }
 
 // https://w3c.github.io/IndexedDB/#close-a-database-connection
-void close_a_database_connection(GC::Ref<IDBDatabase> connection, bool forced)
+void close_a_database_connection(GC::Ref<IDBDatabase> connection, GC::Ptr<GC::Function<void()>> on_complete, bool forced)
 {
     auto& realm = connection->realm();
 
@@ -371,32 +372,28 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, bool forced)
     }
 
     // 3. Wait for all transactions created using connection to complete. Once they are complete, connection is closed.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [connection]() {
-        if constexpr (IDB_DEBUG) {
-            dbgln("close_a_database_connection: waiting for step 3");
-            dbgln("transactions created using connection:");
-            for (auto const& transaction : connection->transactions()) {
-                dbgln("  - {} - {}", transaction->uuid(), (u8)transaction->state());
-            }
-        }
-
+    if constexpr (IDB_DEBUG) {
+        dbgln("close_a_database_connection: waiting for step 3");
+        dbgln("transactions created using connection:");
         for (auto const& transaction : connection->transactions()) {
-            if (!transaction->is_finished())
-                return false;
+            dbgln("  - {} - {}", transaction->uuid(), (u8)transaction->state());
         }
+    }
 
-        return true;
+    connection->wait_for_transactions_to_finish(connection->transactions(), GC::create_function(realm.heap(), [&realm, connection, forced, on_complete] {
+        connection->set_state(ConnectionState::Closed);
+
+        // 4. If the forced flag is true, then fire an event named close at connection.
+        if (forced)
+            connection->dispatch_event(DOM::Event::create(realm, HTML::EventNames::close));
+
+        if (on_complete)
+            queue_a_database_task(on_complete.as_nonnull());
     }));
-
-    connection->set_state(ConnectionState::Closed);
-
-    // 4. If the forced flag is true, then fire an event named close at connection.
-    if (forced)
-        connection->dispatch_event(DOM::Event::create(realm, HTML::EventNames::close));
 }
 
 // https://w3c.github.io/IndexedDB/#upgrade-a-database
-void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
+void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request, GC::Ref<GC::Function<void()>> on_complete)
 {
     // 1. Let db be connection’s database.
     auto db = connection->associated_database();
@@ -463,9 +460,9 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     }));
 
     // 11. Wait for transaction to finish.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [transaction]() {
-        dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
-        return transaction->is_finished();
+    dbgln_if(IDB_DEBUG, "upgrade_a_database: waiting for step 11");
+    connection->wait_for_transactions_to_finish({ &transaction, 1 }, GC::create_function(realm.heap(), [on_complete] {
+        queue_a_database_task(on_complete);
     }));
 }
 
