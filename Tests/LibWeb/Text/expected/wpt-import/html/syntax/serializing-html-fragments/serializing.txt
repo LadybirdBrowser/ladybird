@@ -1,0 +1,243 @@
+Harness status: OK
+
+Found 238 tests
+
+238 Pass
+Pass	innerHTML 0 
+Pass	innerHTML 1 <a></a>
+Pass	innerHTML 2 <a b="c"></a>
+Pass	innerHTML 3 <a b="c"></a>
+Pass	innerHTML 4 <a b="&amp;"></a>
+Pass	innerHTML 5 <a b="&nbsp;"></a>
+Pass	innerHTML 6 <a b="&quot;"></a>
+Pass	innerHTML 7 <a b="&lt;"></a>
+Pass	innerHTML 8 <a b="&gt;"></a>
+Pass	innerHTML 9 <a href="javascript:&quot;&lt;&gt;&quot;"></a>
+Pass	innerHTML 10 <svg xlink:href="a"></svg>
+Pass	innerHTML 11 <svg xmlns:svg="test"></svg>
+Pass	innerHTML 12 a
+Pass	innerHTML 13 &amp;
+Pass	innerHTML 14 &nbsp;
+Pass	innerHTML 15 &lt;
+Pass	innerHTML 16 &gt;
+Pass	innerHTML 17 "
+Pass	innerHTML 18 <style><&></style>
+Pass	innerHTML 19 <script type="test"><&></script>
+Pass	innerHTML 20 <&>
+Pass	innerHTML 21 <xmp><&></xmp>
+Pass	innerHTML 22 <iframe><&></iframe>
+Pass	innerHTML 23 <noembed><&></noembed>
+Pass	innerHTML 24 <noframes><&></noframes>
+Pass	innerHTML 25 <noscript><&></noscript>
+Pass	innerHTML 26 <!--data-->
+Pass	innerHTML 27 <a><b><c></c></b><d>e</d><f><g>h</g></f></a>
+Pass	innerHTML 28 
+Pass	outerHTML 0 <span></span>
+Pass	outerHTML 1 <span><a></a></span>
+Pass	outerHTML 2 <span><a b="c"></a></span>
+Pass	outerHTML 3 <span><a b="c"></a></span>
+Pass	outerHTML 4 <span><a b="&amp;"></a></span>
+Pass	outerHTML 5 <span><a b="&nbsp;"></a></span>
+Pass	outerHTML 6 <span><a b="&quot;"></a></span>
+Pass	outerHTML 7 <span><a b="&lt;"></a></span>
+Pass	outerHTML 8 <span><a b="&gt;"></a></span>
+Pass	outerHTML 9 <span><a href="javascript:&quot;&lt;&gt;&quot;"></a></span>
+Pass	outerHTML 10 <span><svg xlink:href="a"></svg></span>
+Pass	outerHTML 11 <span><svg xmlns:svg="test"></svg></span>
+Pass	outerHTML 12 <span>a</span>
+Pass	outerHTML 13 <span>&amp;</span>
+Pass	outerHTML 14 <span>&nbsp;</span>
+Pass	outerHTML 15 <span>&lt;</span>
+Pass	outerHTML 16 <span>&gt;</span>
+Pass	outerHTML 17 <span>"</span>
+Pass	outerHTML 18 <span><style><&></style></span>
+Pass	outerHTML 19 <span><script type="test"><&></script></span>
+Pass	outerHTML 20 <script type="test"><&></script>
+Pass	outerHTML 21 <span><xmp><&></xmp></span>
+Pass	outerHTML 22 <span><iframe><&></iframe></span>
+Pass	outerHTML 23 <span><noembed><&></noembed></span>
+Pass	outerHTML 24 <span><noframes><&></noframes></span>
+Pass	outerHTML 25 <span><noscript><&></noscript></span>
+Pass	outerHTML 26 <span><!--data--></span>
+Pass	outerHTML 27 <span><a><b><c></c></b><d>e</d><f><g>h</g></f></a></span>
+Pass	outerHTML 28 <span b="c"></span>
+Pass	innerHTML Attribute in the XML namespace
+Pass	innerHTML Attribute in the XML namespace with the prefix not set to xml:
+Pass	innerHTML Non-'xmlns' attribute in the xmlns namespace
+Pass	innerHTML 'xmlns' attribute in the xmlns namespace
+Pass	innerHTML Attribute in non-standard namespace
+Pass	innerHTML <span> starting with U+000A
+Pass	outerHTML Attribute in the XML namespace
+Pass	outerHTML Attribute in the XML namespace with the prefix not set to xml:
+Pass	outerHTML Non-'xmlns' attribute in the xmlns namespace
+Pass	outerHTML 'xmlns' attribute in the xmlns namespace
+Pass	outerHTML Attribute in non-standard namespace
+Pass	outerHTML <span> starting with U+000A
+Pass	innerHTML <pre> context starting with U+000A
+Pass	innerHTML <textarea> context starting with U+000A
+Pass	innerHTML <listing> context starting with U+000A
+Pass	innerHTML <pre> context not starting with U+000A
+Pass	innerHTML <textarea> context not starting with U+000A
+Pass	innerHTML <listing> context not starting with U+000A
+Pass	innerHTML <pre> non-context starting with U+000A
+Pass	innerHTML <textarea> non-context starting with U+000A
+Pass	innerHTML <listing> non-context starting with U+000A
+Pass	innerHTML <pre> non-context not starting with U+000A
+Pass	innerHTML <textarea> non-context not starting with U+000A
+Pass	innerHTML <listing> non-context not starting with U+000A
+Pass	outerHTML <pre> context starting with U+000A
+Pass	outerHTML <textarea> context starting with U+000A
+Pass	outerHTML <listing> context starting with U+000A
+Pass	outerHTML <pre> context not starting with U+000A
+Pass	outerHTML <textarea> context not starting with U+000A
+Pass	outerHTML <listing> context not starting with U+000A
+Pass	outerHTML <pre> non-context starting with U+000A
+Pass	outerHTML <textarea> non-context starting with U+000A
+Pass	outerHTML <listing> non-context starting with U+000A
+Pass	outerHTML <pre> non-context not starting with U+000A
+Pass	outerHTML <textarea> non-context not starting with U+000A
+Pass	outerHTML <listing> non-context not starting with U+000A
+Pass	innerHTML Void context node area
+Pass	innerHTML Void context node base
+Pass	innerHTML Void context node basefont
+Pass	innerHTML Void context node bgsound
+Pass	innerHTML Void context node br
+Pass	innerHTML Void context node col
+Pass	innerHTML Void context node embed
+Pass	innerHTML Void context node frame
+Pass	innerHTML Void context node hr
+Pass	innerHTML Void context node img
+Pass	innerHTML Void context node input
+Pass	innerHTML Void context node keygen
+Pass	innerHTML Void context node link
+Pass	innerHTML Void context node meta
+Pass	innerHTML Void context node param
+Pass	innerHTML Void context node source
+Pass	innerHTML Void context node track
+Pass	innerHTML Void context node wbr
+Pass	innerHTML void as first child with following siblings area
+Pass	innerHTML void as first child with following siblings base
+Pass	innerHTML void as first child with following siblings basefont
+Pass	innerHTML void as first child with following siblings bgsound
+Pass	innerHTML void as first child with following siblings br
+Pass	innerHTML void as first child with following siblings col
+Pass	innerHTML void as first child with following siblings embed
+Pass	innerHTML void as first child with following siblings frame
+Pass	innerHTML void as first child with following siblings hr
+Pass	innerHTML void as first child with following siblings img
+Pass	innerHTML void as first child with following siblings input
+Pass	innerHTML void as first child with following siblings keygen
+Pass	innerHTML void as first child with following siblings link
+Pass	innerHTML void as first child with following siblings meta
+Pass	innerHTML void as first child with following siblings param
+Pass	innerHTML void as first child with following siblings source
+Pass	innerHTML void as first child with following siblings track
+Pass	innerHTML void as first child with following siblings wbr
+Pass	innerHTML void as second child with following siblings area
+Pass	innerHTML void as second child with following siblings base
+Pass	innerHTML void as second child with following siblings basefont
+Pass	innerHTML void as second child with following siblings bgsound
+Pass	innerHTML void as second child with following siblings br
+Pass	innerHTML void as second child with following siblings col
+Pass	innerHTML void as second child with following siblings embed
+Pass	innerHTML void as second child with following siblings frame
+Pass	innerHTML void as second child with following siblings hr
+Pass	innerHTML void as second child with following siblings img
+Pass	innerHTML void as second child with following siblings input
+Pass	innerHTML void as second child with following siblings keygen
+Pass	innerHTML void as second child with following siblings link
+Pass	innerHTML void as second child with following siblings meta
+Pass	innerHTML void as second child with following siblings param
+Pass	innerHTML void as second child with following siblings source
+Pass	innerHTML void as second child with following siblings track
+Pass	innerHTML void as second child with following siblings wbr
+Pass	innerHTML void as last child with preceding siblings area
+Pass	innerHTML void as last child with preceding siblings base
+Pass	innerHTML void as last child with preceding siblings basefont
+Pass	innerHTML void as last child with preceding siblings bgsound
+Pass	innerHTML void as last child with preceding siblings br
+Pass	innerHTML void as last child with preceding siblings col
+Pass	innerHTML void as last child with preceding siblings embed
+Pass	innerHTML void as last child with preceding siblings frame
+Pass	innerHTML void as last child with preceding siblings hr
+Pass	innerHTML void as last child with preceding siblings img
+Pass	innerHTML void as last child with preceding siblings input
+Pass	innerHTML void as last child with preceding siblings keygen
+Pass	innerHTML void as last child with preceding siblings link
+Pass	innerHTML void as last child with preceding siblings meta
+Pass	innerHTML void as last child with preceding siblings param
+Pass	innerHTML void as last child with preceding siblings source
+Pass	innerHTML void as last child with preceding siblings track
+Pass	innerHTML void as last child with preceding siblings wbr
+Pass	outerHTML Void context node area
+Pass	outerHTML Void context node base
+Pass	outerHTML Void context node basefont
+Pass	outerHTML Void context node bgsound
+Pass	outerHTML Void context node br
+Pass	outerHTML Void context node col
+Pass	outerHTML Void context node embed
+Pass	outerHTML Void context node frame
+Pass	outerHTML Void context node hr
+Pass	outerHTML Void context node img
+Pass	outerHTML Void context node input
+Pass	outerHTML Void context node keygen
+Pass	outerHTML Void context node link
+Pass	outerHTML Void context node meta
+Pass	outerHTML Void context node param
+Pass	outerHTML Void context node source
+Pass	outerHTML Void context node track
+Pass	outerHTML Void context node wbr
+Pass	outerHTML void as first child with following siblings area
+Pass	outerHTML void as first child with following siblings base
+Pass	outerHTML void as first child with following siblings basefont
+Pass	outerHTML void as first child with following siblings bgsound
+Pass	outerHTML void as first child with following siblings br
+Pass	outerHTML void as first child with following siblings col
+Pass	outerHTML void as first child with following siblings embed
+Pass	outerHTML void as first child with following siblings frame
+Pass	outerHTML void as first child with following siblings hr
+Pass	outerHTML void as first child with following siblings img
+Pass	outerHTML void as first child with following siblings input
+Pass	outerHTML void as first child with following siblings keygen
+Pass	outerHTML void as first child with following siblings link
+Pass	outerHTML void as first child with following siblings meta
+Pass	outerHTML void as first child with following siblings param
+Pass	outerHTML void as first child with following siblings source
+Pass	outerHTML void as first child with following siblings track
+Pass	outerHTML void as first child with following siblings wbr
+Pass	outerHTML void as second child with following siblings area
+Pass	outerHTML void as second child with following siblings base
+Pass	outerHTML void as second child with following siblings basefont
+Pass	outerHTML void as second child with following siblings bgsound
+Pass	outerHTML void as second child with following siblings br
+Pass	outerHTML void as second child with following siblings col
+Pass	outerHTML void as second child with following siblings embed
+Pass	outerHTML void as second child with following siblings frame
+Pass	outerHTML void as second child with following siblings hr
+Pass	outerHTML void as second child with following siblings img
+Pass	outerHTML void as second child with following siblings input
+Pass	outerHTML void as second child with following siblings keygen
+Pass	outerHTML void as second child with following siblings link
+Pass	outerHTML void as second child with following siblings meta
+Pass	outerHTML void as second child with following siblings param
+Pass	outerHTML void as second child with following siblings source
+Pass	outerHTML void as second child with following siblings track
+Pass	outerHTML void as second child with following siblings wbr
+Pass	outerHTML void as last child with preceding siblings area
+Pass	outerHTML void as last child with preceding siblings base
+Pass	outerHTML void as last child with preceding siblings basefont
+Pass	outerHTML void as last child with preceding siblings bgsound
+Pass	outerHTML void as last child with preceding siblings br
+Pass	outerHTML void as last child with preceding siblings col
+Pass	outerHTML void as last child with preceding siblings embed
+Pass	outerHTML void as last child with preceding siblings frame
+Pass	outerHTML void as last child with preceding siblings hr
+Pass	outerHTML void as last child with preceding siblings img
+Pass	outerHTML void as last child with preceding siblings input
+Pass	outerHTML void as last child with preceding siblings keygen
+Pass	outerHTML void as last child with preceding siblings link
+Pass	outerHTML void as last child with preceding siblings meta
+Pass	outerHTML void as last child with preceding siblings param
+Pass	outerHTML void as last child with preceding siblings source
+Pass	outerHTML void as last child with preceding siblings track
+Pass	outerHTML void as last child with preceding siblings wbr
