@@ -275,6 +275,8 @@ ManagedSourceBuffer
 Map
 MathMLElement
 MediaCapabilities
+MediaDeviceInfo
+MediaDevices
 MediaElementAudioSourceNode
 MediaError
 MediaKeySystemAccess
