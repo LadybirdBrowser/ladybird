@@ -1239,6 +1239,28 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return {};
                 return Rect { *interpolated_rect_box };
             },
+            [&](Polygon const& from_polygon) -> Optional<BasicShape> {
+                // If both shapes are of type polygon(), both polygons have the same number of vertices, and use the
+                // same <'fill-rule'>, interpolate between each value in the shape functions.
+                auto const& to_polygon = to_shape.get<Polygon>();
+                if (from_polygon.fill_rule != to_polygon.fill_rule)
+                    return {};
+                if (from_polygon.points.size() != to_polygon.points.size())
+                    return {};
+                Vector<Polygon::Point> interpolated_points;
+                interpolated_points.ensure_capacity(from_polygon.points.size());
+                for (size_t i = 0; i < from_polygon.points.size(); i++) {
+                    auto const& from_point = from_polygon.points[i];
+                    auto const& to_point = to_polygon.points[i];
+                    auto interpolated_point_x = interpolate_length_percentage(calculation_context, from_point.x, to_point.x, delta);
+                    auto interpolated_point_y = interpolate_length_percentage(calculation_context, from_point.y, to_point.y, delta);
+                    if (!interpolated_point_x.has_value() || !interpolated_point_y.has_value())
+                        return {};
+                    interpolated_points.unchecked_append(Polygon::Point { *interpolated_point_x, *interpolated_point_y });
+                }
+
+                return Polygon { from_polygon.fill_rule, move(interpolated_points) };
+            },
             [](auto&) -> Optional<BasicShape> {
                 return {};
             });
