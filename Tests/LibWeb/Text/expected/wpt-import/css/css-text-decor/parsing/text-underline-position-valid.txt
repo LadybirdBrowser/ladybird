@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['text-underline-position'] = "auto" should set the property value
+Pass	e.style['text-underline-position'] = "under" should set the property value
+Pass	e.style['text-underline-position'] = "from-font" should set the property value
+Pass	e.style['text-underline-position'] = "left" should set the property value
+Pass	e.style['text-underline-position'] = "right" should set the property value
+Pass	e.style['text-underline-position'] = "under left" should set the property value
+Pass	e.style['text-underline-position'] = "from-font left" should set the property value
+Pass	e.style['text-underline-position'] = "right under" should set the property value
+Pass	e.style['text-underline-position'] = "right from-font" should set the property value

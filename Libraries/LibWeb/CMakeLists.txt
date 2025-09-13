@@ -260,6 +260,7 @@ set(SOURCES
     CSS/StyleValues/ShorthandStyleValue.cpp
     CSS/StyleValues/StyleValue.cpp
     CSS/StyleValues/StyleValueList.cpp
+    CSS/StyleValues/TextUnderlinePositionStyleValue.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TransitionStyleValue.cpp
     CSS/StyleValues/UnicodeRangeStyleValue.cpp

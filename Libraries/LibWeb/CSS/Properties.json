@@ -3383,6 +3383,15 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "text-underline-position": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "text-underline-position-horizontal",
+      "text-underline-position-vertical"
+    ]
+  },
   "text-wrap": {
     "inherited": true,
     "initial": "wrap",

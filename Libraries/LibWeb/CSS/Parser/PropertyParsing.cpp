@@ -57,6 +57,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
@@ -747,6 +748,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     case PropertyID::TextShadow:
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::No); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::TextUnderlinePosition:
+        if (auto parsed_value = parse_text_underline_position_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TouchAction:
@@ -4281,6 +4286,51 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_line_value(TokenStream<Co
     });
 
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
+RefPtr<StyleValue const> Parser::parse_text_underline_position_value(TokenStream<ComponentValue>& tokens)
+{
+    // auto | [ from-font | under ] || [ left | right ]
+    auto transaction = tokens.begin_transaction();
+
+    if (parse_all_as_single_keyword_value(tokens, Keyword::Auto)) {
+        transaction.commit();
+        return TextUnderlinePositionStyleValue::create(TextUnderlinePositionHorizontal::Auto, TextUnderlinePositionVertical::Auto);
+    }
+
+    Optional<TextUnderlinePositionHorizontal> horizontal_value;
+    Optional<TextUnderlinePositionVertical> vertical_value;
+
+    while (tokens.has_next_token()) {
+        auto keyword_value = parse_keyword_value(tokens);
+
+        if (!keyword_value)
+            return nullptr;
+
+        if (auto maybe_horizontal_value = keyword_to_text_underline_position_horizontal(keyword_value->to_keyword()); maybe_horizontal_value.has_value()) {
+            if (maybe_horizontal_value == TextUnderlinePositionHorizontal::Auto || horizontal_value.has_value())
+                return nullptr;
+
+            horizontal_value = maybe_horizontal_value;
+
+            continue;
+        }
+
+        if (auto maybe_vertical_value = keyword_to_text_underline_position_vertical(keyword_value->to_keyword()); maybe_vertical_value.has_value()) {
+            if (maybe_vertical_value == TextUnderlinePositionVertical::Auto || vertical_value.has_value())
+                return nullptr;
+
+            vertical_value = maybe_vertical_value;
+
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    transaction.commit();
+    return TextUnderlinePositionStyleValue::create(horizontal_value.value_or(TextUnderlinePositionHorizontal::Auto), vertical_value.value_or(TextUnderlinePositionVertical::Auto));
 }
 
 // https://www.w3.org/TR/pointerevents/#the-touch-action-css-property
