@@ -814,6 +814,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
             computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
             old_values_with_relative_units.set(i, old_value);
         }
+
+        // FIXME: We should also consider properties which depend on their inherited values for computation (e.g.
+        //        relative font-sizes or font-weights)
         if (!computed_properties->is_property_inherited(property_id))
             continue;
 
@@ -829,7 +832,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         else if (old_animated_value && computed_properties->is_animated_property_inherited(property_id))
             computed_properties->remove_animated_property(property_id);
 
-        RefPtr new_value = CSS::StyleComputer::get_inherit_value(property_id, { *this });
+        RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
         invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
     }

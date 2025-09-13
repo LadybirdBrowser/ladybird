@@ -29,7 +29,7 @@ font-variant-numeric: normal
 font-variant-position: normal
 font-variation-settings: normal
 font-weight: 400
-font-width: normal
+font-width: 100%
 image-rendering: auto
 letter-spacing: normal
 line-height: normal

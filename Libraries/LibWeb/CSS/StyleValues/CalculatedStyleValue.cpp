@@ -2955,19 +2955,19 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 
     if (value->type()->matches_number(m_context.percentages_resolve_as))
         accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_type_ranges.get(ValueType::Integer) : m_context.accepted_type_ranges.get(ValueType::Number);
-    else if (value->type()->matches_angle_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_angle(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Angle);
     else if (value->type()->matches_flex(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Flex);
-    else if (value->type()->matches_frequency_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_frequency(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Frequency);
-    else if (value->type()->matches_length_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_length(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Length);
     else if (value->type()->matches_percentage())
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Percentage);
     else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Resolution);
-    else if (value->type()->matches_time_percentage(m_context.percentages_resolve_as))
+    else if (value->type()->matches_time(m_context.percentages_resolve_as))
         accepted_range = m_context.accepted_type_ranges.get(ValueType::Time);
 
     if (!accepted_range.has_value()) {
@@ -3269,7 +3269,7 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
                     if (length.is_absolute())
                         return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px()).percentage_of(*percentage), context);
                     if (resolution_context.length_resolution_context.has_value())
-                        return NumericCalculationNode::create(Length::make_px(length.to_px(resolution_context.length_resolution_context.value())), context);
+                        return NumericCalculationNode::create(Length::make_px(length.to_px(resolution_context.length_resolution_context.value())).percentage_of(*percentage), context);
                     return nullptr;
                 },
                 [&](Time const& time) -> RefPtr<NumericCalculationNode const> {

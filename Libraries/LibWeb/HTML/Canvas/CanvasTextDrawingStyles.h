@@ -8,6 +8,10 @@
 
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
@@ -102,11 +106,37 @@ public:
 
         auto font_list = font_source.visit(
             [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
+                auto computed_math_depth = CSS::InitialValues::math_depth();
+                auto inherited_math_depth = CSS::InitialValues::math_depth();
+
+                // NOTE: The initial value here is non-standard as the default font is "10px sans-serif"
+                auto inherited_font_size = CSSPixels { 10 };
+                auto inherited_font_weight = CSS::InitialValues::font_weight();
+                auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
+
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
-                    return document->style_computer().compute_font_for_style_values(DOM::AbstractElement { canvas_element, {} }, font_family, font_size, font_style, font_weight, font_width);
-                } else {
-                    return document->style_computer().compute_font_for_style_values({}, font_family, font_size, font_style, font_weight, font_width);
+                    // NOTE: The canvas itself is considered the inheritance parent
+                    if (canvas_element.computed_properties()) {
+                        // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
+                        computed_math_depth = canvas_element.computed_properties()->math_depth();
+                        inherited_math_depth = canvas_element.computed_properties()->math_depth();
+                        inherited_font_size = canvas_element.computed_properties()->font_size();
+                        inherited_font_weight = canvas_element.computed_properties()->font_weight();
+                        length_resolution_context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
+                    }
                 }
+
+                auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, length_resolution_context);
+                auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, length_resolution_context);
+                auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, length_resolution_context);
+                auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, length_resolution_context);
+
+                return document->style_computer().compute_font_for_style_values(
+                    font_family,
+                    computed_font_size->as_length().length().absolute_length_to_px(),
+                    computed_font_style->as_font_style().to_font_slope(),
+                    computed_font_weight->as_number().number(),
+                    computed_font_width->as_percentage().percentage());
             },
             [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
                 // FIXME: implement computing the font for HTML::WorkerGlobalScope

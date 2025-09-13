@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing font shorthand for new values introduced in CSS Fonts level 4</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-prop" />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="shorthand-test">Shorthand test</div>
+
+    <script>
+
+        testFontShorthand = [
+            { value: "calc(24px) Arial",                                    isValid:true,   message: "Font size specified as calc()" },
+
+            // font-weight as number
+            { value: "700.5 24px Arial",                                    isValid:true,   expectedWeight:"700.5", message: "Font weight specified as number" },
+            { value: "0.9 24px Arial",                                      isValid:false,  message: "Font weight specified as number, value less than 1" },
+            { value: "1700.5 24px Arial",                                   isValid:false,  message: "Font weight specified as number, value greater than 1000" },
+
+            // font-weight as calc()
+            { value: "calc(900.7 - 200.1 * 2) calc(12px + 12px) Arial",     isValid:true,   expectedWeight:"500.5", message: "Font weight specified as calc()" },
+            { value: "calc(400.5 - 200.1 * 2) 24px Arial",                  isValid:true,   expectedWeight:"1",     message: "Font weight specified as calc(), value smaller than 1" },
+            { value: "calc(400.5 + 300.1 * 2) 24px Arial",                  isValid:true,   expectedWeight:"1000",  message: "Font weight specified as calc(), value greater than 1000" },
+
+            // font-style
+            { value: "oblique 45deg 24px Arial",                            isValid:true,   expectedStyle: "oblique 45deg",  message: "'oblique' with positive angle" },
+            { value: "oblique -45deg 24px Arial",                           isValid:true,   expectedStyle: "oblique -45deg", message: "'oblique' with negative angle" },
+            { value: "oblique 24px Arial",                                  isValid:true,   expectedStyle: "oblique",        message: "'oblique' without slant angle" },
+            { value: "oblique 100deg 24px Arial",                           isValid:false,                                   message: "'oblique' with positive angle, value out of range" },
+            { value: "oblique -100deg 24px Arial",                          isValid:false,                                   message: "'oblique' with negative angle, value out of range" },
+
+            // font-weight and font-style combined
+            { value: "oblique 50 24px Arial",                               isValid:true,   expectedStyle: "oblique",        expectedWeight:"50",    message: "'oblique' followed by valid small weight" },
+            { value: "oblique 500 24px Arial",                              isValid:true,   expectedStyle: "oblique",        expectedWeight:"500",   message: "'oblique' followed by valid large weight" },
+            { value: "oblique 45deg 500 24px Arial",                        isValid:true,   expectedStyle: "oblique 45deg",  expectedWeight:"500",   message: "'oblique' with positive angle followed by valid weight" },
+            { value: "oblique -45deg 500 24px Arial",                       isValid:true,   expectedStyle: "oblique -45deg", expectedWeight:"500",   message: "'oblique' with negative angle followed by valid weight" },
+
+            // font-weight and font-style combined, with calc()
+            { value: "oblique calc(200 + 300) 24px Arial",                  isValid:true,  expectedStyle: "oblique",         expectedWeight:"500",   message: "'oblique' followed by valid calc() weight" },
+            { value: "oblique 30deg calc(200 + 300) 24px Arial",            isValid:true,  expectedStyle: "oblique 30deg",   expectedWeight:"500",   message: "'oblique' with angle followed by valid calc() weight" },
+            { value: "oblique calc(900 + 300) 24px Arial",                  isValid:true,  expectedStyle: "oblique",         expectedWeight:"1000",  message: "'oblique' followed by a to-be-clamped calc() weight" },
+            { value: "calc(200 + 300) oblique 24px Arial",                  isValid:true,  expectedStyle: "oblique",         expectedWeight:"500",   message: "calc() weight folowed by 'oblique'" },
+            { value: "calc(200 + 300) oblique 45deg 24px Arial",            isValid:true,  expectedStyle: "oblique 45deg",   expectedWeight:"500",   message: "calc() weight folowed by 'oblique' and slant angle" },
+            { value: "calc(900 + 300) oblique 45deg 24px Arial",            isValid:true,  expectedStyle: "oblique 45deg",   expectedWeight:"1000",  message: "To-be-clamped calc() weight folowed by 'oblique' and slant angle" },
+        ];
+
+        testFontShorthand.forEach(function (testCase) {
+            test(() => {
+                assert_equals(window.CSS.supports("font", testCase.value), testCase.isValid, "Font shorthand: " + testCase.message);
+
+                let expectedStyle  = (testCase.expectedStyle) ? testCase.expectedStyle : "normal";
+                let expectedWeight = (testCase.expectedWeight) ? testCase.expectedWeight : "400";
+                let expectedSize = (testCase.isValid) ? "24px" : "16px";
+
+                var testElement = document.getElementById("shorthand-test");
+                testElement.setAttribute("style", "font:" + testCase.value);
+                var style = window.getComputedStyle(testElement);
+                assert_equals(style.fontStyle, expectedStyle, "Font shorthand expected style: " + testCase.message);
+                assert_equals(style.fontWeight, expectedWeight, "Font shorthand expected weight: " + testCase.message);
+                assert_equals(style.fontSize, expectedSize, "Font shorthand expected size: " + testCase.message);
+            }, "Font shorthand: " + testCase.message);
+
+        });
+
+    </script>
+</body>
+</html>
