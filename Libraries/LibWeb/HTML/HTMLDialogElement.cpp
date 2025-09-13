@@ -43,6 +43,7 @@ void HTMLDialogElement::visit_edges(JS::Cell::Visitor& visitor)
 
     visitor.visit(m_close_watcher);
     visitor.visit(m_request_close_source_element);
+    visitor.visit(m_previously_focused_element);
 }
 
 void HTMLDialogElement::removed_from(Node* old_parent, Node& old_root)
@@ -142,7 +143,9 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
 
     // 9. Set the dialog close watcher with this.
     set_close_watcher();
-    // FIXME: 10. Set this's previously focused element to the focused element.
+
+    // 10. Set this's previously focused element to the focused element.
+    m_previously_focused_element = document().focused_area();
 
     // 11. Let document be this's node document.
     auto document = m_document;
@@ -358,7 +361,8 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
     if (m_is_modal)
         document().request_an_element_to_be_remove_from_the_top_layer(*this);
 
-    // FIXME: 7. Let wasModal be the value of subject's is modal flag.
+    // 7. Let wasModal be the value of subject's is modal flag.
+    auto was_modal = m_is_modal;
 
     // 8. Set the is modal flag of subject to false.
     set_is_modal(false);
@@ -376,11 +380,21 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
     // 12. Set subject's request close source element to null.
     m_request_close_source_element = nullptr;
 
-    // FIXME: 13. If subject's previously focused element is not null, then:
-    //           1. Let element be subject's previously focused element.
-    //           2. Set subject's previously focused element to null.
-    //           3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of subject,
-    //              or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
+    // 13. If subject's previously focused element is not null, then:
+    if (m_previously_focused_element) {
+        // 1. Let element be subject's previously focused element.
+        auto element = m_previously_focused_element;
+
+        // 2. Set subject's previously focused element to null.
+        m_previously_focused_element = nullptr;
+
+        // 3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of subject,
+        //    or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
+        auto focused_element = document().focused_area();
+        auto is_focus_within_dialog = focused_element && focused_element->is_shadow_including_inclusive_descendant_of(*this);
+        if (is_focus_within_dialog || was_modal)
+            run_focusing_steps(element);
+    }
 
     // 14. Queue an element task on the user interaction task source given the subject element to fire an event named close at subject.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
