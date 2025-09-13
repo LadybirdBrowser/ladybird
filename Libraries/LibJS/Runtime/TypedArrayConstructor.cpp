@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/TypedArrayConstructor.h>
+#include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
 

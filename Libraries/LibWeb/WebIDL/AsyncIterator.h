@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Promise.h>
 

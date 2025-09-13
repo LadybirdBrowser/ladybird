@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Reference.h>
+#include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
 

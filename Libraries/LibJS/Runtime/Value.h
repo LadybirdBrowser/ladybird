@@ -355,6 +355,7 @@ public:
     ThrowCompletionOr<GC::Ref<PrimitiveString>> to_primitive_string(VM&);
     ThrowCompletionOr<Value> to_primitive(VM&, PreferredType preferred_type = PreferredType::Default) const;
     ThrowCompletionOr<GC::Ref<Object>> to_object(VM&) const;
+    ThrowCompletionOr<GC::Ref<Object>> to_object_slow(VM&) const;
     ThrowCompletionOr<Value> to_numeric(VM&) const;
     ThrowCompletionOr<Value> to_number(VM&) const;
     ThrowCompletionOr<GC::Ref<BigInt>> to_bigint(VM&) const;
