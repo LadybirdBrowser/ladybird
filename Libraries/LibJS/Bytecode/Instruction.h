@@ -123,6 +123,7 @@
     O(PostfixDecrement)                \
     O(PostfixIncrement)                \
     O(PutById)                         \
+    O(PutByNumericId)                  \
     O(PutByIdWithThis)                 \
     O(PutBySpread)                     \
     O(PutByValue)                      \

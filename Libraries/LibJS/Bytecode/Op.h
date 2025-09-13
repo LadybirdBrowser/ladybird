@@ -1249,6 +1249,36 @@ private:
     Optional<IdentifierTableIndex> m_base_identifier {};
 };
 
+class PutByNumericId final : public Instruction {
+public:
+    explicit PutByNumericId(Operand base, u64 property_index, Operand src, PropertyKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {})
+        : Instruction(Type::PutByNumericId)
+        , m_base(base)
+        , m_property_index(property_index)
+        , m_src(src)
+        , m_kind(kind)
+        , m_cache_index(cache_index)
+        , m_base_identifier(move(base_identifier))
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_base);
+        visitor(m_src);
+    }
+
+private:
+    Operand m_base;
+    u64 m_property_index;
+    Operand m_src;
+    PropertyKind m_kind;
+    u32 m_cache_index { 0 };
+    Optional<IdentifierTableIndex> m_base_identifier {};
+};
+
 class PutByIdWithThis final : public Instruction {
 public:
     PutByIdWithThis(Operand base, Operand this_value, IdentifierTableIndex property, Operand src, PropertyKind kind, u32 cache_index)

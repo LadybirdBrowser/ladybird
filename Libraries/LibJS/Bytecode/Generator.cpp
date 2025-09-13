@@ -775,7 +775,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
                 emit_put_by_value(object, property, value, Op::PropertyKind::KeyValue, {});
             } else if (expression.property().is_identifier()) {
                 auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
-                emit<Bytecode::Op::PutById>(object, identifier_table_ref, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
+                emit_put_by_id(object, identifier_table_ref, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
             } else if (expression.property().is_private_identifier()) {
                 auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                 emit<Bytecode::Op::PutPrivateById>(object, identifier_table_ref, value);
@@ -804,7 +804,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(ReferenceOperands
     }
     if (reference.referenced_identifier.has_value()) {
         if (reference.base == reference.this_value)
-            emit<Bytecode::Op::PutById>(*reference.base, *reference.referenced_identifier, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
+            emit_put_by_id(*reference.base, *reference.referenced_identifier, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
         else
             emit<Bytecode::Op::PutByIdWithThis>(*reference.base, *reference.this_value, *reference.referenced_identifier, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
         return {};
@@ -1153,12 +1153,25 @@ void Generator::emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand bas
     emit<Op::GetByValueWithThis>(dst, base, property, this_value);
 }
 
+void Generator::emit_put_by_id(Operand base, IdentifierTableIndex property, Operand src, Op::PropertyKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier)
+{
+    auto string = m_identifier_table->get(property);
+    if (!string.is_empty() && !(string.code_unit_at(0) == '0' && string.length_in_code_units() > 1)) {
+        auto property_index = string.to_number<u32>(TrimWhitespace::No);
+        if (property_index.has_value() && property_index.value() < NumericLimits<u32>::max()) {
+            emit<Op::PutByNumericId>(base, property_index.release_value(), src, kind, cache_index, move(base_identifier));
+            return;
+        }
+    }
+    emit<Op::PutById>(base, property, src, kind, cache_index, move(base_identifier));
+}
+
 void Generator::emit_put_by_value(ScopedOperand base, ScopedOperand property, ScopedOperand src, Bytecode::Op::PropertyKind kind, Optional<IdentifierTableIndex> base_identifier)
 {
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
         if (property_key.is_string()) {
-            emit<Op::PutById>(base, intern_identifier(property_key.as_string()), src, kind, m_next_property_lookup_cache++, base_identifier);
+            emit_put_by_id(base, intern_identifier(property_key.as_string()), src, kind, m_next_property_lookup_cache++, base_identifier);
             return;
         }
     }
