@@ -74,59 +74,66 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto current_playback_position = video_element.current_playback_position();
     auto ready_state = video_element.ready_state();
 
-    enum class Representation {
-        Unknown,
-        FirstVideoFrame,
-        CurrentVideoFrame,
-        LastRenderedVideoFrame,
+    // NOTE: We combine the values of...
+    //       - The first frame of the video
+    //       - The last frame of the video to have been rendered
+    //       - The frame of video corresponding to the current playback position
+    //       ...into the value of VideoFrame below, as the playback system itself implements
+    //       the details of the selection of a video frame to match the specification in this
+    //       respect.
+    enum class Representation : u8 {
+        VideoFrame,
         PosterFrame,
         TransparentBlack,
     };
 
-    auto representation = Representation::Unknown;
+    auto representation = [&]() {
+        // https://html.spec.whatwg.org/multipage/media.html#the-video-element:the-video-element-7
+        // A video element represents what is given for the first matching condition in the list below:
 
-    // https://html.spec.whatwg.org/multipage/media.html#the-video-element:the-video-element-7
-    // A video element represents what is given for the first matching condition in the list below:
+        // -> When no video data is available (the element's readyState attribute is either HAVE_NOTHING, or HAVE_METADATA
+        //    but no video data has yet been obtained at all, or the element's readyState attribute is any subsequent value
+        //    but the media resource does not have a video channel)
+        if (ready_state == HTML::HTMLMediaElement::ReadyState::HaveNothing
+            || (ready_state >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_element.video_tracks()->length() == 0)) {
+            // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
+            return poster_frame ? Representation::PosterFrame : Representation::TransparentBlack;
+        }
 
-    // -> When no video data is available (the element's readyState attribute is either HAVE_NOTHING, or HAVE_METADATA
-    //    but no video data has yet been obtained at all, or the element's readyState attribute is any subsequent value
-    //    but the media resource does not have a video channel)
-    if (ready_state == HTML::HTMLMediaElement::ReadyState::HaveNothing
-        || (ready_state >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_element.video_tracks()->length() == 0)) {
-        // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
-        representation = poster_frame ? Representation::PosterFrame : Representation::TransparentBlack;
-    }
+        // -> When the video element is paused, the current playback position is the first frame of video, and the element's
+        //    show poster flag is set
+        if (video_element.paused() && current_playback_position == 0 && video_element.show_poster()) {
+            // The video element represents its poster frame, if any, or else the first frame of the video.
+            return poster_frame ? Representation::PosterFrame : Representation::VideoFrame;
+        }
 
-    // -> When the video element is paused, the current playback position is the first frame of video, and the element's
-    //    show poster flag is set
-    else if (video_element.paused() && current_playback_position == 0 && video_element.show_poster()) {
-        // The video element represents its poster frame, if any, or else the first frame of the video.
-        representation = poster_frame ? Representation::PosterFrame : Representation::FirstVideoFrame;
-    }
+        // -> When the video element is paused, and the frame of video corresponding to the current playback position
+        //    is not available (e.g. because the video is seeking or buffering)
+        //
+        //     The video element represents the last frame of the video to have been rendered.
+        //
+        // NOTE: We don't need to check this condition, as seeking is asynchronous, and the last available frame
+        //       will be kept until the seek completes.
 
-    // -> When the video element is paused, and the frame of video corresponding to the current playback position
-    //    is not available (e.g. because the video is seeking or buffering)
-    // -> When the video element is neither potentially playing nor paused (e.g. when seeking or stalled)
-    else if (
-        (video_element.paused() && current_playback_position != current_frame.position)
-        || (!video_element.potentially_playing() && !video_element.paused())) {
-        // The video element represents the last frame of the video to have been rendered.
-        representation = Representation::LastRenderedVideoFrame;
-    }
+        // -> When the video element is neither potentially playing nor paused (e.g. when seeking or stalled)
+        if (!video_element.potentially_playing() && !video_element.paused()) {
+            // The video element represents the last frame of the video to have been rendered.
+            return Representation::VideoFrame;
+        }
 
-    // -> When the video element is paused
-    else if (video_element.paused()) {
-        // The video element represents the frame of video corresponding to the current playback position.
-        representation = Representation::CurrentVideoFrame;
-    }
+        // -> When the video element is paused
+        if (video_element.paused()) {
+            // The video element represents the frame of video corresponding to the current playback position.
+            return Representation::VideoFrame;
+        }
 
-    // -> Otherwise (the video element has a video channel and is potentially playing)
-    else {
-        // The video element represents the frame of video at the continuously increasing "current" position. When the
-        // current playback position changes such that the last frame rendered is no longer the frame corresponding to
-        // the current playback position in the video, the new frame must be rendered.
-        representation = Representation::CurrentVideoFrame;
-    }
+        // -> Otherwise (the video element has a video channel and is potentially playing)
+        //
+        //     The video element represents the frame of video at the continuously increasing "current" position. When the
+        //     current playback position changes such that the last frame rendered is no longer the frame corresponding to
+        //     the current playback position in the video, the new frame must be rendered.
+        return Representation::VideoFrame;
+    }();
 
     auto paint_frame = [&](auto const& frame) {
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->rect(), video_rect.to_type<int>());
@@ -150,11 +157,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto paint_user_agent_controls = video_element.has_attribute(HTML::AttributeNames::controls) || video_element.is_scripting_disabled();
 
     switch (representation) {
-    case Representation::FirstVideoFrame:
-    case Representation::CurrentVideoFrame:
-    case Representation::LastRenderedVideoFrame:
-        // FIXME: We likely need to cache all (or a subset of) decoded video frames along with their position. We at least
-        //        will need the first video frame and the last-rendered video frame.
+    case Representation::VideoFrame:
         if (current_frame.frame)
             paint_frame(current_frame.frame);
         if (paint_user_agent_controls)
@@ -173,9 +176,6 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         if (paint_user_agent_controls)
             paint_placeholder_video_controls(context, video_rect, mouse_position);
         break;
-
-    case Representation::Unknown:
-        VERIFY_NOT_REACHED();
     }
 }
 
