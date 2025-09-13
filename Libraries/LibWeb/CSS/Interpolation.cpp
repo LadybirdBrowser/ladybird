@@ -1228,6 +1228,15 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return;
                 interpolated_shape = Xywh { *interpolated_x, *interpolated_y, *interpolated_width, *interpolated_height };
             },
+            [&](Rect const& from_rect) {
+                auto const& to_rect = to_shape.get<Rect>();
+                auto from_rect_box = from_rect.box;
+                auto to_rect_box = to_rect.box;
+                auto interpolated_rect_box = interpolate_length_box(calculation_context, from_rect_box, to_rect_box, delta);
+                if (!interpolated_rect_box.has_value())
+                    return;
+                interpolated_shape = Rect { *interpolated_rect_box };
+            },
             [](auto&) {
                 // FIXME: Implement interpolation for all shapes
             });
