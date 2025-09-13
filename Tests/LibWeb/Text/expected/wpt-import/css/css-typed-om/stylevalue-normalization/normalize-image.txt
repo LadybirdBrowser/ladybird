@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Normalizing a valid <url> returns a CSSImageValue
-Fail	Normalizing a bad <url> returns a CSSImageValue
-Fail	Normalizing a <gradient> returns a CSSImageValue
+3 Pass
+Pass	Normalizing a valid <url> returns a CSSImageValue
+Pass	Normalizing a bad <url> returns a CSSImageValue
+Pass	Normalizing a <gradient> returns a CSSImageValue

@@ -110,6 +110,7 @@ set(SOURCES
     CSS/CSSFontFaceDescriptors.cpp
     CSS/CSSFontFaceRule.cpp
     CSS/CSSGroupingRule.cpp
+    CSS/CSSImageValue.cpp
     CSS/CSSImportRule.cpp
     CSS/CSSKeyframeRule.cpp
     CSS/CSSKeyframesRule.cpp
@@ -206,6 +207,7 @@ set(SOURCES
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
+    CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AnchorStyleValue.cpp
     CSS/StyleValues/AnchorSizeStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp

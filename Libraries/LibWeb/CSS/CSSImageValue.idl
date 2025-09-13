@@ -1,0 +1,6 @@
+#import <CSS/CSSStyleValue.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssimagevalue
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSImageValue : CSSStyleValue {
+};
