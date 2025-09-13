@@ -24,6 +24,8 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::HTML {
 
@@ -637,6 +639,97 @@ void HTMLScriptElement::unmark_as_already_started(Badge<DOM::Range>)
 void HTMLScriptElement::unmark_as_parser_inserted(Badge<DOM::Range>)
 {
     m_parser_document = nullptr;
+}
+
+// https://www.w3.org/TR/trusted-types/#the-text-idl-attribute
+WebIDL::ExceptionOr<void> HTMLScriptElement::set_text(TrustedTypes::TrustedScriptOrString text)
+{
+    // 1. Let value be the result of calling Get Trusted Type compliant string with
+    //    TrustedScript, this’s relevant global object, the given value, HTMLScriptElement text, and script.
+    auto const value = TRY(get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScript,
+        HTML::relevant_global_object(*this),
+        text,
+        TrustedTypes::InjectionSink::HTMLScriptElementtext,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set this’s script text value to the given value.
+    m_script_text = value;
+
+    // 3. String replace all with the given value within this.
+    string_replace_all(value);
+    return {};
+}
+
+// https://www.w3.org/TR/trusted-types/#the-src-idl-attribute
+WebIDL::ExceptionOr<void> HTMLScriptElement::set_src(TrustedTypes::TrustedScriptURLOrString text)
+{
+    // 1. Let value be the result of calling Get Trusted Type compliant string with
+    //    TrustedScriptURL, this’s relevant global object, the given value, HTMLScriptElement src, and script.
+    auto const value = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScriptURL,
+        HTML::relevant_global_object(*this),
+        text,
+        TrustedTypes::InjectionSink::HTMLScriptElementsrc,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set this’s src content attribute to value.
+    TRY(set_attribute(AttributeNames::src, value));
+    return {};
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#the-textContent-idl-attribute
+Variant<GC::Root<TrustedTypes::TrustedScript>, Utf16String, Empty> HTMLScriptElement::text_content() const
+{
+    // 1. Return the result of running get text content with this.
+    return descendant_text_content();
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#the-textContent-idl-attribute
+WebIDL::ExceptionOr<void> HTMLScriptElement::set_text_content(TrustedTypes::TrustedScriptOrString text)
+{
+    // 1. Let value be the result of calling Get Trusted Type compliant string with
+    //    TrustedScript, this’s relevant global object, the given value, HTMLScriptElement textContent, and script.
+    auto const value = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScript,
+        HTML::relevant_global_object(*this),
+        text,
+        TrustedTypes::InjectionSink::HTMLScriptElementtextContent,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set this’s script text value to value.
+    m_script_text = value;
+
+    // 3. Run set text content with this and value.
+    string_replace_all(value);
+    return {};
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#the-innerText-idl-attribute
+TrustedTypes::TrustedScriptOrString HTMLScriptElement::inner_text()
+{
+    // 1. Return the result of running get text content with this.
+    return get_the_text_steps();
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#the-innerText-idl-attribute
+WebIDL::ExceptionOr<void> HTMLScriptElement::set_inner_text(TrustedTypes::TrustedScriptOrString text)
+{
+    // 1. Let value be the result of calling Get Trusted Type compliant string with
+    //    TrustedScript, this’s relevant global object, the given value, HTMLScriptElement innerText, and script.
+    auto const value = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScript,
+        HTML::relevant_global_object(*this),
+        text,
+        TrustedTypes::InjectionSink::HTMLScriptElementinnerText,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set this’s script text value to value.
+    m_script_text = value;
+
+    // 3. Run set the inner text steps with this and value.
+    HTMLElement::set_inner_text(value);
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-async

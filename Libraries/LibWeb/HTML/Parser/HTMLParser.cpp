@@ -3268,6 +3268,10 @@ void HTMLParser::handle_text(HTMLToken& token)
         // Increment the parser's script nesting level by one.
         increment_script_nesting_level();
 
+        // https://w3c.github.io/trusted-types/dist/spec/#setting-slot-values-from-parser
+        // Set script’s script text value to its child text content.
+        script->set_string_text(script->child_text_content());
+
         // If the active speculative HTML parser is null, then prepare the script element script.
         // This might cause some script to execute, which might cause new characters to be inserted into the tokenizer,
         // and might cause the tokenizer to output more tokens, resulting in a reentrant invocation of the parser.

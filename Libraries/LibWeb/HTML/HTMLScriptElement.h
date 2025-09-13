@@ -13,6 +13,8 @@
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 
 namespace Web::HTML {
 
@@ -57,13 +59,24 @@ public:
     void unmark_as_already_started(Badge<DOM::Range>);
     void unmark_as_parser_inserted(Badge<DOM::Range>);
 
-    Utf16String text() { return child_text_content(); }
-    void set_text(Utf16String const& text) { string_replace_all(text); }
+    TrustedTypes::TrustedScriptOrString text() const { return child_text_content(); }
+    WebIDL::ExceptionOr<void> set_text(TrustedTypes::TrustedScriptOrString);
+
+    TrustedTypes::TrustedScriptURLOrString src() const { return Utf16String::from_utf8(get_attribute_value(AttributeNames::src)); }
+    WebIDL::ExceptionOr<void> set_src(TrustedTypes::TrustedScriptURLOrString);
+
+    Variant<GC::Root<TrustedTypes::TrustedScript>, Utf16String, Empty> text_content() const;
+    WebIDL::ExceptionOr<void> set_text_content(TrustedTypes::TrustedScriptOrString);
+
+    TrustedTypes::TrustedScriptOrString inner_text();
+    WebIDL::ExceptionOr<void> set_inner_text(TrustedTypes::TrustedScriptOrString);
 
     [[nodiscard]] bool async() const;
     void set_async(bool);
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
+
+    void set_string_text(Utf16String const& value) { m_script_text = value; }
 
 protected:
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#implicitly-potentially-render-blocking
@@ -142,6 +155,9 @@ private:
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 
     size_t m_source_line_number { 1 };
+
+    // https://www.w3.org/TR/trusted-types/#htmlscriptelement-script-text
+    Utf16String m_script_text;
 };
 
 }
