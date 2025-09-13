@@ -2656,7 +2656,7 @@ ThrowCompletionOr<void> PutByIdWithThis::execute_impl(Bytecode::Interpreter& int
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
-    PropertyKey name = interpreter.current_executable().get_identifier(m_property);
+    PropertyKey name { interpreter.current_executable().get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
     TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, name, m_kind, &cache));
     return {};
