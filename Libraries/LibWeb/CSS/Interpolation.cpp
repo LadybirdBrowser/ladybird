@@ -1253,6 +1253,23 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return {};
                 return Circle { *interpolated_radius, interpolated_position->as_position() };
             },
+            [&](Ellipse const& from_ellipse) -> Optional<BasicShape> {
+                auto const& to_ellipse = to_shape.get<Ellipse>();
+                if (!from_ellipse.radius_x.has<LengthPercentage>() || !to_ellipse.radius_x.has<LengthPercentage>())
+                    return {};
+                if (!from_ellipse.radius_y.has<LengthPercentage>() || !to_ellipse.radius_y.has<LengthPercentage>())
+                    return {};
+                auto interpolated_radius_x = interpolate_length_percentage(calculation_context, from_ellipse.radius_x.get<LengthPercentage>(), to_ellipse.radius_x.get<LengthPercentage>(), delta);
+                if (!interpolated_radius_x.has_value())
+                    return {};
+                auto interpolated_radius_y = interpolate_length_percentage(calculation_context, from_ellipse.radius_y.get<LengthPercentage>(), to_ellipse.radius_y.get<LengthPercentage>(), delta);
+                if (!interpolated_radius_y.has_value())
+                    return {};
+                auto interpolated_position = interpolate_value(element, calculation_context, from_ellipse.position, to_ellipse.position, delta, allow_discrete);
+                if (!interpolated_position)
+                    return {};
+                return Ellipse { *interpolated_radius_x, *interpolated_radius_y, interpolated_position->as_position() };
+            },
             [&](Polygon const& from_polygon) -> Optional<BasicShape> {
                 // If both shapes are of type polygon(), both polygons have the same number of vertices, and use the
                 // same <'fill-rule'>, interpolate between each value in the shape functions.
