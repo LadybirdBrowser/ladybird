@@ -8,6 +8,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
@@ -244,18 +245,17 @@ void WebContentClient::did_unhover_link(u64 page_id)
 
 void WebContentClient::did_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_link_click)
-            view->on_link_click(url, target, modifiers);
-    }
+    if (modifiers == Web::UIEvents::Mod_PlatformCtrl)
+        Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+    else if (target == "_blank"sv)
+        Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
+    else if (auto view = view_for_page_id(page_id); view.has_value())
+        view->load(url);
 }
 
-void WebContentClient::did_middle_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers)
+void WebContentClient::did_middle_click_link(u64, URL::URL url, ByteString, unsigned)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_link_middle_click)
-            view->on_link_middle_click(url, target, modifiers);
-    }
+    Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
 }
 
 void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint content_position)
@@ -282,11 +282,11 @@ void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint
         view->did_request_media_context_menu({}, content_position, move(menu));
 }
 
-void WebContentClient::did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source)
+void WebContentClient::did_get_source(u64, URL::URL url, URL::URL base_url, String source)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_received_source)
-            view->on_received_source(url, base_url, source);
+    if (auto view = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); view.has_value()) {
+        auto html = highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
+        view->load_html(html);
     }
 }
 

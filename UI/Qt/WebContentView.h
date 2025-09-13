@@ -15,7 +15,6 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/ViewImplementation.h>
 
 #include <QMenu>
@@ -39,8 +38,6 @@ class WebContentView final
 public:
     WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
-
-    Function<String(URL::URL const&, Web::HTML::ActivateTab)> on_tab_open_request;
 
     virtual void paintEvent(QPaintEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;

@@ -9,7 +9,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/SourceHighlighter.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -328,11 +327,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     QObject::connect(focus_location_editor_action, &QAction::triggered, this, &Tab::focus_location_editor);
-
-    view().on_received_source = [this](auto const& url, auto const& base_url, auto const& source) {
-        auto html = WebView::highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
-        m_window->new_tab_from_content(html, Web::HTML::ActivateTab::Yes);
-    };
 
     view().on_restore_window = [this]() {
         m_window->showNormal();

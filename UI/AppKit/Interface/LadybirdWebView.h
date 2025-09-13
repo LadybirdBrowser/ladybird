@@ -21,15 +21,10 @@
 - (String const&)onCreateNewTab:(Optional<URL::URL> const&)url
                     activateTab:(Web::HTML::ActivateTab)activate_tab;
 
-- (String const&)onCreateNewTab:(StringView)html
-                            url:(URL::URL const&)url
-                    activateTab:(Web::HTML::ActivateTab)activate_tab;
-
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
                         pageIndex:(u64)page_index;
 
-- (void)loadURL:(URL::URL const&)url;
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect;
 - (void)onLoadFinish:(URL::URL const&)url;
 
@@ -51,7 +46,6 @@
                   pageIndex:(u64)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
-- (void)loadHTML:(StringView)html;
 
 - (WebView::ViewImplementation&)view;
 - (String const&)handle;

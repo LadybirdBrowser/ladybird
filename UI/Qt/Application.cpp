@@ -97,6 +97,12 @@ Optional<WebView::ViewImplementation&> Application::active_web_view() const
     return {};
 }
 
+Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML::ActivateTab activate_tab) const
+{
+    auto& tab = active_window().create_new_tab(activate_tab);
+    return tab.view();
+}
+
 Optional<ByteString> Application::ask_user_for_download_folder() const
 {
     auto path = QFileDialog::getExistingDirectory(nullptr, "Select download directory", QDir::homePath());
