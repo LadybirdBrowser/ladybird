@@ -665,6 +665,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(PostfixDecrement);
             HANDLE_INSTRUCTION(PostfixIncrement);
             HANDLE_INSTRUCTION(PutById);
+            HANDLE_INSTRUCTION(PutByNumericId);
             HANDLE_INSTRUCTION(PutByIdWithThis);
             HANDLE_INSTRUCTION(PutBySpread);
             HANDLE_INSTRUCTION(PutByValue);
@@ -2632,7 +2633,19 @@ ThrowCompletionOr<void> PutById::execute_impl(Bytecode::Interpreter& interpreter
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
     auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
-    PropertyKey name = interpreter.current_executable().get_identifier(m_property);
+    PropertyKey name { interpreter.current_executable().get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
+    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
+    TRY(put_by_property_key(vm, base, base, value, base_identifier, name, m_kind, &cache));
+    return {};
+}
+
+ThrowCompletionOr<void> PutByNumericId::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto value = interpreter.get(m_src);
+    auto base = interpreter.get(m_base);
+    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
+    PropertyKey name { m_property_index };
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
     TRY(put_by_property_key(vm, base, base, value, base_identifier, name, m_kind, &cache));
     return {};
@@ -3553,6 +3566,16 @@ ByteString PutById::to_byte_string_impl(Bytecode::Executable const& executable) 
     return ByteString::formatted("PutById {}, {}, {}, kind:{}",
         format_operand("base"sv, m_base, executable),
         executable.identifier_table->get(m_property),
+        format_operand("src"sv, m_src, executable),
+        kind);
+}
+
+ByteString PutByNumericId::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    auto kind = property_kind_to_string(m_kind);
+    return ByteString::formatted("PutByNumericId {}, {}, {}, kind:{}",
+        format_operand("base"sv, m_base, executable),
+        m_property_index,
         format_operand("src"sv, m_src, executable),
         kind);
 }

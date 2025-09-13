@@ -651,7 +651,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                     } else if (expression.property().is_identifier()) {
                         auto identifier_table_ref = generator.intern_identifier(as<Identifier>(expression.property()).string());
                         if (!lhs_is_super_expression)
-                            generator.emit<Bytecode::Op::PutById>(*base, identifier_table_ref, rval, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache(), move(base_identifier));
+                            generator.emit_put_by_id(*base, identifier_table_ref, rval, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache(), move(base_identifier));
                         else
                             generator.emit<Bytecode::Op::PutByIdWithThis>(*base, *this_value, identifier_table_ref, rval, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
                     } else if (expression.property().is_private_identifier()) {
@@ -1188,7 +1188,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                 value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name));
             }
 
-            generator.emit<Bytecode::Op::PutById>(object, key_name, *value, property_kind, generator.next_property_lookup_cache());
+            generator.emit_put_by_id(object, key_name, *value, property_kind, generator.next_property_lookup_cache());
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
             auto value = TRY(property->value().generate_bytecode(generator)).value();
@@ -2540,7 +2540,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(raw_string_regs.size(), raw_strings_array, raw_string_regs);
     }
 
-    generator.emit<Bytecode::Op::PutById>(strings_array, generator.intern_identifier("raw"_utf16_fly_string), raw_strings_array, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
+    generator.emit_put_by_id(strings_array, generator.intern_identifier("raw"_utf16_fly_string), raw_strings_array, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
 
     auto arguments = generator.allocate_register();
     if (!argument_regs.is_empty())

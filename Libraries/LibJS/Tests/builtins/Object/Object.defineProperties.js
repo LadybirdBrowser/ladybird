@@ -54,4 +54,11 @@ describe("normal behavior", () => {
             configurable: false,
         });
     });
+
+    test("maps numeric string key 0 to array index 0", () => {
+        var arr = [0];
+        // prettier-ignore
+        Object.defineProperties(arr, { "0": { value: 12 } });
+        expect(arr[0]).toBe(12);
+    });
 });
