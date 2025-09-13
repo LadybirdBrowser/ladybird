@@ -1,0 +1,13 @@
+diff --git a/.gn b/.gn
+index 49def81281..fa6a0855ab 100644
+--- a/.gn
++++ b/.gn
+@@ -28,7 +28,7 @@
+ buildconfig = "//build/config/BUILDCONFIG.gn"
+ 
+ # Use Python3 to run scripts. On Windows this will use python.exe or python.bat
+-script_executable = "python3"
++script_executable = "python"
+ 
+ default_args = {
+   clang_use_chrome_plugins = false

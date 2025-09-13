@@ -46,6 +46,7 @@ static constexpr Array libweb_interface_namespaces = {
     "ViewTransition"sv,
     "WebAudio"sv,
     "WebGL"sv,
+    "WebGPU"sv,
     "WebIDL"sv,
     "WebSockets"sv,
     "XHR"sv,
