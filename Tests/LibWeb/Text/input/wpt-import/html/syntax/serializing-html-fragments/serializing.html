@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<title>innerHTML in HTML</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+
+<!-- test elments. Each has an expected innerHTML and outerHTML in an array in the <script>-->
+<div id="test" style="display:none">
+<span></span>
+<span><a></a></span>
+<span><a b=c></a></span>
+<span><a b='c'></a></span>
+<span><a b='&'></a></span>
+<span><a b='&nbsp;'></a></span>
+<span><a b='"'></a></span>
+<span><a b="<"></a></span>
+<span><a b=">"></a></span>
+<span><a href="javascript:&quot;&lt;>&quot;"></a></span>
+<span><svg xlink:href="a"></svg></span>
+<span><svg xmlns:svg="test"></svg></span>
+<span>a</span>
+<span>&amp;</span>
+<span>&nbsp;</span>
+<span>&lt;</span>
+<span>&gt;</span>
+<span>&quot;</span>
+<span><style><&></style></span>
+<span><script type="test"><&></script></span>
+<script type="test"><&></script>
+<span><xmp><&></xmp></span>
+<span><iframe><&></iframe></span>
+<span><noembed><&></noembed></span>
+<span><noframes><&></noframes></span>
+<span><noscript><&></noscript></span>
+<span><!--data--></span>
+<span><a><b><c></c></b><d>e</d><f><g>h</g></f></a></span>
+<span b=c></span>
+</div>
+<!-- TODO: template element -->
+<script>
+
+var test_data = document.getElementById("test").children;
+var expected = [
+["", "<span></span>"],
+["<a></a>", "<span><a></a></span>"],
+["<a b=\"c\"></a>", "<span><a b=\"c\"></a></span>"],
+["<a b=\"c\"></a>", "<span><a b=\"c\"></a></span>"],
+["<a b=\"&amp;\"></a>", "<span><a b=\"&amp;\"></a></span>"],
+["<a b=\"&nbsp;\"></a>", "<span><a b=\"&nbsp;\"></a></span>"],
+["<a b=\"&quot;\"></a>", "<span><a b=\"&quot;\"></a></span>"],
+["<a b=\"&lt;\"></a>", "<span><a b=\"&lt;\"></a></span>"],
+["<a b=\"&gt;\"></a>", "<span><a b=\"&gt;\"></a></span>"],
+["<a href=\"javascript:&quot;&lt;&gt;&quot;\"></a>", "<span><a href=\"javascript:&quot;&lt;&gt;&quot;\"></a></span>"],
+["<svg xlink:href=\"a\"></svg>", "<span><svg xlink:href=\"a\"></svg></span>"],
+["<svg xmlns:svg=\"test\"></svg>", "<span><svg xmlns:svg=\"test\"></svg></span>"],
+["a", "<span>a</span>"],
+["&amp;", "<span>&amp;</span>"],
+["&nbsp;", "<span>&nbsp;</span>"],
+["&lt;", "<span>&lt;</span>"],
+["&gt;", "<span>&gt;</span>"],
+["\"", "<span>\"</span>"],
+["<style><&></style>", "<span><style><&></style></span>"],
+["<script type=\"test\"><&><\/script>", "<span><script type=\"test\"><&><\/script></span>"],
+["<&>", "<script type=\"test\"><&><\/script>"],
+["<xmp><&></xmp>", "<span><xmp><&></xmp></span>"],
+["<iframe><&></iframe>", "<span><iframe><&></iframe></span>"],
+["<noembed><&></noembed>", "<span><noembed><&></noembed></span>"],
+["<noframes><&></noframes>", "<span><noframes><&></noframes></span>"],
+["<noscript><&></noscript>", "<span><noscript><&></noscript></span>"],
+["<!--data-->", "<span><!--data--></span>"],
+["<a><b><c></c></b><d>e</d><f><g>h</g></f></a>", "<span><a><b><c></c></b><d>e</d><f><g>h</g></f></a></span>"],
+["", "<span b=\"c\"></span>"]
+];
+
+var dom_tests = [
+ ["Attribute in the XML namespace",
+  function() {
+       var span = document.createElement("span");
+       var svg = document.createElement("svg");
+       svg.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:foo", "test");
+       span.appendChild(svg);
+       return span;
+  },
+  '<svg xml:foo="test"></svg>',
+  '<span><svg xml:foo="test"></svg></span>'],
+
+ ["Attribute in the XML namespace with the prefix not set to xml:",
+  function() {
+       var span = document.createElement("span");
+       var svg = document.createElement("svg");
+       svg.setAttributeNS("http://www.w3.org/XML/1998/namespace", "abc:foo", "test");
+       span.appendChild(svg);
+       return span;
+  },
+  '<svg xml:foo="test"></svg>',
+  '<span><svg xml:foo="test"></svg></span>'],
+
+  ["Non-'xmlns' attribute in the xmlns namespace",
+   function() {
+       var span = document.createElement("span");
+       var svg = document.createElement("svg");
+       svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:foo", "test")
+       span.appendChild(svg);
+       return span;
+  },
+  '<svg xmlns:foo="test"></svg>',
+  '<span><svg xmlns:foo="test"></svg></span>'],
+
+  ["'xmlns' attribute in the xmlns namespace",
+   function() {
+       var span = document.createElement("span");
+       var svg = document.createElement("svg");
+       svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns", "test")
+       span.appendChild(svg);
+       return span;
+  },
+  '<svg xmlns="test"></svg>',
+  '<span><svg xmlns="test"></svg></span>'],
+
+ ["Attribute in non-standard namespace",
+   function() {
+       var span = document.createElement("span");
+       var svg = document.createElement("svg");
+       svg.setAttributeNS("fake_ns", "abc:def", "test")
+       span.appendChild(svg);
+       return span;
+  },
+  '<svg abc:def="test"></svg>',
+  '<span><svg abc:def="test"></svg></span>'],
+
+ ["<span> starting with U+000A",
+  function() {
+      var elem = document.createElement("span");
+      elem.appendChild(document.createTextNode("\x0A"));
+      return elem;
+  },
+  "\x0A",
+  "<span>\x0A</span>"],
+
+   //TODO: Processing instructions
+]
+
+var text_elements = ["pre", "textarea", "listing"];
+
+var text_tests = [
+ ["<%text> context starting with U+000A",
+  function(elem) {
+      elem.appendChild(document.createTextNode("\x0A"));
+      return elem;
+  },
+  "\x0A",
+  "<%text>\x0A</%text>"],
+
+ ["<%text> context not starting with U+000A",
+  function(elem) {
+      elem.appendChild(document.createTextNode("a\x0A"));
+      return elem;
+  },
+  "a\x0A",
+  "<%text>a\x0A</%text>"],
+
+ ["<%text> non-context starting with U+000A",
+  function(elem) {
+      var span = document.createElement("span");
+      elem.appendChild(document.createTextNode("\x0A"));
+      span.appendChild(elem);
+      return span;
+  },
+  "<%text>\x0A</%text>",
+  "<span><%text>\x0A</%text></span>"],
+
+ ["<%text> non-context not starting with U+000A",
+  function(elem) {
+      var span = document.createElement("span");
+      elem.appendChild(document.createTextNode("a\x0A"));
+      span.appendChild(elem);
+      return span;
+  },
+  "<%text>a\x0A</%text>",
+  "<span><%text>a\x0A</%text></span>"],
+]
+
+var void_elements = [
+  "area", "base", "basefont", "bgsound", "br", "col", "embed",
+  "frame", "hr", "img", "input", "keygen", "link",
+  "meta", "param", "source", "track", "wbr"
+];
+
+var void_tests = [
+ ["Void context node",
+  function (void_elem) {
+       return void_elem;
+  },
+  "",
+  "<%void>"
+ ],
+ ["void as first child with following siblings",
+  function (void_elem) {
+       var span = document.createElement("span");
+       span.appendChild(void_elem);
+       span.appendChild(document.createElement("a")).appendChild(document.createTextNode("test"));
+       span.appendChild(document.createElement("b"))
+       return span
+  },
+  "<%void><a>test</a><b></b>",
+  "<span><%void><a>test</a><b></b></span>"
+ ],
+ ["void as second child with following siblings",
+  function (void_elem) {
+       var span = document.createElement("span");
+       span.appendChild(document.createElement("a")).appendChild(document.createTextNode("test"));
+       span.appendChild(void_elem);
+       span.appendChild(document.createElement("b"))
+       return span;
+  },
+  "<a>test</a><%void><b></b>",
+  "<span><a>test</a><%void><b></b></span>"
+ ],
+ ["void as last child with preceding siblings",
+  function (void_elem) {
+        var span = document.createElement("span");
+        span.appendChild(document.createElement("a")).appendChild(document.createTextNode("test"));
+        span.appendChild(document.createElement("b"))
+        span.appendChild(void_elem);
+        return span;
+  },
+  "<a>test</a><b></b><%void>",
+  "<span><a>test</a><b></b><%void></span>"
+ ],
+]
+
+function cross_map(a1, a2, f) {
+    var rv = [];
+    a1.forEach(function(a1_elem) {
+        a2.forEach(function(a2_elem) {
+            rv.push(f(a1_elem, a2_elem));
+        })
+    });
+    return rv;
+}
+
+function innerHTML_test(func, elem, expected) {
+    assert_equals(func(elem).innerHTML, expected);
+}
+
+function outerHTML_test(func, elem, expected) {
+    assert_equals(func(elem).outerHTML, expected);
+}
+
+
+function make_void(name) {
+    var rv = document.createElement(name);
+    rv.appendChild(document.createElement("a")).appendChild(document.createComment("abc"))
+    rv.appendChild(document.createElement("b")).
+        appendChild(document.createElement("c")).
+        appendChild(document.createTextNode("abc"))
+    return rv;
+}
+
+function make_text(name) {
+    return document.createElement(name);
+}
+
+generate_tests(innerHTML_test,
+               expected.map(function(item, i) {
+                                return ["innerHTML " + i + " " + expected[i][0],
+                                        function() {return test_data[i]},
+                                        null,
+                                        item[0]];
+                            }))
+
+generate_tests(outerHTML_test,
+               expected.map(function(item, i) {
+                                return ["outerHTML " + i + " " + expected[i][1],
+                                        function() {return test_data[i]},
+                                        null,
+                                        item[1]];
+                            }))
+
+generate_tests(innerHTML_test,
+               dom_tests.map(function(item) {
+                                return ["innerHTML " + item[0],
+                                        item[1],
+                                        null,
+                                        item[2]];
+                            }))
+
+generate_tests(outerHTML_test,
+               dom_tests.map(function(item) {
+                                return ["outerHTML " + item[0],
+                                        item[1],
+                                        null,
+                                        item[3]];
+                            }))
+
+generate_tests(innerHTML_test,
+               cross_map(text_tests, text_elements,
+                         function(test_data, elem_name) {
+                             var rv = ["innerHTML " + test_data[0].replace(/%text/g, elem_name),
+                                       test_data[1],
+                                       document.createElement(elem_name),
+                                       test_data[2].replace(/%text/g, elem_name)];
+                             return rv;
+                         }))
+
+generate_tests(outerHTML_test,
+               cross_map(text_tests, text_elements,
+                         function(test_data, elem_name) {
+                             var rv = ["outerHTML " + test_data[0].replace(/%text/g, elem_name),
+                                       test_data[1],
+                                       document.createElement(elem_name),
+                                       test_data[3].replace(/%text/g, elem_name)];
+                             return rv;
+                         }))
+
+generate_tests(innerHTML_test,
+               cross_map(void_tests, void_elements,
+                         function(test_data, elem_name) {
+                             var rv = ["innerHTML " + test_data[0] + " " + elem_name,
+                                       test_data[1],
+                                       make_void(elem_name),
+                                       test_data[2].replace(/%void/g, elem_name)];
+                             return rv;
+                         }))
+
+generate_tests(outerHTML_test,
+               cross_map(void_tests, void_elements,
+                         function(test_data, elem_name) {
+                             var rv = ["outerHTML " + test_data[0] + " " + elem_name,
+                                       test_data[1],
+                                       make_void(elem_name),
+                                       test_data[3].replace(/%void/g, elem_name)];
+                             return rv;
+                         }))
+
+</script>
