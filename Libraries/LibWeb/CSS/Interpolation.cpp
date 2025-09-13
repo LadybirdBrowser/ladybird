@@ -1220,6 +1220,16 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return {};
                 return Inset { *interpolated_inset_box };
             },
+            [&](Xywh const& from_xywh) -> Optional<BasicShape> {
+                auto& to_xywh = to_shape.get<Xywh>();
+                auto interpolated_x = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
+                auto interpolated_y = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
+                auto interpolated_width = interpolate_length_percentage(calculation_context, from_xywh.width, to_xywh.width, delta);
+                auto interpolated_height = interpolate_length_percentage(calculation_context, from_xywh.height, to_xywh.height, delta);
+                if (!interpolated_x.has_value() || !interpolated_y.has_value() || !interpolated_width.has_value() || !interpolated_height.has_value())
+                    return {};
+                return Xywh { *interpolated_x, *interpolated_y, *interpolated_width, *interpolated_height };
+            },
             [](auto&) -> Optional<BasicShape> {
                 return {};
             });
