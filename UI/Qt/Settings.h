@@ -46,6 +46,7 @@ public:
 
 signals:
     void show_menubar_changed(bool show_menubar);
+    void enable_block_adult_content_changed(bool enable);
     void enable_do_not_track_changed(bool enable);
 
 protected:
