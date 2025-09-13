@@ -209,7 +209,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* inspect_menu = m_hamburger_menu->addMenu("&Inspect");
     menuBar()->addMenu(inspect_menu);
 
-    edit_menu->addAction(create_application_action(*this, Application::the().view_source_action()));
+    inspect_menu->addAction(create_application_action(*this, Application::the().view_source_action()));
 
     m_enable_devtools_action = new QAction("Enable &DevTools", this);
     m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
