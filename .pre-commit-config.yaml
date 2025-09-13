@@ -10,6 +10,6 @@ repos:
 
       - id: meta-lint-commit
         name: Lint commit message to ensure it will pass the commit linting on CI
-        entry: Meta/lint-commit.sh
+        entry: python Meta/lint-commit.py
         stages: [ commit-msg ]
         language: system
