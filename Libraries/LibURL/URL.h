@@ -212,9 +212,12 @@ Optional<String> get_registrable_domain(StringView host);
 
 inline URL about_blank() { return URL::about("blank"_string); }
 inline URL about_srcdoc() { return URL::about("srcdoc"_string); }
+
 inline URL about_error() { return URL::about("error"_string); }
-inline URL about_version() { return URL::about("version"_string); }
 inline URL about_newtab() { return URL::about("newtab"_string); }
+inline URL about_processes() { return URL::about("processes"_string); }
+inline URL about_settings() { return URL::about("settings"_string); }
+inline URL about_version() { return URL::about("version"_string); }
 
 }
 
