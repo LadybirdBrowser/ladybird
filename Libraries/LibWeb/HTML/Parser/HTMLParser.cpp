@@ -5205,22 +5205,39 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             builder.append(' ');
 
             // An attribute's serialized name for the purposes of the previous paragraph must be determined as follows:
-
-            // NOTE: As far as I can tell, these steps are equivalent to just using the qualified name.
-            //
             // -> If the attribute has no namespace:
-            //         The attribute's serialized name is the attribute's local name.
+            if (!attribute.namespace_uri().has_value()) {
+                // The attribute's serialized name is the attribute's local name.
+                builder.append(attribute.local_name());
+            }
             // -> If the attribute is in the XML namespace:
-            //         The attribute's serialized name is the string "xml:" followed by the attribute's local name.
+            else if (attribute.namespace_uri() == Namespace::XML) {
+                // The attribute's serialized name is the string "xml:" followed by the attribute's local name.
+                builder.append("xml:"sv);
+                builder.append(attribute.local_name());
+            }
             // -> If the attribute is in the XMLNS namespace and the attribute's local name is xmlns:
-            //         The attribute's serialized name is the string "xmlns".
+            else if (attribute.namespace_uri() == Namespace::XMLNS && attribute.local_name() == "xmlns") {
+                // The attribute's serialized name is the string "xmlns".
+                builder.append("xmlns"sv);
+            }
             // -> If the attribute is in the XMLNS namespace and the attribute's local name is not xmlns:
-            //         The attribute's serialized name is the string "xmlns:" followed by the attribute's local name.
+            else if (attribute.namespace_uri() == Namespace::XMLNS) {
+                // The attribute's serialized name is the string "xmlns:" followed by the attribute's local name.
+                builder.append("xmlns:"sv);
+                builder.append(attribute.local_name());
+            }
             // -> If the attribute is in the XLink namespace:
-            //         The attribute's serialized name is the string "xlink:" followed by the attribute's local name.
+            else if (attribute.namespace_uri() == Namespace::XLink) {
+                // The attribute's serialized name is the string "xlink:" followed by the attribute's local name.
+                builder.append("xlink:"sv);
+                builder.append(attribute.local_name());
+            }
             // -> If the attribute is in some other namespace:
-            //         The attribute's serialized name is the attribute's qualified name.
-            builder.append(attribute.name());
+            else {
+                // The attribute's serialized name is the attribute's qualified name.
+                builder.append(attribute.name());
+            }
 
             builder.append("=\""sv);
             builder.append(escape_string(attribute.value().code_points(), AttributeMode::Yes));
