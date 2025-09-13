@@ -23,6 +23,8 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 
@@ -308,7 +310,7 @@ Optional<float> SVGGraphicsElement::stroke_width() const
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
-GC::Ref<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBoxOptions>)
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBoxOptions>)
 {
     // FIXME: It should be possible to compute this without layout updates. The bounding box is within the
     // SVG coordinate space (before any viewbox or other transformations), so it should be possible to
@@ -321,12 +323,25 @@ GC::Ref<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBox
     auto owner_svg_element = this->owner_svg_element();
     if (!owner_svg_element)
         return Geometry::DOMRect::create(realm());
-    auto svg_element_rect = owner_svg_element->paintable_box()->absolute_rect();
-    auto inverse_transform = static_cast<Painting::SVGGraphicsPaintable&>(*paintable_box()).computed_transforms().svg_to_css_pixels_transform().inverse();
-    auto translated_rect = paintable_box()->absolute_rect().to_type<float>().translated(-svg_element_rect.location().to_type<float>());
-    if (inverse_transform.has_value())
-        translated_rect = inverse_transform->map(translated_rect);
-    return Geometry::DOMRect::create(realm(), translated_rect);
+
+    auto owner_paintable = owner_svg_element->paintable_box();
+    auto self_paintable = paintable_box();
+    if (!owner_paintable || !self_paintable) {
+        // Throw only for non-rendered *graphics* elements where geometry isn't computable
+        // (e.g. elements inside <marker>, <pattern>, etc.).
+        if (is<SVGSVGElement>(*this))
+            return Geometry::DOMRect::create(realm());
+        return WebIDL::InvalidStateError::create(
+            realm(),
+            "Element is not rendered and geometry is not computable"_utf16);
+    }
+
+    auto svg_rect = owner_paintable->absolute_rect();
+    auto inv = static_cast<Painting::SVGGraphicsPaintable&>(*self_paintable).computed_transforms().svg_to_css_pixels_transform().inverse();
+    auto rect = self_paintable->absolute_rect().to_type<float>().translated(-svg_rect.location().to_type<float>());
+    if (inv.has_value())
+        rect = inv->map(rect);
+    return Geometry::DOMRect::create(realm(), rect);
 }
 
 GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
