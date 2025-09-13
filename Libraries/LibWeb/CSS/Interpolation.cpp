@@ -1193,6 +1193,40 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             interpolated_left.release_nonnull(),
             from_border_image_slice.fill());
     }
+    case StyleValue::Type::BasicShape: {
+        auto& from_shape = from.as_basic_shape().basic_shape();
+        auto& to_shape = to.as_basic_shape().basic_shape();
+        if (from_shape.index() != to_shape.index())
+            return {};
+
+        auto interpolate_length_box = [](CalculationContext const& calculation_context, LengthBox const& from, LengthBox const& to, float delta) -> Optional<LengthBox> {
+            auto interpolated_top = interpolate_length_percentage_or_auto(calculation_context, from.top(), to.top(), delta);
+            auto interpolated_right = interpolate_length_percentage_or_auto(calculation_context, from.right(), to.right(), delta);
+            auto interpolated_bottom = interpolate_length_percentage_or_auto(calculation_context, from.bottom(), to.bottom(), delta);
+            auto interpolated_left = interpolate_length_percentage_or_auto(calculation_context, from.left(), to.left(), delta);
+            if (!interpolated_top.has_value() || !interpolated_right.has_value() || !interpolated_bottom.has_value() || !interpolated_left.has_value())
+                return {};
+            return LengthBox { *interpolated_top, *interpolated_right, *interpolated_bottom, *interpolated_left };
+        };
+
+        Optional<BasicShape> interpolated_shape;
+        from_shape.visit(
+            [&](Inset const& from_inset) {
+                auto& to_inset = to_shape.get<Inset>();
+                auto interpolated_inset_box = interpolate_length_box(calculation_context, from_inset.inset_box, to_inset.inset_box, delta);
+                if (!interpolated_inset_box.has_value())
+                    return;
+                interpolated_shape = Inset { *interpolated_inset_box };
+            },
+            [](auto&) {
+                // FIXME: Implement interpolation for all shapes
+            });
+
+        if (!interpolated_shape.has_value())
+            return {};
+
+        return BasicShapeStyleValue::create(*interpolated_shape);
+    }
     case StyleValue::Type::Color: {
         ColorResolutionContext color_resolution_context {};
         if (auto node = element.layout_node()) {
