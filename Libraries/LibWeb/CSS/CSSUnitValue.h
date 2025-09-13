@@ -12,12 +12,13 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
-class CSSUnitValue : public CSSNumericValue {
+class CSSUnitValue final : public CSSNumericValue {
     WEB_PLATFORM_OBJECT(CSSUnitValue, CSSNumericValue);
     GC_DECLARE_ALLOCATOR(CSSUnitValue);
 
 public:
     [[nodiscard]] static GC::Ref<CSSUnitValue> create(JS::Realm&, double value, FlyString unit);
+    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(JS::Realm&, SumValueItem const&);
     static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> construct_impl(JS::Realm&, double value, FlyString unit);
 
     virtual ~CSSUnitValue() override = default;
@@ -29,7 +30,10 @@ public:
 
     String serialize_unit_value(Optional<double> minimum, Optional<double> maximum) const;
 
+    GC::Ptr<CSSUnitValue> converted_to_unit(FlyString const& unit) const;
+
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
+    virtual Optional<SumValue> create_a_sum_value() const override;
 
 private:
     explicit CSSUnitValue(JS::Realm&, double value, FlyString unit, NumericType type);

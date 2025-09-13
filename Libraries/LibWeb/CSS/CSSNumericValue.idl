@@ -1,4 +1,5 @@
 #import <CSS/CSSStyleValue.idl>
+#import <CSS/CSSUnitValue.idl>
 
 // https://drafts.css-houdini.org/css-typed-om-1/#enumdef-cssnumericbasetype
 enum CSSNumericBaseType {
@@ -35,7 +36,7 @@ interface CSSNumericValue : CSSStyleValue {
 
     [ImplementedAs=equals_for_bindings] boolean equals(CSSNumberish... value);
 
-    // FIXME: CSSUnitValue to(USVString unit);
+    CSSUnitValue to(USVString unit);
     // FIXME: CSSMathSum toSum(USVString... units);
     [ImplementedAs=type_for_bindings] CSSNumericType type();
 

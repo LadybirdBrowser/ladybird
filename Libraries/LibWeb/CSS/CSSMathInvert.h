@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathinvert
-class CSSMathInvert : public CSSMathValue {
+class CSSMathInvert final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathInvert, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathInvert);
 
@@ -28,6 +28,7 @@ public:
 
     virtual String serialize_math_value(Nested, Parens) const override;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
+    virtual Optional<SumValue> create_a_sum_value() const override;
 
 private:
     CSSMathInvert(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);

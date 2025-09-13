@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathproduct
-class CSSMathProduct : public CSSMathValue {
+class CSSMathProduct final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathProduct, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathProduct);
 
@@ -28,6 +28,7 @@ public:
 
     virtual String serialize_math_value(Nested, Parens) const override;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
+    virtual Optional<SumValue> create_a_sum_value() const override;
 
 private:
     CSSMathProduct(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);

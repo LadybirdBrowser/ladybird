@@ -292,9 +292,10 @@ ErrorOr<bool> Process::is_being_debugged()
 #    elif defined(AK_OS_FREEBSD)
     return ((info.ki_flag & P_TRACED) != 0);
 #    endif
-#endif
+#else
     // FIXME: Implement this for more platforms.
     return Error::from_string_literal("Platform does not support checking for debugger");
+#endif
 }
 
 // Forces the process to sleep until a debugger is attached, then breaks.

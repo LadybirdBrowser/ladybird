@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 12 tests
 
-11 Pass
-1 Fail
+12 Pass
 Pass	Property flex-basis value '1px'
 Pass	Property flex-basis value '400%'
 Pass	Property flex-basis value 'auto'
@@ -15,4 +14,4 @@ Pass	Property flex-basis value 'calc(10px + 0.5em)'
 Pass	Property flex-basis value 'calc(10px - 0.5em)'
 Pass	Property flex-basis value 'calc(10%)'
 Pass	Property flex-basis value 'calc(0% + 10px)'
-Fail	Property flex-basis value 'calc(10% + 0px)'
+Pass	Property flex-basis value 'calc(10% + 0px)'

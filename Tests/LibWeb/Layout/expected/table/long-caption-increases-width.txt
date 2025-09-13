@@ -8,9 +8,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
           BlockContainer <caption> at [8,8] [0+0+0 59.046875 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 1, length: 6, rect: [10.5,8 54.03125x18] baseline: 13.796875
+            frag 0 from TextNode start: 5, length: 6, rect: [10.5,8 54.03125x18] baseline: 13.796875
                 "A long"
-            frag 1 from TextNode start: 8, length: 7, rect: [8,26 59.046875x18] baseline: 13.796875
+            frag 1 from TextNode start: 12, length: 7, rect: [8,26 59.046875x18] baseline: 13.796875
                 "caption"
             TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) children: inline

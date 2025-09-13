@@ -105,7 +105,7 @@ GC::Ref<CSSNumericValue> CSSMathClamp::upper() const
 // https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value
 bool CSSMathClamp::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
 {
-    // AD-HOC: Spec doesn't handle clamp()
+    // AD-HOC: Spec doesn't handle clamp(). https://github.com/w3c/css-houdini-drafts/issues/1152
     // 1. If value1 and value2 are not members of the same interface, return false.
     auto* other_clamp = as_if<CSSMathClamp>(*other);
     if (!other_clamp)
@@ -114,6 +114,36 @@ bool CSSMathClamp::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
     return m_lower->is_equal_numeric_value(other_clamp->m_lower)
         && m_value->is_equal_numeric_value(other_clamp->m_value)
         && m_upper->is_equal_numeric_value(other_clamp->m_upper);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSMathClamp::create_a_sum_value() const
+{
+    // AD-HOC: There is no spec for this. https://github.com/w3c/css-houdini-drafts/issues/1152
+    //         So, basing it on the spec for CSSMathMin.
+
+    // Create sum values from lower, value, and upper.
+    auto lower = m_lower->create_a_sum_value();
+    auto value = m_value->create_a_sum_value();
+    auto upper = m_upper->create_a_sum_value();
+
+    // If any of those are failure, or has a length greater than one, return failure.
+    if (!lower.has_value() || lower->size() > 1
+        || !value.has_value() || value->size() > 1
+        || !upper.has_value() || upper->size() > 1)
+        return {};
+
+    // If not all their unit maps are identical, return failure.
+    if (lower->first().unit_map != value->first().unit_map || value->first().unit_map != upper->first().unit_map)
+        return {};
+
+    // Return value clamped between lower and upper.
+    return SumValue {
+        SumValueItem {
+            clamp(value->first().value, lower->first().value, upper->first().value),
+            value->first().unit_map,
+        }
+    };
 }
 
 }

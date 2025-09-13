@@ -5,6 +5,7 @@
  */
 
 #include "NumericType.h"
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
@@ -14,6 +15,23 @@
 #include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {
+
+// https://drafts.css-houdini.org/css-typed-om-1/#product-of-two-unit-maps
+UnitMap product_of_two_unit_maps(UnitMap const& units1, UnitMap const& units2)
+{
+    // 1. Let result be a copy of units1.
+    auto result = units1;
+
+    // 2. For each unit → power in units2:
+    for (auto const& [unit, power] : units2) {
+        // 1. If result[unit] exists, increment result[unit] by power.
+        // 2. Otherwise, set result[unit] to power.
+        result.ensure(unit) += power;
+    }
+
+    // 3. Return result.
+    return result;
+}
 
 Optional<NumericType::BaseType> NumericType::base_type_from_value_type(ValueType value_type)
 {
@@ -39,18 +57,18 @@ Optional<NumericType::BaseType> NumericType::base_type_from_value_type(ValueType
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-create-a-type
-Optional<NumericType> NumericType::create_from_unit(StringView unit)
+Optional<NumericType> NumericType::create_from_unit(FlyString const& unit)
 {
     // To create a type from a string unit, follow the appropriate branch of the following:
 
     // unit is "number"
-    if (unit == "number"sv) {
+    if (unit == "number"_fly_string) {
         // Return «[ ]» (empty map)
         return NumericType {};
     }
 
     // unit is "percent"
-    if (unit == "percent"sv) {
+    if (unit == "percent"_fly_string) {
         // Return «[ "percent" → 1 ]»
         return NumericType { BaseType::Percent, 1 };
     }
@@ -94,6 +112,53 @@ Optional<NumericType> NumericType::create_from_unit(StringView unit)
     return {};
 
     // In all cases, the associated percent hint is null.
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-type-from-a-unit-map
+Optional<NumericType> NumericType::create_from_unit_map(UnitMap const& unit_map)
+{
+    // To create a type from a unit map unit map:
+
+    // 1. Let types be an initially empty list.
+    Vector<NumericType> types;
+
+    // 2. For each unit → power in unit map:
+    for (auto const& [unit, power] : unit_map) {
+        // 1. Let type be the result of creating a type from unit.
+        auto type = create_from_unit(unit).release_value();
+
+        // 2. Set type’s sole value to power.
+        auto sole_type = [&type] {
+            for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
+                auto base_type = static_cast<BaseType>(i);
+                if (type.exponent(base_type).has_value())
+                    return base_type;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        type.set_exponent(sole_type, power);
+
+        // 3. Append type to types.
+        types.empend(type);
+    }
+
+    // 3. Return the result of multiplying all the items of types.
+    if (types.is_empty())
+        return {};
+    auto result = types.first();
+    bool first = true;
+    for (auto const& type : types) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        if (auto multiplied_type = result.multiplied_by(type); multiplied_type.has_value()) {
+            result = multiplied_type.release_value();
+        } else {
+            return {};
+        }
+    }
+    return result;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-add-two-types

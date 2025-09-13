@@ -6,6 +6,7 @@
         internals.doubleclick(85, 20);
 
         const selection = document.getSelection().getRangeAt(0);
+        // FIXME: This should output 6-15 instead of 10-15
         println(`Selected range: ${selection.startOffset} - ${selection.endOffset}`);
     });
 </script>

@@ -3,12 +3,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
     Box <body> at [8,8] flex-container(column) [8+0+0 784 0+0+8] [8+0+0 50 0+0+8] [FFC] children: not-inline
       Box <div.content> at [8,8] flex-item [0+0+0 784 0+0+0] [0+0+0 54 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 87, rect: [8,8 705.625x18] baseline: 13.796875
+          frag 0 from TextNode start: 5, length: 87, rect: [8,8 705.625x18] baseline: 13.796875
               "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam dignissim elit eget arcu"
-          frag 1 from TextNode start: 89, length: 92, rect: [8,26 758x18] baseline: 13.796875
-              "accumsan imperdiet vulputate a justo. Phasellus tincidunt sem non tellus tristique hendrerit"
-          frag 2 from TextNode start: 182, length: 82, rect: [8,44 683.125x18] baseline: 13.796875
-              "quis eu eros. Morbi dolor erat, posuere ut feugiat rhoncus, vestibulum vel tortor."
+          frag 1 from TextNode start: 93, length: 29, rect: [8,26 246.296875x18] baseline: 13.796875
+              "accumsan imperdiet vulputate "
+          frag 2 from TextNode start: 126, length: 63, rect: [254.296875,26 511.703125x18] baseline: 13.796875
+              "a justo. Phasellus tincidunt sem non tellus tristique hendrerit"
+          frag 3 from TextNode start: 190, length: 51, rect: [8,44 427.265625x18] baseline: 13.796875
+              "quis eu eros. Morbi dolor erat, posuere ut feugiat "
+          frag 4 from TextNode start: 245, length: 31, rect: [435.265625,44 255.859375x18] baseline: 13.796875
+              "rhoncus, vestibulum vel tortor."
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text> (not painted)

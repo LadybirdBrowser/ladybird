@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
-class CSSKeywordValue : public CSSStyleValue {
+class CSSKeywordValue final : public CSSStyleValue {
     WEB_PLATFORM_OBJECT(CSSKeywordValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSKeywordValue);
 

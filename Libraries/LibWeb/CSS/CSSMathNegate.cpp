@@ -103,4 +103,22 @@ bool CSSMathNegate::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
     return m_value->is_equal_numeric_value(other_negate->m_value);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSMathNegate::create_a_sum_value() const
+{
+    // 1. Let values be the result of creating a sum value from this’s value internal slot.
+    auto values = m_value->create_a_sum_value();
+
+    // 2. If values is failure, return failure.
+    if (!values.has_value())
+        return {};
+
+    // 3. Negate the value of each item of values.
+    for (auto& value : *values)
+        value.value = -value.value;
+
+    // 4. Return values.
+    return values;
+}
+
 }

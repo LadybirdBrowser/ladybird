@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibMedia/CodecID.h>
+#include <LibMedia/Track.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -74,6 +75,40 @@ static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
     default:
         return CodecID::Unknown;
     }
+}
+
+static inline AVMediaType ffmpeg_media_type_from_track_type(TrackType track_type)
+{
+    switch (track_type) {
+    case TrackType::Video:
+        return AVMediaType::AVMEDIA_TYPE_VIDEO;
+    case TrackType::Audio:
+        return AVMediaType::AVMEDIA_TYPE_AUDIO;
+    case TrackType::Subtitles:
+        return AVMediaType::AVMEDIA_TYPE_SUBTITLE;
+    case TrackType::Unknown:
+        return AVMediaType::AVMEDIA_TYPE_UNKNOWN;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static inline TrackType track_type_from_ffmpeg_media_type(AVMediaType media_type)
+{
+    switch (media_type) {
+    case AVMediaType::AVMEDIA_TYPE_VIDEO:
+        return TrackType::Video;
+    case AVMediaType::AVMEDIA_TYPE_AUDIO:
+        return TrackType::Audio;
+    case AVMediaType::AVMEDIA_TYPE_SUBTITLE:
+        return TrackType::Subtitles;
+    case AVMediaType::AVMEDIA_TYPE_DATA:
+    case AVMediaType::AVMEDIA_TYPE_ATTACHMENT:
+    case AVMediaType::AVMEDIA_TYPE_UNKNOWN:
+        return TrackType::Unknown;
+    case AVMediaType::AVMEDIA_TYPE_NB:
+        VERIFY_NOT_REACHED();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }

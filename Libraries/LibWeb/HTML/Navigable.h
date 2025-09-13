@@ -93,7 +93,7 @@ public:
 
     void activate_history_entry(GC::Ptr<SessionHistoryEntry>);
 
-    GC::Ptr<DOM::Document> active_document();
+    GC::Ptr<DOM::Document> active_document() const;
     GC::Ptr<BrowsingContext> active_browsing_context();
     GC::Ptr<WindowProxy> active_window_proxy();
     GC::Ptr<Window> active_window();

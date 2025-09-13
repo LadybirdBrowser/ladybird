@@ -15,7 +15,7 @@ using CSSUnparsedSegment = Variant<String, GC::Ref<CSSVariableReferenceValue>>;
 using GCRootCSSUnparsedSegment = Variant<String, GC::Root<CSSVariableReferenceValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
-class CSSUnparsedValue : public CSSStyleValue {
+class CSSUnparsedValue final : public CSSStyleValue {
     WEB_PLATFORM_OBJECT(CSSUnparsedValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSUnparsedValue);
 

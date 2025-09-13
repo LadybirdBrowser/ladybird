@@ -13,6 +13,9 @@
 
 namespace Web::CSS {
 
+using UnitMap = HashMap<FlyString, i32>;
+UnitMap product_of_two_unit_maps(UnitMap const&, UnitMap const&);
+
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
 class NumericType {
 public:
@@ -51,7 +54,8 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    static Optional<NumericType> create_from_unit(StringView unit);
+    static Optional<NumericType> create_from_unit(FlyString const& unit);
+    static Optional<NumericType> create_from_unit_map(UnitMap const&);
     NumericType() = default;
     NumericType(BaseType type, i32 power)
     {
@@ -102,6 +106,7 @@ public:
     bool operator==(NumericType const& other) const = default;
 
     String dump() const;
+    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
 
 private:
     bool contains_all_the_non_zero_entries_of_other_with_the_same_value(NumericType const& other) const;
@@ -112,7 +117,6 @@ private:
     };
     void copy_all_entries_from(NumericType const& other, SkipIfAlreadyPresent);
 
-    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
     bool matches_dimension(BaseType, Optional<ValueType> percentages_resolve_as) const;
     bool matches_dimension_percentage(BaseType, Optional<ValueType> percentages_resolve_as) const;
 

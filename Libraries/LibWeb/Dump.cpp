@@ -389,20 +389,17 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             fragment.length_in_code_units(),
             fragment.absolute_rect(),
             fragment.baseline());
-        if (is<Layout::TextNode>(fragment.layout_node())) {
+        if (fragment.length_in_code_units() > 0) {
             builder.append_repeated("  "sv, indent);
-            auto const& layout_text = static_cast<Layout::TextNode const&>(fragment.layout_node());
-            auto fragment_text = layout_text.text_for_rendering().substring_view(fragment.start_offset(), fragment.length_in_code_units());
-            builder.appendff("      \"{}\"\n", fragment_text);
+            builder.appendff("      \"{}\"\n", fragment.text());
         }
     };
 
-    if (is<Layout::BlockContainer>(layout_node) && static_cast<Layout::BlockContainer const&>(layout_node).children_are_inline()) {
-        auto& block = static_cast<Layout::BlockContainer const&>(layout_node);
-        for (size_t fragment_index = 0; block.paintable_with_lines() && fragment_index < block.paintable_with_lines()->fragments().size(); ++fragment_index) {
-            auto const& fragment = block.paintable_with_lines()->fragments()[fragment_index];
-            dump_fragment(fragment, fragment_index);
-        }
+    if (auto const* block_container = as_if<Layout::BlockContainer>(layout_node);
+        block_container && block_container->children_are_inline() && block_container->paintable_with_lines()) {
+        size_t fragment_index = 0;
+        for (auto const& fragment : block_container->paintable_with_lines()->fragments())
+            dump_fragment(fragment, fragment_index++);
     }
 
     if (is<Layout::InlineNode>(layout_node) && layout_node.first_paintable()) {

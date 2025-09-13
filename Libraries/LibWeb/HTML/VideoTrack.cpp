@@ -110,7 +110,7 @@ AK::Duration VideoTrack::position() const
 
 AK::Duration VideoTrack::duration() const
 {
-    return m_playback_manager->selected_video_track().video_data().duration;
+    return m_playback_manager->duration();
 }
 
 void VideoTrack::seek(AK::Duration position, MediaSeekMode seek_mode)

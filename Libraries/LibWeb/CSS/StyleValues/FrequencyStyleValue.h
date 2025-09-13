@@ -24,7 +24,7 @@ public:
 
     Frequency const& frequency() const { return m_frequency; }
     virtual double raw_value() const override { return m_frequency.raw_value(); }
-    virtual StringView unit_name() const LIFETIME_BOUND override { return m_frequency.unit_name(); }
+    virtual FlyString unit_name() const override { return m_frequency.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_frequency.to_string(serialization_mode); }
 

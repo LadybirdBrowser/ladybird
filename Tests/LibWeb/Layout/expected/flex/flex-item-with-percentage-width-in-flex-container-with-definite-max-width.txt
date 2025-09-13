@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
         BlockContainer <button> at [13,10] inline-block [0+1+4 275.546875 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 275.546875 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 275.546875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 1, length: 24, rect: [13,10 275.546875x18] baseline: 13.796875
+              frag 0 from TextNode start: 5, length: 24, rect: [13,10 275.546875x18] baseline: 13.796875
                   "LOOOOOOOOOOOOOOOOOOOOONG"
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)

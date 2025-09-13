@@ -106,4 +106,29 @@ bool CSSMathInvert::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
     return m_value->is_equal_numeric_value(other_invert->m_value);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSMathInvert::create_a_sum_value() const
+{
+    // 1. Let values be the result of creating a sum value from this’s value internal slot.
+    auto values = m_value->create_a_sum_value();
+
+    // 2. If values is failure, return failure.
+    if (!values.has_value())
+        return {};
+
+    // 3. If the length of values is more than one, return failure.
+    if (values->size() > 1)
+        return {};
+
+    // 4. Invert (find the reciprocal of) the value of the item in values, and negate the value of each entry in its unit map.
+    for (auto& [value, unit_map] : *values) {
+        value = 1.0 / value;
+        for (auto& [_, power] : unit_map)
+            power = -power;
+    }
+
+    // 5. Return values.
+    return values;
+}
+
 }

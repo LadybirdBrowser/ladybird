@@ -680,6 +680,9 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
         case Gfx::StandardCursor::Help:
             setCursor(Qt::WhatsThisCursor);
             break;
+        case Gfx::StandardCursor::OpenHand:
+            setCursor(Qt::OpenHandCursor);
+            break;
         case Gfx::StandardCursor::Drag:
             setCursor(Qt::ClosedHandCursor);
             break;

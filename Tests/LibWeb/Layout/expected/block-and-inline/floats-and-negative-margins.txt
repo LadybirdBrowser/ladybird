@@ -3,12 +3,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
     BlockContainer <body> at [100,8] [100+0+0 200 0+0+500] [8+0+0 200 0+0+8] children: not-inline
       BlockContainer <div.row> at [50,8] [-50+0+0 250 0+0+0] [0+0+0 200 0+0+0] children: inline
         BlockContainer <div.item> at [50,8] floating [0+0+0 125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 1, rect: [50,8 9.34375x18] baseline: 13.796875
+          frag 0 from TextNode start: 5, length: 1, rect: [50,8 9.34375x18] baseline: 13.796875
               "a"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         BlockContainer <div.item> at [175,8] floating [0+0+0 125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 1, rect: [175,8 9.46875x18] baseline: 13.796875
+          frag 0 from TextNode start: 5, length: 1, rect: [175,8 9.46875x18] baseline: 13.796875
               "b"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)

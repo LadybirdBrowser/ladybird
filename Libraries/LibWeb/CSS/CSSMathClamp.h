@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathclamp
-class CSSMathClamp : public CSSMathValue {
+class CSSMathClamp final : public CSSMathValue {
     WEB_PLATFORM_OBJECT(CSSMathClamp, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathClamp);
 
@@ -30,6 +30,7 @@ public:
 
     virtual String serialize_math_value(Nested, Parens) const override;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
+    virtual Optional<SumValue> create_a_sum_value() const override;
 
 private:
     CSSMathClamp(JS::Realm&, NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);

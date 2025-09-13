@@ -151,4 +151,59 @@ bool CSSMathSum::is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const
     return m_values->is_equal_numeric_values(other_sum->m_values);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-a-sum-value
+Optional<SumValue> CSSMathSum::create_a_sum_value() const
+{
+    // 1. Let values initially be an empty list.
+    SumValue values;
+
+    // 2. For each item in this’s values internal slot:
+    for (auto const item : m_values->values()) {
+        // 1. Let value be the result of creating a sum value from item. If value is failure, return failure.
+        auto maybe_value = item->create_a_sum_value();
+        if (!maybe_value.has_value())
+            return {};
+        auto const& value = maybe_value.value();
+
+        // 2. For each subvalue of value:
+        for (auto const& subvalue : value) {
+            // 1. If values already contains an item with the same unit map as subvalue, increment that item’s value by
+            //    the value of subvalue.
+            auto existing_item = values.find_if([&subvalue](SumValueItem const& other) {
+                return subvalue.unit_map == other.unit_map;
+            });
+            if (existing_item != values.end()) {
+                existing_item->value += subvalue.value;
+            }
+            // 2. Otherwise, append subvalue to values.
+            else {
+                values.append(subvalue);
+            }
+        }
+    }
+
+    // 3. Create a type from the unit map of each item of values, and add all the types together.
+    //    If the result is failure, return failure.
+    auto added_type = NumericType::create_from_unit_map(values.first().unit_map);
+    if (!added_type.has_value())
+        return {};
+    bool first = true;
+    for (auto const& [_, unit_map] : values) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        auto type = NumericType::create_from_unit_map(unit_map);
+        if (!type.has_value())
+            return {};
+
+        added_type = added_type->added_to(type.value());
+        if (!added_type.has_value())
+            return {};
+    }
+
+    // 4. Return values.
+    return values;
+}
+
 }

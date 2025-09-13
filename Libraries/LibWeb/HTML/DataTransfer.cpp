@@ -74,6 +74,8 @@ void DataTransfer::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_items);
     visitor.visit(m_item_list);
+
+    VISIT_CACHED_ATTRIBUTE(types);
 }
 
 void DataTransfer::set_drop_effect(String const& drop_effect)
@@ -248,6 +250,68 @@ GC::Ref<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
     return data_transfer_item;
 }
 
+void DataTransfer::remove_item(size_t index)
+{
+    VERIFY(m_associated_drag_data_store);
+    VERIFY(index < m_item_list.size());
+
+    m_associated_drag_data_store->remove_item_at(index);
+    auto& item = m_item_list.at(index);
+    item->set_item_index({}, OptionalNone {});
+    m_item_list.remove(index);
+    for (size_t i = index; i < m_item_list.size(); ++i) {
+        m_item_list.at(i)->set_item_index({}, i);
+    }
+
+    update_data_transfer_types_list();
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-cleardata
+void DataTransfer::clear_data(Optional<String> maybe_format)
+{
+    // 1. If the DataTransfer object is no longer associated with a drag data store, return. Nothing happens.
+    if (!m_associated_drag_data_store)
+        return;
+
+    // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
+    if (m_associated_drag_data_store->mode() != DragDataStore::Mode::ReadWrite)
+        return;
+
+    auto remove_items_from_drag_data_store = [&](Optional<String> const& format = {}) {
+        auto did_remove_item = false;
+        for (size_t i = m_associated_drag_data_store->item_list().size(); i > 0; --i) {
+            auto const& item = m_associated_drag_data_store->item_list().at(i - 1);
+            if (item.kind == DragDataStoreItem::Kind::Text && (!format.has_value() || item.type_string == *format)) {
+                m_associated_drag_data_store->remove_item_at(i - 1);
+                did_remove_item = true;
+            }
+        }
+        if (did_remove_item)
+            update_data_transfer_types_list();
+    };
+
+    // 3. If the method was called with no arguments, remove each item in the drag data store item list whose kind is
+    //    Plain Unicode string, and return.
+    if (!maybe_format.has_value()) {
+        remove_items_from_drag_data_store();
+        return;
+    }
+
+    // 4. Set format to format, converted to ASCII lowercase.
+    auto format = maybe_format->to_ascii_lowercase();
+
+    // 5. If format equals "text", change it to "text/plain".
+    //    If format equals "url", change it to "text/uri-list".
+    if (format == "text"sv) {
+        format = "text/plain"_string;
+    } else if (format == "url"sv) {
+        format = "text/uri-list"_string;
+    }
+
+    // 6. Remove each item in the drag data store item list whose kind is Plain Unicode string and whose type string is equal to format.
+    remove_items_from_drag_data_store(format);
+}
+
 bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, String const& type) const
 {
     VERIFY(m_associated_drag_data_store);
@@ -312,6 +376,7 @@ void DataTransfer::update_data_transfer_types_list()
     }
 
     // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
+    set_cached_types(nullptr);
     m_types = move(types);
 }
 

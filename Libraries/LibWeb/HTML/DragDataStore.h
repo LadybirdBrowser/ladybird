@@ -47,6 +47,7 @@ public:
     ~DragDataStore();
 
     void add_item(DragDataStoreItem item) { m_item_list.append(move(item)); }
+    void remove_item_at(size_t const& index) { m_item_list.remove(index); }
     ReadonlySpan<DragDataStoreItem> item_list() const { return m_item_list; }
     size_t size() const { return m_item_list.size(); }
     bool has_text_item() const;

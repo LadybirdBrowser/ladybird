@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div.outer> at [9,9] [0+1+0 300 0+1+482] [0+1+0 250 0+1+0] children: inline
-        frag 0 from TextNode start: 1, length: 23, rect: [61,9 204x16] baseline: 12.796875
+        frag 0 from TextNode start: 9, length: 23, rect: [61,9 204x16] baseline: 12.796875
             "foo bar baz foo bar baz"
         TextNode <#text> (not painted)
         BlockContainer <div.lefty> at [10,10] floating [0+1+0 50 0+1+0] [0+1+0 50 0+1+0] [BFC] children: not-inline

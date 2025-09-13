@@ -21,7 +21,7 @@ public:
 
     Flex const& flex() const { return m_flex; }
     virtual double raw_value() const override { return m_flex.raw_value(); }
-    virtual StringView unit_name() const LIFETIME_BOUND override { return m_flex.unit_name(); }
+    virtual FlyString unit_name() const override { return m_flex.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_flex.to_string(serialization_mode); }
 

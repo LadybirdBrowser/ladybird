@@ -21,6 +21,9 @@ public:
     virtual ~Demuxer() = default;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) = 0;
+    // Returns the container's preferred track for a given track type. This must return a value if any track of the
+    // given type is present.
+    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) = 0;
 
     virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) = 0;
 
@@ -33,7 +36,8 @@ public:
     // in the case that the timestamp is closer to the current time than the nearest keyframe.
     virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) = 0;
 
-    virtual DecoderErrorOr<AK::Duration> duration(Track track) = 0;
+    virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
+    virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
 };
 
 }

@@ -10,7 +10,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Layout {
@@ -23,7 +22,7 @@ public:
 
     Node const& layout_node() const { return m_layout_node; }
     size_t start() const { return m_start; }
-    size_t length() const { return m_length; }
+    size_t length_in_code_units() const { return m_length_in_code_units; }
 
     CSSPixelPoint offset() const;
     CSSPixels inline_offset() const { return m_inline_offset; }
@@ -62,7 +61,7 @@ private:
 
     GC::Ref<Node const> m_layout_node;
     size_t m_start { 0 };
-    size_t m_length { 0 };
+    size_t m_length_in_code_units { 0 };
     CSSPixels m_inline_offset;
     CSSPixels m_block_offset;
     CSSPixels m_inline_length;

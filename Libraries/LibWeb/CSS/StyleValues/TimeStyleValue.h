@@ -24,7 +24,7 @@ public:
 
     Time const& time() const { return m_time; }
     virtual double raw_value() const override { return m_time.raw_value(); }
-    virtual StringView unit_name() const LIFETIME_BOUND override { return m_time.unit_name(); }
+    virtual FlyString unit_name() const override { return m_time.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_time.to_string(serialization_mode); }
 

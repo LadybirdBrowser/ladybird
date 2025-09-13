@@ -28,10 +28,12 @@ public:
     }
 
     DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
+    DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
 
     DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
 
-    DecoderErrorOr<AK::Duration> duration(Track track) override;
+    DecoderErrorOr<AK::Duration> duration_of_track(Track const& track) override;
+    DecoderErrorOr<AK::Duration> total_duration() override;
 
     DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
 
@@ -42,12 +44,17 @@ public:
 private:
     struct TrackStatus {
         SampleIterator iterator;
-        Optional<Block> block {};
+        Optional<Block> block;
         size_t frame_index { 0 };
+
+        TrackStatus(SampleIterator&& iterator)
+            : iterator(iterator)
+        {
+        }
     };
 
     DecoderErrorOr<TrackStatus*> get_track_status(Track track);
-    CodecID get_codec_id_for_string(FlyString const& codec_id);
+    static CodecID get_codec_id_for_string(FlyString const& codec_id);
 
     Reader m_reader;
 

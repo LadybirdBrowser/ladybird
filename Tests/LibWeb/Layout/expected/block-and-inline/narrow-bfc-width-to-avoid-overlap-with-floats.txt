@@ -6,14 +6,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
         BlockContainer <div.bfc> at [18,18] [0+10+0 564 0+10+0] [0+10+0 90 0+10+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 56, rect: [18,18 458.125x18] baseline: 13.796875
               "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-          frag 1 from TextNode start: 57, length: 60, rect: [18,36 511.796875x18] baseline: 13.796875
-              "Pellentesque vitae neque nunc. Nam fermentum libero a lectus"
-          frag 2 from TextNode start: 118, length: 67, rect: [18,54 537.078125x18] baseline: 13.796875
-              "vulputate eleifend. Nam sagittis tristique augue, id sodales mauris"
-          frag 3 from TextNode start: 186, length: 65, rect: [18,72 537.34375x18] baseline: 13.796875
-              "suscipit at. Vivamus eget placerat ex. Suspendisse potenti. Morbi"
-          frag 4 from TextNode start: 252, length: 57, rect: [18,90 455.375x18] baseline: 13.796875
-              "pulvinar ipsum eget nulla dapibus, ac varius mi eleifend."
+          frag 1 from TextNode start: 57, length: 19, rect: [18,36 155.203125x18] baseline: 13.796875
+              "Pellentesque vitae "
+          frag 2 from TextNode start: 80, length: 41, rect: [173.203125,36 356.59375x18] baseline: 13.796875
+              "neque nunc. Nam fermentum libero a lectus"
+          frag 3 from TextNode start: 122, length: 33, rect: [18,54 258.640625x18] baseline: 13.796875
+              "vulputate eleifend. Nam sagittis "
+          frag 4 from TextNode start: 159, length: 34, rect: [276.640625,54 278.4375x18] baseline: 13.796875
+              "tristique augue, id sodales mauris"
+          frag 5 from TextNode start: 194, length: 39, rect: [18,72 316.96875x18] baseline: 13.796875
+              "suscipit at. Vivamus eget placerat ex. "
+          frag 6 from TextNode start: 237, length: 26, rect: [334.96875,72 220.375x18] baseline: 13.796875
+              "Suspendisse potenti. Morbi"
+          frag 7 from TextNode start: 264, length: 48, rect: [18,90 392.171875x18] baseline: 13.796875
+              "pulvinar ipsum eget nulla dapibus, ac varius mi "
+          frag 8 from TextNode start: 316, length: 9, rect: [410.171875,90 63.203125x18] baseline: 13.796875
+              "eleifend."
           TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1008]

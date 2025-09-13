@@ -35,6 +35,7 @@ Each property will have some set of these fields on it:
 | `quirks`                          | No       | `[]`    | Array of strings. Some properties have special behavior in "quirks mode", which are listed here. See below. | `bool property_has_quirk(PropertyID, Quirk)`                                                                                                                                                |
 | `valid-identifiers`               | No       | `[]`    | Array of strings. Which keywords the property accepts. See below.                                           | `bool property_accepts_keyword(PropertyID, Keyword)`<br/>`Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword)`                                                                |
 | `valid-types`                     | No       | `[]`    | Array of strings. Which value types the property accepts. See below.                                        | `bool property_accepts_type(PropertyID, ValueType)`                                                                                                                                         |
+| `needs-layout-for-getcomputedstyle`                     | No       | `false`    | Boolean. Whether this property requires up-to-date layout before it could be queried by getComputedStyle() | `bool property_needs_layout_for_getcomputedstyle(PropertyID)`                                                                                                                                         |
 
 ### `animation-type`
 
@@ -353,7 +354,9 @@ The generated code provides:
 - `Optional<DimensionType> dimension_for_unit(StringView)` for querying which dimension a unit applies to, if any.
 - A `FooUnit` enum for each dimension "foo", which lists all the units of that dimension.
 - For each of those...
+  - `constexpr FooUnit canonical_foo_unit()` which is the canonical unit for that type.
   - `Optional<FooUnit> string_to_foo_unit(StringView)` for parsing a unit from a string.
   - `StringView to_string(FooUnit)` for serializing those units.
+  - `bool units_are_compatible(FooUnit, FooUnit)` which returns whether these are compatible - basically whether you can convert from one to the other.
   - `double ratio_between_units(FooUnit, FooUnit)` to get a multiplier for converting the first unit into the second.
 - `bool is_absolute(LengthUnit)`, `bool is_font_relative(LengthUnit)`, `bool is_viewport_relative(LengthUnit)`, and `bool is_relative(LengthUnit)` for checking the category of length units.

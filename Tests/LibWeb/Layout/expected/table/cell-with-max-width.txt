@@ -12,13 +12,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
                         "hello hello hello hello hello hello"
                     frag 1 from TextNode start: 37, length: 35, rect: [11,29 261.0625x18] baseline: 13.796875
                         "hello hello hello hello hello hello"
-                    frag 2 from TextNode start: 73, length: 35, rect: [11,47 261.0625x18] baseline: 13.796875
+                    frag 2 from TextNode start: 73, length: 24, rect: [11,47 179.375x18] baseline: 13.796875
+                        "hello hello hello hello "
+                    frag 3 from TextNode start: 109, length: 11, rect: [190.375,47 81.6875x18] baseline: 13.796875
+                        "hello hello"
+                    frag 4 from TextNode start: 121, length: 35, rect: [11,65 261.0625x18] baseline: 13.796875
                         "hello hello hello hello hello hello"
-                    frag 3 from TextNode start: 109, length: 35, rect: [11,65 261.0625x18] baseline: 13.796875
+                    frag 5 from TextNode start: 157, length: 35, rect: [11,83 261.0625x18] baseline: 13.796875
                         "hello hello hello hello hello hello"
-                    frag 4 from TextNode start: 145, length: 35, rect: [11,83 261.0625x18] baseline: 13.796875
-                        "hello hello hello hello hello hello"
-                    frag 5 from TextNode start: 181, length: 11, rect: [11,101 81.6875x18] baseline: 13.796875
+                    frag 6 from TextNode start: 193, length: 11, rect: [11,101 81.6875x18] baseline: 13.796875
                         "hello hello"
                     TextNode <#text> (not painted)
                   BlockContainer <div> at [11,119] [0+0+0 270 0+0+0] [0+0+0 0 0+0+0] children: not-inline
