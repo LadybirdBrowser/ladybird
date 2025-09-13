@@ -5600,6 +5600,7 @@ void generate_iterator_prototype_implementation(IDL::Interface const& interface,
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/@prototype_class@.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
