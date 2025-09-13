@@ -716,6 +716,16 @@
     "none",
     "uppercase"
   ],
+  "text-underline-position-horizontal": [
+    "auto",
+    "from-font",
+    "under"
+  ],
+  "text-underline-position-vertical": [
+    "auto",
+    "left",
+    "right"
+  ],
   "text-wrap-mode": [
     "wrap",
     "nowrap"

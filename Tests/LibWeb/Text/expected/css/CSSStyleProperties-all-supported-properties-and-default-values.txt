@@ -691,6 +691,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-transform': 'none'
 'textUnderlineOffset': 'auto'
 'text-underline-offset': 'auto'
+'textUnderlinePosition': 'auto'
+'text-underline-position': 'auto'
 'textWrap': 'wrap'
 'text-wrap': 'wrap'
 'textWrapMode': 'wrap'

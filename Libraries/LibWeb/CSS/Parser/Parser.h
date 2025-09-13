@@ -472,6 +472,7 @@ private:
     RefPtr<StyleValue const> parse_single_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
     RefPtr<StyleValue const> parse_text_decoration_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_text_underline_position_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_rotate_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_stroke_dasharray_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_easing_value(TokenStream<ComponentValue>&);

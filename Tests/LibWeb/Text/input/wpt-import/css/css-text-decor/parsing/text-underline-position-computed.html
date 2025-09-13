@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: getComputedStyle().textUnderlinePosition</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-decoration-style-property">
+<meta name="assert" content="text-underline-position computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("text-underline-position", "auto");
+
+test_computed_value("text-underline-position", "under");
+test_computed_value("text-underline-position", "from-font");
+test_computed_value("text-underline-position", "left");
+test_computed_value("text-underline-position", "right");
+test_computed_value("text-underline-position", "under left");
+test_computed_value("text-underline-position", "from-font left");
+</script>
+</body>
+</html>
