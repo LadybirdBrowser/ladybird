@@ -1218,6 +1218,16 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return;
                 interpolated_shape = Inset { *interpolated_inset_box };
             },
+            [&](Xywh const& from_xywh) {
+                auto& to_xywh = to_shape.get<Xywh>();
+                auto interpolated_x = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
+                auto interpolated_y = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
+                auto interpolated_width = interpolate_length_percentage(calculation_context, from_xywh.width, to_xywh.width, delta);
+                auto interpolated_height = interpolate_length_percentage(calculation_context, from_xywh.height, to_xywh.height, delta);
+                if (!interpolated_x.has_value() || !interpolated_y.has_value() || !interpolated_width.has_value() || !interpolated_height.has_value())
+                    return;
+                interpolated_shape = Xywh { *interpolated_x, *interpolated_y, *interpolated_width, *interpolated_height };
+            },
             [](auto&) {
                 // FIXME: Implement interpolation for all shapes
             });
