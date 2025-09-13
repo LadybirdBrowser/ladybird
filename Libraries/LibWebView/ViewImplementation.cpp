@@ -605,7 +605,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     default_zoom_level_factor_changed();
     languages_changed();
     autoplay_settings_changed();
-    do_not_track_changed();
+    global_privacy_control_changed();
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
@@ -676,10 +676,10 @@ void ViewImplementation::autoplay_settings_changed()
         client().async_set_autoplay_allowlist(page_id(), autoplay_settings.site_filters.values());
 }
 
-void ViewImplementation::do_not_track_changed()
+void ViewImplementation::global_privacy_control_changed()
 {
-    auto do_not_track = Application::settings().do_not_track();
-    client().async_set_enable_do_not_track(page_id(), do_not_track == DoNotTrack::Yes);
+    auto global_privacy_control = Application::settings().global_privacy_control();
+    client().async_set_enable_global_privacy_control(page_id(), global_privacy_control == GlobalPrivacyControl::Yes);
 }
 
 static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)

@@ -1142,9 +1142,9 @@ void ConnectionFromClient::set_preferred_languages(u64, Vector<String> preferred
     Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));
 }
 
-void ConnectionFromClient::set_enable_do_not_track(u64, bool enable)
+void ConnectionFromClient::set_enable_global_privacy_control(u64, bool enable)
 {
-    Web::ResourceLoader::the().set_enable_do_not_track(enable);
+    Web::ResourceLoader::the().set_enable_global_privacy_control(enable);
 }
 
 void ConnectionFromClient::set_has_focus(u64 page_id, bool has_focus)

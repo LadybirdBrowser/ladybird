@@ -3,6 +3,7 @@
 #import <EncryptedMediaExtensions/MediaKeySystemAccess.idl>
 #import <Gamepad/Gamepad.idl>
 #import <Geolocation/Geolocation.idl>
+#import <GPC/GlobalPrivacyControl.idl>
 #import <HTML/MimeTypeArray.idl>
 #import <HTML/NavigatorBeacon.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
@@ -36,9 +37,6 @@ interface Navigator {
 
     // https://html.spec.whatwg.org/multipage/interaction.html#useractivation
     [SameObject] readonly attribute UserActivation userActivation;
-
-    // https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
-    readonly attribute DOMString? doNotTrack;
 
     // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
     [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
@@ -77,6 +75,7 @@ interface mixin NavigatorAutomationInformation {
     readonly attribute boolean webdriver;
 };
 
+Navigator includes GlobalPrivacyControl;
 Navigator includes NavigatorID;
 Navigator includes NavigatorLanguage;
 Navigator includes NavigatorOnLine;

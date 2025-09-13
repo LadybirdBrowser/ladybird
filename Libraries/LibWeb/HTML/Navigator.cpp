@@ -134,18 +134,6 @@ WebIDL::Long Navigator::max_touch_points()
     return 0;
 }
 
-// https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
-Optional<FlyString> Navigator::do_not_track() const
-{
-    // The value is null if no DNT header field would be sent (e.g., because a tracking preference is not
-    // enabled and no user-granted exception is applicable); otherwise, the value is a string beginning with
-    // "0" or "1", possibly followed by DNT-extension characters.
-    if (ResourceLoader::the().enable_do_not_track())
-        return "1"_fly_string;
-
-    return {};
-}
-
 GC::Ref<ServiceWorker::ServiceWorkerContainer> Navigator::service_worker()
 {
     if (!m_service_worker_container)

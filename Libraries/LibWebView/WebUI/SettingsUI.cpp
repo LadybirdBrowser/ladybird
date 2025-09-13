@@ -63,8 +63,8 @@ void SettingsUI::register_interfaces()
         remove_all_site_setting_filters(data);
     });
 
-    register_interface("setDoNotTrack"sv, [this](auto const& data) {
-        set_do_not_track(data);
+    register_interface("setGlobalPrivacyControl"sv, [this](auto const& data) {
+        set_global_privacy_control(data);
     });
 
     register_interface("setDNSSettings"sv, [this](auto const& data) {
@@ -275,12 +275,12 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
     load_current_settings();
 }
 
-void SettingsUI::set_do_not_track(JsonValue const& do_not_track)
+void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_control)
 {
-    if (!do_not_track.is_bool())
+    if (!global_privacy_control.is_bool())
         return;
 
-    WebView::Application::settings().set_do_not_track(do_not_track.as_bool() ? DoNotTrack::Yes : DoNotTrack::No);
+    WebView::Application::settings().set_global_privacy_control(global_privacy_control.as_bool() ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No);
 }
 
 void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
