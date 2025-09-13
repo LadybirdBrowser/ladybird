@@ -32,6 +32,7 @@ struct PropertyLookupCache {
         Optional<u32> property_offset;
         WeakPtr<Object> prototype;
         WeakPtr<PrototypeChainValidity> prototype_chain_validity;
+        Optional<u32> shape_dictionary_generation;
     };
     AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };
