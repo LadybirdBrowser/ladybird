@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibWeb/UIEvents/KeyCode.h"
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Text.h>
@@ -1284,12 +1285,32 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto* target = document->active_input_events_target();
     if (target) {
         if (key == UIEvents::KeyCode::Key_Backspace) {
+            if ((modifiers & UIEvents::KeyModifier::Mod_PlatformWordJump) == UIEvents::KeyModifier::Mod_PlatformWordJump) {
+                target->decrement_cursor_position_to_previous_word(InputEventsTarget::CollapseSelection::No);
+                target->handle_delete(InputEventsTarget::DeleteDirection::Backward);
+                return EventResult::Handled;
+            }
+            if ((modifiers & UIEvents::Mod_Super) == UIEvents::Mod_Super) {
+                target->move_cursor_to_start(InputEventsTarget::CollapseSelection::No);
+                target->handle_delete(InputEventsTarget::DeleteDirection::Backward);
+                return EventResult::Handled;
+            }
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
             target->handle_delete(InputEventsTarget::DeleteDirection::Backward);
             return EventResult::Handled;
         }
 
         if (key == UIEvents::KeyCode::Key_Delete) {
+            if ((modifiers & UIEvents::Mod_PlatformWordJump) == UIEvents::Mod_PlatformWordJump) {
+                target->increment_cursor_position_to_next_word(InputEventsTarget::CollapseSelection::No);
+                target->handle_delete(InputEventsTarget::DeleteDirection::Forward);
+                return EventResult::Handled;
+            }
+            if ((modifiers & UIEvents::Mod_Super) == UIEvents::Mod_Super) {
+                target->move_cursor_to_end(InputEventsTarget::CollapseSelection::No);
+                target->handle_delete(InputEventsTarget::DeleteDirection::Forward);
+                return EventResult::Handled;
+            }
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
             target->handle_delete(InputEventsTarget::DeleteDirection::Forward);
             return EventResult::Handled;
