@@ -1237,6 +1237,18 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return;
                 interpolated_shape = Rect { *interpolated_rect_box };
             },
+            [&](Circle const& from_circle) {
+                auto const& to_circle = to_shape.get<Circle>();
+                if (!from_circle.radius.has<LengthPercentage>() || !to_circle.radius.has<LengthPercentage>())
+                    return;
+                auto interpolated_radius = interpolate_length_percentage(calculation_context, from_circle.radius.get<LengthPercentage>(), to_circle.radius.get<LengthPercentage>(), delta);
+                if (!interpolated_radius.has_value())
+                    return;
+                auto interpolated_position = interpolate_value(element, calculation_context, from_circle.position, to_circle.position, delta, allow_discrete);
+                if (!interpolated_position)
+                    return;
+                interpolated_shape = Circle { *interpolated_radius, interpolated_position->as_position() };
+            },
             [&](Polygon const& from_polygon) {
                 auto const& to_polygon = to_shape.get<Polygon>();
                 if (from_polygon.fill_rule != to_polygon.fill_rule)
