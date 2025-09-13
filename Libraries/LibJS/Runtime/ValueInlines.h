@@ -48,4 +48,11 @@ inline ThrowCompletionOr<Value> Value::to_primitive(VM& vm, PreferredType prefer
     return to_primitive_slow_case(vm, preferred_type);
 }
 
+inline ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
+{
+    if (is_object())
+        return const_cast<Object&>(as_object());
+    return to_object_slow(vm);
+}
+
 }

@@ -7,6 +7,7 @@
 
 #include <AK/Memory.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/CryptoKeyPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Crypto/CryptoKey.h>

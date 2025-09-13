@@ -585,7 +585,7 @@ ThrowCompletionOr<Value> Value::to_primitive_slow_case(VM& vm, PreferredType pre
 }
 
 // 7.1.18 ToObject ( argument ), https://tc39.es/ecma262/#sec-toobject
-ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
+ThrowCompletionOr<GC::Ref<Object>> Value::to_object_slow(VM& vm) const
 {
     auto& realm = *vm.current_realm();
     VERIFY(!is_special_empty_value());

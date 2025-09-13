@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/ObjectConstructor.h>
 #include <LibJS/Runtime/ProxyObject.h>
 #include <LibJS/Runtime/Shape.h>
+#include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
 
