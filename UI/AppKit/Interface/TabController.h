@@ -20,7 +20,6 @@
                   pageIndex:(u64)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
-- (void)loadHTML:(StringView)html url:(URL::URL const&)url;
 
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect;
 

@@ -8,7 +8,6 @@
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWebView/SourceHighlighter.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
@@ -134,11 +133,6 @@ struct HideCursor {
 - (void)loadURL:(URL::URL const&)url
 {
     m_web_view_bridge->load(url);
-}
-
-- (void)loadHTML:(StringView)html
-{
-    m_web_view_bridge->load_html(html);
 }
 
 - (WebView::ViewImplementation&)view
@@ -349,7 +343,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
 
         if (auto urls = Ladybird::drag_event_url_list(event); !urls.is_empty()) {
-            [self.observer loadURL:urls[0]];
+            [self loadURL:urls[0]];
 
             for (size_t i = 1; i < urls.size(); ++i) {
                 [self.observer onCreateNewTab:urls[i] activateTab:Web::HTML::ActivateTab::No];
@@ -511,28 +505,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
         [self.status_label setHidden:YES];
-    };
-
-    m_web_view_bridge->on_link_click = [weak_self](auto const& url, auto const& target, unsigned modifiers) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        if (modifiers == Web::UIEvents::KeyModifier::Mod_Super) {
-            [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
-        } else if (target == "_blank"sv) {
-            [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::Yes];
-        } else {
-            [self.observer loadURL:url];
-        }
-    };
-
-    m_web_view_bridge->on_link_middle_click = [weak_self](auto url, auto, unsigned) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
     };
 
     m_web_view_bridge->on_request_alert = [weak_self](auto const& message) {
@@ -846,18 +818,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
 
         m_web_view_bridge->did_update_window_rect();
-    };
-
-    m_web_view_bridge->on_received_source = [weak_self](auto const& url, auto const& base_url, auto const& source) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        auto html = WebView::highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
-
-        [self.observer onCreateNewTab:html
-                                  url:url
-                          activateTab:Web::HTML::ActivateTab::Yes];
     };
 
     m_web_view_bridge->on_theme_color_change = [weak_self](auto color) {

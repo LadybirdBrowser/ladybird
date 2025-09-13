@@ -135,11 +135,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [[self tab].web_view loadURL:url];
 }
 
-- (void)loadHTML:(StringView)html url:(URL::URL const&)url
-{
-    [[self tab].web_view loadHTML:html];
-}
-
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)isRedirect
 {
     [self setLocationFieldText:url.serialize()];

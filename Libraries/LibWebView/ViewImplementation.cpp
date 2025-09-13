@@ -158,11 +158,6 @@ void ViewImplementation::load_html(StringView html)
     client().async_load_html(page_id(), html);
 }
 
-void ViewImplementation::load_empty_document()
-{
-    load_html(""sv);
-}
-
 void ViewImplementation::reload()
 {
     client().async_reload(page_id());
@@ -834,8 +829,7 @@ void ViewImplementation::initialize_context_menus()
         auto url = URL::Parser::basic_parse(url_string);
         VERIFY(url.has_value());
 
-        if (on_link_click)
-            on_link_click(*url, "_blank"sv, 0);
+        Application::the().open_url_in_new_tab(*url, Web::HTML::ActivateTab::Yes);
     });
     m_search_selected_text_action->set_visible(false);
 
@@ -861,16 +855,14 @@ void ViewImplementation::initialize_context_menus()
     });
 
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
-        if (on_link_click)
-            on_link_click(m_context_menu_url, {}, Web::UIEvents::Mod_PlatformCtrl);
+        Application::the().open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
     });
     m_copy_url_action = Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
         insert_text_into_clipboard(url_text_to_copy(m_context_menu_url));
     });
 
     m_open_image_action = Action::create("Open Image"sv, ActionID::OpenImage, [this]() {
-        if (on_link_click)
-            on_link_click(m_context_menu_url, {}, {});
+        load(m_context_menu_url);
     });
     m_copy_image_action = Action::create("Copy Image"sv, ActionID::CopyImage, [this]() {
         if (!m_image_context_menu_bitmap.has_value())
@@ -889,12 +881,10 @@ void ViewImplementation::initialize_context_menus()
     });
 
     m_open_audio_action = Action::create("Open Audio"sv, ActionID::OpenAudio, [this]() {
-        if (on_link_click)
-            on_link_click(m_context_menu_url, {}, {});
+        load(m_context_menu_url);
     });
     m_open_video_action = Action::create("Open Video"sv, ActionID::OpenVideo, [this]() {
-        if (on_link_click)
-            on_link_click(m_context_menu_url, {}, {});
+        load(m_context_menu_url);
     });
     m_media_play_action = Action::create("Play"sv, ActionID::PlayMedia, [this]() {
         client().async_toggle_media_play_state(page_id());

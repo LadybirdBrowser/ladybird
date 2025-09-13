@@ -67,6 +67,17 @@
 
 #pragma mark - Public methods
 
+- (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
+                               fromTab:(nullable Tab*)tab
+{
+    auto* controller = [[TabController alloc] init];
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab];
+
+    return controller;
+}
+
 - (TabController*)createNewTab:(Optional<URL::URL> const&)url
                        fromTab:(Tab*)tab
                    activateTab:(Web::HTML::ActivateTab)activate_tab
@@ -76,17 +87,6 @@
     if (url.has_value()) {
         [controller loadURL:*url];
     }
-
-    return controller;
-}
-
-- (nonnull TabController*)createNewTab:(StringView)html
-                                   url:(URL::URL const&)url
-                               fromTab:(nullable Tab*)tab
-                           activateTab:(Web::HTML::ActivateTab)activate_tab
-{
-    auto* controller = [self createNewTab:activate_tab fromTab:tab];
-    [controller loadHTML:html url:url];
 
     return controller;
 }
@@ -162,17 +162,6 @@
 
     auto* controller = (TabController*)[current_tab windowController];
     [controller focusLocationToolbarItem];
-}
-
-- (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
-                               fromTab:(nullable Tab*)tab
-{
-    auto* controller = [[TabController alloc] init];
-    [self initializeTabController:controller
-                      activateTab:activate_tab
-                          fromTab:tab];
-
-    return controller;
 }
 
 - (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab

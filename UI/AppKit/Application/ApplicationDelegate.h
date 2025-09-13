@@ -20,12 +20,10 @@
 
 - (nullable instancetype)init;
 
-- (nonnull TabController*)createNewTab:(Optional<URL::URL> const&)url
-                               fromTab:(nullable Tab*)tab
-                           activateTab:(Web::HTML::ActivateTab)activate_tab;
+- (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
+                               fromTab:(nullable Tab*)tab;
 
-- (nonnull TabController*)createNewTab:(StringView)html
-                                   url:(URL::URL const&)url
+- (nonnull TabController*)createNewTab:(Optional<URL::URL> const&)url
                                fromTab:(nullable Tab*)tab
                            activateTab:(Web::HTML::ActivateTab)activate_tab;
 

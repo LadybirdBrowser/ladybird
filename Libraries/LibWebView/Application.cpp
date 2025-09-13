@@ -278,6 +278,12 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     return {};
 }
 
+void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
+{
+    if (auto view = open_blank_new_tab(activate_tab); view.has_value())
+        view->load(url);
+}
+
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
 {
     auto request_server_socket = TRY(connect_new_request_server_client());

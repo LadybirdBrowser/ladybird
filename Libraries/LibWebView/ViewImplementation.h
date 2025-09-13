@@ -63,7 +63,6 @@ public:
 
     void load(URL::URL const&);
     void load_html(StringView);
-    void load_empty_document();
     void reload();
     void traverse_the_history_by_delta(int delta);
 
@@ -172,8 +171,6 @@ public:
     Function<void()> on_close;
     Function<void(URL::URL const&)> on_link_hover;
     Function<void()> on_link_unhover;
-    Function<void(URL::URL const&, ByteString const& target, unsigned modifiers)> on_link_click;
-    Function<void(URL::URL const&, ByteString const& target, unsigned modifiers)> on_link_middle_click;
     Function<void(Utf16String const&)> on_title_change;
     Function<void(URL::URL const&)> on_url_change;
     Function<void(URL::URL const&, bool)> on_load_start;
@@ -191,7 +188,6 @@ public:
     Function<void(String const& message)> on_request_set_prompt_text;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
-    Function<void(URL::URL const&, URL::URL const&, String const&)> on_received_source;
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
     Function<void(JsonObject)> on_received_accessibility_tree;

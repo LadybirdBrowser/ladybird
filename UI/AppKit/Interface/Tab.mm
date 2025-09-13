@@ -231,21 +231,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     return [[tab web_view] handle];
 }
 
-- (String const&)onCreateNewTab:(StringView)html
-                            url:(URL::URL const&)url
-                    activateTab:(Web::HTML::ActivateTab)activate_tab
-{
-    auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-
-    auto* controller = [delegate createNewTab:html
-                                          url:url
-                                      fromTab:self
-                                  activateTab:activate_tab];
-
-    auto* tab = (Tab*)[controller window];
-    return [[tab web_view] handle];
-}
-
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
                         pageIndex:(u64)page_index
@@ -259,11 +244,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
     auto* tab = (Tab*)[controller window];
     return [[tab web_view] handle];
-}
-
-- (void)loadURL:(URL::URL const&)url
-{
-    [[self tabController] loadURL:url];
 }
 
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect
