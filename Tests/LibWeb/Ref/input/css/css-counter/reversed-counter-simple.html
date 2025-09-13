@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<link rel="match" href="../../../expected/css/css-counter/reversed-counter-simple-ref.html" />
+<style>
+body { counter-reset:reversed(item); }
+div::before { content: counter(item) ': '; }
+.Inc1 { counter-increment: item -1; }
+</style>
+
+<div id="three" class='Inc1'>Three</div>
+<div id="two"   class='Inc1'>Two</div>
+<div id="one"   class='Inc1'>One</div>
+
+</html>
