@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/IDBDatabasePrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/DOMStringList.h>
+#include <LibWeb/IndexedDB/ConnectionState.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
@@ -37,11 +38,6 @@ class IDBDatabase : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(IDBDatabase, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBDatabase);
 
-    enum ConnectionState {
-        Open,
-        Closed,
-    };
-
 public:
     virtual ~IDBDatabase() override;
 
@@ -49,7 +45,7 @@ public:
 
     void set_version(u64 version) { m_version = version; }
     void set_close_pending(bool close_pending) { m_close_pending = close_pending; }
-    void set_state(ConnectionState state) { m_state = state; }
+    void set_state(ConnectionState state);
 
     [[nodiscard]] String uuid() const { return m_uuid; }
     [[nodiscard]] String name() const { return m_name; }
@@ -84,6 +80,11 @@ public:
     void set_onversionchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onversionchange();
 
+    void register_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
+    void unregister_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
+
+    void wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>>, GC::Ref<GC::Function<void()>> on_complete);
+
 protected:
     explicit IDBDatabase(JS::Realm&, Database&);
 
@@ -91,6 +92,40 @@ protected:
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
+    template<typename GetNotifier, typename... Args>
+    void notify_each_database_observer(GetNotifier&& get_notifier, Args&&... args)
+    {
+        ScopeGuard guard { [&]() { m_database_observers_being_notified.clear_with_capacity(); } };
+        m_database_observers_being_notified.ensure_capacity(m_database_observers.size());
+
+        for (auto observer : m_database_observers)
+            m_database_observers_being_notified.unchecked_append(observer);
+
+        for (auto database_observer : m_database_observers_being_notified) {
+            if (auto notifier = get_notifier(*database_observer))
+                notifier->function()(forward<Args>(args)...);
+        }
+    }
+
+    // IDBDatabase should not visit IDBDatabaseObserver to avoid leaks.
+    // It's responsibility of object that requires IDBDatabaseObserver to keep it alive.
+    HashTable<GC::RawRef<IDBDatabaseObserver>> m_database_observers;
+    Vector<GC::Ref<IDBDatabaseObserver>> m_database_observers_being_notified;
+
+    struct TransactionFinishState final : public GC::Cell {
+        GC_CELL(TransactionFinishState, GC::Cell);
+        GC_DECLARE_ALLOCATOR(TransactionFinishState);
+
+        virtual void visit_edges(Visitor& visitor) override;
+
+        void add_transaction_to_observe(GC::Ref<IDBTransaction> transaction);
+
+        Vector<GC::Ref<IDBTransactionObserver>> transaction_observers;
+        GC::Ptr<GC::Function<void()>> after_all;
+    };
+
+    Vector<GC::Ref<TransactionFinishState>> m_transaction_finish_queue;
+
     u64 m_version { 0 };
     String m_name;
 

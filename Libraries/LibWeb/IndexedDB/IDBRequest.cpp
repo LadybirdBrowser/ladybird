@@ -2,6 +2,7 @@
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  * Copyright (c) 2024-2025, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +15,7 @@
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/IDBRequestObserver.h>
 
 namespace Web::IndexedDB {
 
@@ -51,6 +53,8 @@ void IDBRequest::visit_edges(Visitor& visitor)
 
     if (m_error.has_value())
         visitor.visit(*m_error);
+
+    visitor.visit(m_request_observers_being_notified);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-onsuccess
@@ -107,6 +111,26 @@ WebIDL::CallbackType* IDBRequest::onerror()
         return JS::js_undefined();
 
     return m_result;
+}
+
+void IDBRequest::register_request_observer(Badge<IDBRequestObserver>, IDBRequestObserver& request_observer)
+{
+    auto result = m_request_observers.set(request_observer);
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+}
+
+void IDBRequest::unregister_request_observer(Badge<IDBRequestObserver>, IDBRequestObserver& request_observer)
+{
+    bool was_removed = m_request_observers.remove(request_observer);
+    VERIFY(was_removed);
+}
+
+void IDBRequest::set_processed(bool processed)
+{
+    m_processed = processed;
+    notify_each_request_observer([](IDBRequestObserver const& request_observer) {
+        return request_observer.request_processed_changed_observer();
+    });
 }
 
 }
