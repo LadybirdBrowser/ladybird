@@ -384,4 +384,23 @@ ErrorOr<void> connect(int socket, struct sockaddr const* address, socklen_t addr
     return {};
 }
 
+ErrorOr<void> kill(pid_t pid, int signal)
+{
+    if (signal == SIGTERM) {
+        if (!EnumWindows([](HWND hwnd, LPARAM l_param) -> BOOL {
+                DWORD window_pid = 0;
+                GetWindowThreadProcessId(hwnd, &window_pid);
+                if (window_pid == static_cast<DWORD>(l_param)) {
+                    PostMessage(hwnd, WM_CLOSE, 0, 0);
+                }
+                return TRUE;
+            },
+                pid))
+            return Error::from_windows_error();
+    } else {
+        return Error::from_string_literal("Unsupported signal value");
+    }
+    return {};
+}
+
 }
