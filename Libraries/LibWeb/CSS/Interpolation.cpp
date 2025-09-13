@@ -1239,6 +1239,20 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return {};
                 return Rect { *interpolated_rect_box };
             },
+            [&](Circle const& from_circle) -> Optional<BasicShape> {
+                // If both shapes are the same type, that type is ellipse() or circle(), and the radiuses are specified
+                // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.
+                auto const& to_circle = to_shape.get<Circle>();
+                if (!from_circle.radius.has<LengthPercentage>() || !to_circle.radius.has<LengthPercentage>())
+                    return {};
+                auto interpolated_radius = interpolate_length_percentage(calculation_context, from_circle.radius.get<LengthPercentage>(), to_circle.radius.get<LengthPercentage>(), delta);
+                if (!interpolated_radius.has_value())
+                    return {};
+                auto interpolated_position = interpolate_value(element, calculation_context, from_circle.position, to_circle.position, delta, allow_discrete);
+                if (!interpolated_position)
+                    return {};
+                return Circle { *interpolated_radius, interpolated_position->as_position() };
+            },
             [&](Polygon const& from_polygon) -> Optional<BasicShape> {
                 // If both shapes are of type polygon(), both polygons have the same number of vertices, and use the
                 // same <'fill-rule'>, interpolate between each value in the shape functions.
