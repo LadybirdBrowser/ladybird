@@ -25,17 +25,9 @@ sudo apt install autoconf autoconf-archive automake build-essential ccache cmake
 
 - Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
 
-> [!NOTE]
-> This repository is Ubuntu-only
-
 ```bash
-# Add Kitware GPG signing key
-wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-
-# Optional: Verify the GPG key manually
-
-# Use the key to authorize an entry for apt.kitware.com in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/kitware.list
+# Set up apt.kitware.com repository into APT package manager
+sudo bash -c "$(wget -O - https://apt.kitware.com/kitware-archive.sh)"
 
 # Update apt package list and install cmake
 sudo apt update -y && sudo apt install cmake -y
@@ -46,13 +38,8 @@ sudo apt update -y && sudo apt install cmake -y
 - Recommendation: Install clang from [LLVM's apt repository](https://apt.llvm.org/):
 
 ```bash
-# Add LLVM GPG signing key
-sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
-
-# Optional: Verify the GPG key manually
-
-# Use the key to authorize an entry for apt.llvm.org in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-20 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+# Set up apt.llvm.org repository into APT package manager
+sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 # Update apt package list and install clang and associated packages
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
