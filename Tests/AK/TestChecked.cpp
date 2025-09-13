@@ -445,3 +445,20 @@ TEST_CASE(should_constexpr_make_via_factory)
 {
     [[maybe_unused]] constexpr auto value = make_checked(42);
 }
+
+TEST_CASE(is_within_range_float_to_int)
+{
+    static_assert(AK::is_within_range<int>(0.0));
+    static_assert(AK::is_within_range<int>(0.0f));
+    static_assert(AK::is_within_range<int>(((long double)0.0)));
+
+    static_assert(!AK::is_within_range<int>(NumericLimits<float>::max()));
+    static_assert(!AK::is_within_range<int>(NumericLimits<double>::max()));
+    static_assert(!AK::is_within_range<int>(NumericLimits<long double>::max()));
+    static_assert(!AK::is_within_range<int>(NumericLimits<float>::lowest()));
+
+    static_assert(AK::is_within_range<long>(0.0));
+    static_assert(AK::is_within_range<long long>(0.0));
+
+    static_assert(!AK::is_within_range<int>(NAN));
+}

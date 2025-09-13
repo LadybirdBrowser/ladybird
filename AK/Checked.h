@@ -34,7 +34,7 @@
 
 namespace AK {
 
-template<typename Destination, typename Source, bool destination_is_wider = (sizeof(Destination) >= sizeof(Source)), bool destination_is_signed = NumericLimits<Destination>::is_signed(), bool source_is_signed = NumericLimits<Source>::is_signed()>
+template<typename Destination, typename Source, bool destination_is_wider = (NumericLimits<Destination>::max() >= NumericLimits<Source>::max()), bool destination_is_signed = NumericLimits<Destination>::is_signed(), bool source_is_signed = NumericLimits<Source>::is_signed()>
 struct TypeBoundsChecker;
 
 template<typename Destination, typename Source>
@@ -98,7 +98,7 @@ template<typename Destination, typename Source>
 struct TypeBoundsChecker<Destination, Source, true, true, false> {
     static constexpr bool is_within_range(Source value)
     {
-        if (sizeof(Destination) > sizeof(Source))
+        if (NumericLimits<Destination>::max() > NumericLimits<Source>::max())
             return true;
         return value <= static_cast<Source>(NumericLimits<Destination>::max());
     }
