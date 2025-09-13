@@ -18,7 +18,6 @@
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
-#include <LibCore/DateTime.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
@@ -385,10 +384,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // NOTE: Non-standard: Pull out the Last-Modified header for use in the lastModified property.
     if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv.bytes()); maybe_last_modified.has_value()) {
-        auto last_modified_datetime = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"sv, maybe_last_modified.value());
-        document->m_last_modified = last_modified_datetime.has_value()
-            ? AK::UnixDateTime::from_seconds_since_epoch(last_modified_datetime.value().timestamp())
-            : Optional<AK::UnixDateTime>();
+        // rfc9110, 8.8.2: The Last-Modified header field must be in GMT time zone.
+        // document->m_last_modified is in local time zone.
+        document->m_last_modified = AK::UnixDateTime::parse("%a, %d %b %Y %H:%M:%S GMT"sv, maybe_last_modified.value(), true);
     }
 
     // NOTE: Non-standard: Pull out the Content-Language header to determine the document's language.
