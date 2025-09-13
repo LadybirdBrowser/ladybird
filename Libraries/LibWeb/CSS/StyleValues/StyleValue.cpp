@@ -66,6 +66,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>

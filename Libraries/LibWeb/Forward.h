@@ -364,6 +364,7 @@ class StyleValue;
 class StyleValueList;
 class Supports;
 class SVGPaint;
+class TextUnderlinePositionStyleValue;
 class Time;
 class TimeOrCalculated;
 class TimePercentage;
