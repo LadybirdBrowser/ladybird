@@ -49,15 +49,15 @@ inline ErrorOr<void> encode(Encoder& encoder, Requests::RequestTimingInfo const&
 template<>
 inline ErrorOr<Requests::RequestTimingInfo> decode(Decoder& decoder)
 {
-    auto domain_lookup_start_microseconds = TRY(decoder.decode<long>());
-    auto domain_lookup_end_microseconds = TRY(decoder.decode<long>());
-    auto connect_start_microseconds = TRY(decoder.decode<long>());
-    auto connect_end_microseconds = TRY(decoder.decode<long>());
-    auto secure_connect_start_microseconds = TRY(decoder.decode<long>());
-    auto request_start_microseconds = TRY(decoder.decode<long>());
-    auto response_start_microseconds = TRY(decoder.decode<long>());
-    auto response_end_microseconds = TRY(decoder.decode<long>());
-    auto encoded_body_size = TRY(decoder.decode<long>());
+    auto domain_lookup_start_microseconds = TRY(decoder.decode<i64>());
+    auto domain_lookup_end_microseconds = TRY(decoder.decode<i64>());
+    auto connect_start_microseconds = TRY(decoder.decode<i64>());
+    auto connect_end_microseconds = TRY(decoder.decode<i64>());
+    auto secure_connect_start_microseconds = TRY(decoder.decode<i64>());
+    auto request_start_microseconds = TRY(decoder.decode<i64>());
+    auto response_start_microseconds = TRY(decoder.decode<i64>());
+    auto response_end_microseconds = TRY(decoder.decode<i64>());
+    auto encoded_body_size = TRY(decoder.decode<i64>());
     auto http_version_alpn_identifier = TRY(decoder.decode<Requests::ALPNHttpVersion>());
 
     return Requests::RequestTimingInfo {
