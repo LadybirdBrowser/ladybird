@@ -684,6 +684,7 @@ set(SOURCES
     IndexedDB/Internal/Database.cpp
     IndexedDB/Internal/IDBDatabaseObserver.cpp
     IndexedDB/Internal/IDBRequestObserver.cpp
+    IndexedDB/Internal/IDBTransactionObserver.cpp
     IndexedDB/Internal/Index.cpp
     IndexedDB/Internal/Key.cpp
     IndexedDB/Internal/ObjectStore.cpp

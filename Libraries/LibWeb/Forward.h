@@ -813,6 +813,7 @@ class IDBRecord;
 class IDBRequest;
 class IDBRequestObserver;
 class IDBTransaction;
+class IDBTransactionObserver;
 class IDBVersionChangeEvent;
 class Index;
 class ObjectStore;

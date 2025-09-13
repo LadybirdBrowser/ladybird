@@ -83,6 +83,8 @@ public:
     void register_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
     void unregister_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver&);
 
+    void wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>>, GC::Ref<GC::Function<void()>> on_complete);
+
 protected:
     explicit IDBDatabase(JS::Realm&, Database&);
 
@@ -109,6 +111,20 @@ private:
     // It's responsibility of object that requires IDBDatabaseObserver to keep it alive.
     HashTable<GC::RawRef<IDBDatabaseObserver>> m_database_observers;
     Vector<GC::Ref<IDBDatabaseObserver>> m_database_observers_being_notified;
+
+    struct TransactionFinishState final : public GC::Cell {
+        GC_CELL(TransactionFinishState, GC::Cell);
+        GC_DECLARE_ALLOCATOR(TransactionFinishState);
+
+        virtual void visit_edges(Visitor& visitor) override;
+
+        void add_transaction_to_observe(GC::Ref<IDBTransaction> transaction);
+
+        Vector<GC::Ref<IDBTransactionObserver>> transaction_observers;
+        GC::Ptr<GC::Function<void()>> after_all;
+    };
+
+    Vector<GC::Ref<TransactionFinishState>> m_transaction_finish_queue;
 
     u64 m_version { 0 };
     String m_name;
