@@ -5349,7 +5349,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
-            // 2. If an error occured or there are no applicable specifications, throw a DataError.
+            // 2. If an error occurred or there are no applicable specifications, throw a DataError.
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
         }
 
