@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Pass
+Pass	e.style['border'] = "2px solid color-mix(42deg)" should not set the property value
+Pass	e.style['border'] = "2px solid color-contrast(42deg)" should not set the property value
+Pass	e.style['border'] = "5px dotted blue" should set border-bottom-color
+Pass	e.style['border'] = "5px dotted blue" should set border-bottom-style
+Pass	e.style['border'] = "5px dotted blue" should set border-bottom-width
+Pass	e.style['border'] = "5px dotted blue" should set border-image-outset
+Pass	e.style['border'] = "5px dotted blue" should set border-image-repeat
+Pass	e.style['border'] = "5px dotted blue" should set border-image-slice
+Pass	e.style['border'] = "5px dotted blue" should set border-image-source
+Pass	e.style['border'] = "5px dotted blue" should set border-image-width
+Pass	e.style['border'] = "5px dotted blue" should set border-left-color
+Pass	e.style['border'] = "5px dotted blue" should set border-left-style
+Pass	e.style['border'] = "5px dotted blue" should set border-left-width
+Pass	e.style['border'] = "5px dotted blue" should set border-right-color
+Pass	e.style['border'] = "5px dotted blue" should set border-right-style
+Pass	e.style['border'] = "5px dotted blue" should set border-right-width
+Pass	e.style['border'] = "5px dotted blue" should set border-top-color
+Pass	e.style['border'] = "5px dotted blue" should set border-top-style
+Pass	e.style['border'] = "5px dotted blue" should set border-top-width
+Pass	e.style['border'] = "5px dotted blue" should not set unrelated longhands
+Pass	e.style['border-top'] = "thin" should set border-top-color
+Pass	e.style['border-top'] = "thin" should set border-top-style
+Pass	e.style['border-top'] = "thin" should set border-top-width
+Pass	e.style['border-top'] = "thin" should not set unrelated longhands
+Pass	e.style['border-right'] = "double" should set border-right-color
+Pass	e.style['border-right'] = "double" should set border-right-style
+Pass	e.style['border-right'] = "double" should set border-right-width
+Pass	e.style['border-right'] = "double" should not set unrelated longhands
+Pass	e.style['border-bottom'] = "green" should set border-bottom-color
+Pass	e.style['border-bottom'] = "green" should set border-bottom-style
+Pass	e.style['border-bottom'] = "green" should set border-bottom-width
+Pass	e.style['border-bottom'] = "green" should not set unrelated longhands
+Pass	e.style['border-left'] = "1px dotted red" should set border-left-color
+Pass	e.style['border-left'] = "1px dotted red" should set border-left-style
+Pass	e.style['border-left'] = "1px dotted red" should set border-left-width
+Pass	e.style['border-left'] = "1px dotted red" should not set unrelated longhands

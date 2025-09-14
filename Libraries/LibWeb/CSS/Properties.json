@@ -498,7 +498,8 @@
     "longhands": [
       "border-width",
       "border-style",
-      "border-color"
+      "border-color",
+      "border-image"
     ],
     "needs-layout-for-getcomputedstyle": true
   },
