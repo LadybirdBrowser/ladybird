@@ -722,7 +722,7 @@
   },
   "border-image": {
     "inherited": false,
-    "initial": "none 100% 1 0 stretch",
+    "initial": "none 100% / 1 / 0 stretch",
     "longhands": [
       "border-image-source",
       "border-image-slice",
