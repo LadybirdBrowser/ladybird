@@ -30,7 +30,7 @@ Setting border: '1px solid red'; becomes...
   border-style: 'solid'
   border-color: 'red'
   border: '1px solid red'
-  e.style.length: 12
+  e.style.length: 17
   > [0] border-top-width
   > [1] border-right-width
   > [2] border-bottom-width
@@ -43,4 +43,9 @@ Setting border: '1px solid red'; becomes...
   > [9] border-right-color
   > [10] border-bottom-color
   > [11] border-left-color
+  > [12] border-image-source
+  > [13] border-image-slice
+  > [14] border-image-width
+  > [15] border-image-outset
+  > [16] border-image-repeat
 

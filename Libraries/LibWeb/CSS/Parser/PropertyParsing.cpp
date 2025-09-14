@@ -1570,6 +1570,7 @@ RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID p
     return BackgroundSizeStyleValue::create(x_size.release_value(), y_size.release_value());
 }
 
+// https://drafts.csswg.org/css-backgrounds-3/#propdef-border
 RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     RefPtr<StyleValue const> border_width;
@@ -1639,11 +1640,17 @@ RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, Toke
     if (!border_color)
         border_color = property_initial_value(color_property);
 
-    // FIXME: Also reset border-image, in line with the spec: https://www.w3.org/TR/css-backgrounds-3/#border-shorthands
     transaction.commit();
+
+    if (first_is_one_of(property_id, PropertyID::BorderBlock, PropertyID::BorderInline))
+        return ShorthandStyleValue::create(property_id,
+            { width_property, style_property, color_property },
+            { border_width.release_nonnull(), border_style.release_nonnull(), border_color.release_nonnull() });
+
+    // The border shorthand also resets border-image to its initial value
     return ShorthandStyleValue::create(property_id,
-        { width_property, style_property, color_property },
-        { border_width.release_nonnull(), border_style.release_nonnull(), border_color.release_nonnull() });
+        { width_property, style_property, color_property, PropertyID::BorderImage },
+        { border_width.release_nonnull(), border_style.release_nonnull(), border_color.release_nonnull(), property_initial_value(PropertyID::BorderImage) });
 }
 
 // https://drafts.csswg.org/css-backgrounds/#border-image
