@@ -269,7 +269,7 @@ bool MimeType::is_font() const
 {
     // A font MIME type is any MIME type whose type is "font", or whose essence is one of the following:
     //    - application/font-cff
-    //    - application/font-off
+    //    - application/font-otf
     //    - application/font-sfnt
     //    - application/font-ttf
     //    - application/font-woff
@@ -280,7 +280,7 @@ bool MimeType::is_font() const
 
     return essence().is_one_of(
         "application/font-cff"sv,
-        "application/font-off"sv,
+        "application/font-otf"sv,
         "application/font-sfnt"sv,
         "application/font-ttf"sv,
         "application/font-woff"sv,
