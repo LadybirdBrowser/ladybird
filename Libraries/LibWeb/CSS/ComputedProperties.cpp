@@ -35,6 +35,7 @@
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
@@ -882,6 +883,16 @@ CSSPixels ComputedProperties::text_underline_offset() const
         return computed_text_underline_offset.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
 
     VERIFY_NOT_REACHED();
+}
+
+TextUnderlinePosition ComputedProperties::text_underline_position() const
+{
+    auto const& computed_text_underline_position = property(PropertyID::TextUnderlinePosition).as_text_underline_position();
+
+    return {
+        .horizontal = computed_text_underline_position.horizontal(),
+        .vertical = computed_text_underline_position.vertical()
+    };
 }
 
 PointerEvents ComputedProperties::pointer_events() const

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        span {
+            text-decoration: underline;
+        }
+    </style>
+    <div>
+        <span style="text-underline-position: auto">foo</span>
+        <span style="text-underline-position: under">bar</span>
+    </div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(internals.dumpDisplayList());
+        });
+    </script>
+</html>
