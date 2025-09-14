@@ -333,7 +333,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // 17. If mode is "navigate", then throw a TypeError.
     if (mode == Infrastructure::Request::Mode::Navigate)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mode must not be 'navigate"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mode must not be 'navigate'"sv };
 
     // 18. If mode is non-null, set request’s mode to mode.
     if (mode.has_value())
