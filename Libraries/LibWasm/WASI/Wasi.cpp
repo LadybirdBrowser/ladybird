@@ -1225,6 +1225,15 @@ FDFlags fd_flags_of(struct stat const&)
 
 namespace AK {
 
+// Don't remove, needed for dbgln_if WASI_DEBUG above to display arguments
+template<>
+struct Formatter<Wasm::Value> : AK::Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Wasm::Value const& value)
+    {
+        return Formatter<FormatString>::format(builder, "{}"sv, value.to<u128>());
+    }
+};
+
 template<>
 struct Formatter<Wasm::Wasi::Errno> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::Errno const& value)
