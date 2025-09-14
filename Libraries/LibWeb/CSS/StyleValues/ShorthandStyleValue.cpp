@@ -239,17 +239,45 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(builder.to_string());
     }
     case PropertyID::Border: {
+        // `border` only has a reasonable value if border-image is it's initial value (in which case it is omitted)
+        if (!longhand(PropertyID::BorderImage)->equals(property_initial_value(PropertyID::BorderImage)))
+            return ""_string;
+
         auto all_longhands_same_value = [](ValueComparingRefPtr<StyleValue const> const& shorthand) -> bool {
             auto longhands = shorthand->as_shorthand().values();
 
             return all_of(longhands, [&](auto const& longhand) { return longhand == longhands[0]; });
         };
 
+        auto const& border_width = longhand(PropertyID::BorderWidth);
+        auto const& border_style = longhand(PropertyID::BorderStyle);
+        auto const& border_color = longhand(PropertyID::BorderColor);
+
         // `border` only has a reasonable value if all four sides are the same.
-        if (!all_longhands_same_value(longhand(PropertyID::BorderWidth)) || !all_longhands_same_value(longhand(PropertyID::BorderStyle)) || !all_longhands_same_value(longhand(PropertyID::BorderColor)))
+        if (!all_longhands_same_value(border_width) || !all_longhands_same_value(border_style) || !all_longhands_same_value(border_color))
             return ""_string;
 
-        return default_to_string();
+        StringBuilder builder;
+
+        if (!border_width->equals(property_initial_value(PropertyID::BorderWidth)))
+            builder.appendff("{}", border_width->to_string(mode));
+
+        if (!border_style->equals(property_initial_value(PropertyID::BorderStyle))) {
+            if (!builder.is_empty())
+                builder.append(' ');
+            builder.appendff("{}", border_style->to_string(mode));
+        }
+
+        if (!border_color->equals(property_initial_value(PropertyID::BorderColor))) {
+            if (!builder.is_empty())
+                builder.append(' ');
+            builder.appendff("{}", border_color->to_string(mode));
+        }
+
+        if (builder.is_empty())
+            return border_width->to_string(mode);
+
+        return builder.to_string_without_validation();
     }
     case PropertyID::BorderImage: {
         auto source = longhand(PropertyID::BorderImageSource);
