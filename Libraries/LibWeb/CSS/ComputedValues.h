@@ -87,6 +87,11 @@ struct ScrollbarColorData {
     Color track_color { Color::Transparent };
 };
 
+struct TextUnderlinePosition {
+    TextUnderlinePositionHorizontal horizontal { TextUnderlinePositionHorizontal::Auto };
+    TextUnderlinePositionVertical vertical { TextUnderlinePositionVertical::Auto };
+};
+
 struct WillChange {
     enum class Type : u8 {
         Contents,
@@ -153,6 +158,7 @@ public:
     static CSS::TextWrapMode text_wrap_mode() { return CSS::TextWrapMode::Wrap; }
     static CSS::TextRendering text_rendering() { return CSS::TextRendering::Auto; }
     static CSSPixels text_underline_offset() { return 2; }
+    static TextUnderlinePosition text_underline_position() { return { .horizontal = TextUnderlinePositionHorizontal::Auto, .vertical = TextUnderlinePositionVertical::Auto }; }
     static CSS::Display display() { return CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow }; }
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
@@ -483,6 +489,7 @@ public:
     CSS::TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
     CSS::TextRendering text_rendering() const { return m_inherited.text_rendering; }
     CSSPixels text_underline_offset() const { return m_inherited.text_underline_offset; }
+    TextUnderlinePosition text_underline_position() const { return m_inherited.text_underline_position; }
     Vector<CSS::TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
     TextDecorationThickness const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
     CSS::TextDecorationStyle text_decoration_style() const { return m_noninherited.text_decoration_style; }
@@ -701,6 +708,7 @@ protected:
         CSS::TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
         CSS::TextRendering text_rendering { InitialValues::text_rendering() };
         CSSPixels text_underline_offset { InitialValues::text_underline_offset() };
+        TextUnderlinePosition text_underline_position { InitialValues::text_underline_position() };
         CSS::WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
         CSS::WordBreak word_break { InitialValues::word_break() };
         CSSPixels word_spacing { InitialValues::word_spacing() };
@@ -919,6 +927,7 @@ public:
     void set_text_overflow(CSS::TextOverflow value) { m_noninherited.text_overflow = value; }
     void set_text_rendering(CSS::TextRendering value) { m_inherited.text_rendering = value; }
     void set_text_underline_offset(CSSPixels value) { m_inherited.text_underline_offset = value; }
+    void set_text_underline_position(TextUnderlinePosition value) { m_inherited.text_underline_position = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space_collapse(CSS::WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }

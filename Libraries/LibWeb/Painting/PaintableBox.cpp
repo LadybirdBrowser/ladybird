@@ -815,6 +815,7 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
     auto device_line_thickness = context.rounded_device_pixels(fragment.text_decoration_thickness());
     auto text_decoration_lines = paintable.computed_values().text_decoration_line();
     auto text_underline_offset = paintable.computed_values().text_underline_offset();
+    auto text_underline_position = paintable.computed_values().text_underline_position();
     for (auto line : text_decoration_lines) {
         DevicePixelPoint line_start_point {};
         DevicePixelPoint line_end_point {};
@@ -850,10 +851,39 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
         switch (line) {
         case CSS::TextDecorationLine::None:
             return;
-        case CSS::TextDecorationLine::Underline:
-            line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline + text_underline_offset));
-            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline + text_underline_offset));
+        case CSS::TextDecorationLine::Underline: {
+            // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
+            auto underline_position_without_offset = [&]() {
+                // FIXME: Support text-decoration: underline on vertical text
+                switch (text_underline_position.horizontal) {
+                case Web::CSS::TextUnderlinePositionHorizontal::Auto:
+                    // The user agent may use any algorithm to determine the underline’s position; however it must be
+                    // placed at or under the alphabetic baseline.
+
+                    // Spec Note: It is suggested that the default underline position be close to the alphabetic
+                    //            baseline,
+                    // FIXME:     unless that would either cross subscripted (or otherwise lowered) text or draw over
+                    //            glyphs from Asian scripts such as Han or Tibetan for which an alphabetic underline is
+                    //            too high: in such cases, shifting the underline lower or aligning to the em box edge
+                    //            as described for under may be more appropriate.
+                    return fragment.baseline();
+                case Web::CSS::TextUnderlinePositionHorizontal::FromFont:
+                    // FIXME: If the first available font has metrics indicating a preferred underline offset, use that
+                    //        offset, otherwise behaves as auto.
+                    return fragment.baseline();
+                case Web::CSS::TextUnderlinePositionHorizontal::Under:
+                    // The underline is positioned under the element’s text content. In this case the underline usually
+                    // does not cross the descenders. (This is sometimes called “accounting” underline.)
+                    return fragment.baseline() + CSSPixels { font.pixel_metrics().descent };
+                }
+
+                VERIFY_NOT_REACHED();
+            }();
+
+            line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, underline_position_without_offset + text_underline_offset));
+            line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, underline_position_without_offset + text_underline_offset));
             break;
+        }
         case CSS::TextDecorationLine::Overline:
             line_start_point = context.rounded_device_point(fragment_box.top_left().translated(0, baseline - glyph_height));
             line_end_point = context.rounded_device_point(fragment_box.top_right().translated(0, baseline - glyph_height));
