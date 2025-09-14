@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for handling of CSS Custom Property names</title>
+<link rel="help" href="https://drafts.csswg.org/css-variables/#serializing-custom-props">
+<meta name="author" title="Cameron McCormack" href="mailto:cam@mcc.id.au">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+
+// Valid custom property names, before and after CSS escaping.
+var valid_names = [
+  ["--a", "--a"],
+  ["--a;b", "--a\\;b"],
+  ["---", "---"],
+  ["--\\", "--\\\\"],
+  ["--ab", "--\\61 b"],
+  ["--0", "--\\30 "],
+];
+
+valid_names.forEach(function(t) {
+  var name = t[0];
+  var escaped_name = t[1];
+
+  test(function() {
+    var e = document.createElement("span");
+    e.style = escaped_name + ":value";
+
+    for (var after_refeeding = 0; after_refeeding <= 1; ++after_refeeding) {
+      var desc_suffix = (after_refeeding ? " (after " : " (before ") +
+                        "serialization/re-parsing)";
+
+      assert_equals(e.style.length, 1,
+                    "appears on specified style" + desc_suffix);
+
+      assert_equals(e.style[0], name,
+                    "name returned correctly from specified " +
+                    "style indexed getter" + desc_suffix);
+
+      assert_equals(e.style.getPropertyValue(name), "value",
+                    "property value returned correctly from " +
+                    "specified style getPropertyValue" + desc_suffix);
+
+      e.style = e.style.cssText;
+    }
+  }, "custom property '" + name + "'");
+});
+</script>
