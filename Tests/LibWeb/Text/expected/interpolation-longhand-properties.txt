@@ -5,6 +5,7 @@ At time 400:
   aspect-ratio: 1.544154 / 1
   background-color: rgb(78, 88, 99)
   background-repeat: repeat-x
+  border-radius: 40.000001px 60.000001px 80.000001px 100.000001px
   bottom: auto
   box-shadow: rgb(153, 0, 102) 40.000001px 80.000001px 126.000002px 0px inset, rgba(0, 0, 102, 0.4) 20px 4px 8px 12px
   color: rgb(153, 0, 102)
@@ -17,6 +18,7 @@ At time 750:
   aspect-ratio: 1.36506 / 1
   background-color: rgb(147, 157, 168)
   background-repeat: space
+  border-radius: 75px 95px 115px 135px
   bottom: 100%
   box-shadow: rgb(64, 0, 191) 75px 150px 227.5px 0px, rgba(0, 0, 191, 0.75) 37.5px 7.5px 15px 22.5px
   color: rgb(64, 0, 191)
