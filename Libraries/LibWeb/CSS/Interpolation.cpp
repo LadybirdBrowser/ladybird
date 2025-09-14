@@ -1148,13 +1148,37 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return interpolate_mixed_value(calculation_context, from, to, delta);
     }
 
+    static auto length_percentage_or_auto_to_style_value = [](auto const& value) -> NonnullRefPtr<StyleValue const> {
+        if constexpr (requires { value.is_auto(); }) {
+            if (value.is_auto())
+                return KeywordStyleValue::create(Keyword::Auto);
+        }
+        if (value.is_length())
+            return LengthStyleValue::create(value.length());
+        if (value.is_percentage())
+            return PercentageStyleValue::create(value.percentage());
+        if (value.is_calculated())
+            return value.calculated();
+        VERIFY_NOT_REACHED();
+    };
+
     static auto interpolate_length_percentage = [](CalculationContext const& calculation_context, LengthPercentage const& from, LengthPercentage const& to, float delta) -> Optional<LengthPercentage> {
         if (from.is_length() && to.is_length())
             return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
         if (from.is_percentage() && to.is_percentage())
             return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
-        // FIXME: Interpolate calculations
-        return {};
+        auto from_style_value = length_percentage_or_auto_to_style_value(from);
+        auto to_style_value = length_percentage_or_auto_to_style_value(to);
+        auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
+        if (!interpolated_style_value)
+            return {};
+        if (interpolated_style_value->is_length())
+            return interpolated_style_value->as_length().length();
+        if (interpolated_style_value->is_percentage())
+            return interpolated_style_value->as_percentage().percentage();
+        if (interpolated_style_value->is_calculated())
+            return LengthPercentage { interpolated_style_value->as_calculated() };
+        VERIFY_NOT_REACHED();
     };
 
     static auto interpolate_length_percentage_or_auto = [](CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta) -> Optional<LengthPercentageOrAuto> {
@@ -1164,8 +1188,21 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
         if (from.is_percentage() && to.is_percentage())
             return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
-        // FIXME: Interpolate calculations
-        return {};
+
+        auto from_style_value = length_percentage_or_auto_to_style_value(from);
+        auto to_style_value = length_percentage_or_auto_to_style_value(to);
+        auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
+        if (!interpolated_style_value)
+            return {};
+        if (interpolated_style_value->to_keyword() == Keyword::Auto)
+            return LengthPercentageOrAuto::make_auto();
+        if (interpolated_style_value->is_length())
+            return interpolated_style_value->as_length().length();
+        if (interpolated_style_value->is_percentage())
+            return interpolated_style_value->as_percentage().percentage();
+        if (interpolated_style_value->is_calculated())
+            return LengthPercentage { interpolated_style_value->as_calculated() };
+        VERIFY_NOT_REACHED();
     };
 
     switch (from.type()) {
