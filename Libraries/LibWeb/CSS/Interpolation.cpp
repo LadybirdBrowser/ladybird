@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -1192,6 +1193,19 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             interpolated_bottom.release_nonnull(),
             interpolated_left.release_nonnull(),
             from_border_image_slice.fill());
+    }
+    case StyleValue::Type::BorderRadius: {
+        auto const& from_horizontal_radius = from.as_border_radius().horizontal_radius();
+        auto const& to_horizontal_radius = to.as_border_radius().horizontal_radius();
+        auto const& from_vertical_radius = from.as_border_radius().vertical_radius();
+        auto const& to_vertical_radius = to.as_border_radius().vertical_radius();
+        auto const interpolated_horizontal_radius = interpolate_length_percentage(calculation_context, from_horizontal_radius, to_horizontal_radius, delta);
+        auto const interpolated_vertical_radius = interpolate_length_percentage(calculation_context, from_vertical_radius, to_vertical_radius, delta);
+        if (!interpolated_horizontal_radius.has_value() || !interpolated_vertical_radius.has_value())
+            return {};
+        return BorderRadiusStyleValue::create(
+            interpolated_horizontal_radius.value(),
+            interpolated_vertical_radius.value());
     }
     case StyleValue::Type::Color: {
         ColorResolutionContext color_resolution_context {};
