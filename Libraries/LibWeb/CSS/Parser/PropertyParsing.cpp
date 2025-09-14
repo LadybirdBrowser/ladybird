@@ -848,7 +848,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 
     auto stream = TokenStream { component_values };
 
-    HashMap<UnderlyingType<PropertyID>, Vector<ValueComparingNonnullRefPtr<StyleValue const>>> assigned_values;
+    OrderedHashMap<UnderlyingType<PropertyID>, Vector<ValueComparingNonnullRefPtr<StyleValue const>>> assigned_values;
 
     while (stream.has_next_token() && !unassigned_properties.is_empty()) {
         auto property_and_value = parse_css_value_for_properties(unassigned_properties, stream);
