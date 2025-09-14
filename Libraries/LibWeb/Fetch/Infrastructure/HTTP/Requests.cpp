@@ -346,7 +346,7 @@ void Request::add_origin_header()
             case ReferrerPolicy::ReferrerPolicy::StrictOriginWhenCrossOrigin:
                 // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is
                 // not "https", then set serializedOrigin to `null`.
-                if (m_origin.has<URL::Origin>() && m_origin.get<URL::Origin>().scheme() == "https"sv && current_url().scheme() != "https"sv)
+                if (m_origin.has<URL::Origin>() && !m_origin.get<URL::Origin>().is_opaque() && m_origin.get<URL::Origin>().scheme() == "https"sv && current_url().scheme() != "https"sv)
                     serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
                 break;
             // -> "same-origin"
