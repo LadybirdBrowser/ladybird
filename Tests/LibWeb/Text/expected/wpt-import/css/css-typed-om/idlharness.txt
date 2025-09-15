@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-324 Pass
-221 Fail
+332 Pass
+213 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -326,14 +326,14 @@ Fail	CSSScale interface: scale must inherit property "y" with the proper type
 Fail	CSSScale interface: scale must inherit property "z" with the proper type
 Fail	CSSTransformComponent interface: scale must inherit property "is2D" with the proper type
 Fail	CSSTransformComponent interface: scale must inherit property "toMatrix()" with the proper type
-Fail	CSSSkew interface: existence and properties of interface object
-Fail	CSSSkew interface object length
-Fail	CSSSkew interface object name
-Fail	CSSSkew interface: existence and properties of interface prototype object
-Fail	CSSSkew interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSSkew interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSSkew interface: attribute ax
-Fail	CSSSkew interface: attribute ay
+Pass	CSSSkew interface: existence and properties of interface object
+Pass	CSSSkew interface object length
+Pass	CSSSkew interface object name
+Pass	CSSSkew interface: existence and properties of interface prototype object
+Pass	CSSSkew interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSSkew interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSSkew interface: attribute ax
+Pass	CSSSkew interface: attribute ay
 Fail	CSSSkew must be primary interface of skew
 Fail	Stringification of skew
 Fail	CSSSkew interface: skew must inherit property "ax" with the proper type
