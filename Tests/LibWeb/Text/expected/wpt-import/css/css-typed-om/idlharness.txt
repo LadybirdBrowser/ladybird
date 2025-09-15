@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-339 Pass
-206 Fail
+346 Pass
+199 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -352,13 +352,13 @@ Fail	Stringification of skewX
 Fail	CSSSkewX interface: skewX must inherit property "ax" with the proper type
 Fail	CSSTransformComponent interface: skewX must inherit property "is2D" with the proper type
 Fail	CSSTransformComponent interface: skewX must inherit property "toMatrix()" with the proper type
-Fail	CSSSkewY interface: existence and properties of interface object
-Fail	CSSSkewY interface object length
-Fail	CSSSkewY interface object name
-Fail	CSSSkewY interface: existence and properties of interface prototype object
-Fail	CSSSkewY interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSSkewY interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSSkewY interface: attribute ay
+Pass	CSSSkewY interface: existence and properties of interface object
+Pass	CSSSkewY interface object length
+Pass	CSSSkewY interface object name
+Pass	CSSSkewY interface: existence and properties of interface prototype object
+Pass	CSSSkewY interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSSkewY interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSSkewY interface: attribute ay
 Fail	CSSSkewY must be primary interface of skewY
 Fail	Stringification of skewY
 Fail	CSSSkewY interface: skewY must inherit property "ay" with the proper type
