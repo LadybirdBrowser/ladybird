@@ -144,9 +144,9 @@ public:
         return count;
     }
 
-    T* child_at_index(int index)
+    T* child_at_index(size_t index)
     {
-        int count = 0;
+        size_t count = 0;
         for (auto* child = first_child(); child; child = child->next_sibling()) {
             if (count == index)
                 return child;
@@ -155,7 +155,7 @@ public:
         return nullptr;
     }
 
-    T const* child_at_index(int index) const
+    T const* child_at_index(size_t index) const
     {
         return const_cast<TreeNode*>(this)->child_at_index(index);
     }
