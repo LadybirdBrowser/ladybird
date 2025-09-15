@@ -66,6 +66,7 @@ CSSNumericValue
 CSSPageDescriptors
 CSSPageRule
 CSSPropertyRule
+CSSRotate
 CSSRule
 CSSRuleList
 CSSStyleDeclaration
