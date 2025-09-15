@@ -70,6 +70,7 @@ CSSRotate
 CSSRule
 CSSRuleList
 CSSScale
+CSSSkew
 CSSStyleDeclaration
 CSSStyleProperties
 CSSStyleRule
