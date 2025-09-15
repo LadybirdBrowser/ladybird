@@ -268,6 +268,7 @@ class CSSStyleSheet;
 class CSSStyleValue;
 class CSSSupportsRule;
 class CSSTransformComponent;
+class CSSTranslate;
 class CSSUnitValue;
 class CSSUnparsedValue;
 class CSSVariableReferenceValue;
