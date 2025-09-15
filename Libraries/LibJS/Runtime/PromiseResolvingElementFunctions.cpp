@@ -200,7 +200,8 @@ ThrowCompletionOr<Value> PromiseAnyRejectElementFunction::resolve_element()
 
         // b. Perform ! DefinePropertyOrThrow(error, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: CreateArrayFromList(errors) }).
         auto errors_array = Array::create_from(realm, m_values->values());
-        MUST(error->define_property_or_throw(vm.names.errors, { .value = errors_array, .writable = true, .enumerable = false, .configurable = true }));
+        PropertyDescriptor descriptor { .value = errors_array, .writable = true, .enumerable = false, .configurable = true };
+        MUST(error->define_property_or_throw(vm.names.errors, descriptor));
 
         // c. Return ? Call(promiseCapability.[[Reject]], undefined, « error »).
         return JS::call(vm, *m_capability->reject(), js_undefined(), error);

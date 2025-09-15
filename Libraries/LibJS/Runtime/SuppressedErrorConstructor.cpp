@@ -64,10 +64,12 @@ ThrowCompletionOr<GC::Ref<Object>> SuppressedErrorConstructor::construct(Functio
     TRY(suppressed_error->install_error_cause(options));
 
     // 5. Perform ! DefinePropertyOrThrow(O, "error", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: error }).
-    MUST(suppressed_error->define_property_or_throw(vm.names.error, { .value = error, .writable = true, .enumerable = false, .configurable = true }));
+    PropertyDescriptor error_descriptor { .value = error, .writable = true, .enumerable = false, .configurable = true };
+    MUST(suppressed_error->define_property_or_throw(vm.names.error, error_descriptor));
 
     // 6. Perform ! DefinePropertyOrThrow(O, "suppressed", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: suppressed }).
-    MUST(suppressed_error->define_property_or_throw(vm.names.suppressed, { .value = suppressed, .writable = true, .enumerable = false, .configurable = true }));
+    PropertyDescriptor names_descriptor { .value = suppressed, .writable = true, .enumerable = false, .configurable = true };
+    MUST(suppressed_error->define_property_or_throw(vm.names.suppressed, names_descriptor));
 
     // 7. Return O.
     return suppressed_error;

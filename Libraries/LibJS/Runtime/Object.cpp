@@ -220,7 +220,7 @@ void Object::create_non_enumerable_data_property_or_throw(PropertyKey const& pro
 }
 
 // 7.3.9 DefinePropertyOrThrow ( O, P, desc ), https://tc39.es/ecma262/#sec-definepropertyorthrow
-ThrowCompletionOr<void> Object::define_property_or_throw(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<void> Object::define_property_or_throw(PropertyKey const& property_key, PropertyDescriptor& property_descriptor)
 {
     auto& vm = this->vm();
 
@@ -298,7 +298,8 @@ ThrowCompletionOr<bool> Object::set_integrity_level(IntegrityLevel level)
             auto property_key = MUST(PropertyKey::from_value(vm, key));
 
             // i. Perform ? DefinePropertyOrThrow(O, k, PropertyDescriptor { [[Configurable]]: false }).
-            TRY(define_property_or_throw(property_key, { .configurable = false }));
+            PropertyDescriptor descriptor { .configurable = false };
+            TRY(define_property_or_throw(property_key, descriptor));
         }
     }
     // 5. Else,
@@ -851,7 +852,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_propert
 
 // 10.1.6 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 // 10.1.6.1 OrdinaryDefineOwnProperty ( O, P, Desc ), https://tc39.es/ecma262/#sec-ordinarydefineownproperty
-ThrowCompletionOr<bool> Object::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
+ThrowCompletionOr<bool> Object::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. Let current be ? O.[[GetOwnProperty]](P).
     auto current = precomputed_get_own_property ? *precomputed_get_own_property : TRY(internal_get_own_property(property_key));
@@ -1211,14 +1212,14 @@ bool Object::storage_has(PropertyKey const& property_key) const
     return shape().lookup(property_key).has_value();
 }
 
-void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes const& value_and_attributes)
+Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttributes const& value_and_attributes)
 {
     auto [value, attributes, _] = value_and_attributes;
 
     if (property_key.is_number()) {
         auto index = property_key.as_number();
         m_indexed_properties.put(index, value, attributes);
-        return;
+        return {};
     }
 
     if (m_has_intrinsic_accessors && property_key.is_string()) {
@@ -1238,7 +1239,7 @@ void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes con
         else
             set_shape(*m_shape->create_put_transition(property_key, attributes));
         m_storage.append(value);
-        return;
+        return m_storage.size() - 1;
     }
 
     if (attributes != metadata->attributes) {
@@ -1249,6 +1250,7 @@ void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes con
     }
 
     m_storage[metadata->offset] = value;
+    return metadata->offset;
 }
 
 void Object::storage_delete(PropertyKey const& property_key)
@@ -1315,7 +1317,7 @@ void Object::define_intrinsic_accessor(PropertyKey const& property_key, Property
 {
     VERIFY(property_key.is_string());
 
-    storage_set(property_key, { {}, attributes });
+    (void)storage_set(property_key, { {}, attributes });
 
     m_has_intrinsic_accessors = true;
     auto& intrinsics = s_intrinsics.ensure(this);

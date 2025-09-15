@@ -182,7 +182,8 @@ static ThrowCompletionOr<Value> perform_promise_any(VM& vm, IteratorRecord& iter
 
             // 2. Perform ! DefinePropertyOrThrow(error, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: CreateArrayFromList(errors) }).
             auto errors_array = Array::create_from(realm, errors.values());
-            MUST(error->define_property_or_throw(vm.names.errors, { .value = errors_array, .writable = true, .enumerable = false, .configurable = true }));
+            PropertyDescriptor descriptor { .value = errors_array, .writable = true, .enumerable = false, .configurable = true };
+            MUST(error->define_property_or_throw(vm.names.errors, descriptor));
 
             // 3. Return ThrowCompletion(error).
             return throw_completion(error);
