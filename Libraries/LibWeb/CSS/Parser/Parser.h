@@ -32,6 +32,7 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/CSS/URL.h>
@@ -464,12 +465,8 @@ private:
     RefPtr<StyleValue const> parse_single_repeat_style_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_scrollbar_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
-    enum class AllowInsetKeyword {
-        No,
-        Yes,
-    };
-    RefPtr<StyleValue const> parse_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
-    RefPtr<StyleValue const> parse_single_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
+    RefPtr<StyleValue const> parse_shadow_value(TokenStream<ComponentValue>&, ShadowStyleValue::ShadowType);
+    RefPtr<StyleValue const> parse_single_shadow_value(TokenStream<ComponentValue>&, ShadowStyleValue::ShadowType);
     RefPtr<StyleValue const> parse_text_decoration_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_text_underline_position_value(TokenStream<ComponentValue>&);

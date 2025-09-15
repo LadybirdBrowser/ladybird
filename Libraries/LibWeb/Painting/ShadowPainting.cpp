@@ -83,7 +83,6 @@ void paint_text_shadow(DisplayListRecordingContext& context, PaintableFragment c
         int blur_radius = context.rounded_device_pixels(layer.blur_radius).value();
 
         // Space around the painted text to allow it to blur.
-        // FIXME: Include spread in this once we use that.
         int margin = blur_radius * 2;
         Gfx::IntRect text_rect {
             margin, margin,
