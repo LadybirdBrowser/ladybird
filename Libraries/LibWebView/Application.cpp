@@ -589,6 +589,11 @@ ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) cons
     auto downloads_directory = Core::StandardPaths::downloads_directory();
 
     if (!FileSystem::is_directory(downloads_directory)) {
+        if (browser_options().headless_mode.has_value()) {
+            dbgln("Unable to ask user for download folder in headless mode, please ensure {} is a directory or use the XDG_DOWNLOAD_DIR environment variable to set a new download directory", downloads_directory);
+            return Error::from_errno(ENOENT);
+        }
+
         auto maybe_downloads_directory = ask_user_for_download_folder();
         if (!maybe_downloads_directory.has_value())
             return Error::from_errno(ECANCELED);
