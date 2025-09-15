@@ -134,6 +134,7 @@ set(SOURCES
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
     CSS/CSSPropertyRule.cpp
+    CSS/CSSRotate.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
     CSS/CSSStyleDeclaration.cpp

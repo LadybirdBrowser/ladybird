@@ -259,6 +259,7 @@ class CSSNumericValue;
 class CSSPageRule;
 class CSSPageDescriptors;
 class CSSPropertyRule;
+class CSSRotate;
 class CSSRule;
 class CSSRuleList;
 class CSSStyleDeclaration;

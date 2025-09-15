@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-305 Pass
-240 Fail
+315 Pass
+230 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -292,16 +292,16 @@ Fail	CSSTranslate interface: transformValue[0] must inherit property "y" with th
 Fail	CSSTranslate interface: transformValue[0] must inherit property "z" with the proper type
 Fail	CSSTransformComponent interface: transformValue[0] must inherit property "is2D" with the proper type
 Fail	CSSTransformComponent interface: transformValue[0] must inherit property "toMatrix()" with the proper type
-Fail	CSSRotate interface: existence and properties of interface object
-Fail	CSSRotate interface object length
-Fail	CSSRotate interface object name
-Fail	CSSRotate interface: existence and properties of interface prototype object
-Fail	CSSRotate interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSRotate interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSRotate interface: attribute x
-Fail	CSSRotate interface: attribute y
-Fail	CSSRotate interface: attribute z
-Fail	CSSRotate interface: attribute angle
+Pass	CSSRotate interface: existence and properties of interface object
+Pass	CSSRotate interface object length
+Pass	CSSRotate interface object name
+Pass	CSSRotate interface: existence and properties of interface prototype object
+Pass	CSSRotate interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSRotate interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSRotate interface: attribute x
+Pass	CSSRotate interface: attribute y
+Pass	CSSRotate interface: attribute z
+Pass	CSSRotate interface: attribute angle
 Fail	CSSRotate must be primary interface of rotate
 Fail	Stringification of rotate
 Fail	CSSRotate interface: rotate must inherit property "x" with the proper type

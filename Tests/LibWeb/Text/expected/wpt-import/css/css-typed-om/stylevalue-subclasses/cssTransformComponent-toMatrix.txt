@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 8 tests
 
-1 Pass
-7 Fail
+2 Pass
+6 Fail
 Pass	CSSTranslate.toMatrix() returns correct matrix
-Fail	CSSRotate.toMatrix() returns correct matrix
+Pass	CSSRotate.toMatrix() returns correct matrix
 Fail	CSSScale.toMatrix() returns correct matrix
 Fail	CSSSkew.toMatrix() returns correct matrix
 Fail	CSSSkewX.toMatrix() returns correct matrix
