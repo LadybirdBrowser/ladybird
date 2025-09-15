@@ -264,6 +264,7 @@ class CSSRule;
 class CSSRuleList;
 class CSSScale;
 class CSSSkew;
+class CSSSkewX;
 class CSSStyleDeclaration;
 class CSSStyleProperties;
 class CSSStyleRule;
