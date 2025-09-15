@@ -3922,24 +3922,22 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     GC::Ref<DOM::Node> last_node = *node_list.last();
     GC::Ref<DOM::Node> original_parent = *first_node->parent();
 
-    // 2. If original parent is not editable or its parent is null, do nothing and abort these
-    //    steps.
+    // 2. If original parent is not editable or its parent is null, do nothing and abort these steps.
     if (!original_parent->is_editable() || !original_parent->parent())
         return;
 
-    // 3. If the first child of original parent is in node list, remove extraneous line breaks
-    //    before original parent.
+    // 3. If the first child of original parent is in node list, remove extraneous line breaks before original parent.
     GC::Ref<DOM::Node> first_child = *original_parent->first_child();
     auto first_child_in_nodes_list = node_list.contains_slow(first_child);
     if (first_child_in_nodes_list)
         remove_extraneous_line_breaks_before_node(original_parent);
 
-    // 4. If the first child of original parent is in node list, and original parent follows a line
-    //    break, set follows line break to true. Otherwise, set follows line break to false.
+    // 4. If the first child of original parent is in node list, and original parent follows a line break, set follows
+    //    line break to true. Otherwise, set follows line break to false.
     auto follows_line_break = first_child_in_nodes_list && follows_a_line_break(original_parent);
 
-    // 5. If the last child of original parent is in node list, and original parent precedes a line
-    //    break, set precedes line break to true. Otherwise, set precedes line break to false.
+    // 5. If the last child of original parent is in node list, and original parent precedes a line break, set precedes
+    //    line break to true. Otherwise, set precedes line break to false.
     GC::Ref<DOM::Node> last_child = *original_parent->last_child();
     bool last_child_in_nodes_list = node_list.contains_slow(last_child);
     auto precedes_line_break = last_child_in_nodes_list && precedes_a_line_break(original_parent);
@@ -3949,14 +3947,14 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     auto original_parent_index = original_parent->index();
     auto& document = original_parent->document();
     if (!first_child_in_nodes_list && last_child_in_nodes_list) {
-        // 1. For each node in node list, in reverse order, insert node into the parent of original
-        //    parent immediately after original parent, preserving ranges.
+        // 1. For each node in node list, in reverse order, insert node into the parent of original parent immediately
+        //    after original parent, preserving ranges.
         for (auto node : node_list.in_reverse())
             move_node_preserving_ranges(node, parent_of_original_parent, original_parent_index + 1);
 
-        // 2. If precedes line break is true, and the last member of node list does not precede a
-        //    line break, call createElement("br") on the context object and insert the result
-        //    immediately after the last member of node list.
+        // 2. If precedes line break is true, and the last member of node list does not precede a line break, call
+        //    createElement("br") on the context object and insert the result immediately after the last member of node
+        //    list.
         if (precedes_line_break && !precedes_a_line_break(last_node)) {
             auto br_element = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
             MUST(last_node->parent()->append_child(br_element));
@@ -3979,43 +3977,44 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
         if (original_parent_element.has_attribute(HTML::AttributeNames::id))
             original_parent_element.remove_attribute(HTML::AttributeNames::id);
 
-        // 3. Insert cloned parent into the parent of original parent immediately before original
-        //    parent.
+        // 3. Insert cloned parent into the parent of original parent immediately before original parent.
         original_parent->parent()->insert_before(cloned_parent, original_parent);
 
-        // 4. While the previousSibling of the first member of node list is not null, append the
-        //    first child of original parent as the last child of cloned parent, preserving ranges.
+        // 4. While the previousSibling of the first member of node list is not null, append the first child of original
+        //    parent as the last child of cloned parent, preserving ranges.
         while (first_node->previous_sibling())
             move_node_preserving_ranges(*original_parent->first_child(), cloned_parent, cloned_parent->child_count());
     }
 
-    // 8. For each node in node list, insert node into the parent of original parent immediately
-    //    before original parent, preserving ranges.
+    // 8. For each node in node list, insert node into the parent of original parent immediately before original parent,
+    //    preserving ranges.
     for (auto node : node_list)
         move_node_preserving_ranges(node, parent_of_original_parent, original_parent_index++);
 
-    // 9. If follows line break is true, and the first member of node list does not follow a line
-    //    break, call createElement("br") on the context object and insert the result immediately
-    //    before the first member of node list.
+    // 9. If follows line break is true, and the first member of node list does not follow a line break, call
+    //    createElement("br") on the context object and insert the result immediately before the first member of node
+    //    list.
     if (follows_line_break && !follows_a_line_break(first_node)) {
         auto br_element = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
         first_node->parent()->insert_before(br_element, first_node);
     }
 
-    // 10. If the last member of node list is an inline node other than a br, and the first child of
-    //     original parent is a br, and original parent is not an inline node, remove the first
-    //     child of original parent from original parent.
-    if (is_inline_node(last_node) && !is<HTML::HTMLBRElement>(*last_node) && is<HTML::HTMLBRElement>(*first_child) && !is_inline_node(original_parent))
+    // 10. If the last member of node list is an inline node other than a br, and the first child of original parent is
+    //     a br, and original parent is not an inline node, remove the first child of original parent from original
+    //     parent.
+    if (is_inline_node(last_node) && !is<HTML::HTMLBRElement>(*last_node) && is<HTML::HTMLBRElement>(*first_child)
+        && !is_inline_node(original_parent)) {
         first_child->remove();
+    }
 
     // 11. If original parent has no children:
     if (original_parent->child_count() == 0) {
         // 1. Remove original parent from its parent.
         original_parent->remove();
 
-        // 2. If precedes line break is true, and the last member of node list does not precede a
-        //    line break, call createElement("br") on the context object and insert the result
-        //    immediately after the last member of node list.
+        // 2. If precedes line break is true, and the last member of node list does not precede a line break, call
+        //    createElement("br") on the context object and insert the result immediately after the last member of node
+        //    list.
         if (precedes_line_break && !precedes_a_line_break(last_node)) {
             auto br_element = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
             last_node->parent()->insert_before(br_element, last_node->next_sibling());
@@ -4027,8 +4026,8 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
         remove_extraneous_line_breaks_before_node(original_parent);
     }
 
-    // 13. If node list's last member's nextSibling is null, but its parent is not null, remove
-    //     extraneous line breaks at the end of node list's last member's parent.
+    // 13. If node list's last member's nextSibling is null, but its parent is not null, remove extraneous line breaks
+    //     at the end of node list's last member's parent.
     if (!last_node->next_sibling() && last_node->parent())
         remove_extraneous_line_breaks_at_the_end_of_node(*last_node->parent());
 }
