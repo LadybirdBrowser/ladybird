@@ -3,16 +3,19 @@
 <div id="a" contenteditable>foobar</div>
 <div id="b" contenteditable>foo👩🏼‍❤️‍👨🏻bar</div>
 <div id="c" contenteditable>foo<div contenteditable>bar</div></div>
+<div id="d" contenteditable>foo<br><br><div>bar<br>baz</div></div>
+<div id="e" contenteditable><p>foo</p><br><p>bar</p></div>
+<div id="f" contenteditable><p><span>abc</span><br></p></div>
 <script>
     test(() => {
-        const testDelete = function (divId, anchorExpression, position) {
+        const testDelete = function (divId, anchorExpression, start, end = start) {
             println(`--- ${divId} ---`);
             const divElm = document.querySelector(`div#${divId}`);
             println(`Before: ${divElm.innerHTML}`);
 
             // Place cursor
             const anchor = anchorExpression(divElm);
-            getSelection().setBaseAndExtent(anchor, position, anchor, position);
+            getSelection().setBaseAndExtent(anchor, start, anchor, end);
 
             // Press backspace
             document.execCommand("delete");
@@ -23,5 +26,8 @@
         testDelete("a", (node) => node.firstChild, 3);
         testDelete("b", (node) => node.firstChild, 15);
         testDelete("c", (node) => node.childNodes[1].firstChild, 0);
+        testDelete("d", (node) => node.childNodes[3].firstChild, 0);
+        testDelete("e", (node) => node.childNodes[2].firstChild, 0);
+        testDelete("f", (node) => node.firstChild.firstChild.firstChild, 0, 3);
     });
 </script>

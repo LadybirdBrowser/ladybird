@@ -1944,7 +1944,7 @@ bool is_collapsed_line_break(GC::Ref<DOM::Node> node)
         return false;
 
     // that begins a line box which has nothing else in it, and therefore has zero height.
-    // NOTE: We check this on the DOM-level by seeing if the next node is neither a non-empty text node nor a <br>.
+    // AD-HOC: We check this on the DOM level by seeing if the next node is neither a non-empty text node nor a <br>.
     if (auto text_node = as_if<DOM::Text>(node->next_sibling()))
         return text_node->text_content().value_or({}).is_empty();
     return !is<HTML::HTMLBRElement>(node->next_sibling());
@@ -2088,8 +2088,18 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
     if (is<HTML::HTMLLIElement>(parent.ptr()) && parent->child_count() == 1)
         return false;
 
-    // FIXME: ...that has no visual effect, in that removing it from the DOM
-    //        would not change layout,
+    // ...that has no visual effect, in that removing it from the DOM would not change layout,
+
+    // AD-HOC: If node's parent is a block node, and node either has no next sibling or its next sibling is a block
+    //         node, and its previous sibling is a visible inline node but not a <br>, node is extraneous.
+    if (parent && is_block_node(*parent) && node->previous_sibling()
+        && (!node->next_sibling() || is_block_node(*node->next_sibling()))
+        && is_visible_node(*node->previous_sibling()) && is_inline_node(*node->previous_sibling())
+        && !is<HTML::HTMLBRElement>(*node->previous_sibling())) {
+        return true;
+    }
+
+    // FIXME: implement more cases that would cause removing a <br> not to have any effect on the layout.
 
     return false;
 }

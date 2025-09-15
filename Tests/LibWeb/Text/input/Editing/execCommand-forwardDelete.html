@@ -1,37 +1,39 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<div id="a" contenteditable="true">foobar</div>
-<div id="b" contenteditable="true">a&nbsp;&nbsp;&nbsp;</div>
-<div id="c" contenteditable="true">a&nbsp;&nbsp;b</div>
-<div id="d" contenteditable="true">a&nbsp;&nbsp;&nbsp;b</div>
-<div id="e" contenteditable="true">a&nbsp;&nbsp;&nbsp;&nbsp;b</div>
-<div id="f" contenteditable="true">a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b</div>
-<div id="g" contenteditable="true">&nbsp;&nbsp;b</div>
-<div id="h" contenteditable="true">foo👩🏼‍❤️‍👨🏻bar</div>
+<div id="a" contenteditable>foobar</div>
+<div id="b" contenteditable>a&nbsp;&nbsp;&nbsp;</div>
+<div id="c" contenteditable>a&nbsp;&nbsp;b</div>
+<div id="d" contenteditable>a&nbsp;&nbsp;&nbsp;b</div>
+<div id="e" contenteditable>a&nbsp;&nbsp;&nbsp;&nbsp;b</div>
+<div id="f" contenteditable>a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b</div>
+<div id="g" contenteditable>&nbsp;&nbsp;b</div>
+<div id="h" contenteditable>foo👩🏼‍❤️‍👨🏻bar</div>
+<div id="i" contenteditable>foo<div>bar<br>baz</div></div>
 <script>
     test(() => {
-        const testForwardDelete = function(divId, position) {
+        const testForwardDelete = function(divId, anchorExpression, start, end = start) {
             println(`--- ${divId} ---`);
             const divElm = document.querySelector(`div#${divId}`);
             println(`Before: ${divElm.innerHTML}`);
 
             // Place cursor
-            const node = divElm.childNodes[0];
-            getSelection().setBaseAndExtent(node, position, node, position);
+            const anchor = anchorExpression(divElm);
+            getSelection().setBaseAndExtent(anchor, start, anchor, end);
 
             // Press delete
-            document.execCommand('forwardDelete');
+            document.execCommand("forwardDelete");
 
             println(`After: ${divElm.innerHTML}`);
         };
 
-        testForwardDelete('a', 3);
-        testForwardDelete('b', 1);
-        testForwardDelete('c', 1);
-        testForwardDelete('d', 1);
-        testForwardDelete('e', 1);
-        testForwardDelete('f', 1);
-        testForwardDelete('g', 0);
-        testForwardDelete('h', 3);
+        testForwardDelete("a", (node) => node.firstChild, 3);
+        testForwardDelete("b", (node) => node.firstChild, 1);
+        testForwardDelete("c", (node) => node.firstChild, 1);
+        testForwardDelete("d", (node) => node.firstChild, 1);
+        testForwardDelete("e", (node) => node.firstChild, 1);
+        testForwardDelete("f", (node) => node.firstChild, 1);
+        testForwardDelete("g", (node) => node.firstChild, 0);
+        testForwardDelete("h", (node) => node.firstChild, 3);
+        testForwardDelete("i", (node) => node.firstChild, 3);
     });
 </script>
