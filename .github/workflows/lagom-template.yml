@@ -65,7 +65,7 @@ jobs:
         if: ${{ inputs.os_name != 'Windows' }}
         id: 'build-parameters'
         run: |
-          CMAKE_OPTIONS=""
+          CMAKE_OPTIONS="-DENABLE_CI_BASELINE_CPU=ON"
           if ${{ inputs.toolchain == 'Swift' }} ; then
             echo "host_cc=$(swiftly use --print-location)/usr/bin/clang" >> "$GITHUB_OUTPUT"
             echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
@@ -140,7 +140,8 @@ jobs:
           VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
           VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
-          cmake --preset ${{ inputs.build_preset }} -B Build
+          cmake --preset ${{ inputs.build_preset }} -B Build `
+            -DENABLE_CI_BASELINE_CPU=ON
 
       - name: Create Build Environment (Fuzzers)
         if: ${{ inputs.build_preset == 'Fuzzers' }}

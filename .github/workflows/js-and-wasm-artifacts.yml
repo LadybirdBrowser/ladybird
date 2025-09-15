@@ -64,6 +64,7 @@ jobs:
           cmake --preset Distribution \
             -DCMAKE_C_COMPILER=clang-20 \
             -DCMAKE_CXX_COMPILER=clang++-20 \
+            -DENABLE_CI_BASELINE_CPU=ON \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'Linux' }}
 
