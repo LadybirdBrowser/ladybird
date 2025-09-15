@@ -2084,14 +2084,6 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
     RefPtr<StyleValue const> spread_distance;
     Optional<ShadowPlacement> placement;
 
-    auto possibly_dynamic_length = [&](ComponentValue const& token) -> RefPtr<StyleValue const> {
-        auto tokens = TokenStream<ComponentValue>::of_single_token(token);
-        auto maybe_length = parse_length(tokens);
-        if (!maybe_length.has_value())
-            return nullptr;
-        return maybe_length->as_style_value();
-    };
-
     while (tokens.has_next_token()) {
         if (auto maybe_color = parse_color_value(tokens); maybe_color) {
             if (color)
@@ -2101,26 +2093,25 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
         }
 
         auto const& token = tokens.next_token();
-        if (auto maybe_offset_x = possibly_dynamic_length(token); maybe_offset_x) {
+        if (auto maybe_offset_x = parse_length_value(tokens); maybe_offset_x) {
             // horizontal offset
             if (offset_x)
                 return nullptr;
             offset_x = maybe_offset_x;
-            tokens.discard_a_token();
 
             // vertical offset
             if (!tokens.has_next_token())
                 return nullptr;
-            auto maybe_offset_y = possibly_dynamic_length(tokens.next_token());
+            auto maybe_offset_y = parse_length_value(tokens);
             if (!maybe_offset_y)
                 return nullptr;
             offset_y = maybe_offset_y;
-            tokens.discard_a_token();
 
             // blur radius (optional)
             if (!tokens.has_next_token())
                 break;
-            auto maybe_blur_radius = possibly_dynamic_length(tokens.next_token());
+
+            auto maybe_blur_radius = parse_length_value(tokens);
             if (!maybe_blur_radius)
                 continue;
             blur_radius = maybe_blur_radius;
@@ -2128,12 +2119,11 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
                 return nullptr;
             if (blur_radius->is_percentage() && blur_radius->as_percentage().raw_value() < 0)
                 return nullptr;
-            tokens.discard_a_token();
 
             // spread distance (optional)
             if (!tokens.has_next_token())
                 break;
-            auto maybe_spread_distance = possibly_dynamic_length(tokens.next_token());
+            auto maybe_spread_distance = parse_length_value(tokens);
             if (!maybe_spread_distance)
                 continue;
 
@@ -2141,7 +2131,6 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
                 return nullptr;
 
             spread_distance = maybe_spread_distance;
-            tokens.discard_a_token();
 
             continue;
         }
