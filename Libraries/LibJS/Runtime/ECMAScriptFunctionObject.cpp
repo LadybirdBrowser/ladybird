@@ -29,6 +29,8 @@
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 
 namespace JS {
 
@@ -765,6 +767,15 @@ void ECMAScriptFunctionObject::ordinary_call_bind_this(VM& vm, ExecutionContext&
             // ii. NOTE: ToObject produces wrapper objects using calleeRealm.
             VERIFY(vm.current_realm() == callee_realm);
         }
+    }
+
+    // AD-HOC: Rebind `this_value` to the WindowProxy object if it is a Window.
+    // The Window object itself implements EventTarget, but user code should see
+    // the associated WindowProxy instead. For this reason we rewrap it
+    // before invoking the function.
+    if (this_value.is_object() && is<Web::HTML::Window>(this_value.as_object())) {
+        auto& global_env = callee_realm->global_environment();
+        this_value = &global_env.global_this_value();
     }
 
     // 7. Assert: localEnv is a function Environment Record.
