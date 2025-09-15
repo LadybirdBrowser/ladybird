@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
@@ -935,10 +935,15 @@ bool command_forward_delete_action(DOM::Document& document, Utf16String const&)
     // 5. If node is a Text node and offset is not node's length:
     if (auto const* text_node = as_if<DOM::Text>(*node); text_node && offset != node->length()) {
         // 1. Let end offset be offset plus one.
-        auto end_offset = text_node->grapheme_segmenter().next_boundary(offset).value_or(offset + 1);
+        auto& grapheme_segmenter = text_node->grapheme_segmenter();
+        auto end_offset = grapheme_segmenter.next_boundary(offset).value_or(offset + 1);
 
-        // FIXME: 2. While end offset is not node's length and the end offsetth code unit of node's data has general category M
+        // 2. While end offset is not node's length and the end offsetth code unit of node's data has general category M
         //    when interpreted as a Unicode code point, add one to end offset.
+        while (end_offset != node->length()
+            && Unicode::code_point_has_mark_general_category(text_node->data().code_point_at(end_offset))) {
+            end_offset = grapheme_segmenter.next_boundary(end_offset).value_or(end_offset + 1);
+        }
 
         // 3. Call collapse(node, offset) on the context object's selection.
         MUST(selection.collapse(node, offset));

@@ -8,7 +8,6 @@
 
 #include <AK/Forward.h>
 #include <AK/Optional.h>
-#include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibUnicode/Forward.h>
 
@@ -20,6 +19,7 @@ bool code_point_has_general_category(u32 code_point, GeneralCategory general_cat
 bool code_point_is_printable(u32 code_point);
 bool code_point_has_control_general_category(u32 code_point);
 bool code_point_has_letter_general_category(u32 code_point);
+bool code_point_has_mark_general_category(u32 code_point);
 bool code_point_has_number_general_category(u32 code_point);
 bool code_point_has_punctuation_general_category(u32 code_point);
 bool code_point_has_separator_general_category(u32 code_point);
