@@ -2,26 +2,26 @@ Harness status: OK
 
 Found 22 tests
 
-22 Fail
-Fail	Constructing a CSSScale with an angle CSSUnitValue for the coordinates throws a TypeError
-Fail	Constructing a CSSScale with a CSSMathValue that doesn't match <number> for the coordinates throws a TypeError
-Fail	Updating CSSScale.x to an angle CSSUnitValue throws a TypeError
-Fail	Updating CSSScale.x to a CSSMathValue that doesn't match <number> throws a TypeError
-Fail	Updating CSSScale.y to an angle CSSUnitValue throws a TypeError
-Fail	Updating CSSScale.y to a CSSMathValue that doesn't match <number> throws a TypeError
-Fail	Updating CSSScale.z to an angle CSSUnitValue throws a TypeError
-Fail	Updating CSSScale.z to a CSSMathValue that doesn't match <number> throws a TypeError
-Fail	CSSScale can be constructed from two number coordinates
-Fail	CSSScale can be constructed from three number coordinates
-Fail	CSSScale can be constructed from CSSMathValue coordinates
-Fail	CSSScale can be constructed from unit canceling length value coordinates
-Fail	CSSScale.x can be updated to a number
-Fail	CSSScale.x can be updated to a numberish
-Fail	CSSScale.x can be updated to a CSSMathValue
-Fail	CSSScale.y can be updated to a number
-Fail	CSSScale.y can be updated to a numberish
-Fail	CSSScale.y can be updated to a CSSMathValue
-Fail	CSSScale.z can be updated to a number
-Fail	CSSScale.z can be updated to a numberish
-Fail	CSSScale.z can be updated to a CSSMathValue
-Fail	Modifying CSSScale.is2D can be updated to true or false
+22 Pass
+Pass	Constructing a CSSScale with an angle CSSUnitValue for the coordinates throws a TypeError
+Pass	Constructing a CSSScale with a CSSMathValue that doesn't match <number> for the coordinates throws a TypeError
+Pass	Updating CSSScale.x to an angle CSSUnitValue throws a TypeError
+Pass	Updating CSSScale.x to a CSSMathValue that doesn't match <number> throws a TypeError
+Pass	Updating CSSScale.y to an angle CSSUnitValue throws a TypeError
+Pass	Updating CSSScale.y to a CSSMathValue that doesn't match <number> throws a TypeError
+Pass	Updating CSSScale.z to an angle CSSUnitValue throws a TypeError
+Pass	Updating CSSScale.z to a CSSMathValue that doesn't match <number> throws a TypeError
+Pass	CSSScale can be constructed from two number coordinates
+Pass	CSSScale can be constructed from three number coordinates
+Pass	CSSScale can be constructed from CSSMathValue coordinates
+Pass	CSSScale can be constructed from unit canceling length value coordinates
+Pass	CSSScale.x can be updated to a number
+Pass	CSSScale.x can be updated to a numberish
+Pass	CSSScale.x can be updated to a CSSMathValue
+Pass	CSSScale.y can be updated to a number
+Pass	CSSScale.y can be updated to a numberish
+Pass	CSSScale.y can be updated to a CSSMathValue
+Pass	CSSScale.z can be updated to a number
+Pass	CSSScale.z can be updated to a numberish
+Pass	CSSScale.z can be updated to a CSSMathValue
+Pass	Modifying CSSScale.is2D can be updated to true or false
