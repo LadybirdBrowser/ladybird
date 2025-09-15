@@ -144,6 +144,7 @@ set(SOURCES
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransformComponent.cpp
     CSS/CSSTransition.cpp
+    CSS/CSSTranslate.cpp
     CSS/CSSUnitValue.cpp
     CSS/CSSUnparsedValue.cpp
     CSS/CSSVariableReferenceValue.cpp
