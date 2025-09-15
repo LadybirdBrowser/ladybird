@@ -39,7 +39,7 @@ void ObservableArray::set_on_delete_an_indexed_value_callback(DeleteAnIndexedVal
     m_on_delete_an_indexed_value = GC::create_function(heap(), move(callback));
 }
 
-JS::ThrowCompletionOr<bool> ObservableArray::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata* metadata, PropertyLookupPhase phase)
+JS::ThrowCompletionOr<bool> ObservableArray::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata, PropertyLookupPhase phase)
 {
     if (property_key.is_number() && m_on_set_an_indexed_value)
         TRY(Bindings::throw_dom_exception_if_needed(vm(), [&] { return m_on_set_an_indexed_value->function()(value); }));

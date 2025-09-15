@@ -41,11 +41,23 @@ struct PrivateElement {
 
 // Non-standard: This is information optionally returned by object property access functions.
 //               It can be used to implement inline caches for property lookup.
-struct CacheablePropertyMetadata {
+struct CacheableGetPropertyMetadata {
     enum class Type {
         NotCacheable,
-        OwnProperty,
-        InPrototypeChain,
+        GetOwnProperty,
+        GetPropertyInPrototypeChain,
+    };
+    Type type { Type::NotCacheable };
+    Optional<u32> property_offset;
+    GC::Ptr<Object const> prototype;
+};
+
+struct CacheableSetPropertyMetadata {
+    enum class Type {
+        NotCacheable,
+        AddOwnProperty,
+        ChangeOwnProperty,
+        ChangePropertyInPrototypeChain,
     };
     Type type { Type::NotCacheable };
     Optional<u32> property_offset;
@@ -110,7 +122,7 @@ public:
 
     ThrowCompletionOr<Value> get(PropertyKey const&) const;
     ThrowCompletionOr<void> set(PropertyKey const&, Value, ShouldThrowExceptions);
-    ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value);
+    ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr);
     void create_method_property(PropertyKey const&, Value);
     ThrowCompletionOr<bool> create_data_property_or_throw(PropertyKey const&, Value);
     void create_non_enumerable_data_property_or_throw(PropertyKey const&, Value);
@@ -145,8 +157,8 @@ public:
         OwnProperty,
         PrototypeChain,
     };
-    virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
-    virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
+    virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheableGetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
+    virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;
 
@@ -156,7 +168,7 @@ public:
     //       might not hold when property access behaves differently.
     bool may_interfere_with_indexed_property_access() const { return m_may_interfere_with_indexed_property_access; }
 
-    ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
+    ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
 
     // 10.4.7 Immutable Prototype Exotic Objects, https://tc39.es/ecma262/#sec-immutable-prototype-exotic-objects
 
@@ -237,6 +249,7 @@ public:
 
     Shape& shape() { return *m_shape; }
     Shape const& shape() const { return *m_shape; }
+    void unsafe_set_shape(Shape&);
 
     void convert_to_prototype_if_needed();
 
@@ -262,8 +275,6 @@ protected:
     Object(Realm&, Object* prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
-
-    void unsafe_set_shape(Shape&);
 
     // [[Extensible]]
     bool m_is_extensible { true };
