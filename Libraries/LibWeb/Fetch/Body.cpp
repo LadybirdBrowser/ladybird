@@ -394,7 +394,9 @@ MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS
             return MultipartParsingError { MUST(String::formatted("Expected `--` followed by boundary at position {}", lexer.tell())) };
 
         // 2. If position points to the sequence of bytes 0x2D 0x2D 0x0D 0x0A (`--` followed by CR LF) followed by the end of input, return entry list.
-        if (lexer.next_is("--\r\n"sv))
+        // NOTE: We do not require the input to end with CRLF to match the behavior of other browsers. According to RFC 2046, we are to discard any
+        //       text after the terminating `--`. See: https://datatracker.ietf.org/doc/html/rfc2046#page-22
+        if (lexer.next_is("--"sv))
             return entry_list;
 
         // 3. If position does not point to a sequence of bytes starting with 0x0D 0x0A (CR LF), return failure.
