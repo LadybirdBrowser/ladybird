@@ -1274,7 +1274,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
         if (value->is_length())
             return value->as_length().length();
         if (value->is_calculated())
-            return value->as_calculated().resolve_length_deprecated({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) });
+            return value->as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) });
         return {};
     };
 

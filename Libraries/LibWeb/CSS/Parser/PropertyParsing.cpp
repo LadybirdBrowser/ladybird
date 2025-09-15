@@ -2099,7 +2099,9 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (!tokens.has_next_token())
                 break;
 
+            m_value_context.append(SpecialContext::ShadowBlurRadius);
             auto maybe_blur_radius = parse_length_value(tokens);
+            m_value_context.take_last();
             if (!maybe_blur_radius)
                 continue;
             blur_radius = maybe_blur_radius;

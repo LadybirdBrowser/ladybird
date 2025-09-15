@@ -550,6 +550,7 @@ private:
         DescriptorID descriptor;
     };
     enum SpecialContext : u8 {
+        ShadowBlurRadius,
         TranslateZArgument
     };
     using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;

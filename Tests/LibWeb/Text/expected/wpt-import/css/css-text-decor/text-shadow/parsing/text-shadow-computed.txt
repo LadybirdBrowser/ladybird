@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	Property text-shadow value 'none'
 Pass	Property text-shadow value '10px 20px'
 Pass	Property text-shadow value 'red 10px 20px 30px'
 Pass	Property text-shadow value 'calc(0.5em + 10px) calc(0.5em + 10px) calc(0.5em + 10px)'
-Fail	Property text-shadow value 'calc(-0.5em + 10px) calc(-0.5em + 10px) calc(-0.5em + 10px)'
+Pass	Property text-shadow value 'calc(-0.5em + 10px) calc(-0.5em + 10px) calc(-0.5em + 10px)'
 Pass	Property text-shadow value '10px 20px, 30px 40px'
 Pass	Property text-shadow value 'lime 10px 20px 30px, red 40px 50px'
