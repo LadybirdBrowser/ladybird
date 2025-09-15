@@ -22,3 +22,6 @@ After: &nbsp;b
 --- h ---
 Before: foo👩🏼‍❤️‍👨🏻bar
 After: foobar
+--- i ---
+Before: foo<div>bar<br>baz</div>
+After: foobar<div>baz</div>

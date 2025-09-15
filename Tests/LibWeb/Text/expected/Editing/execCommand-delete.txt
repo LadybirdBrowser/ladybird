@@ -7,3 +7,12 @@ After: foobar
 --- c ---
 Before: foo<div contenteditable="">bar</div>
 After: foobar
+--- d ---
+Before: foo<br><br><div>bar<br>baz</div>
+After: foo<br><div>bar<br>baz</div>
+--- e ---
+Before: <p>foo</p><br><p>bar</p>
+After: <p>foo</p><p>bar</p>
+--- f ---
+Before: <p><span>abc</span><br></p>
+After: <p><br></p>
