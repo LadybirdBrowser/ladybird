@@ -509,7 +509,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BoxShadow:
-        if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::Yes); parsed_value && !tokens.has_next_token())
+        if (auto parsed_value = parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Normal); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::ColorScheme:
@@ -746,7 +746,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TextShadow:
-        if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::No); parsed_value && !tokens.has_next_token())
+        if (auto parsed_value = parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TouchAction:
@@ -2050,18 +2050,18 @@ RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>
         { column_count.release_nonnull(), column_width.release_nonnull(), column_height.release_nonnull() });
 }
 
-RefPtr<StyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
+RefPtr<StyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, ShadowStyleValue::ShadowType shadow_type)
 {
     // "none"
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
         return none;
 
-    return parse_comma_separated_value_list(tokens, [this, allow_inset_keyword](auto& tokens) {
-        return parse_single_shadow_value(tokens, allow_inset_keyword);
+    return parse_comma_separated_value_list(tokens, [this, shadow_type](auto& tokens) {
+        return parse_single_shadow_value(tokens, shadow_type);
     });
 }
 
-RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
+RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<ComponentValue>& tokens, ShadowStyleValue::ShadowType shadow_type)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -2124,13 +2124,17 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             auto maybe_spread_distance = possibly_dynamic_length(tokens.next_token());
             if (!maybe_spread_distance)
                 continue;
+
+            if (shadow_type == ShadowStyleValue::ShadowType::Text)
+                return nullptr;
+
             spread_distance = maybe_spread_distance;
             tokens.discard_a_token();
 
             continue;
         }
 
-        if (allow_inset_keyword == AllowInsetKeyword::Yes && token.is_ident("inset"sv)) {
+        if (shadow_type == ShadowStyleValue::ShadowType::Normal && token.is_ident("inset"sv)) {
             if (placement.has_value())
                 return nullptr;
             placement = ShadowPlacement::Inner;

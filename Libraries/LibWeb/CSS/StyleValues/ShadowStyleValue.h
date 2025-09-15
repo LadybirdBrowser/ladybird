@@ -22,6 +22,13 @@ enum class ShadowPlacement {
 
 class ShadowStyleValue final : public StyleValueWithDefaultOperators<ShadowStyleValue> {
 public:
+    enum class ShadowType : u8 {
+        // none | <shadow>#
+        Normal,
+        // none | [ <color>? && <length>{2,3} ]#
+        Text
+    };
+
     static ValueComparingNonnullRefPtr<ShadowStyleValue const> create(
         ValueComparingRefPtr<StyleValue const> color,
         ValueComparingNonnullRefPtr<StyleValue const> offset_x,
