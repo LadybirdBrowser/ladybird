@@ -69,6 +69,7 @@ CSSPropertyRule
 CSSRotate
 CSSRule
 CSSRuleList
+CSSScale
 CSSStyleDeclaration
 CSSStyleProperties
 CSSStyleRule

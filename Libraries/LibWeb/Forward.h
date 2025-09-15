@@ -262,6 +262,7 @@ class CSSPropertyRule;
 class CSSRotate;
 class CSSRule;
 class CSSRuleList;
+class CSSScale;
 class CSSStyleDeclaration;
 class CSSStyleProperties;
 class CSSStyleRule;

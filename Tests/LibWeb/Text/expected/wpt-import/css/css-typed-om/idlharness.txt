@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-315 Pass
-230 Fail
+324 Pass
+221 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -310,15 +310,15 @@ Fail	CSSRotate interface: rotate must inherit property "z" with the proper type
 Fail	CSSRotate interface: rotate must inherit property "angle" with the proper type
 Fail	CSSTransformComponent interface: rotate must inherit property "is2D" with the proper type
 Fail	CSSTransformComponent interface: rotate must inherit property "toMatrix()" with the proper type
-Fail	CSSScale interface: existence and properties of interface object
-Fail	CSSScale interface object length
-Fail	CSSScale interface object name
-Fail	CSSScale interface: existence and properties of interface prototype object
-Fail	CSSScale interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSScale interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSScale interface: attribute x
-Fail	CSSScale interface: attribute y
-Fail	CSSScale interface: attribute z
+Pass	CSSScale interface: existence and properties of interface object
+Pass	CSSScale interface object length
+Pass	CSSScale interface object name
+Pass	CSSScale interface: existence and properties of interface prototype object
+Pass	CSSScale interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSScale interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSScale interface: attribute x
+Pass	CSSScale interface: attribute y
+Pass	CSSScale interface: attribute z
 Fail	CSSScale must be primary interface of scale
 Fail	Stringification of scale
 Fail	CSSScale interface: scale must inherit property "x" with the proper type

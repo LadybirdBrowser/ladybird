@@ -137,6 +137,7 @@ set(SOURCES
     CSS/CSSRotate.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
+    CSS/CSSScale.cpp
     CSS/CSSStyleDeclaration.cpp
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
