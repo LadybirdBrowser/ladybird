@@ -71,6 +71,7 @@ CSSRule
 CSSRuleList
 CSSScale
 CSSSkew
+CSSSkewX
 CSSStyleDeclaration
 CSSStyleProperties
 CSSStyleRule
