@@ -961,6 +961,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         values.ensure_capacity(other.size());
         for (size_t i = values.size(); i < other.size(); i++) {
             values.unchecked_append(ShadowStyleValue::create(
+                other.get(0).value()->as_shadow().shadow_type(),
                 ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
@@ -1012,6 +1013,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
             interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
 
         auto result_shadow = ShadowStyleValue::create(
+            from_shadow.shadow_type(),
             ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern),
             *interpolated_offset_x,
             *interpolated_offset_y,

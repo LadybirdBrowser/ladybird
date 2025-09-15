@@ -360,13 +360,14 @@ static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
     TODO();
 }
 
-static RefPtr<StyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
+static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, Vector<ShadowData> const& shadow_data)
 {
     if (shadow_data.is_empty())
         return KeywordStyleValue::create(Keyword::None);
 
-    auto make_shadow_style_value = [](ShadowData const& shadow) {
+    auto make_shadow_style_value = [shadow_type](ShadowData const& shadow) {
         return ShadowStyleValue::create(
+            shadow_type,
             ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Modern),
             style_value_for_length_percentage(shadow.offset_x),
             style_value_for_length_percentage(shadow.offset_y),
@@ -582,7 +583,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::BorderTopColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_top().color);
     case PropertyID::BoxShadow:
-        return style_value_for_shadow(layout_node.computed_values().box_shadow());
+        return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, layout_node.computed_values().box_shadow());
     case PropertyID::CaretColor:
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().caret_color());
     case PropertyID::Color:
@@ -593,7 +594,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().text_decoration_color());
         // NB: text-shadow isn't listed, but is computed the same as box-shadow.
     case PropertyID::TextShadow:
-        return style_value_for_shadow(layout_node.computed_values().text_shadow());
+        return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, layout_node.computed_values().text_shadow());
 
         // -> line-height
         //    The resolved value is normal if the computed value is normal, or the used value otherwise.

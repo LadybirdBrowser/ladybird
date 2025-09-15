@@ -24,15 +24,11 @@ String ShadowStyleValue::to_string(SerializationMode mode) const
         builder.append(' ');
     builder.appendff("{} {}", m_properties.offset_x->to_string(mode), m_properties.offset_y->to_string(mode));
 
-    auto append_value = [&](ValueComparingRefPtr<StyleValue const> const& value) {
-        if (!value)
-            return;
-        if (!builder.is_empty())
-            builder.append(' ');
-        builder.append(value->to_string(mode));
-    };
-    append_value(m_properties.blur_radius);
-    append_value(m_properties.spread_distance);
+    if (m_properties.blur_radius)
+        builder.appendff(" {}", m_properties.blur_radius->to_string(mode));
+
+    if (m_properties.spread_distance && m_properties.shadow_type == ShadowType::Normal)
+        builder.appendff(" {}", m_properties.spread_distance->to_string(mode));
 
     if (m_properties.placement == ShadowPlacement::Inner)
         builder.append(" inset"sv);
@@ -66,7 +62,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(CSSP
     auto absolutized_offset_y = offset_y()->absolutized(viewport_rect, font_metrics, root_font_metrics);
     auto absolutized_blur_radius = blur_radius()->absolutized(viewport_rect, font_metrics, root_font_metrics);
     auto absolutized_spread_distance = spread_distance()->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    return create(color(), absolutized_offset_x, absolutized_offset_y, absolutized_blur_radius, absolutized_spread_distance, placement());
+    return create(m_properties.shadow_type, color(), absolutized_offset_x, absolutized_offset_y, absolutized_blur_radius, absolutized_spread_distance, placement());
 }
 
 }
