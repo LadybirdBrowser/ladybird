@@ -123,6 +123,11 @@ bool code_point_has_letter_general_category(u32 code_point)
     return code_point_has_general_category(code_point, GENERAL_CATEGORY_LETTER);
 }
 
+bool code_point_has_mark_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, GENERAL_CATEGORY_MARK);
+}
+
 bool code_point_has_number_general_category(u32 code_point)
 {
     return code_point_has_general_category(code_point, GENERAL_CATEGORY_NUMBER);
