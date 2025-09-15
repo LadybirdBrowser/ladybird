@@ -20,7 +20,7 @@ class WEB_API ObservableArray final : public JS::Array {
 public:
     static GC::Ref<ObservableArray> create(JS::Realm& realm);
 
-    virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata* metadata = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) override;
+    virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) override;
     virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const& property_key) override;
 
     using SetAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value&)>;

@@ -28,6 +28,16 @@ namespace JS::Bytecode {
 struct PropertyLookupCache {
     static constexpr size_t max_number_of_shapes_to_remember = 4;
     struct Entry {
+        enum class Type {
+            Empty,
+            AddOwnProperty,
+            ChangeOwnProperty,
+            GetOwnProperty,
+            ChangePropertyInPrototypeChain,
+            GetPropertyInPrototypeChain,
+        };
+        Type type { Type::Empty };
+        WeakPtr<Shape> from_shape;
         WeakPtr<Shape> shape;
         Optional<u32> property_offset;
         WeakPtr<Object> prototype;
