@@ -1,0 +1,10 @@
+#import <CSS/CSSNumericValue.idl>
+#import <CSS/CSSTransformComponent.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssskew
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSSkew : CSSTransformComponent {
+    constructor(CSSNumericValue ax, CSSNumericValue ay);
+    attribute CSSNumericValue ax;
+    attribute CSSNumericValue ay;
+};
