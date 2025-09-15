@@ -707,7 +707,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     auto end = first_equivalent_point(active_range(document)->end());
 
     // 6. If (end node, end offset) is not after (start node, start offset):
-    auto relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point({ end.node, end.offset }, { start.node, start.offset });
+    auto relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(end, start);
     if (relative_position != DOM::RelativeBoundaryPointPosition::After) {
         // 1. If direction is "forward", call collapseToStart() on the context object's selection.
         if (direction == Selection::Direction::Forwards) {
