@@ -140,6 +140,7 @@ set(SOURCES
     CSS/CSSScale.cpp
     CSS/CSSSkew.cpp
     CSS/CSSSkewX.cpp
+    CSS/CSSSkewY.cpp
     CSS/CSSStyleDeclaration.cpp
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
