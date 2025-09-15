@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-296 Pass
-249 Fail
+305 Pass
+240 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -276,15 +276,15 @@ Pass	CSSTransformComponent interface: existence and properties of interface prot
 Pass	CSSTransformComponent interface: stringifier
 Pass	CSSTransformComponent interface: attribute is2D
 Pass	CSSTransformComponent interface: operation toMatrix()
-Fail	CSSTranslate interface: existence and properties of interface object
-Fail	CSSTranslate interface object length
-Fail	CSSTranslate interface object name
-Fail	CSSTranslate interface: existence and properties of interface prototype object
-Fail	CSSTranslate interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSTranslate interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSTranslate interface: attribute x
-Fail	CSSTranslate interface: attribute y
-Fail	CSSTranslate interface: attribute z
+Pass	CSSTranslate interface: existence and properties of interface object
+Pass	CSSTranslate interface object length
+Pass	CSSTranslate interface object name
+Pass	CSSTranslate interface: existence and properties of interface prototype object
+Pass	CSSTranslate interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSTranslate interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSTranslate interface: attribute x
+Pass	CSSTranslate interface: attribute y
+Pass	CSSTranslate interface: attribute z
 Fail	CSSTranslate must be primary interface of transformValue[0]
 Fail	Stringification of transformValue[0]
 Fail	CSSTranslate interface: transformValue[0] must inherit property "x" with the proper type
