@@ -457,8 +457,10 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
         prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
         put_direct(realm.intrinsics().normal_function_prototype_offset(), prototype);
     } else {
-        MUST(define_property_or_throw(vm.names.length, { .value = Value(function_length()), .writable = false, .enumerable = false, .configurable = true }));
-        MUST(define_property_or_throw(vm.names.name, { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true }));
+        PropertyDescriptor length_descriptor { .value = Value(function_length()), .writable = false, .enumerable = false, .configurable = true };
+        MUST(define_property_or_throw(vm.names.length, length_descriptor));
+        PropertyDescriptor name_descriptor { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true };
+        MUST(define_property_or_throw(vm.names.name, name_descriptor));
 
         if (!is_arrow_function()) {
             Object* prototype = nullptr;
@@ -915,7 +917,8 @@ void ECMAScriptFunctionObject::set_name(Utf16FlyString const& name)
     auto& vm = this->vm();
     const_cast<SharedFunctionInstanceData&>(shared_data()).m_name = name;
     m_name_string = PrimitiveString::create(vm, name);
-    MUST(define_property_or_throw(vm.names.name, { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true }));
+    PropertyDescriptor descriptor { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true };
+    MUST(define_property_or_throw(vm.names.name, descriptor));
 }
 
 ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data() const

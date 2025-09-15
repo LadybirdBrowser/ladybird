@@ -68,7 +68,8 @@ ThrowCompletionOr<GC::Ref<Object>> AggregateErrorConstructor::construct(Function
     auto errors_list = TRY(iterator_to_list(vm, TRY(get_iterator(vm, errors, IteratorHint::Sync))));
 
     // 6. Perform ! DefinePropertyOrThrow(O, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: CreateArrayFromList(errorsList) }).
-    MUST(aggregate_error->define_property_or_throw(vm.names.errors, { .value = Array::create_from(realm, errors_list), .writable = true, .enumerable = false, .configurable = true }));
+    PropertyDescriptor descriptor { .value = Array::create_from(realm, errors_list), .writable = true, .enumerable = false, .configurable = true };
+    MUST(aggregate_error->define_property_or_throw(vm.names.errors, descriptor));
 
     // 7. Return O.
     return aggregate_error;

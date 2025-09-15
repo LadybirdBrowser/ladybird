@@ -114,7 +114,7 @@ public:
     void create_method_property(PropertyKey const&, Value);
     ThrowCompletionOr<bool> create_data_property_or_throw(PropertyKey const&, Value);
     void create_non_enumerable_data_property_or_throw(PropertyKey const&, Value);
-    ThrowCompletionOr<void> define_property_or_throw(PropertyKey const&, PropertyDescriptor const&);
+    ThrowCompletionOr<void> define_property_or_throw(PropertyKey const&, PropertyDescriptor&);
     ThrowCompletionOr<void> delete_property_or_throw(PropertyKey const&);
     ThrowCompletionOr<bool> has_property(PropertyKey const&) const;
     ThrowCompletionOr<bool> has_own_property(PropertyKey const&) const;
@@ -139,7 +139,7 @@ public:
     virtual ThrowCompletionOr<bool> internal_is_extensible() const;
     virtual ThrowCompletionOr<bool> internal_prevent_extensions();
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const;
-    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
+    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
     virtual ThrowCompletionOr<bool> internal_has_property(PropertyKey const&) const;
     enum class PropertyLookupPhase {
         OwnProperty,
@@ -174,14 +174,14 @@ public:
 
     Optional<ValueAndAttributes> storage_get(PropertyKey const&) const;
     bool storage_has(PropertyKey const&) const;
-    void storage_set(PropertyKey const&, ValueAndAttributes const&);
+    Optional<u32> storage_set(PropertyKey const&, ValueAndAttributes const&);
     void storage_delete(PropertyKey const&);
 
     // Non-standard methods
 
     Value get_without_side_effects(PropertyKey const&) const;
 
-    void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { storage_set(property_key, { value, attributes }); }
+    void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { (void)storage_set(property_key, { value, attributes }); }
     void define_direct_accessor(PropertyKey const&, FunctionObject* getter, FunctionObject* setter, PropertyAttributes attributes);
 
     using IntrinsicAccessor = Value (*)(Realm&);

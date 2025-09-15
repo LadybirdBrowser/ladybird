@@ -81,7 +81,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ModuleNamespaceObject::internal_
 }
 
 // 10.4.6.6 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
-ThrowCompletionOr<bool> ModuleNamespaceObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
+ThrowCompletionOr<bool> ModuleNamespaceObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor& descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. If Type(P) is Symbol, return ! OrdinaryDefineOwnProperty(O, P, Desc).
     if (property_key.is_symbol())

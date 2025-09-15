@@ -185,18 +185,24 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
     if (property_key_or_private_name.has<PropertyKey>()) {
         auto& property_key = property_key_or_private_name.get<PropertyKey>();
         switch (kind()) {
-        case ClassMethod::Kind::Method:
+        case ClassMethod::Kind::Method: {
             set_function_name();
-            TRY(target.define_property_or_throw(property_key, { .value = method_value, .writable = true, .enumerable = false, .configurable = true }));
+            PropertyDescriptor descriptor { .value = method_value, .writable = true, .enumerable = false, .configurable = true };
+            TRY(target.define_property_or_throw(property_key, descriptor));
             break;
-        case ClassMethod::Kind::Getter:
+        }
+        case ClassMethod::Kind::Getter: {
             set_function_name("get"sv);
-            TRY(target.define_property_or_throw(property_key, { .get = &method_function, .enumerable = false, .configurable = true }));
+            PropertyDescriptor descriptor { .get = &method_function, .enumerable = false, .configurable = true };
+            TRY(target.define_property_or_throw(property_key, descriptor));
             break;
-        case ClassMethod::Kind::Setter:
+        }
+        case ClassMethod::Kind::Setter: {
             set_function_name("set"sv);
-            TRY(target.define_property_or_throw(property_key, { .set = &method_function, .enumerable = false, .configurable = true }));
+            PropertyDescriptor descriptor { .set = &method_function, .enumerable = false, .configurable = true };
+            TRY(target.define_property_or_throw(property_key, descriptor));
             break;
+        }
         default:
             VERIFY_NOT_REACHED();
         }
