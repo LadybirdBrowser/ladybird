@@ -11,6 +11,9 @@
 
 namespace Web::CSS {
 
+// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-csskeywordish
+using CSSKeywordish = Variant<String, GC::Root<CSSKeywordValue>>;
+
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 class CSSKeywordValue final : public CSSStyleValue {
     WEB_PLATFORM_OBJECT(CSSKeywordValue, CSSStyleValue);
@@ -34,5 +37,7 @@ private:
 
     FlyString m_value;
 };
+
+GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm&, CSSKeywordish const&);
 
 }
