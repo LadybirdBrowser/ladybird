@@ -301,6 +301,10 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [location_search_field setTextColor:[NSColor textColor]];
         [location_search_field setDelegate:self];
 
+        if (@available(macOS 26, *)) {
+            [location_search_field setBordered:YES];
+        }
+
         _location_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_LOCATION_IDENTIFIER];
         [_location_toolbar_item setView:location_search_field];
     }
