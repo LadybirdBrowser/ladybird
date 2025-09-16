@@ -1,0 +1,12 @@
+#import <CSS/CSSKeywordValue.idl>
+#import <CSS/CSSNumericValue.idl>
+#import <CSS/CSSTransformComponent.idl>
+
+typedef (CSSNumericValue or CSSKeywordish) CSSPerspectiveValue;
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssperspective
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSPerspective : CSSTransformComponent {
+    constructor(CSSPerspectiveValue length);
+    attribute CSSPerspectiveValue length;
+};

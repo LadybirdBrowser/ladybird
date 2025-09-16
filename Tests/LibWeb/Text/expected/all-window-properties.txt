@@ -65,6 +65,7 @@ CSSNumericArray
 CSSNumericValue
 CSSPageDescriptors
 CSSPageRule
+CSSPerspective
 CSSPropertyRule
 CSSRotate
 CSSRule
