@@ -89,13 +89,13 @@ WebIDL::ExceptionOr<Utf16String> CSSPerspective::to_string() const
     builder.append("perspective("sv);
 
     // 2. Serialize this’s length internal slot, with a minimum of 0px, and append it to s.
-    auto serialized_length = m_length.visit(
-        [](GC::Ref<CSSNumericValue> const& numeric_value) {
+    auto serialized_length = TRY(m_length.visit(
+        [](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<String> {
             return numeric_value->to_string({ .minimum = 0 });
         },
-        [](GC::Ref<CSSKeywordValue> const& keyword_value) {
+        [](GC::Ref<CSSKeywordValue> const& keyword_value) -> WebIDL::ExceptionOr<String> {
             return keyword_value->to_string();
-        });
+        }));
     builder.append(serialized_length);
 
     // 3. Append ")" to s, and return s.

@@ -25,7 +25,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, String property, String css_text);
     static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, String property, String css_text);
 
-    virtual String to_string() const;
+    virtual WebIDL::ExceptionOr<String> to_string() const;
 
 protected:
     explicit CSSStyleValue(JS::Realm&);

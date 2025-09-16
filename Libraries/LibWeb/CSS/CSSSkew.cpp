@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<Utf16String> CSSSkew::to_string() const
     builder.append("skew("sv);
 
     // 2. Serialize this’s ax internal slot, and append it to s.
-    builder.append(m_ax->to_string());
+    builder.append(TRY(m_ax->to_string()));
 
     // 3. If this’s ay internal slot is a CSSUnitValue with a value of 0, then append ")" to s and return s.
     if (auto* ay_unit_value = as_if<CSSUnitValue>(*m_ay); ay_unit_value && ay_unit_value->value() == 0) {
@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<Utf16String> CSSSkew::to_string() const
     builder.append(", "sv);
 
     // 5. Serialize this’s ay internal slot, and append it to s.
-    builder.append(m_ay->to_string());
+    builder.append(TRY(m_ay->to_string()));
 
     // 6. Append ")" to s, and return s.
     builder.append(")"sv);

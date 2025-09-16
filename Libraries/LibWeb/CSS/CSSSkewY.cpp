@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<Utf16String> CSSSkewY::to_string() const
     builder.append("skewY("sv);
 
     // 2. Serialize this’s ay internal slot, and append it to s.
-    builder.append(m_ay->to_string());
+    builder.append(TRY(m_ay->to_string()));
 
     // 3. Append ")" to s, and return s.
     builder.append(")"sv);

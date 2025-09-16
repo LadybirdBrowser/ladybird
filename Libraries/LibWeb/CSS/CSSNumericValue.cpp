@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& 
     // 2. Let sum be the result of creating a sum value from this. If sum is failure, throw a TypeError.
     auto sum = create_a_sum_value();
     if (!sum.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create a sum from input '{}'", to_string())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create a sum from input '{}'", MUST(to_string()))) };
 
     // 3. If sum has more than one item, throw a TypeError.
     //    Otherwise, let item be the result of creating a CSSUnitValue from the sole item in sum, then converting it to
@@ -94,11 +94,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& 
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Sum contains more than one item"sv };
     auto item = CSSUnitValue::create_from_sum_value_item(realm(), sum->first());
     if (!item)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create CSSUnitValue from input '{}'", to_string())) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create CSSUnitValue from input '{}'", MUST(to_string()))) };
 
     auto converted_item = item->converted_to_unit(unit);
     if (!converted_item)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to convert input '{}' to unit '{}'", to_string(), unit)) };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to convert input '{}' to unit '{}'", MUST(to_string()), unit)) };
 
     // 4. Return item.
     return converted_item.as_nonnull();
