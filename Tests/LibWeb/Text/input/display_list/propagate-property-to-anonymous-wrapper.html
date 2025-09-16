@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+  button:hover{
+      color:red
+  }
+</style>
+<script>
+    test(() => {
+        if (window.internals && window.internals.movePointerTo) {
+            internals.movePointerTo(10, 10);
+            println(internals.dumpDisplayList());
+        }
+    });
+</script>
+<body>
+  <button>Hover Me!</button>
+</body>
