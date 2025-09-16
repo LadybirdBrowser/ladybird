@@ -17,6 +17,7 @@
 #import <Serial/Serial.idl>
 #import <ServiceWorker/ServiceWorkerContainer.idl>
 #import <StorageAPI/NavigatorStorage.idl>
+#import <WebGPU/GPU.idl>
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigator
 [Exposed=Window]
@@ -75,6 +76,11 @@ interface mixin NavigatorAutomationInformation {
     readonly attribute boolean webdriver;
 };
 
+// https://www.w3.org/TR/webgpu/#navigator-gpu
+interface mixin NavigatorGPU {
+    [SecureContext, SameObject] readonly attribute GPU gpu;
+};
+
 Navigator includes GlobalPrivacyControl;
 Navigator includes NavigatorID;
 Navigator includes NavigatorLanguage;
@@ -86,3 +92,4 @@ Navigator includes NavigatorConcurrentHardware;
 Navigator includes NavigatorAutomationInformation;
 Navigator includes NavigatorStorage;
 Navigator includes NavigatorDeviceMemory;
+Navigator includes NavigatorGPU;
