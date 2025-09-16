@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 27 tests
 
-24 Pass
-3 Fail
+25 Pass
+2 Fail
 Pass	Property animation-name value 'none'
 Pass	Property animation-name value 'NONE'
 Pass	Property animation-name value 'foo'
@@ -12,7 +12,7 @@ Pass	Property animation-name value 'ease-in'
 Pass	Property animation-name value 'infinite'
 Pass	Property animation-name value 'paused'
 Pass	Property animation-name value 'first, second, third'
-Fail	Property animation-name value '"something"'
+Pass	Property animation-name value '"something"'
 Fail	Property animation-name value '"---\22---"'
 Fail	Property animation-name value '"multi word string"'
 Pass	Property animation-name value '"none"'

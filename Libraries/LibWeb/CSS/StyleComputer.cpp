@@ -3156,9 +3156,25 @@ static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pi
     return length;
 }
 
+static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<StyleValue const> const& style_value, Function<NonnullRefPtr<StyleValue const>(NonnullRefPtr<StyleValue const> const&)> const& compute_entry)
+{
+    if (style_value->is_value_list()) {
+        StyleValueVector computed_entries;
+
+        for (auto const& entry : style_value->as_value_list().values())
+            computed_entries.append(compute_entry(entry));
+
+        return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
+    }
+
+    return compute_entry(style_value);
+}
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const& computation_context)
 {
     switch (property_id) {
+    case PropertyID::AnimationName:
+        return compute_animation_name(specified_value, computation_context);
     case PropertyID::BorderBottomWidth:
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderBottomStyle), computation_context);
     case PropertyID::BorderLeftWidth:
@@ -3188,6 +3204,31 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     }
 
     VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&)
+{
+    // https://drafts.csswg.org/css-animations-1/#animation-name
+    // list, each item either a case-sensitive css identifier or the keyword none
+
+    return compute_style_value_list(specified_value, [](NonnullRefPtr<StyleValue const> const& entry) -> NonnullRefPtr<StyleValue const> {
+        // none | <custom-ident>
+        if (entry->to_keyword() == Keyword::None || entry->is_custom_ident())
+            return entry;
+
+        // <string>
+        if (entry->is_string()) {
+            auto const& string_value = entry->as_string().string_value();
+
+            // AD-HOC: We shouldn't convert strings that aren't valid <custom-ident>s
+            if (is_css_wide_keyword(string_value) || string_value.is_one_of_ignoring_ascii_case("default"sv, "none"sv))
+                return entry;
+
+            return CustomIdentStyleValue::create(entry->as_string().string_value());
+        }
+
+        VERIFY_NOT_REACHED();
+    });
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& specified_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const& computation_context)
