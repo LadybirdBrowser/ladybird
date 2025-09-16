@@ -565,6 +565,10 @@ GC::Ptr<DOM::Position> Selection::cursor_position() const
     return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset());
 }
 
+// FIXME: The offset adjustment algorithms below do not handle moving over multiple DOM nodes. For example, if we have:
+//        `<div contenteditable><p>Well hello</p><p>friends</p></div>`, we should be able to move the cursor between the
+//        two <p> elements. But the algorithms below limit us to a single DOM node.
+
 void Selection::move_offset_to_next_character(bool collapse_selection)
 {
     auto* text_node = as_if<DOM::Text>(anchor_node().ptr());
