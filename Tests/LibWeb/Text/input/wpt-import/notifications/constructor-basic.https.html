@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Notification constructor (basic)</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="author" title="Xin Liu" href="mailto:xinx.liu@intel.com">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+    test(function () {
+        var notification = new Notification("New Email Received")
+        assert_true(notification instanceof Notification)
+        notification.onshow = function () {
+            notification.close()
+        }
+    }, "Called the notification constructor with one argument.")
+
+    test(() => {
+        assert_equals(
+            new Notification("a").silent,
+            null,
+            "Expected null by default"
+        );
+    }, "Constructing a notification without a NotificationOptions defaults to null.");
+
+    test(() => {
+        for (const silent of [null, undefined]) {
+            assert_equals(
+                new Notification("a", {silent}).silent,
+                null,
+                `Expected silent to be null when initialized with ${silent}.`
+            );
+        }
+        for (const silent of [true, 1, 100, {}, [], "a string"]) {
+            assert_true(
+                new Notification("a", {silent}).silent,
+                `Expected silent to be true when initialized with ${silent}.`
+            );
+        }
+        for (const silent of [false, 0, "", NaN]) {
+            assert_false(
+                new Notification("a", {silent}).silent,
+                `Expected silent to be false when initialized with ${silent}.`
+            );
+        }
+    }, "constructing a notification with a NotificationOptions dictionary correctly sets and reflects the silent attribute.");
+</script>

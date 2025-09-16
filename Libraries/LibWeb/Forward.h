@@ -908,6 +908,15 @@ class PerformanceTiming;
 
 }
 
+namespace Web::NotificationsAPI {
+
+struct NotificationOptions;
+struct NotificationAction;
+
+class Notification;
+
+}
+
 namespace Web::Painting {
 
 class AudioPaintable;
