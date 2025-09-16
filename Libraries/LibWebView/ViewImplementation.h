@@ -331,7 +331,8 @@ protected:
     RefPtr<Action> m_media_pause_action;
     RefPtr<Action> m_media_mute_action;
     RefPtr<Action> m_media_unmute_action;
-    RefPtr<Action> m_media_controls_action;
+    RefPtr<Action> m_media_show_controls_action;
+    RefPtr<Action> m_media_hide_controls_action;
     RefPtr<Action> m_media_loop_action;
 
     Queue<Web::InputEvent> m_pending_input_events;

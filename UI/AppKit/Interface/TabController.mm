@@ -260,7 +260,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)navigate_back_toolbar_item
 {
     if (!_navigate_back_toolbar_item) {
-        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_back_action(), NSImageNameGoBackTemplate);
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_back_action());
 
         _navigate_back_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_NAVIGATE_BACK_IDENTIFIER];
         [_navigate_back_toolbar_item setView:button];
@@ -272,7 +272,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)navigate_forward_toolbar_item
 {
     if (!_navigate_forward_toolbar_item) {
-        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_forward_action(), NSImageNameGoForwardTemplate);
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].navigate_forward_action());
 
         _navigate_forward_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER];
         [_navigate_forward_toolbar_item setView:button];
@@ -284,7 +284,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)reload_toolbar_item
 {
     if (!_reload_toolbar_item) {
-        auto* button = Ladybird::create_application_button(WebView::Application::the().reload_action(), NSImageNameRefreshTemplate);
+        auto* button = Ladybird::create_application_button(WebView::Application::the().reload_action());
 
         _reload_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_RELOAD_IDENTIFIER];
         [_reload_toolbar_item setView:button];
@@ -315,7 +315,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (NSToolbarItem*)zoom_toolbar_item
 {
     if (!_zoom_toolbar_item) {
-        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].reset_zoom_action(), nil);
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].reset_zoom_action());
 
         _zoom_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_ZOOM_IDENTIFIER];
         [_zoom_toolbar_item setView:button];

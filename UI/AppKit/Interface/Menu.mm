@@ -115,27 +115,85 @@ static void initialize_native_control(WebView::Action& action, id control)
 {
     switch (action.id()) {
     case WebView::ActionID::NavigateBack:
+        set_control_image(control, @"chevron.left");
         [control setKeyEquivalent:@"["];
         break;
     case WebView::ActionID::NavigateForward:
+        set_control_image(control, @"chevron.right");
         [control setKeyEquivalent:@"]"];
         break;
     case WebView::ActionID::Reload:
+        set_control_image(control, @"arrow.clockwise");
         [control setKeyEquivalent:@"r"];
         break;
 
     case WebView::ActionID::CopySelection:
+        set_control_image(control, @"document.on.document");
         [control setKeyEquivalent:@"c"];
         break;
     case WebView::ActionID::Paste:
+        set_control_image(control, @"document.on.clipboard");
         [control setKeyEquivalent:@"v"];
         break;
     case WebView::ActionID::SelectAll:
+        set_control_image(control, @"character.textbox");
         [control setKeyEquivalent:@"a"];
         break;
 
+    case WebView::ActionID::SearchSelectedText:
+        set_control_image(control, @"magnifyingglass");
+        break;
+
     case WebView::ActionID::ViewSource:
+        set_control_image(control, @"text.document");
         [control setKeyEquivalent:@"u"];
+        break;
+
+    case WebView::ActionID::TakeVisibleScreenshot:
+    case WebView::ActionID::TakeFullScreenshot:
+        set_control_image(control, @"photo");
+        break;
+
+    case WebView::ActionID::OpenInNewTab:
+        set_control_image(control, @"plus.square.on.square");
+        break;
+    case WebView::ActionID::CopyURL:
+        set_control_image(control, @"document.on.document");
+        break;
+
+    case WebView::ActionID::OpenImage:
+        set_control_image(control, @"photo");
+        break;
+    case WebView::ActionID::CopyImage:
+        set_control_image(control, @"document.on.document");
+        break;
+
+    case WebView::ActionID::OpenAudio:
+        set_control_image(control, @"speaker.wave.1");
+        break;
+    case WebView::ActionID::OpenVideo:
+        set_control_image(control, @"video");
+        break;
+    case WebView::ActionID::PlayMedia:
+        set_control_image(control, @"play");
+        break;
+    case WebView::ActionID::PauseMedia:
+        set_control_image(control, @"pause");
+        break;
+    case WebView::ActionID::MuteMedia:
+        set_control_image(control, @"speaker.slash");
+        break;
+    case WebView::ActionID::UnmuteMedia:
+        set_control_image(control, @"speaker.wave.2");
+        break;
+    case WebView::ActionID::ShowControls:
+        set_control_image(control, @"eye");
+        break;
+    case WebView::ActionID::HideControls:
+        set_control_image(control, @"eye.slash");
+        break;
+    case WebView::ActionID::ToggleMediaLoopState:
+        set_control_image(control, @"arrow.clockwise");
         break;
 
     case WebView::ActionID::ZoomIn:
@@ -213,14 +271,27 @@ NSMenuItem* create_application_menu_item(WebView::Action& action)
     return item;
 }
 
-NSButton* create_application_button(WebView::Action& action, NSImageName image)
+NSButton* create_application_button(WebView::Action& action)
 {
     auto* button = [[NSButton alloc] init];
-    if (image)
-        [button setImage:[NSImage imageNamed:image]];
-
     initialize_native_control(action, button);
     return button;
+}
+
+void set_control_image(id control, NSString* image)
+{
+    // System symbols are distributed with the San Fransisco (SF) Symbols font. To see all SF Symbols and their names,
+    // you will have to install the SF Symbols app: https://developer.apple.com/sf-symbols/
+    auto set_image = [&]() {
+        [control setImage:[NSImage imageWithSystemSymbolName:image accessibilityDescription:@""]];
+    };
+
+    if (@available(macOS 26, *)) {
+        set_image();
+    } else {
+        if ([control isKindOfClass:[NSButton class]])
+            set_image();
+    }
 }
 
 }
