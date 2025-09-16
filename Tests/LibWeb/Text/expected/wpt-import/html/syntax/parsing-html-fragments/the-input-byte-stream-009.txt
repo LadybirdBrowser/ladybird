@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	The character encoding of the page can be set by a meta element with charset attribute.
