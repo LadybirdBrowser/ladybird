@@ -89,19 +89,19 @@ WebIDL::ExceptionOr<Utf16String> CSSScale::to_string() const
         builder.append("scale3d("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
-        builder.append(m_x->to_string());
+        builder.append(TRY(m_x->to_string()));
 
         // 3. Append ", " to s.
         builder.append(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
-        builder.append(m_y->to_string());
+        builder.append(TRY(m_y->to_string()));
 
         // 5. Append ", " to s.
         builder.append(", "sv);
 
         // 6. Serialize this’s z internal slot, and append it to s.
-        builder.append(m_z->to_string());
+        builder.append(TRY(m_z->to_string()));
 
         // 7. Append ")" to s, and return s.
         builder.append(")"sv);
@@ -114,7 +114,7 @@ WebIDL::ExceptionOr<Utf16String> CSSScale::to_string() const
         builder.append("scale("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
-        builder.append(m_x->to_string());
+        builder.append(TRY(m_x->to_string()));
 
         // 3. If this’s x and y internal slots are equal numeric values, append ")" to s and return s.
         if (m_x->is_equal_numeric_value(m_y)) {
@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<Utf16String> CSSScale::to_string() const
         builder.append(", "sv);
 
         // 5. Serialize this’s y internal slot, and append it to s.
-        builder.append(m_y->to_string());
+        builder.append(TRY(m_y->to_string()));
 
         // 6. Append ")" to s, and return s.
         builder.append(")"sv);

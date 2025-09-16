@@ -28,7 +28,7 @@ public:
     FlyString const& value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(FlyString value);
 
-    virtual String to_string() const override;
+    virtual WebIDL::ExceptionOr<String> to_string() const override;
 
 private:
     explicit CSSKeywordValue(JS::Realm&, FlyString value);

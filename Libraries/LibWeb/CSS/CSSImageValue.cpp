@@ -7,6 +7,7 @@
 #include "CSSImageValue.h"
 #include <LibWeb/Bindings/CSSImageValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
@@ -30,7 +31,7 @@ void CSSImageValue::initialize(JS::Realm& realm)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization
-String CSSImageValue::to_string() const
+WebIDL::ExceptionOr<String> CSSImageValue::to_string() const
 {
     // AD-HOC: The spec doesn't say how to serialize this, as it's intentionally a black box.
     //         We just serialize the source string that was used to construct this.

@@ -92,7 +92,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization
-String CSSStyleValue::to_string() const
+WebIDL::ExceptionOr<String> CSSStyleValue::to_string() const
 {
     // if the value was constructed from a USVString
     if (m_constructed_from_string.has_value()) {
@@ -108,7 +108,7 @@ String CSSStyleValue::to_string() const
     {
         // the serialization is specified in §6.7 Serialization from CSSOM Values below.
     }
-    return {};
+    return String {};
 }
 
 }

@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<void> CSSVariableReferenceValue::set_fallback(GC::Ptr<CSSUnp
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssvariablereferencevalue
-String CSSVariableReferenceValue::to_string() const
+WebIDL::ExceptionOr<String> CSSVariableReferenceValue::to_string() const
 {
     // To serialize a CSSVariableReferenceValue this:
     // 1. Let s initially be "var(".
@@ -103,7 +103,7 @@ String CSSVariableReferenceValue::to_string() const
     if (m_fallback) {
         // AD-HOC: Tested behaviour requires we append "," without the space. https://github.com/w3c/css-houdini-drafts/issues/1148
         s.append(","sv);
-        s.append(m_fallback->to_string());
+        s.append(TRY(m_fallback->to_string()));
     }
 
     // 4. Append ")" to s and return s.

@@ -27,7 +27,7 @@ public:
     GC::Ptr<CSSUnparsedValue> fallback() const;
     WebIDL::ExceptionOr<void> set_fallback(GC::Ptr<CSSUnparsedValue>);
 
-    String to_string() const;
+    WebIDL::ExceptionOr<String> to_string() const;
 
 private:
     CSSVariableReferenceValue(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
