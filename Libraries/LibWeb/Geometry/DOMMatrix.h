@@ -56,6 +56,7 @@ public:
     void set_f(double value);
 
     WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> multiply_self(DOMMatrixInit other = {});
+    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> multiply_self(GC::Ref<DOMMatrix>);
     WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> pre_multiply_self(DOMMatrixInit other = {});
     GC::Ref<DOMMatrix> translate_self(Optional<double> tx, Optional<double> ty, Optional<double> tz);
     GC::Ref<DOMMatrix> scale_self(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
