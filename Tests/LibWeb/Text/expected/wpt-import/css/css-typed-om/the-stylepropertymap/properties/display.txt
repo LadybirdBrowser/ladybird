@@ -1,3 +1,62 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 56 tests
+
+2 Pass
+54 Fail
+Fail	Can set 'display' to CSS-wide keywords: initial
+Fail	Can set 'display' to CSS-wide keywords: inherit
+Fail	Can set 'display' to CSS-wide keywords: unset
+Fail	Can set 'display' to CSS-wide keywords: revert
+Fail	Can set 'display' to var() references:  var(--A)
+Fail	Can set 'display' to the 'none' keyword: none
+Fail	Can set 'display' to the 'block' keyword: block
+Fail	Can set 'display' to the 'inline' keyword: inline
+Fail	Can set 'display' to the 'flow-root' keyword: flow-root
+Fail	Can set 'display' to the 'table' keyword: table
+Fail	Can set 'display' to the 'flex' keyword: flex
+Fail	Can set 'display' to the 'grid' keyword: grid
+Fail	Can set 'display' to the 'list-item' keyword: list-item
+Fail	Can set 'display' to the 'table-row-group' keyword: table-row-group
+Fail	Can set 'display' to the 'table-header-group' keyword: table-header-group
+Fail	Can set 'display' to the 'table-footer-group' keyword: table-footer-group
+Fail	Can set 'display' to the 'table-row' keyword: table-row
+Fail	Can set 'display' to the 'table-cell' keyword: table-cell
+Fail	Can set 'display' to the 'table-column-group' keyword: table-column-group
+Fail	Can set 'display' to the 'table-column' keyword: table-column
+Fail	Can set 'display' to the 'table-caption' keyword: table-caption
+Fail	Can set 'display' to the 'contents' keyword: contents
+Fail	Can set 'display' to the 'inline-block' keyword: inline-block
+Fail	Can set 'display' to the 'inline-table' keyword: inline-table
+Fail	Can set 'display' to the 'inline-flex' keyword: inline-flex
+Fail	Can set 'display' to the 'inline-grid' keyword: inline-grid
+Fail	Setting 'display' to a length: 0px throws TypeError
+Fail	Setting 'display' to a length: -3.14em throws TypeError
+Fail	Setting 'display' to a length: 3.14cm throws TypeError
+Fail	Setting 'display' to a length: calc(0px + 0em) throws TypeError
+Fail	Setting 'display' to a percent: 0% throws TypeError
+Fail	Setting 'display' to a percent: -3.14% throws TypeError
+Fail	Setting 'display' to a percent: 3.14% throws TypeError
+Fail	Setting 'display' to a percent: calc(0% + 0%) throws TypeError
+Fail	Setting 'display' to a time: 0s throws TypeError
+Fail	Setting 'display' to a time: -3.14ms throws TypeError
+Fail	Setting 'display' to a time: 3.14s throws TypeError
+Fail	Setting 'display' to a time: calc(0s + 0ms) throws TypeError
+Fail	Setting 'display' to an angle: 0deg throws TypeError
+Fail	Setting 'display' to an angle: 3.14rad throws TypeError
+Fail	Setting 'display' to an angle: -3.14deg throws TypeError
+Fail	Setting 'display' to an angle: calc(0rad + 0deg) throws TypeError
+Fail	Setting 'display' to a flexible length: 0fr throws TypeError
+Fail	Setting 'display' to a flexible length: 1fr throws TypeError
+Fail	Setting 'display' to a flexible length: -3.14fr throws TypeError
+Fail	Setting 'display' to a number: 0 throws TypeError
+Fail	Setting 'display' to a number: -3.14 throws TypeError
+Fail	Setting 'display' to a number: 3.14 throws TypeError
+Fail	Setting 'display' to a number: calc(2 + 3) throws TypeError
+Fail	Setting 'display' to a transform: translate(50%, 50%) throws TypeError
+Fail	Setting 'display' to a transform: perspective(10em) throws TypeError
+Fail	Setting 'display' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	'display' does not support setting 'inline math'
+Pass	'display' does not support setting 'math inline'
+Fail	'display' does not support 'block math'
+Fail	'display' does not support 'math block'

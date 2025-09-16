@@ -1,3 +1,28 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 22 tests
+
+20 Pass
+2 Fail
+Pass	CSSTranslate with 2 arguments serializes correctly
+Pass	CSSTranslate with 3 arguments serializes correctly
+Pass	CSSScale with 2 arguments serializes correctly
+Pass	CSSScale with 3 arguments serializes correctly
+Pass	CSSRotate with 1 argument serializes correctly
+Pass	CSSRotate with 4 arguments serializes correctly
+Pass	CSSSkew serializes correctly
+Pass	CSSSkew with Y which is 0 value serializes correctly
+Pass	CSSSkewX serializes correctly
+Pass	CSSSkewY serializes correctly
+Pass	CSSPerspective serializes correctly
+Pass	CSSPerspective with negative length serializes correctly
+Pass	CSSPerspective with none as string serializes correctly
+Pass	CSSPerspective with none as CSSKeyword serializes correctly
+Pass	CSSTransformValue with a single transform serializes correctly
+Pass	CSSTransformValue with multiple transforms serializes correctly
+Fail	CSSTransformValue containing CSSMathValues serializes correctly
+Pass	CSSMathInvert with 0 parameter serializes correctly
+Fail	CSSMathInvert with 0 parameter and nested serializes correctly
+Pass	CSSMatrixComponent with 6 elements serializes correctly
+Pass	CSSMatrixComponent with 16 elements serializes correctly
+Pass	CSSTransformValue with updated is2D serializes as 2D transforms

@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	CSSTransformValue.toMatrix() multiplies its component matrices
+1 Pass
+1 Fail
+Pass	CSSTransformValue.toMatrix() multiplies its component matrices
 Fail	CSSTransformValue.toMatrix() respects is2D changes in its components
