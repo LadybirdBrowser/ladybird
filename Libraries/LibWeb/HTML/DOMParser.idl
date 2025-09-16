@@ -13,5 +13,5 @@ enum DOMParserSupportedType {
 interface DOMParser {
     constructor();
 
-    Document parseFromString(DOMString string, DOMParserSupportedType type);
+    Document parseFromString(Utf16DOMString string, DOMParserSupportedType type);
 };
