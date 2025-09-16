@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html  lang="en" >
+<head>
+ <meta charset="iso-8859-15"> <title>meta charset attribute</title>
+<link rel='author' title='Richard Ishida' href='mailto:ishida@w3.org'>
+<link rel='help' href='https://html.spec.whatwg.org/multipage/#the-input-byte-stream'>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<meta name='flags' content='http'>
+<style type='text/css'>
+.test div { width: 50px; }</style>
+<link rel="stylesheet" type="text/css" href="support/encodingtests-15.css">
+</head>
+<body>
+
+
+
+<div class='test'><div id='box' class='ýäè'>&#xA0;</div></div>
+
+
+<!--Notes:
+
+The only character encoding declaration for this HTML file is in the charset attribute of the meta element, which declares the encoding to be ISO 8859-15.
+
+The test contains a div with a class name that contains the following sequence of bytes: 0xC3 0xBD 0xC3 0xA4 0xC3 0xA8. These represent different sequences of characters in ISO 8859-15, ISO 8859-1 and UTF-8. The external, UTF-8-encoded stylesheet contains a selector <code>.test div.&#x00C3;&#x0153;&#x00C3;&#x20AC;&#x00C3;&#x0161;</code>. This matches the sequence of bytes above when they are interpreted as ISO 8859-15. If the class name matches the selector then the test will pass.
+
+-->
+<script>
+test(function() {
+assert_equals(document.getElementById('box').offsetWidth, 100);
+}, "The character encoding of the page can be set by a meta element with charset attribute.");
+</script>
+
+<div id='log'></div>
+
+</body>
+</html>

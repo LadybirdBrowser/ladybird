@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+ <head>
+  <title>CSS Test: Stylesheet encodings: KOI8-R</title>
+  <link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch"/>
+  <link rel="alternate" href="http://www.hixie.ch/tests/adhoc/css/parsing/encoding/007.html" type="text/html"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/syndata.html#charset" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/syntax/../reference/ref-green-background.xht"/>
+  <meta name="flags" content="http" />
+  <style type="text/css">
+   p { background: red; color: yellow; }
+  </style>
+  <link rel="stylesheet" href="support/at-charset-077.css"/>
+ </head>
+ <body>
+  <p class="t&#x0418;st">This should have a green background.</p>
+ </body>
+</html>

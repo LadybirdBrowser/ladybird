@@ -422,10 +422,13 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 {
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
-    if (!mime_type_string.has_value()) {
-        auto extracted_mime_type = response.header_list()->extract_mime_type();
-        if (extracted_mime_type.has_value())
+    Optional<String> mime_type_charset;
+    auto extracted_mime_type = response.header_list()->extract_mime_type();
+    if (extracted_mime_type.has_value()) {
+        if (!mime_type_string.has_value())
             mime_type_string = extracted_mime_type->essence();
+        if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
+            mime_type_charset = charset.value();
     }
 
     if (mime_type_string.has_value() && mime_type_string != "text/css"sv) {
@@ -469,43 +472,34 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         // The CSS environment encoding is the result of running the following steps: [CSSSYNTAX]
         //     1. If the element has a charset attribute, get an encoding from that attribute's value. If that succeeds, return the resulting encoding. [ENCODING]
         //     2. Otherwise, return the document's character encoding. [DOM]
+        Optional<StringView> environment_encoding;
+        if (auto charset = attribute(HTML::AttributeNames::charset); charset.has_value()) {
+            if (auto environment_encoding = TextCodec::get_standardized_encoding(charset.release_value()); environment_encoding.has_value())
+                environment_encoding = environment_encoding.value();
+        }
+        if (!environment_encoding.has_value() && document().encoding().has_value())
+            environment_encoding = document().encoding().value();
 
-        Optional<String> encoding;
-        if (auto charset = attribute(HTML::AttributeNames::charset); charset.has_value())
-            encoding = charset.release_value();
-
-        if (!encoding.has_value())
-            encoding = document().encoding_or_default();
-
-        auto decoder = TextCodec::decoder_for(*encoding);
-
-        if (!decoder.has_value()) {
-            // If we don't support the encoding yet, let's error out instead of trying to decode it as something it's most likely not.
-            dbgln("FIXME: Style sheet encoding '{}' is not supported yet", encoding);
+        auto maybe_decoded_string = css_decode_bytes(environment_encoding, mime_type_charset, body_bytes.get<ByteBuffer>());
+        if (maybe_decoded_string.is_error()) {
+            dbgln("Failed to decode CSS file: {}", response.url().value_or(URL::URL()));
             dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
         } else {
-            auto const& encoded_string = body_bytes.get<ByteBuffer>();
-            auto maybe_decoded_string = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, encoded_string);
-            if (maybe_decoded_string.is_error()) {
-                dbgln("Style sheet {} claimed to be '{}' but decoding failed", response.url().value_or(URL::URL()), encoding);
-                dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
-            } else {
-                VERIFY(!response.url_list().is_empty());
-                m_loaded_style_sheet = document_or_shadow_root_style_sheets().create_a_css_style_sheet(
-                    maybe_decoded_string.release_value(),
-                    "text/css"_string,
-                    this,
-                    attribute(HTML::AttributeNames::media).value_or({}),
-                    in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : String {},
-                    (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
-                    CSS::StyleSheetList::OriginClean::Yes,
-                    response.url_list().first(),
-                    nullptr,
-                    nullptr);
+            VERIFY(!response.url_list().is_empty());
+            m_loaded_style_sheet = document_or_shadow_root_style_sheets().create_a_css_style_sheet(
+                maybe_decoded_string.release_value(),
+                "text/css"_string,
+                this,
+                attribute(HTML::AttributeNames::media).value_or({}),
+                in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : String {},
+                (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
+                CSS::StyleSheetList::OriginClean::Yes,
+                response.url_list().first(),
+                nullptr,
+                nullptr);
 
-                // 2. Fire an event named load at el.
-                dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::load));
-            }
+            // 2. Fire an event named load at el.
+            dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::load));
         }
     }
     // 5. Otherwise, fire an event named error at el.

@@ -2,6 +2,7 @@
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -146,18 +147,17 @@ void CSSImportRule::fetch()
 
             // 4. Let importedStylesheet be the result of parsing byteStream given parsedUrl.
             // FIXME: Tidy up our parsing API. For now, do the decoding here.
-            // FIXME: Get the encoding from the response somehow.
-            auto encoding = "utf-8"sv;
-            auto maybe_decoder = TextCodec::decoder_for(encoding);
-            if (!maybe_decoder.has_value()) {
-                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {} Unsupported encoding: {}", parsed_url, encoding);
-                return;
+            Optional<String> mime_type_charset;
+            if (auto extracted_mime_type = response->header_list()->extract_mime_type(); extracted_mime_type.has_value()) {
+                if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
+                    mime_type_charset = charset.value();
             }
-            auto& decoder = maybe_decoder.release_value();
-
-            auto decoded_or_error = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder, *byte_stream);
+            // The environment encoding of an imported style sheet is the encoding of the style sheet that imported it. [css-syntax-3]
+            // FIXME: Save encoding on Stylesheet to get it here
+            Optional<StringView> environment_encoding;
+            auto decoded_or_error = css_decode_bytes(environment_encoding, mime_type_charset, *byte_stream);
             if (decoded_or_error.is_error()) {
-                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {} Encoding was: {}", parsed_url, encoding);
+                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {}", parsed_url);
                 return;
             }
             auto decoded = decoded_or_error.release_value();

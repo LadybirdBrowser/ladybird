@@ -602,5 +602,6 @@ Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::Parsi
 RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, StringView);
 GC::Ref<JS::Realm> internal_css_realm();
+ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ByteBuffer const& encoded_string);
 
 }
