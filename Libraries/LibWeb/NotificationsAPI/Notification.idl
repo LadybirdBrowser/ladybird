@@ -37,6 +37,7 @@ interface Notification : EventTarget {
 };
 
 dictionary NotificationOptions {
+<<<<<<< HEAD
     NotificationDirection dir = "auto";
     DOMString lang = "";
     DOMString body = "";
@@ -71,6 +72,42 @@ dictionary NotificationAction {
     required DOMString title;
     USVString navigate;
     USVString icon;
+=======
+  NotificationDirection dir = "auto";
+  DOMString lang = "";
+  DOMString body = "";
+  USVString navigate;
+  DOMString tag = "";
+  USVString image;
+  USVString icon;
+  USVString badge;
+// VibratePattern vibrate;
+  EpochTimeStamp timestamp;
+  boolean renotify = false;
+  boolean? silent = null;
+  boolean requireInteraction = false;
+  any data = null;
+  sequence<NotificationAction> actions = [];
+};
+
+enum NotificationPermission {
+  "default",
+  "denied",
+  "granted"
+};
+
+enum NotificationDirection {
+  "auto",
+  "ltr",
+  "rtl"
+};
+
+dictionary NotificationAction {
+  required DOMString action;
+  required DOMString title;
+  USVString navigate;
+  USVString icon;
+>>>>>>> 151d301829b0556b3a38aa739194073ae1b7e15d
 };
 
 // callback NotificationPermissionCallback = undefined (NotificationPermission permission);
