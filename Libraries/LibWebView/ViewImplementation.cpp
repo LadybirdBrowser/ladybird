@@ -908,7 +908,10 @@ void ViewImplementation::initialize_context_menus()
     m_media_unmute_action = Action::create("Unmute"sv, ActionID::UnmuteMedia, [this]() {
         client().async_toggle_media_mute_state(page_id());
     });
-    m_media_controls_action = Action::create_checkable("Show Controls"sv, ActionID::ToggleMediaControlsState, [this]() {
+    m_media_show_controls_action = Action::create("Show Controls"sv, ActionID::ShowControls, [this]() {
+        client().async_toggle_media_controls_state(page_id());
+    });
+    m_media_hide_controls_action = Action::create("Hide Controls"sv, ActionID::HideControls, [this]() {
         client().async_toggle_media_controls_state(page_id());
     });
     m_media_loop_action = Action::create_checkable("Loop"sv, ActionID::ToggleMediaLoopState, [this]() {
@@ -947,7 +950,8 @@ void ViewImplementation::initialize_context_menus()
     m_media_context_menu->add_action(*m_media_pause_action);
     m_media_context_menu->add_action(*m_media_mute_action);
     m_media_context_menu->add_action(*m_media_unmute_action);
-    m_media_context_menu->add_action(*m_media_controls_action);
+    m_media_context_menu->add_action(*m_media_show_controls_action);
+    m_media_context_menu->add_action(*m_media_hide_controls_action);
     m_media_context_menu->add_action(*m_media_loop_action);
     m_media_context_menu->add_separator();
     m_media_context_menu->add_action(*m_open_audio_action);
@@ -1027,7 +1031,9 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>,
     m_media_mute_action->set_visible(!menu.is_muted);
     m_media_unmute_action->set_visible(menu.is_muted);
 
-    m_media_controls_action->set_checked(menu.has_user_agent_controls);
+    m_media_show_controls_action->set_visible(!menu.has_user_agent_controls);
+    m_media_hide_controls_action->set_visible(menu.has_user_agent_controls);
+
     m_media_loop_action->set_checked(menu.is_looping);
 
     if (m_media_context_menu->on_activation)

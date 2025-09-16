@@ -50,7 +50,8 @@ enum class ActionID {
     PauseMedia,
     MuteMedia,
     UnmuteMedia,
-    ToggleMediaControlsState,
+    ShowControls,
+    HideControls,
     ToggleMediaLoopState,
 
     ZoomIn,
