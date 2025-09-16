@@ -258,6 +258,7 @@ class CSSNumericArray;
 class CSSNumericValue;
 class CSSPageRule;
 class CSSPageDescriptors;
+class CSSPerspective;
 class CSSPropertyRule;
 class CSSRotate;
 class CSSRule;

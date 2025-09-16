@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-346 Pass
-199 Fail
+353 Pass
+192 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -364,13 +364,13 @@ Fail	Stringification of skewY
 Fail	CSSSkewY interface: skewY must inherit property "ay" with the proper type
 Fail	CSSTransformComponent interface: skewY must inherit property "is2D" with the proper type
 Fail	CSSTransformComponent interface: skewY must inherit property "toMatrix()" with the proper type
-Fail	CSSPerspective interface: existence and properties of interface object
-Fail	CSSPerspective interface object length
-Fail	CSSPerspective interface object name
-Fail	CSSPerspective interface: existence and properties of interface prototype object
-Fail	CSSPerspective interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSPerspective interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSPerspective interface: attribute length
+Pass	CSSPerspective interface: existence and properties of interface object
+Pass	CSSPerspective interface object length
+Pass	CSSPerspective interface object name
+Pass	CSSPerspective interface: existence and properties of interface prototype object
+Pass	CSSPerspective interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSPerspective interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSPerspective interface: attribute length
 Fail	CSSPerspective must be primary interface of perspective
 Fail	Stringification of perspective
 Fail	CSSPerspective interface: perspective must inherit property "length" with the proper type

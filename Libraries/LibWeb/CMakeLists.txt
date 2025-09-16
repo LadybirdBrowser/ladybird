@@ -133,6 +133,7 @@ set(SOURCES
     CSS/CSSNumericValue.cpp
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
+    CSS/CSSPerspective.cpp
     CSS/CSSPropertyRule.cpp
     CSS/CSSRotate.cpp
     CSS/CSSRule.cpp

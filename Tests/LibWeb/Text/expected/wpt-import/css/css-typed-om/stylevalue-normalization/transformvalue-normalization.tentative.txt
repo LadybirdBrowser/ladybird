@@ -1,7 +1,33 @@
-Harness status: Error
+Harness status: OK
 
-Found 2 tests
+Found 28 tests
 
-2 Fail
+28 Fail
 Fail	Normalizing a matrix() returns a CSSMatrixComponent
 Fail	Normalizing a matrix3d() returns a CSSMatrixComponent
+Fail	Normalizing a translate() with X returns a CSSTranslate
+Fail	Normalizing a translate() with X and Y returns a CSSTranslate
+Fail	Normalizing a translateX() returns a CSSTranslate
+Fail	Normalizing a translateY() returns a CSSTranslate
+Fail	Normalizing a translate3d() returns a CSSTranslate
+Fail	Normalizing a translateZ() returns a CSSTranslate
+Fail	Normalizing a scale() with one argument returns a CSSScale
+Fail	Normalizing a scale() with two arguments returns a CSSScale
+Fail	Normalizing a scaleX() returns a CSSScale
+Fail	Normalizing a scaleY() returns a CSSScale
+Fail	Normalizing a scale3d() returns a CSSScale
+Fail	Normalizing a scaleZ() returns a CSSScale
+Fail	Normalizing a rotate() returns a CSSRotate
+Fail	Normalizing a rotate3d() returns a CSSRotate
+Fail	Normalizing a rotateX() returns a CSSRotate
+Fail	Normalizing a rotateY() returns a CSSRotate
+Fail	Normalizing a rotateZ() returns a CSSRotate
+Fail	Normalizing a skew() with only X returns a CSSSkew
+Fail	Normalizing a skew() with X and Y which is 0 value returns a CSSSkew
+Fail	Normalizing a skew() with X and Y returns a CSSSkew
+Fail	Normalizing a skewX() returns a CSSSkewX
+Fail	Normalizing a skewY() returns a CSSSkewY
+Fail	Normalizing a perspective() returns a CSSPerspective
+Fail	Normalizing a perspective(none) returns a CSSPerspective
+Fail	Normalizing a <transform-list> returns a CSSTransformValue containing all the transforms
+Fail	Normalizing transforms with calc values contains CSSMathValues
