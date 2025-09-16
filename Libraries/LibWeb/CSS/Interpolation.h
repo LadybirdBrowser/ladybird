@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/KeyframeEffectPrototype.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -30,5 +31,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContex
 RefPtr<StyleValue const> interpolate_transform(DOM::Element&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 
 Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax);
+
+RefPtr<StyleValue const> composite_value(StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation);
 
 }

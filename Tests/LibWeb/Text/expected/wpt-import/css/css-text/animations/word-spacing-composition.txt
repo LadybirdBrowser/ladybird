@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to add [200px] at (-0.3) should be [120px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to add [200px] at (0) should be [150px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to add [200px] at (0.5) should be [200px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to add [200px] at (1) should be [250px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to add [200px] at (1.5) should be [300px]
+Pass	Compositing: property <word-spacing> underlying [100px] from add [10px] to add [2px] at (-0.5) should be [114px]
+Pass	Compositing: property <word-spacing> underlying [100px] from add [10px] to add [2px] at (0) should be [110px]
+Pass	Compositing: property <word-spacing> underlying [100px] from add [10px] to add [2px] at (0.5) should be [106px]
+Pass	Compositing: property <word-spacing> underlying [100px] from add [10px] to add [2px] at (1) should be [102px]
+Pass	Compositing: property <word-spacing> underlying [100px] from add [10px] to add [2px] at (1.5) should be [98px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to replace [200px] at (-0.3) should be [135px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to replace [200px] at (0) should be [150px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to replace [200px] at (0.5) should be [175px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to replace [200px] at (1) should be [200px]
+Pass	Compositing: property <word-spacing> underlying [50px] from add [100px] to replace [200px] at (1.5) should be [225px]

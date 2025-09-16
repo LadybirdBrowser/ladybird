@@ -1561,4 +1561,120 @@ RefPtr<StyleValue const> interpolate_value(DOM::Element& element, CalculationCon
     return interpolate_discrete(from, to, delta, allow_discrete);
 }
 
+template<typename T>
+static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
+{
+    return underlying_raw_value + animated_raw_value;
+}
+
+RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
+{
+    auto composite_length_percentage = [](auto const& underlying_length_percentage, auto const& animated_length_percentage) -> Optional<LengthPercentage> {
+        if (underlying_length_percentage.is_length() && animated_length_percentage.is_length()) {
+            auto result = composite_raw_values(underlying_length_percentage.length().raw_value(), animated_length_percentage.length().raw_value());
+            return Length { result, underlying_length_percentage.length().unit() };
+        }
+        if (underlying_length_percentage.is_percentage() && animated_length_percentage.is_percentage()) {
+            auto result = composite_raw_values(underlying_length_percentage.percentage().value(), animated_length_percentage.percentage().value());
+            return Percentage { result };
+        }
+        return {};
+    };
+
+    auto composite_dimension_value = [](StyleValue const& underlying_value, StyleValue const& animated_value) -> Optional<double> {
+        auto const& underlying_dimension = as<DimensionStyleValue>(underlying_value);
+        auto const& animated_dimension = as<DimensionStyleValue>(animated_value);
+        return composite_raw_values(underlying_dimension.raw_value(), animated_dimension.raw_value());
+    };
+
+    if (composite_operation == Bindings::CompositeOperation::Replace)
+        return {};
+
+    // FIXME: Composite mixed values where possible
+    if (underlying_value.type() != animated_value.type())
+        return {};
+
+    switch (underlying_value.type()) {
+    case StyleValue::Type::Angle: {
+        auto result = composite_dimension_value(underlying_value, animated_value);
+        if (!result.has_value())
+            return {};
+        VERIFY(underlying_value.as_angle().angle().unit() == animated_value.as_angle().angle().unit());
+        return AngleStyleValue::create({ *result, underlying_value.as_angle().angle().unit() });
+    }
+    case StyleValue::Type::BorderImageSlice: {
+        auto& underlying_border_image_slice_value = underlying_value.as_border_image_slice();
+        auto& animated_border_image_slice_value = animated_value.as_border_image_slice();
+        if (underlying_border_image_slice_value.fill() != animated_border_image_slice_value.fill())
+            return {};
+        auto composited_top = composite_value(underlying_border_image_slice_value.top(), animated_border_image_slice_value.top(), composite_operation);
+        auto composited_right = composite_value(underlying_border_image_slice_value.right(), animated_border_image_slice_value.right(), composite_operation);
+        auto composited_bottom = composite_value(underlying_border_image_slice_value.bottom(), animated_border_image_slice_value.bottom(), composite_operation);
+        auto composited_left = composite_value(underlying_border_image_slice_value.left(), animated_border_image_slice_value.left(), composite_operation);
+        if (!composited_top || !composited_right || !composited_bottom || !composited_left)
+            return {};
+        return BorderImageSliceStyleValue::create(composited_top.release_nonnull(), composited_right.release_nonnull(), composited_bottom.release_nonnull(), composited_left.release_nonnull(), underlying_border_image_slice_value.fill());
+    }
+    case StyleValue::Type::BorderRadius: {
+        auto composited_horizontal_radius = composite_length_percentage(underlying_value.as_border_radius().horizontal_radius(), animated_value.as_border_radius().horizontal_radius());
+        auto composited_vertical_radius = composite_length_percentage(underlying_value.as_border_radius().vertical_radius(), animated_value.as_border_radius().vertical_radius());
+        if (!composited_horizontal_radius.has_value() || !composited_vertical_radius.has_value())
+            return {};
+        return BorderRadiusStyleValue::create(*composited_horizontal_radius, *composited_vertical_radius);
+    }
+    case StyleValue::Type::Integer: {
+        auto result = composite_raw_values(underlying_value.as_integer().integer(), animated_value.as_integer().integer());
+        return IntegerStyleValue::create(result);
+    }
+    case StyleValue::Type::Length: {
+        auto result = composite_dimension_value(underlying_value, animated_value);
+        if (!result.has_value())
+            return {};
+        VERIFY(underlying_value.as_length().length().unit() == animated_value.as_length().length().unit());
+        return LengthStyleValue::create(Length { *result, underlying_value.as_length().length().unit() });
+    }
+    case StyleValue::Type::Number: {
+        auto result = composite_raw_values(underlying_value.as_number().number(), animated_value.as_number().number());
+        return NumberStyleValue::create(result);
+    }
+    case StyleValue::Type::Percentage: {
+        auto result = composite_raw_values(underlying_value.as_percentage().percentage().value(), animated_value.as_percentage().percentage().value());
+        return PercentageStyleValue::create(Percentage { result });
+    }
+    case StyleValue::Type::Position: {
+        auto& underlying_position = underlying_value.as_position();
+        auto& animated_position = animated_value.as_position();
+        auto composited_edge_x = composite_value(underlying_position.edge_x(), animated_position.edge_x(), composite_operation);
+        auto composited_edge_y = composite_value(underlying_position.edge_y(), animated_position.edge_y(), composite_operation);
+        if (!composited_edge_x || !composited_edge_y)
+            return {};
+
+        return PositionStyleValue::create(composited_edge_x->as_edge(), composited_edge_y->as_edge());
+    }
+    case StyleValue::Type::Ratio: {
+        // https://drafts.csswg.org/css-values/#combine-ratio
+        // Addition of <ratio>s is not possible.
+        return {};
+    }
+    case StyleValue::Type::ValueList: {
+        auto& underlying_list = underlying_value.as_value_list();
+        auto& animated_list = animated_value.as_value_list();
+        if (underlying_list.size() != animated_list.size() || underlying_list.separator() != animated_list.separator())
+            return {};
+        StyleValueVector values;
+        values.ensure_capacity(underlying_list.size());
+        for (size_t i = 0; i < underlying_list.size(); ++i) {
+            auto composited_value = composite_value(underlying_list.values()[i], animated_list.values()[i], composite_operation);
+            if (!composited_value)
+                return {};
+            values.unchecked_append(*composited_value);
+        }
+        return StyleValueList::create(move(values), underlying_list.separator());
+    }
+    default:
+        // FIXME: Implement compositing for missing types
+        return {};
+    }
+}
+
 }

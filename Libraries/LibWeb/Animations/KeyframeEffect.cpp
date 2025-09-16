@@ -872,6 +872,7 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
 
     for (auto& keyframe : m_keyframes) {
         Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
+        resolved_keyframe.composite = keyframe.composite;
 
         auto key = static_cast<u64>(keyframe.computed_offset.value() * 100 * AnimationKeyFrameKeyScaleFactor);
 

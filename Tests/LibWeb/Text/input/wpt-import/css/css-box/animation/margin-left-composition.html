@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>margin-left composition</title>
+<link rel="help" href="https://www.w3.org/TR/CSS2/box.html#margin-properties">
+<meta name="assert" content="margin-left supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'margin-left',
+  underlying: '50px',
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: '120px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'margin-left',
+  underlying: '100px',
+  addFrom: '10px',
+  addTo: '2px',
+}, [
+  {at: -0.5, expect: '114px'},
+  {at: 0, expect: '110px'},
+  {at: 0.5, expect: '106px'},
+  {at: 1, expect: '102px'},
+  {at: 1.5, expect: '98px'},
+]);
+
+test_composition({
+  property: 'margin-left',
+  underlying: '10%',
+  addFrom: '100px',
+  addTo: '20%',
+}, [
+  {at: -0.3, expect: 'calc(130px + 4%)'},
+  {at: 0, expect: 'calc(100px + 10%)'},
+  {at: 0.5, expect: 'calc(50px + 20%)'},
+  {at: 1, expect: '30%'},
+  {at: 1.5, expect: 'calc(-50px + 40%)'},
+]);
+
+test_composition({
+  property: 'margin-left',
+  underlying: '50px',
+  addFrom: '100px',
+  replaceTo: '200px',
+}, [
+  {at: -0.3, expect: '135px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '175px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '225px'},
+]);
+
+test_composition({
+  property: 'margin-left',
+  underlying: '100px',
+  addFrom: '100px',
+  addTo: 'auto',
+}, [
+  {at: -0.3, expect: '200px'},
+  {at: 0, expect: '200px'},
+  {at: 0.5, expect: 'auto'},
+  {at: 1, expect: 'auto'},
+  {at: 1.5, expect: 'auto'},
+]);
+</script>
+</body>
