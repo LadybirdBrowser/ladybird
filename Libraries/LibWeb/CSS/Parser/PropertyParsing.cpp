@@ -450,6 +450,18 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::AnimationComposition:
+    case PropertyID::AnimationDelay:
+    case PropertyID::AnimationDirection:
+    case PropertyID::AnimationDuration:
+    case PropertyID::AnimationFillMode:
+    case PropertyID::AnimationIterationCount:
+    case PropertyID::AnimationName:
+    case PropertyID::AnimationPlayState:
+    case PropertyID::AnimationTimingFunction:
+        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::BackdropFilter:
     case PropertyID::Filter:
         if (auto parsed_value = parse_filter_value_list_value(tokens); parsed_value && !tokens.has_next_token())

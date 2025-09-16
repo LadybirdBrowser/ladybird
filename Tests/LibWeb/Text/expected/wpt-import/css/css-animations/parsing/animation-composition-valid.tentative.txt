@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	e.style['animation-composition'] = "replace" should set the property value
 Pass	e.style['animation-composition'] = "add" should set the property value
 Pass	e.style['animation-composition'] = "accumulate" should set the property value
-Fail	e.style['animation-composition'] = "replace, add, accumulate" should set the property value
+Pass	e.style['animation-composition'] = "replace, add, accumulate" should set the property value

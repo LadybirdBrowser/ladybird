@@ -2613,6 +2613,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // 4. Convert properties into their computed forms
     compute_property_values(computed_style);
 
+    // FIXME: Support multiple entries for `animation` properties
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
         auto const& animation_name = computed_style->property(PropertyID::AnimationName);

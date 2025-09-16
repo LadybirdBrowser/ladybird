@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	e.style['animation-direction'] = "normal" should set the property value
 Pass	e.style['animation-direction'] = "reverse" should set the property value
 Pass	e.style['animation-direction'] = "alternate" should set the property value
 Pass	e.style['animation-direction'] = "alternate-reverse" should set the property value
-Fail	e.style['animation-direction'] = "normal, reverse, alternate, alternate-reverse" should set the property value
+Pass	e.style['animation-direction'] = "normal, reverse, alternate, alternate-reverse" should set the property value

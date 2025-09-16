@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+3 Pass
+1 Fail
 Pass	Property animation-delay value '-500ms'
 Pass	Property animation-delay value 'calc(2 * 3s)'
-Fail	Property animation-delay value '20s, 10s'
+Pass	Property animation-delay value '20s, 10s'
 Fail	Property animation-delay value 'calc(10s + (sign(2cqw - 10px) * 5s))'
