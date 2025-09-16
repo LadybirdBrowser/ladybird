@@ -126,6 +126,7 @@ set(SOURCES
     CSS/CSSMathProduct.cpp
     CSS/CSSMathSum.cpp
     CSS/CSSMathValue.cpp
+    CSS/CSSMatrixComponent.cpp
     CSS/CSSMediaRule.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp

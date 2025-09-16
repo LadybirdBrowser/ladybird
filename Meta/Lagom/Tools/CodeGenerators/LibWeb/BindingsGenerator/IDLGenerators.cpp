@@ -66,6 +66,8 @@ static bool is_platform_object(Type const& type)
         "DataTransfer"sv,
         "Document"sv,
         "DocumentType"sv,
+        "DOMMatrix"sv,
+        "DOMMatrixReadOnly"sv,
         "DOMRectReadOnly"sv,
         "DynamicsCompressorNode"sv,
         "ElementInternals"sv,

@@ -251,6 +251,7 @@ class CSSMathNegate;
 class CSSMathProduct;
 class CSSMathSum;
 class CSSMathValue;
+class CSSMatrixComponent;
 class CSSMediaRule;
 class CSSNamespaceRule;
 class CSSNestedDeclarations;

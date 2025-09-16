@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	CSSMatrixComponent's matrix attribute is mutable
+1 Pass
+Pass	CSSMatrixComponent's matrix attribute is mutable
