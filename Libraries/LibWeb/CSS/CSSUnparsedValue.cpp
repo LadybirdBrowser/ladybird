@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_new_indexed_property(u3
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssunparsedvalue
-String CSSUnparsedValue::to_string() const
+WebIDL::ExceptionOr<String> CSSUnparsedValue::to_string() const
 {
     // To serialize a CSSUnparsedValue this:
     // 1. Let s initially be the empty string.
@@ -126,15 +126,17 @@ String CSSUnparsedValue::to_string() const
     for (auto const& item : m_tokens) {
         // FIXME: In order to match the expected test behaviour, this should insert comments, with the same rules as
         //        serialize_a_series_of_component_values(). See https://github.com/w3c/css-houdini-drafts/issues/1148
-        item.visit(
+        TRY(item.visit(
             // 1. If item is a USVString, append it to s.
-            [&](String const& string) {
+            [&](String const& string) -> WebIDL::ExceptionOr<void> {
                 s.append(string);
+                return {};
             },
             // 2. Otherwise, item is a CSSVariableReferenceValue. Serialize it, then append the result to s.
-            [&](GC::Ref<CSSVariableReferenceValue> const& variable) {
-                s.append(variable->to_string());
-            });
+            [&](GC::Ref<CSSVariableReferenceValue> const& variable) -> WebIDL::ExceptionOr<void> {
+                s.append(TRY(variable->to_string()));
+                return {};
+            }));
     }
 
     // 3. Return s.

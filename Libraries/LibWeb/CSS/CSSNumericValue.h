@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/CSSNumericValuePrototype.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
@@ -59,7 +60,7 @@ public:
     CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
 
-    virtual String to_string() const final override { return to_string({}); }
+    virtual WebIDL::ExceptionOr<String> to_string() const final override { return to_string({}); }
     String to_string(SerializationParams const&) const;
 
     static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);

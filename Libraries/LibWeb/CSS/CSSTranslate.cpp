@@ -87,19 +87,19 @@ WebIDL::ExceptionOr<Utf16String> CSSTranslate::to_string() const
         builder.append("translate3d("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
-        builder.append(m_x->to_string());
+        builder.append(TRY(m_x->to_string()));
 
         // 3. Append ", " to s.
         builder.append(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
-        builder.append(m_y->to_string());
+        builder.append(TRY(m_y->to_string()));
 
         // 5. Append ", " to s.
         builder.append(", "sv);
 
         // 6. Serialize this’s z internal slot, and append it to s.
-        builder.append(m_z->to_string());
+        builder.append(TRY(m_z->to_string()));
 
         // 7. Append ")" to s, and return s.
         builder.append(")"sv);
@@ -111,13 +111,13 @@ WebIDL::ExceptionOr<Utf16String> CSSTranslate::to_string() const
         builder.append("translate("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
-        builder.append(m_x->to_string());
+        builder.append(TRY(m_x->to_string()));
 
         // 3. Append ", " to s.
         builder.append(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
-        builder.append(m_y->to_string());
+        builder.append(TRY(m_y->to_string()));
 
         // 5. Append ")" to s, and return s.
         builder.append(")"sv);

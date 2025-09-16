@@ -55,7 +55,7 @@ WebIDL::ExceptionOr<void> CSSKeywordValue::set_value(FlyString value)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#keywordvalue-serialization
-String CSSKeywordValue::to_string() const
+WebIDL::ExceptionOr<String> CSSKeywordValue::to_string() const
 {
     // To serialize a CSSKeywordValue this:
     // 1. Return this’s value internal slot.
