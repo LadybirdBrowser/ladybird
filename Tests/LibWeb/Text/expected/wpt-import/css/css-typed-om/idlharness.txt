@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-353 Pass
-192 Fail
+360 Pass
+185 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -376,13 +376,13 @@ Fail	Stringification of perspective
 Fail	CSSPerspective interface: perspective must inherit property "length" with the proper type
 Fail	CSSTransformComponent interface: perspective must inherit property "is2D" with the proper type
 Fail	CSSTransformComponent interface: perspective must inherit property "toMatrix()" with the proper type
-Fail	CSSMatrixComponent interface: existence and properties of interface object
-Fail	CSSMatrixComponent interface object length
-Fail	CSSMatrixComponent interface object name
-Fail	CSSMatrixComponent interface: existence and properties of interface prototype object
-Fail	CSSMatrixComponent interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSMatrixComponent interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSMatrixComponent interface: attribute matrix
+Pass	CSSMatrixComponent interface: existence and properties of interface object
+Pass	CSSMatrixComponent interface object length
+Pass	CSSMatrixComponent interface object name
+Pass	CSSMatrixComponent interface: existence and properties of interface prototype object
+Pass	CSSMatrixComponent interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSMatrixComponent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSMatrixComponent interface: attribute matrix
 Fail	CSSMatrixComponent must be primary interface of matrix
 Fail	Stringification of matrix
 Fail	CSSMatrixComponent interface: matrix must inherit property "matrix" with the proper type
