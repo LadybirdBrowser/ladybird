@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/PluginArray.h>
 #include <LibWeb/HTML/UserActivation.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
+#include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/Serial/Serial.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
 
@@ -62,6 +63,7 @@ public:
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
+    GC::Ref<MediaCapture::MediaDevices> media_devices();
 
     Optional<FlyString> do_not_track() const;
 
@@ -107,6 +109,8 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
+
+    GC::Ptr<MediaCapture::MediaDevices> m_media_devices;
 };
 
 }

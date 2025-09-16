@@ -1,0 +1,12 @@
+#import <DOM/EventTarget.idl>
+
+// https://www.w3.org/TR/mediacapture-streams/#webidl-2019836602
+[Exposed=Window, SecureContext]
+interface MediaDevices : EventTarget {
+    [FIXME] attribute EventHandler ondevicechange;
+    Promise<sequence<MediaDeviceInfo>> enumerateDevices();
+
+    // https://www.w3.org/TR/mediacapture-streams/#mediadevices-interface-extensions
+    [FIXME] MediaTrackSupportedConstraints getSupportedConstraints();
+    [FIXME] Promise<MediaStream> getUserMedia(optional MediaStreamConstraints constraints = {});
+};
