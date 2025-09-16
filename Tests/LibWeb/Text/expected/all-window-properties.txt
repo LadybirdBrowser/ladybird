@@ -58,6 +58,7 @@ CSSMathNegate
 CSSMathProduct
 CSSMathSum
 CSSMathValue
+CSSMatrixComponent
 CSSMediaRule
 CSSNamespaceRule
 CSSNestedDeclarations
