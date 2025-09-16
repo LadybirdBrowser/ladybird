@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Property animation-fill-mode value 'none, forwards, backwards, both'
+1 Pass
+Pass	Property animation-fill-mode value 'none, forwards, backwards, both'

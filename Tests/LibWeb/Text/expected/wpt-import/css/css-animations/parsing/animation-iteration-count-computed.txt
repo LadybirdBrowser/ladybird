@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Property animation-iteration-count value '0, infinite, 3'
+1 Pass
+1 Fail
+Pass	Property animation-iteration-count value '0, infinite, 3'
 Fail	Property animation-iteration-count value 'calc(10 + (sign(2cqw - 10px) * 5))'

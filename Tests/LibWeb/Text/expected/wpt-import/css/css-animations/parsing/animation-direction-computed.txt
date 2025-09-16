@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Property animation-direction value 'normal, reverse, alternate, alternate-reverse'
+1 Pass
+Pass	Property animation-direction value 'normal, reverse, alternate, alternate-reverse'

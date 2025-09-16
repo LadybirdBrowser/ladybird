@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Property animation-play-state value 'running, paused'
+1 Pass
+Pass	Property animation-play-state value 'running, paused'
