@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	e.style['animation-iteration-count'] = "0" should set the property value
+Pass	e.style['animation-iteration-count'] = "3" should set the property value
+Pass	e.style['animation-iteration-count'] = "4.5" should set the property value
+Pass	e.style['animation-iteration-count'] = "infinite" should set the property value
+Fail	e.style['animation-iteration-count'] = "0, infinite, 3" should set the property value
