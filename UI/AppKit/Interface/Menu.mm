@@ -91,6 +91,9 @@ public:
     virtual void on_visible_state_changed(WebView::Action& action) override
     {
         [m_control setHidden:!action.visible()];
+
+        if ([m_control isKindOfClass:[NSButton class]])
+            [m_control setBordered:action.visible()];
     }
 
     virtual void on_checked_state_changed(WebView::Action& action) override
