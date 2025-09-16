@@ -82,6 +82,7 @@ CSSStyleSheet
 CSSStyleValue
 CSSSupportsRule
 CSSTransformComponent
+CSSTransformValue
 CSSTransition
 CSSTranslate
 CSSUnitValue

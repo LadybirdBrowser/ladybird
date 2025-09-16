@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Constructing a CSSTransformValue with no components throws TypeError
-Fail	CSSTransformValue can be constructed with multiple transforms
-Fail	CSSTransformValue.set correctly sets the CSSTransformComponent at the given index
-Fail	Setting a component in CSSTransformValue correctly appends the CSSTransformComponent if index specified is greater than length
-Fail	CSSTransformValue.is2D is false when given mix of 2D and 3D transforms
-Fail	CSSTransformValue.is2D is true when given only 2D transforms
-Fail	CSSTransformValue.is2D is readonly
-Fail	Can iterate through CSSTransformValue components
+8 Pass
+Pass	Constructing a CSSTransformValue with no components throws TypeError
+Pass	CSSTransformValue can be constructed with multiple transforms
+Pass	CSSTransformValue.set correctly sets the CSSTransformComponent at the given index
+Pass	Setting a component in CSSTransformValue correctly appends the CSSTransformComponent if index specified is greater than length
+Pass	CSSTransformValue.is2D is false when given mix of 2D and 3D transforms
+Pass	CSSTransformValue.is2D is true when given only 2D transforms
+Pass	CSSTransformValue.is2D is readonly
+Pass	Can iterate through CSSTransformValue components

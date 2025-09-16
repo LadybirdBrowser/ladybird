@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-360 Pass
-185 Fail
+370 Pass
+175 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -248,16 +248,16 @@ Pass	CSSNumericArray interface: existence and properties of interface prototype 
 Pass	CSSNumericArray interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSNumericArray interface: iterable<CSSNumericValue>
 Pass	CSSNumericArray interface: attribute length
-Fail	CSSTransformValue interface: existence and properties of interface object
-Fail	CSSTransformValue interface object length
-Fail	CSSTransformValue interface object name
-Fail	CSSTransformValue interface: existence and properties of interface prototype object
-Fail	CSSTransformValue interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSTransformValue interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSTransformValue interface: iterable<CSSTransformComponent>
-Fail	CSSTransformValue interface: attribute length
-Fail	CSSTransformValue interface: attribute is2D
-Fail	CSSTransformValue interface: operation toMatrix()
+Pass	CSSTransformValue interface: existence and properties of interface object
+Pass	CSSTransformValue interface object length
+Pass	CSSTransformValue interface object name
+Pass	CSSTransformValue interface: existence and properties of interface prototype object
+Pass	CSSTransformValue interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSTransformValue interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSTransformValue interface: iterable<CSSTransformComponent>
+Pass	CSSTransformValue interface: attribute length
+Pass	CSSTransformValue interface: attribute is2D
+Pass	CSSTransformValue interface: operation toMatrix()
 Fail	CSSTransformValue must be primary interface of transformValue
 Fail	Stringification of transformValue
 Fail	CSSTransformValue interface: transformValue must inherit property "length" with the proper type
