@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	CSSTranslate.toMatrix() containing relative units throws TypeError
-Fail	CSSPerspective.toMatrix() containing relative units throws TypeError
+Pass	CSSPerspective.toMatrix() containing relative units throws TypeError
