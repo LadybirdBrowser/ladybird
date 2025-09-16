@@ -150,6 +150,7 @@ set(SOURCES
     CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransformComponent.cpp
+    CSS/CSSTransformValue.cpp
     CSS/CSSTransition.cpp
     CSS/CSSTranslate.cpp
     CSS/CSSUnitValue.cpp
