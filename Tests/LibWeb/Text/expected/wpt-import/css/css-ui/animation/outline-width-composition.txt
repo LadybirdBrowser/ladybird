@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to add [200px] at (-0.3) should be [120px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to add [200px] at (0) should be [150px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to add [200px] at (0.5) should be [200px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to add [200px] at (1) should be [250px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to add [200px] at (1.5) should be [300px]
+Pass	Compositing: property <outline-width> underlying [100px] from add [10px] to add [2px] at (-0.5) should be [114px]
+Pass	Compositing: property <outline-width> underlying [100px] from add [10px] to add [2px] at (0) should be [110px]
+Pass	Compositing: property <outline-width> underlying [100px] from add [10px] to add [2px] at (0.5) should be [106px]
+Pass	Compositing: property <outline-width> underlying [100px] from add [10px] to add [2px] at (1) should be [102px]
+Pass	Compositing: property <outline-width> underlying [100px] from add [10px] to add [2px] at (1.5) should be [98px]
+Pass	Compositing: property <outline-width> underlying [10em] from add [100px] to add [20em] at (-0.3) should be [calc(130px + 4em)]
+Pass	Compositing: property <outline-width> underlying [10em] from add [100px] to add [20em] at (0) should be [calc(100px + 10em)]
+Pass	Compositing: property <outline-width> underlying [10em] from add [100px] to add [20em] at (0.5) should be [calc(50px + 20em)]
+Pass	Compositing: property <outline-width> underlying [10em] from add [100px] to add [20em] at (1) should be [30em]
+Pass	Compositing: property <outline-width> underlying [10em] from add [100px] to add [20em] at (1.5) should be [calc(-50px + 40em)]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to replace [200px] at (-0.3) should be [135px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to replace [200px] at (0) should be [150px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to replace [200px] at (0.5) should be [175px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to replace [200px] at (1) should be [200px]
+Pass	Compositing: property <outline-width> underlying [50px] from add [100px] to replace [200px] at (1.5) should be [225px]
+Pass	Compositing: property <outline-width> underlying [thick] from add [11px] to add [thin] at (-0.3) should be [19px]
+Pass	Compositing: property <outline-width> underlying [thick] from add [11px] to add [thin] at (0) should be [16px]
+Pass	Compositing: property <outline-width> underlying [thick] from add [11px] to add [thin] at (0.5) should be [11px]
+Pass	Compositing: property <outline-width> underlying [thick] from add [11px] to add [thin] at (1) should be [6px]
+Pass	Compositing: property <outline-width> underlying [thick] from add [11px] to add [thin] at (1.5) should be [1px]
+Pass	Compositing: property <outline-width> underlying [thick] from add [11px] to add [thin] at (2) should be [0px]
