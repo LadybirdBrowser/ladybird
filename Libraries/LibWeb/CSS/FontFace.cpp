@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -83,6 +84,10 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
             font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id))));
             return {};
         }
+
+        if (result->is_custom_ident())
+            return result->as_custom_ident().custom_ident().to_string();
+
         return result->to_string(SerializationMode::Normal);
     };
     font_face->m_family = try_parse_descriptor(DescriptorID::FontFamily, family);
@@ -225,7 +230,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-family property
     }
 
-    m_family = property->to_string(SerializationMode::Normal);
+    m_family = property->as_custom_ident().custom_ident().to_string();
 
     return {};
 }
