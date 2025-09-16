@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['animation-play-state'] = "auto" should not set the property value
+Pass	e.style['animation-play-state'] = "paused running" should not set the property value
+Pass	e.style['animation-play-state'] = "paused, initial" should not set the property value
+Pass	e.style['animation-play-state'] = "initial, paused" should not set the property value

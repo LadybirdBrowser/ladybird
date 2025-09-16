@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+21 Pass
+6 Fail
+Pass	Property animation-name value 'none'
+Pass	Property animation-name value 'NONE'
+Pass	Property animation-name value 'foo'
+Pass	Property animation-name value 'Both'
+Pass	Property animation-name value 'ease-in'
+Pass	Property animation-name value 'infinite'
+Pass	Property animation-name value 'paused'
+Fail	Property animation-name value 'first, second, third'
+Fail	Property animation-name value '"something"'
+Fail	Property animation-name value '"---\22---"'
+Fail	Property animation-name value '"multi word string"'
+Pass	Property animation-name value '"none"'
+Fail	Property animation-name value '"none", "INITIAL", "inherit"'
+Fail	Property animation-name value '"none", both, ease-in'
+Pass	Property animation-name value '"NoNe"'
+Pass	Property animation-name value '"initial"'
+Pass	Property animation-name value '"INITIAL"'
+Pass	Property animation-name value '"inherit"'
+Pass	Property animation-name value '"INHERIT"'
+Pass	Property animation-name value '"revert"'
+Pass	Property animation-name value '"REVERT"'
+Pass	Property animation-name value '"revert-layer"'
+Pass	Property animation-name value '"REVERT-LAYER"'
+Pass	Property animation-name value '"unset"'
+Pass	Property animation-name value '"UNSET"'
+Pass	Property animation-name value '"default"'
+Pass	Property animation-name value '"DEFAULT"'

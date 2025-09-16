@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+10 Pass
+2 Fail
+Pass	e.style['animation'] = "1s" should set the property value
+Pass	e.style['animation'] = "cubic-bezier(0, -2, 1, 3)" should set the property value
+Pass	e.style['animation'] = "cubic-bezier( 0, -2, 1, 3 )" should set the property value
+Pass	e.style['animation'] = "1s -3s" should set the property value
+Pass	e.style['animation'] = "4" should set the property value
+Pass	e.style['animation'] = "reverse" should set the property value
+Pass	e.style['animation'] = "both" should set the property value
+Pass	e.style['animation'] = "paused" should set the property value
+Pass	e.style['animation'] = "none" should set the property value
+Pass	e.style['animation'] = "anim" should set the property value
+Fail	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set the property value
+Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set the property value

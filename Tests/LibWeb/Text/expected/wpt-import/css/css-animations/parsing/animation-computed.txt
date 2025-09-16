@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+11 Pass
+4 Fail
+Pass	Default animation value
+Pass	Property animation value '1s'
+Pass	Property animation value 'cubic-bezier(0, -2, 1, 3)'
+Pass	Property animation value 'ease-in-out'
+Pass	Property animation value '1s -3s'
+Pass	Property animation value '4'
+Pass	Property animation value 'reverse'
+Pass	Property animation value 'both'
+Pass	Property animation value 'paused'
+Pass	Property animation value 'none'
+Pass	Property animation value 'anim'
+Fail	Property animation value 'anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)'
+Fail	Property animation value 'anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)'
+Fail	Property animation value 'none, none'
+Fail	Animation with a delay but no duration

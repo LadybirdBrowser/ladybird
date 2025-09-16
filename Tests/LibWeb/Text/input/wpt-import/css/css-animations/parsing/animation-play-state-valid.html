@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: parsing animation-play-state with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations/#propdef-animation-play-state">
+<meta name="assert" content="animation-play-state supports the full grammar '<single-animation-play-state> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("animation-play-state", "running");
+test_valid_value("animation-play-state", "paused");
+test_valid_value("animation-play-state", "running, paused");
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	e.style['animation-play-state'] = "running" should set the property value
+Pass	e.style['animation-play-state'] = "paused" should set the property value
+Fail	e.style['animation-play-state'] = "running, paused" should set the property value

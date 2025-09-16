@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['animation-name'] = "12" should not set the property value
+Pass	e.style['animation-name'] = "one two" should not set the property value
+Pass	e.style['animation-name'] = "one, initial" should not set the property value
+Pass	e.style['animation-name'] = "one, inherit" should not set the property value
+Pass	e.style['animation-name'] = "one, unset" should not set the property value
+Pass	e.style['animation-name'] = "default, two" should not set the property value
+Pass	e.style['animation-name'] = "revert, three" should not set the property value
+Pass	e.style['animation-name'] = "revert-layer, four" should not set the property value

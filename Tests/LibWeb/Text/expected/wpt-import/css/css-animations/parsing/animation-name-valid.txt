@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+21 Pass
+6 Fail
+Pass	e.style['animation-name'] = "none" should set the property value
+Pass	e.style['animation-name'] = "NONE" should set the property value
+Pass	e.style['animation-name'] = "foo" should set the property value
+Pass	e.style['animation-name'] = "Both" should set the property value
+Pass	e.style['animation-name'] = "ease-in" should set the property value
+Pass	e.style['animation-name'] = "infinite" should set the property value
+Pass	e.style['animation-name'] = "paused" should set the property value
+Fail	e.style['animation-name'] = "first, second, third" should set the property value
+Fail	e.style['animation-name'] = "\"something\"" should set the property value
+Fail	e.style['animation-name'] = "\"---\\22---\"" should set the property value
+Fail	e.style['animation-name'] = "\"multi word string\"" should set the property value
+Pass	e.style['animation-name'] = "\"none\"" should set the property value
+Fail	e.style['animation-name'] = "\"none\", \"INITIAL\", \"inherit\"" should set the property value
+Fail	e.style['animation-name'] = "\"none\", both, ease-in" should set the property value
+Pass	e.style['animation-name'] = "\"NoNe\"" should set the property value
+Pass	e.style['animation-name'] = "\"initial\"" should set the property value
+Pass	e.style['animation-name'] = "\"INITIAL\"" should set the property value
+Pass	e.style['animation-name'] = "\"inherit\"" should set the property value
+Pass	e.style['animation-name'] = "\"INHERIT\"" should set the property value
+Pass	e.style['animation-name'] = "\"revert\"" should set the property value
+Pass	e.style['animation-name'] = "\"REVERT\"" should set the property value
+Pass	e.style['animation-name'] = "\"revert-layer\"" should set the property value
+Pass	e.style['animation-name'] = "\"REVERT-LAYER\"" should set the property value
+Pass	e.style['animation-name'] = "\"unset\"" should set the property value
+Pass	e.style['animation-name'] = "\"UNSET\"" should set the property value
+Pass	e.style['animation-name'] = "\"default\"" should set the property value
+Pass	e.style['animation-name'] = "\"DEFAULT\"" should set the property value
