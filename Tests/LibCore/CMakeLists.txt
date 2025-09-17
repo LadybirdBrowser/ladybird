@@ -12,6 +12,10 @@ set(TEST_SOURCES
 if (NOT WIN32)
     list(APPEND TEST_SOURCES
         TestLibCoreDateTime.cpp
+    )
+endif()
+if (LINUX)
+    list(APPEND TEST_SOURCES
         TestLibCoreFileWatcher.cpp
     )
 endif()
