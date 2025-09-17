@@ -72,7 +72,7 @@ void CSSRule::clear_caches()
     m_cached_layer_name.clear();
 }
 
-FlyString const& CSSRule::parent_layer_internal_qualified_name_slow_case() const
+FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
 {
     Vector<FlyString> layer_names;
     for (auto* rule = parent_rule(); rule; rule = rule->parent_rule()) {
@@ -105,8 +105,7 @@ FlyString const& CSSRule::parent_layer_internal_qualified_name_slow_case() const
         }
     }
 
-    m_cached_layer_name = MUST(String::join("."sv, layer_names.in_reverse()));
-    return m_cached_layer_name.value();
+    return MUST(String::join('.', layer_names.in_reverse()));
 }
 
 }

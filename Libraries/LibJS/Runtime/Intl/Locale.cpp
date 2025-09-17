@@ -38,9 +38,7 @@ Locale::Locale(Object& prototype)
 
 Unicode::LocaleID const& Locale::locale_id() const
 {
-    if (!m_cached_locale_id.has_value())
-        m_cached_locale_id = Unicode::parse_unicode_locale_id(locale());
-    return *m_cached_locale_id;
+    return m_cached_locale_id.ensure([&] { return Unicode::parse_unicode_locale_id(locale()); });
 }
 
 // 15.5.5 GetLocaleVariants ( locale ), https://tc39.es/ecma402/#sec-getlocalevariants

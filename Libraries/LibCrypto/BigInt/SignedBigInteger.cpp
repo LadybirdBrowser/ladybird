@@ -360,13 +360,11 @@ FLATTEN SignedBigInteger SignedBigInteger::negated_value() const
 
 u32 SignedBigInteger::hash() const
 {
-    if (m_hash.has_value())
-        return *m_hash;
-
-    auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
-    auto result = export_data(buffer);
-    m_hash = string_hash(reinterpret_cast<char const*>(result.data()), result.size());
-    return *m_hash;
+    return m_hash.ensure([&] {
+        auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
+        auto result = export_data(buffer);
+        return string_hash(reinterpret_cast<char const*>(result.data()), result.size());
+    });
 }
 
 bool SignedBigInteger::operator==(SignedBigInteger const& other) const

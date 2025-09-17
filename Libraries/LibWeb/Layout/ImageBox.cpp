@@ -45,11 +45,9 @@ void ImageBox::prepare_for_replaced_layout()
             set_natural_height(0);
         } else {
             auto font = Platform::FontPlugin::the().default_font(12);
-            CSSPixels alt_text_width = 0;
-            if (!m_cached_alt_text_width.has_value())
-                m_cached_alt_text_width = CSSPixels::nearest_value_for(font->width(alt));
-            alt_text_width = m_cached_alt_text_width.value();
-
+            CSSPixels alt_text_width = m_cached_alt_text_width.ensure([&] {
+                return CSSPixels::nearest_value_for(font->width(alt));
+            });
             set_natural_width(alt_text_width + 16);
             set_natural_height(CSSPixels::nearest_value_for(font->pixel_size()) + 16);
         }
