@@ -197,12 +197,15 @@ static void initialize_native_control(WebView::Action& action, id control)
         break;
 
     case WebView::ActionID::ZoomIn:
+        set_control_image(control, @"plus.magnifyingglass");
         [control setKeyEquivalent:@"+"];
         break;
     case WebView::ActionID::ZoomOut:
+        set_control_image(control, @"minus.magnifyingglass");
         [control setKeyEquivalent:@"-"];
         break;
     case WebView::ActionID::ResetZoom:
+        set_control_image(control, @"1.magnifyingglass");
         [control setKeyEquivalent:@"0"];
         break;
 
