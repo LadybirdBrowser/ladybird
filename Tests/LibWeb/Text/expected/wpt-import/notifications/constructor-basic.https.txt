@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	Called the notification constructor with one argument.
+Fail	Constructing a notification without a NotificationOptions defaults to null.
+Fail	constructing a notification with a NotificationOptions dictionary correctly sets and reflects the silent attribute.
