@@ -94,6 +94,8 @@ public:
     ErrorOr<DevtoolsState> toggle_devtools_enabled();
     void refresh_tab_list();
 
+    Optional<Core::TimeZoneWatcher&> time_zone_watcher();
+
 protected:
     explicit Application(Optional<ByteString> ladybird_binary_path = {});
 
