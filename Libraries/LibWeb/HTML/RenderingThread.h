@@ -10,8 +10,8 @@
 #include <AK/Queue.h>
 #include <LibCore/Promise.h>
 #include <LibThreading/ConditionVariable.h>
+#include <LibThreading/Forward.h>
 #include <LibThreading/Mutex.h>
-#include <LibThreading/Thread.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 

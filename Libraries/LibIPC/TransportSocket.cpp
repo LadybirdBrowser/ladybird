@@ -9,6 +9,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportSocket.h>
+#include <LibThreading/Thread.h>
 
 namespace IPC {
 

@@ -16,7 +16,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
-#include <LibThreading/Thread.h>
+#include <LibThreading/Forward.h>
 
 namespace Threading {
 
