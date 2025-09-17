@@ -199,10 +199,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         Settings::the()->set_show_menubar(checked);
     });
 
-    auto* inspect_menu = m_hamburger_menu->addMenu("&Inspect");
-    inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().view_source_action()));
-    inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().toggle_devtools_action()));
-    inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().open_processes_page_action()));
+    auto* inspect_menu = create_application_menu(*m_hamburger_menu, Application::the().inspect_menu());
+    m_hamburger_menu->addMenu(inspect_menu);
     menuBar()->addMenu(inspect_menu);
 
     auto* debug_menu = create_application_menu(*m_hamburger_menu, Application::the().debug_menu());

@@ -679,19 +679,8 @@ void Application::initialize_actions()
     m_open_about_page_action = Action::create("About Ladybird"sv, ActionID::OpenAboutPage, [this]() {
         open_url_in_new_tab(URL::about_version(), Web::HTML::ActivateTab::Yes);
     });
-    m_open_processes_page_action = Action::create("Open Task Manager"sv, ActionID::OpenProcessesPage, [this]() {
-        open_url_in_new_tab(URL::about_processes(), Web::HTML::ActivateTab::Yes);
-    });
     m_open_settings_page_action = Action::create("Settings"sv, ActionID::OpenSettingsPage, [this]() {
         open_url_in_new_tab(URL::about_settings(), Web::HTML::ActivateTab::Yes);
-    });
-    m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
-        if (auto result = toggle_devtools_enabled(); result.is_error())
-            display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
-    });
-    m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            view->get_source();
     });
 
     m_zoom_menu = Menu::create_group("Zoom"sv);
@@ -762,8 +751,25 @@ void Application::initialize_actions()
     m_motion_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::NoPreference)));
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
-    m_debug_menu = Menu::create("Debug"sv);
+    m_inspect_menu = Menu::create("Inspect"sv);
 
+    m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->get_source();
+    });
+    m_inspect_menu->add_action(*m_view_source_action);
+
+    m_inspect_menu->add_action(Action::create("Open Task Manager"sv, ActionID::OpenProcessesPage, [this]() {
+        open_url_in_new_tab(URL::about_processes(), Web::HTML::ActivateTab::Yes);
+    }));
+
+    m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
+        if (auto result = toggle_devtools_enabled(); result.is_error())
+            display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
+    });
+    m_inspect_menu->add_action(*m_toggle_devtools_action);
+
+    m_debug_menu = Menu::create("Debug"sv);
     m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
     m_debug_menu->add_action(Action::create("Dump DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
     m_debug_menu->add_action(Action::create("Dump Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
