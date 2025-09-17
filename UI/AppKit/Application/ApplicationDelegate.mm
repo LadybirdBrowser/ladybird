@@ -356,13 +356,10 @@
 - (NSMenuItem*)createInspectMenu
 {
     auto* menu = [[NSMenuItem alloc] init];
-    auto* submenu = [[NSMenu alloc] initWithTitle:@"Inspect"];
 
-    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().view_source_action())];
-    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().toggle_devtools_action())];
-    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().open_processes_page_action())];
-
+    auto* submenu = Ladybird::create_application_menu(WebView::Application::the().inspect_menu());
     [menu setSubmenu:submenu];
+
     return menu;
 }
 

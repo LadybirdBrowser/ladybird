@@ -81,10 +81,7 @@ public:
     Action& select_all_action() { return *m_select_all_action; }
 
     Action& open_about_page_action() { return *m_open_about_page_action; }
-    Action& open_processes_page_action() { return *m_open_processes_page_action; }
     Action& open_settings_page_action() { return *m_open_settings_page_action; }
-    Action& toggle_devtools_action() { return *m_toggle_devtools_action; }
-    Action& view_source_action() { return *m_view_source_action; }
 
     Menu& zoom_menu() { return *m_zoom_menu; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
@@ -92,6 +89,10 @@ public:
     Menu& color_scheme_menu() { return *m_color_scheme_menu; }
     Menu& contrast_menu() { return *m_contrast_menu; }
     Menu& motion_menu() { return *m_motion_menu; }
+
+    Menu& inspect_menu() { return *m_inspect_menu; }
+    Action& view_source_action() { return *m_view_source_action; }
+
     Menu& debug_menu() { return *m_debug_menu; }
 
     void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
@@ -187,10 +188,7 @@ private:
     RefPtr<Action> m_select_all_action;
 
     RefPtr<Action> m_open_about_page_action;
-    RefPtr<Action> m_open_processes_page_action;
     RefPtr<Action> m_open_settings_page_action;
-    RefPtr<Action> m_toggle_devtools_action;
-    RefPtr<Action> m_view_source_action;
 
     RefPtr<Menu> m_zoom_menu;
     RefPtr<Action> m_reset_zoom_action;
@@ -203,6 +201,10 @@ private:
 
     RefPtr<Menu> m_motion_menu;
     Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
+
+    RefPtr<Menu> m_inspect_menu;
+    RefPtr<Action> m_view_source_action;
+    RefPtr<Action> m_toggle_devtools_action;
 
     RefPtr<Menu> m_debug_menu;
     RefPtr<Action> m_show_line_box_borders_action;
