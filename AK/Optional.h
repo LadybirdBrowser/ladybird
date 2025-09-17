@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Daniel Bertalan <dani@danielbertalan.dev>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -121,6 +122,14 @@ public:
         if (static_cast<Self const&>(*this).has_value())
             return static_cast<Self const&>(*this).value();
         return TRY(callback());
+    }
+
+    template<typename Callable>
+    [[nodiscard]] ALWAYS_INLINE constexpr T& ensure(Callable callable) &
+    {
+        if (!static_cast<Self&>(*this).has_value())
+            static_cast<Self&>(*this) = callable();
+        return static_cast<Self&>(*this).value();
     }
 
     [[nodiscard]] ALWAYS_INLINE constexpr T const& operator*() const { return static_cast<Self const&>(*this).value(); }
@@ -602,6 +611,14 @@ public:
         if (m_pointer != nullptr)
             return value();
         return TRY(callback());
+    }
+
+    template<typename Callback>
+    [[nodiscard]] ALWAYS_INLINE constexpr T ensure(Callback callback) &
+    {
+        if (m_pointer == nullptr)
+            m_pointer = &callback();
+        return *m_pointer;
     }
 
     template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
