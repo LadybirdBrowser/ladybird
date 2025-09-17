@@ -18,14 +18,10 @@ namespace Unicode {
 
 static Optional<String> cached_system_time_zone;
 
-String current_time_zone()
+static String current_time_zone_impl(OwnPtr<icu::TimeZone> time_zone)
 {
-    if (cached_system_time_zone.has_value())
-        return *cached_system_time_zone;
-
     UErrorCode status = U_ZERO_ERROR;
 
-    auto time_zone = adopt_own_if_nonnull(icu::TimeZone::createDefault());
     if (!time_zone || *time_zone == icu::TimeZone::getUnknown())
         return "UTC"_string;
 
@@ -38,8 +34,22 @@ String current_time_zone()
     if (icu_failure(status))
         return "UTC"_string;
 
-    cached_system_time_zone = icu_string_to_string(time_zone_name);
-    return *cached_system_time_zone;
+    return icu_string_to_string(time_zone_name);
+}
+
+static String current_host_time_zone()
+{
+    return current_time_zone_impl(adopt_own_if_nonnull(icu::TimeZone::detectHostTimeZone()));
+}
+
+static String current_default_time_zone()
+{
+    return current_time_zone_impl(adopt_own_if_nonnull(icu::TimeZone::createDefault()));
+}
+
+String current_time_zone()
+{
+    return cached_system_time_zone.ensure([] { return current_host_time_zone(); });
 }
 
 void clear_system_time_zone_cache()
@@ -54,7 +64,7 @@ ErrorOr<void> set_current_time_zone(StringView time_zone)
         return Error::from_string_literal("Unable to find the provided time zone");
 
     icu::TimeZone::setDefault(time_zone_data->time_zone());
-    clear_system_time_zone_cache();
+    cached_system_time_zone = current_default_time_zone();
 
     return {};
 }
