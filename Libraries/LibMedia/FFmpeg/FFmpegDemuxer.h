@@ -37,7 +37,7 @@ public:
 
     virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) override;
 
-    virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) override;
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) override;
 
 private:
     DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);

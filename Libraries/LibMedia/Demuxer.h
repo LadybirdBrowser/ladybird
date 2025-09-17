@@ -10,8 +10,8 @@
 #include <LibCore/EventReceiver.h>
 
 #include "CodecID.h"
+#include "CodedFrame.h"
 #include "DecoderError.h"
-#include "Sample.h"
 #include "Track.h"
 
 namespace Media {
@@ -25,7 +25,7 @@ public:
     // given type is present.
     virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) = 0;
 
-    virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) = 0;
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) = 0;
 
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) = 0;
 

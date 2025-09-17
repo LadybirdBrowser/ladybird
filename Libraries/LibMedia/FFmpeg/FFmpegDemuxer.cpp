@@ -163,7 +163,7 @@ DecoderErrorOr<ReadonlyBytes> FFmpegDemuxer::get_codec_initialization_data_for_t
     return ReadonlyBytes { stream->codecpar->extradata, static_cast<size_t>(stream->codecpar->extradata_size) };
 }
 
-DecoderErrorOr<Sample> FFmpegDemuxer::get_next_sample_for_track(Track track)
+DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track track)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
@@ -199,10 +199,10 @@ DecoderErrorOr<Sample> FFmpegDemuxer::get_next_sample_for_track(Track track)
         // to wipe the packet afterwards.
         auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(m_packet->data, m_packet->size));
 
-        auto sample = Sample(
+        auto sample = CodedFrame(
             time_units_to_duration(m_packet->pts, stream->time_base),
             move(packet_data),
-            VideoSampleData(CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range)));
+            CodedVideoFrameData(CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range)));
 
         // Wipe the packet now that the data is safe.
         av_packet_unref(m_packet);

@@ -39,7 +39,7 @@ public:
 
     DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) override;
 
-    DecoderErrorOr<Sample> get_next_sample_for_track(Track track) override;
+    DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) override;
 
 private:
     struct TrackStatus {
