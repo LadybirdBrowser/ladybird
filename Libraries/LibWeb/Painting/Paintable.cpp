@@ -68,14 +68,12 @@ CSS::Display Paintable::display() const
 
 PaintableBox* Paintable::containing_block() const
 {
-    if (!m_containing_block.has_value()) {
+    return m_containing_block.ensure([&] -> GC::Ptr<PaintableBox> {
         auto containing_layout_box = m_layout_node->containing_block();
-        if (containing_layout_box)
-            m_containing_block = const_cast<PaintableBox*>(containing_layout_box->paintable_box());
-        else
-            m_containing_block = nullptr;
-    }
-    return *m_containing_block;
+        if (!containing_layout_box)
+            return nullptr;
+        return const_cast<PaintableBox*>(containing_layout_box->paintable_box());
+    });
 }
 
 CSS::ImmutableComputedValues const& Paintable::computed_values() const

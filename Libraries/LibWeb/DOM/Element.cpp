@@ -4053,9 +4053,7 @@ GC::Ptr<NamedNodeMap const> Element::attributes() const
 
 FlyString const& Element::html_uppercased_qualified_name() const
 {
-    if (!m_html_uppercased_qualified_name.has_value())
-        m_html_uppercased_qualified_name = make_html_uppercased_qualified_name();
-    return m_html_uppercased_qualified_name.value();
+    return m_html_uppercased_qualified_name.ensure([&] { return make_html_uppercased_qualified_name(); });
 }
 
 void Element::play_or_cancel_animations_after_display_property_change()

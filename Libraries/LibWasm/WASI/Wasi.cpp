@@ -315,41 +315,29 @@ static FDFlags fd_flags_of(struct stat const& buf);
 
 Vector<AK::String> const& Implementation::arguments() const
 {
-    if (!cache.cached_arguments.has_value()) {
-        cache.cached_arguments.lazy_emplace([&] {
-            if (provide_arguments)
-                return provide_arguments();
-            return Vector<AK::String> {};
-        });
-    }
-
-    return *cache.cached_arguments;
+    return cache.cached_arguments.ensure([&] {
+        if (provide_arguments)
+            return provide_arguments();
+        return Vector<AK::String> {};
+    });
 }
 
 Vector<AK::String> const& Implementation::environment() const
 {
-    if (!cache.cached_environment.has_value()) {
-        cache.cached_environment.lazy_emplace([&] {
-            if (provide_environment)
-                return provide_environment();
-            return Vector<AK::String> {};
-        });
-    }
-
-    return *cache.cached_environment;
+    return cache.cached_environment.ensure([&] {
+        if (provide_environment)
+            return provide_environment();
+        return Vector<AK::String> {};
+    });
 }
 
 Vector<Implementation::MappedPath> const& Implementation::preopened_directories() const
 {
-    if (!cache.cached_preopened_directories.has_value()) {
-        cache.cached_preopened_directories.lazy_emplace([&] {
-            if (provide_preopened_directories)
-                return provide_preopened_directories();
-            return Vector<MappedPath> {};
-        });
-    }
-
-    return *cache.cached_preopened_directories;
+    return cache.cached_preopened_directories.ensure([&] {
+        if (provide_preopened_directories)
+            return provide_preopened_directories();
+        return Vector<MappedPath> {};
+    });
 }
 
 Implementation::Descriptor Implementation::map_fd(FD fd)

@@ -53,9 +53,7 @@ public:
 
     Vector<Test::Suite>& ensure_suites()
     {
-        if (!m_suites.has_value())
-            m_suites = Vector<Suite> {};
-        return *m_suites;
+        return m_suites.ensure([] { return Vector<Suite> {}; });
     }
 
 protected:

@@ -24,13 +24,12 @@ public:
 
     CSSPixelPoint cumulative_offset() const
     {
-        if (!m_cached_cumulative_offset.has_value()) {
-            m_cached_cumulative_offset = m_own_offset;
-            if (m_parent) {
-                m_cached_cumulative_offset.value() += m_parent->cumulative_offset();
-            }
-        }
-        return m_cached_cumulative_offset.value();
+        return m_cached_cumulative_offset.ensure([&] {
+            auto offset = m_own_offset;
+            if (m_parent)
+                offset += m_parent->cumulative_offset();
+            return offset;
+        });
     }
 
     CSSPixelPoint own_offset() const { return m_own_offset; }

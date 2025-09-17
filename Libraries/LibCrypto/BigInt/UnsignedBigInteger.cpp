@@ -359,13 +359,11 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::lcm(UnsignedBigInteger const& oth
 
 u32 UnsignedBigInteger::hash() const
 {
-    if (m_hash.has_value())
-        return *m_hash;
-
-    auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
-    auto result = export_data(buffer);
-    m_hash = string_hash(reinterpret_cast<char const*>(result.data()), result.size());
-    return *m_hash;
+    return m_hash.ensure([&] {
+        auto buffer = MUST(ByteBuffer::create_zeroed(byte_length()));
+        auto result = export_data(buffer);
+        return string_hash(reinterpret_cast<char const*>(result.data()), result.size());
+    });
 }
 
 bool UnsignedBigInteger::operator==(UnsignedBigInteger const& other) const

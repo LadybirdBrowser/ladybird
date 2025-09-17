@@ -213,9 +213,7 @@ void HTMLTextAreaElement::set_raw_value(Utf16String value)
 Utf16String HTMLTextAreaElement::api_value() const
 {
     // The algorithm for obtaining the element's API value is to return the element's raw value, with newlines normalized.
-    if (!m_api_value.has_value())
-        m_api_value = Infra::normalize_newlines(m_raw_value);
-    return *m_api_value;
+    return m_api_value.ensure([&] { return Infra::normalize_newlines(m_raw_value); });
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

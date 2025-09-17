@@ -70,12 +70,10 @@ protected:
 
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name() const
     {
-        if (!m_cached_layer_name.has_value())
-            return parent_layer_internal_qualified_name_slow_case();
-        return m_cached_layer_name.value();
+        return m_cached_layer_name.ensure([&] { return parent_layer_internal_qualified_name_slow_case(); });
     }
 
-    [[nodiscard]] FlyString const& parent_layer_internal_qualified_name_slow_case() const;
+    [[nodiscard]] FlyString parent_layer_internal_qualified_name_slow_case() const;
 
     Type m_type;
     GC::Ptr<CSSRule> m_parent_rule;
