@@ -90,6 +90,12 @@ elseif (APPLE AND NOT IOS)
         Platform/ProcessStatisticsMach.cpp
         TimeZoneWatcherMacOS.mm
     )
+elseif (WIN32)
+    list(APPEND SOURCES
+        FileWatcherUnimplemented.cpp
+        Platform/ProcessStatisticsUnimplemented.cpp
+        TimeZoneWatcherWindows.cpp
+    )
 else()
     list(APPEND SOURCES
         FileWatcherUnimplemented.cpp
