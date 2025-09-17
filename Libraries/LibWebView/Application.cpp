@@ -674,6 +674,15 @@ void Application::initialize_actions()
             view->select_all();
     });
 
+    m_open_about_page_action = Action::create("About Ladybird"sv, ActionID::OpenAboutPage, [this]() {
+        open_url_in_new_tab(URL::about_version(), Web::HTML::ActivateTab::Yes);
+    });
+    m_open_processes_page_action = Action::create("Open Task Manager"sv, ActionID::OpenProcessesPage, [this]() {
+        open_url_in_new_tab(URL::about_processes(), Web::HTML::ActivateTab::Yes);
+    });
+    m_open_settings_page_action = Action::create("Settings"sv, ActionID::OpenSettingsPage, [this]() {
+        open_url_in_new_tab(URL::about_settings(), Web::HTML::ActivateTab::Yes);
+    });
     m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->get_source();

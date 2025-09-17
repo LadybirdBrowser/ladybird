@@ -166,14 +166,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(m_find_in_page_action, &QAction::triggered, this, &BrowserWindow::show_find_in_page);
 
     edit_menu->addSeparator();
-
-    auto* settings_action = new QAction("&Settings", this);
-    settings_action->setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"sv));
-    settings_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Preferences));
-    edit_menu->addAction(settings_action);
-    QObject::connect(settings_action, &QAction::triggered, this, [this] {
-        new_tab_from_url(URL::URL::about("settings"_string), Web::HTML::ActivateTab::Yes);
-    });
+    edit_menu->addAction(create_application_action(*edit_menu, Application::the().open_settings_page_action()));
 
     auto* view_menu = m_hamburger_menu->addMenu("&View");
     menuBar()->addMenu(view_menu);
@@ -235,13 +228,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         }
     });
 
-    auto* task_manager_action = new QAction("Open Task &Manager", this);
-    task_manager_action->setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"sv));
-    task_manager_action->setShortcuts({ QKeySequence("Ctrl+Shift+M") });
-    inspect_menu->addAction(task_manager_action);
-    QObject::connect(task_manager_action, &QAction::triggered, this, [this]() {
-        new_tab_from_url(URL::URL::about("processes"_string), Web::HTML::ActivateTab::Yes);
-    });
+    inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().open_processes_page_action()));
 
     auto* debug_menu = create_application_menu(*m_hamburger_menu, Application::the().debug_menu());
     m_hamburger_menu->addMenu(debug_menu);
@@ -250,11 +237,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* help_menu = m_hamburger_menu->addMenu("&Help");
     menuBar()->addMenu(help_menu);
 
-    auto* about_action = new QAction("&About Ladybird", this);
-    help_menu->addAction(about_action);
-    QObject::connect(about_action, &QAction::triggered, this, [this] {
-        new_tab_from_url(URL::about_version(), Web::HTML::ActivateTab::Yes);
-    });
+    help_menu->addAction(create_application_action(*help_menu, Application::the().open_about_page_action()));
 
     m_hamburger_menu->addSeparator();
     file_menu->addSeparator();

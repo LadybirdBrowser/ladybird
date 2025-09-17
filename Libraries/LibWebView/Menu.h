@@ -36,6 +36,9 @@ enum class ActionID {
     TakeVisibleScreenshot,
     TakeFullScreenshot,
 
+    OpenAboutPage,
+    OpenProcessesPage,
+    OpenSettingsPage,
     ViewSource,
 
     OpenInNewTab,
