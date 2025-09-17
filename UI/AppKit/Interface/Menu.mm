@@ -155,6 +155,10 @@ static void initialize_native_control(WebView::Action& action, id control)
         set_control_image(control, @"gearshape");
         [control setKeyEquivalent:@","];
         break;
+    case WebView::ActionID::ToggleDevTools:
+        set_control_image(control, @"chevron.left.chevron.right");
+        [control setKeyEquivalent:@"I"];
+        break;
     case WebView::ActionID::ViewSource:
         set_control_image(control, @"text.document");
         [control setKeyEquivalent:@"u"];

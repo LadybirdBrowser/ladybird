@@ -98,6 +98,22 @@ void Application::display_error_dialog(StringView error_message) const
                    completionHandler:nil];
 }
 
+void Application::on_devtools_enabled() const
+{
+    WebView::Application::on_devtools_enabled();
+
+    ApplicationDelegate* delegate = [NSApp delegate];
+    [delegate onDevtoolsEnabled];
+}
+
+void Application::on_devtools_disabled() const
+{
+    WebView::Application::on_devtools_disabled();
+
+    ApplicationDelegate* delegate = [NSApp delegate];
+    [delegate onDevtoolsDisabled];
+}
+
 }
 
 @interface Application ()

@@ -37,4 +37,7 @@
 
 - (void)removeTab:(nonnull TabController*)controller;
 
+- (void)onDevtoolsEnabled;
+- (void)onDevtoolsDisabled;
+
 @end

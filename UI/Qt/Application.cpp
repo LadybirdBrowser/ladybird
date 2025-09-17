@@ -134,4 +134,20 @@ void Application::display_error_dialog(StringView error_message) const
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
 }
 
+void Application::on_devtools_enabled() const
+{
+    WebView::Application::on_devtools_enabled();
+
+    if (m_active_window)
+        m_active_window->on_devtools_enabled();
+}
+
+void Application::on_devtools_disabled() const
+{
+    WebView::Application::on_devtools_disabled();
+
+    if (m_active_window)
+        m_active_window->on_devtools_disabled();
+}
+
 }

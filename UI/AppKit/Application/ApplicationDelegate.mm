@@ -25,8 +25,6 @@
 
 @property (nonatomic, strong) InfoBar* info_bar;
 
-@property (nonatomic, strong) NSMenuItem* toggle_devtools_menu_item;
-
 - (NSMenuItem*)createApplicationMenu;
 - (NSMenuItem*)createFileMenu;
 - (NSMenuItem*)createEditMenu;
@@ -124,6 +122,30 @@
     [self.managed_tabs removeObject:controller];
 }
 
+- (void)onDevtoolsEnabled
+{
+    if (!self.info_bar) {
+        self.info_bar = [[InfoBar alloc] init];
+    }
+
+    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
+
+    [self.info_bar showWithMessage:Ladybird::string_to_ns_string(message)
+                dismissButtonTitle:@"Disable"
+              dismissButtonClicked:^{
+                  MUST(WebView::Application::the().toggle_devtools_enabled());
+              }
+                         activeTab:self.active_tab];
+}
+
+- (void)onDevtoolsDisabled
+{
+    if (self.info_bar) {
+        [self.info_bar hide];
+        self.info_bar = nil;
+    }
+}
+
 #pragma mark - Private methods
 
 - (void)openLocation:(id)sender
@@ -176,57 +198,6 @@
 {
     auto* current_window = [NSApp keyWindow];
     [current_window close];
-}
-
-- (void)toggleDevToolsEnabled:(id)sender
-{
-    if (auto result = WebView::Application::the().toggle_devtools_enabled(); result.is_error()) {
-        auto error_message = MUST(String::formatted("Unable to start DevTools: {}", result.error()));
-
-        auto* dialog = [[NSAlert alloc] init];
-        [dialog setMessageText:Ladybird::string_to_ns_string(error_message)];
-
-        [dialog beginSheetModalForWindow:self.active_tab
-                       completionHandler:nil];
-    } else {
-        switch (result.value()) {
-        case WebView::Application::DevtoolsState::Disabled:
-            [self devtoolsDisabled];
-            break;
-        case WebView::Application::DevtoolsState::Enabled:
-            [self devtoolsEnabled];
-            break;
-        }
-    }
-}
-
-- (void)devtoolsDisabled
-{
-    [self.toggle_devtools_menu_item setTitle:@"Enable DevTools"];
-
-    if (self.info_bar) {
-        [self.info_bar hide];
-        self.info_bar = nil;
-    }
-}
-
-- (void)devtoolsEnabled
-{
-    [self.toggle_devtools_menu_item setTitle:@"Disable DevTools"];
-
-    if (!self.info_bar) {
-        self.info_bar = [[InfoBar alloc] init];
-    }
-
-    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
-
-    [self.info_bar showWithMessage:Ladybird::string_to_ns_string(message)
-                dismissButtonTitle:@"Disable"
-              dismissButtonClicked:^{
-                  MUST(WebView::Application::the().toggle_devtools_enabled());
-                  [self devtoolsDisabled];
-              }
-                         activeTab:self.active_tab];
 }
 
 - (void)clearHistory:(id)sender
@@ -388,12 +359,7 @@
     auto* submenu = [[NSMenu alloc] initWithTitle:@"Inspect"];
 
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().view_source_action())];
-
-    self.toggle_devtools_menu_item = [[NSMenuItem alloc] initWithTitle:@"Enable DevTools"
-                                                                action:@selector(toggleDevToolsEnabled:)
-                                                         keyEquivalent:@"I"];
-    [submenu addItem:self.toggle_devtools_menu_item];
-
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().toggle_devtools_action())];
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().open_processes_page_action())];
 
     [menu setSubmenu:submenu];
@@ -439,7 +405,7 @@
     auto const& browser_options = WebView::Application::browser_options();
 
     if (browser_options.devtools_port.has_value())
-        [self devtoolsEnabled];
+        [self onDevtoolsEnabled];
 
     Tab* tab = nil;
 

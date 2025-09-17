@@ -453,6 +453,8 @@ ErrorOr<void> Application::launch_devtools_server()
         m_browser_options.devtools_port = WebView::default_devtools_port;
 
     m_devtools = TRY(DevTools::DevToolsServer::create(*this, *m_browser_options.devtools_port));
+    on_devtools_enabled();
+
     return {};
 }
 
@@ -683,6 +685,10 @@ void Application::initialize_actions()
     m_open_settings_page_action = Action::create("Settings"sv, ActionID::OpenSettingsPage, [this]() {
         open_url_in_new_tab(URL::about_settings(), Web::HTML::ActivateTab::Yes);
     });
+    m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
+        if (auto result = toggle_devtools_enabled(); result.is_error())
+            display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
+    });
     m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->get_source();
@@ -833,15 +839,26 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
 }
 
-ErrorOr<Application::DevtoolsState> Application::toggle_devtools_enabled()
+ErrorOr<void> Application::toggle_devtools_enabled()
 {
     if (m_devtools) {
         m_devtools.clear();
-        return DevtoolsState::Disabled;
+        on_devtools_disabled();
+    } else {
+        TRY(launch_devtools_server());
     }
 
-    TRY(launch_devtools_server());
-    return DevtoolsState::Enabled;
+    return {};
+}
+
+void Application::on_devtools_enabled() const
+{
+    m_toggle_devtools_action->set_text("Disable DevTools"sv);
+}
+
+void Application::on_devtools_disabled() const
+{
+    m_toggle_devtools_action->set_text("Enable DevTools"sv);
 }
 
 void Application::refresh_tab_list()
