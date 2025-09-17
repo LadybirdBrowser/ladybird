@@ -537,7 +537,7 @@ struct CDS : public DS {
     static constexpr ResourceType type = ResourceType::CDS;
     static ErrorOr<CDS> from_raw(ParseContext& raw) { return DS::from_raw(raw); }
 };
-struct SIG {
+struct DNS_API SIG {
     ResourceType type_covered;
     DNSSEC::Algorithm algorithm;
     u8 label_count;
