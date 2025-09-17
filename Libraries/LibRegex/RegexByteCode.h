@@ -640,7 +640,7 @@ StringView boundary_check_type_name(BoundaryCheckType);
 StringView character_compare_type_name(CharacterCompareType result);
 StringView character_class_name(CharClass ch_class);
 
-class OpCode {
+class REGEX_API OpCode {
 public:
     OpCode() = default;
     virtual ~OpCode() = default;
@@ -846,7 +846,7 @@ public:
     }
 };
 
-class OpCode_Compare final : public OpCode {
+class REGEX_API OpCode_Compare final : public OpCode {
 public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::Compare; }
