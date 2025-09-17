@@ -126,32 +126,6 @@
 
 #pragma mark - Private methods
 
-- (void)openAboutVersionPage:(id)sender
-{
-    auto* current_tab = [NSApp keyWindow];
-    if (![current_tab isKindOfClass:[Tab class]]) {
-        return;
-    }
-
-    [self createNewTab:URL::URL(URL::about_version())
-               fromTab:(Tab*)current_tab
-           activateTab:Web::HTML::ActivateTab::Yes];
-}
-
-- (void)openSettings:(id)sender
-{
-    [self createNewTab:URL::URL::about("settings"_string)
-               fromTab:self.active_tab
-           activateTab:Web::HTML::ActivateTab::Yes];
-}
-
-- (void)openTaskManager:(id)sender
-{
-    [self createNewTab:URL::URL::about("processes"_string)
-               fromTab:self.active_tab
-           activateTab:Web::HTML::ActivateTab::Yes];
-}
-
 - (void)openLocation:(id)sender
 {
     auto* current_tab = [NSApp keyWindow];
@@ -269,14 +243,10 @@
     auto* process_name = [[NSProcessInfo processInfo] processName];
     auto* submenu = [[NSMenu alloc] initWithTitle:process_name];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:@"About %@", process_name]
-                                                action:@selector(openAboutVersionPage:)
-                                         keyEquivalent:@""]];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().open_about_page_action())];
     [submenu addItem:[NSMenuItem separatorItem]];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Settings"
-                                                action:@selector(openSettings:)
-                                         keyEquivalent:@","]];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().open_settings_page_action())];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:@"Hide %@", process_name]
@@ -424,9 +394,7 @@
                                                          keyEquivalent:@"I"];
     [submenu addItem:self.toggle_devtools_menu_item];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Task Manager"
-                                                action:@selector(openTaskManager:)
-                                         keyEquivalent:@"M"]];
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().open_processes_page_action())];
 
     [menu setSubmenu:submenu];
     return menu;

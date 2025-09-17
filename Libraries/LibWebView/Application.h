@@ -79,6 +79,10 @@ public:
     Action& copy_selection_action() { return *m_copy_selection_action; }
     Action& paste_action() { return *m_paste_action; }
     Action& select_all_action() { return *m_select_all_action; }
+
+    Action& open_about_page_action() { return *m_open_about_page_action; }
+    Action& open_processes_page_action() { return *m_open_processes_page_action; }
+    Action& open_settings_page_action() { return *m_open_settings_page_action; }
     Action& view_source_action() { return *m_view_source_action; }
 
     Menu& zoom_menu() { return *m_zoom_menu; }
@@ -181,6 +185,10 @@ private:
     RefPtr<Action> m_copy_selection_action;
     RefPtr<Action> m_paste_action;
     RefPtr<Action> m_select_all_action;
+
+    RefPtr<Action> m_open_about_page_action;
+    RefPtr<Action> m_open_processes_page_action;
+    RefPtr<Action> m_open_settings_page_action;
     RefPtr<Action> m_view_source_action;
 
     RefPtr<Menu> m_zoom_menu;

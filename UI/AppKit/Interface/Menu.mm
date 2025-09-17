@@ -144,6 +144,17 @@ static void initialize_native_control(WebView::Action& action, id control)
         set_control_image(control, @"magnifyingglass");
         break;
 
+    case WebView::ActionID::OpenAboutPage:
+        set_control_image(control, @"info.circle");
+        break;
+    case WebView::ActionID::OpenProcessesPage:
+        set_control_image(control, @"gearshape.2");
+        [control setKeyEquivalent:@"M"];
+        break;
+    case WebView::ActionID::OpenSettingsPage:
+        set_control_image(control, @"gearshape");
+        [control setKeyEquivalent:@","];
+        break;
     case WebView::ActionID::ViewSource:
         set_control_image(control, @"text.document");
         [control setKeyEquivalent:@"u"];

@@ -106,6 +106,14 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
         break;
 
+    case WebView::ActionID::OpenProcessesPage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"sv));
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
+        break;
+    case WebView::ActionID::OpenSettingsPage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/settings.png"sv));
+        qaction.setShortcut(QKeySequence::StandardKey::Preferences);
+        break;
     case WebView::ActionID::ViewSource:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-html.png"sv));
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_U));
