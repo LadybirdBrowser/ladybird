@@ -83,6 +83,7 @@ public:
     Action& open_about_page_action() { return *m_open_about_page_action; }
     Action& open_processes_page_action() { return *m_open_processes_page_action; }
     Action& open_settings_page_action() { return *m_open_settings_page_action; }
+    Action& toggle_devtools_action() { return *m_toggle_devtools_action; }
     Action& view_source_action() { return *m_view_source_action; }
 
     Menu& zoom_menu() { return *m_zoom_menu; }
@@ -95,11 +96,7 @@ public:
 
     void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
 
-    enum class DevtoolsState {
-        Disabled,
-        Enabled,
-    };
-    ErrorOr<DevtoolsState> toggle_devtools_enabled();
+    ErrorOr<void> toggle_devtools_enabled();
     void refresh_tab_list();
 
 protected:
@@ -114,6 +111,9 @@ protected:
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
+
+    virtual void on_devtools_enabled() const;
+    virtual void on_devtools_disabled() const;
 
     Main::Arguments& arguments() { return m_arguments; }
 
@@ -189,6 +189,7 @@ private:
     RefPtr<Action> m_open_about_page_action;
     RefPtr<Action> m_open_processes_page_action;
     RefPtr<Action> m_open_settings_page_action;
+    RefPtr<Action> m_toggle_devtools_action;
     RefPtr<Action> m_view_source_action;
 
     RefPtr<Menu> m_zoom_menu;

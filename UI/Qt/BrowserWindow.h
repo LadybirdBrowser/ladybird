@@ -51,6 +51,9 @@ public:
 
     double refresh_rate() const { return m_refresh_rate; }
 
+    void on_devtools_enabled();
+    void on_devtools_disabled();
+
 public slots:
     void device_pixel_ratio_changed(qreal dpi);
     void refresh_rate_changed(qreal refresh_rate);
@@ -104,9 +107,6 @@ private:
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
 
-    void devtools_disabled();
-    void devtools_enabled();
-
     QTabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
 
@@ -117,7 +117,6 @@ private:
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
-    QAction* m_enable_devtools_action { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 };

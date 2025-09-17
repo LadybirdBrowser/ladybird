@@ -200,35 +200,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     auto* inspect_menu = m_hamburger_menu->addMenu("&Inspect");
-    menuBar()->addMenu(inspect_menu);
-
-    inspect_menu->addAction(create_application_action(*this, Application::the().view_source_action()));
-
-    m_enable_devtools_action = new QAction("Enable &DevTools", this);
-    m_enable_devtools_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
-    m_enable_devtools_action->setShortcuts({
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C),
-        QKeySequence(Qt::Key_F12),
-    });
-    inspect_menu->addAction(m_enable_devtools_action);
-    QObject::connect(m_enable_devtools_action, &QAction::triggered, this, [this] {
-        if (auto result = WebView::Application::the().toggle_devtools_enabled(); result.is_error()) {
-            auto error_message = MUST(String::formatted("Unable to start DevTools: {}", result.error()));
-            QMessageBox::warning(this, "Ladybird", qstring_from_ak_string(error_message));
-        } else {
-            switch (result.value()) {
-            case WebView::Application::DevtoolsState::Disabled:
-                devtools_disabled();
-                break;
-            case WebView::Application::DevtoolsState::Enabled:
-                devtools_enabled();
-                break;
-            }
-        }
-    });
-
+    inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().view_source_action()));
+    inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().toggle_devtools_action()));
     inspect_menu->addAction(create_application_action(*inspect_menu, Application::the().open_processes_page_action()));
+    menuBar()->addMenu(inspect_menu);
 
     auto* debug_menu = create_application_menu(*m_hamburger_menu, Application::the().debug_menu());
     m_hamburger_menu->addMenu(debug_menu);
@@ -301,29 +276,26 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setContextMenuPolicy(Qt::PreventContextMenu);
 
     if (browser_options.devtools_port.has_value())
-        devtools_enabled();
+        on_devtools_enabled();
 }
 
-void BrowserWindow::devtools_disabled()
-{
-    m_enable_devtools_action->setText("Enable &DevTools");
-    setStatusBar(nullptr);
-}
-
-void BrowserWindow::devtools_enabled()
+void BrowserWindow::on_devtools_enabled()
 {
     auto* disable_button = new QPushButton("Disable", this);
 
-    connect(disable_button, &QPushButton::clicked, this, [this]() {
+    connect(disable_button, &QPushButton::clicked, this, []() {
         MUST(WebView::Application::the().toggle_devtools_enabled());
-        devtools_disabled();
     });
 
-    m_enable_devtools_action->setText("Disable &DevTools");
     statusBar()->addPermanentWidget(disable_button);
 
     auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
     statusBar()->showMessage(qstring_from_ak_string(message));
+}
+
+void BrowserWindow::on_devtools_disabled()
+{
+    setStatusBar(nullptr);
 }
 
 Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
