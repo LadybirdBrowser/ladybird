@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <LibCore/Platform/MachMessageTypes.h>
 #include <LibCore/Platform/ProcessStatisticsMach.h>
+#include <LibThreading/Thread.h>
 #include <LibWebView/MachPortServer.h>
 
 namespace WebView {

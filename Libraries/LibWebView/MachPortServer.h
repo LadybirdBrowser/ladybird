@@ -10,7 +10,7 @@
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <LibCore/MachPort.h>
-#include <LibThreading/Thread.h>
+#include <LibThreading/Forward.h>
 #include <LibWebView/Forward.h>
 
 #if !defined(AK_OS_MACH)

@@ -13,9 +13,9 @@
 #include <LibIPC/AutoCloseFileDescriptor.h>
 #include <LibIPC/File.h>
 #include <LibThreading/ConditionVariable.h>
+#include <LibThreading/Forward.h>
 #include <LibThreading/MutexProtected.h>
 #include <LibThreading/RWLock.h>
-#include <LibThreading/Thread.h>
 
 namespace IPC {
 
