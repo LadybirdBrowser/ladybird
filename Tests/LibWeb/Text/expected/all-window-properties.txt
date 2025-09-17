@@ -304,6 +304,7 @@ Node
 NodeFilter
 NodeIterator
 NodeList
+Notification
 Number
 Object
 OfflineAudioContext
