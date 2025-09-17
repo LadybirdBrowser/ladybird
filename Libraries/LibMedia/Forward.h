@@ -8,10 +8,10 @@
 
 namespace Media {
 
+class CodedFrame;
 class DecoderError;
 class FrameQueueItem;
 class PlaybackManager;
-class Sample;
 class Track;
 class VideoDecoder;
 class VideoFrame;

@@ -6,6 +6,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
+#include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecoderError.h>
 
 #include "MatroskaDemuxer.h"
@@ -179,7 +180,7 @@ DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyf
     return track_status.iterator.last_timestamp();
 }
 
-DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
+DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track track)
 {
     // FIXME: This makes a copy of the sample, which shouldn't be necessary.
     //        Matroska should make a RefPtr<ByteBuffer>, probably.
@@ -191,7 +192,7 @@ DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
     }
     auto cicp = TRY(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
     auto sample_data = DECODER_TRY_ALLOC(ByteBuffer::copy(status.block->frame(status.frame_index++)));
-    return Sample(status.block->timestamp(), move(sample_data), VideoSampleData(cicp));
+    return CodedFrame(status.block->timestamp(), move(sample_data), CodedVideoFrameData(cicp));
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
