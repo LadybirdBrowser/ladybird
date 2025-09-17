@@ -18,7 +18,38 @@
 #include <QMessageBox>
 #include <QMimeData>
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#    include <LibCore/TimeZoneWatcher.h>
+#    include <QAbstractNativeEventFilter>
+#endif
+
 namespace Ladybird {
+
+#if defined(AK_OS_WINDOWS)
+class NativeWindowsTimeChangeEventFilter : public QAbstractNativeEventFilter {
+public:
+    NativeWindowsTimeChangeEventFilter(Core::TimeZoneWatcher& time_zone_watcher)
+        : m_time_zone_watcher(time_zone_watcher)
+    {
+    }
+
+    bool nativeEventFilter(QByteArray const& event_type, void* message, qintptr*) override
+    {
+        if (event_type == QByteArrayLiteral("windows_generic_MSG")) {
+            auto msg = static_cast<MSG*>(message);
+            if (msg->message == WM_TIMECHANGE) {
+                m_time_zone_watcher.on_time_zone_changed();
+            }
+        }
+        return false;
+    }
+
+private:
+    Core::TimeZoneWatcher& m_time_zone_watcher;
+};
+
+#endif
 
 class LadybirdQApplication : public QApplication {
 public:
@@ -30,6 +61,14 @@ public:
     virtual bool event(QEvent* event) override
     {
         auto& application = static_cast<Application&>(WebView::Application::the());
+
+#if defined(AK_OS_WINDOWS)
+        static Optional<NativeWindowsTimeChangeEventFilter> time_change_event_filter {};
+        if (auto time_zone_watcher = application.time_zone_watcher(); !time_change_event_filter.has_value() && time_zone_watcher.has_value()) {
+            time_change_event_filter.emplace(time_zone_watcher.value());
+            installNativeEventFilter(&time_change_event_filter.value());
+        }
+#endif
 
         switch (event->type()) {
         case QEvent::FileOpen: {
