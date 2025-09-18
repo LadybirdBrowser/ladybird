@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-370 Pass
-175 Fail
+421 Pass
+124 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -258,15 +258,15 @@ Pass	CSSTransformValue interface: iterable<CSSTransformComponent>
 Pass	CSSTransformValue interface: attribute length
 Pass	CSSTransformValue interface: attribute is2D
 Pass	CSSTransformValue interface: operation toMatrix()
-Fail	CSSTransformValue must be primary interface of transformValue
-Fail	Stringification of transformValue
-Fail	CSSTransformValue interface: transformValue must inherit property "length" with the proper type
-Fail	CSSTransformValue interface: transformValue must inherit property "is2D" with the proper type
-Fail	CSSTransformValue interface: transformValue must inherit property "toMatrix()" with the proper type
+Pass	CSSTransformValue must be primary interface of transformValue
+Pass	Stringification of transformValue
+Pass	CSSTransformValue interface: transformValue must inherit property "length" with the proper type
+Pass	CSSTransformValue interface: transformValue must inherit property "is2D" with the proper type
+Pass	CSSTransformValue interface: transformValue must inherit property "toMatrix()" with the proper type
 Pass	CSSStyleValue interface: transformValue must inherit property "parse(USVString, USVString)" with the proper type
-Pass	CSSStyleValue interface: calling parse(USVString, USVString) on transformValue with too few arguments must throw TypeError
+Fail	CSSStyleValue interface: calling parse(USVString, USVString) on transformValue with too few arguments must throw TypeError
 Pass	CSSStyleValue interface: transformValue must inherit property "parseAll(USVString, USVString)" with the proper type
-Pass	CSSStyleValue interface: calling parseAll(USVString, USVString) on transformValue with too few arguments must throw TypeError
+Fail	CSSStyleValue interface: calling parseAll(USVString, USVString) on transformValue with too few arguments must throw TypeError
 Pass	CSSTransformComponent interface: existence and properties of interface object
 Pass	CSSTransformComponent interface object length
 Pass	CSSTransformComponent interface object name
@@ -285,13 +285,13 @@ Pass	CSSTranslate interface: existence and properties of interface prototype obj
 Pass	CSSTranslate interface: attribute x
 Pass	CSSTranslate interface: attribute y
 Pass	CSSTranslate interface: attribute z
-Fail	CSSTranslate must be primary interface of transformValue[0]
-Fail	Stringification of transformValue[0]
-Fail	CSSTranslate interface: transformValue[0] must inherit property "x" with the proper type
-Fail	CSSTranslate interface: transformValue[0] must inherit property "y" with the proper type
-Fail	CSSTranslate interface: transformValue[0] must inherit property "z" with the proper type
-Fail	CSSTransformComponent interface: transformValue[0] must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: transformValue[0] must inherit property "toMatrix()" with the proper type
+Pass	CSSTranslate must be primary interface of transformValue[0]
+Pass	Stringification of transformValue[0]
+Pass	CSSTranslate interface: transformValue[0] must inherit property "x" with the proper type
+Pass	CSSTranslate interface: transformValue[0] must inherit property "y" with the proper type
+Pass	CSSTranslate interface: transformValue[0] must inherit property "z" with the proper type
+Pass	CSSTransformComponent interface: transformValue[0] must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: transformValue[0] must inherit property "toMatrix()" with the proper type
 Pass	CSSRotate interface: existence and properties of interface object
 Pass	CSSRotate interface object length
 Pass	CSSRotate interface object name
@@ -302,14 +302,14 @@ Pass	CSSRotate interface: attribute x
 Pass	CSSRotate interface: attribute y
 Pass	CSSRotate interface: attribute z
 Pass	CSSRotate interface: attribute angle
-Fail	CSSRotate must be primary interface of rotate
-Fail	Stringification of rotate
-Fail	CSSRotate interface: rotate must inherit property "x" with the proper type
-Fail	CSSRotate interface: rotate must inherit property "y" with the proper type
-Fail	CSSRotate interface: rotate must inherit property "z" with the proper type
-Fail	CSSRotate interface: rotate must inherit property "angle" with the proper type
-Fail	CSSTransformComponent interface: rotate must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: rotate must inherit property "toMatrix()" with the proper type
+Pass	CSSRotate must be primary interface of rotate
+Pass	Stringification of rotate
+Pass	CSSRotate interface: rotate must inherit property "x" with the proper type
+Pass	CSSRotate interface: rotate must inherit property "y" with the proper type
+Pass	CSSRotate interface: rotate must inherit property "z" with the proper type
+Pass	CSSRotate interface: rotate must inherit property "angle" with the proper type
+Pass	CSSTransformComponent interface: rotate must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: rotate must inherit property "toMatrix()" with the proper type
 Pass	CSSScale interface: existence and properties of interface object
 Pass	CSSScale interface object length
 Pass	CSSScale interface object name
@@ -319,13 +319,13 @@ Pass	CSSScale interface: existence and properties of interface prototype object'
 Pass	CSSScale interface: attribute x
 Pass	CSSScale interface: attribute y
 Pass	CSSScale interface: attribute z
-Fail	CSSScale must be primary interface of scale
-Fail	Stringification of scale
-Fail	CSSScale interface: scale must inherit property "x" with the proper type
-Fail	CSSScale interface: scale must inherit property "y" with the proper type
-Fail	CSSScale interface: scale must inherit property "z" with the proper type
-Fail	CSSTransformComponent interface: scale must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: scale must inherit property "toMatrix()" with the proper type
+Pass	CSSScale must be primary interface of scale
+Pass	Stringification of scale
+Pass	CSSScale interface: scale must inherit property "x" with the proper type
+Pass	CSSScale interface: scale must inherit property "y" with the proper type
+Pass	CSSScale interface: scale must inherit property "z" with the proper type
+Pass	CSSTransformComponent interface: scale must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: scale must inherit property "toMatrix()" with the proper type
 Pass	CSSSkew interface: existence and properties of interface object
 Pass	CSSSkew interface object length
 Pass	CSSSkew interface object name
@@ -334,12 +334,12 @@ Pass	CSSSkew interface: existence and properties of interface prototype object's
 Pass	CSSSkew interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSSkew interface: attribute ax
 Pass	CSSSkew interface: attribute ay
-Fail	CSSSkew must be primary interface of skew
-Fail	Stringification of skew
-Fail	CSSSkew interface: skew must inherit property "ax" with the proper type
-Fail	CSSSkew interface: skew must inherit property "ay" with the proper type
-Fail	CSSTransformComponent interface: skew must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: skew must inherit property "toMatrix()" with the proper type
+Pass	CSSSkew must be primary interface of skew
+Pass	Stringification of skew
+Pass	CSSSkew interface: skew must inherit property "ax" with the proper type
+Pass	CSSSkew interface: skew must inherit property "ay" with the proper type
+Pass	CSSTransformComponent interface: skew must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: skew must inherit property "toMatrix()" with the proper type
 Pass	CSSSkewX interface: existence and properties of interface object
 Pass	CSSSkewX interface object length
 Pass	CSSSkewX interface object name
@@ -347,11 +347,11 @@ Pass	CSSSkewX interface: existence and properties of interface prototype object
 Pass	CSSSkewX interface: existence and properties of interface prototype object's "constructor" property
 Pass	CSSSkewX interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSSkewX interface: attribute ax
-Fail	CSSSkewX must be primary interface of skewX
-Fail	Stringification of skewX
-Fail	CSSSkewX interface: skewX must inherit property "ax" with the proper type
-Fail	CSSTransformComponent interface: skewX must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: skewX must inherit property "toMatrix()" with the proper type
+Pass	CSSSkewX must be primary interface of skewX
+Pass	Stringification of skewX
+Pass	CSSSkewX interface: skewX must inherit property "ax" with the proper type
+Pass	CSSTransformComponent interface: skewX must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: skewX must inherit property "toMatrix()" with the proper type
 Pass	CSSSkewY interface: existence and properties of interface object
 Pass	CSSSkewY interface object length
 Pass	CSSSkewY interface object name
@@ -359,11 +359,11 @@ Pass	CSSSkewY interface: existence and properties of interface prototype object
 Pass	CSSSkewY interface: existence and properties of interface prototype object's "constructor" property
 Pass	CSSSkewY interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSSkewY interface: attribute ay
-Fail	CSSSkewY must be primary interface of skewY
-Fail	Stringification of skewY
-Fail	CSSSkewY interface: skewY must inherit property "ay" with the proper type
-Fail	CSSTransformComponent interface: skewY must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: skewY must inherit property "toMatrix()" with the proper type
+Pass	CSSSkewY must be primary interface of skewY
+Pass	Stringification of skewY
+Pass	CSSSkewY interface: skewY must inherit property "ay" with the proper type
+Pass	CSSTransformComponent interface: skewY must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: skewY must inherit property "toMatrix()" with the proper type
 Pass	CSSPerspective interface: existence and properties of interface object
 Pass	CSSPerspective interface object length
 Pass	CSSPerspective interface object name
@@ -371,11 +371,11 @@ Pass	CSSPerspective interface: existence and properties of interface prototype o
 Pass	CSSPerspective interface: existence and properties of interface prototype object's "constructor" property
 Pass	CSSPerspective interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSPerspective interface: attribute length
-Fail	CSSPerspective must be primary interface of perspective
-Fail	Stringification of perspective
-Fail	CSSPerspective interface: perspective must inherit property "length" with the proper type
-Fail	CSSTransformComponent interface: perspective must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: perspective must inherit property "toMatrix()" with the proper type
+Pass	CSSPerspective must be primary interface of perspective
+Pass	Stringification of perspective
+Pass	CSSPerspective interface: perspective must inherit property "length" with the proper type
+Pass	CSSTransformComponent interface: perspective must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: perspective must inherit property "toMatrix()" with the proper type
 Pass	CSSMatrixComponent interface: existence and properties of interface object
 Pass	CSSMatrixComponent interface object length
 Pass	CSSMatrixComponent interface object name
@@ -383,11 +383,11 @@ Pass	CSSMatrixComponent interface: existence and properties of interface prototy
 Pass	CSSMatrixComponent interface: existence and properties of interface prototype object's "constructor" property
 Pass	CSSMatrixComponent interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSMatrixComponent interface: attribute matrix
-Fail	CSSMatrixComponent must be primary interface of matrix
-Fail	Stringification of matrix
-Fail	CSSMatrixComponent interface: matrix must inherit property "matrix" with the proper type
-Fail	CSSTransformComponent interface: matrix must inherit property "is2D" with the proper type
-Fail	CSSTransformComponent interface: matrix must inherit property "toMatrix()" with the proper type
+Pass	CSSMatrixComponent must be primary interface of matrix
+Pass	Stringification of matrix
+Pass	CSSMatrixComponent interface: matrix must inherit property "matrix" with the proper type
+Pass	CSSTransformComponent interface: matrix must inherit property "is2D" with the proper type
+Pass	CSSTransformComponent interface: matrix must inherit property "toMatrix()" with the proper type
 Pass	CSSImageValue interface: existence and properties of interface object
 Pass	CSSImageValue interface object length
 Pass	CSSImageValue interface object name
