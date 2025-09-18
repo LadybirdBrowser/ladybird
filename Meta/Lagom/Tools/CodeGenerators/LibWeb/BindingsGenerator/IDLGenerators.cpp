@@ -616,7 +616,9 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
 )~~~");
     }
 
-    if (optional_default_value.has_value()) {
+    // FIXME: The Optional<foo> defaults to empty, and can't be explicitly set to `null`.
+    //        So, just skip the assignment.
+    if (optional_default_value.has_value() && optional_default_value != "null"sv) {
         scoped_generator.append(R"~~~(
     else
         @cpp_name@ = static_cast<@cpp_type@>(@parameter.optional_default_value@);
