@@ -43,6 +43,10 @@
     "width": "min-width",
     "height": "min-height"
   },
+  "overflow": {
+    "x": "overflow-x",
+    "y": "overflow-y"
+  },
   "padding": {
     "top": "padding-top",
     "right": "padding-right",

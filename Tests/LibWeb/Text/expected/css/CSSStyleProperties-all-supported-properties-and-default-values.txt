@@ -589,6 +589,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'outlineWidth': '0px'
 'outline-width': '0px'
 'overflow': 'visible'
+'overflowBlock': 'visible'
+'overflow-block': 'visible'
 'overflowX': 'visible'
 'overflow-x': 'visible'
 'overflowY': 'visible'
