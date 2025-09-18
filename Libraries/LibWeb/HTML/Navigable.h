@@ -196,7 +196,7 @@ public:
 
     String selected_text() const;
     void select_all();
-    void paste(String const&);
+    void paste(Utf16String const&);
 
     Web::EventHandler& event_handler() { return m_event_handler; }
     Web::EventHandler const& event_handler() const { return m_event_handler; }

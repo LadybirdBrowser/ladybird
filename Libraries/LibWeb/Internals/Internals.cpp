@@ -156,7 +156,7 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebI
     page().handle_keydown(key_code, modifiers, 0, false);
 }
 
-void Internals::paste(HTML::HTMLElement& target, String const& text)
+void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
 {
     auto& page = this->page();
     target.focus();

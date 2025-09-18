@@ -42,7 +42,7 @@ public:
 
     void set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable>);
 
-    EventResult handle_paste(String const& text);
+    EventResult handle_paste(Utf16String const& text);
 
     void handle_sdl_input_events();
 

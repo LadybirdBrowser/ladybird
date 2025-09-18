@@ -2576,7 +2576,7 @@ void Navigable::select_all()
     }
 }
 
-void Navigable::paste(String const& text)
+void Navigable::paste(Utf16String const& text)
 {
     auto document = active_document();
     if (!document)

@@ -1076,7 +1076,7 @@ void ConnectionFromClient::find_in_page_previous_match(u64 page_id)
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
-void ConnectionFromClient::paste(u64 page_id, String text)
+void ConnectionFromClient::paste(u64 page_id, Utf16String text)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().focused_navigable().paste(text);

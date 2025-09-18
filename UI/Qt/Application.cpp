@@ -136,10 +136,10 @@ void Application::display_error_dialog(StringView error_message) const
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
 }
 
-String Application::clipboard_text() const
+Utf16String Application::clipboard_text() const
 {
     auto const* clipboard = QGuiApplication::clipboard();
-    return ak_string_from_qstring(clipboard->text());
+    return utf16_string_from_qstring(clipboard->text());
 }
 
 Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
