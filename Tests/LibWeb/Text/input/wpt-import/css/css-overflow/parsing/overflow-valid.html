@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Overflow: parsing overflow with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#propdef-overflow">
+<meta name="assert" content="overflow supports the full grammar '[ visible | hidden | clip | scroll | auto ]{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("overflow", 'visible');
+test_valid_value("overflow", 'hidden');
+test_valid_value("overflow", 'clip');
+test_valid_value("overflow", 'scroll');
+test_valid_value("overflow", 'auto');
+
+test_valid_value("overflow", 'visible visible', 'visible');
+test_valid_value("overflow", 'hidden visible');
+test_valid_value("overflow", 'clip clip', 'clip');
+test_valid_value("overflow", 'scroll auto');
+test_valid_value("overflow", 'auto auto', 'auto');
+
+
+test_valid_value("overflow-x", 'visible');
+test_valid_value("overflow-x", 'scroll');
+test_valid_value("overflow-y", 'clip');
+test_valid_value("overflow-y", 'auto');
+test_valid_value("overflow-block", 'hidden');
+test_valid_value("overflow-block", 'clip');
+test_valid_value("overflow-inline", 'scroll');
+test_valid_value("overflow-inline", 'visible');
+</script>
+</body>
+</html>

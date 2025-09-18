@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+16 Pass
+2 Fail
+Pass	e.style['overflow'] = "visible" should set the property value
+Pass	e.style['overflow'] = "hidden" should set the property value
+Pass	e.style['overflow'] = "clip" should set the property value
+Pass	e.style['overflow'] = "scroll" should set the property value
+Pass	e.style['overflow'] = "auto" should set the property value
+Pass	e.style['overflow'] = "visible visible" should set the property value
+Pass	e.style['overflow'] = "hidden visible" should set the property value
+Pass	e.style['overflow'] = "clip clip" should set the property value
+Pass	e.style['overflow'] = "scroll auto" should set the property value
+Pass	e.style['overflow'] = "auto auto" should set the property value
+Pass	e.style['overflow-x'] = "visible" should set the property value
+Pass	e.style['overflow-x'] = "scroll" should set the property value
+Pass	e.style['overflow-y'] = "clip" should set the property value
+Pass	e.style['overflow-y'] = "auto" should set the property value
+Pass	e.style['overflow-block'] = "hidden" should set the property value
+Pass	e.style['overflow-block'] = "clip" should set the property value
+Fail	e.style['overflow-inline'] = "scroll" should set the property value
+Fail	e.style['overflow-inline'] = "visible" should set the property value

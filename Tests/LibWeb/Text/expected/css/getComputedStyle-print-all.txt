@@ -217,6 +217,7 @@ outline-color: rgb(0, 0, 0)
 outline-offset: 0px
 outline-style: none
 outline-width: 0px
+overflow-block: visible
 overflow-x: visible
 overflow-y: visible
 padding-block-end: 0px

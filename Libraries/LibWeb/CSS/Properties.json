@@ -2783,6 +2783,12 @@
       "overflow"
     ]
   },
+  "overflow-block": {
+    "logical-alias-for": {
+      "group": "overflow",
+      "mapping": "block-xy"
+    }
+  },
   "overflow-x": {
     "animation-type": "discrete",
     "inherited": false,

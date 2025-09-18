@@ -219,6 +219,7 @@ All properties associated with getComputedStyle(document.body):
     "outline-offset",
     "outline-style",
     "outline-width",
+    "overflow-block",
     "overflow-x",
     "overflow-y",
     "padding-block-end",

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['overflow'] = "none" should not set the property value
+Pass	e.style['overflow'] = "visible clip auto" should not set the property value
+Pass	e.style['overflow-x'] = "visible clip" should not set the property value
+Pass	e.style['overflow-y'] = "clip hidden" should not set the property value
+Pass	e.style['overflow-block'] = "hidden scroll" should not set the property value
+Pass	e.style['overflow-inline'] = "scroll auto" should not set the property value
