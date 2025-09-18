@@ -996,6 +996,10 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
 
     auto& shape = base_obj->shape();
 
+    GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
+    if (shape.prototype())
+        prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
+
     for (auto& cache_entry : cache.entries) {
         if (cache_entry.prototype) {
             // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
@@ -1046,7 +1050,7 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
             entry.shape = &base_obj->shape();
             entry.property_offset = cacheable_metadata.property_offset.value();
             entry.prototype = *cacheable_metadata.prototype;
-            entry.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+            entry.prototype_chain_validity = *prototype_chain_validity;
         }
     }
 
