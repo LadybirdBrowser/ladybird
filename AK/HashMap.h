@@ -26,6 +26,7 @@ private:
     };
 
     struct EntryTraits {
+        static constexpr bool may_have_slow_equality_check() { return KeyTraits::may_have_slow_equality_check(); }
         static unsigned hash(Entry const& entry) { return KeyTraits::hash(entry.key); }
         static bool equals(Entry const& a, Entry const& b) { return KeyTraits::equals(a.key, b.key); }
     };
