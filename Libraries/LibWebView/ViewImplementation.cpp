@@ -12,7 +12,6 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
@@ -452,16 +451,9 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
     client().async_select_dropdown_closed(page_id(), selected_item_id);
 }
 
-void ViewImplementation::insert_text_into_clipboard(ByteString text) const
-{
-    if (on_insert_clipboard_entry)
-        on_insert_clipboard_entry({ move(text), "text/plain"_string }, {});
-}
-
 void ViewImplementation::paste_text_from_clipboard()
 {
-    if (on_request_clipboard_text)
-        client().async_paste(page_id(), on_request_clipboard_text());
+    client().async_paste(page_id(), Application::the().clipboard_text());
 }
 
 void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem> items)
@@ -858,7 +850,7 @@ void ViewImplementation::initialize_context_menus()
         Application::the().open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
     });
     m_copy_url_action = Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
-        insert_text_into_clipboard(url_text_to_copy(m_context_menu_url));
+        Application::the().insert_clipboard_entry({ url_text_to_copy(m_context_menu_url), "text/plain"_string });
     });
 
     m_open_image_action = Action::create("Open Image"sv, ActionID::OpenImage, [this]() {
@@ -876,8 +868,7 @@ void ViewImplementation::initialize_context_menus()
         if (encoded.is_error())
             return;
 
-        if (on_insert_clipboard_entry)
-            on_insert_clipboard_entry({ ByteString { encoded.value().bytes() }, "image/png"_string }, {});
+        Application::the().insert_clipboard_entry({ ByteString { encoded.value().bytes() }, "image/png"_string });
     });
 
     m_open_audio_action = Action::create("Open Audio"sv, ActionID::OpenAudio, [this]() {

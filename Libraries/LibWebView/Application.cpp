@@ -665,7 +665,7 @@ void Application::initialize_actions()
 
     m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, [this]() {
         if (auto view = active_web_view(); view.has_value())
-            view->insert_text_into_clipboard(view->selected_text());
+            insert_clipboard_entry({ view->selected_text(), "text/plain"_string });
     });
     m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {
         if (auto view = active_web_view(); view.has_value())

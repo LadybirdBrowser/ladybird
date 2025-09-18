@@ -98,6 +98,58 @@ void Application::display_error_dialog(StringView error_message) const
                    completionHandler:nil];
 }
 
+String Application::clipboard_text() const
+{
+    auto* paste_board = [NSPasteboard generalPasteboard];
+
+    if (auto* contents = [paste_board stringForType:NSPasteboardTypeString])
+        return Ladybird::ns_string_to_string(contents);
+    return {};
+}
+
+Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
+{
+    Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
+    auto* paste_board = [NSPasteboard generalPasteboard];
+
+    for (NSPasteboardType type : [paste_board types]) {
+        String mime_type;
+
+        if (type == NSPasteboardTypeString)
+            mime_type = "text/plain"_string;
+        else if (type == NSPasteboardTypeHTML)
+            mime_type = "text/html"_string;
+        else if (type == NSPasteboardTypePNG)
+            mime_type = "image/png"_string;
+
+        auto data = Ladybird::ns_data_to_string([paste_board dataForType:type]);
+        representations.empend(move(data), move(mime_type));
+    }
+
+    return representations;
+}
+
+void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+{
+    NSPasteboardType pasteboard_type = nil;
+
+    // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
+    if (entry.mime_type == "text/plain"sv)
+        pasteboard_type = NSPasteboardTypeString;
+    else if (entry.mime_type == "text/html"sv)
+        pasteboard_type = NSPasteboardTypeHTML;
+    else if (entry.mime_type == "image/png"sv)
+        pasteboard_type = NSPasteboardTypePNG;
+    else
+        return;
+
+    auto* paste_board = [NSPasteboard generalPasteboard];
+    [paste_board clearContents];
+
+    [paste_board setData:Ladybird::string_to_ns_data(entry.data)
+                 forType:pasteboard_type];
+}
+
 void Application::on_devtools_enabled() const
 {
     WebView::Application::on_devtools_enabled();

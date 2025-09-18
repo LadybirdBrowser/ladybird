@@ -663,19 +663,19 @@ void WebContentClient::did_change_theme_color(u64 page_id, Gfx::Color color)
     }
 }
 
-void WebContentClient::did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style)
+void WebContentClient::did_insert_clipboard_entry(u64, Web::Clipboard::SystemClipboardRepresentation entry, String)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_insert_clipboard_entry)
-            view->on_insert_clipboard_entry(move(entry), presentation_style);
-    }
+    Application::the().insert_clipboard_entry(move(entry));
 }
 
 void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_request_clipboard_entries)
-            view->on_request_clipboard_entries(request_id);
+        Vector<Web::Clipboard::SystemClipboardItem> items;
+        if (auto entries = Application::the().clipboard_entries(); !entries.is_empty())
+            items.empend(move(entries));
+
+        view->retrieved_clipboard_entries(request_id, items);
     }
 }
 

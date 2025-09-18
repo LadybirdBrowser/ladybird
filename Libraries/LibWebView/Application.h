@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
@@ -74,6 +75,10 @@ public:
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
+
+    virtual String clipboard_text() const { return {}; }
+    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const { return {}; }
+    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) { }
 
     Action& reload_action() { return *m_reload_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
