@@ -182,6 +182,47 @@ String DataTransfer::get_data(String const& format_argument) const
     return MUST(String::from_utf8(result));
 }
 
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-setdata
+void DataTransfer::set_data(String const& format_argument, String const& value)
+{
+    // 1. If the DataTransfer object is no longer associated with a drag data store, then return.
+    if (!m_associated_drag_data_store)
+        return;
+
+    // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
+    if (m_associated_drag_data_store->mode() != DragDataStore::Mode::ReadWrite)
+        return;
+
+    // 3. Let format be the first argument, converted to ASCII lowercase.
+    auto format = format_argument.to_ascii_lowercase();
+
+    // 4. If format equals "text", change it to "text/plain".
+    //    If format equals "url", change it to "text/uri-list".
+    if (format == "text"sv) {
+        format = "text/plain"_string;
+    } else if (format == "url"sv) {
+        format = "text/uri-list"_string;
+    }
+
+    // 5. Remove the item in the drag data store item list whose kind is text and whose type string is equal to format, if there is one.
+    for (auto const& [i, item] : enumerate(m_associated_drag_data_store->item_list())) {
+        if (item.kind == DragDataStoreItem::Kind::Text && item.type_string == format) {
+            remove_item(i);
+            break;
+        }
+    }
+
+    // 6. Add an item to the drag data store item list
+    // whose kind is text, whose type string is equal to format, and whose data is the string given by the method's second argument.
+    DragDataStoreItem item {};
+    item.kind = DragDataStoreItem::Kind::Text;
+    item.type_string = format;
+    item.data = MUST(ByteBuffer::copy(value.bytes()));
+    add_item(move(item));
+
+    update_data_transfer_types_list();
+}
+
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files
 GC::Ref<FileAPI::FileList> DataTransfer::files() const
 {
