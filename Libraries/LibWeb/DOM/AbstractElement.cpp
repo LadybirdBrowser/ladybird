@@ -88,12 +88,12 @@ GC::Ptr<CSS::ComputedProperties const> AbstractElement::computed_properties() co
     return m_element->computed_properties(m_pseudo_element);
 }
 
-HashMap<FlyString, CSS::StyleProperty> const& AbstractElement::custom_properties() const
+OrderedHashMap<FlyString, CSS::StyleProperty> const& AbstractElement::custom_properties() const
 {
     return m_element->custom_properties(m_pseudo_element);
 }
 
-void AbstractElement::set_custom_properties(HashMap<FlyString, CSS::StyleProperty>&& custom_properties)
+void AbstractElement::set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty>&& custom_properties)
 {
     m_element->set_custom_properties(m_pseudo_element, move(custom_properties));
 }

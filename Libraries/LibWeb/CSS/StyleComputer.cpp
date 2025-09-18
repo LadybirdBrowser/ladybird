@@ -849,7 +849,7 @@ void StyleComputer::cascade_declarations(
     }
 }
 
-static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
+static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<MatchingRule const*> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
@@ -2375,7 +2375,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     // Resolve all the CSS custom properties ("variables") for this element:
     // FIXME: Also resolve !important custom properties, in a second cascade.
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
-        HashMap<FlyString, StyleProperty> custom_properties;
+        OrderedHashMap<FlyString, StyleProperty> custom_properties;
         for (auto& layer : matching_rule_set.author_rules) {
             cascade_custom_properties(abstract_element, layer.rules, custom_properties);
         }

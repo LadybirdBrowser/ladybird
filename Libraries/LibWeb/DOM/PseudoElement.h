@@ -31,8 +31,8 @@ class WEB_API PseudoElement : public JS::Cell {
     GC::Ptr<CSS::ComputedProperties> computed_properties() const { return m_computed_properties; }
     void set_computed_properties(GC::Ptr<CSS::ComputedProperties> value) { m_computed_properties = value; }
 
-    HashMap<FlyString, CSS::StyleProperty> const& custom_properties() const { return m_custom_properties; }
-    void set_custom_properties(HashMap<FlyString, CSS::StyleProperty> value) { m_custom_properties = move(value); }
+    OrderedHashMap<FlyString, CSS::StyleProperty> const& custom_properties() const { return m_custom_properties; }
+    void set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty> value) { m_custom_properties = move(value); }
 
     bool has_non_empty_counters_set() const { return m_counters_set; }
     Optional<CSS::CountersSet const&> counters_set() const;
@@ -48,7 +48,7 @@ private:
     GC::Ptr<Layout::NodeWithStyle> m_layout_node;
     GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
-    HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
+    OrderedHashMap<FlyString, CSS::StyleProperty> m_custom_properties;
     OwnPtr<CSS::CountersSet> m_counters_set;
     CSSPixelPoint m_scroll_offset {};
 };

@@ -22,10 +22,10 @@ class WEB_API CSSStyleProperties
     GC_DECLARE_ALLOCATOR(CSSStyleProperties);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create(JS::Realm&, Vector<StyleProperty>, OrderedHashMap<FlyString, StyleProperty> custom_properties);
 
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(JS::Realm&, Optional<DOM::AbstractElement>);
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, Vector<StyleProperty>, OrderedHashMap<FlyString, StyleProperty> custom_properties);
 
     virtual ~CSSStyleProperties() override = default;
     virtual void initialize(JS::Realm&) override;
@@ -46,7 +46,7 @@ public:
     virtual StringView get_property_priority(StringView property_name) const override;
 
     Vector<StyleProperty> const& properties() const { return m_properties; }
-    HashMap<FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
+    OrderedHashMap<FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
 
     size_t custom_property_count() const { return m_custom_properties.size(); }
 
@@ -67,7 +67,7 @@ public:
     virtual CSSStyleProperties& generated_style_properties_to_css_style_properties() override { return *this; }
 
 private:
-    CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);
+    CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);
     static Vector<StyleProperty> convert_declarations_to_specified_order(Vector<StyleProperty>&);
 
     virtual void visit_edges(Cell::Visitor&) override;
@@ -77,12 +77,12 @@ private:
 
     bool set_a_css_declaration(PropertyID, NonnullRefPtr<StyleValue const>, Important);
     void empty_the_declarations();
-    void set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
+    void set_the_declarations(Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties);
 
     void invalidate_owners(DOM::StyleInvalidationReason);
 
     Vector<StyleProperty> m_properties;
-    HashMap<FlyString, StyleProperty> m_custom_properties;
+    OrderedHashMap<FlyString, StyleProperty> m_custom_properties;
 };
 
 }
