@@ -32,7 +32,7 @@ public:
 
     void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
     void send_key(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
-    void paste(HTML::HTMLElement& target, String const& text);
+    void paste(HTML::HTMLElement& target, Utf16String const& text);
     void commit_text();
 
     void click(double x, double y);

@@ -98,12 +98,12 @@ void Application::display_error_dialog(StringView error_message) const
                    completionHandler:nil];
 }
 
-String Application::clipboard_text() const
+Utf16String Application::clipboard_text() const
 {
     auto* paste_board = [NSPasteboard generalPasteboard];
 
     if (auto* contents = [paste_board stringForType:NSPasteboardTypeString])
-        return Ladybird::ns_string_to_string(contents);
+        return Ladybird::ns_string_to_utf16_string(contents);
     return {};
 }
 

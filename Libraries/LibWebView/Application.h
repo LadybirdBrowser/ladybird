@@ -76,7 +76,7 @@ public:
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
 
-    virtual String clipboard_text() const { return {}; }
+    virtual Utf16String clipboard_text() const { return {}; }
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const { return {}; }
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) { }
 

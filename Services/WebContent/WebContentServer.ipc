@@ -82,7 +82,7 @@ endpoint WebContentServer
 
     get_selected_text(u64 page_id) => (ByteString selection)
     select_all(u64 page_id) =|
-    paste(u64 page_id, String text) =|
+    paste(u64 page_id, Utf16String text) =|
 
     find_in_page(u64 page_id, String query, AK::CaseSensitivity case_sensitivity) =|
     find_in_page_next_match(u64 page_id) =|

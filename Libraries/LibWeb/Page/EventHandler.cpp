@@ -1445,7 +1445,7 @@ EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32
     return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }
 
-EventResult EventHandler::handle_paste(String const& text)
+EventResult EventHandler::handle_paste(Utf16String const& text)
 {
     auto active_document = m_navigable->active_document();
     if (!active_document)
@@ -1457,10 +1457,9 @@ EventResult EventHandler::handle_paste(String const& text)
     if (!target)
         return EventResult::Dropped;
 
-    auto utf16_string = Utf16String::from_utf8(text);
+    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, text));
+    target->handle_insert(text);
 
-    FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, utf16_string));
-    target->handle_insert(utf16_string);
     return EventResult::Handled;
 }
 
