@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow Test: flow-relative versions of overflow-x and -y</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#logical">
+<link rel="help" href="https://drafts.csswg.org/css-logical/#box">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#d1, #d2 {
+  overflow-block: hidden;
+  overflow-inline: scroll
+}
+#d1 {
+  writing-mode: horizontal-tb;
+}
+#d2 {
+  writing-mode: vertical-rl;
+}
+
+</style>
+<body>
+  <div id="log"></div>
+
+  <div id=d1></div>
+  <div id=d2></div>
+
+  <script>
+    test(
+      function(){
+        var target = document.getElementById("d1");
+        assert_equals(getComputedStyle(target).overflowX, "scroll");
+        assert_equals(getComputedStyle(target).overflowY, "hidden");
+      }, "overflow-x matches overflow-inline, and overflow-y matches overflow-block when the element has a horizontal writing mode");
+    test(
+      function(){
+        var target = document.getElementById("d2");
+        assert_equals(getComputedStyle(target).overflowX, "hidden");
+        assert_equals(getComputedStyle(target).overflowY, "scroll");
+      }, "overflow-y matches overflow-inline, and overflow-x matches overflow-block when the element has a vertical writing mode");
+  </script>
+</body>

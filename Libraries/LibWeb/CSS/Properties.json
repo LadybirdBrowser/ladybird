@@ -2789,6 +2789,12 @@
       "mapping": "block-xy"
     }
   },
+  "overflow-inline": {
+    "logical-alias-for": {
+      "group": "overflow",
+      "mapping": "inline-xy"
+    }
+  },
   "overflow-x": {
     "animation-type": "discrete",
     "inherited": false,
