@@ -1703,6 +1703,14 @@ PropertyID map_logical_alias_to_physical_property(PropertyID property_id, Logica
             return PropertyID::@y:titlecase@;
         return PropertyID::@x:titlecase@;
 )~~~");
+            } else if (mapping == "inline-xy"sv) {
+                property_generator.set("x:titlecase", mapped_property("x"sv));
+                property_generator.set("y:titlecase", mapped_property("y"sv));
+                property_generator.append(R"~~~(
+        if (mapping_context.writing_mode == WritingMode::HorizontalTb)
+            return PropertyID::@x:titlecase@;
+        return PropertyID::@y:titlecase@;
+)~~~");
             } else {
                 dbgln("Logical alias '{}' has unrecognized mapping '{}'", property_name, mapping.value());
                 VERIFY_NOT_REACHED();

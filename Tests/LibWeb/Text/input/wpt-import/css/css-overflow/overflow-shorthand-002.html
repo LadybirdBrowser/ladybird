@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow Test: Overflow shorthand logical mapping</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#propdef-overflow">
+<style>
+  #horizontal {
+    writing-mode: horizontal-tb;
+  }
+  #vertical {
+    writing-mode: vertical-lr;
+  }
+  .overflow {
+    overflow: visible clip;
+  }
+</style>
+<div id="horizontal" class="overflow"></div>
+<div id="vertical" class="overflow"></div>
+<script>
+  test(() => {
+    const style = getComputedStyle(horizontal);
+    assert_equals(style.overflowX, "visible");
+    assert_equals(style.overflowY, "clip");
+    assert_equals(style.overflowInline, "visible");
+    assert_equals(style.overflowBlock, "clip");
+  }, "overflow - horizontal writing mode");
+
+  test(() => {
+    const style = getComputedStyle(vertical);
+    assert_equals(style.overflowX, "visible");
+    assert_equals(style.overflowY, "clip");
+    assert_equals(style.overflowInline, "clip");
+    assert_equals(style.overflowBlock, "visible");
+  }, "overflow - vertical writing mode");
+</script>

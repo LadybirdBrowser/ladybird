@@ -591,6 +591,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'overflow': 'visible'
 'overflowBlock': 'visible'
 'overflow-block': 'visible'
+'overflowInline': 'visible'
+'overflow-inline': 'visible'
 'overflowX': 'visible'
 'overflow-x': 'visible'
 'overflowY': 'visible'
