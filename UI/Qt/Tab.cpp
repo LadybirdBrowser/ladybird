@@ -15,19 +15,16 @@
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
-#include <QClipboard>
 #include <QColorDialog>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
-#include <QGuiApplication>
 #include <QImage>
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMimeDatabase>
-#include <QMimeType>
 #include <QResizeEvent>
 
 namespace Ladybird {
@@ -354,44 +351,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_fullscreen_window = [this]() {
         m_window->showFullScreen();
         view().did_update_window_rect();
-    };
-
-    view().on_insert_clipboard_entry = [](Web::Clipboard::SystemClipboardRepresentation const& entry, auto const&) {
-        auto* mime_data = new QMimeData();
-        mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
-
-        auto* clipboard = QGuiApplication::clipboard();
-        clipboard->setMimeData(mime_data);
-    };
-
-    view().on_request_clipboard_text = []() {
-        auto const* clipboard = QGuiApplication::clipboard();
-        return ak_string_from_qstring(clipboard->text());
-    };
-
-    view().on_request_clipboard_entries = [this](auto request_id) {
-        auto const* clipboard = QGuiApplication::clipboard();
-
-        auto const* mime_data = clipboard->mimeData();
-        if (!mime_data) {
-            view().retrieved_clipboard_entries(request_id, {});
-            return;
-        }
-
-        Vector<Web::Clipboard::SystemClipboardItem> items;
-        Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
-
-        for (auto const& format : mime_data->formats()) {
-            auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
-            auto mime_type = ak_string_from_qstring(format);
-
-            representations.empend(AK::move(data), AK::move(mime_type));
-        }
-
-        if (!representations.is_empty())
-            items.empend(AK::move(representations));
-
-        view().retrieved_clipboard_entries(request_id, items);
     };
 
     view().on_audio_play_state_changed = [this](auto play_state) {

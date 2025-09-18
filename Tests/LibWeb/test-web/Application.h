@@ -45,6 +45,13 @@ public:
     int per_test_timeout_in_seconds { 30 };
 
     u8 verbosity { 0 };
+
+private:
+    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
+    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;
+
+    // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
+    Optional<Web::Clipboard::SystemClipboardRepresentation> m_clipboard;
 };
 
 }

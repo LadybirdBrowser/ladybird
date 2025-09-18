@@ -201,15 +201,6 @@ struct HideCursor {
 
 #pragma mark - Private methods
 
-static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_type)
-{
-    auto* ns_data = Ladybird::string_to_ns_data(data);
-
-    auto* pasteBoard = [NSPasteboard generalPasteboard];
-    [pasteBoard clearContents];
-    [pasteBoard setData:ns_data forType:pasteboard_type];
-}
-
 - (void)updateViewportRect
 {
     auto viewport_rect = Ladybird::ns_rect_to_gfx_rect([self frame]);
@@ -835,60 +826,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
         [self.observer onFindInPageResult:current_match_index + 1
                           totalMatchCount:total_match_count];
-    };
-
-    m_web_view_bridge->on_insert_clipboard_entry = [](Web::Clipboard::SystemClipboardRepresentation const& entry, auto const&) {
-        NSPasteboardType pasteboard_type = nil;
-
-        // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-        if (entry.mime_type == "text/plain"sv)
-            pasteboard_type = NSPasteboardTypeString;
-        else if (entry.mime_type == "text/html"sv)
-            pasteboard_type = NSPasteboardTypeHTML;
-        else if (entry.mime_type == "image/png"sv)
-            pasteboard_type = NSPasteboardTypePNG;
-
-        if (pasteboard_type)
-            copy_data_to_clipboard(entry.data, pasteboard_type);
-    };
-
-    m_web_view_bridge->on_request_clipboard_text = []() {
-        auto* paste_board = [NSPasteboard generalPasteboard];
-
-        if (auto* contents = [paste_board stringForType:NSPasteboardTypeString])
-            return Ladybird::ns_string_to_string(contents);
-        return String {};
-    };
-
-    m_web_view_bridge->on_request_clipboard_entries = [weak_self](auto request_id) {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-
-        Vector<Web::Clipboard::SystemClipboardItem> items;
-        Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
-
-        auto* pasteBoard = [NSPasteboard generalPasteboard];
-
-        for (NSPasteboardType type : [pasteBoard types]) {
-            String mime_type;
-
-            if (type == NSPasteboardTypeString)
-                mime_type = "text/plain"_string;
-            else if (type == NSPasteboardTypeHTML)
-                mime_type = "text/html"_string;
-            else if (type == NSPasteboardTypePNG)
-                mime_type = "image/png"_string;
-
-            auto data = Ladybird::ns_data_to_string([pasteBoard dataForType:type]);
-            representations.empend(move(data), move(mime_type));
-        }
-
-        if (!representations.is_empty())
-            items.empend(AK::move(representations));
-
-        m_web_view_bridge->retrieved_clipboard_entries(request_id, items);
     };
 
     m_web_view_bridge->on_audio_play_state_changed = [weak_self](auto play_state) {

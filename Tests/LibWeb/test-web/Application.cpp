@@ -93,4 +93,16 @@ ErrorOr<void> Application::launch_test_fixtures()
     return {};
 }
 
+Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
+{
+    if (m_clipboard.has_value())
+        return { *m_clipboard };
+    return {};
+}
+
+void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+{
+    m_clipboard = move(entry);
+}
+
 }

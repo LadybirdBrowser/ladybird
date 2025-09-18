@@ -11,10 +11,12 @@
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
+#include <QClipboard>
 #include <QDesktopServices>
 #include <QFileDialog>
 #include <QFileOpenEvent>
 #include <QMessageBox>
+#include <QMimeData>
 
 namespace Ladybird {
 
@@ -132,6 +134,40 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 void Application::display_error_dialog(StringView error_message) const
 {
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
+}
+
+String Application::clipboard_text() const
+{
+    auto const* clipboard = QGuiApplication::clipboard();
+    return ak_string_from_qstring(clipboard->text());
+}
+
+Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
+{
+    Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
+    auto const* clipboard = QGuiApplication::clipboard();
+
+    auto const* mime_data = clipboard->mimeData();
+    if (!mime_data)
+        return {};
+
+    for (auto const& format : mime_data->formats()) {
+        auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
+        auto mime_type = ak_string_from_qstring(format);
+
+        representations.empend(move(data), move(mime_type));
+    }
+
+    return representations;
+}
+
+void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+{
+    auto* mime_data = new QMimeData();
+    mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
+
+    auto* clipboard = QGuiApplication::clipboard();
+    clipboard->setMimeData(mime_data);
 }
 
 void Application::on_devtools_enabled() const
