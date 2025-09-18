@@ -388,6 +388,11 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
                 span_consumed = true;
             }
 
+            if (span_start > line.length() || span_end > line.length() || span_start > span_end) {
+                ++span_index;
+                continue;
+            }
+
             if (span_start != next_column) {
                 // Draw unspanned text between spans
                 draw_text_helper(next_column, span_start, {});
