@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: parsing animation-composition with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#propdef-animation-composition">
+<meta name="assert" content="animation-composition supports only the grammar '<single-animation-composition> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("animation-composition", "auto");
+test_invalid_value("animation-composition", "add replace");
+
+test_invalid_value("animation-composition", "add, initial");
+test_invalid_value("animation-composition", "initial, add");
+</script>
+</body>
+</html>

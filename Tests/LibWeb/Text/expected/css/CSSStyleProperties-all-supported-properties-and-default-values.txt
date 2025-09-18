@@ -157,6 +157,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'align-self': 'auto'
 'all': ''
 'animation': 'none'
+'animationComposition': 'replace'
+'animation-composition': 'replace'
 'animationDelay': '0s'
 'animation-delay': '0s'
 'animationDirection': 'normal'

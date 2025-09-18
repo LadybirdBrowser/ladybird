@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
+5 Pass
+3 Fail
 Fail	Setting a null effect on a running animation fires an animationend event
 Pass	Replacing an animation's effect with an effect that targets a different property should update both properties
 Pass	Replacing an animation's effect with a shorter one that should have already finished, the animation finishes immediately
 Pass	A play-pending animation's effect whose effect is replaced still exits the pending state
 Fail	CSS animation events are dispatched at the original element even after setting an effect with a different target element
 Pass	After replacing a finished animation's effect with a longer one it fires an animationstart event
-Fail	Setting animation-composition sets the composite property on the effect
+Pass	Setting animation-composition sets the composite property on the effect
 Fail	Replacing the effect of a CSSAnimation causes subsequent changes to corresponding animation-* properties to be ignored
