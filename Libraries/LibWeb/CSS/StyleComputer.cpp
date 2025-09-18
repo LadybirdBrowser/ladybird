@@ -1202,6 +1202,20 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
     if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
         timing_function = timing_property->as_easing().function();
 
+    Bindings::CompositeOperation composite_operation { Bindings::CompositeOperation::Replace };
+    if (auto composite_property = cascaded_properties.property(PropertyID::AnimationComposition); composite_property) {
+        switch (composite_property->to_keyword()) {
+        case Keyword::Add:
+            composite_operation = Bindings::CompositeOperation::Add;
+            break;
+        case Keyword::Accumulate:
+            composite_operation = Bindings::CompositeOperation::Accumulate;
+            break;
+        default:
+            break;
+        }
+    }
+
     auto iteration_duration = duration.has_value()
         ? Variant<double, String> { duration.release_value().to_milliseconds() }
         : "auto"_string;
@@ -1211,6 +1225,7 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
     effect.set_timing_function(move(timing_function));
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(fill_mode));
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(direction));
+    effect.set_composite(composite_operation);
 
     if (play_state != effect.last_css_animation_play_state()) {
         if (play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {

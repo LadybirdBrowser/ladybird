@@ -73,6 +73,7 @@ writing-mode: horizontal-tb
 align-content: normal
 align-items: normal
 align-self: auto
+animation-composition: replace
 animation-delay: 0s
 animation-direction: normal
 animation-duration: 0s
@@ -94,7 +95,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1440px
+block-size: 1455px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -171,7 +172,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2595px
+height: 2610px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

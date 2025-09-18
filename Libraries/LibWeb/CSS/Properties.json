@@ -209,6 +209,17 @@
       "animation-fill-mode"
     ]
   },
+  "animation-composition": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "replace",
+    "valid-identifiers": [
+      "replace",
+      "add",
+      "accumulate"
+    ]
+  },
   "animation-delay": {
     "affects-layout": false,
     "animation-type": "none",
