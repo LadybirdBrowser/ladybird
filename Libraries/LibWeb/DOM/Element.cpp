@@ -3041,7 +3041,7 @@ PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
     return *(m_pseudo_element_data->get(type).value());
 }
 
-void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element, HashMap<FlyString, CSS::StyleProperty> custom_properties)
+void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element, OrderedHashMap<FlyString, CSS::StyleProperty> custom_properties)
 {
     if (!pseudo_element.has_value()) {
         m_custom_properties = move(custom_properties);
@@ -3055,9 +3055,9 @@ void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element,
     ensure_pseudo_element(pseudo_element.value()).set_custom_properties(move(custom_properties));
 }
 
-HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
+OrderedHashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    static HashMap<FlyString, CSS::StyleProperty> s_empty_custom_properties;
+    static OrderedHashMap<FlyString, CSS::StyleProperty> s_empty_custom_properties;
 
     if (!pseudo_element.has_value())
         return m_custom_properties;

@@ -35,8 +35,8 @@ public:
 
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
 
-    void set_custom_properties(HashMap<FlyString, CSS::StyleProperty>&& custom_properties);
-    [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties() const;
+    void set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty>&& custom_properties);
+    [[nodiscard]] OrderedHashMap<FlyString, CSS::StyleProperty> const& custom_properties() const;
     RefPtr<CSS::StyleValue const> get_custom_property(FlyString const& name) const;
 
     GC::Ptr<CSS::CascadedProperties> cascaded_properties() const;

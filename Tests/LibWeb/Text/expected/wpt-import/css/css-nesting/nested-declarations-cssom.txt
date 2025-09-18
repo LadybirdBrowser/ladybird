@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 12 tests
 
-11 Pass
-1 Fail
+12 Pass
 Pass	Trailing declarations
-Fail	Mixed declarations
+Pass	Mixed declarations
 Pass	CSSNestedDeclarations.style
 Pass	Nested group rule
 Pass	Nested @scope rule

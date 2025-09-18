@@ -99,7 +99,7 @@ public:
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
-        HashMap<FlyString, StyleProperty> custom_properties;
+        OrderedHashMap<FlyString, StyleProperty> custom_properties;
     };
     PropertiesAndCustomProperties parse_as_property_declaration_block();
     Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
