@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -123,8 +123,29 @@ class HashTable {
     static constexpr size_t grow_at_load_factor_percent = 80;
     static constexpr size_t grow_capacity_increase_percent = 60;
 
+    struct StoredHash {
+        void set([[maybe_unused]] u32 h)
+        {
+            if constexpr (TraitsForT::may_have_slow_equality_check()) {
+                hash = h;
+            }
+        }
+        bool check(u32 h)
+        {
+            if constexpr (TraitsForT::may_have_slow_equality_check()) {
+                // If equality checks may be slow, we always store the hash and compare it first.
+                return hash == h;
+            } else {
+                // If equality checks are fast, we don't store the hash and always return true.
+                return true;
+            }
+        }
+        u32 hash;
+    };
+
     struct Bucket {
         BucketState state;
+        StoredHash hash;
         alignas(T) u8 storage[sizeof(T)];
         T* slot() { return reinterpret_cast<T*>(storage); }
         T const* slot() const { return reinterpret_cast<T const*>(storage); }
@@ -134,6 +155,7 @@ class HashTable {
         OrderedBucket* previous;
         OrderedBucket* next;
         BucketState state;
+        StoredHash hash;
         alignas(T) u8 storage[sizeof(T)];
         T* slot() { return reinterpret_cast<T*>(storage); }
         T const* slot() const { return reinterpret_cast<T const*>(storage); }
@@ -583,15 +605,15 @@ private:
         if (is_empty())
             return nullptr;
 
-        hash %= m_capacity;
+        size_t bucket_index = hash % m_capacity;
         for (;;) {
-            auto* bucket = &m_buckets[hash];
+            auto* bucket = &m_buckets[bucket_index];
             if (bucket->state == BucketState::Free)
                 return nullptr;
-            if (predicate(*bucket->slot()))
+            if (bucket->hash.check(hash) && predicate(*bucket->slot()))
                 return bucket;
-            if (++hash == m_capacity) [[unlikely]]
-                hash = 0;
+            if (++bucket_index == m_capacity) [[unlikely]]
+                bucket_index = 0;
         }
     }
 
@@ -663,7 +685,8 @@ private:
             }
         };
 
-        auto bucket_index = TraitsForT::hash(value) % m_capacity;
+        u32 const hash = TraitsForT::hash(value);
+        auto bucket_index = hash % m_capacity;
         size_t probe_length = 0;
         for (;;) {
             auto* bucket = &m_buckets[bucket_index];
@@ -672,13 +695,15 @@ private:
             if (bucket->state == BucketState::Free) {
                 new (bucket->slot()) T(forward<U>(value));
                 bucket->state = bucket_state_for_probe_length(probe_length);
+                bucket->hash.set(hash);
                 update_collection_for_new_bucket(*bucket);
                 ++m_size;
                 return HashSetResult::InsertedNewEntry;
             }
 
             // The bucket is already used, does it have an identical value?
-            if (TraitsForT::equals(*bucket->slot(), static_cast<T const&>(value))) {
+            if (bucket->hash.check(hash)
+                && TraitsForT::equals(*bucket->slot(), static_cast<T const&>(value))) {
                 if (existing_entry_behavior == HashSetExistingEntryBehavior::Replace) {
                     (*bucket->slot()) = forward<U>(value);
                     return HashSetResult::ReplacedExistingEntry;
@@ -697,6 +722,7 @@ private:
                 // Write new bucket
                 new (bucket->slot()) T(forward<U>(value));
                 bucket->state = bucket_state_for_probe_length(probe_length);
+                bucket->hash.set(hash);
                 probe_length = target_probe_length;
                 if constexpr (IsOrdered)
                     bucket->next = nullptr;

@@ -276,6 +276,7 @@ struct Traits<NonnullRefPtr<T>> : public DefaultTraits<NonnullRefPtr<T>> {
     using ConstPeekType = T const*;
     static unsigned hash(NonnullRefPtr<T> const& p) { return ptr_hash(p.ptr()); }
     static bool equals(NonnullRefPtr<T> const& a, NonnullRefPtr<T> const& b) { return a.ptr() == b.ptr(); }
+    static constexpr bool may_have_slow_equality_check() { return false; }
 };
 
 }

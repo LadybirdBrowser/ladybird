@@ -212,6 +212,7 @@ struct Traits<WeakPtr<T>> : public DefaultTraits<WeakPtr<T>> {
     using ConstPeekType = T const*;
     static unsigned hash(WeakPtr<T> const& p) { return ptr_hash(p.ptr()); }
     static bool equals(WeakPtr<T> const& a, WeakPtr<T> const& b) { return a.ptr() == b.ptr(); }
+    static constexpr bool may_have_slow_equality_check() { return false; }
 };
 
 }

@@ -200,6 +200,7 @@ private:
 template<>
 struct Traits<FlyString> : public DefaultTraits<FlyString> {
     static unsigned hash(FlyString const&);
+    static constexpr bool may_have_slow_equality_check() { return false; }
 };
 
 template<>

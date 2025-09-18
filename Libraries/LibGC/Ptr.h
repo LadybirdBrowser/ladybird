@@ -235,6 +235,7 @@ struct Traits<GC::Ptr<T>> : public DefaultTraits<GC::Ptr<T>> {
     {
         return Traits<T*>::hash(value.ptr());
     }
+    static constexpr bool may_have_slow_equality_check() { return false; }
 };
 
 template<typename T>

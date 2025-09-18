@@ -269,6 +269,7 @@ static u8 ascii_alphabetic_to_index(u8 c)
 class Node final : public RefCounted<Node> {
 private:
     struct NonnullRefPtrNodeTraits {
+        static constexpr bool may_have_slow_equality_check() { return true; }
         static unsigned hash(NonnullRefPtr<Node> const& node)
         {
             u32 hash = 0;

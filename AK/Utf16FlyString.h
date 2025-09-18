@@ -251,6 +251,7 @@ private:
 template<>
 struct Traits<Utf16FlyString> : public DefaultTraits<Utf16FlyString> {
     static unsigned hash(Utf16FlyString const& string) { return string.hash(); }
+    static constexpr bool may_have_slow_equality_check() { return false; }
 };
 
 template<>
