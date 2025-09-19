@@ -62,6 +62,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
@@ -3172,6 +3173,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
+    case PropertyID::FontVariationSettings:
+        return compute_font_variation_settings(specified_value);
     case PropertyID::LetterSpacing:
     case PropertyID::WordSpacing:
         if (specified_value->to_keyword() == Keyword::Normal)
@@ -3191,6 +3194,30 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     }
 
     VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& specified_value)
+{
+    if (specified_value->is_keyword())
+        return specified_value;
+
+    auto& value_list = specified_value->as_value_list();
+    OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
+    for (size_t i = 0; i < value_list.values().size(); i++) {
+        auto const& axis_tag = value_list.values().at(i)->as_open_type_tagged();
+        axis_tags_map.set(axis_tag.tag(), axis_tag);
+    }
+
+    StyleValueVector axis_tags;
+    // "The computed value contains the de-duplicated axis names, sorted in ascending order by code unit."
+    for (auto const& [key, axis_tag] : axis_tags_map)
+        axis_tags.append(axis_tag);
+
+    quick_sort(axis_tags, [](auto& a, auto& b) {
+        return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
+    });
+
+    return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& specified_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const& computation_context)
