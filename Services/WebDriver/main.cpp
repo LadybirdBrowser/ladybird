@@ -26,7 +26,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     ErrorOr<Core::Process> result = Error::from_string_literal("All paths failed to launch");
     for (auto const& path : paths) {
         auto path_view = path.view();
-        result = Core::Process::spawn(path_view, arguments, {}, Core::Process::KeepAsChild::Yes);
+        result = Core::Process::spawn(path_view, arguments);
         if (!result.is_error())
             break;
     }
