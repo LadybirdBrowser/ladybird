@@ -394,50 +394,57 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(P
     auto& realm = *vm.current_realm();
 
     // 1. Let ownKeys be ? O.[[OwnPropertyKeys]]().
-    auto own_keys = TRY(internal_own_property_keys());
 
     // 2. Let properties be a new empty List.
     auto properties = GC::RootVector<Value> { heap() };
+    properties.ensure_capacity(own_properties_count());
 
-    // 3. For each element key of ownKeys, do
-    for (auto& key : own_keys) {
+    auto& pre_iteration_shape = shape();
+    TRY(for_each_own_property_with_enumerability([&](PropertyKey const& property_key, bool enumerable) -> ThrowCompletionOr<void> {
         // a. If Type(key) is String, then
-        if (!key.is_string())
-            continue;
-        auto property_key = MUST(PropertyKey::from_value(vm, key));
-
         // i. Let desc be ? O.[[GetOwnProperty]](key).
-        auto descriptor = TRY(internal_get_own_property(property_key));
-
         // ii. If desc is not undefined and desc.[[Enumerable]] is true, then
-        if (descriptor.has_value() && *descriptor->enumerable) {
-            // 1. If kind is key, append key to properties.
-            if (kind == PropertyKind::Key) {
-                properties.append(key);
-                continue;
-            }
-            // 2. Else,
-
-            // a. Let value be ? Get(O, key).
-            auto value = TRY(get(property_key));
-
-            // b. If kind is value, append value to properties.
-            if (kind == PropertyKind::Value) {
-                properties.append(value);
-                continue;
-            }
-            // c. Else,
-
-            // i. Assert: kind is key+value.
-            VERIFY(kind == PropertyKind::KeyAndValue);
-
-            // ii. Let entry be CreateArrayFromList(« key, value »).
-            auto entry = Array::create_from(realm, { key, value });
-
-            // iii. Append entry to properties.
-            properties.append(entry);
+        // NOTE: If the object's shape has been mutated during iteration through own properties
+        //       by executing a getter, we can no longer assume that subsequent properties
+        //       are still present and enumerable.
+        if (shape().is_cacheable() && &shape() == &pre_iteration_shape) {
+            if (!enumerable)
+                return {};
+        } else {
+            auto descriptor = TRY(internal_get_own_property(property_key));
+            if (!descriptor.has_value() || !*descriptor->enumerable)
+                return {};
         }
-    }
+
+        // 1. If kind is key, append key to properties.
+        if (kind == PropertyKind::Key) {
+            // 1. If kind is key, append key to properties.
+            properties.append(property_key.to_value(vm));
+            return {};
+        }
+
+        // 2. Else,
+        // a. Let value be ? Get(O, key).
+        auto value = TRY(get(property_key));
+
+        // b. If kind is value, append value to properties.
+        if (kind == PropertyKind::Value) {
+            properties.append(value);
+            return {};
+        }
+
+        // c. Else,
+        // i. Assert: kind is key+value.
+        VERIFY(kind == PropertyKind::KeyAndValue);
+
+        // ii. Let entry be CreateArrayFromList(« key, value »).
+        auto entry = Array::create_from(realm, { property_key.to_value(vm), value });
+
+        // iii. Append entry to properties.
+        properties.append(entry);
+
+        return {};
+    }));
 
     // 4. Return properties.
     return { move(properties) };
@@ -1336,6 +1343,49 @@ void Object::define_intrinsic_accessor(PropertyKey const& property_key, Property
     m_has_intrinsic_accessors = true;
     auto& intrinsics = s_intrinsics.ensure(this);
     intrinsics.set(property_key.as_string(), move(accessor));
+}
+
+ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Function<ThrowCompletionOr<void>(PropertyKey const&, bool)>&& callback) const
+{
+    auto& vm = this->vm();
+    if (eligible_for_own_property_enumeration_fast_path()) {
+        struct OwnKey {
+            PropertyKey property_key;
+            bool enumerable;
+        };
+        GC::ConservativeVector<OwnKey> keys { heap() };
+        keys.ensure_capacity(m_indexed_properties.real_size() + shape().property_count());
+
+        for (auto& entry : m_indexed_properties)
+            keys.unchecked_append({ PropertyKey(entry.index()), entry.enumerable() });
+
+        for (auto const& [property_key, metadata] : shape().property_table()) {
+            if (!property_key.is_string())
+                continue;
+            keys.unchecked_append({ property_key, metadata.attributes.is_enumerable() });
+        }
+
+        for (auto& key : keys)
+            TRY(callback(key.property_key, key.enumerable));
+    } else {
+        auto keys = TRY(internal_own_property_keys());
+        for (auto& key : keys) {
+            auto property_key = TRY(PropertyKey::from_value(vm, key));
+            if (property_key.is_symbol())
+                continue;
+            auto descriptor = TRY(internal_get_own_property(property_key));
+            bool enumerable = false;
+            if (descriptor.has_value())
+                enumerable = *descriptor->enumerable;
+            TRY(callback(property_key, enumerable));
+        }
+    }
+    return {};
+}
+
+size_t Object::own_properties_count() const
+{
+    return m_indexed_properties.real_size() + shape().property_table().size();
 }
 
 // Simple side-effect free property lookup, following the prototype chain. Non-standard.

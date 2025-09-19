@@ -1782,7 +1782,7 @@ public:
     virtual ~PropertyNameIterator() override = default;
 
     BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const&) override { return this; }
-    ThrowCompletionOr<void> next(VM&, bool& done, Value& value) override
+    ThrowCompletionOr<void> next(VM& vm, bool& done, Value& value) override
     {
         while (true) {
             if (m_iterator == m_properties.end()) {
@@ -1794,17 +1794,17 @@ public:
             ScopeGuard remove_first = [&] { ++m_iterator; };
 
             // If the property is deleted, don't include it (invariant no. 2)
-            if (!TRY(m_object->has_property(entry.key.key)))
+            if (!TRY(m_object->has_property(entry.key)))
                 continue;
 
             done = false;
-            value = entry.value;
+            value = entry.key.to_value(vm);
             return {};
         }
     }
 
 private:
-    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, OrderedHashMap<PropertyKeyAndEnumerableFlag, Value> properties)
+    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, OrderedHashTable<PropertyKeyAndEnumerableFlag> properties)
         : Object(realm, nullptr)
         , m_object(object)
         , m_properties(move(properties))
@@ -1816,11 +1816,10 @@ private:
     {
         Base::visit_edges(visitor);
         visitor.visit(m_object);
-        visitor.visit(m_properties);
     }
 
     GC::Ref<Object> m_object;
-    OrderedHashMap<PropertyKeyAndEnumerableFlag, Value> m_properties;
+    OrderedHashTable<PropertyKeyAndEnumerableFlag> m_properties;
     decltype(m_properties.begin()) m_iterator;
 };
 
@@ -1848,39 +1847,38 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
 
-    GC::OrderedRootHashMap<PropertyKeyAndEnumerableFlag, Value> properties(vm.heap());
+    size_t estimated_properties_count = 0;
     HashTable<GC::Ref<Object>> seen_objects;
+    for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+        estimated_properties_count += object_to_check->own_properties_count();
+    }
+    seen_objects.clear_with_capacity();
+
+    OrderedHashTable<PropertyKeyAndEnumerableFlag> properties;
+    properties.ensure_capacity(estimated_properties_count);
+
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
         seen_objects.set(*object_to_check);
-        auto keys = TRY(object_to_check->internal_own_property_keys());
-        properties.ensure_capacity(properties.size() + keys.size());
-        for (auto& key : keys) {
-            if (key.is_symbol())
-                continue;
-
+        TRY(object_to_check->for_each_own_property_with_enumerability([&](PropertyKey const& property_key, bool enumerable) -> ThrowCompletionOr<void> {
             // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
             //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
             //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
             //       the enumerable flag when comparing keys.
             PropertyKeyAndEnumerableFlag new_entry {
-                .key = TRY(PropertyKey::from_value(vm, key)),
+                .key = property_key,
                 .enumerable = false,
             };
-
             if (properties.contains(new_entry))
-                continue;
-
-            auto descriptor = TRY(object_to_check->internal_get_own_property(new_entry.key));
-            if (!descriptor.has_value())
-                continue;
-
-            new_entry.enumerable = *descriptor->enumerable;
-            properties.set(move(new_entry), key, AK::HashSetExistingEntryBehavior::Keep);
-        }
+                return {};
+            new_entry.enumerable = enumerable;
+            properties.set(move(new_entry), AK::HashSetExistingEntryBehavior::Keep);
+            return {};
+        }));
     }
 
-    properties.remove_all_matching([&](auto& key, auto&) { return !key.enumerable; });
+    properties.remove_all_matching([&](auto& key) { return !key.enumerable; });
 
     auto iterator = interpreter.realm().create<PropertyNameIterator>(interpreter.realm(), object, move(properties));
 

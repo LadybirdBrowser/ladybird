@@ -105,6 +105,8 @@ protected:
     // NOTE: This will crash if you make has_named_property_deleter return true but do not override this method.
     virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(String const&);
 
+    virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
+
 private:
     WebIDL::ExceptionOr<void> invoke_indexed_property_setter(JS::PropertyKey const&, JS::Value);
     WebIDL::ExceptionOr<void> invoke_named_property_setter(FlyString const&, JS::Value);

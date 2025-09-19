@@ -32,6 +32,8 @@ public:
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
     virtual void initialize(Realm&) override;
 
+    virtual bool eligible_for_own_property_enumeration_fast_path() const final { return false; }
+
 private:
     ModuleNamespaceObject(Realm&, Module* module, Vector<Utf16FlyString> exports);
 
