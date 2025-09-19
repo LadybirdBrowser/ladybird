@@ -26,6 +26,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Instance>> construct_impl(JS::Realm&, Module& module, Optional<GC::Root<JS::Object>>& import_object);
 
     Object const* exports() const { return m_exports.ptr(); }
+    Wasm::ModuleInstance const* module_instance() const { return m_module_instance.ptr(); }
 
 private:
     Instance(JS::Realm&, NonnullOwnPtr<Wasm::ModuleInstance>);
