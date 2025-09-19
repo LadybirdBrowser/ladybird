@@ -33,6 +33,7 @@ private:
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
 
     virtual bool is_string_object() const final { return true; }
+    virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<PrimitiveString> m_string;

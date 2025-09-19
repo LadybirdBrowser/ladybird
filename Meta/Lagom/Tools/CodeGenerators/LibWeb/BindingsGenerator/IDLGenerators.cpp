@@ -3383,6 +3383,8 @@ private:
     virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
     virtual JS::ThrowCompletionOr<bool> internal_prevent_extensions() override;
 
+    virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
+
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<JS::Realm> m_realm; // [[Realm]]
