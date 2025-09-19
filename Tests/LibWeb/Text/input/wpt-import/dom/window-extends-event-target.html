@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Window extends EventTarget</title>
+<link rel="help" href="https://github.com/jsdom/jsdom/issues/2830">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+test(() => {
+
+  assert_equals(window.addEventListener, EventTarget.prototype.addEventListener);
+  assert_equals(window.removeEventListener, EventTarget.prototype.removeEventListener);
+  assert_equals(window.dispatchEvent, EventTarget.prototype.dispatchEvent);
+
+}, "EventTarget methods on Window instances are inherited from the EventTarget prototype");
+
+test(() => {
+
+  const kCustom = "custom-event";
+  const customEvent = new CustomEvent(kCustom, {
+    bubbles: true
+  });
+
+  let target;
+  window.addEventListener.call(document.body, kCustom, function () {
+    target = this;
+  });
+
+  document.body.dispatchEvent(customEvent);
+
+  assert_equals(target, document.body);
+
+}, "window.addEventListener respects custom `this`");
+
+test(() => {
+
+  const kCustom = "custom-event";
+  const customEvent = new CustomEvent(kCustom, {
+    bubbles: true
+  });
+
+  let target;
+  window.addEventListener.call(null, kCustom, function () {
+    target = this;
+  });
+
+  document.body.dispatchEvent(customEvent);
+
+  assert_equals(target, window);
+
+}, "window.addEventListener treats nullish `this` as `window`");
+</script>
