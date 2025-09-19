@@ -119,7 +119,7 @@ MediaPaintable::Components MediaPaintable::compute_control_bar_components(Displa
 
     auto display_time = human_readable_digital_time(round(media_element.layout_display_time({})));
     auto duration = human_readable_digital_time(isnan(media_element.duration()) ? 0 : round(media_element.duration()));
-    components.timestamp = String::formatted("{} / {}", display_time, duration).release_value_but_fixme_should_propagate_errors();
+    components.timestamp = Utf16String::formatted("{} / {}", display_time, duration);
     components.timestamp_font = layout_node().font(context);
 
     auto timestamp_size = DevicePixels { static_cast<DevicePixels::Type>(ceilf(components.timestamp_font->width(components.timestamp))) };
@@ -196,7 +196,7 @@ void MediaPaintable::paint_control_bar_timestamp(DisplayListRecordingContext& co
     if (components.timestamp_rect.is_empty())
         return;
 
-    context.display_list_recorder().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp, *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
+    context.display_list_recorder().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp.to_well_formed_utf8(), *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
 }
 
 void MediaPaintable::paint_control_bar_speaker(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)

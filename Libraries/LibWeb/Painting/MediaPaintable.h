@@ -30,7 +30,7 @@ private:
         DevicePixelRect playback_button_rect;
         DevicePixelRect timeline_rect;
 
-        String timestamp;
+        Utf16String timestamp;
         RefPtr<Gfx::Font const> timestamp_font;
         DevicePixelRect timestamp_rect;
 

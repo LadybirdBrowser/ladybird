@@ -1243,7 +1243,7 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
     auto marker_text = marker.text();
     if (marker_text.has_value()) {
         // FIXME: Use per-code-point fonts to measure text.
-        auto text_width = marker_font.width(marker_text.value().code_points());
+        auto text_width = marker_font.width(Utf16String::from_utf8(marker_text.value()));
         marker_state.set_content_width(CSSPixels::nearest_value_for(text_width));
     } else {
         marker_state.set_content_width(marker_size);
