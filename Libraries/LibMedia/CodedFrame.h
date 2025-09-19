@@ -8,18 +8,17 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
-
-#include "VideoSampleData.h"
+#include <LibMedia/CodedVideoFrameData.h>
 
 namespace Media {
 
-class Sample final {
+class CodedFrame final {
 public:
-    using AuxiliaryData = Variant<VideoSampleData>;
+    using AuxiliaryData = Variant<CodedVideoFrameData>;
 
-    Sample(AK::Duration timestamp, ByteBuffer data, AuxiliaryData auxiliary_data)
+    CodedFrame(AK::Duration timestamp, ByteBuffer&& data, AuxiliaryData auxiliary_data)
         : m_timestamp(timestamp)
-        , m_data(data)
+        , m_data(move(data))
         , m_auxiliary_data(auxiliary_data)
     {
     }

@@ -10,9 +10,9 @@
 
 namespace Media {
 
-class VideoSampleData {
+class CodedVideoFrameData {
 public:
-    VideoSampleData(CodingIndependentCodePoints container_cicp)
+    CodedVideoFrameData(CodingIndependentCodePoints container_cicp)
         : m_container_cicp(container_cicp)
     {
     }

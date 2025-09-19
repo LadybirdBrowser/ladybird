@@ -104,12 +104,12 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(AK::Duration timestamp, ReadonlyBytes sample)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data)
 {
-    VERIFY(sample.size() < NumericLimits<int>::max());
+    VERIFY(coded_data.size() < NumericLimits<int>::max());
 
-    m_packet->data = const_cast<u8*>(sample.data());
-    m_packet->size = static_cast<int>(sample.size());
+    m_packet->data = const_cast<u8*>(coded_data.data());
+    m_packet->size = static_cast<int>(coded_data.size());
     m_packet->pts = timestamp.to_microseconds();
     m_packet->dts = m_packet->pts;
 
