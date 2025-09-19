@@ -26,8 +26,6 @@ public:
     void flush() override;
 
 private:
-    DecoderErrorOr<void> decode_single_sample(AK::Duration timestamp, u8* data, int size);
-
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;
