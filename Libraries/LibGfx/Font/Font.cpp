@@ -61,8 +61,6 @@ ScaledFontMetrics Font::metrics() const
     return metrics;
 }
 
-float Font::width(StringView view) const { return measure_text_width(Utf8View(view), *this, {}); }
-float Font::width(Utf8View const& view) const { return measure_text_width(view, *this, {}); }
 float Font::width(Utf16View const& view) const { return measure_text_width(view, *this, {}); }
 
 float Font::glyph_width(u32 code_point) const

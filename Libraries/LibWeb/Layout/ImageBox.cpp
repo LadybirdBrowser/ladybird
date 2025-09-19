@@ -46,7 +46,7 @@ void ImageBox::prepare_for_replaced_layout()
         } else {
             auto font = Platform::FontPlugin::the().default_font(12);
             CSSPixels alt_text_width = m_cached_alt_text_width.ensure([&] {
-                return CSSPixels::nearest_value_for(font->width(alt));
+                return CSSPixels::nearest_value_for(font->width(Utf16String::from_utf8(alt)));
             });
             set_natural_width(alt_text_width + 16);
             set_natural_height(CSSPixels::nearest_value_for(font->pixel_size()) + 16);
