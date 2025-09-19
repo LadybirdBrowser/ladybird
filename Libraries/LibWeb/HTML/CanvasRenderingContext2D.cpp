@@ -250,7 +250,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
     }
 }
 
-Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y, Optional<double> max_width)
+Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
     if (max_width.has_value() && max_width.value() <= 0)
         return {};
@@ -259,7 +259,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
 
     auto const& font_cascade_list = this->font_cascade_list();
     auto const& font = font_cascade_list->first();
-    auto glyph_runs = Gfx::shape_text({ x, y }, Utf8View(text), *font_cascade_list);
+    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list);
     Gfx::Path path;
     for (auto const& glyph_run : glyph_runs) {
         path.glyph_run(glyph_run);
@@ -305,12 +305,12 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
     return path.copy_transformed(transform);
 }
 
-void CanvasRenderingContext2D::fill_text(StringView text, float x, float y, Optional<double> max_width)
+void CanvasRenderingContext2D::fill_text(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
     fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
 }
 
-void CanvasRenderingContext2D::stroke_text(StringView text, float x, float y, Optional<double> max_width)
+void CanvasRenderingContext2D::stroke_text(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
     stroke_internal(text_path(text, x, y, max_width));
 }
@@ -554,7 +554,7 @@ void CanvasRenderingContext2D::reset_to_default_state()
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext
-GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(StringView text)
+GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& text)
 {
     // The measureText(text) method steps are to run the text preparation
     // algorithm, passing it text and the object implementing the CanvasText
@@ -606,7 +606,7 @@ RefPtr<Gfx::FontCascadeList const> CanvasRenderingContext2D::font_cascade_list()
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
-CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(ByteString const& text, float max_width)
+CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Utf16String const& text, float max_width)
 {
     // 1. If maxWidth was provided but is less than or equal to zero or equal to NaN, then return an empty array.
     if (max_width <= 0 || max_width != max_width) {
@@ -614,14 +614,14 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     }
 
     // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
-    StringBuilder builder { text.length() };
+    StringBuilder builder { StringBuilder::Mode::UTF16, text.length_in_code_units() };
     for (auto c : text) {
         builder.append(Infra::is_ascii_whitespace(c) ? ' ' : c);
     }
-    auto replaced_text = MUST(builder.to_string());
+    auto replaced_text = builder.to_utf16_string();
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
-    auto glyph_runs = Gfx::shape_text({ 0, 0 }, Utf8View(replaced_text), *font_cascade_list());
+    auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list());
 
     // FIXME: 4. Let language be the target's language.
     // FIXME: 5. If language is "inherit":

@@ -75,8 +75,8 @@ public:
     virtual void stroke() override;
     virtual void stroke(Path2D const& path) override;
 
-    virtual void fill_text(StringView, float x, float y, Optional<double> max_width) override;
-    virtual void stroke_text(StringView, float x, float y, Optional<double> max_width) override;
+    virtual void fill_text(Utf16String const&, float x, float y, Optional<double> max_width) override;
+    virtual void stroke_text(Utf16String const&, float x, float y, Optional<double> max_width) override;
 
     virtual void fill(StringView fill_rule) override;
     virtual void fill(Path2D& path, StringView fill_rule) override;
@@ -90,7 +90,7 @@ public:
 
     virtual CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
-    virtual GC::Ref<TextMetrics> measure_text(StringView text) override;
+    virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) override;
 
     virtual void clip(StringView fill_rule) override;
     virtual void clip(Path2D& path, StringView fill_rule) override;
