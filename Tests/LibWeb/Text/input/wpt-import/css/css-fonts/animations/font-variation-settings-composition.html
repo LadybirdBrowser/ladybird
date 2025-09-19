@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-variation-settings composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variation-settings">
+<meta name="assert" content="font-variation-settings supports animation pairwise by 'like' properties">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body></body>
+
+<script>
+function compareVariationSettings(actual, expected) {
+  // The order of <axis, value> pairs in the variation-settings list is arbitrary,
+  // so we sort the pairs before attempting to compare. (We only need to use this
+  // when multiple settings are expected, otherwise the default comparison is OK.)
+  assert_equals(normalizeValue(actual).split(", ").sort().join(", "),
+                normalizeValue(expected).split(", ").sort().join(", "));
+};
+
+test_composition({
+  property: 'font-variation-settings',
+  underlying: "'test' 50",
+  addFrom: "'test' 100",
+  addTo: "'test' 200",
+}, [
+  {at: -0.3, expect: "'test' 120"},
+  {at: 0, expect: "'test' 150"},
+  {at: 0.5, expect: "'test' 200"},
+  {at: 1, expect: "'test' 250"},
+  {at: 1.5, expect: "'test' 300"},
+]);
+
+test_composition({
+  property: 'font-variation-settings',
+  underlying: "'test' 50",
+  addFrom: "'test' 100",
+  replaceTo: "'test' 200",
+}, [
+  {at: -0.3, expect: "'test' 135"},
+  {at: 0, expect: "'test' 150"},
+  {at: 0.5, expect: "'test' 175"},
+  {at: 1, expect: "'test' 200"},
+  {at: 1.5, expect: "'test' 225"},
+]);
+
+test_composition({
+  property: 'font-variation-settings',
+  underlying: "'test' 100",
+  addFrom: 'normal',
+  replaceTo: "'test' 200",
+}, [
+  {at: -0.3, expect: 'normal'},
+  {at: 0, expect: 'normal'},
+  {at: 0.5, expect: "'test' 200"},
+  {at: 1, expect: "'test' 200"},
+  {at: 1.5, expect: "'test' 200"},
+]);
+
+test_composition({
+  property: 'font-variation-settings',
+  underlying: "'test' 100",
+  addFrom: 'normal',
+  addTo: "'test' 200",
+}, [
+  {at: -0.3, expect: 'normal'},
+  {at: 0, expect: 'normal'},
+  {at: 0.5, expect: "'test' 300"},
+  {at: 1, expect: "'test' 300"},
+  {at: 1.5, expect: "'test' 300"},
+]);
+
+test_composition({
+  property: 'font-variation-settings',
+  underlying: "'aaaa' 100, 'bbbb' 200",
+  addFrom: "'aaaa' 20, 'bbbb' 50",
+  addTo: "'aaaa' 30, 'bbbb' 100",
+  comparisonFunction: compareVariationSettings,
+}, [
+  {at: -0.3, expect: "'aaaa' 117, 'bbbb' 235"},
+  {at: 0, expect: "'aaaa' 120, 'bbbb' 250"},
+  {at: 0.5, expect: "'aaaa' 125, 'bbbb' 275"},
+  {at: 1, expect: "'aaaa' 130, 'bbbb' 300"},
+  {at: 1.5, expect: "'aaaa' 135, 'bbbb' 325"},
+]);
+
+test_composition({
+  property: 'font-variation-settings',
+  underlying: "'test' 100",
+  addFrom: "'aaaa' 20, 'bbbb' 50",
+  addTo: "'aaaa' 30, 'bbbb' 100",
+  comparisonFunction: compareVariationSettings,
+}, [
+  {at: -0.3, expect: "'aaaa' 17, 'bbbb' 35"},
+  {at: 0, expect: "'aaaa' 20, 'bbbb' 50"},
+  {at: 0.5, expect: "'aaaa' 25, 'bbbb' 75"},
+  {at: 1, expect: "'aaaa' 30, 'bbbb' 100"},
+  {at: 1.5, expect: "'aaaa' 35, 'bbbb' 125"},
+]);
+</script>
+</body>
