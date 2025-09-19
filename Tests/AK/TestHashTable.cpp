@@ -349,6 +349,30 @@ TEST_CASE(clear_with_capacity_when_empty)
     VERIFY(map.size() == 2);
 }
 
+struct NonTrivial {
+    ~NonTrivial() { }
+    bool operator==(NonTrivial const&) const { return true; }
+};
+
+namespace AK {
+
+template<>
+struct Traits<NonTrivial> : public DefaultTraits<NonTrivial> {
+    static unsigned hash(NonTrivial const&) { return 0; }
+};
+
+}
+
+TEST_CASE(clear_with_capacity_with_non_trivial_type)
+{
+    static_assert(!IsTriviallyDestructible<NonTrivial>);
+
+    HashTable<NonTrivial> map;
+    map.set({});
+    map.clear_with_capacity();
+    VERIFY(map.size() == 0);
+}
+
 TEST_CASE(iterator_removal)
 {
     HashTable<int> map;
