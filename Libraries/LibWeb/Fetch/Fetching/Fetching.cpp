@@ -1423,14 +1423,14 @@ public:
         // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
         auto it = m_cache.find(url);
         if (it == m_cache.end()) {
-            dbgln("\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
+            dbgln_if(HTTP_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
             return {};
         }
         auto const& cached_response = it->value;
 
         // - the request method associated with the stored response allows it to be used for the presented request, and
         if (method != cached_response->method()) {
-            dbgln("\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
+            dbgln_if(HTTP_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
             return {};
         }
 
@@ -1446,8 +1446,7 @@ public:
         //          + allowed to be served stale (see Section 4.2.4), or
         //          + successfully validated (see Section 4.3).
 
-        dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
-
+        dbgln_if(HTTP_CACHE_DEBUG, "\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
         return cached_response->clone(realm);
     }
 
@@ -2105,7 +2104,8 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
 
             // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
             if (revalidating_flag->value() && forward_response->status() == 304) {
-                dbgln("\033[34;1mHTTP CACHE REVALIDATE (304)\033[0m {}", http_request->current_url());
+                dbgln_if(HTTP_CACHE_DEBUG, "\033[34;1mHTTP CACHE REVALIDATE (304)\033[0m {}", http_request->current_url());
+
                 // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
                 //    Stored Responses upon Validation" chapter of HTTP Caching.
                 // NOTE: This updates the stored response in cache as well.
