@@ -3098,11 +3098,7 @@ RefPtr<StyleValue const> Parser::parse_font_variation_settings_value(TokenStream
     auto transaction = tokens.begin_transaction();
     auto tag_values = parse_a_comma_separated_list_of_component_values(tokens);
 
-    // "If the same axis name appears more than once, the value associated with the last appearance supersedes any
-    // previous value for that axis. This deduplication is observable by accessing the computed value of this property."
-    // So, we deduplicate them here using a HashSet.
-
-    OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
+    StyleValueVector axis_tags;
     for (auto const& values : tag_values) {
         TokenStream tag_tokens { values };
         tag_tokens.discard_whitespace();
@@ -3114,18 +3110,8 @@ RefPtr<StyleValue const> Parser::parse_font_variation_settings_value(TokenStream
         if (!opentype_tag || !number || tag_tokens.has_next_token())
             return nullptr;
 
-        axis_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, opentype_tag->string_value(), number.release_nonnull()));
+        axis_tags.append(OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, opentype_tag->string_value(), number.release_nonnull()));
     }
-
-    // "The computed value contains the de-duplicated axis names, sorted in ascending order by code unit."
-    StyleValueVector axis_tags;
-    axis_tags.ensure_capacity(axis_tags_map.size());
-    for (auto const& [key, axis_tag] : axis_tags_map)
-        axis_tags.append(axis_tag);
-
-    quick_sort(axis_tags, [](auto& a, auto& b) {
-        return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
-    });
 
     transaction.commit();
     return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
