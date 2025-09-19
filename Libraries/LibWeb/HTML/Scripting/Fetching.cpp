@@ -705,12 +705,16 @@ void fetch_single_module_script(JS::Realm& realm,
         // FIXME: 4. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
         // FIXME: 5. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
 
-        //  FIXME: 6. If mimeType's essence is "application/wasm" and moduleType is "javascript-or-wasm", then set moduleScript
-        //            to the result of creating a WebAssembly module script given bodyBytes, settingsObject, response's URL, and
-        //            options.
+        //  6. If mimeType's essence is "application/wasm" and moduleType is "javascript-or-wasm", then set moduleScript
+        //     to the result of creating a WebAssembly module script given bodyBytes, moduleMapRealm, response's URL, and
+        //     options.
+        // FIXME: Pass options.
+        if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm") {
+            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), body_bytes.get<ByteBuffer>(), module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+        }
 
         // 7. Otherwise
-        {
+        else {
             // 1. Let sourceText be the result of UTF-8 decoding bodyBytes.
             auto decoder = TextCodec::decoder_for("UTF-8"sv);
             VERIFY(decoder.has_value());

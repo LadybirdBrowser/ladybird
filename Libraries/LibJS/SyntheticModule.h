@@ -28,7 +28,7 @@ public:
     virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
     virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
     virtual ThrowCompletionOr<void> link(VM& vm) override;
-    virtual ThrowCompletionOr<GC::Ref<Promise>> evaluate(VM& vm) override;
+    virtual ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm) override;
 
 private:
     SyntheticModule(Realm& realm, Vector<Utf16FlyString> export_names, EvaluationFunction evaluation_steps, ByteString filename);

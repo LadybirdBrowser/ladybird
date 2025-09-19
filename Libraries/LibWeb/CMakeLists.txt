@@ -1039,6 +1039,7 @@ set(SOURCES
     WebAssembly/Module.cpp
     WebAssembly/Table.cpp
     WebAssembly/WebAssembly.cpp
+    WebAssembly/WebAssemblyModule.cpp
     WebAudio/AnalyserNode.cpp
     WebAudio/AudioBuffer.cpp
     WebAudio/AudioBufferSourceNode.cpp
