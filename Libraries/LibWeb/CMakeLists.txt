@@ -12,6 +12,8 @@ else()
     set(ANGLE_TARGETS PkgConfig::angle)
 endif()
 
+find_package(Dawn CONFIG REQUIRED)
+
 set(SOURCES
     Animations/Animatable.cpp
     Animations/Animation.cpp
@@ -1031,6 +1033,15 @@ set(SOURCES
     WebGL/WebGLTransformFeedback.cpp
     WebGL/WebGLUniformLocation.cpp
     WebGL/WebGLVertexArrayObject.cpp
+    WebGPU/GPU.cpp
+    WebGPU/GPUAdapter.cpp
+    WebGPU/GPUAdapterInfo.cpp
+    WebGPU/GPUDevice.cpp
+    WebGPU/GPUObjectBase.cpp
+    WebGPU/GPUQueue.cpp
+    WebGPU/GPUSupportedFeatures.cpp
+    WebGPU/GPUSupportedLimits.cpp
+    WebGPU/WGSLLanguageFeatures.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
@@ -1099,7 +1110,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia dawn::webgpu_dawn ${ANGLE_TARGETS} SDL3::SDL3)
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)

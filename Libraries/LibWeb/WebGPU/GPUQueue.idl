@@ -1,0 +1,21 @@
+#import <WebGPU/GPUObjectBase.idl>
+
+// https://www.w3.org/TR/webgpu/#gpuqueuedescriptor
+dictionary GPUQueueDescriptor
+         : GPUObjectDescriptorBase {
+};
+
+// https://www.w3.org/TR/webgpu/#gpuqueue
+[Exposed=(Window, Worker), SecureContext]
+interface GPUQueue {
+    // FIXME: undefined submit(sequence<GPUCommandBuffer> commandBuffers);
+
+    // FIXME: Promise<undefined> onSubmittedWorkDone();
+
+    // FIXME: undefined writeBuffer(GPUBuffer buffer, GPUSize64 bufferOffset, AllowSharedBufferSource data, optional GPUSize64 dataOffset = 0, optional GPUSize64 size);
+
+    // FIXME: undefined writeTexture(GPUTexelCopyTextureInfo destination, AllowSharedBufferSource data, GPUTexelCopyBufferLayout dataLayout, GPUExtent3D size);
+
+    // FIXME: undefined copyExternalImageToTexture(GPUCopyExternalImageSourceInfo source, GPUCopyExternalImageDestInfo destination, GPUExtent3D copySize);
+};
+GPUQueue includes GPUObjectBase;

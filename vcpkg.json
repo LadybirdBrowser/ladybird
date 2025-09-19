@@ -26,6 +26,47 @@
       ]
     },
     {
+      "name": "dawn",
+      "platform": "android",
+      "default-features": false,
+      "features": [
+        "vulkan"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "freebsd | openbsd",
+      "default-features": false,
+      "features": [
+        "vulkan"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "linux",
+      "default-features": false,
+      "features": [
+        "vulkan",
+        "wayland"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "osx",
+      "default-features": false,
+      "features": [
+        "metal"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "windows",
+      "default-features": false,
+      "features": [
+        "d3d12"
+      ]
+    },
+    {
       "name": "dbus",
       "default-features": false,
       "platform": "linux"
@@ -292,7 +333,7 @@
     },
     {
       "name": "skia",
-      "version": "129#0"
+      "version": "140#0"
     },
     {
       "name": "sqlite3",

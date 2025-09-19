@@ -1,0 +1,104 @@
+{
+  "name": "dawn",
+  "version": "20250825.204709",
+  "description": "Dawn is an open-source and cross-platform implementation of the WebGPU standard.",
+  "homepage": "https://dawn.googlesource.com/dawn",
+  "license": "BSD-3-Clause",
+  "dependencies": [
+    {
+      "name": "abseil",
+      "features": [
+        "cxx17"
+      ],
+      "platform": "!emscripten"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    {
+      "name": "vcpkg-get-python-packages",
+      "host": true
+    }
+  ],
+  "default-features": [
+    {
+      "name": "d3d11",
+      "platform": "windows"
+    },
+    {
+      "name": "d3d12",
+      "platform": "windows"
+    },
+    {
+      "name": "gl",
+      "platform": "linux | freebsd | openbsd"
+    },
+    {
+      "name": "gles",
+      "platform": "android | linux | freebsd | openbsd"
+    },
+    {
+      "name": "metal",
+      "platform": "osx | ios"
+    },
+    {
+      "name": "vulkan",
+      "platform": "(windows & !uwp) | android | linux | freebsd | openbsd"
+    },
+    {
+      "name": "x11",
+      "platform": "linux | freebsd | openbsd"
+    }
+  ],
+  "features": {
+    "d3d11": {
+      "description": "Direct3D 11 backend support",
+      "supports": "windows"
+    },
+    "d3d12": {
+      "description": "Direct3D 12 backend support",
+      "supports": "windows"
+    },
+    "gl": {
+      "description": "Desktop OpenGL backend support",
+      "supports": "linux | freebsd | openbsd",
+      "dependencies": [
+        "egl-registry",
+        "opengl-registry"
+      ]
+    },
+    "gles": {
+      "description": "OpenGL ES backend support",
+      "supports": "android | linux | freebsd | openbsd",
+      "dependencies": [
+        "egl-registry",
+        "opengl-registry"
+      ]
+    },
+    "metal": {
+      "description": "Metal backend support",
+      "supports": "osx | ios"
+    },
+    "vulkan": {
+      "description": "Vulkan backend support",
+      "supports": "(windows & !uwp) | android | linux | freebsd | openbsd",
+      "dependencies": [
+        "vulkan-headers",
+        "vulkan-utility-libraries"
+      ]
+    },
+    "wayland": {
+      "description": "Wayland support",
+      "supports": "linux | freebsd | openbsd"
+    },
+    "x11": {
+      "description": "X11 support",
+      "supports": "linux | freebsd | openbsd"
+    }
+  }
+}

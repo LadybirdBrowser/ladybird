@@ -1,0 +1,127 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 26b84f4794..27a595e2fb 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -461,6 +461,11 @@ set(TINT_SPIRV_TOOLS_DIR   ${DAWN_SPIRV_TOOLS_DIR})
+ ################################################################################
+ # Run on all subdirectories
+ ################################################################################
++find_package(absl CONFIG REQUIRED)
++if (DAWN_ENABLE_VULKAN)
++    find_package(VulkanHeaders CONFIG REQUIRED)
++    find_package(VulkanUtilityLibraries CONFIG REQUIRED)
++endif()
+ add_subdirectory(third_party)
+ 
+ # TODO(crbug.com/tint/455): Tint does not currently build with CMake when
+diff --git a/src/cmake/BundleLibraries.cmake b/src/cmake/BundleLibraries.cmake
+index 682a73924c..1ec358c54c 100644
+--- a/src/cmake/BundleLibraries.cmake
++++ b/src/cmake/BundleLibraries.cmake
+@@ -92,7 +92,18 @@ function(bundle_libraries output_target library_type)
+ 
+   # Collect $<TARGET_OBJECTS:...> from STATIC and OBJECT library dependencies
+   set(all_objects "")
++  set(all_libraries "")
++  message(STATUS "all_dependencies: ${all_dependencies}")
+   foreach(dependency IN LISTS all_dependencies)
++    if("${dependency}" MATCHES "^absl::")
++      list(APPEND all_libraries ${dependency})
++      continue()
++    endif()
++    if("${dependency}" MATCHES "^Vulkan-Headers" OR "${dependency}" MATCHES "^VulkanUtility")
++      list(APPEND all_libraries ${dependency})
++      continue()
++    endif()
++
+     get_target_property(type ${dependency} TYPE)
+ 
+     # We only want object files from static or object libraries.
+@@ -112,6 +123,7 @@ function(bundle_libraries output_target library_type)
+   # Create the output library using the validated type and collected objects
+   # If all_objects is empty, add_library will still create an empty library of the specified type.
+   add_library(${output_target} ${library_type} ${all_objects})
++  target_link_libraries(${output_target} PRIVATE ${all_libraries})
+ 
+   # Add dependencies to ensure input targets are built before the bundled library.
+   # This handles the build order correctly.
+diff --git a/src/cmake/DawnConfig.cmake.in b/src/cmake/DawnConfig.cmake.in
+index 8bfeda55bc..a0f9858530 100644
+--- a/src/cmake/DawnConfig.cmake.in
++++ b/src/cmake/DawnConfig.cmake.in
+@@ -31,4 +31,9 @@
+ # 2. https://cmake.org/cmake/help/latest/guide/tutorial/Adding%20Export%20Configuration.html
+ 
+ @PACKAGE_INIT@
++
++include(CMakeFindDependencyMacro)
++
++find_dependency(absl CONFIG)
++
+ include ("${CMAKE_CURRENT_LIST_DIR}/DawnTargets.cmake")
+diff --git a/src/dawn/native/CMakeLists.txt b/src/dawn/native/CMakeLists.txt
+index 62eb7f443d..07a4a871b8 100644
+--- a/src/dawn/native/CMakeLists.txt
++++ b/src/dawn/native/CMakeLists.txt
+@@ -617,11 +617,17 @@ if ((DAWN_ENABLE_OPENGL OR DAWN_ENABLE_VULKAN) AND DAWN_ENABLE_SPIRV_VALIDATION)
+ endif()
+ 
+ if (DAWN_ENABLE_OPENGL)
++    find_path(OPENGL_REGISTRY_INCLUDE_DIRS "GL/glcorearb.h")
++    find_file(
++            OPENGL_XML_FILE
++            NAMES "opengl/gl.xml"
++            PATHS "${OPENGL_REGISTRY_INCLUDE_DIRS}/../share"
++    )
+     DawnGenerator(
+         SCRIPT "${Dawn_SOURCE_DIR}/generator/opengl_loader_generator.py"
+         PRINT_NAME "OpenGL function loader"
+         EXTRA_PARAMETERS "--gl-xml"
+-             "${Dawn_SOURCE_DIR}/third_party/khronos/OpenGL-Registry/xml/gl.xml"
++             "${OPENGL_XML_FILE}"
+              "--supported-extensions"
+              "${Dawn_SOURCE_DIR}/src/dawn/native/opengl/supported_extensions.json"
+         OUTPUT_HEADERS DAWN_NATIVE_OPENGL_AUTOGEN_HEADERS
+diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
+index b263399c1c..3e83e699f6 100644
+--- a/third_party/CMakeLists.txt
++++ b/third_party/CMakeLists.txt
+@@ -41,6 +41,7 @@ if (DAWN_FETCH_DEPENDENCIES)
+     )
+ endif ()
+ 
++if(0)
+ set(ABSL_ROOT_DIR ${DAWN_ABSEIL_DIR})
+ if (NOT TARGET absl::strings)
+     # Recommended setting for compatibility with future abseil releases.
+@@ -62,6 +63,7 @@ if (NOT TARGET absl::strings)
+ 
+     add_subdirectory(${DAWN_ABSEIL_DIR} "${CMAKE_CURRENT_BINARY_DIR}/abseil")
+ endif()
++endif()
+ 
+ if (DAWN_BUILD_PROTOBUF AND EXISTS "${DAWN_PROTOBUF_DIR}/cmake")
+     if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") AND WIN32)
+@@ -175,10 +177,12 @@ endif()
+ if (DAWN_ENABLE_DESKTOP_GL OR DAWN_ENABLE_OPENGLES)
+     # Header-only library for khrplatform.h
+     add_library(dawn_khronos_platform INTERFACE)
+-    target_sources(dawn_khronos_platform INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/khronos/EGL-Registry/api/KHR/khrplatform.h")
+-    target_include_directories(dawn_khronos_platform INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/khronos/EGL-Registry/api")
++    find_path(EGL_REGISTRY_INCLUDE_DIRS "EGL/egl.h")
++    target_sources(dawn_khronos_platform INTERFACE "${EGL_REGISTRY_INCLUDE_DIRS}/KHR/khrplatform.h")
++    target_include_directories(dawn_khronos_platform INTERFACE "${EGL_REGISTRY_INCLUDE_DIRS}")
+ endif()
+ 
++if (0)
+ if (NOT TARGET Vulkan::Headers AND DAWN_ENABLE_VULKAN)
+     message(STATUS "Dawn: using Vulkan::Headers at ${DAWN_VULKAN_HEADERS_DIR}")
+ 
+@@ -190,6 +194,7 @@ if (NOT TARGET Vulkan::UtilityHeaders AND DAWN_ENABLE_VULKAN)
+     message(STATUS "Dawn: using VulkanUtilityLibraries at ${DAWN_VULKAN_UTILITY_LIBRARIES_DIR}")
+     add_subdirectory(${DAWN_VULKAN_UTILITY_LIBRARIES_DIR} "${CMAKE_CURRENT_BINARY_DIR}/vulkan-utility-libraries/src")
+ endif()
++endif()
+ 
+ if (DAWN_ENABLE_SWIFTSHADER AND NOT TARGET vk_swiftshader)
+     set(SWIFTSHADER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
