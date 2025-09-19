@@ -362,7 +362,7 @@ ErrorOr<void> Application::launch_services()
         } else {
             m_time_zone_watcher = time_zone_watcher.release_value();
 
-            m_time_zone_watcher->on_time_zone_changed = []() {
+            m_time_zone_watcher->on_time_zone_changed = [] {
                 WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
                     client.async_system_time_zone_changed();
                     return IterationDecision::Continue;
@@ -872,6 +872,13 @@ void Application::refresh_tab_list()
     if (!m_devtools)
         return;
     m_devtools->refresh_tab_list();
+}
+
+Optional<Core::TimeZoneWatcher&> Application::time_zone_watcher()
+{
+    if (m_time_zone_watcher != nullptr)
+        return *m_time_zone_watcher;
+    return {};
 }
 
 Vector<DevTools::TabDescription> Application::tab_list() const

@@ -87,9 +87,15 @@ if (LINUX AND NOT EMSCRIPTEN)
     )
 elseif (APPLE AND NOT IOS)
     list(APPEND SOURCES
-        FileWatcherMacOS.mm
+        FileWatcherUnimplemented.cpp
         Platform/ProcessStatisticsMach.cpp
         TimeZoneWatcherMacOS.mm
+    )
+elseif (WIN32)
+    list(APPEND SOURCES
+        FileWatcherUnimplemented.cpp
+        Platform/ProcessStatisticsUnimplemented.cpp
+        TimeZoneWatcherWindows.cpp
     )
 else()
     list(APPEND SOURCES
