@@ -10,6 +10,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -125,18 +127,59 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_sc
     return script;
 }
 
+// https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-webassembly-module-script
+// https://whatpr.org/html/9893/webappapis.html#creating-a-webassembly-module-script
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, JS::Realm& realm, URL::URL base_url)
+{
+    // 1. If scripting is disabled for realm, then set bodyBytes to the byte sequence 0x00 0x61 0x73 0x6d 0x01 0x00 0x00 0x00.
+    // NOTE: This byte sequence corresponds to an empty WebAssembly module with only the magic bytes and version number provided.
+    if (HTML::is_scripting_disabled(realm)) {
+        auto byte_sequence = ReadonlyBytes { { 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 } };
+        body_bytes = MUST(ByteBuffer::create_uninitialized(byte_sequence.size()));
+        byte_sequence.copy_to(body_bytes);
+    }
+
+    // 2. Let script be a new module script that this algorithm will subsequently initialize.
+    // 3. Set script's realm to realm.
+    // 4. Set script's base URL to baseURL.
+    // FIXME: 5. Set script's fetch options to options.
+    auto script = realm.create<ModuleScript>(base_url, filename, realm);
+
+    // 6. Set script's parse error and error to rethrow to null.
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    // 7. Let result be the result of parsing a web assembly module given bodyBytes, realm, and script.
+    // NOTE: Passing script as the last parameter here ensures result.[[HostDefined]] will be script.
+    TemporaryExecutionContext execution_context { realm };
+    auto result = WebAssembly::WebAssemblyModule::parse(body_bytes, realm, filename, script);
+
+    // 8. If the previous step threw an error error, then:
+    if (result.is_error()) {
+        // 1. Set script's parse error to error.
+        script->set_parse_error(result.error().value());
+
+        // 2. Return script.
+        return script;
+    }
+
+    // 9. Set script's record to result.
+    script->m_record = result.value();
+
+    // 10. Return script.
+    return script;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
 // https://whatpr.org/html/9893/webappapis.html#run-a-module-script
-JS::Promise* ModuleScript::run(PreventErrorReporting)
+WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting)
 {
     // 1. Let realm be the realm of script.
     auto& realm = this->realm();
 
     // 2. Check if we can run script with realm. If this returns "do not run", then return a promise resolved with undefined.
     if (can_run_script(realm) == RunScriptDecision::DoNotRun) {
-        auto promise = JS::Promise::create(realm);
-        promise->fulfill(JS::js_undefined());
-        return promise;
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     }
 
     // FIXME: 3. Record module script execution start time given script.
@@ -145,12 +188,11 @@ JS::Promise* ModuleScript::run(PreventErrorReporting)
     prepare_to_run_script(realm);
 
     // 5. Let evaluationPromise be null.
-    JS::Promise* evaluation_promise = nullptr;
+    GC::Ptr<WebIDL::Promise> evaluation_promise = nullptr;
 
     // 6. If script's error to rethrow is not null, then set evaluationPromise to a promise rejected with script's error to rethrow.
     if (!error_to_rethrow().is_null()) {
-        evaluation_promise = JS::Promise::create(realm);
-        evaluation_promise->reject(error_to_rethrow());
+        evaluation_promise = WebIDL::create_rejected_promise(realm, error_to_rethrow());
     }
     // 7. Otherwise:
     else {
@@ -173,10 +215,7 @@ JS::Promise* ModuleScript::run(PreventErrorReporting)
         // If Evaluate fails to complete as a result of the user agent aborting the running script,
         // then set evaluationPromise to a promise rejected with a new "QuotaExceededError" DOMException.
         if (elevation_promise_or_error.is_error()) {
-            auto promise = JS::Promise::create(realm);
-            promise->reject(WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16).ptr());
-
-            evaluation_promise = promise;
+            evaluation_promise = WebIDL::create_rejected_promise(realm, WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16).ptr());
         } else {
             evaluation_promise = elevation_promise_or_error.value();
         }
@@ -185,7 +224,15 @@ JS::Promise* ModuleScript::run(PreventErrorReporting)
         vm().pop_execution_context();
     }
 
-    // FIXME: 8. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
+    // 8. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
+    if (prevent_error_reporting == PreventErrorReporting::No) {
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        evaluation_promise = WebIDL::upon_rejection(*evaluation_promise, GC::create_function(realm.heap(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            auto& window_or_worker = as<WindowOrWorkerGlobalScopeMixin>(realm.global_object());
+            window_or_worker.report_an_exception(reason);
+            return throw_completion(reason);
+        }));
+    }
 
     // 9. Clean up after running script with realm.
     clean_up_after_running_script(realm);
