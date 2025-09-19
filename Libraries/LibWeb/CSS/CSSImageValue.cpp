@@ -7,20 +7,20 @@
 #include "CSSImageValue.h"
 #include <LibWeb/Bindings/CSSImageValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImageValue);
 
-GC::Ref<CSSImageValue> CSSImageValue::create(JS::Realm& realm, String constructed_from_string)
+GC::Ref<CSSImageValue> CSSImageValue::create(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
 {
-    return realm.create<CSSImageValue>(realm, move(constructed_from_string));
+    return realm.create<CSSImageValue>(realm, move(source_value));
 }
 
-CSSImageValue::CSSImageValue(JS::Realm& realm, String constructed_from_string)
-    : CSSStyleValue(realm)
-    , m_constructed_from_string(move(constructed_from_string))
+CSSImageValue::CSSImageValue(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
+    : CSSStyleValue(realm, move(source_value))
 {
 }
 
@@ -34,8 +34,8 @@ void CSSImageValue::initialize(JS::Realm& realm)
 WebIDL::ExceptionOr<String> CSSImageValue::to_string() const
 {
     // AD-HOC: The spec doesn't say how to serialize this, as it's intentionally a black box.
-    //         We just serialize the source string that was used to construct this.
-    return m_constructed_from_string;
+    //         We just rely on CSSStyleValue serializing its held StyleValue.
+    return Base::to_string();
 }
 
 }

@@ -16,18 +16,16 @@ class CSSImageValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSImageValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImageValue> create(JS::Realm&, String constructed_from_string);
+    [[nodiscard]] static GC::Ref<CSSImageValue> create(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);
 
     virtual ~CSSImageValue() override = default;
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
 
 private:
-    explicit CSSImageValue(JS::Realm&, String constructed_from_string);
+    explicit CSSImageValue(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);
 
     virtual void initialize(JS::Realm&) override;
-
-    String m_constructed_from_string;
 };
 
 }

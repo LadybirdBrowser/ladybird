@@ -9,15 +9,16 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleValue);
 
-GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, FlyString associated_property, String constructed_from_string)
+GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
 {
-    return realm.create<CSSStyleValue>(realm, move(associated_property), move(constructed_from_string));
+    return realm.create<CSSStyleValue>(realm, move(associated_property), move(source_value));
 }
 
 CSSStyleValue::CSSStyleValue(JS::Realm& realm)
@@ -25,10 +26,16 @@ CSSStyleValue::CSSStyleValue(JS::Realm& realm)
 {
 }
 
-CSSStyleValue::CSSStyleValue(JS::Realm& realm, FlyString associated_property, String constructed_from_string)
+CSSStyleValue::CSSStyleValue(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
+    : PlatformObject(realm)
+    , m_source_value(move(source_value))
+{
+}
+
+CSSStyleValue::CSSStyleValue(JS::Realm& realm, FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
     : PlatformObject(realm)
     , m_associated_property(move(associated_property))
-    , m_constructed_from_string(move(constructed_from_string))
+    , m_source_value(move(source_value))
 {
 }
 
@@ -37,6 +44,8 @@ void CSSStyleValue::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleValue);
     Base::initialize(realm);
 }
+
+CSSStyleValue::~CSSStyleValue() = default;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parse
 WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, FlyString const& property, String css_text)
@@ -83,6 +92,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
     reified_values.append(whole_value->reify(*vm.current_realm(), property->name()));
 
     // 6. If parseMultiple is false, return values[0]. Otherwise, return values.
+    // FIXME: We need to somehow store the source css_text on the returned CSSStyleValue.
+    //        https://github.com/w3c/css-houdini-drafts/issues/1156
     if (parse_multiple == ParseMultiple::No)
         return reified_values.take_first();
     return reified_values;
@@ -91,10 +102,10 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
 // https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization
 WebIDL::ExceptionOr<String> CSSStyleValue::to_string() const
 {
-    // if the value was constructed from a USVString
-    if (m_constructed_from_string.has_value()) {
+    // FIXME: if the value was constructed from a USVString
+    // NB: Basically, if this was constructed with "parse a CSSStyleValue", regardless of what CSSStyleValue type it is now.
+    {
         // the serialization is the USVString from which the value was constructed.
-        return m_constructed_from_string.value();
     }
     // otherwise, if the value was constructed using an IDL constructor
     {
@@ -102,6 +113,9 @@ WebIDL::ExceptionOr<String> CSSStyleValue::to_string() const
         // NB: This is handled by subclasses overriding this to_string() method.
     }
     // FIXME: otherwise, if the value was extracted from the CSSOM
+    // NB: For CSSStyleValue itself, we use the source value we were created from.
+    if (m_source_value)
+        return m_source_value->to_string(SerializationMode::Normal);
     {
         // the serialization is specified in §6.7 Serialization from CSSOM Values below.
     }

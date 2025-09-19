@@ -17,11 +17,14 @@ class CSSStyleValue : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CSSStyleValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, FlyString associated_property, String constructed_from_string);
+    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, FlyString associated_property, NonnullRefPtr<StyleValue const>);
 
-    virtual ~CSSStyleValue() override = default;
+    virtual ~CSSStyleValue() override;
 
     virtual void initialize(JS::Realm&) override;
+
+    Optional<FlyString> const& associated_property() const { return m_associated_property; }
+    RefPtr<StyleValue const> const& source_value() const { return m_source_value; }
 
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, FlyString const& property, String css_text);
     static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, FlyString const& property, String css_text);
@@ -30,9 +33,10 @@ public:
 
 protected:
     explicit CSSStyleValue(JS::Realm&);
+    explicit CSSStyleValue(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);
 
 private:
-    explicit CSSStyleValue(JS::Realm&, FlyString associated_property, String constructed_from_string);
+    explicit CSSStyleValue(JS::Realm&, FlyString associated_property, NonnullRefPtr<StyleValue const> source_value);
 
     enum class ParseMultiple : u8 {
         No,
@@ -43,7 +47,7 @@ private:
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<FlyString> m_associated_property;
 
-    Optional<String> m_constructed_from_string;
+    RefPtr<StyleValue const> m_source_value;
 };
 
 }
