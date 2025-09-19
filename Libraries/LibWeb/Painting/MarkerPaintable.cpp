@@ -59,7 +59,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
     if (auto text = layout_box().text(); text.has_value()) {
         // FIXME: This should use proper text layout logic!
         // This does not line up with the text in the <li> element which looks very sad :(
-        context.display_list_recorder().draw_text(device_rect.to_type<int>(), *text, layout_box().font(context), Gfx::TextAlignment::Center, color);
+        context.display_list_recorder().draw_text(device_rect.to_type<int>(), Utf16String::from_utf8(*text), layout_box().font(context), Gfx::TextAlignment::Center, color);
     } else if (auto const* counter_style = layout_box().list_style_type().get_pointer<CSS::CounterStyleNameKeyword>()) {
         switch (*counter_style) {
         case CSS::CounterStyleNameKeyword::Square:

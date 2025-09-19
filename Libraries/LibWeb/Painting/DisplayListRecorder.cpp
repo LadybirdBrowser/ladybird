@@ -222,12 +222,12 @@ void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color 
     });
 }
 
-void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, Gfx::Font const& font, Gfx::TextAlignment alignment, Color color)
+void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, Utf16String const& raw_text, Gfx::Font const& font, Gfx::TextAlignment alignment, Color color)
 {
     if (rect.is_empty() || color.alpha() == 0)
         return;
 
-    auto glyph_run = Gfx::shape_text({}, 0, raw_text.code_points(), font, Gfx::GlyphRun::TextType::Ltr, {});
+    auto glyph_run = Gfx::shape_text({}, 0, raw_text.utf16_view(), font, Gfx::GlyphRun::TextType::Ltr, {});
     float baseline_x = 0;
     if (alignment == Gfx::TextAlignment::CenterLeft) {
         baseline_x = rect.x();
