@@ -52,6 +52,8 @@ public:
         Optional<Chunk> next();
         Optional<Chunk> peek(size_t);
 
+        Chunk create_empty_chunk();
+
     private:
         Optional<Chunk> next_without_peek();
         Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const&, Gfx::GlyphRun::TextType) const;

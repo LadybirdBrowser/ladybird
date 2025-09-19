@@ -15,7 +15,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
           InlineNode <span.b> at [40,44] [0+0+30 130.109375 30+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 2, rect: [40,44 20.515625x18] baseline: 13.796875
                 "wh"
-            frag 1 from TextNode start: 0, length: 1, rect: [163.671875,44 6.4375x18] baseline: 13.796875
+            frag 1 from TextNode start: 0, length: 1, rect: [133.671875,44 6.4375x18] baseline: 13.796875
                 "f"
             TextNode <#text> (not painted)
             InlineNode <span.b> at [90.515625,44] [0+0+30 43.15625 30+0+0] [0+0+0 18 0+0+0]

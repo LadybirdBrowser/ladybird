@@ -22,8 +22,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
       BlockContainer <input> at [13,10] inline-block [0+1+4 0 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [13,23 0x0] baseline: 0
-            BlockContainer <span> at [13,23] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 0x18] baseline: 13.796875
+            BlockContainer <span> at [13,10] inline-block [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 0, rect: [13,10 0x18] baseline: 13.796875
               TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
@@ -31,8 +32,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
       BlockContainer <input> at [13,32] inline-block [0+1+4 0 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [13,32] flex-container(column) [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [13,32] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [13,45 0x0] baseline: 0
-            BlockContainer <span> at [13,45] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [13,32 0x18] baseline: 13.796875
+            BlockContainer <span> at [13,32] inline-block [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 0, rect: [13,32 0x18] baseline: 13.796875
               TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
@@ -60,12 +62,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<INPUT>) [8,8 10x22]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 0x18]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 0x18]
-            PaintableWithLines (BlockContainer<SPAN>) [13,23 0x0]
+            PaintableWithLines (BlockContainer<SPAN>) [13,10 0x18]
+              TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [8,30 10x22]
         PaintableWithLines (BlockContainer(anonymous)) [13,32 0x18]
           PaintableWithLines (BlockContainer(anonymous)) [13,32 0x18]
-            PaintableWithLines (BlockContainer<SPAN>) [13,45 0x0]
+            PaintableWithLines (BlockContainer<SPAN>) [13,32 0x18]
+              TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       CheckBoxPaintable (CheckBox<INPUT>) [8,52 13x13]
       TextPaintable (TextNode<#text>)
