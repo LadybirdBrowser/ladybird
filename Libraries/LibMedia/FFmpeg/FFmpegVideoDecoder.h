@@ -20,7 +20,7 @@ public:
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     ~FFmpegVideoDecoder();
 
-    DecoderErrorOr<void> receive_sample(AK::Duration timestamp, ReadonlyBytes sample) override;
+    DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
     DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
     void flush() override;

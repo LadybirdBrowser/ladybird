@@ -218,7 +218,7 @@ void PlaybackManager::decode_and_queue_one_sample()
             container_cicp = sample.auxiliary_data().get<CodedVideoFrameData>().container_cicp();
 
             // Submit the sample to the decoder.
-            auto decode_result = m_decoder->receive_sample(sample.timestamp(), sample.data());
+            auto decode_result = m_decoder->receive_coded_data(sample.timestamp(), sample.data());
             if (decode_result.is_error()) {
                 item_to_enqueue = FrameQueueItem::error_marker(decode_result.release_error(), sample.timestamp());
                 break;
