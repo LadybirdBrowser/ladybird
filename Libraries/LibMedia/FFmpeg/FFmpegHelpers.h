@@ -41,9 +41,10 @@ static inline AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
         return AV_CODEC_ID_VORBIS;
     case CodecID::Opus:
         return AV_CODEC_ID_OPUS;
-    default:
+    case CodecID::Unknown:
         return AV_CODEC_ID_NONE;
     }
+    VERIFY_NOT_REACHED();
 }
 
 static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
