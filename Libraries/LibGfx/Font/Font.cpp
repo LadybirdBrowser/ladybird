@@ -6,7 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <AK/Utf8View.h>
+#include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
@@ -65,8 +65,8 @@ float Font::width(Utf16View const& view) const { return measure_text_width(view,
 
 float Font::glyph_width(u32 code_point) const
 {
-    auto string = String::from_code_point(code_point);
-    return measure_text_width(Utf8View(string), *this, {});
+    auto string = Utf16String::from_code_point(code_point);
+    return measure_text_width(string.utf16_view(), *this, {});
 }
 
 NonnullRefPtr<Font> Font::scaled_with_size(float point_size) const

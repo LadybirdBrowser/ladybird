@@ -64,13 +64,8 @@ private:
     float m_width { 0 };
 };
 
-template<typename UnicodeView>
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, UnicodeView const& string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
-
-template<typename UnicodeView>
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, UnicodeView const& string, FontCascadeList const&);
-
-template<typename UnicodeView>
-float measure_text_width(UnicodeView const& string, Gfx::Font const& font, ShapeFeatures const& features);
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&);
+float measure_text_width(Utf16View const&, Gfx::Font const& font, ShapeFeatures const& features);
 
 }
