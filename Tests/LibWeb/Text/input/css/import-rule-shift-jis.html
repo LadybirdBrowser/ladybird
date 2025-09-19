@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <style>
-    @import "data:text/css;charset=shift_jis;base64,77u/I2RpdjIKewogICAgY29sb3I6IGdyZWVuOwp9Cgoulb2YYQp7CiAgICBjb2xvcjogcmVkOwp9Cg==";
+    @import "data:text/css;charset=shift_jis;base64,QGNoYXJzZXQgIndpbmRvd3MtMTI1MiI7Ci6VvZhhLCAjZGl2Mgp7CiAgICBjb2xvcjogZ3JlZW47Cn0=";
 </style>
 <script src="../include.js"></script>
+<div class="平和" id="平和">Filler Text</div>
+<div id="div2"></div>
 <script>
     test(() => {
-        println("PASS (didn't crash)");
+        println(getComputedStyle(平和).color);
+        println(getComputedStyle(div2).color);
     });
 </script>
