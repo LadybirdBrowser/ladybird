@@ -927,6 +927,7 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
         if (child.is_anonymous() && !is<TableWrapper>(child)) {
             auto& child_computed_values = static_cast<CSS::MutableComputedValues&>(static_cast<CSS::ComputedValues&>(const_cast<CSS::ImmutableComputedValues&>(child.computed_values())));
             child_computed_values.inherit_from(computed_values());
+            child.propagate_style_to_anonymous_wrappers();
         }
         return IterationDecision::Continue;
     });
