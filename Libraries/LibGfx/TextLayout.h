@@ -15,6 +15,7 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
+#include <LibGfx/ShapeFeature.h>
 
 namespace Gfx {
 
@@ -24,13 +25,6 @@ struct DrawGlyph {
     float glyph_width { 0.0 };
     u32 glyph_id { 0 };
 };
-
-typedef struct ShapeFeature {
-    char tag[4];
-    u32 value;
-} ShapeFeature;
-
-using ShapeFeatures = Vector<ShapeFeature, 4>;
 
 class GlyphRun : public AtomicRefCounted<GlyphRun> {
 public:

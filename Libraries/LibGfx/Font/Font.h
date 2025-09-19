@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, Stephan Unverwerth <s.unverwerth@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
- * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2023-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,11 +10,14 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/ShapeFeature.h>
 
 class SkFont;
 struct hb_font_t;
+struct hb_buffer_t;
 
 namespace Gfx {
 
@@ -80,9 +83,23 @@ public:
     Font const& bold_variant() const;
     hb_font_t* harfbuzz_font() const;
 
+    struct ShapingCache {
+        // Before using the cache, make sure the features match! If they don't, clear the cache.
+        ShapeFeatures features;
+
+        HashMap<Utf16String, hb_buffer_t*> map;
+        hb_buffer_t* single_ascii_character_map[128] { nullptr };
+
+        ~ShapingCache();
+        void clear();
+    };
+    ShapingCache& shaping_cache() const { return m_shaping_cache; }
+
 private:
     mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
+
+    mutable ShapingCache m_shaping_cache;
 
     NonnullRefPtr<Typeface const> m_typeface;
     float m_x_scale { 0.0f };
