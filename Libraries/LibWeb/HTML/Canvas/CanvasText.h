@@ -17,9 +17,9 @@ class CanvasText {
 public:
     virtual ~CanvasText() = default;
 
-    virtual void fill_text(StringView, float x, float y, Optional<double> max_width) = 0;
-    virtual void stroke_text(StringView, float x, float y, Optional<double> max_width) = 0;
-    virtual GC::Ref<TextMetrics> measure_text(StringView text) = 0;
+    virtual void fill_text(Utf16String const&, float x, float y, Optional<double> max_width) = 0;
+    virtual void stroke_text(Utf16String const&, float x, float y, Optional<double> max_width) = 0;
+    virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) = 0;
 
 protected:
     CanvasText() = default;

@@ -2,7 +2,7 @@
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastext
 interface mixin CanvasText {
-    undefined fillText(DOMString text, unrestricted double x, unrestricted double y, optional unrestricted double maxWidth);
-    undefined strokeText(DOMString text, unrestricted double x, unrestricted double y, optional unrestricted double maxWidth);
-    TextMetrics measureText(DOMString text);
+    undefined fillText(Utf16DOMString text, unrestricted double x, unrestricted double y, optional unrestricted double maxWidth);
+    undefined strokeText(Utf16DOMString text, unrestricted double x, unrestricted double y, optional unrestricted double maxWidth);
+    TextMetrics measureText(Utf16DOMString text);
 };

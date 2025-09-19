@@ -119,12 +119,12 @@ void OffscreenCanvasRenderingContext2D::stroke(Path2D const&)
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke(Path2D)");
 }
 
-void OffscreenCanvasRenderingContext2D::fill_text(StringView, float, float, Optional<double>)
+void OffscreenCanvasRenderingContext2D::fill_text(Utf16String const&, float, float, Optional<double>)
 {
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill_text()");
 }
 
-void OffscreenCanvasRenderingContext2D::stroke_text(StringView, float, float, Optional<double>)
+void OffscreenCanvasRenderingContext2D::stroke_text(Utf16String const&, float, float, Optional<double>)
 {
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke_text()");
 }
@@ -166,7 +166,7 @@ void OffscreenCanvasRenderingContext2D::reset_to_default_state()
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::reset_to_default_state()");
 }
 
-GC::Ref<TextMetrics> OffscreenCanvasRenderingContext2D::measure_text(StringView)
+GC::Ref<TextMetrics> OffscreenCanvasRenderingContext2D::measure_text(Utf16String const&)
 {
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::measure_text()");
 
