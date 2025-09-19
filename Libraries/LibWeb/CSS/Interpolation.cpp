@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
@@ -501,6 +502,21 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             auto from_value = from->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : from;
             auto to_value = to->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : to;
             return interpolate_value(element, calculation_context, from_value, to_value, delta, allow_discrete);
+        }
+
+        if (property_id == PropertyID::FontVariationSettings) {
+            // https://drafts.csswg.org/css-fonts/#font-variation-settings-def
+            // Two declarations of font-feature-settings can be animated between if they are "like". "Like" declarations
+            // are ones where the same set of properties appear (in any order). Because successive duplicate properties
+            // are applied instead of prior duplicate properties, two declarations can be "like" even if they have
+            // differing number of properties. If two declarations are "like" then animation occurs pairwise between
+            // corresponding values in the declarations. Otherwise, animation is not possible.
+            if (!from->is_value_list() || !to->is_value_list())
+                return interpolate_discrete(from, to, delta, allow_discrete);
+
+            // The values in these lists have already been deduplicated and sorted at this point, so we can use
+            // interpolate_value() to interpolate them pairwise.
+            return interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
         }
 
         // https://drafts.csswg.org/web-animations-1/#animating-visibility
@@ -1424,6 +1440,16 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     case StyleValue::Type::Number: {
         auto interpolated_value = interpolate_raw(from.as_number().number(), to.as_number().number(), delta, calculation_context.accepted_type_ranges.get(ValueType::Number));
         return NumberStyleValue::create(interpolated_value);
+    }
+    case StyleValue::Type::OpenTypeTagged: {
+        auto& from_open_type_tagged = from.as_open_type_tagged();
+        auto& to_open_type_tagged = to.as_open_type_tagged();
+        if (from_open_type_tagged.tag() != to_open_type_tagged.tag())
+            return {};
+        auto interpolated_value = interpolate_value(element, calculation_context, from_open_type_tagged.value(), to_open_type_tagged.value(), delta, allow_discrete);
+        if (!interpolated_value)
+            return {};
+        return OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, from_open_type_tagged.tag(), interpolated_value.release_nonnull());
     }
     case StyleValue::Type::Percentage: {
         auto interpolated_value = interpolate_raw(from.as_percentage().percentage().value(), to.as_percentage().percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage));
