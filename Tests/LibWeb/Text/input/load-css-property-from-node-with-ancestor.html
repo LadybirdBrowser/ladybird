@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const x = document.querySelector('.b')
+        const value = getComputedStyle(x)['display']
+        println(value);
+    });
+</script>
+<html>
+  <head>
+    <style>
+      .a .b {
+          display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="a">
+      <div class="b">
+      </div>
+    </div>
+  </body>
+</html>
