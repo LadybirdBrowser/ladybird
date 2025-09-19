@@ -13,7 +13,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
-#include <LibThreading/Thread.h>
 #include <pulse/pulseaudio.h>
 
 namespace Audio {

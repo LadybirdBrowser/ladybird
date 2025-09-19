@@ -43,8 +43,7 @@ enum class ThreadState : u8 {
 };
 
 class Thread final
-    : public AtomicRefCounted<Thread>
-    , public Weakable<Thread> {
+    : public AtomicRefCounted<Thread> {
 public:
     static NonnullRefPtr<Thread> construct(ESCAPING Function<intptr_t()> action, StringView thread_name = {})
     {

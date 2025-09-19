@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "PlaybackStreamPulseAudio.h"
-
 #include <LibCore/ThreadedPromise.h>
+#include <LibThreading/Thread.h>
+
+#include "PlaybackStreamPulseAudio.h"
 
 namespace Audio {
 
