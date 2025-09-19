@@ -1663,6 +1663,16 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         auto result = composite_raw_values(underlying_value.as_number().number(), animated_value.as_number().number());
         return NumberStyleValue::create(result);
     }
+    case StyleValue::Type::OpenTypeTagged: {
+        auto& underlying_open_type_tagged = underlying_value.as_open_type_tagged();
+        auto& animated_open_type_tagged = animated_value.as_open_type_tagged();
+        if (underlying_open_type_tagged.tag() != animated_open_type_tagged.tag())
+            return {};
+        auto composited_value = composite_value(underlying_open_type_tagged.value(), animated_open_type_tagged.value(), composite_operation);
+        if (!composited_value)
+            return {};
+        return OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, underlying_open_type_tagged.tag(), composited_value.release_nonnull());
+    }
     case StyleValue::Type::Percentage: {
         auto result = composite_raw_values(underlying_value.as_percentage().percentage().value(), animated_value.as_percentage().percentage().value());
         return PercentageStyleValue::create(Percentage { result });
