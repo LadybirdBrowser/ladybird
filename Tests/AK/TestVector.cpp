@@ -643,6 +643,57 @@ static bool is_inline_element(auto& el, auto& vector)
                                                                                                                                          \
         for (auto& el : v)                                                                                                               \
             EXPECT(is_inline_element(el, v));                                                                                            \
+    }                                                                                                                                    \
+    TEST_CASE(Vector##_remove_all)                                                                                                       \
+    {                                                                                                                                    \
+        {                                                                                                                                \
+            Vector<int> v0 { 1, 2, 3, 2, 4, 2, 5 };                                                                                      \
+            Array indices { 1, 4, 6 };                                                                                                   \
+            v0.remove_all(indices);                                                                                                      \
+            EXPECT_EQ(v0.size(), 4u);                                                                                                    \
+            EXPECT_EQ(v0[0], 1);                                                                                                         \
+            EXPECT_EQ(v0[1], 3);                                                                                                         \
+            EXPECT_EQ(v0[2], 2);                                                                                                         \
+            EXPECT_EQ(v0[3], 2);                                                                                                         \
+        }                                                                                                                                \
+        {                                                                                                                                \
+            Vector<int> v1 { 1, 2, 3, 4, 5 };                                                                                            \
+            Array indices { 0, 1, 2, 3, 4 };                                                                                             \
+            v1.remove_all(indices);                                                                                                      \
+            EXPECT_EQ(v1.size(), 0u);                                                                                                    \
+        }                                                                                                                                \
+        {                                                                                                                                \
+            Vector<int> v2 { 1, 2, 3, 4, 5 };                                                                                            \
+            Array<u32, 0> indices;                                                                                                       \
+            v2.remove_all(indices);                                                                                                      \
+            EXPECT_EQ(v2.size(), 5u);                                                                                                    \
+            EXPECT_EQ(v2[0], 1);                                                                                                         \
+            EXPECT_EQ(v2[1], 2);                                                                                                         \
+            EXPECT_EQ(v2[2], 3);                                                                                                         \
+            EXPECT_EQ(v2[3], 4);                                                                                                         \
+            EXPECT_EQ(v2[4], 5);                                                                                                         \
+        }                                                                                                                                \
+        {                                                                                                                                \
+            Vector<int> v3;                                                                                                              \
+            Array<u32, 0> indices;                                                                                                       \
+            v3.remove_all(indices);                                                                                                      \
+            EXPECT_EQ(v3.size(), 0u);                                                                                                    \
+        }                                                                                                                                \
+        /* One more test with a nonstandard iterator deref function */                                                                   \
+        {                                                                                                                                \
+            Vector<int> v4 { 1, 2, 3, 2, 4, 2, 5 };                                                                                      \
+            struct IndexWrapper {                                                                                                        \
+                size_t index;                                                                                                            \
+                size_t const& operator*() const { return index; }                                                                        \
+            };                                                                                                                           \
+            Array<IndexWrapper, 3> indices { IndexWrapper { 1 }, IndexWrapper { 4 }, IndexWrapper { 6 } };                               \
+            v4.remove_all(indices, [](auto const& it) -> size_t { return **it; });                                                       \
+            EXPECT_EQ(v4.size(), 4u);                                                                                                    \
+            EXPECT_EQ(v4[0], 1);                                                                                                         \
+            EXPECT_EQ(v4[1], 3);                                                                                                         \
+            EXPECT_EQ(v4[2], 2);                                                                                                         \
+            EXPECT_EQ(v4[3], 2);                                                                                                         \
+        }                                                                                                                                \
     }
 
 DECLARE_TESTS_FOR_VEC(Vector)

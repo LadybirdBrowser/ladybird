@@ -206,7 +206,9 @@ public:
         friend struct AK::Formatter;
 
     public:
-        explicit Stack(Vector<Frame> const& frames)
+        explicit Stack(Vector<Frame, 16>&&) = delete;
+
+        explicit Stack(Vector<Frame, 16> const& frames)
             : m_frames(frames)
         {
         }
@@ -261,17 +263,17 @@ public:
             return {};
         }
 
-        Vector<StackEntry> release_vector()
+        Vector<StackEntry, 8> release_vector()
         {
             m_max_known_size = 0;
-            return exchange(m_entries, Vector<StackEntry> {});
+            return exchange(m_entries, {});
         }
 
         size_t max_known_size() const { return m_max_known_size; }
 
     private:
-        Vector<StackEntry> m_entries;
-        Vector<Frame> const& m_frames;
+        Vector<StackEntry, 8> m_entries;
+        Vector<Frame, 16> const& m_frames;
         size_t m_max_known_size { 0 };
     };
 
@@ -360,7 +362,7 @@ private:
     };
 
     Context m_context;
-    Vector<Frame> m_frames;
+    Vector<Frame, 16> m_frames;
     size_t m_max_frame_size { 0 };
     COWVector<GlobalType> m_globals_without_internal_globals;
 };

@@ -622,7 +622,7 @@ public:
 
 private:
     ModuleInstance const& m_module;
-    Vector<Value> m_locals;
+    Vector<Value, 8> m_locals;
     Expression const& m_expression;
     size_t m_arity { 0 };
     size_t m_label_index { 0 };
