@@ -61,10 +61,9 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
         IndirectCall,
     };
 
-    template<bool HasCompiledList, bool HasDynamicInsnLimit>
+    template<bool HasCompiledList, bool HasDynamicInsnLimit, bool HaveDirectThreadingInfo>
     void interpret_impl(Configuration&, Expression const&);
 
-protected:
     InstructionPointer branch_to_label(Configuration&, LabelIndex);
     template<typename ReadT, typename PushT>
     bool load_and_push(Configuration&, Instruction const&, SourcesAndDestination const&);
@@ -97,6 +96,12 @@ protected:
     template<typename PopType, typename PushType, typename Operator, typename... Args>
     bool unary_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
+    ALWAYS_INLINE bool set_trap(StringView reason)
+    {
+        m_trap = Trap { ByteString(reason) };
+        return true;
+    }
+
     template<typename T>
     T read_value(ReadonlyBytes data);
 
@@ -119,6 +124,7 @@ protected:
         return false;
     }
 
+protected:
     Variant<Trap, Empty> m_trap;
     StackInfo const& m_stack_info;
 };
