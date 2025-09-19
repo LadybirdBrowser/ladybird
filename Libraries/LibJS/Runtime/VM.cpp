@@ -575,16 +575,16 @@ ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
     if (evaluated_or_error.is_error())
         return evaluated_or_error.throw_completion();
 
-    auto evaluated_value = evaluated_or_error.value();
+    auto const& evaluated_value = static_cast<Promise&>(*evaluated_or_error.value()->promise());
 
     run_queued_promise_jobs();
     VERIFY(m_promise_jobs.is_empty());
 
     // FIXME: This will break if we start doing promises actually asynchronously.
-    VERIFY(evaluated_value->state() != Promise::State::Pending);
+    VERIFY(evaluated_value.state() != Promise::State::Pending);
 
-    if (evaluated_value->state() == Promise::State::Rejected)
-        return JS::throw_completion(evaluated_value->result());
+    if (evaluated_value.state() == Promise::State::Rejected)
+        return JS::throw_completion(evaluated_value.result());
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] Evaluating passed for module {}", module.filename());
     return {};
