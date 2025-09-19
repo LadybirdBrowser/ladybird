@@ -535,7 +535,10 @@ struct Dispatch {
         Stack = CountRegisters,
     };
 
-    OpCode instruction_opcode;
+    union {
+        OpCode instruction_opcode;
+        FlatPtr handler_ptr;
+    };
     Instruction const* instruction { nullptr };
     union {
         struct {
@@ -548,6 +551,7 @@ struct Dispatch {
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
+    bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
 };
 
 struct SectionId {
