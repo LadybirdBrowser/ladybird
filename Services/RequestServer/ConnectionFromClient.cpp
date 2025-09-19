@@ -232,7 +232,9 @@ size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_
 
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
         auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
-        auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
+        // Strip SP, HTAB, CR & LF from headers but allow other control characters
+        // see https://httpwg.org/specs/rfc9110.html
+        auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim(" \t\r\n"sv);
         request->headers.set(name, value);
     }
 

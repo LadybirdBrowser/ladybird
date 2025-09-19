@@ -1,0 +1,2 @@
+JSON.stringify(getAllResponseHeaders()) => "heya: , \u000b\f, 1, , , 2\r\n"
+JSON.stringify(getResponseHeader("Heya")) => ", \u000b\f, 1, , , 2"
