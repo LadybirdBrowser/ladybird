@@ -56,6 +56,8 @@ protected:
     Vector<NonnullOwnPtr<Message>> m_unprocessed_messages;
 
     u32 m_local_endpoint_magic { 0 };
+
+    bool volatile m_shutdown_in_progress { false };
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>
@@ -107,6 +109,9 @@ protected:
         auto peer_message = PeerEndpoint::decode_message(bytes, fds);
         if (!peer_message.is_error())
             return peer_message.release_value();
+
+        dbgln("nullptr LocalEndpoint error: {}", local_message.error());
+        dbgln("nullptr PeerEndpoint  error: {}", peer_message.error());
 
         return nullptr;
     }
