@@ -324,7 +324,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
 }
 
 // 16.2.1.5.3 Evaluate ( ), https://tc39.es/ecma262/#sec-moduleevaluation
-ThrowCompletionOr<GC::Ref<Promise>> CyclicModule::evaluate(VM& vm)
+ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] evaluate[{}](vm)", this);
     // 1. Assert: This call to Evaluate is not happening at the same time as another call to Evaluate within the surrounding agent.
@@ -351,7 +351,7 @@ ThrowCompletionOr<GC::Ref<Promise>> CyclicModule::evaluate(VM& vm)
     // 4. If module.[[TopLevelCapability]] is not empty, then
     if (m_top_level_capability != nullptr) {
         // a. Return module.[[TopLevelCapability]].[[Promise]].
-        return as<Promise>(*m_top_level_capability->promise());
+        return GC::Ref<PromiseCapability>(*m_top_level_capability);
     }
 
     // 5. Let stack be a new empty List.
@@ -417,7 +417,8 @@ ThrowCompletionOr<GC::Ref<Promise>> CyclicModule::evaluate(VM& vm)
     }
 
     // 11. Return capability.[[Promise]].
-    return as<Promise>(*m_top_level_capability->promise());
+    // AD-HOC: Return the promise capability and let the caller unwrap the promise
+    return GC::Ref<PromiseCapability>(*m_top_level_capability);
 }
 
 // 16.2.1.5.2.1 InnerModuleEvaluation ( module, stack, index ), https://tc39.es/ecma262/#sec-innermoduleevaluation
@@ -901,7 +902,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
         auto on_fulfilled = NativeFunction::create(*vm.current_realm(), move(fulfilled_closure), 0);
 
         // f. Perform PerformPromiseThen(evaluatePromise, onFulfilled, onRejected).
-        evaluate_promise.value()->perform_then(on_fulfilled, on_rejected, {});
+        static_cast<JS::Promise&>(*evaluate_promise.value()->promise()).perform_then(on_fulfilled, on_rejected, {});
 
         // g. Return unused.
         return js_undefined();

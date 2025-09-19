@@ -10,11 +10,11 @@
 #include <LibJS/SyntheticModule.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Script.h>
+#include <LibWeb/WebAssembly/WebAssemblyModule.h>
 
 namespace Web::HTML {
 
-// FIXME: Support WebAssembly Module Record
-using ModuleScriptRecord = Variant<Empty, GC::Ref<JS::SourceTextModule>, GC::Ref<JS::SyntheticModule>>;
+using ModuleScriptRecord = Variant<Empty, GC::Ref<JS::SourceTextModule>, GC::Ref<JS::SyntheticModule>, GC::Ref<WebAssembly::WebAssemblyModule>>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-script
 class WEB_API ModuleScript : public Script {
@@ -26,13 +26,14 @@ public:
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, StringView source, JS::Realm&);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, StringView source, JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, JS::Realm&, URL::URL base_url);
 
     enum class PreventErrorReporting {
         Yes,
         No
     };
 
-    JS::Promise* run(PreventErrorReporting = PreventErrorReporting::No);
+    WebIDL::Promise* run(PreventErrorReporting = PreventErrorReporting::No);
 
     ModuleScriptRecord record() const { return m_record; }
 
