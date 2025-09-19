@@ -4938,6 +4938,7 @@ using namespace Web::IntersectionObserver;
 using namespace Web::MediaCapabilitiesAPI;
 using namespace Web::MediaSourceExtensions;
 using namespace Web::NavigationTiming;
+using namespace Web::NotificationsAPI;
 using namespace Web::PerformanceTimeline;
 using namespace Web::RequestIdleCallback;
 using namespace Web::ResizeObserver;

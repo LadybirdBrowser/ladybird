@@ -1,0 +1,76 @@
+#import <DOM/EventTarget.idl>
+#import <HighResolutionTime/EpochTimeStamp.idl>
+
+// https://notifications.spec.whatwg.org/#notification
+[Exposed=(Window,Worker)]
+interface Notification : EventTarget {
+    constructor(DOMString title, optional NotificationOptions options = {});
+
+    // FIXME: static readonly attribute NotificationPermission permission;
+    // FIXME: [Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
+
+    // FIXME: static readonly attribute unsigned long maxActions;
+
+    [FIXME] attribute EventHandler onclick;
+    [FIXME] attribute EventHandler onshow;
+    [FIXME] attribute EventHandler onerror;
+    [FIXME] attribute EventHandler onclose;
+
+    [FIXME] readonly attribute DOMString title;
+    [FIXME] readonly attribute NotificationDirection dir;
+    [FIXME] readonly attribute DOMString lang;
+    [FIXME] readonly attribute DOMString body;
+    [FIXME] readonly attribute USVString navigate;
+    [FIXME] readonly attribute DOMString tag;
+    [FIXME] readonly attribute USVString image;
+    [FIXME] readonly attribute USVString icon;
+    [FIXME] readonly attribute USVString badge;
+    // FIXME: [SameObject] readonly attribute FrozenArray<unsigned long> vibrate;
+    [FIXME] readonly attribute EpochTimeStamp timestamp;
+    [FIXME] readonly attribute boolean renotify;
+    [FIXME] readonly attribute boolean? silent;
+    [FIXME] readonly attribute boolean requireInteraction;
+    // FIXME: [SameObject] readonly attribute any data;
+    // FIXME: [SameObject] readonly attribute FrozenArray<NotificationAction> actions;
+
+    [FIXME] undefined close();
+};
+
+dictionary NotificationOptions {
+    NotificationDirection dir = "auto";
+    DOMString lang = "";
+    DOMString body = "";
+    USVString navigate;
+    DOMString tag = "";
+    USVString image;
+    USVString icon;
+    USVString badge;
+    // FIXME: VibratePattern vibrate;
+    EpochTimeStamp timestamp;
+    boolean renotify = false;
+    boolean? silent = null;
+    boolean requireInteraction = false;
+    any data = null;
+    sequence<NotificationAction> actions = [];
+};
+
+enum NotificationPermission {
+    "default",
+    "denied",
+    "granted"
+};
+
+enum NotificationDirection {
+    "auto",
+    "ltr",
+    "rtl"
+};
+
+dictionary NotificationAction {
+    required DOMString action;
+    required DOMString title;
+    USVString navigate;
+    USVString icon;
+};
+
+[FIXME] callback NotificationPermissionCallback = undefined (NotificationPermission permission);
