@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+3 Pass
+2 Fail
+Pass	Focus should not be restored if the currently focused element is not inside the dialog.
+Pass	Focus restore should not occur when the focused element is in a shadowroot outside of the dialog.
+Pass	Focus restore should occur when the focused element is in a shadowroot inside the dialog.
+Fail	Focus restore should occur when the focused element is slotted into a dialog.
+Fail	Focus restore should always occur for modal dialogs.
