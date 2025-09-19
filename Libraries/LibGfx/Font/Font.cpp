@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -123,6 +124,25 @@ SkFont Font::skia_font(float scale) const
     auto sk_font = SkFont { sk_ref_sp(sk_typeface), pixel_size() * scale };
     sk_font.setSubpixel(true);
     return sk_font;
+}
+
+Font::ShapingCache::~ShapingCache()
+{
+    clear();
+}
+
+void Font::ShapingCache::clear()
+{
+    for (auto& it : map) {
+        hb_buffer_destroy(it.value);
+    }
+    map.clear();
+    for (auto& buffer : single_ascii_character_map) {
+        if (buffer) {
+            hb_buffer_destroy(buffer);
+            buffer = nullptr;
+        }
+    }
 }
 
 }
