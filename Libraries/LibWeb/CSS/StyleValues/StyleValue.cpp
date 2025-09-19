@@ -148,7 +148,7 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
 GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, FlyString const& associated_property) const
 {
     // 1. Return a new CSSStyleValue object representing value whose [[associatedProperty]] internal slot is set to property.
-    return CSSStyleValue::create(realm, associated_property, to_string(SerializationMode::Normal));
+    return CSSStyleValue::create(realm, associated_property, *this);
 }
 
 }
