@@ -547,7 +547,7 @@ void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext&
     auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
     context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
     context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
-    context.display_list_recorder().draw_text(size_text_device_rect, size_text.to_well_formed_utf8(), font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
+    context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
 }
 
 void PaintableBox::set_stacking_context(NonnullOwnPtr<StackingContext> stacking_context)

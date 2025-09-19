@@ -196,7 +196,7 @@ void MediaPaintable::paint_control_bar_timestamp(DisplayListRecordingContext& co
     if (components.timestamp_rect.is_empty())
         return;
 
-    context.display_list_recorder().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp.to_well_formed_utf8(), *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
+    context.display_list_recorder().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp, *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
 }
 
 void MediaPaintable::paint_control_bar_speaker(DisplayListRecordingContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)

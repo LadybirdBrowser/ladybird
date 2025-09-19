@@ -84,7 +84,7 @@ public:
 
     void draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness = 1, Gfx::LineStyle style = Gfx::LineStyle::Solid, Color alternate_color = Color::Transparent);
 
-    void draw_text(Gfx::IntRect const&, String, Gfx::Font const&, Gfx::TextAlignment, Color);
+    void draw_text(Gfx::IntRect const&, Utf16String const&, Gfx::Font const&, Gfx::TextAlignment, Color);
 
     // Streamlined text drawing routine that does no wrapping/elision/alignment.
     void draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Gfx::Orientation);
