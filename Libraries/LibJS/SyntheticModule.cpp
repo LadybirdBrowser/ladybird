@@ -51,7 +51,7 @@ GC::Ref<SyntheticModule> SyntheticModule::create_default_export_synthetic_module
 }
 
 // 16.2.1.8.2 ParseJSONModule ( source ), https://tc39.es/ecma262/#sec-create-default-export-synthetic-module
-ThrowCompletionOr<GC::Ref<Module>> parse_json_module(Realm& realm, StringView source_text, ByteString filename)
+ThrowCompletionOr<GC::Ref<SyntheticModule>> parse_json_module(Realm& realm, StringView source_text, ByteString filename)
 {
     auto& vm = realm.vm();
 
@@ -142,7 +142,7 @@ ThrowCompletionOr<void> SyntheticModule::link(VM& vm)
 }
 
 // 16.2.1.8.4.5 Evaluate ( ), https://tc39.es/ecma262/#sec-smr-Evaluate
-ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
+ThrowCompletionOr<GC::Ref<PromiseCapability>> SyntheticModule::evaluate(VM& vm)
 {
     auto& realm = this->realm();
 
@@ -187,7 +187,8 @@ ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
         MUST(call(vm, *promise_capability->resolve(), js_undefined(), js_undefined()));
 
     // 16. Return pc.[[Promise]].
-    return static_cast<Promise&>(*promise_capability->promise());
+    // AD-HOC: Return the promise capability and let the caller unwrap the promise
+    return promise_capability;
 }
 
 }

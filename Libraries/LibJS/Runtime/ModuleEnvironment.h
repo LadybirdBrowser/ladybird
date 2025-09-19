@@ -13,7 +13,7 @@
 namespace JS {
 
 // 9.1.1.5 Module Environment Records, https://tc39.es/ecma262/#sec-module-environment-records
-class ModuleEnvironment final : public DeclarativeEnvironment {
+class JS_API ModuleEnvironment final : public DeclarativeEnvironment {
     JS_ENVIRONMENT(ModuleEnvironment, DeclarativeEnvironment);
     GC_DECLARE_ALLOCATOR(ModuleEnvironment);
 

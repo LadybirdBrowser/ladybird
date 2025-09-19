@@ -108,7 +108,7 @@ public:
     GC::Ref<Object> get_module_namespace(VM& vm);
 
     virtual ThrowCompletionOr<void> link(VM& vm) = 0;
-    virtual ThrowCompletionOr<GC::Ref<Promise>> evaluate(VM& vm) = 0;
+    virtual ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm) = 0;
 
     Vector<Utf16FlyString> get_exported_names(VM& vm);
     virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) = 0;
