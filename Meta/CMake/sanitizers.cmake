@@ -44,3 +44,8 @@ if (ENABLE_UNDEFINED_SANITIZER)
         add_swift_link_options(-sanitize=undefined)
     endif()
 endif()
+
+if (ENABLE_THREAD_SANITIZER)
+    add_cxx_compile_options(-fsanitize=thread)
+    add_cxx_link_options(-fsanitize=thread)
+endif()
