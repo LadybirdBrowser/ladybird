@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    const canvas = document.getElementById("glcanvas");
+    const gl = canvas.getContext("webgl");
+    const program = gl.createProgram();
+    const uColor = gl.getUniformLocation(program, "uColor");
+    gl.uniform1fv(uColor, new Float32Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform2fv(uColor, new Float32Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform3fv(uColor, new Float32Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform4fv(uColor, new Float32Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform1fv(uColor, new Float64Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform2fv(uColor, new Float64Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform3fv(uColor, new Float64Array([0.1, 0.2, 0.3, 0.4]));
+    gl.uniform4fv(uColor, new Float64Array([0.1, 0.2, 0.3, 0.4]));
+</script>
+<script>
+    test(() => {
+        println("PASS (did not crash)");
+    });
+</script>
