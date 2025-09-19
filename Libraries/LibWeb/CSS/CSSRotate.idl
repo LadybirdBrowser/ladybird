@@ -1,0 +1,13 @@
+#import <CSS/CSSNumericValue.idl>
+#import <CSS/CSSTransformComponent.idl>
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssrotate
+[Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
+interface CSSRotate : CSSTransformComponent {
+    constructor(CSSNumericValue angle);
+    constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, CSSNumericValue angle);
+    attribute CSSNumberish x;
+    attribute CSSNumberish y;
+    attribute CSSNumberish z;
+    attribute CSSNumericValue angle;
+};

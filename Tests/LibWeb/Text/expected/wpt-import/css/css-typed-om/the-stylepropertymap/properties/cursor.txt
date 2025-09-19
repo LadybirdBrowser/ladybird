@@ -1,3 +1,74 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 69 tests
+
+69 Fail
+Fail	Can set 'cursor' to CSS-wide keywords: initial
+Fail	Can set 'cursor' to CSS-wide keywords: inherit
+Fail	Can set 'cursor' to CSS-wide keywords: unset
+Fail	Can set 'cursor' to CSS-wide keywords: revert
+Fail	Can set 'cursor' to var() references:  var(--A)
+Fail	Can set 'cursor' to the 'auto' keyword: auto
+Fail	Can set 'cursor' to the 'default' keyword: default
+Fail	Can set 'cursor' to the 'none' keyword: none
+Fail	Can set 'cursor' to the 'context-menu' keyword: context-menu
+Fail	Can set 'cursor' to the 'help' keyword: help
+Fail	Can set 'cursor' to the 'pointer' keyword: pointer
+Fail	Can set 'cursor' to the 'progress' keyword: progress
+Fail	Can set 'cursor' to the 'wait' keyword: wait
+Fail	Can set 'cursor' to the 'cell' keyword: cell
+Fail	Can set 'cursor' to the 'crosshair' keyword: crosshair
+Fail	Can set 'cursor' to the 'text' keyword: text
+Fail	Can set 'cursor' to the 'vertical-text' keyword: vertical-text
+Fail	Can set 'cursor' to the 'alias' keyword: alias
+Fail	Can set 'cursor' to the 'copy' keyword: copy
+Fail	Can set 'cursor' to the 'move' keyword: move
+Fail	Can set 'cursor' to the 'no-drop' keyword: no-drop
+Fail	Can set 'cursor' to the 'not-allowed' keyword: not-allowed
+Fail	Can set 'cursor' to the 'grab' keyword: grab
+Fail	Can set 'cursor' to the 'grabbing' keyword: grabbing
+Fail	Can set 'cursor' to the 'e-resize' keyword: e-resize
+Fail	Can set 'cursor' to the 'n-resize' keyword: n-resize
+Fail	Can set 'cursor' to the 'ne-resize' keyword: ne-resize
+Fail	Can set 'cursor' to the 'nw-resize' keyword: nw-resize
+Fail	Can set 'cursor' to the 's-resize' keyword: s-resize
+Fail	Can set 'cursor' to the 'se-resize' keyword: se-resize
+Fail	Can set 'cursor' to the 'sw-resize' keyword: sw-resize
+Fail	Can set 'cursor' to the 'w-resize' keyword: w-resize
+Fail	Can set 'cursor' to the 'ew-resize' keyword: ew-resize
+Fail	Can set 'cursor' to the 'ns-resize' keyword: ns-resize
+Fail	Can set 'cursor' to the 'nesw-resize' keyword: nesw-resize
+Fail	Can set 'cursor' to the 'nwse-resize' keyword: nwse-resize
+Fail	Can set 'cursor' to the 'col-resize' keyword: col-resize
+Fail	Can set 'cursor' to the 'row-resize' keyword: row-resize
+Fail	Can set 'cursor' to the 'all-scroll' keyword: all-scroll
+Fail	Can set 'cursor' to the 'zoom-in' keyword: zoom-in
+Fail	Can set 'cursor' to the 'zoom-out' keyword: zoom-out
+Fail	Setting 'cursor' to a length: 0px throws TypeError
+Fail	Setting 'cursor' to a length: -3.14em throws TypeError
+Fail	Setting 'cursor' to a length: 3.14cm throws TypeError
+Fail	Setting 'cursor' to a length: calc(0px + 0em) throws TypeError
+Fail	Setting 'cursor' to a percent: 0% throws TypeError
+Fail	Setting 'cursor' to a percent: -3.14% throws TypeError
+Fail	Setting 'cursor' to a percent: 3.14% throws TypeError
+Fail	Setting 'cursor' to a percent: calc(0% + 0%) throws TypeError
+Fail	Setting 'cursor' to a time: 0s throws TypeError
+Fail	Setting 'cursor' to a time: -3.14ms throws TypeError
+Fail	Setting 'cursor' to a time: 3.14s throws TypeError
+Fail	Setting 'cursor' to a time: calc(0s + 0ms) throws TypeError
+Fail	Setting 'cursor' to an angle: 0deg throws TypeError
+Fail	Setting 'cursor' to an angle: 3.14rad throws TypeError
+Fail	Setting 'cursor' to an angle: -3.14deg throws TypeError
+Fail	Setting 'cursor' to an angle: calc(0rad + 0deg) throws TypeError
+Fail	Setting 'cursor' to a flexible length: 0fr throws TypeError
+Fail	Setting 'cursor' to a flexible length: 1fr throws TypeError
+Fail	Setting 'cursor' to a flexible length: -3.14fr throws TypeError
+Fail	Setting 'cursor' to a number: 0 throws TypeError
+Fail	Setting 'cursor' to a number: -3.14 throws TypeError
+Fail	Setting 'cursor' to a number: 3.14 throws TypeError
+Fail	Setting 'cursor' to a number: calc(2 + 3) throws TypeError
+Fail	Setting 'cursor' to a transform: translate(50%, 50%) throws TypeError
+Fail	Setting 'cursor' to a transform: perspective(10em) throws TypeError
+Fail	Setting 'cursor' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	'cursor' does not support 'url(hand.cur), pointer'
+Fail	'cursor' does not support 'url(cursor1.png) 4 12, auto'

@@ -20,7 +20,7 @@ public:
 
     virtual ~CSSImageValue() override = default;
 
-    virtual String to_string() const override;
+    virtual WebIDL::ExceptionOr<String> to_string() const override;
 
 private:
     explicit CSSImageValue(JS::Realm&, String constructed_from_string);

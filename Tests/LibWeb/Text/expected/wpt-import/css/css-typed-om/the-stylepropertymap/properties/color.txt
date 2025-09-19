@@ -1,3 +1,42 @@
-Harness status: Error
+Harness status: OK
 
-Found 0 tests
+Found 37 tests
+
+37 Fail
+Fail	Can set 'color' to CSS-wide keywords: initial
+Fail	Can set 'color' to CSS-wide keywords: inherit
+Fail	Can set 'color' to CSS-wide keywords: unset
+Fail	Can set 'color' to CSS-wide keywords: revert
+Fail	Can set 'color' to var() references:  var(--A)
+Fail	Can set 'color' to the 'currentcolor' keyword: currentcolor
+Fail	Setting 'color' to a length: 0px throws TypeError
+Fail	Setting 'color' to a length: -3.14em throws TypeError
+Fail	Setting 'color' to a length: 3.14cm throws TypeError
+Fail	Setting 'color' to a length: calc(0px + 0em) throws TypeError
+Fail	Setting 'color' to a percent: 0% throws TypeError
+Fail	Setting 'color' to a percent: -3.14% throws TypeError
+Fail	Setting 'color' to a percent: 3.14% throws TypeError
+Fail	Setting 'color' to a percent: calc(0% + 0%) throws TypeError
+Fail	Setting 'color' to a time: 0s throws TypeError
+Fail	Setting 'color' to a time: -3.14ms throws TypeError
+Fail	Setting 'color' to a time: 3.14s throws TypeError
+Fail	Setting 'color' to a time: calc(0s + 0ms) throws TypeError
+Fail	Setting 'color' to an angle: 0deg throws TypeError
+Fail	Setting 'color' to an angle: 3.14rad throws TypeError
+Fail	Setting 'color' to an angle: -3.14deg throws TypeError
+Fail	Setting 'color' to an angle: calc(0rad + 0deg) throws TypeError
+Fail	Setting 'color' to a flexible length: 0fr throws TypeError
+Fail	Setting 'color' to a flexible length: 1fr throws TypeError
+Fail	Setting 'color' to a flexible length: -3.14fr throws TypeError
+Fail	Setting 'color' to a number: 0 throws TypeError
+Fail	Setting 'color' to a number: -3.14 throws TypeError
+Fail	Setting 'color' to a number: 3.14 throws TypeError
+Fail	Setting 'color' to a number: calc(2 + 3) throws TypeError
+Fail	Setting 'color' to a transform: translate(50%, 50%) throws TypeError
+Fail	Setting 'color' to a transform: perspective(10em) throws TypeError
+Fail	Setting 'color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	'color' does not support 'red'
+Fail	'color' does not support '#bbff00'
+Fail	'color' does not support 'rgb(255, 255, 128)'
+Fail	'color' does not support 'hsl(50, 33%, 25%)'
+Fail	'color' does not support 'transparent'

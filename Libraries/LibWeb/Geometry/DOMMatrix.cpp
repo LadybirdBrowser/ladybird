@@ -399,6 +399,14 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(DOMMatrixInit o
     return GC::Ref<DOMMatrix>(*this);
 }
 
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(GC::Ref<DOMMatrix> other)
+{
+    m_matrix = m_matrix * other->m_matrix;
+    if (!other->m_is_2d)
+        m_is_2d = false;
+    return GC::Ref<DOMMatrix>(*this);
+}
+
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-premultiplyself
 WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(DOMMatrixInit other)
 {

@@ -1,7 +1,33 @@
-Harness status: Error
+Harness status: OK
 
-Found 2 tests
+Found 28 tests
 
-2 Fail
-Fail	Normalizing a matrix() returns a CSSMatrixComponent
-Fail	Normalizing a matrix3d() returns a CSSMatrixComponent
+28 Pass
+Pass	Normalizing a matrix() returns a CSSMatrixComponent
+Pass	Normalizing a matrix3d() returns a CSSMatrixComponent
+Pass	Normalizing a translate() with X returns a CSSTranslate
+Pass	Normalizing a translate() with X and Y returns a CSSTranslate
+Pass	Normalizing a translateX() returns a CSSTranslate
+Pass	Normalizing a translateY() returns a CSSTranslate
+Pass	Normalizing a translate3d() returns a CSSTranslate
+Pass	Normalizing a translateZ() returns a CSSTranslate
+Pass	Normalizing a scale() with one argument returns a CSSScale
+Pass	Normalizing a scale() with two arguments returns a CSSScale
+Pass	Normalizing a scaleX() returns a CSSScale
+Pass	Normalizing a scaleY() returns a CSSScale
+Pass	Normalizing a scale3d() returns a CSSScale
+Pass	Normalizing a scaleZ() returns a CSSScale
+Pass	Normalizing a rotate() returns a CSSRotate
+Pass	Normalizing a rotate3d() returns a CSSRotate
+Pass	Normalizing a rotateX() returns a CSSRotate
+Pass	Normalizing a rotateY() returns a CSSRotate
+Pass	Normalizing a rotateZ() returns a CSSRotate
+Pass	Normalizing a skew() with only X returns a CSSSkew
+Pass	Normalizing a skew() with X and Y which is 0 value returns a CSSSkew
+Pass	Normalizing a skew() with X and Y returns a CSSSkew
+Pass	Normalizing a skewX() returns a CSSSkewX
+Pass	Normalizing a skewY() returns a CSSSkewY
+Pass	Normalizing a perspective() returns a CSSPerspective
+Pass	Normalizing a perspective(none) returns a CSSPerspective
+Pass	Normalizing a <transform-list> returns a CSSTransformValue containing all the transforms
+Pass	Normalizing transforms with calc values contains CSSMathValues

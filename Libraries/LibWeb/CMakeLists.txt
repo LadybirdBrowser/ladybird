@@ -126,6 +126,7 @@ set(SOURCES
     CSS/CSSMathProduct.cpp
     CSS/CSSMathSum.cpp
     CSS/CSSMathValue.cpp
+    CSS/CSSMatrixComponent.cpp
     CSS/CSSMediaRule.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSNestedDeclarations.cpp
@@ -133,16 +134,25 @@ set(SOURCES
     CSS/CSSNumericValue.cpp
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
+    CSS/CSSPerspective.cpp
     CSS/CSSPropertyRule.cpp
+    CSS/CSSRotate.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
+    CSS/CSSScale.cpp
+    CSS/CSSSkew.cpp
+    CSS/CSSSkewX.cpp
+    CSS/CSSSkewY.cpp
     CSS/CSSStyleDeclaration.cpp
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
     CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
+    CSS/CSSTransformComponent.cpp
+    CSS/CSSTransformValue.cpp
     CSS/CSSTransition.cpp
+    CSS/CSSTranslate.cpp
     CSS/CSSUnitValue.cpp
     CSS/CSSUnparsedValue.cpp
     CSS/CSSVariableReferenceValue.cpp

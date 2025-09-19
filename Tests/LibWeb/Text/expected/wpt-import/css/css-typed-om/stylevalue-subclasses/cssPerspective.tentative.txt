@@ -2,29 +2,29 @@ Harness status: OK
 
 Found 25 tests
 
-25 Fail
-Fail	Constructing a CSSPerspective with a keyword other than none (string) throws a TypeError
-Fail	Constructing a CSSPerspective with a keyword other than none (CSSKeywordValue) throws a TypeError
-Fail	Constructing a CSSPerspective with a double throws a TypeError
-Fail	Constructing a CSSPerspective with a unitless zero throws a TypeError
-Fail	Constructing a CSSPerspective with a string length throws a TypeError
-Fail	Constructing a CSSPerspective with a number CSSUnitValue throws a TypeError
-Fail	Constructing a CSSPerspective with a time dimension CSSUnitValue throws a TypeError
-Fail	Constructing a CSSPerspective with a CSSMathValue of angle type throws a TypeError
-Fail	Updating CSSPerspective.length with a keyword other than none (string) throws a TypeError
-Fail	Updating CSSPerspective.length with a keyword other than none (CSSKeywordValue) throws a TypeError
-Fail	Updating CSSPerspective.length with a double throws a TypeError
-Fail	Updating CSSPerspective.length with a unitless zero throws a TypeError
-Fail	Updating CSSPerspective.length with a string length throws a TypeError
-Fail	Updating CSSPerspective.length with a number CSSUnitValue throws a TypeError
-Fail	Updating CSSPerspective.length with a time dimension CSSUnitValue throws a TypeError
-Fail	Updating CSSPerspective.length with a CSSMathValue of angle type throws a TypeError
-Fail	CSSPerspective can be constructed from a length CSSUnitValue
-Fail	CSSPerspective.length can be updated to a length CSSUnitValue
-Fail	CSSPerspective can be constructed from a CSSMathValue of length type
-Fail	CSSPerspective.length can be updated to a CSSMathValue of length type
-Fail	CSSPerspective can be constructed from none (CSSKeywordValue)
-Fail	CSSPerspective.length can be updated to none (CSSKeywordValue)
-Fail	CSSPerspective can be constructed from none (string)
-Fail	CSSPerspective.length can be updated to none (string)
-Fail	Modifying CSSPerspective.is2D is a no-op
+25 Pass
+Pass	Constructing a CSSPerspective with a keyword other than none (string) throws a TypeError
+Pass	Constructing a CSSPerspective with a keyword other than none (CSSKeywordValue) throws a TypeError
+Pass	Constructing a CSSPerspective with a double throws a TypeError
+Pass	Constructing a CSSPerspective with a unitless zero throws a TypeError
+Pass	Constructing a CSSPerspective with a string length throws a TypeError
+Pass	Constructing a CSSPerspective with a number CSSUnitValue throws a TypeError
+Pass	Constructing a CSSPerspective with a time dimension CSSUnitValue throws a TypeError
+Pass	Constructing a CSSPerspective with a CSSMathValue of angle type throws a TypeError
+Pass	Updating CSSPerspective.length with a keyword other than none (string) throws a TypeError
+Pass	Updating CSSPerspective.length with a keyword other than none (CSSKeywordValue) throws a TypeError
+Pass	Updating CSSPerspective.length with a double throws a TypeError
+Pass	Updating CSSPerspective.length with a unitless zero throws a TypeError
+Pass	Updating CSSPerspective.length with a string length throws a TypeError
+Pass	Updating CSSPerspective.length with a number CSSUnitValue throws a TypeError
+Pass	Updating CSSPerspective.length with a time dimension CSSUnitValue throws a TypeError
+Pass	Updating CSSPerspective.length with a CSSMathValue of angle type throws a TypeError
+Pass	CSSPerspective can be constructed from a length CSSUnitValue
+Pass	CSSPerspective.length can be updated to a length CSSUnitValue
+Pass	CSSPerspective can be constructed from a CSSMathValue of length type
+Pass	CSSPerspective.length can be updated to a CSSMathValue of length type
+Pass	CSSPerspective can be constructed from none (CSSKeywordValue)
+Pass	CSSPerspective.length can be updated to none (CSSKeywordValue)
+Pass	CSSPerspective can be constructed from none (string)
+Pass	CSSPerspective.length can be updated to none (string)
+Pass	Modifying CSSPerspective.is2D is a no-op
