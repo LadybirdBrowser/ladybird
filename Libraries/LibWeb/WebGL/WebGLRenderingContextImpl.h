@@ -156,6 +156,7 @@ public:
     void vertex_attrib4fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values);
     void vertex_attrib_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, bool normalized, WebIDL::Long stride, WebIDL::LongLong offset);
     void viewport(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
+    std::unique_ptr<Vector<float>> get_buffer_data_from_source_for_uniform_variables(Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, float const*& data, size_t* count);
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;

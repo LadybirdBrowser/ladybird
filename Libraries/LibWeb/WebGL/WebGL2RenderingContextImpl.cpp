@@ -419,6 +419,49 @@ void WebGL2RenderingContextImpl::draw_buffers(Vector<WebIDL::UnsignedLong> buffe
     glDrawBuffers(buffers.size(), buffers.data());
 }
 
+std::unique_ptr<Vector<float>> WebGL2RenderingContextImpl::get_buffer_data_from_source_for_uniform_variables(Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, float const*& data, size_t* count)
+{
+    if (v.has<Vector<float>>()) {
+        auto& vector = v.get<Vector<float>>();
+        data = vector.data();
+        *count = vector.size();
+        return nullptr; // No new memory allocated.
+    }
+
+    if (v.has<GC::Root<WebIDL::BufferSource>>()) {
+        auto& raw_object = *v.get<GC::Root<WebIDL::BufferSource>>()->raw_object();
+
+        if (is<JS::Float32Array>(raw_object)) {
+            auto& typed_array = as<JS::Float32Array>(raw_object);
+            data = typed_array.data().data();
+            *count = typed_array.array_length().length();
+            return nullptr; // No new memory allocated.
+        }
+
+        if (is<JS::Float64Array>(raw_object)) {
+            auto& typed_array = as<JS::Float64Array>(raw_object);
+            auto double_data = typed_array.data();
+            *count = typed_array.array_length().length();
+
+            auto converted_data = std::make_unique<Vector<float>>();
+            converted_data->resize(*count);
+
+            for (size_t i = 0; i < *count; ++i) {
+                (*converted_data)[i] = static_cast<float>(double_data[i]);
+            }
+
+            // sets the data for the newly allocated vector
+            data = converted_data->data();
+
+            // returns the pointer to the newly allocated vector
+            return converted_data;
+        }
+    }
+
+    VERIFY_NOT_REACHED();
+    return nullptr;
+}
+
 void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
@@ -1212,18 +1255,9 @@ void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> locat
 
     float const* data = nullptr;
     size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+
+    // Ensures that the data does not go out of scope while in use
+    std::unique_ptr<Vector<float>> temp_data_ptr = get_buffer_data_from_source_for_uniform_variables(v, data, &count);
 
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
@@ -1249,18 +1283,9 @@ void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> locat
 
     float const* data = nullptr;
     size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+
+    // Ensures that the data does not go out of scope while in use
+    std::unique_ptr<Vector<float>> temp_data_ptr = get_buffer_data_from_source_for_uniform_variables(v, data, &count);
 
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
@@ -1286,18 +1311,9 @@ void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> locat
 
     float const* data = nullptr;
     size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+
+    // Ensures that the data does not go out of scope while in use
+    std::unique_ptr<Vector<float>> temp_data_ptr = get_buffer_data_from_source_for_uniform_variables(v, data, &count);
 
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
@@ -1323,18 +1339,9 @@ void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> locat
 
     float const* data = nullptr;
     size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+
+    // Ensures that the data does not go out of scope while in use
+    std::unique_ptr<Vector<float>> temp_data_ptr = get_buffer_data_from_source_for_uniform_variables(v, data, &count);
 
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
