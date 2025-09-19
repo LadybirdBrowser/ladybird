@@ -2,17 +2,72 @@
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024-2025, stasoid <stasoid@yahoo.com>
  * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
+ * Copyright (c) 2025, Ryszard Goc <ryszardgoc@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
+#include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
+#include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/Timer.h>
 
-#include <AK/Windows.h>
+// NOTE: Cannot be AK/Windows.h as we undefine IN and it breaks winternl.h
+#include <ntstatus.h>
+#include <winsock2.h>
+#include <winternl.h>
+
+extern "C" {
+// NOTE: These are documented here: https://learn.microsoft.com/en-us/windows/win32/devnotes/-win32-misclowlevelclientsupport
+// If the function signature changes, we should catch it with GetProcAddress failing in most cases.
+// None of these are marked deprecated and they seem to be used internally in the kernel.
+
+NTAPI NTSTATUS NtAssociateWaitCompletionPacket(
+    _In_ HANDLE WaitCompletionPacketHandle,
+    _In_ HANDLE IoCompletionHandle,
+    _In_ HANDLE TargetObjectHandle,
+    _In_opt_ PVOID KeyContext,
+    _In_opt_ PVOID ApcContext,
+    _In_ NTSTATUS IoStatus,
+    _In_ ULONG_PTR IoStatusInformation,
+    _Out_opt_ PBOOLEAN AlreadySignaled);
+
+NTAPI NTSTATUS NtCancelWaitCompletionPacket(
+    _In_ HANDLE WaitCompletionPacketHandle,
+    _In_ BOOLEAN RemoveSignaledPacket);
+
+NTAPI NTSTATUS NtCreateWaitCompletionPacket(
+    _Out_ PHANDLE WaitCompletionPacketHandle,
+    _In_ ACCESS_MASK DesiredAccess,
+    _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes);
+}
+
+using PFN_NtCreateWaitCompletionPacket = decltype(&NtCreateWaitCompletionPacket);
+using PFN_NtCancelWaitCompletionPacket = decltype(&NtCancelWaitCompletionPacket);
+using PFN_NtAssociateWaitCompletionPacket = decltype(&NtAssociateWaitCompletionPacket);
+
+static struct NtDllApi {
+    PFN_NtAssociateWaitCompletionPacket NtAssociateWaitCompletionPacket = NULL;
+    PFN_NtCancelWaitCompletionPacket NtCancelWaitCompletionPacket = NULL;
+    PFN_NtCreateWaitCompletionPacket NtCreateWaitCompletionPacket = NULL;
+
+    NtDllApi()
+    {
+        HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
+        VERIFY(hNtdll);
+        AK_IGNORE_DIAGNOSTIC("-Wcast-function-type-mismatch",
+            NtAssociateWaitCompletionPacket = (PFN_NtAssociateWaitCompletionPacket)GetProcAddress(hNtdll, "NtAssociateWaitCompletionPacket");
+            NtCancelWaitCompletionPacket = (PFN_NtCancelWaitCompletionPacket)GetProcAddress(hNtdll, "NtCancelWaitCompletionPacket");
+            NtCreateWaitCompletionPacket = (PFN_NtCreateWaitCompletionPacket)GetProcAddress(hNtdll, "NtCreateWaitCompletionPacket");)
+        VERIFY(NtAssociateWaitCompletionPacket);
+        VERIFY(NtCancelWaitCompletionPacket);
+        VERIFY(NtCreateWaitCompletionPacket);
+    }
+} ntdll;
 
 struct Handle {
     HANDLE handle = NULL;
@@ -51,8 +106,44 @@ constexpr bool IsHashCompatible<HANDLE, Handle> = true;
 
 namespace Core {
 
-struct EventLoopTimer {
+enum class CompletionType : u8 {
+    Wake,
+    Timer,
+    Notifer,
+};
+
+struct CompletionPacket {
+    CompletionType type;
+};
+
+struct EventLoopTimer final : CompletionPacket {
+
+    ~EventLoopTimer()
+    {
+        CancelWaitableTimer(timer.handle);
+    }
+
+    Handle timer;
+    Handle wait_packet;
+    bool is_periodic;
     WeakPtr<EventReceiver> owner;
+};
+
+struct EventLoopNotifier final : CompletionPacket {
+
+    ~EventLoopNotifier()
+    {
+    }
+
+    Notifier::Type notifier_type() const { return m_notifier_type; }
+    int fd() const { return to_fd(object_handle); }
+
+    // These are a space tradeoff for avoiding a double indirection through the notifier*.
+    Notifier* notifier;
+    Notifier::Type m_notifier_type;
+    HANDLE object_handle;
+    Handle wait_packet;
+    Handle wait_event;
 };
 
 struct ThreadData {
@@ -65,22 +156,50 @@ struct ThreadData {
     }
 
     ThreadData()
+        : wake_completion_key(make<CompletionPacket>(CompletionType::Wake))
     {
+        // Consider a way for different event loops to have a different number of threads
+        iocp.handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
         wake_event.handle = CreateEvent(NULL, FALSE, FALSE, NULL);
+        NTSTATUS status = ntdll.NtCreateWaitCompletionPacket(&wake_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+        VERIFY(iocp.handle);
         VERIFY(wake_event.handle);
+        VERIFY(NT_SUCCESS(status));
     }
 
-    // Each thread has its own timers, notifiers and a wake event.
-    HashMap<Handle, EventLoopTimer> timers;
-    HashMap<Handle, Notifier*> notifiers;
+    Handle iocp;
+
+    // These are only used to register and unregister. The event loop doesn't access these.
+    // Each thread has its own timers, and a wake event.
+    HashMap<intptr_t, NonnullOwnPtr<EventLoopTimer>> timers;
+    HashMap<Notifier*, NonnullOwnPtr<EventLoopNotifier>> notifiers;
 
     // The wake event is used to notify another event loop that someone has called wake().
     Handle wake_event;
+    Handle wake_packet;
+    NonnullOwnPtr<CompletionPacket> wake_completion_key;
 };
 
 EventLoopImplementationWindows::EventLoopImplementationWindows()
     : m_wake_event(ThreadData::the()->wake_event.handle)
 {
+    arm_wake_event();
+}
+
+EventLoopImplementationWindows::~EventLoopImplementationWindows()
+{
+    // This only matters for test code since otherwise we don't dismantle event loops while keeping the thread.
+    NTSTATUS status = ntdll.NtCancelWaitCompletionPacket(ThreadData::the()->wake_packet.handle, TRUE);
+    VERIFY(NT_SUCCESS(status));
+}
+
+void EventLoopImplementationWindows::arm_wake_event()
+{
+    auto* thread_data = ThreadData::the();
+    NTSTATUS status = ntdll.NtAssociateWaitCompletionPacket(thread_data->wake_packet.handle, thread_data->iocp.handle, thread_data->wake_event.handle, thread_data->wake_completion_key, NULL, STATUS_SUCCESS, 0, NULL);
+    if (!NT_SUCCESS(status)) {
+        VERIFY_NOT_REACHED();
+    }
 }
 
 int EventLoopImplementationWindows::exec()
@@ -93,50 +212,59 @@ int EventLoopImplementationWindows::exec()
     VERIFY_NOT_REACHED();
 }
 
+static constexpr bool debug_event_loop = false;
+
 size_t EventLoopImplementationWindows::pump(PumpMode)
 {
     auto& event_queue = ThreadEventQueue::current();
     auto* thread_data = ThreadData::the();
-    auto& notifiers = thread_data->notifiers;
-    auto& timers = thread_data->timers;
 
-    size_t event_count = 1 + notifiers.size() + timers.size();
-    // If 64 events limit proves to be insufficient RegisterWaitForSingleObject or other methods
-    // can be used instead as mentioned in https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects
-    // TODO: investigate if event_count can realistically exceed 64
-    VERIFY(event_count <= MAXIMUM_WAIT_OBJECTS);
-
-    Vector<HANDLE, MAXIMUM_WAIT_OBJECTS> event_handles;
-    event_handles.append(thread_data->wake_event.handle);
-
-    for (auto& entry : notifiers)
-        event_handles.append(entry.key.handle);
-    for (auto& entry : timers)
-        event_handles.append(entry.key.handle);
+    // NOTE: The number of entries to dequeue is to be optimized. Ideally we always dequeue all outstanding packets,
+    // but we don't want to increase the cost of each pump unnecessarily. If more than one entry is never dequeued
+    // at once, we could switch to using GetQueuedCompletionStatus which directly returns the values.
+    constexpr ULONG entry_count = 16;
+    OVERLAPPED_ENTRY entries[entry_count];
+    ULONG entries_removed = 0;
 
     bool has_pending_events = event_queue.has_pending_events();
-    int timeout = has_pending_events ? 0 : INFINITE;
-    DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, timeout);
-    if (result == WAIT_TIMEOUT) {
-        // FIXME: This verification sometimes fails with ERROR_INVALID_HANDLE, but when I check
-        //        the handles they all seem to be valid.
-        // VERIFY(GetLastError() == ERROR_SUCCESS || GetLastError() == ERROR_IO_PENDING);
-    } else {
-        size_t const index = result - WAIT_OBJECT_0;
-        VERIFY(index < event_count);
-        // : 1 - skip wake event
-        for (size_t i = index ? index : 1; i < event_count; i++) {
-            // i == index already checked by WaitForMultipleObjects
-            if (i == index || WaitForSingleObject(event_handles[i], 0) == WAIT_OBJECT_0) {
-                if (i <= notifiers.size()) {
-                    Notifier* notifier = *notifiers.get(event_handles[i]);
-                    event_queue.post_event(*notifier, make<NotifierActivationEvent>(notifier->fd(), notifier->type()));
-                } else {
-                    auto& timer = *timers.get(event_handles[i]);
-                    if (auto strong_owner = timer.owner.strong_ref())
-                        event_queue.post_event(*strong_owner, make<TimerEvent>());
-                }
+    DWORD timeout = has_pending_events ? 0 : INFINITE;
+    BOOL success = GetQueuedCompletionStatusEx(thread_data->iocp.handle, entries, entry_count, &entries_removed, timeout, FALSE);
+
+    dbgln_if(debug_event_loop, "Event loop dequed {} events", entries_removed);
+
+    if (success) {
+        for (ULONG i = 0; i < entries_removed; i++) {
+            auto& entry = entries[i];
+            auto* packet = reinterpret_cast<CompletionPacket*>(entry.lpCompletionKey);
+
+            if (packet == thread_data->wake_completion_key) {
+                arm_wake_event();
+                continue;
             }
+            if (packet->type == CompletionType::Timer) {
+                auto* timer = static_cast<EventLoopTimer*>(packet);
+                if (auto owner = timer->owner.strong_ref())
+                    event_queue.post_event(*owner, make<TimerEvent>());
+                if (timer->is_periodic)
+                    ntdll.NtAssociateWaitCompletionPacket(timer->wait_packet.handle, thread_data->iocp.handle, timer->timer.handle, timer, NULL, 0, 0, NULL);
+                continue;
+            }
+            if (packet->type == CompletionType::Notifer) {
+                auto* notifier_data = reinterpret_cast<EventLoopNotifier*>(packet);
+                event_queue.post_event(*notifier_data->notifier, make<NotifierActivationEvent>(notifier_data->fd(), notifier_data->notifier_type()));
+                ntdll.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
+                continue;
+            }
+            VERIFY_NOT_REACHED();
+        }
+    } else {
+        DWORD error = GetLastError();
+        switch (error) {
+        case WAIT_TIMEOUT:
+            break;
+        default:
+            dbgln("GetQueuedCompletionStatusEx failed with unexpected error: {}", Error::from_windows_error(error));
+            VERIFY_NOT_REACHED();
         }
     }
 
@@ -176,47 +304,87 @@ static int notifier_type_to_network_event(NotificationType type)
 
 void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 {
+    auto* thread_data = ThreadData::the();
+    auto& notifiers = thread_data->notifiers;
+
+    if (notifiers.contains(&notifier))
+        return;
+
     HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
     VERIFY(event);
     int rc = WSAEventSelect(notifier.fd(), event, notifier_type_to_network_event(notifier.type()));
     VERIFY(!rc);
 
-    auto& notifiers = ThreadData::the()->notifiers;
-    VERIFY(!notifiers.get(event).has_value());
-    notifiers.set(Handle(event), &notifier);
+    auto notifier_data = make<EventLoopNotifier>();
+    notifier_data->type = CompletionType::Notifer;
+    notifier_data->notifier = &notifier;
+    notifier_data->m_notifier_type = notifier.type();
+    notifier_data->wait_event.handle = event;
+    NTSTATUS status = NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+    VERIFY(NT_SUCCESS(status));
+    status = NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, event, notifier_data.ptr(), NULL, 0, 0, NULL);
+    VERIFY(NT_SUCCESS(status));
+    notifiers.set(&notifier, move(notifier_data));
 }
 
 void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
 {
-    // remove_first_matching would be clearer, but currently there is no such method in HashMap
-    if (ThreadData::the())
-        ThreadData::the()->notifiers.remove_all_matching([&](auto&, auto value) { return value == &notifier; });
+    auto* thread_data = ThreadData::the();
+    VERIFY(thread_data);
+    auto& notifiers = thread_data->notifiers;
+    if (!notifiers.contains(&notifier))
+        return;
+    auto* notifier_data = notifiers.get(&notifier).value();
+    // Should we be removing signalled handles or not?
+    NTSTATUS status = ntdll.NtCancelWaitCompletionPacket(notifier_data->wait_packet.handle, FALSE);
+    VERIFY(NT_SUCCESS(status));
+    notifiers.remove(&notifier);
+    // TODO: Reuse the data structure
 }
 
 intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
 {
     VERIFY(milliseconds >= 0);
-    // FIXME: This is a temporary fix for issue #3641
-    bool manual_reset = static_cast<Timer&>(object).is_single_shot();
-    HANDLE timer = CreateWaitableTimer(NULL, manual_reset, NULL);
-    VERIFY(timer);
+    auto* thread_data = ThreadData::the();
+    VERIFY(thread_data);
+    auto& timers = thread_data->timers;
+
+    auto timer_data = make<EventLoopTimer>();
+    timer_data->type = CompletionType::Timer;
+    timer_data->timer.handle = CreateWaitableTimer(NULL, FALSE, NULL);
+    timer_data->owner = object.make_weak_ptr();
+    timer_data->is_periodic = should_reload;
+    VERIFY(timer_data->timer.handle);
+
+    NTSTATUS status = ntdll.NtCreateWaitCompletionPacket(&timer_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+    VERIFY(NT_SUCCESS(status));
 
     LARGE_INTEGER first_time = {};
     // Measured in 0.1μs intervals, negative means starting from now
-    first_time.QuadPart = -10'000 * milliseconds;
-    BOOL rc = SetWaitableTimer(timer, &first_time, should_reload ? milliseconds : 0, NULL, NULL, FALSE);
-    VERIFY(rc);
+    first_time.QuadPart = -10'000LL * milliseconds;
+    BOOL succeeded = SetWaitableTimer(timer_data->timer.handle, &first_time, should_reload ? milliseconds : 0, NULL, NULL, FALSE);
+    VERIFY(succeeded);
 
-    auto& timers = ThreadData::the()->timers;
-    VERIFY(!timers.get(timer).has_value());
-    timers.set(Handle(timer), { object });
-    return reinterpret_cast<intptr_t>(timer);
+    status = ntdll.NtAssociateWaitCompletionPacket(timer_data->wait_packet.handle, thread_data->iocp.handle, timer_data->timer.handle, timer_data.ptr(), NULL, 0, 0, NULL);
+    VERIFY(NT_SUCCESS(status));
+
+    auto timer_id = reinterpret_cast<intptr_t>(timer_data.ptr());
+    VERIFY(!timers.get(timer_id).has_value());
+    timers.set(timer_id, move(timer_data));
+    return timer_id;
 }
 
 void EventLoopManagerWindows::unregister_timer(intptr_t timer_id)
 {
-    if (ThreadData::the())
-        ThreadData::the()->timers.remove(reinterpret_cast<HANDLE>(timer_id));
+    if (auto* thread_data = ThreadData::the()) {
+        auto maybe_timer = thread_data->timers.get(timer_id);
+        if (!maybe_timer.has_value())
+            return;
+        auto* timer = maybe_timer.value();
+        // NOTE: Should we be removing a signalled packet that has yet to be dequed or not? Currently we do, but it can be changed.
+        ntdll.NtCancelWaitCompletionPacket(timer->wait_packet.handle, TRUE);
+        thread_data->timers.remove(timer_id);
+    }
 }
 
 int EventLoopManagerWindows::register_signal([[maybe_unused]] int signal_number, [[maybe_unused]] Function<void(int)> handler)
