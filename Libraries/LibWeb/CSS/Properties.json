@@ -198,6 +198,8 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "none 0s ease 1 normal running 0s none",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "longhands": [
       "animation-duration",
       "animation-timing-function",
@@ -225,6 +227,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-types": [
       "time [-∞,∞]"
     ]
@@ -234,6 +238,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-identifiers": [
       "normal",
       "reverse",
@@ -246,6 +252,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-types": [
       "time [0,∞]"
     ],
@@ -258,6 +266,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-identifiers": [
       "none",
       "forwards",
@@ -270,6 +280,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "1",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-types": [
       "number [0,∞]"
     ],
@@ -282,6 +294,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-types": [
       "string",
       "custom-ident ![none]"
@@ -295,6 +309,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "running",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-identifiers": [
       "running",
       "paused"
@@ -305,6 +321,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "ease",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
+    "multiplicity": "single",
     "valid-types": [
       "easing-function"
     ]
@@ -336,6 +354,7 @@
     "inherited": false,
     "initial": "none",
     "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
+    "multiplicity": "list",
     "valid-identifiers": [
       "none"
     ]
@@ -353,13 +372,15 @@
       "background-position",
       "background-repeat",
       "background-size"
-    ]
+    ],
+    "multiplicity": "coordinating-list"
   },
   "background-attachment": {
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "scroll",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "background-attachment"
     ]
@@ -368,6 +389,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "mix-blend-mode"
     ]
@@ -377,6 +399,7 @@
     "animation-type": "repeatable-list",
     "inherited": false,
     "initial": "border-box",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "background-box"
     ]
@@ -398,6 +421,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "image"
     ],
@@ -410,6 +434,7 @@
     "animation-type": "repeatable-list",
     "inherited": false,
     "initial": "padding-box",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "background-box"
     ]
@@ -419,6 +444,7 @@
     "inherited": false,
     "initial": "0% 0%",
     "max-values": 4,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "background-position"
     ],
@@ -436,6 +462,7 @@
     "animation-type": "repeatable-list",
     "inherited": false,
     "initial": "0%",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -452,6 +479,7 @@
     "animation-type": "repeatable-list",
     "inherited": false,
     "initial": "0%",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -468,6 +496,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "repeat",
+    "multiplicity": "coordinating-list",
     "max-values": 2,
     "valid-types": [
       "repetition"
@@ -482,6 +511,7 @@
     "animation-type": "repeatable-list",
     "inherited": false,
     "initial": "auto",
+    "multiplicity": "coordinating-list",
     "max-values": 2,
     "valid-types": [
       "length [0,∞]",
@@ -1158,6 +1188,7 @@
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
+    "multiplicity": "list",
     "valid-identifiers": [
       "none"
     ]
@@ -1386,6 +1417,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "multiplicity": "list",
     "valid-types": [
       "custom-ident ![none]",
       "integer [-∞,∞]"
@@ -1398,6 +1430,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "multiplicity": "list",
     "valid-types": [
       "custom-ident ![none]",
       "integer [-∞,∞]"
@@ -1410,6 +1443,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "multiplicity": "list",
     "valid-types": [
       "custom-ident ![none]",
       "integer [-∞,∞]"
@@ -1423,6 +1457,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "multiplicity": "list",
     "valid-types": [
       "url",
       "cursor-predefined",
@@ -1524,6 +1559,7 @@
     "inherited": false,
     "initial": "none",
     "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
+    "multiplicity": "list",
     "valid-identifiers": [
       "none"
     ]
@@ -1642,6 +1678,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "serif",
+    "multiplicity": "list",
     "valid-types": [
       "custom-ident",
       "string"
@@ -1651,6 +1688,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "multiplicity": "list",
     "valid-types": [
       "integer [0,∞]",
       "opentype-tag"
@@ -1786,6 +1824,7 @@
     "animation-type": "custom",
     "inherited": true,
     "initial": "normal",
+    "multiplicity": "list",
     "valid-types": [
       "number",
       "opentype-tag"
@@ -2444,6 +2483,7 @@
     "inherited": false,
     "affects-layout": false,
     "initial": "none",
+    "multiplicity": "coordinating-list",
     "longhands": [
       "mask-clip",
       "mask-composite",
@@ -2459,6 +2499,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "coord-box"
     ],
@@ -2471,6 +2512,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "compositing-operator"
     ],
@@ -2481,6 +2523,7 @@
     "inherited": false,
     "affects-layout": false,
     "affects-stacking-context": true,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "image",
       "url"
@@ -2494,6 +2537,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "masking-mode"
     ],
@@ -2503,6 +2547,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "coord-box"
     ],
@@ -2513,6 +2558,7 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "0% 0%",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "position"
     ],
@@ -2523,6 +2569,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "repeat",
+    "multiplicity": "coordinating-list",
     "max-values": 2,
     "valid-types": [
       "repetition"
@@ -2537,6 +2584,7 @@
     "animation-type": "repeatable-list",
     "inherited": false,
     "initial": "auto",
+    "multiplicity": "coordinating-list",
     "max-values": 2,
     "valid-types": [
       "length [0,∞]",
@@ -2553,6 +2601,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "mask-type"
     ],
@@ -3048,6 +3097,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "multiplicity": "list",
     "valid-types": [
       "string"
     ],
@@ -3508,7 +3558,8 @@
     "initial": "none",
     "affects-layout": false,
     "affects-stacking-context": true,
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "multiplicity": "list"
   },
   "transform-box": {
     "animation-type": "discrete",
@@ -3542,6 +3593,7 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "none",
+    "multiplicity": "coordinating-list",
     "longhands": [
       "transition-property",
       "transition-duration",
@@ -3555,6 +3607,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "transition-behavior"
     ]
@@ -3564,6 +3617,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "time"
     ]
@@ -3573,6 +3627,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "time [0,∞]"
     ]
@@ -3582,6 +3637,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "all",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "custom-ident ![all,none]"
     ],
@@ -3595,6 +3651,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "ease",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "easing-function"
     ]
@@ -3729,6 +3786,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "auto",
+    "multiplicity": "list",
     "valid-types": [
       "custom-ident ![all,auto,contents,none,scroll-position,will-change]"
     ],
