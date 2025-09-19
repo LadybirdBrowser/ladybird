@@ -18,12 +18,12 @@ class MEDIA_API FFmpegVideoDecoder final : public VideoDecoder {
 public:
     static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
-    ~FFmpegVideoDecoder();
+    virtual ~FFmpegVideoDecoder() override;
 
-    DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
-    DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
+    virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
+    virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
-    void flush() override;
+    virtual void flush() override;
 
 private:
     AVCodecContext* m_codec_context;
