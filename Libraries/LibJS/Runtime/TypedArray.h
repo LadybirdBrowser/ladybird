@@ -84,6 +84,7 @@ protected:
 
 private:
     virtual void visit_edges(Visitor&) override;
+    virtual bool eligible_for_own_property_enumeration_fast_path() const final override { return false; }
 };
 
 // 10.4.5.9 TypedArray With Buffer Witness Records, https://tc39.es/ecma262/#sec-typedarray-with-buffer-witness-records

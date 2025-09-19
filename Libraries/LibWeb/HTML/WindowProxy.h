@@ -33,6 +33,8 @@ public:
     virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const&) override;
     virtual JS::ThrowCompletionOr<GC::RootVector<JS::Value>> internal_own_property_keys() const override;
 
+    virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
+
     GC::Ptr<Window> window() const { return m_window; }
     void set_window(GC::Ref<Window>);
 

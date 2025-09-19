@@ -47,6 +47,18 @@ describe("basic functionality", () => {
         let entries = Object.entries(obj);
         expect(entries).toEqual([["foo", 1]]);
     });
+
+    test("delete key from getter", () => {
+        const obj = {
+            get a() {
+                delete this.b;
+                return 1;
+            },
+            b: 2,
+        };
+
+        expect(Object.entries(obj)).toEqual([["a", 1]]);
+    });
 });
 
 describe("errors", () => {

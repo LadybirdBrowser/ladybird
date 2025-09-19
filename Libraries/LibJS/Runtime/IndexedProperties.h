@@ -138,6 +138,7 @@ public:
     bool operator!=(IndexedPropertyIterator const&) const;
 
     u32 index() const { return m_index; }
+    bool enumerable() const;
 
 private:
     void skip_empty_indices();
@@ -147,6 +148,7 @@ private:
     size_t m_next_cached_index { 0 };
     u32 m_index { 0 };
     bool m_skip_empty { false };
+    bool m_all_enumerable { false };
 };
 
 class JS_API IndexedProperties {

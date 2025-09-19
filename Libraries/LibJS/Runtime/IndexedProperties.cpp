@@ -214,6 +214,8 @@ IndexedPropertyIterator::IndexedPropertyIterator(IndexedProperties const& indexe
         m_cached_indices = m_indexed_properties.indices();
         skip_empty_indices();
     }
+    if (auto const* storage = m_indexed_properties.storage())
+        m_all_enumerable = storage->is_simple_storage();
 }
 
 IndexedPropertyIterator& IndexedPropertyIterator::operator++()
@@ -234,6 +236,13 @@ IndexedPropertyIterator& IndexedPropertyIterator::operator*()
 bool IndexedPropertyIterator::operator!=(IndexedPropertyIterator const& other) const
 {
     return m_index != other.m_index;
+}
+
+bool IndexedPropertyIterator::enumerable() const
+{
+    if (m_all_enumerable)
+        return true;
+    return m_indexed_properties.get(m_index)->attributes.is_enumerable();
 }
 
 void IndexedPropertyIterator::skip_empty_indices()

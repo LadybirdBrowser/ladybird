@@ -1848,36 +1848,35 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
 
-    GC::OrderedRootHashMap<PropertyKeyAndEnumerableFlag, Value> properties(vm.heap());
+    size_t estimated_properties_count = 0;
     HashTable<GC::Ref<Object>> seen_objects;
+    for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+        estimated_properties_count += object_to_check->own_properties_count();
+    }
+    seen_objects.clear_with_capacity();
+
+    GC::OrderedRootHashMap<PropertyKeyAndEnumerableFlag, Value> properties(vm.heap());
+    properties.ensure_capacity(estimated_properties_count);
+
     // Collect all keys immediately (invariant no. 5)
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
         seen_objects.set(*object_to_check);
-        auto keys = TRY(object_to_check->internal_own_property_keys());
-        properties.ensure_capacity(properties.size() + keys.size());
-        for (auto& key : keys) {
-            if (key.is_symbol())
-                continue;
-
+        TRY(object_to_check->for_each_own_property_with_enumerability([&](PropertyKey const& property_key, Value value, bool enumerable) -> ThrowCompletionOr<void> {
             // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
             //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
             //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
             //       the enumerable flag when comparing keys.
             PropertyKeyAndEnumerableFlag new_entry {
-                .key = TRY(PropertyKey::from_value(vm, key)),
+                .key = property_key,
                 .enumerable = false,
             };
-
             if (properties.contains(new_entry))
-                continue;
-
-            auto descriptor = TRY(object_to_check->internal_get_own_property(new_entry.key));
-            if (!descriptor.has_value())
-                continue;
-
-            new_entry.enumerable = *descriptor->enumerable;
-            properties.set(move(new_entry), key, AK::HashSetExistingEntryBehavior::Keep);
-        }
+                return {};
+            new_entry.enumerable = enumerable;
+            properties.set(move(new_entry), value, AK::HashSetExistingEntryBehavior::Keep);
+            return {};
+        }));
     }
 
     properties.remove_all_matching([&](auto& key, auto&) { return !key.enumerable; });
