@@ -53,6 +53,7 @@ private:
 
     virtual bool is_function() const override { return m_target->is_function(); }
     virtual bool is_proxy_object() const final { return true; }
+    virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
 
     virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count) override;
 

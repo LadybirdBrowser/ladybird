@@ -191,6 +191,9 @@ public:
 
     // Non-standard methods
 
+    ThrowCompletionOr<void> for_each_own_property_with_enumerability(Function<ThrowCompletionOr<void>(PropertyKey const&, bool)>&&) const;
+    size_t own_properties_count() const;
+
     Value get_without_side_effects(PropertyKey const&) const;
 
     void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { (void)storage_set(property_key, { value, attributes }); }
@@ -224,6 +227,8 @@ public:
     virtual bool is_ecmascript_function_object() const { return false; }
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
+
+    virtual bool eligible_for_own_property_enumeration_fast_path() const { return true; }
 
     virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const&) { return nullptr; }
 
