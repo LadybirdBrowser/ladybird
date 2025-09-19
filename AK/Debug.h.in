@@ -102,6 +102,10 @@
 #    cmakedefine01 HTML_SCRIPT_DEBUG
 #endif
 
+#ifndef HTTP_CACHE_DEBUG
+#    cmakedefine01 HTTP_CACHE_DEBUG
+#endif
+
 #ifndef HTTPJOB_DEBUG
 #    cmakedefine01 HTTPJOB_DEBUG
 #endif
