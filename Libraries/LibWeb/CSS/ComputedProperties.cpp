@@ -132,6 +132,16 @@ void ComputedProperties::revert_property(PropertyID id, ComputedProperties const
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
+Display ComputedProperties::display_before_box_type_transformation() const
+{
+    return m_display_before_box_type_transformation;
+}
+
+void ComputedProperties::set_display_before_box_type_transformation(Display value)
+{
+    m_display_before_box_type_transformation = value;
+}
+
 void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited)
 {
     m_animated_property_values.set(id, move(value));
