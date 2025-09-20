@@ -368,8 +368,8 @@ public:
         if (m_capacity == 0)
             return;
         if constexpr (!IsTriviallyDestructible<T>) {
-            for (auto* bucket : *this)
-                bucket->~T();
+            for (auto& bucket : *this)
+                bucket.~T();
         }
         __builtin_memset(m_buckets, 0, size_in_bytes(m_capacity));
         m_size = 0;
