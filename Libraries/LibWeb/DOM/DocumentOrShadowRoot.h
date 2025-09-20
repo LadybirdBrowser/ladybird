@@ -26,7 +26,7 @@ GC::Ptr<Element> calculate_active_element(T& self)
     candidate = as<Node>(retarget(candidate, &self));
 
     // 3. If candidate's root is not this, then return null.
-    if (&candidate->root() != &self)
+    if (candidate == nullptr || &candidate->root() != &self)
         return nullptr;
 
     // 4. If candidate is not a Document object, then return candidate.
