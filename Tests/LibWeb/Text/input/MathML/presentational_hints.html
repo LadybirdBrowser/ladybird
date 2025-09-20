@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<body>
+    <math data-prop="direction">
+        <mi></mi>
+        <mi dir="LTR"></mi>
+        <mi dir="rtl"></mi>
+    </math>
+    <math data-prop="color">
+        <mi mathcolor="red"></mi>
+        <mi mathcolor="#f00"></mi>
+    </math>
+    <math data-prop="background-color">
+        <mi mathbackground="blue"></mi>
+        <mi mathbackground="#0000ff"></mi>
+    </math>
+    <math data-prop="font-size">
+        <mi mathsize="10px"></mi>
+    </math>
+    <math data-prop="math-style">
+        <mi displaystyle=""></mi>
+        <mi displaystyle="true"></mi>
+        <mi displaystyle="TRuE"></mi>
+        <mi displaystyle="false"></mi>
+        <mi displaystyle="faLse"></mi>
+    </math>
+    <math data-prop="math-depth" style="math-depth:1">
+        <mi></mi>
+        <mi scriptlevel="2"></mi>
+        <mi scriptlevel="+2"></mi>
+        <mi scriptlevel="-3"></mi>
+    </math>
+    <math data-prop="text-transform">
+        <mi></mi>
+        <mi mathvariant="normal"></mi>
+    </math>
+    <math data-prop="width">
+        <mspace width="10px"></mspace>
+        <mspace width="10%"></mspace>
+    </math>
+    <math data-prop="height">
+        <mspace height="20px"></mspace>
+        <mspace depth="30px"></mspace>
+        <mspace height="10%"></mspace>
+    </math>
+</body>
+<script>
+    test(() => {
+        [...document.querySelectorAll('[data-prop]')].forEach(propItem => {
+            const prop = propItem.dataset['prop'];
+            [...propItem.querySelectorAll('& > *')].forEach(item =>
+                println(`${prop}: ${item.computedStyleMap().get(prop).toString()}`)
+            );
+        });
+    });
+</script>
