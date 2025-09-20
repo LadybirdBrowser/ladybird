@@ -42,32 +42,6 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
 
-namespace JS {
-
-struct PropertyKeyAndEnumerableFlag {
-    JS::PropertyKey key;
-    bool enumerable { false };
-};
-
-}
-
-namespace AK {
-
-template<>
-struct Traits<JS::PropertyKeyAndEnumerableFlag> : public DefaultTraits<JS::PropertyKeyAndEnumerableFlag> {
-    static unsigned hash(JS::PropertyKeyAndEnumerableFlag const& entry)
-    {
-        return Traits<JS::PropertyKey>::hash(entry.key);
-    }
-
-    static bool equals(JS::PropertyKeyAndEnumerableFlag const& a, JS::PropertyKeyAndEnumerableFlag const& b)
-    {
-        return Traits<JS::PropertyKey>::equals(a.key, b.key);
-    }
-};
-
-}
-
 namespace JS::Bytecode {
 
 bool g_dump_bytecode = false;
@@ -1794,17 +1768,17 @@ public:
             ScopeGuard remove_first = [&] { ++m_iterator; };
 
             // If the property is deleted, don't include it (invariant no. 2)
-            if (!TRY(m_object->has_property(entry.key)))
+            if (!TRY(m_object->has_property(entry)))
                 continue;
 
             done = false;
-            value = entry.key.to_value(vm);
+            value = entry.to_value(vm);
             return {};
         }
     }
 
 private:
-    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, OrderedHashTable<PropertyKeyAndEnumerableFlag> properties)
+    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, Vector<PropertyKey> properties)
         : Object(realm, nullptr)
         , m_object(object)
         , m_properties(move(properties))
@@ -1819,7 +1793,7 @@ private:
     }
 
     GC::Ref<Object> m_object;
-    OrderedHashTable<PropertyKeyAndEnumerableFlag> m_properties;
+    Vector<PropertyKey> m_properties;
     decltype(m_properties.begin()) m_iterator;
 };
 
@@ -1855,30 +1829,42 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
     }
     seen_objects.clear_with_capacity();
 
-    OrderedHashTable<PropertyKeyAndEnumerableFlag> properties;
+    Vector<PropertyKey> properties;
     properties.ensure_capacity(estimated_properties_count);
 
+    HashTable<PropertyKey> seen_non_enumerable_properties;
+    Optional<HashTable<PropertyKey>> seen_properties;
+    auto ensure_seen_properties = [&] {
+        if (seen_properties.has_value())
+            return;
+        seen_properties = HashTable<PropertyKey> {};
+        seen_properties->ensure_capacity(properties.size());
+        for (auto const& property : properties)
+            seen_properties->set(property);
+    };
+
     // Collect all keys immediately (invariant no. 5)
+    bool in_prototype_chain = false;
     for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
         seen_objects.set(*object_to_check);
         TRY(object_to_check->for_each_own_property_with_enumerability([&](PropertyKey const& property_key, bool enumerable) -> ThrowCompletionOr<void> {
-            // NOTE: If there is a non-enumerable property higher up the prototype chain with the same key,
-            //       we mustn't include this property even if it's enumerable (invariant no. 5 and 6)
-            //       This is achieved with the PropertyKeyAndEnumerableFlag struct, which doesn't consider
-            //       the enumerable flag when comparing keys.
-            PropertyKeyAndEnumerableFlag new_entry {
-                .key = property_key,
-                .enumerable = false,
-            };
-            if (properties.contains(new_entry))
-                return {};
-            new_entry.enumerable = enumerable;
-            properties.set(move(new_entry), AK::HashSetExistingEntryBehavior::Keep);
+            if (!enumerable)
+                seen_non_enumerable_properties.set(property_key);
+            if (in_prototype_chain && enumerable) {
+                if (seen_non_enumerable_properties.contains(property_key))
+                    return {};
+                ensure_seen_properties();
+                if (seen_properties->contains(property_key))
+                    return {};
+            }
+            if (enumerable)
+                properties.append(property_key);
+            if (seen_properties.has_value())
+                seen_properties->set(property_key);
             return {};
         }));
+        in_prototype_chain = true;
     }
-
-    properties.remove_all_matching([&](auto& key) { return !key.enumerable; });
 
     auto iterator = interpreter.realm().create<PropertyNameIterator>(interpreter.realm(), object, move(properties));
 
