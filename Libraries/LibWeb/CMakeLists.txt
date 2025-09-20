@@ -742,6 +742,8 @@ set(SOURCES
     Loader/Resource.cpp
     Loader/ResourceLoader.cpp
     MathML/MathMLElement.cpp
+    MathML/MathMLMiElement.cpp
+    MathML/MathMLMspaceElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
