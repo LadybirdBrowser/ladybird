@@ -134,12 +134,18 @@ void OffscreenCanvas::reset_context_to_default_state()
         });
 }
 
-void OffscreenCanvas::set_new_bitmap_size(Gfx::IntSize new_size)
+WebIDL::ExceptionOr<void> OffscreenCanvas::set_new_bitmap_size(Gfx::IntSize new_size)
 {
     if (new_size.width() == 0 || new_size.height() == 0)
         m_bitmap = nullptr;
     else {
-        m_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { new_size.width(), new_size.height() }));
+        // FIXME: Other browsers appear to not throw for unreasonable sizes being set. We could consider deferring allocation of the bitmap until it is used,
+        //        but for now, lets just allocate it here and throw if it fails instead of crashing.
+        auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::IntSize { new_size.width(), new_size.height() });
+        if (bitmap_or_error.is_error()) {
+            return WebIDL::InvalidStateError::create(realm(), Utf16String::formatted("Error in allocating bitmap: {}", bitmap_or_error.error()));
+        }
+        m_bitmap = bitmap_or_error.release_value();
     }
 
     m_context.visit(
@@ -155,7 +161,9 @@ void OffscreenCanvas::set_new_bitmap_size(Gfx::IntSize new_size)
         [](Empty) {
             // Do nothing.
         });
+    return {};
 }
+
 RefPtr<Gfx::Bitmap> OffscreenCanvas::bitmap() const
 {
     return m_bitmap;
@@ -166,7 +174,7 @@ WebIDL::ExceptionOr<void> OffscreenCanvas::set_width(WebIDL::UnsignedLong value)
     Gfx::IntSize current_size = bitmap_size_for_canvas();
     current_size.set_width(value);
 
-    set_new_bitmap_size(current_size);
+    TRY(set_new_bitmap_size(current_size));
     reset_context_to_default_state();
     return {};
 }
@@ -175,7 +183,7 @@ WebIDL::ExceptionOr<void> OffscreenCanvas::set_height(WebIDL::UnsignedLong value
     Gfx::IntSize current_size = bitmap_size_for_canvas();
     current_size.set_height(value);
 
-    set_new_bitmap_size(current_size);
+    TRY(set_new_bitmap_size(current_size));
     reset_context_to_default_state();
     return {};
 }
