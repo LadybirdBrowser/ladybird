@@ -20,8 +20,8 @@ enum OffscreenRenderingContextId { "2d", "bitmaprenderer", "webgl", "webgl2", "w
 interface OffscreenCanvas : EventTarget {
     constructor([EnforceRange] unsigned long long width, [EnforceRange] unsigned long long height);
 
-    attribute unsigned long long width;
-    attribute unsigned long long height;
+    [EnforceRange] attribute unsigned long long width;
+    [EnforceRange] attribute unsigned long long height;
 
     OffscreenRenderingContext? getContext(OffscreenRenderingContextId contextId, optional any options = null);
     ImageBitmap transferToImageBitmap();

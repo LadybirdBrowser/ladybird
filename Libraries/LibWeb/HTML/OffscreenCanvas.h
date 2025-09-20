@@ -80,7 +80,7 @@ private:
     JS::ThrowCompletionOr<HasOrCreatedContext> create_2d_context(JS::Value options);
 
     void reset_context_to_default_state();
-    void set_new_bitmap_size(Gfx::IntSize new_size);
+    WebIDL::ExceptionOr<void> set_new_bitmap_size(Gfx::IntSize new_size);
 
     Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
 
