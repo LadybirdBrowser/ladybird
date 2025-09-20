@@ -641,6 +641,31 @@ void HTMLScriptElement::unmark_as_parser_inserted(Badge<DOM::Range>)
     m_parser_document = nullptr;
 }
 
+// https://github.com/w3c/trusted-types/blob/0f01aee35c3684e8cb20e7d83445ad65938f545d/spec/index.bs#L1341
+TrustedTypes::TrustedScriptURLOrString HTMLScriptElement::src() const
+{
+    // 1. Let element be the result of running this's get the element.
+
+    // 2. Let contentAttributeValue be the result of running this's get the content attribute.
+    auto maybe_src = get_attribute(AttributeNames::src);
+
+    // 3. If contentAttributeValue is null, then return the empty string.
+    if (!maybe_src.has_value())
+        return Utf16String {};
+
+    auto const& raw = *maybe_src;
+
+    // 4. Let urlString be the result of encoding-parsing-and-serializing a URL given contentAttributeValue, relative to element's node document.
+    auto url_string = document().encoding_parse_and_serialize_url(raw);
+
+    // 5. If urlString is not failure, then return urlString.
+    if (url_string.has_value())
+        return Utf16String::from_utf8_without_validation(*url_string);
+
+    // 6. Return contentAttributeValue, converted to a scalar value string.
+    return Utf16String {};
+}
+
 // https://www.w3.org/TR/trusted-types/#the-text-idl-attribute
 WebIDL::ExceptionOr<void> HTMLScriptElement::set_text(TrustedTypes::TrustedScriptOrString text)
 {
