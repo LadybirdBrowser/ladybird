@@ -973,8 +973,6 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             return camel_case_string_from_property_id(a) < camel_case_string_from_property_id(b);
         };
 
-        compute_font(computed_properties, abstract_element);
-        compute_property_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
             computed_properties.first_available_computed_font().pixel_metrics()
@@ -2585,6 +2583,18 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         }
     }
 
+    // Compute the value of custom properties
+    compute_custom_properties(computed_style, abstract_element);
+
+    // 2. Compute the math-depth property, since that might affect the font-size
+    compute_math_depth(computed_style, abstract_element);
+
+    // 3. Compute the font, since that may be needed for font-relative CSS units
+    compute_font(computed_style, abstract_element);
+
+    // 4. Convert properties into their computed forms
+    compute_property_values(computed_style);
+
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
         auto const& animation_name = computed_style->property(PropertyID::AnimationName);
@@ -2653,18 +2663,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             }
         }
     }
-
-    // Compute the value of custom properties
-    compute_custom_properties(computed_style, abstract_element);
-
-    // 2. Compute the math-depth property, since that might affect the font-size
-    compute_math_depth(computed_style, abstract_element);
-
-    // 3. Compute the font, since that may be needed for font-relative CSS units
-    compute_font(computed_style, abstract_element);
-
-    // 4. Convert properties into their computed forms
-    compute_property_values(computed_style);
 
     // 5. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, abstract_element);
