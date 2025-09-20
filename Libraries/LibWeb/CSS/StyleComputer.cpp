@@ -901,7 +901,10 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         return;
     }
 
-    auto key = static_cast<i64>(round(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor));
+    double progress = output_progress.value() >= NumericLimits<double>::max() / (100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor)
+        ? NumericLimits<double>::max()
+        : round(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
+    auto key = progress >= NumericLimits<i64>::max() ? NumericLimits<i64>::max() : static_cast<i64>(progress);
     auto keyframe_start_it = [&] {
         if (output_progress.value() <= 0) {
             return keyframes.begin();
@@ -922,8 +925,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     auto keyframe_end = static_cast<i64>(keyframe_end_it.key());
     auto keyframe_end_values = *keyframe_end_it;
 
-    auto progress_in_keyframe
-        = static_cast<float>(key - keyframe_start) / static_cast<float>(keyframe_end - keyframe_start);
+    auto progress_in_keyframe = (progress - keyframe_start) / static_cast<double>(keyframe_end - keyframe_start);
 
     if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
         auto valid_properties = keyframe_values.properties.size();
