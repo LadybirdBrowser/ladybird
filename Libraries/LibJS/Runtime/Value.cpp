@@ -383,6 +383,8 @@ String Value::to_string_without_side_effects() const
         return "<accessor>"_string;
     case EMPTY_TAG:
         return "<empty>"_string;
+    case GC::IS_CELL_PATTERN:
+        return "<is_cell_pattern>"_string;
     default:
         VERIFY_NOT_REACHED();
     }
