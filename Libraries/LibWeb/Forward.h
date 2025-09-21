@@ -1092,6 +1092,7 @@ class SVGDescElement;
 class SVGElement;
 class SVGEllipseElement;
 class SVGFEBlendElement;
+class SVGFEColorMatrixElement;
 class SVGFECompositeElement;
 class SVGFEFloodElement;
 class SVGFEGaussianBlurElement;

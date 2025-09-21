@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-fecolormatrix-huerotate-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-12000">
+<style>
+  html, body { margin: 0; background: white; }
+</style>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="cm_hue">
+      <feColorMatrix type="hueRotate" values="90"/>
+    </filter>
+  </defs>
+  <g filter="url(#cm_hue)">
+    <rect x="10" y="10" width="180" height="180" fill="#cc3366"/>
+  </g>
+  <!-- Core: feColorMatrix hueRotate in degrees -->
+</svg>
