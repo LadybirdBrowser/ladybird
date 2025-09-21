@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let invocation = 0;
+        function makeTimeout() {
+            const count = ++invocation;
+            setTimeout(() => {
+                println(count);
+                if (count === 100)
+                    done();
+            }, 1);
+        }
+
+        for (let i = 0; i < 100; i++) {
+            makeTimeout();
+        }
+    });
+</script>

@@ -70,6 +70,9 @@ public:
 
     bool is_scheduled() const { return m_index != INVALID_INDEX; }
 
+    void set_sequence_id(u64 id) { m_sequence_id = id; }
+    u64 sequence_id() const { return m_sequence_id; }
+
 protected:
     union {
         AK::Duration m_duration;
@@ -78,6 +81,7 @@ protected:
 
 private:
     ssize_t m_index = INVALID_INDEX;
+    u64 m_sequence_id { 0 };
 };
 
 class TimeoutSet {
@@ -122,12 +126,14 @@ public:
 
     void schedule_relative(EventLoopTimeout* timeout)
     {
+        timeout->set_sequence_id(m_next_sequence_id++);
         timeout->set_index({}, -1 - static_cast<ssize_t>(m_scheduled_timeouts.size()));
         m_scheduled_timeouts.append(timeout);
     }
 
     void schedule_absolute(EventLoopTimeout* timeout)
     {
+        timeout->set_sequence_id(m_next_sequence_id++);
         m_heap.insert(timeout);
     }
 
@@ -160,6 +166,8 @@ private:
     IntrusiveBinaryHeap<
         EventLoopTimeout*,
         decltype([](EventLoopTimeout* a, EventLoopTimeout* b) {
+            if (a->fire_time() == b->fire_time())
+                return a->sequence_id() < b->sequence_id();
             return a->fire_time() < b->fire_time();
         }),
         decltype([](EventLoopTimeout* timeout, size_t index) {
@@ -168,6 +176,7 @@ private:
         8>
         m_heap;
     Vector<EventLoopTimeout*, 8> m_scheduled_timeouts;
+    u64 m_next_sequence_id { 0 };
 };
 
 class EventLoopTimer final : public EventLoopTimeout {
