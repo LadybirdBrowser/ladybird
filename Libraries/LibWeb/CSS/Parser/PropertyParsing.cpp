@@ -450,6 +450,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::Animation:
+        if (auto parsed_value = parse_animation_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::AnimationComposition:
     case PropertyID::AnimationDelay:
     case PropertyID::AnimationDirection:
@@ -1227,6 +1231,79 @@ RefPtr<StyleValue const> Parser::parse_aspect_ratio_value(TokenStream<ComponentV
     }
 
     return nullptr;
+}
+
+// https://drafts.csswg.org/css-animations-1/#animation
+RefPtr<StyleValue const> Parser::parse_animation_value(TokenStream<ComponentValue>& tokens)
+{
+    // [<'animation-duration'> || <easing-function> || <'animation-delay'> || <single-animation-iteration-count> || <single-animation-direction> || <single-animation-fill-mode> || <single-animation-play-state> || [ none | <keyframes-name> ] || <single-animation-timeline>]#
+    // FIXME: Support <single-animation-timeline>
+
+    Vector<PropertyID> longhand_ids {
+        PropertyID::AnimationDuration,
+        PropertyID::AnimationTimingFunction,
+        PropertyID::AnimationDelay,
+        PropertyID::AnimationIterationCount,
+        PropertyID::AnimationDirection,
+        PropertyID::AnimationFillMode,
+        PropertyID::AnimationPlayState,
+        PropertyID::AnimationName
+    };
+
+    HashMap<PropertyID, StyleValueVector> longhand_vectors;
+
+    auto transaction = tokens.begin_transaction();
+
+    do {
+        Vector<PropertyID> remaining_longhands {};
+        remaining_longhands.extend(longhand_ids);
+
+        HashMap<PropertyID, NonnullRefPtr<StyleValue const>> parsed_values;
+
+        while (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
+            auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+
+            if (!property_and_value.has_value())
+                return {};
+
+            remove_property(remaining_longhands, property_and_value->property);
+
+            parsed_values.set(property_and_value->property, property_and_value->style_value.release_nonnull());
+        }
+
+        if (parsed_values.is_empty())
+            return {};
+
+        for (auto const& longhand_id : longhand_ids)
+            longhand_vectors.ensure(longhand_id).append(*parsed_values.get(longhand_id).value_or(property_initial_value(longhand_id)));
+
+        if (tokens.has_next_token()) {
+            if (tokens.next_token().is(Token::Type::Comma))
+                tokens.discard_a_token();
+            else
+                return {};
+        }
+    } while (tokens.has_next_token());
+
+    transaction.commit();
+
+    // FIXME: This is for compatibility with parse_comma_separated_value_list(), which returns a single value directly
+    //        instead of a list if there's only one, it would be nicer if we always returned a list.
+    if (longhand_vectors.get(PropertyID::AnimationDuration)->size() == 1) {
+        StyleValueVector longhand_values {};
+
+        for (auto const& longhand_id : longhand_ids)
+            longhand_values.append((*longhand_vectors.get(longhand_id))[0]);
+
+        return ShorthandStyleValue::create(PropertyID::Animation, longhand_ids, longhand_values);
+    }
+
+    StyleValueVector longhand_values {};
+
+    for (auto const& longhand_id : longhand_ids)
+        longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
+
+    return ShorthandStyleValue::create(PropertyID::Animation, longhand_ids, longhand_values);
 }
 
 RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentValue>& tokens)

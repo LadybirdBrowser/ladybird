@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 36 tests
 
-9 Pass
-27 Fail
+25 Pass
+11 Fail
 Pass	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-delay
 Pass	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-direction
 Pass	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-duration
@@ -16,27 +16,27 @@ Fail	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -
 Fail	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-timeline
 Pass	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-timing-function
 Pass	e.style['animation'] = "anim paused both reverse 4 1s -3s cubic-bezier(0, -2, 1, 3)" should not set unrelated longhands
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-delay
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-direction
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-delay
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-direction
 Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-duration
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-fill-mode
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-iteration-count
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-name
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-play-state
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-fill-mode
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-iteration-count
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-name
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-play-state
 Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-range-end
 Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-range-start
 Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-timeline
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-timing-function
-Fail	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should not set unrelated longhands
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-delay
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-direction
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should set animation-timing-function
+Pass	e.style['animation'] = "anim paused both reverse, 4 1s -3s cubic-bezier(0, -2, 1, 3)" should not set unrelated longhands
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-delay
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-direction
 Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-duration
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-fill-mode
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-iteration-count
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-name
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-play-state
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-fill-mode
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-iteration-count
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-name
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-play-state
 Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-range-end
 Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-range-start
 Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-timeline
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-timing-function
-Fail	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should not set unrelated longhands
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should set animation-timing-function
+Pass	e.style['animation'] = "4 1s -3s cubic-bezier(0, -2, 1, 3), anim paused both reverse" should not set unrelated longhands
