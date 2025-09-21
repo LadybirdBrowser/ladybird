@@ -55,6 +55,11 @@ public:
 
     hb_face_t* harfbuzz_typeface() const;
 
+    template<typename T>
+    bool fast_is() const = delete;
+
+    virtual bool is_skia() const { return false; }
+
 protected:
     Typeface();
 
