@@ -186,7 +186,7 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 ### FreeBSD
 
 ```
-pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base qt6-multimedia unzip zip
+pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libdrm libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base qt6-multimedia unzip zip
 ```
 
 ## Build steps
