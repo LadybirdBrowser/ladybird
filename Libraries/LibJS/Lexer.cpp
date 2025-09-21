@@ -327,10 +327,12 @@ void Lexer::consume()
                 type = "LINE FEED"sv;
             else if (m_current_code_unit == '\r')
                 type = "CARRIAGE RETURN"sv;
-            else if (m_source.code_unit_at(m_position + 1) == LINE_SEPARATOR)
+            else if (m_current_code_unit == LINE_SEPARATOR)
                 type = "LINE SEPARATOR"sv;
-            else
+            else if (m_current_code_unit == PARAGRAPH_SEPARATOR)
                 type = "PARAGRAPH SEPARATOR"sv;
+            else
+                VERIFY_NOT_REACHED();
             dbgln("Found a line terminator: {}", type);
         }
 
