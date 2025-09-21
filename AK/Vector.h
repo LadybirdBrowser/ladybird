@@ -69,11 +69,15 @@ public:
     using ValueType = T;
     Vector()
     {
+        if constexpr (inline_capacity > 0)
+            update_metadata();
     }
 
     Vector(std::initializer_list<T> list)
     requires(!IsLvalueReference<T>)
     {
+        if constexpr (inline_capacity > 0)
+            update_metadata();
         ensure_capacity(list.size());
         for (auto& item : list)
             unchecked_append(item);
@@ -88,8 +92,8 @@ public:
             if (!m_metadata.outline_buffer) {
                 TypedTransfer<T>::move(inline_buffer(), other.inline_buffer(), m_size);
                 TypedTransfer<T>::delete_(other.inline_buffer(), m_size);
-                update_metadata();
             }
+            update_metadata();
         }
         other.m_metadata = {};
         other.m_size = 0;
@@ -101,7 +105,8 @@ public:
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
-        update_metadata();
+        if (m_capacity > 0)
+            update_metadata();
     }
 
     explicit Vector(ReadonlySpan<T> other)
@@ -110,7 +115,8 @@ public:
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
-        update_metadata();
+        if (m_capacity > 0)
+            update_metadata();
     }
 
     template<size_t other_inline_capacity, FastLastAccess other_requested_fast_last_access>
@@ -119,7 +125,8 @@ public:
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
-        update_metadata();
+        if (m_capacity > 0)
+            update_metadata();
     }
 
     ~Vector()
@@ -339,13 +346,8 @@ public:
     {
         VERIFY(m_size < capacity());
         if constexpr (want_fast_last_access) {
-            if (m_size == 0) {
-                m_metadata.last_slot = slot(0);
-                m_size = 1;
-            } else {
-                ++m_metadata.last_slot;
-                ++m_size;
-            }
+            ++m_metadata.last_slot;
+            ++m_size;
         } else {
             ++m_size;
         }
@@ -370,7 +372,7 @@ public:
         VERIFY((size() + count) <= capacity());
         TypedTransfer<StorageType>::copy(slot(m_size), values, count);
         m_size += count;
-        update_metadata();
+        update_metadata(); // We have *some* space, since we're appending.
     }
 
     template<class... Args>
@@ -428,7 +430,8 @@ public:
             ensure_capacity(other.size());
             TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
             m_size = other.size();
-            update_metadata();
+            if (m_capacity > 0)
+                update_metadata();
         }
         return *this;
     }
@@ -440,7 +443,8 @@ public:
         ensure_capacity(other.size());
         TypedTransfer<StorageType>::copy(data(), other.data(), other.size());
         m_size = other.size();
-        update_metadata();
+        if (m_capacity > 0)
+            update_metadata();
         return *this;
     }
 
@@ -459,8 +463,8 @@ public:
         for (size_t i = 0; i < m_size; ++i)
             data()[i].~StorageType();
         m_size = 0;
-        if constexpr (want_fast_last_access)
-            m_metadata.last_slot = nullptr;
+        if (m_capacity != 0)
+            update_metadata();
     }
 
     void remove(size_t index)
@@ -478,7 +482,7 @@ public:
         }
 
         --m_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, we just removed something that was there.
     }
 
     void remove(size_t index, size_t count)
@@ -500,7 +504,7 @@ public:
         }
 
         m_size -= count;
-        update_metadata();
+        update_metadata(); // We have *some* space, we just removed something that was there.
     }
 
     /// The iterator pair identify a set of indices *in ascending order* to be removed.
@@ -532,7 +536,7 @@ public:
 
         VERIFY(!(it != end));
         m_size = write_index;
-        update_metadata();
+        update_metadata(); // We have *some* space, we just removed something that was there.
     }
 
     template<IterableContainer Is, typename ToIndex = decltype (*declval<Is>().begin()) (*)(decltype(declval<Is>().begin()) const&)>
@@ -576,7 +580,7 @@ public:
         if constexpr (!contains_reference)
             last().~T();
         --m_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, we just removed something that was there.
 
         if constexpr (contains_reference)
             return *value;
@@ -605,7 +609,7 @@ public:
         if constexpr (!contains_reference)
             m_metadata.last_slot->~T();
         --m_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, we just removed something that was there.
 
         if constexpr (contains_reference)
             return *value;
@@ -663,7 +667,7 @@ public:
             new (slot(index)) StorageType(&value);
         else
             new (slot(index)) StorageType(forward<U>(value));
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -696,7 +700,7 @@ public:
         TRY(try_grow_capacity(size() + other_size));
         TypedTransfer<StorageType>::move(data() + m_size, tmp.data(), other_size);
         m_size += other_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -705,7 +709,7 @@ public:
         TRY(try_grow_capacity(size() + other.size()));
         TypedTransfer<StorageType>::copy(data() + m_size, other.data(), other.size());
         m_size += other.m_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -717,7 +721,7 @@ public:
         else
             new (slot(m_size)) StorageType(move(value));
         ++m_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -734,7 +738,7 @@ public:
         TRY(try_grow_capacity(size() + count));
         TypedTransfer<StorageType>::copy(slot(m_size), values, count);
         m_size += count;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -745,7 +749,7 @@ public:
         TRY(try_grow_capacity(m_size + 1));
         new (slot(m_size)) StorageType { forward<Args>(args)... };
         ++m_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -777,7 +781,7 @@ public:
         Vector tmp = move(other);
         TypedTransfer<StorageType>::move(slot(0), tmp.data(), tmp.size());
         m_size += other_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -789,7 +793,7 @@ public:
         TypedTransfer<StorageType>::move(slot(count), slot(0), m_size);
         TypedTransfer<StorageType>::copy(slot(0), values, count);
         m_size += count;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_grow_capacity above ensured nonzero.
         return {};
     }
 
@@ -821,7 +825,7 @@ public:
             kfree_sized(m_metadata.outline_buffer, m_capacity * sizeof(StorageType));
         m_metadata.outline_buffer = new_buffer;
         m_capacity = new_capacity;
-        update_metadata();
+        update_metadata(); // We have *some* space, we just allocated it.
         return {};
     }
 
@@ -838,7 +842,7 @@ public:
         for (size_t i = size(); i < new_size; ++i)
             new (slot(i)) StorageType {};
         m_size = new_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_ensure_capacity above ensured nonzero.
         return {};
     }
 
@@ -855,7 +859,7 @@ public:
         for (size_t i = size(); i < new_size; ++i)
             new (slot(i)) StorageType { default_value };
         m_size = new_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, try_ensure_capacity above ensured nonzero.
         return {};
     }
 
@@ -892,7 +896,7 @@ public:
         for (size_t i = new_size; i < size(); ++i)
             at(i).~StorageType();
         m_size = new_size;
-        update_metadata();
+        update_metadata(); // We have *some* space, as new_size can't be zero here.
     }
 
     void resize(size_t new_size, bool keep_capacity = false)
@@ -1037,13 +1041,11 @@ private:
     StorageType& raw_first() { return raw_at(0); }
     StorageType& raw_at(size_t index) { return *slot(index); }
 
+    /// NOTE: Do *not* call unguarded if m_capacity can be zero.
     ALWAYS_INLINE void update_metadata()
     {
         if constexpr (want_fast_last_access) {
-            if (m_size > 0)
-                m_metadata.last_slot = slot(m_size - 1);
-            else
-                m_metadata.last_slot = nullptr;
+            m_metadata.last_slot = slot(m_size) - 1;
         }
     }
 
