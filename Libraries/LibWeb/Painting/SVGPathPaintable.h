@@ -37,6 +37,12 @@ protected:
     SVGPathPaintable(Layout::SVGGraphicsBox const&);
 
     Optional<Gfx::Path> m_computed_path = {};
+
+private:
+    virtual bool is_svg_path_paintable() const final { return true; }
 };
+
+template<>
+inline bool Paintable::fast_is<SVGPathPaintable>() const { return is_svg_path_paintable(); }
 
 }

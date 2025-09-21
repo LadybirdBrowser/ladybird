@@ -45,6 +45,8 @@ public:
     ReadonlySpan<GC::Ref<PaintableBox>> paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
 
 private:
+    virtual bool is_viewport_paintable() const override { return true; }
+
     void build_stacking_context_tree();
 
     explicit ViewportPaintable(Layout::Viewport const&);
@@ -56,5 +58,8 @@ private:
 
     Vector<GC::Ref<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 };
+
+template<>
+inline bool Paintable::fast_is<ViewportPaintable>() const { return is_viewport_paintable(); }
 
 }
