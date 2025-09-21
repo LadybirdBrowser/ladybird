@@ -36,6 +36,8 @@ private:
 
     explicit TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, int ttc_index = 0);
 
+    virtual bool is_skia() const override { return true; }
+
     ReadonlyBytes m_buffer;
     unsigned m_ttc_index { 0 };
 
@@ -56,5 +58,8 @@ private:
     [[nodiscard]] GlyphPage const& glyph_page(size_t page_index) const;
     void populate_glyph_page(GlyphPage&, size_t page_index) const;
 };
+
+template<>
+inline bool Typeface::fast_is<TypefaceSkia>() const { return is_skia(); }
 
 }
