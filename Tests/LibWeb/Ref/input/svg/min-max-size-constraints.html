@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/min-max-size-constraints-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-64">
+<style>
+div {
+  border: solid 2px red;
+  margin-bottom: 50px;
+}
+.width { width: 25px; }
+.height { height: 25px; }
+.min-width { min-width: 25px; }
+.min-height { min-height: 25px; }
+.max-width { max-width: 25px; }
+.max-height { max-height: 25px; }
+</style>
+All green squares should exactly fill their corresponding red border.
+<div class="width height">
+  <svg class="width height" viewBox="0 0 16 16" width="10" height="10">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+<div class="width height">
+  <svg class="min-width height" viewBox="0 0 16 16" width="10" height="10">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+<div class="width height">
+  <svg class="width min-height" viewBox="0 0 16 16" width="10" height="10">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+<div class="width height">
+  <svg class="min-width min-height" viewBox="0 0 16 16" width="10" height="10">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+
+<div class="width height">
+  <svg class="width height" viewBox="0 0 16 16" width="100" height="100">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+<div class="width height">
+  <svg class="max-width height" viewBox="0 0 16 16" width="100" height="100">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+<div class="width height">
+  <svg class="width max-height" viewBox="0 0 16 16" width="100" height="100">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
+<div class="width height">
+  <svg class="max-width max-height" viewBox="0 0 16 16" width="100" height="100">
+    <rect x="0" y="0" width="16" height="16" fill="green" />
+  </svg>
+</div>
