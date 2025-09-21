@@ -17,8 +17,8 @@ template<typename OutputType, typename InputType>
 ALWAYS_INLINE bool is(InputType& input)
 {
     static_assert(!SameAs<RemoveCVReference<OutputType>, RemoveCVReference<InputType>>);
-    if constexpr (requires { input.template fast_is<OutputType>(); }) {
-        return input.template fast_is<OutputType>();
+    if constexpr (requires { input.template fast_is<RemoveCVReference<OutputType>>(); }) {
+        return input.template fast_is<RemoveCVReference<OutputType>>();
     }
     return dynamic_cast<CopyConst<InputType, OutputType>*>(&input);
 }
