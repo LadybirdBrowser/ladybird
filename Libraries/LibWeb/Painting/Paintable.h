@@ -118,10 +118,13 @@ public:
     bool fast_is() const = delete;
 
     [[nodiscard]] virtual bool is_navigable_container_viewport_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_viewport_paintable() const { return false; }
     [[nodiscard]] virtual bool is_paintable_box() const { return false; }
     [[nodiscard]] virtual bool is_paintable_with_lines() const { return false; }
     [[nodiscard]] virtual bool is_svg_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_svg_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_svg_path_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_svg_graphics_paintable() const { return false; }
     [[nodiscard]] virtual bool is_text_paintable() const { return false; }
 
     DOM::Document const& document() const;

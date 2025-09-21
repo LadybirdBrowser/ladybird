@@ -71,6 +71,12 @@ protected:
     SVGGraphicsPaintable(Layout::SVGGraphicsBox const&);
 
     ComputedTransforms m_computed_transforms;
+
+private:
+    virtual bool is_svg_graphics_paintable() const final { return true; }
 };
+
+template<>
+inline bool Paintable::fast_is<SVGGraphicsPaintable>() const { return is_svg_graphics_paintable(); }
 
 }
