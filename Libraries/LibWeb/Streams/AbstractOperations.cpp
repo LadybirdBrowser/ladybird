@@ -383,7 +383,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
         return *reaction_promise->promise;
     });
 
-    // 9. Let closeAlgorithm be the folowing steps:
+    // 9. Let closeAlgorithm be the following steps:
     auto close_algorithm = GC::create_function(realm.heap(), [&realm, &port]() -> GC::Ref<WebIDL::Promise> {
         // 1. Perform ! PackAndPostMessage(port, "close", undefined).
         MUST(pack_and_post_message(realm, port, "close"sv, JS::js_undefined()));
