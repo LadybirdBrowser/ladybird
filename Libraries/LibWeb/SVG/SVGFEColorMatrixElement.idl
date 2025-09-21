@@ -1,0 +1,23 @@
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGAnimatedEnumeration.idl>
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEColorMatrixElement
+[Exposed=Window]
+interface SVGFEColorMatrixElement : SVGElement {
+
+  // Color Matrix Types
+    const unsigned short SVG_FECOLORMATRIX_TYPE_UNKNOWN = 0;
+    const unsigned short SVG_FECOLORMATRIX_TYPE_MATRIX = 1;
+    const unsigned short SVG_FECOLORMATRIX_TYPE_SATURATE = 2;
+    const unsigned short SVG_FECOLORMATRIX_TYPE_HUEROTATE = 3;
+    const unsigned short SVG_FECOLORMATRIX_TYPE_LUMINANCETOALPHA = 4;
+
+    readonly attribute SVGAnimatedString in1;
+    readonly attribute SVGAnimatedEnumeration type;
+  // FIXME: Use SVGAnimatedNumberList when implemented.
+    readonly attribute SVGAnimatedString values;
+};
+
+SVGFEColorMatrixElement includes SVGFilterPrimitiveStandardAttributes;
