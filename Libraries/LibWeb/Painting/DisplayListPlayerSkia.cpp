@@ -122,6 +122,7 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setColor(to_skia_color(command.color));
     canvas.drawRect(to_skia_rect(rect), paint);
 }
