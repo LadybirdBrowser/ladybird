@@ -102,6 +102,7 @@ public:
     // These are used to optimize hot is<T> variants for some classes where dynamic_cast is too slow.
     virtual bool is_box() const { return false; }
     virtual bool is_block_container() const { return false; }
+    virtual bool is_inline_node() const { return false; }
     virtual bool is_break_node() const { return false; }
     virtual bool is_text_node() const { return false; }
     virtual bool is_viewport() const { return false; }
