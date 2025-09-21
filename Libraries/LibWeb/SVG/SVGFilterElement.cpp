@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringConversions.h>
+#include <AK/StringUtils.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/SVGFilterElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -12,6 +14,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
+#include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
@@ -170,6 +173,124 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::blur(radius_x, radius_y, input);
             update_result_map(*blur_primitive);
+        } else if (auto* colormatrix_primitive = as_if<SVGFEColorMatrixElement>(node)) {
+            auto in_attr = colormatrix_primitive->in1()->base_val();
+            auto input = resolve_input_filter(in_attr);
+
+            auto type_value = colormatrix_primitive->attribute(AttributeNames::type).value_or(String {});
+            auto values_value = colormatrix_primitive->attribute(AttributeNames::values).value_or(String {});
+
+            auto equals_ci = [](StringView a, StringView b) {
+                return AK::StringUtils::equals_ignoring_ascii_case(a, b);
+            };
+
+            // Default type is "matrix" per spec.
+            if (type_value.is_empty() || equals_ci(type_value, "matrix"sv)) {
+                // Parse up to 20 numbers; if we don't get a full 4x5, skip applying.
+                float matrix[20] = { 0 };
+                size_t count = 0;
+
+                StringView sv = values_value;
+                auto skip_leading_whitespace = [&] {
+                    sv = sv.trim_whitespace(AK::TrimMode::Left);
+                };
+                auto consume_comma_and_whitespace = [&] {
+                    if (!sv.is_empty() && sv[0] == ',')
+                        sv = sv.substring_view(1);
+                    skip_leading_whitespace();
+                };
+
+                skip_leading_whitespace();
+                while (!sv.is_empty() && count < 20) {
+                    // Parse the next number without trimming (we already trimmed on the left).
+                    auto result = AK::parse_first_number<float>(sv, AK::TrimWhitespace::No);
+                    if (!result.has_value())
+                        break;
+                    matrix[count++] = result->value;
+                    // Advance exactly past the number just parsed, then consume optional comma + whitespace.
+                    sv = sv.substring_view(result->characters_parsed);
+                    consume_comma_and_whitespace();
+                }
+
+                if (count == 20) {
+                    // Detect identity to avoid creating a filter that might behave differently
+                    // than a no-op in some pipelines.
+                    static constexpr float identity[20] = {
+                        1, 0, 0, 0, 0,
+                        0, 1, 0, 0, 0,
+                        0, 0, 1, 0, 0,
+                        0, 0, 0, 1, 0
+                    };
+                    bool is_identity = true;
+                    for (size_t i = 0; i < 20; ++i) {
+                        if (matrix[i] != identity[i]) {
+                            is_identity = false;
+                            break;
+                        }
+                    }
+
+                    if (is_identity) {
+                        if (input.has_value()) {
+                            root_filter = input;
+                            update_result_map(*colormatrix_primitive);
+                        }
+                        // If there is no input (SourceGraphic), skip producing a filter,
+                        // so the pipeline defaults to painting the source as-is.
+                    } else {
+                        // Skia's color matrix uses 0..255 range for the bias (5th column).
+                        matrix[4] *= 255.0f;
+                        matrix[9] *= 255.0f;
+                        matrix[14] *= 255.0f;
+                        matrix[19] *= 255.0f;
+                        root_filter = Gfx::Filter::color_matrix(matrix, input);
+                        update_result_map(*colormatrix_primitive);
+                    }
+                } else {
+                    // If invalid or missing, treat as identity (no-op) if we already have an input.
+                    if (input.has_value()) {
+                        root_filter = input;
+                        update_result_map(*colormatrix_primitive);
+                    }
+                }
+            } else if (equals_ci(type_value, "saturate"sv)) {
+                // values: single number s (1 = original)
+                float s = 1.0f;
+                if (!values_value.is_empty()) {
+                    if (auto parsed = AK::parse_number<float>(values_value, AK::TrimWhitespace::Yes); parsed.has_value())
+                        s = *parsed;
+                }
+                root_filter = Gfx::Filter::saturate(s, input);
+                update_result_map(*colormatrix_primitive);
+            } else if (equals_ci(type_value, "hueRotate"sv)) {
+                // values: angle in degrees
+                float angle_degrees = 0.0f;
+                if (!values_value.is_empty()) {
+                    if (auto parsed = AK::parse_number<float>(values_value, AK::TrimWhitespace::Yes); parsed.has_value())
+                        angle_degrees = *parsed;
+                }
+                root_filter = Gfx::Filter::hue_rotate(angle_degrees, input);
+                update_result_map(*colormatrix_primitive);
+            } else if (equals_ci(type_value, "luminanceToAlpha"sv)) {
+                // values ignored; convert luminance to alpha and zero RGB.
+                float matrix[20] = {
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0.2126f, 0.7152f, 0.0722f, 0, 0
+                };
+                root_filter = Gfx::Filter::color_matrix(matrix, input);
+                update_result_map(*colormatrix_primitive);
+            } else {
+                // Unknown type, treat as identity pass-through.
+                float identity[20] = {
+                    1, 0, 0, 0, 0,
+                    0, 1, 0, 0, 0,
+                    0, 0, 1, 0, 0,
+                    0, 0, 0, 1, 0
+                };
+                root_filter = Gfx::Filter::color_matrix(identity, input);
+                update_result_map(*colormatrix_primitive);
+            }
         } else if (auto* image_primitive = as_if<SVGFEImageElement>(node)) {
             auto bitmap = image_primitive->current_image_bitmap({});
             if (!bitmap)
