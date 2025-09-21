@@ -19,6 +19,12 @@ public:
     virtual ~InlineNode() override;
 
     GC::Ptr<Painting::PaintableWithLines> create_paintable_for_line_with_index(size_t line_index) const;
+
+private:
+    virtual bool is_inline_node() const override { return true; }
 };
+
+template<>
+inline bool Node::fast_is<InlineNode>() const { return is_inline_node(); }
 
 }
