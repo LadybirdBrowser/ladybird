@@ -179,7 +179,8 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
 
     auto& svg_box_state = m_state.get_mutable(context_box());
 
-    if (!this->context_box().root().document().is_decoded_svg()) {
+    auto const& document = context_box().document();
+    if (document.document_element() == context_box().dom_node() && !document.is_decoded_svg()) {
         // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
 
         // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
