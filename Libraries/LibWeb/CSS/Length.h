@@ -21,7 +21,7 @@ namespace Web::CSS {
 class WEB_API Length {
 public:
     struct FontMetrics {
-        FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const&);
+        FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const&, CSSPixels line_height);
 
         CSSPixels font_size;
         CSSPixels x_height;

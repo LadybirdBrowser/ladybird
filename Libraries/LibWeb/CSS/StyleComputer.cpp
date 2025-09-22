@@ -184,7 +184,7 @@ OwnFontFaceKey::operator FontFaceKey() const
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics())
+    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), InitialValues::line_height())
     , m_root_element_font_metrics(m_default_font_metrics)
 {
     m_ancestor_filter = make<CountingBloomFilter<u8, 14>>();
@@ -977,7 +977,8 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         compute_property_values(computed_properties);
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
-            computed_properties.first_available_computed_font().pixel_metrics()
+            computed_properties.first_available_computed_font().pixel_metrics(),
+            computed_properties.line_height()
         };
 
         HashMap<PropertyID, RefPtr<StyleValue const>> specified_values;
@@ -1707,7 +1708,7 @@ Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedP
     auto const& root_value = style.property(CSS::PropertyID::FontSize);
 
     auto font_pixel_metrics = style.first_available_computed_font().pixel_metrics();
-    Length::FontMetrics font_metrics { m_default_font_metrics.font_size, font_pixel_metrics };
+    Length::FontMetrics font_metrics { m_default_font_metrics.font_size, font_pixel_metrics, InitialValues::line_height() };
     font_metrics.font_size = root_value.as_length().length().to_px(viewport_rect(), font_metrics, font_metrics);
     font_metrics.line_height = style.compute_line_height(viewport_rect(), font_metrics, font_metrics);
 
@@ -2090,7 +2091,9 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
 {
     Length::FontMetrics font_metrics {
         style.font_size(),
-        style.first_available_computed_font().pixel_metrics()
+        style.first_available_computed_font().pixel_metrics(),
+        // FIXME: Use the correct value for line height here.
+        CSSPixels { round(style.first_available_computed_font().pixel_metrics().line_spacing()) }
     };
 
     auto const& line_height_specified_value = style.property(CSS::PropertyID::LineHeight, ComputedProperties::WithAnimationsApplied::No);
@@ -2525,7 +2528,10 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
         }
 
         VERIFY(font_size_value->is_length());
-        current_size_in_px = font_size_value->as_length().length().to_px(viewport_rect(), Length::FontMetrics { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics() }, m_root_element_font_metrics);
+
+        auto inherited_line_height = ancestor.element_to_inherit_style_from().map([](auto& parent_element) { return parent_element.computed_properties()->line_height(); }).value_or(InitialValues::line_height());
+
+        current_size_in_px = font_size_value->as_length().length().to_px(viewport_rect(), Length::FontMetrics { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height }, m_root_element_font_metrics);
     };
 
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
