@@ -1447,7 +1447,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         //    1. If types includes a typed array type whose name is the value of V’s [[TypedArrayName]] internal slot, then return the result of converting V to that type.
         //    2. If types includes object, then return the IDL value that is a reference to the object V.
         auto has_typed_array_name = any_of(types, [](auto const& type) {
-            return type->name().is_one_of("Int8Array"sv, "Int16Array"sv, "Int32Array"sv, "Uint8Array"sv, "Uint16Array"sv, "Uint32Array"sv, "Uint8ClampedArray"sv, "BigInt64Array"sv, "BigUint64Array", "Float16Array"sv, "Float32Array"sv, "Float64Array"sv);
+            return type->name().is_one_of("Int8Array"sv, "Int16Array"sv, "Int32Array"sv, "Uint8Array"sv, "Uint16Array"sv, "Uint32Array"sv, "Uint8ClampedArray"sv, "BigInt64Array"sv, "BigUint64Array"sv, "Float16Array"sv, "Float32Array"sv, "Float64Array"sv);
         });
 
         if (has_typed_array_name || includes_object) {
