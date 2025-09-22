@@ -2142,6 +2142,52 @@ VALIDATE_INSTRUCTION(call_indirect)
     return {};
 }
 
+VALIDATE_INSTRUCTION(return_call)
+{
+    auto index = instruction.arguments().get<FunctionIndex>();
+    TRY(validate(index));
+
+    auto& function_type = m_context.functions[index.value()];
+    for (size_t i = 0; i < function_type.parameters().size(); ++i)
+        TRY(stack.take(function_type.parameters()[function_type.parameters().size() - i - 1]));
+
+    auto const& return_types = m_frames.first().type.results();
+    if (return_types != function_type.results())
+        return Errors::invalid("return_call target"sv, function_type.results(), return_types);
+
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(return_call_indirect)
+{
+    auto& args = instruction.arguments().get<Instruction::IndirectCallArgs>();
+    TRY(validate(args.table));
+    TRY(validate(args.type));
+
+    auto& table = m_context.tables[args.table.value()];
+    if (table.element_type().kind() != ValueType::FunctionReference)
+        return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
+
+    auto& type = m_context.types[args.type.value()];
+
+    TRY(stack.take<ValueType::I32>());
+
+    for (size_t i = 0; i < type.parameters().size(); ++i)
+        TRY(stack.take(type.parameters()[type.parameters().size() - i - 1]));
+
+    auto& return_types = m_frames.first().type.results();
+    if (return_types != type.results())
+        return Errors::invalid("return_call_indirect target"sv, type.results(), return_types);
+
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
+
+    return {};
+}
+
 VALIDATE_INSTRUCTION(v128_load)
 {
     auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
