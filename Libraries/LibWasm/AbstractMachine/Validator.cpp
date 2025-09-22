@@ -521,6 +521,7 @@ VALIDATE_INSTRUCTION(i32_add)
 {
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
+    is_constant = true;
     return {};
 }
 
@@ -528,6 +529,7 @@ VALIDATE_INSTRUCTION(i32_sub)
 {
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
+    is_constant = true;
     return {};
 }
 
@@ -535,6 +537,7 @@ VALIDATE_INSTRUCTION(i32_mul)
 {
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
     stack.append(ValueType(ValueType::I32));
+    is_constant = true;
     return {};
 }
 
@@ -626,6 +629,7 @@ VALIDATE_INSTRUCTION(i64_add)
 {
     TRY((stack.take<ValueType::I64, ValueType::I64>()));
     stack.append(ValueType(ValueType::I64));
+    is_constant = true;
     return {};
 }
 
@@ -633,6 +637,7 @@ VALIDATE_INSTRUCTION(i64_sub)
 {
     TRY((stack.take<ValueType::I64, ValueType::I64>()));
     stack.append(ValueType(ValueType::I64));
+    is_constant = true;
     return {};
 }
 
@@ -640,6 +645,7 @@ VALIDATE_INSTRUCTION(i64_mul)
 {
     TRY((stack.take<ValueType::I64, ValueType::I64>()));
     stack.append(ValueType(ValueType::I64));
+    is_constant = true;
     return {};
 }
 
