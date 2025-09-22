@@ -197,7 +197,7 @@ def escape(s: str) -> str:
 def make_description(input_path: Path, name: str, out_path: Path) -> WastDescription:
     out_json_path = out_path / f"{name}.json"
     result = subprocess.run(
-        ["wast2json", input_path, f"--output={out_json_path}", "--no-check"],
+        ["wast2json", "--enable-all", input_path, f"--output={out_json_path}", "--no-check"],
     )
     result.check_returncode()
     with open(out_json_path, "r") as f:
