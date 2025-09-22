@@ -269,6 +269,17 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         auto table_index = TRY(GenericIndexParser<TableIndex>::parse(stream));
         return Instruction { opcode, IndirectCallArgs { type_index, table_index } };
     }
+    case Instructions::return_call.value(): {
+        // return_call function
+        auto function_index = TRY(GenericIndexParser<FunctionIndex>::parse(stream));
+        return Instruction { opcode, function_index };
+    }
+    case Instructions::return_call_indirect.value(): {
+        // return_call_indirect type table
+        auto type_index = TRY(GenericIndexParser<TypeIndex>::parse(stream));
+        auto table_index = TRY(GenericIndexParser<TableIndex>::parse(stream));
+        return Instruction { opcode, IndirectCallArgs { type_index, table_index } };
+    }
     case Instructions::i32_load.value():
     case Instructions::i64_load.value():
     case Instructions::f32_load.value():
