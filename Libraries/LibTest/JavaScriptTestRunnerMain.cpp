@@ -196,6 +196,18 @@ int main(int argc, char** argv)
     if (!g_vm) {
         g_vm = JS::VM::create();
         g_vm->set_dynamic_imports_allowed(true);
+
+        // Configure the test VM to support additional import attributes
+        // This allows tests to use import attributes beyond just "type"
+        Test::JS::g_vm->host_get_supported_import_attributes = []() -> Vector<Utf16String> {
+            return {
+                "type"_utf16,
+                "key"_utf16,     // Used in modules/import-with-attributes.mjs test
+                "key1"_utf16,    // Used in modules/basic-modules.js
+                "key2"_utf16,    // Used in modules/import-with-attributes.mjs test
+                "default"_utf16, // Used in modules/import-with-attributes.mjs test
+            };
+        };
     }
 
     Test::JS::TestRunner test_runner(test_root, common_path, print_times, print_progress, print_json, per_file);
