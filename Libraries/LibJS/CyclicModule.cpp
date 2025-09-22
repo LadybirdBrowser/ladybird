@@ -85,32 +85,35 @@ void inner_module_loading(VM& vm, JS::GraphLoadingState& state, GC::Ref<Module> 
         // c. Set state.[[PendingModulesCount]] to state.[[PendingModulesCount]] + requestedModulesCount.
         state.pending_module_count += requested_modules_count;
 
-        // d. For each String required of module.[[RequestedModules]], do
-        for (auto const& required : cyclic_module->requested_modules()) {
-            bool found_record_in_loaded_modules = false;
+        auto find_record_in_loaded_modules = [&](ModuleRequest const& request) -> Optional<LoadedModuleRequest const&> {
+            return AK::find_value(cyclic_module->loaded_modules(), [&](auto const& record) { return module_requests_equal(record, request); });
+        };
 
-            // i. If module.[[LoadedModules]] contains a Record whose [[Specifier]] is required, then
-            for (auto const& record : cyclic_module->loaded_modules()) {
-                if (record.specifier == required.module_specifier) {
-                    // 1. Let record be that Record.
+        // d. For each ModuleRequest Record request of module.[[RequestedModules]], do
+        for (auto const& request : cyclic_module->requested_modules()) {
+            // i. If AllImportAttributesSupported(request.[[Attributes]]) is false, then
+            if (!all_import_attributes_supported(vm, request.attributes)) {
+                // 1. Let error be ThrowCompletion(a newly created SyntaxError object).
+                auto error = vm.throw_completion<SyntaxError>(ErrorType::ImportAttributeUnsupported);
 
-                    // 2. Perform InnerModuleLoading(state, record.[[Module]]).
-                    inner_module_loading(vm, state, record.module);
-
-                    found_record_in_loaded_modules = true;
-                    break;
-                }
+                // 2. Perform ContinueModuleLoading(state, error).
+                continue_module_loading(state, error);
             }
-
-            // ii. Else,
-            if (!found_record_in_loaded_modules) {
-                // 1. Perform HostLoadImportedModule(module, required, state.[[HostDefined]], state).
-                vm.host_load_imported_module(GC::Ref { *cyclic_module }, required, state.host_defined, GC::Ref<GraphLoadingState> { state });
+            // ii. Else if module.[[LoadedModules]] contains a LoadedModuleRequest Record record
+            //     such that ModuleRequestsEqual(record, request) is true, then
+            else if (auto record = find_record_in_loaded_modules(request); record.has_value()) {
+                // 1. Perform InnerModuleLoading(state, record.[[Module]]).
+                inner_module_loading(vm, state, record->module);
+            }
+            // iii. Else,
+            else {
+                // 1. Perform HostLoadImportedModule(module, request, state.[[HostDefined]], state).
+                vm.host_load_imported_module(GC::Ref { *cyclic_module }, request, state.host_defined, GC::Ref<GraphLoadingState> { state });
 
                 // 2. NOTE: HostLoadImportedModule will call FinishLoadingImportedModule, which re-enters the graph loading process through ContinueModuleLoading.
             }
 
-            // iii. If state.[[IsLoading]] is false, return UNUSED.
+            // iv. If state.[[IsLoading]] is false, return UNUSED.
             if (!state.is_loading)
                 return;
         }
@@ -253,14 +256,13 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] module: {} has requested modules: [{}]", filename(), request_module_names.string_view());
 #endif
 
-    // 9. For each String required of module.[[RequestedModules]], do
-    for (auto& required_string : m_requested_modules) {
-        ModuleRequest required { required_string };
+    // 9. For each ModuleRequest Record request of module.[[RequestedModules]], do
+    for (auto& request : m_requested_modules) {
 
-        // a. Let requiredModule be GetImportedModule(module, required).
-        auto required_module = get_imported_module(required);
+        // a. Let requiredModule be GetImportedModule(module, request).
+        auto required_module = get_imported_module(request);
 
-        // b. Set index to ? InnerModuleLinking(requiredModule, stack, index).
+        // b. Set index to ? InnerModuleLinking(requiredModule, stack, index).
         index = TRY(required_module->inner_module_linking(vm, stack, index));
 
         // c. If requiredModule is a Cyclic Module Record, then
@@ -460,11 +462,11 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Modu
     // 10. Append module to stack.
     stack.append(this);
 
-    // 11. For each String required of module.[[RequestedModules]], do
-    for (auto& required : m_requested_modules) {
+    // 11. For each ModuleRequest Record request of module.[[RequestedModules]], do
+    for (auto& request : m_requested_modules) {
 
-        // a. Let requiredModule be GetImportedModule(module, required).
-        auto required_module = get_imported_module(required);
+        // a. Let requiredModule be GetImportedModule(module, request).
+        auto required_module = get_imported_module(request);
 
         // b. Set index to ? InnerModuleEvaluation(requiredModule, stack, index).
         index = TRY(required_module->inner_module_evaluation(vm, stack, index));
@@ -810,26 +812,24 @@ void CyclicModule::async_module_execution_rejected(VM& vm, Value error)
     // 9. Return unused.
 }
 
-// 16.2.1.7 GetImportedModule ( referrer, specifier ), https://tc39.es/ecma262/#sec-GetImportedModule
+// 16.2.1.9 GetImportedModule ( referrer, request ), https://tc39.es/ecma262/#sec-GetImportedModule
 GC::Ref<Module> CyclicModule::get_imported_module(ModuleRequest const& request)
 {
-    // 1. Assert: Exactly one element of referrer.[[LoadedModules]] is a Record whose [[Specifier]] is specifier,
-    //    since LoadRequestedModules has completed successfully on referrer prior to invoking this abstract operation.
-    size_t element_with_specifier_count = 0;
-    for (auto const& loaded_module : m_loaded_modules) {
-        if (loaded_module.specifier == request.module_specifier)
-            ++element_with_specifier_count;
+    // 1. Let records be a List consisting of each LoadedModuleRequest Record r of referrer.[[LoadedModules]]
+    //    such that ModuleRequestsEqual(r, request) is true.
+    Vector<LoadedModuleRequest> records;
+    for (auto const& r : m_loaded_modules) {
+        if (module_requests_equal(r, request))
+            records.append(r);
     }
-    VERIFY(element_with_specifier_count == 1);
 
-    for (auto const& loaded_module : m_loaded_modules) {
-        if (loaded_module.specifier == request.module_specifier) {
-            // 2. Let record be the Record in referrer.[[LoadedModules]] whose [[Specifier]] is specifier.
-            // 3. Return record.[[Module]].
-            return loaded_module.module;
-        }
-    }
-    VERIFY_NOT_REACHED();
+    // 2. Assert: records has exactly one element, since LoadRequestedModules has completed successfully
+    //    on referrer prior to invoking this abstract operation.
+    VERIFY(records.size() == 1);
+
+    // 3. Let record be the sole element of records.
+    // 4. Return record.[[Module]].
+    return records.first().module;
 }
 
 // 13.3.10.1.1 ContinueDynamicImport ( promiseCapability, moduleCompletion ), https://tc39.es/ecma262/#sec-ContinueDynamicImport
