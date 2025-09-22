@@ -20,14 +20,14 @@
 
 namespace Web::CSS {
 
-Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics)
+Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
     : font_size(font_size)
     , x_height(pixel_metrics.x_height)
     // FIXME: This is only approximately the cap height. The spec suggests measuring the "O" glyph:
     //        https://www.w3.org/TR/css-values-4/#cap
     , cap_height(pixel_metrics.ascent)
     , zero_advance(pixel_metrics.advance_of_ascii_zero)
-    , line_height(round(pixel_metrics.line_spacing()))
+    , line_height(line_height)
 {
 }
 
@@ -137,8 +137,8 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font().pixel_metrics() },
-        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font().pixel_metrics() }
+        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font().pixel_metrics(), element.computed_properties()->line_height() },
+        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font().pixel_metrics(), element.computed_properties()->line_height() }
     };
 }
 
@@ -146,7 +146,7 @@ Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window con
 {
     auto const& initial_font = window.associated_document().style_computer().initial_font();
     Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
-    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics };
+    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height() };
     return Length::ResolutionContext {
         .viewport_rect = window.page().web_exposed_screen_area(),
         .font_metrics = font_metrics,
@@ -169,8 +169,8 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
 
     return Length::ResolutionContext {
         .viewport_rect = node.navigable()->viewport_rect(),
-        .font_metrics = { node.computed_values().font_size(), node.first_available_font().pixel_metrics() },
-        .root_font_metrics = { root_layout_node->computed_values().font_size(), root_layout_node->first_available_font().pixel_metrics() },
+        .font_metrics = { node.computed_values().font_size(), node.first_available_font().pixel_metrics(), node.computed_values().line_height() },
+        .root_font_metrics = { root_layout_node->computed_values().font_size(), root_layout_node->first_available_font().pixel_metrics(), node.computed_values().line_height() },
     };
 }
 
@@ -192,10 +192,12 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
         FontMetrics font_metrics {
             layout_node.computed_values().font_size(),
             layout_node.first_available_font().pixel_metrics(),
+            layout_node.computed_values().line_height()
         };
         FontMetrics root_font_metrics {
             root_element->layout_node()->computed_values().font_size(),
             root_element->layout_node()->first_available_font().pixel_metrics(),
+            layout_node.computed_values().line_height()
         };
 
         return font_relative_length_to_px(font_metrics, root_font_metrics);

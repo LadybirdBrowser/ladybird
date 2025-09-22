@@ -203,7 +203,7 @@ MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue 
 
             auto const& initial_font = window.associated_document().style_computer().initial_font();
             Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
-            Length::FontMetrics font_metrics { CSSPixels { initial_font.point_size() }, initial_font_metrics };
+            Length::FontMetrics font_metrics { CSSPixels { initial_font.point_size() }, initial_font_metrics, InitialValues::line_height() };
 
             left_px = left_length.to_px(viewport_rect, font_metrics, font_metrics);
             right_px = right_length.to_px(viewport_rect, font_metrics, font_metrics);
