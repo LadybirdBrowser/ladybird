@@ -19,7 +19,7 @@ public:
     {
     }
 
-    void set_frame(Frame frame)
+    void set_frame(Frame frame, bool is_tailcall = false)
     {
         auto continuation = frame.expression().instructions().size() - 1;
         if (auto size = frame.expression().compiled_instructions.dispatches.size(); size > 0)
@@ -28,8 +28,10 @@ public:
         frame.label_index() = m_label_stack.size();
         if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
             m_value_stack.ensure_capacity(*hint + m_value_stack.size());
-        if (auto hint = frame.expression().frame_usage_hint(); hint.has_value())
-            m_label_stack.ensure_capacity(*hint + m_label_stack.size());
+        if (!is_tailcall) {
+            if (auto hint = frame.expression().frame_usage_hint(); hint.has_value())
+                m_label_stack.ensure_capacity(*hint + m_label_stack.size());
+        }
         m_frame_stack.append(move(frame));
         m_label_stack.append(label);
         m_locals_base = m_frame_stack.unchecked_last().locals().data();
@@ -66,7 +68,8 @@ public:
         Configuration& configuration;
     };
 
-    void unwind(Badge<CallFrameHandle>, CallFrameHandle const&);
+    void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
+    ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value>& arguments, bool is_tailcall = false);
     Result call(Interpreter&, FunctionAddress, Vector<Value> arguments);
     Result execute(Interpreter&);
 
@@ -113,6 +116,8 @@ public:
     };
 
 private:
+    void unwind_impl();
+
     Store& m_store;
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64> m_label_stack;

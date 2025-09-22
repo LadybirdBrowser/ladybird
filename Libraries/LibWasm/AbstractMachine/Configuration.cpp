@@ -11,7 +11,7 @@
 
 namespace Wasm {
 
-void Configuration::unwind(Badge<CallFrameHandle>, CallFrameHandle const&)
+void Configuration::unwind_impl()
 {
     m_frame_stack.take_last();
     m_depth--;
@@ -20,10 +20,21 @@ void Configuration::unwind(Badge<CallFrameHandle>, CallFrameHandle const&)
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
 {
+    if (auto fn = TRY(prepare_call(address, arguments)); fn.has_value())
+        return fn->function()(*this, arguments);
+    m_ip = 0;
+    return execute(interpreter);
+}
+
+ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddress address, Vector<Value>& arguments, bool is_tailcall)
+{
     auto* function = m_store.get(address);
     if (!function)
         return Trap::from_string("Attempt to call nonexistent function by address");
+
     if (auto* wasm_function = function->get_pointer<WasmFunction>()) {
+        if (is_tailcall)
+            unwind_impl(); // Unwind the current frame, the "return" in the tail-called function will unwind the frame we're gonna push now.
         Vector<Value> locals = move(arguments);
         locals.ensure_capacity(locals.size() + wasm_function->code().func().locals().size());
         for (auto& local : wasm_function->code().func().locals()) {
@@ -32,18 +43,16 @@ Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Ve
         }
 
         set_frame(Frame {
-            wasm_function->module(),
-            move(locals),
-            wasm_function->code().func().body(),
-            wasm_function->type().results().size(),
-        });
-        m_ip = 0;
-        return execute(interpreter);
+                      wasm_function->module(),
+                      move(locals),
+                      wasm_function->code().func().body(),
+                      wasm_function->type().results().size(),
+                  },
+            is_tailcall);
+        return OptionalNone {};
     }
 
-    // It better be a host function, else something is really wrong.
-    auto& host_function = function->get<HostFunction>();
-    return host_function.function()(*this, arguments);
+    return function->get<HostFunction>();
 }
 
 Result Configuration::execute(Interpreter& interpreter)
