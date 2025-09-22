@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -113,6 +114,7 @@ private:
     Shape(Shape& previous_shape, Object* new_prototype);
 
     void invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape);
+    void invalidate_prototype_if_needed_for_change_without_transition();
     void invalidate_all_prototype_chains_leading_to_this();
 
     virtual void visit_edges(Visitor&) override;

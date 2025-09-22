@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -285,6 +286,7 @@ GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
 
 void Shape::add_property_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
+    invalidate_prototype_if_needed_for_change_without_transition();
     ensure_property_table();
     if (m_property_table->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
         VERIFY(m_property_count < NumericLimits<u32>::max());
@@ -294,6 +296,7 @@ void Shape::add_property_without_transition(PropertyKey const& property_key, Pro
 
 void Shape::set_property_attributes_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
+    invalidate_prototype_if_needed_for_change_without_transition();
     VERIFY(is_dictionary());
     VERIFY(m_property_table);
     auto it = m_property_table->find(property_key);
@@ -304,6 +307,7 @@ void Shape::set_property_attributes_without_transition(PropertyKey const& proper
 
 void Shape::remove_property_without_transition(PropertyKey const& property_key, u32 offset)
 {
+    invalidate_prototype_if_needed_for_change_without_transition();
     VERIFY(is_uncacheable_dictionary());
     VERIFY(m_property_table);
     if (m_property_table->remove(property_key))
@@ -352,6 +356,16 @@ void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_
         return;
     new_prototype_shape->set_prototype_shape();
     m_prototype_chain_validity->set_valid(false);
+
+    invalidate_all_prototype_chains_leading_to_this();
+}
+
+void Shape::invalidate_prototype_if_needed_for_change_without_transition()
+{
+    if (!m_is_prototype_shape)
+        return;
+    m_prototype_chain_validity->set_valid(false);
+    m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
 
     invalidate_all_prototype_chains_leading_to_this();
 }
