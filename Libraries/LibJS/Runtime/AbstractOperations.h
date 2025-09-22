@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/KeyedCollections.h>
+#include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
@@ -68,6 +69,8 @@ ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Env
 ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
 Completion dispose(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> method);
 Completion dispose_resources(VM&, DisposeCapability&, Completion);
+
+bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> const& attributes);
 
 ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
 

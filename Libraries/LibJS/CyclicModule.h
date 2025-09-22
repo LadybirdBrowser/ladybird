@@ -42,8 +42,8 @@ public:
     void set_status(ModuleStatus status) { m_status = status; }
 
     Vector<ModuleRequest> const& requested_modules() const { return m_requested_modules; }
-    Vector<ModuleWithSpecifier> const& loaded_modules() const { return m_loaded_modules; }
-    Vector<ModuleWithSpecifier>& loaded_modules() { return m_loaded_modules; }
+    Vector<LoadedModuleRequest> const& loaded_modules() const { return m_loaded_modules; }
+    Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }
 
 protected:
     CyclicModule(Realm& realm, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules, Script::HostDefined* host_defined);
@@ -56,7 +56,7 @@ protected:
     virtual ThrowCompletionOr<void> initialize_environment(VM& vm);
     virtual ThrowCompletionOr<void> execute_module(VM& vm, GC::Ptr<PromiseCapability> capability = {});
 
-    [[nodiscard]] GC::Ref<Module> get_imported_module(ModuleRequest const&);
+    [[nodiscard]] GC::Ref<Module> get_imported_module(ModuleRequest const& request);
 
     void execute_async_module(VM& vm);
     void gather_available_ancestors(Vector<CyclicModule*>& exec_list);
@@ -68,7 +68,7 @@ protected:
     Optional<u32> m_dfs_index;                            // [[DFSIndex]]
     Optional<u32> m_dfs_ancestor_index;                   // [[DFSAncestorIndex]]
     Vector<ModuleRequest> m_requested_modules;            // [[RequestedModules]]
-    Vector<ModuleWithSpecifier> m_loaded_modules;         // [[LoadedModules]]
+    Vector<LoadedModuleRequest> m_loaded_modules;         // [[LoadedModules]]
     GC::Ptr<CyclicModule> m_cycle_root;                   // [[CycleRoot]]
     bool m_has_top_level_await { false };                 // [[HasTLA]]
     bool m_async_evaluation { false };                    // [[AsyncEvaluation]]

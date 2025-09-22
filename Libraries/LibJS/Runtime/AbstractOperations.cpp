@@ -1764,7 +1764,7 @@ Completion dispose_resources(VM& vm, DisposeCapability& dispose_capability, Comp
 }
 
 // 16.2.1.12 AllImportAttributesSupported ( attributes ), https://tc39.es/ecma262/#sec-AllImportAttributesSupported
-static bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> const& attributes)
+bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> const& attributes)
 {
     // 1. Let supported be HostGetSupportedImportAttributes().
     auto supported = vm.host_get_supported_import_attributes();
