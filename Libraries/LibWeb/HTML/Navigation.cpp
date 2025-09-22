@@ -481,7 +481,7 @@ i64 Navigation::get_the_navigation_api_entry_index(SessionHistoryEntry const& sh
     // 2. For each nhe of navigation's entry list:
     for (auto const& nhe : m_entry_list) {
         // 1. If nhe's session history entry is equal to she, then return index.
-        if (&nhe->session_history_entry() == &she)
+        if (nhe->session_history_entry().navigation_api_id() == she.navigation_api_id())
             return index;
 
         // 2. Increment index by 1.
