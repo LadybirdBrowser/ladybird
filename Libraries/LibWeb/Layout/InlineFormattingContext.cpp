@@ -503,8 +503,10 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
 
     CSSPixelPoint position;
     if (auto const* sibling = box.previous_sibling()) {
-        // We're calculating the position for an absolutely positioned box with a previous sibling in an IFC. We need to
-        // position the box at the top right corner of the last fragment of this sibling.
+        // We're calculating the position for an absolutely positioned box with a previous sibling in an IFC.
+        // We need to position the box...
+        // ...below the last fragment of this sibling, if the display-outside value (before box type transformation) is block.
+        // ...at the top right corner of the last fragment of this sibling otherwise.
         LineBoxFragment const* last_fragment = nullptr;
         auto const& cb_state = m_state.get(*sibling->containing_block());
         for (auto const& line_box : cb_state.line_boxes) {
@@ -514,8 +516,15 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
             }
         }
         if (last_fragment) {
-            position.set_x(last_fragment->offset().x() + last_fragment->width());
-            position.set_y(last_fragment->offset().y());
+            if (box.display_before_box_type_transformation().is_block_outside()) {
+                // Display-outside value is block => position below
+                position.set_x(0);
+                position.set_y(last_fragment->offset().y() + last_fragment->height());
+            } else {
+                // Display-outside value is not block => position to the right
+                position.set_x(last_fragment->offset().x() + last_fragment->width());
+                position.set_y(last_fragment->offset().y());
+            }
         }
     }
 
