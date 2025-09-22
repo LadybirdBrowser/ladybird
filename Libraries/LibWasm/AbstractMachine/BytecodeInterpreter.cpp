@@ -25,10 +25,20 @@
 
 using namespace AK::SIMD;
 
+#ifdef AK_COMPILER_CLANG
+#    define TAILCALL [[clang::musttail]]
+#    define HAS_TAILCALL
+#elif defined(AK_COMPILER_GCC) && (__GNUC__ > 14)
+#    define TAILCALL [[gnu::musttail]]
+#    define HAS_TAILCALL
+#else
+#    define TAILCALL
+#endif
+
 // ASAN allocates frames for all the not-explicitly-tail-called functions,
 // which blows out the stack. So disable direct threading when ASAN is enabled.
-// We use the explicit annotation on clang, so allow it there.
-#if defined(HAS_ADDRESS_SANITIZER) && !defined(AK_COMPILER_CLANG)
+// We use the explicit annotation where available, so allow it there.
+#if defined(HAS_ADDRESS_SANITIZER) && !defined(HAS_TAILCALL)
 constexpr static auto should_try_to_use_direct_threading = false;
 #else
 constexpr static auto should_try_to_use_direct_threading = true;
@@ -117,11 +127,6 @@ struct InstructionHandler { };
     template<bool HasDynamicInsnLimit, typename Continue>            \
     Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
 
-#ifdef AK_COMPILER_CLANG
-#    define TAILCALL [[clang::musttail]]
-#else
-#    define TAILCALL
-#endif
 struct Continue {
     static Outcome operator()(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const*, SourcesAndDestination addresses, u64 current_ip_value, Dispatch const* cc)
     {
@@ -1571,26 +1576,27 @@ HANDLE_INSTRUCTION(memory_grow)
 
 HANDLE_INSTRUCTION(memory_fill)
 {
-    auto& args = instruction->arguments().get<Instruction::MemoryIndexArgument>();
-    auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
-    auto instance = configuration.store().get(address);
-    // bounds checked by verifier.
-    auto count = configuration.take_source(0, addresses.sources).to<u32>();
-    u8 value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
-    auto destination_offset = configuration.take_source(2, addresses.sources).to<u32>();
+    {
+        auto& args = instruction->arguments().get<Instruction::MemoryIndexArgument>();
+        auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
+        auto instance = configuration.store().get(address);
+        // bounds checked by verifier.
+        auto count = configuration.take_source(0, addresses.sources).to<u32>();
+        auto destination_offset = configuration.take_source(2, addresses.sources).to<u32>();
 
-    Checked<u32> checked_end = destination_offset;
-    checked_end += count;
-    TRAP_IN_LOOP_IF_NOT(!checked_end.has_overflow() && static_cast<size_t>(checked_end.value()) <= instance->data().size());
+        Checked<u32> checked_end = destination_offset;
+        checked_end += count;
+        TRAP_IN_LOOP_IF_NOT(!checked_end.has_overflow() && static_cast<size_t>(checked_end.value()) <= instance->data().size());
 
-    if (count == 0)
-        TAILCALL
-    return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+        if (count == 0)
+            TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
-    Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
-    for (u32 i = 0; i < count; ++i) {
-        if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
-            return Outcome::Return;
+        Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
+        u8 value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
+        for (u32 i = 0; i < count; ++i) {
+            if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
+                return Outcome::Return;
+        }
     }
 
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
