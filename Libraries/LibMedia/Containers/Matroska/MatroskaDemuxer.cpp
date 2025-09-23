@@ -130,6 +130,12 @@ CodecID MatroskaDemuxer::get_codec_id_for_string(FlyString const& codec_id)
         return CodecID::H264;
     if (codec_id == "V_MPEGH/ISO/HEVC")
         return CodecID::H265;
+    if (codec_id == "A_MPEG/L3")
+        return CodecID::MP3;
+    if (codec_id == "A_AAC" || codec_id == "A_AAC/MPEG4/LC"
+        || codec_id == "A_AAC/MPEG4/LC/SBR" || codec_id == "A_AAC/MPEG4/LTP"
+        || codec_id == "A_AAC/MPEG4/MAIN" || codec_id == "A_AAC/MPEG4/SSR")
+        return CodecID::AAC;
     if (codec_id == "V_AV1")
         return CodecID::AV1;
     if (codec_id == "V_THEORA")

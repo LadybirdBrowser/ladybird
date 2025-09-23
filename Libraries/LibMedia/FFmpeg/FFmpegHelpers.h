@@ -33,6 +33,10 @@ static inline AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
         return AV_CODEC_ID_H264;
     case CodecID::H265:
         return AV_CODEC_ID_HEVC;
+    case CodecID::MP3:
+        return AV_CODEC_ID_MP3;
+    case CodecID::AAC:
+        return AV_CODEC_ID_AAC;
     case CodecID::AV1:
         return AV_CODEC_ID_AV1;
     case CodecID::Theora:
@@ -65,6 +69,10 @@ static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
         return CodecID::H264;
     case AV_CODEC_ID_HEVC:
         return CodecID::H265;
+    case AV_CODEC_ID_MP3:
+        return CodecID::MP3;
+    case AV_CODEC_ID_AAC:
+        return CodecID::AAC;
     case AV_CODEC_ID_AV1:
         return CodecID::AV1;
     case AV_CODEC_ID_THEORA:
