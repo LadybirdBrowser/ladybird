@@ -411,7 +411,7 @@ public:
         for (size_t i = previous_size; i < m_elements.size(); ++i)
             m_elements[i] = fill_value;
 
-        m_type = TableType { m_type.element_type(), Limits(m_type.limits().min() + size_to_grow, m_type.limits().max()) };
+        m_type = TableType { m_type.element_type(), Limits(m_type.limits().address_type(), m_type.limits().min() + size_to_grow, m_type.limits().max()) };
 
         return true;
     }
@@ -477,7 +477,7 @@ public:
             //
             // See relevant spec link:
             // https://www.w3.org/TR/wasm-core-2/#growing-memories%E2%91%A0
-            m_type = MemoryType { Limits(m_type.limits().min() + size_to_grow / Constants::page_size, m_type.limits().max()) };
+            m_type = MemoryType { Limits(m_type.limits().address_type(), m_type.limits().min() + size_to_grow / Constants::page_size, m_type.limits().max()) };
         }
 
         return true;
