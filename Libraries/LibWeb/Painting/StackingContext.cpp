@@ -326,10 +326,8 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         push_stacking_context_params.clip_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(device_pixel_scale, device_pixel_scale).set_translation(source_paintable_rect.location().to_type<float>()));
     }
 
-    auto has_css_transform = paintable_box().has_css_transform();
-    if (has_css_transform) {
+    if (!transform_matrix.is_identity())
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
-    }
     paintable_box().apply_scroll_offset(context);
 
     auto mask_image = computed_values.mask_image();
@@ -376,7 +374,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         context.display_list_recorder().restore();
     }
     paintable_box().reset_scroll_offset(context);
-    if (has_css_transform)
+    if (!transform_matrix.is_identity())
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);
 }
 

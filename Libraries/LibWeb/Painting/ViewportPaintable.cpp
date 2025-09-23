@@ -147,9 +147,8 @@ void ViewportPaintable::assign_clip_frames()
                 }
                 break;
             }
-            if (block->has_css_transform()) {
+            if (!block->transform().is_identity())
                 break;
-            }
         }
         return TraversalDecision::Continue;
     });
@@ -213,9 +212,8 @@ void ViewportPaintable::assign_clip_frames()
                     clip_frame.add_clip_rect(clip_rect, {}, block_paintable_box.enclosing_scroll_frame());
                 }
             }
-            if (block->has_css_transform()) {
+            if (!block_paintable_box.transform().is_identity())
                 break;
-            }
         }
     }
 }
