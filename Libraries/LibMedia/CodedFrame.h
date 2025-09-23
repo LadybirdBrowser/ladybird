@@ -8,13 +8,14 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
+#include <LibMedia/CodedAudioFrameData.h>
 #include <LibMedia/CodedVideoFrameData.h>
 
 namespace Media {
 
 class CodedFrame final {
 public:
-    using AuxiliaryData = Variant<CodedVideoFrameData>;
+    using AuxiliaryData = Variant<CodedVideoFrameData, CodedAudioFrameData>;
 
     CodedFrame(AK::Duration timestamp, ByteBuffer&& data, AuxiliaryData auxiliary_data)
         : m_timestamp(timestamp)
