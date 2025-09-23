@@ -127,10 +127,15 @@ String GridMinMax::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-GridRepeat::GridRepeat(GridTrackSizeList&& grid_track_size_list, GridRepeatParams const& params)
-    : m_type(params.type)
+GridRepeat::GridRepeat(GridRepeatType grid_repeat_type, GridTrackSizeList&& grid_track_size_list, size_t repeat_count)
+    : m_type(grid_repeat_type)
     , m_grid_track_size_list(move(grid_track_size_list))
-    , m_repeat_count(params.count)
+    , m_repeat_count(repeat_count)
+{
+}
+
+GridRepeat::GridRepeat(GridTrackSizeList&& grid_track_size_list, GridRepeatParams const& params)
+    : GridRepeat(params.type, move(grid_track_size_list), params.count)
 {
 }
 

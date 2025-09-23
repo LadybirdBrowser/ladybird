@@ -114,6 +114,7 @@ struct GridRepeatParams {
 
 class GridRepeat {
 public:
+    GridRepeat(GridRepeatType, GridTrackSizeList&&, size_t repeat_count);
     GridRepeat(GridTrackSizeList&&, GridRepeatParams const&);
 
     bool is_auto_fill() const { return m_type == GridRepeatType::AutoFill; }
