@@ -861,6 +861,26 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         case Instructions::i32x4_trunc_sat_f64x2_u_zero.value():
         case Instructions::f64x2_convert_low_i32x4_s.value():
         case Instructions::f64x2_convert_low_i32x4_u.value():
+        case Instructions::i8x16_relaxed_swizzle.value():
+        case Instructions::i32x4_relaxed_trunc_f32x4_s.value():
+        case Instructions::i32x4_relaxed_trunc_f32x4_u.value():
+        case Instructions::i32x4_relaxed_trunc_f64x2_s_zero.value():
+        case Instructions::i32x4_relaxed_trunc_f64x2_u_zero.value():
+        case Instructions::f32x4_relaxed_madd.value():
+        case Instructions::f32x4_relaxed_nmadd.value():
+        case Instructions::f64x2_relaxed_madd.value():
+        case Instructions::f64x2_relaxed_nmadd.value():
+        case Instructions::i8x16_relaxed_laneselect.value():
+        case Instructions::i16x8_relaxed_laneselect.value():
+        case Instructions::i32x4_relaxed_laneselect.value():
+        case Instructions::i64x2_relaxed_laneselect.value():
+        case Instructions::f32x4_relaxed_min.value():
+        case Instructions::f32x4_relaxed_max.value():
+        case Instructions::f64x2_relaxed_min.value():
+        case Instructions::f64x2_relaxed_max.value():
+        case Instructions::i16x8_relaxed_q15mulr_s.value():
+        case Instructions::i16x8_relaxed_dot_i8x16_i7x16_s.value():
+        case Instructions::i32x4_relaxed_dot_i8x16_i7x16_add_s.value():
             // op
             return Instruction { full_opcode };
         default:

@@ -3752,6 +3752,106 @@ VALIDATE_INSTRUCTION(f64x2_convert_low_i32x4_u)
     return stack.take_and_put<ValueType::V128>(ValueType::V128);
 }
 
+VALIDATE_INSTRUCTION(i8x16_relaxed_swizzle)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i32x4_relaxed_trunc_f32x4_s)
+{
+    return stack.take_and_put<ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i32x4_relaxed_trunc_f32x4_u)
+{
+    return stack.take_and_put<ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i32x4_relaxed_trunc_f64x2_s_zero)
+{
+    return stack.take_and_put<ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i32x4_relaxed_trunc_f64x2_u_zero)
+{
+    return stack.take_and_put<ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f32x4_relaxed_madd)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f32x4_relaxed_nmadd)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f64x2_relaxed_madd)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f64x2_relaxed_nmadd)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i8x16_relaxed_laneselect)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i16x8_relaxed_laneselect)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i32x4_relaxed_laneselect)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i64x2_relaxed_laneselect)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f32x4_relaxed_min)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f32x4_relaxed_max)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f64x2_relaxed_min)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(f64x2_relaxed_max)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i16x8_relaxed_q15mulr_s)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i16x8_relaxed_dot_i8x16_i7x16_s)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
+VALIDATE_INSTRUCTION(i32x4_relaxed_dot_i8x16_i7x16_add_s)
+{
+    return stack.take_and_put<ValueType::V128, ValueType::V128, ValueType::V128>(ValueType::V128);
+}
+
 VALIDATE_INSTRUCTION(synthetic_end_expression)
 {
     is_constant = true;
