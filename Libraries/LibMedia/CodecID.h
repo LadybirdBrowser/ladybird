@@ -22,6 +22,8 @@ enum class CodecID : u32 {
     H263,
     H264,
     H265,
+    MP3,
+    AAC,
     // AOMedia
     AV1,
     // Xiph
@@ -63,6 +65,12 @@ struct Formatter<Media::CodecID> : Formatter<StringView> {
             break;
         case Media::CodecID::H265:
             codec = "H.265"sv;
+            break;
+        case Media::CodecID::MP3:
+            codec = "MP3"sv;
+            break;
+        case Media::CodecID::AAC:
+            codec = "AAC"sv;
             break;
         case Media::CodecID::MPEG1:
             codec = "MPEG1"sv;
