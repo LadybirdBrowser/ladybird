@@ -535,9 +535,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         // When grid-column-end is omitted, if grid-column-start is a <custom-ident>, grid-column-end is set to that
         // <custom-ident>; otherwise, it is set to auto.
-        if (is_auto(column_end) && column_start->is_custom_ident()) {
+        if (is_auto(column_end) && column_start->is_custom_ident())
             column_end = column_start;
-        }
 
         // When grid-column-start is omitted, if grid-row-start is a <custom-ident>, all four longhands are set to
         // that value. Otherwise, it is set to auto.

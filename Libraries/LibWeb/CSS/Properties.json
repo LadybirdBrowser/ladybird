@@ -1846,7 +1846,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ],
     "longhands": [
       "grid-column-end",
@@ -1895,7 +1895,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ],
     "longhands": [
       "grid-column-end",
@@ -1910,7 +1910,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ]
   },
   "grid-column-gap": {
@@ -1924,7 +1924,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ]
   },
   "grid-gap": {
@@ -1937,7 +1937,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ],
     "longhands": [
       "grid-row-end",
@@ -1952,7 +1952,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ]
   },
   "grid-row-gap": {
@@ -1966,7 +1966,7 @@
       "auto"
     ],
     "valid-types": [
-      "string"
+      "custom-ident ![auto,span]"
     ]
   },
   "grid-template": {

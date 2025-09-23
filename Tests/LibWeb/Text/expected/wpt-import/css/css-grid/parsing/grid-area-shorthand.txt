@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 53 tests
 
-48 Pass
-5 Fail
+53 Pass
 Pass	e.style['grid-area'] = "auto" should set grid-column-end
 Pass	e.style['grid-area'] = "auto" should set grid-column-start
 Pass	e.style['grid-area'] = "auto" should set grid-row-end
@@ -29,11 +28,11 @@ Pass	e.style['grid-area'] = "a / b / c / d" should set grid-column-start
 Pass	e.style['grid-area'] = "a / b / c / d" should set grid-row-end
 Pass	e.style['grid-area'] = "a / b / c / d" should set grid-row-start
 Pass	e.style['grid-area'] = "a / b / c / d" should not set unrelated longhands
-Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-column-end
-Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-column-start
-Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-row-end
-Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-row-start
-Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should not set unrelated longhands
+Pass	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-column-end
+Pass	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-column-start
+Pass	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-row-end
+Pass	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-row-start
+Pass	e.style['grid-area'] = "+90 -a- / 2 i span" should not set unrelated longhands
 Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-column-end
 Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-column-start
 Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-row-end
