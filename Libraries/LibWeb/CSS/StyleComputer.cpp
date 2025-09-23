@@ -1102,7 +1102,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             if (!style_value)
                 continue;
 
-            if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth))
+            if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontStyle))
                 continue;
 
             auto const& computed_value = compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context);
