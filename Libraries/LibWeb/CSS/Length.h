@@ -32,11 +32,15 @@ public:
         bool operator==(FontMetrics const&) const = default;
     };
 
-    Length(double value, LengthUnit unit);
-    ~Length();
+    Length(double value, LengthUnit unit)
+        : m_unit(unit)
+        , m_value(value)
+    {
+    }
+    ~Length() = default;
 
-    static Length make_px(double value);
-    static Length make_px(CSSPixels value);
+    [[nodiscard]] static Length make_px(double value) { return Length(value, LengthUnit::Px); }
+    [[nodiscard]] static Length make_px(CSSPixels value) { return make_px(value.to_double()); }
     Length percentage_of(Percentage const&) const;
 
     bool is_px() const { return m_unit == LengthUnit::Px; }

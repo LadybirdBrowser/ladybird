@@ -385,7 +385,6 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
     // 10.3.5 Floating, non-replaced elements
     auto& computed_values = box.computed_values();
 
-    auto zero_value = CSS::Length::make_px(0);
     auto width_of_containing_block = available_space.width.to_px_or_zero();
 
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.

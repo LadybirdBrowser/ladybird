@@ -414,8 +414,6 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
 
     auto width_of_containing_block = available_space.width.to_px_or_zero();
 
-    auto zero_value = CSS::Length::make_px(0);
-
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
     auto margin_left = computed_values.margin().left().to_px_or_zero(box, width_of_containing_block);
     auto margin_right = computed_values.margin().right().to_px_or_zero(box, width_of_containing_block);
@@ -558,7 +556,6 @@ CSSPixels FormattingContext::compute_width_for_replaced_element(Box const& box, 
     // 10.3.4 Block-level, replaced elements in normal flow...
     // 10.3.2 Inline, replaced elements
 
-    auto zero_value = CSS::Length::make_px(0);
     auto width_of_containing_block = available_space.width.to_px_or_zero();
 
     auto computed_width = should_treat_width_as_auto(box, available_space) ? CSS::Size::make_auto() : box.computed_values().width();
@@ -675,7 +672,6 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
 {
     auto width_of_containing_block = available_space.width.to_px_or_zero();
     auto const& computed_values = box.computed_values();
-    auto zero_value = CSS::Length::make_px(0);
     auto& box_state = m_state.get_mutable(box);
 
     auto margin_left = CSS::LengthOrAuto::make_auto();
