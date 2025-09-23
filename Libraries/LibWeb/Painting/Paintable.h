@@ -147,6 +147,8 @@ public:
 
     virtual void resolve_paint_properties() { }
 
+    [[nodiscard]] String debug_description() const;
+
     virtual void finalize() override
     {
         if (m_list_node.is_in_list())

@@ -47,6 +47,11 @@ void Paintable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(m_containing_block.value());
 }
 
+String Paintable::debug_description() const
+{
+    return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
+}
+
 bool Paintable::is_visible() const
 {
     auto const& computed_values = this->computed_values();
