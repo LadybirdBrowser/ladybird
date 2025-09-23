@@ -243,28 +243,42 @@ private:
     Vector<ValueType> m_results;
 };
 
+// https://webassembly.github.io/memory64/core/bikeshed/#address-type%E2%91%A0
+enum class AddressType : u8 {
+    I32,
+    I64,
+};
+
 // https://webassembly.github.io/spec/core/bikeshed/#limits%E2%91%A5
 class Limits {
 public:
-    explicit Limits(u32 min, Optional<u32> max = {})
-        : m_min(min)
+    explicit Limits(AddressType address_type, u64 min, Optional<u64> max = {})
+        : m_address_type(address_type)
+        , m_min(min)
         , m_max(move(max))
     {
     }
 
+    ValueType address_value_type() const
+    {
+        return m_address_type == AddressType::I32 ? ValueType(ValueType::I32) : ValueType(ValueType::I64);
+    }
+    auto address_type() const { return m_address_type; }
     auto min() const { return m_min; }
     auto& max() const { return m_max; }
     bool is_subset_of(Limits other) const
     {
         return m_min >= other.min()
-            && (!other.max().has_value() || (m_max.has_value() && *m_max <= *other.max()));
+            && (!other.max().has_value() || (m_max.has_value() && *m_max <= *other.max()))
+            && m_address_type == other.m_address_type;
     }
 
     static ParseResult<Limits> parse(ConstrainedStream& stream);
 
 private:
-    u32 m_min { 0 };
-    Optional<u32> m_max;
+    AddressType m_address_type { AddressType::I32 };
+    u64 m_min { 0 };
+    Optional<u64> m_max;
 };
 
 // https://webassembly.github.io/spec/core/bikeshed/#memory-types%E2%91%A4
@@ -415,7 +429,7 @@ public:
 
     struct MemoryArgument {
         u32 align;
-        u32 offset;
+        u64 offset;
         MemoryIndex memory_index { 0 };
     };
 

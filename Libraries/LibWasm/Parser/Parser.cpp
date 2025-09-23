@@ -151,23 +151,26 @@ ParseResult<Limits> Limits::parse(ConstrainedStream& stream)
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Limits"sv);
     auto flag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
 
-    if (flag > 1)
+    // Proposal 'memory64': flags 0/1 refer to 32-bit limits, flags 4/5 refer to 64-bit limits.
+    if (flag & ~0b00000101)
         return with_eof_check(stream, ParseError::InvalidTag);
+
+    auto address_type = (flag & 0b00000100) ? AddressType::I64 : AddressType::I32;
 
     auto min_or_error = stream.read_value<LEB128<u32>>();
     if (min_or_error.is_error())
         return with_eof_check(stream, ParseError::ExpectedSize);
     size_t min = min_or_error.release_value();
 
-    Optional<u32> max;
-    if (flag) {
-        auto value_or_error = stream.read_value<LEB128<u32>>();
+    Optional<u64> max;
+    if (flag & 1) {
+        auto value_or_error = stream.read_value<LEB128<u64>>();
         if (value_or_error.is_error())
             return with_eof_check(stream, ParseError::ExpectedSize);
         max = value_or_error.release_value();
     }
 
-    return Limits { static_cast<u32>(min), move(max) };
+    return Limits { address_type, static_cast<u64>(min), move(max) };
 }
 
 ParseResult<MemoryType> MemoryType::parse(ConstrainedStream& stream)
@@ -313,7 +316,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
             memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
         }
 
-        auto offset = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
+        // Proposal 'memory64': memarg offsets are u64 instead of u32.
+        auto offset = TRY_READ(stream, LEB128<u64>, ParseError::InvalidInput);
 
         return Instruction { opcode, MemoryArgument { align, offset, MemoryIndex(memory_index) } };
     }
@@ -604,7 +608,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
                 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
             }
 
-            auto offset = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedIndex);
+            // Proposal 'memory64': memarg offsets are u64 instead of u32.
+            auto offset = TRY_READ(stream, LEB128<u64>, ParseError::ExpectedIndex);
 
             return Instruction { full_opcode, MemoryArgument { align, offset, MemoryIndex(memory_index) } };
         }
@@ -626,7 +631,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
                 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
             }
 
-            auto offset = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedIndex);
+            // Proposal 'memory64': memarg offsets are u64 instead of u32.
+            auto offset = TRY_READ(stream, LEB128<u64>, ParseError::ExpectedIndex);
             auto index = TRY_READ(stream, u8, ParseError::InvalidInput);
 
             return Instruction { full_opcode, MemoryAndLaneArgument { { align, offset, MemoryIndex(memory_index) }, index } };
