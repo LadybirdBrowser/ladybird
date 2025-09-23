@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: parsing line-height with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#line-height-property">
+<meta name="assert" content="line-height supports the full grammar 'normal | <number> | <length-percentage>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("line-height", "normal");
+
+test_valid_value("line-height", "0");
+test_valid_value("line-height", "2");
+test_valid_value("line-height", "0px");
+test_valid_value("line-height", "10px");
+test_valid_value("line-height", "0%");
+test_valid_value("line-height", "200%");
+test_valid_value("line-height", "calc(200% + 10px)");
+</script>
+</body>
+</html>

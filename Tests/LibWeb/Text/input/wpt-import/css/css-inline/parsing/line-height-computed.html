@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Inline Layout: getComputedStyle().lineHeight</title>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#line-height-property">
+<meta name="assert" content="line-height computed value is normal or a length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test_computed_value("line-height", "normal");
+
+test_computed_value("line-height", "0", "0px");
+test_computed_value("line-height", "2", "80px");
+test_computed_value("line-height", "0px");
+test_computed_value("line-height", "10px");
+test_computed_value("line-height", "0%", "0px");
+test_computed_value("line-height", "200%", "80px");
+test_computed_value("line-height", "calc(200% + 10px)", "90px");
+
+test_computed_value('line-height', 'calc(10px - 0.5em)', '0px');
+test_computed_value('line-height', 'calc(10px + 0.5em)', '30px');
+
+test_computed_value("line-height", 'calc(10 + (sign(2cqw - 10px) * 5))', '200px');
+test_computed_value("line-height", 'calc(10% + (sign(2cqw - 10px) * 5%))', '2px');
+test_computed_value("line-height", 'calc(10px + (sign(2cqw - 10px) * 5px))', '5px');
+</script>
+</body>
+</html>
