@@ -31,23 +31,6 @@ Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics cons
 {
 }
 
-Length::Length(double value, LengthUnit unit)
-    : m_unit(unit)
-    , m_value(value)
-{
-}
-Length::~Length() = default;
-
-Length Length::make_px(double value)
-{
-    return Length(value, LengthUnit::Px);
-}
-
-Length Length::make_px(CSSPixels value)
-{
-    return make_px(value.to_double());
-}
-
 Length Length::percentage_of(Percentage const& percentage) const
 {
     return Length { percentage.as_fraction() * raw_value(), m_unit };
