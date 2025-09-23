@@ -1,12 +1,8 @@
 SaveLayer
-  PushStackingContext opacity=1 isolate=false has_clip_path=false transform=[1 0 0 1 0 0]
-    PushStackingContext opacity=1 isolate=false has_clip_path=false transform=[1 0 0 1 0 0]
-      FillRect rect=[8,8 29x30] color=rgb(0, 0, 0)
-      FillRect rect=[38,8 28x30] color=rgb(0, 0, 0)
-      FillRect rect=[67,8 29x30] color=rgb(0, 0, 0)
-      FillRect rect=[97,8 28x30] color=rgb(0, 0, 0)
-      FillRect rect=[126,8 29x30] color=rgb(0, 0, 0)
-    PopStackingContext
-  PopStackingContext
+  FillRect rect=[8,8 29x30] color=rgb(0, 0, 0)
+  FillRect rect=[38,8 28x30] color=rgb(0, 0, 0)
+  FillRect rect=[67,8 29x30] color=rgb(0, 0, 0)
+  FillRect rect=[97,8 28x30] color=rgb(0, 0, 0)
+  FillRect rect=[126,8 29x30] color=rgb(0, 0, 0)
 Restore
 

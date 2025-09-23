@@ -331,18 +331,24 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
     }
     paintable_box().apply_scroll_offset(context);
-    context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
-    auto const& filter = computed_values.filter();
-    auto filter_applied = false;
-    if (filter.has_filters()) {
-        if (auto resolved_filter = paintable_box().resolve_filter(filter); resolved_filter.has_value()) {
-            context.display_list_recorder().apply_filter(*resolved_filter);
-            filter_applied = true;
-        }
+    auto mask_image = computed_values.mask_image();
+    Optional<Gfx::Filter> resolved_filter;
+    if (computed_values.filter().has_filters())
+        resolved_filter = paintable_box().resolve_filter(computed_values.filter());
+
+    bool needs_to_save_state = mask_image || paintable_box().get_masking_area().has_value();
+
+    if (push_stacking_context_params.has_effect()) {
+        context.display_list_recorder().push_stacking_context(push_stacking_context_params);
+    } else if (needs_to_save_state) {
+        context.display_list_recorder().save();
     }
 
-    if (auto mask_image = computed_values.mask_image()) {
+    if (resolved_filter.has_value())
+        context.display_list_recorder().apply_filter(*resolved_filter);
+
+    if (mask_image) {
         auto mask_display_list = DisplayList::create(context.device_pixels_per_css_pixel());
         DisplayListRecorder display_list_recorder(*mask_display_list);
         auto mask_painting_context = context.clone(display_list_recorder);
@@ -361,11 +367,14 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
     paint_internal(context);
 
-    if (filter_applied) {
+    if (resolved_filter.has_value())
+        context.display_list_recorder().restore();
+
+    if (push_stacking_context_params.has_effect()) {
+        context.display_list_recorder().pop_stacking_context();
+    } else if (needs_to_save_state) {
         context.display_list_recorder().restore();
     }
-
-    context.display_list_recorder().pop_stacking_context();
     paintable_box().reset_scroll_offset(context);
     if (has_css_transform)
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);

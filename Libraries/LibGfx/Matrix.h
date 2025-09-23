@@ -233,6 +233,18 @@ public:
         return determinant() != static_cast<T>(0.0);
     }
 
+    [[nodiscard]] bool is_identity() const
+    {
+        for (size_t i = 0; i < N; ++i) {
+            for (size_t j = 0; j < N; ++j) {
+                float expected = (i == j) ? 1.0f : 0.0f;
+                if ((*this)[i, j] != expected)
+                    return false;
+            }
+        }
+        return true;
+    }
+
 private:
     T m_elements[N][N];
 };
