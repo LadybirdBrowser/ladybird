@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 13 tests
 
-9 Pass
-4 Fail
+10 Pass
+3 Fail
 Pass	Property line-height value 'normal'
 Pass	Property line-height value '0'
 Pass	Property line-height value '2'
@@ -12,7 +12,7 @@ Pass	Property line-height value '10px'
 Pass	Property line-height value '0%'
 Pass	Property line-height value '200%'
 Pass	Property line-height value 'calc(200% + 10px)'
-Fail	Property line-height value 'calc(10px - 0.5em)'
+Pass	Property line-height value 'calc(10px - 0.5em)'
 Pass	Property line-height value 'calc(10px + 0.5em)'
 Fail	Property line-height value 'calc(10 + (sign(2cqw - 10px) * 5))'
 Fail	Property line-height value 'calc(10% + (sign(2cqw - 10px) * 5%))'
