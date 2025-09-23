@@ -255,6 +255,7 @@ void DisplayListRecorder::draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::Gl
         .translation = baseline_start,
         .color = color,
         .orientation = orientation,
+        .bounding_rectangle = glyph_run.bounding_rect().scaled(scale).translated(baseline_start).to_type<int>(),
     });
 }
 

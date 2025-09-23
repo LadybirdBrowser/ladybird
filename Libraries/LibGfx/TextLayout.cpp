@@ -15,6 +15,19 @@
 
 namespace Gfx {
 
+FloatRect GlyphRun::bounding_rect() const
+{
+    if (glyphs().is_empty())
+        return {};
+    auto const& first = glyphs().first();
+    FloatRect result { first.position, { first.glyph_width, m_line_height } };
+    for (auto const& glyph : glyphs()) {
+        FloatRect glyph_rect { glyph.position, { glyph.glyph_width, m_line_height } };
+        result.unite(glyph_rect);
+    }
+    return result;
+}
+
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list)
 {
     if (string.is_empty())
@@ -88,6 +101,7 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
 {
+    auto const& metrics = font.pixel_metrics();
     auto& shaping_cache = font.shaping_cache();
 
     // NOTE: We only cache shaping results for a specific set of features. If the features change, we clear the cache.
@@ -146,7 +160,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
 
     for (size_t i = 0; i < glyph_count; ++i) {
         auto position = point
-            - FloatPoint { 0, font.pixel_metrics().ascent }
+            - FloatPoint { 0, metrics.ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
 
         glyph_run.unchecked_append({
@@ -163,7 +177,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         point.translate_by(letter_spacing, 0);
     }
 
-    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
+    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x(), metrics.ascent + metrics.descent));
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, ShapeFeatures const& features)

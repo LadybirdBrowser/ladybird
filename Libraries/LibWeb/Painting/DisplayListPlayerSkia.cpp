@@ -553,13 +553,12 @@ void DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
     SkPaint blur_paint;
     blur_paint.setImageFilter(blur_image_filter);
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
-    draw_glyph_run({
-        .glyph_run = command.glyph_run,
+    draw_glyph_run({ .glyph_run = command.glyph_run,
         .scale = command.glyph_run_scale,
         .rect = command.text_rect,
         .translation = command.draw_location + command.text_rect.location().to_type<float>(),
         .color = command.color,
-    });
+        .bounding_rectangle = command.bounding_rect() });
     canvas.restore();
 }
 
