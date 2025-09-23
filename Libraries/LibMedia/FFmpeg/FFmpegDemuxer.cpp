@@ -181,18 +181,27 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track track)
             continue;
         }
 
-        auto color_primaries = static_cast<ColorPrimaries>(stream->codecpar->color_primaries);
-        auto transfer_characteristics = static_cast<TransferCharacteristics>(stream->codecpar->color_trc);
-        auto matrix_coefficients = static_cast<MatrixCoefficients>(stream->codecpar->color_space);
-        auto color_range = [stream] {
-            switch (stream->codecpar->color_range) {
-            case AVColorRange::AVCOL_RANGE_MPEG:
-                return VideoFullRangeFlag::Studio;
-            case AVColorRange::AVCOL_RANGE_JPEG:
-                return VideoFullRangeFlag::Full;
-            default:
-                return VideoFullRangeFlag::Unspecified;
+        auto auxiliary_data = [&]() -> CodedFrame::AuxiliaryData {
+            if (track.type() == TrackType::Video) {
+                auto color_primaries = static_cast<ColorPrimaries>(stream->codecpar->color_primaries);
+                auto transfer_characteristics = static_cast<TransferCharacteristics>(stream->codecpar->color_trc);
+                auto matrix_coefficients = static_cast<MatrixCoefficients>(stream->codecpar->color_space);
+                auto color_range = [stream] {
+                    switch (stream->codecpar->color_range) {
+                    case AVColorRange::AVCOL_RANGE_MPEG:
+                        return VideoFullRangeFlag::Studio;
+                    case AVColorRange::AVCOL_RANGE_JPEG:
+                        return VideoFullRangeFlag::Full;
+                    default:
+                        return VideoFullRangeFlag::Unspecified;
+                    }
+                }();
+                return CodedVideoFrameData(CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range));
             }
+            if (track.type() == TrackType::Audio) {
+                return CodedAudioFrameData();
+            }
+            VERIFY_NOT_REACHED();
         }();
 
         // Copy the packet data so that we have a permanent reference to it whilst the Sample is alive, which allows us
@@ -202,7 +211,7 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track track)
         auto sample = CodedFrame(
             time_units_to_duration(m_packet->pts, stream->time_base),
             move(packet_data),
-            CodedVideoFrameData(CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range)));
+            auxiliary_data);
 
         // Wipe the packet now that the data is safe.
         av_packet_unref(m_packet);
