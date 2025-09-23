@@ -432,6 +432,12 @@ struct CounterData {
 struct BorderRadiusData {
     CSS::LengthPercentage horizontal_radius { InitialValues::border_radius() };
     CSS::LengthPercentage vertical_radius { InitialValues::border_radius() };
+
+    [[nodiscard]] bool is_initial() const
+    {
+        return horizontal_radius.is_length() && horizontal_radius.length().is_px() && horizontal_radius.length().absolute_length_to_px() == 0
+            && vertical_radius.is_length() && vertical_radius.length().is_px() && vertical_radius.length().absolute_length_to_px() == 0;
+    }
 };
 
 struct TextDecorationThickness {
@@ -773,7 +779,7 @@ protected:
         BorderData border_top;
         BorderData border_right;
         BorderData border_bottom;
-        bool has_noninitial_border_radii;
+        bool has_noninitial_border_radii { false };
         BorderRadiusData border_bottom_left_radius;
         BorderRadiusData border_bottom_right_radius;
         BorderRadiusData border_top_left_radius;
@@ -953,21 +959,29 @@ public:
     void set_filter(CSS::Filter const& filter) { m_noninherited.filter = filter; }
     void set_border_bottom_left_radius(CSS::BorderRadiusData value)
     {
+        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+            return;
         m_noninherited.has_noninitial_border_radii = true;
         m_noninherited.border_bottom_left_radius = move(value);
     }
     void set_border_bottom_right_radius(CSS::BorderRadiusData value)
     {
+        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+            return;
         m_noninherited.has_noninitial_border_radii = true;
         m_noninherited.border_bottom_right_radius = move(value);
     }
     void set_border_top_left_radius(CSS::BorderRadiusData value)
     {
+        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+            return;
         m_noninherited.has_noninitial_border_radii = true;
         m_noninherited.border_top_left_radius = move(value);
     }
     void set_border_top_right_radius(CSS::BorderRadiusData value)
     {
+        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+            return;
         m_noninherited.has_noninitial_border_radii = true;
         m_noninherited.border_top_right_radius = move(value);
     }
