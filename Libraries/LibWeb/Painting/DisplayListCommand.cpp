@@ -13,6 +13,7 @@ void DrawGlyphRun::translate_by(Gfx::IntPoint const& offset)
 {
     rect.translate_by(offset);
     translation.translate_by(offset.to_type<float>());
+    bounding_rectangle.translate_by(offset);
 }
 
 Gfx::IntRect PaintOuterBoxShadow::bounding_rect() const

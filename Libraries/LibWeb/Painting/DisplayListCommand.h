@@ -43,7 +43,9 @@ struct DrawGlyphRun {
     Gfx::FloatPoint translation;
     Color color;
     Gfx::Orientation orientation { Gfx::Orientation::Horizontal };
+    Gfx::IntRect bounding_rectangle;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return bounding_rectangle; }
     void translate_by(Gfx::IntPoint const& offset);
     void dump(StringBuilder&) const;
 };

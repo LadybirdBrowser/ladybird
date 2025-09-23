@@ -15,6 +15,7 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
+#include <LibGfx/Rect.h>
 #include <LibGfx/ShapeFeature.h>
 
 namespace Gfx {
@@ -36,11 +37,12 @@ public:
         Rtl,
     };
 
-    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width)
+    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width, float line_height)
         : m_glyphs(move(glyphs))
         , m_font(move(font))
         , m_text_type(text_type)
         , m_width(width)
+        , m_line_height(line_height)
     {
     }
 
@@ -50,12 +52,14 @@ public:
     [[nodiscard]] Vector<DrawGlyph>& glyphs() { return m_glyphs; }
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
     [[nodiscard]] float width() const { return m_width; }
+    [[nodiscard]] FloatRect bounding_rect() const;
 
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;
     TextType m_text_type;
     float m_width { 0 };
+    float m_line_height { 0 };
 };
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
