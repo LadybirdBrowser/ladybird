@@ -133,7 +133,7 @@ Xcode 15 or clang from homebrew is required to successfully build ladybird.
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-config
+brew install autoconf autoconf-archive automake ccache cmake libtool nasm ninja pkg-config
 ```
 
 If you wish to use clang from homebrew instead:
