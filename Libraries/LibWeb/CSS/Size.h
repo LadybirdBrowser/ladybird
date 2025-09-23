@@ -71,6 +71,12 @@ public:
         return m_length_percentage->percentage();
     }
 
+    LengthPercentage const& length_percentage() const
+    {
+        VERIFY(is_length_percentage());
+        return *m_length_percentage;
+    }
+
     Optional<LengthPercentage> const& fit_content_available_space() const
     {
         VERIFY(is_fit_content());
