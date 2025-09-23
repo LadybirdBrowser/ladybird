@@ -190,9 +190,18 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track trac
         status.block = TRY(status.iterator.next_block());
         status.frame_index = 0;
     }
-    auto cicp = TRY(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
+    auto aux_data = [&] -> CodedFrame::AuxiliaryData {
+        if (track.type() == TrackType::Video) {
+            auto cicp = MUST(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
+            return CodedVideoFrameData(cicp);
+        }
+        if (track.type() == TrackType::Audio) {
+            return CodedAudioFrameData();
+        }
+        VERIFY_NOT_REACHED();
+    }();
     auto sample_data = DECODER_TRY_ALLOC(ByteBuffer::copy(status.block->frame(status.frame_index++)));
-    return CodedFrame(status.block->timestamp(), move(sample_data), CodedVideoFrameData(cicp));
+    return CodedFrame(status.block->timestamp(), move(sample_data), aux_data);
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
