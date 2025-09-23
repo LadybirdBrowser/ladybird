@@ -35,6 +35,8 @@ struct StackingContextTransform {
     Gfx::FloatMatrix4x4 matrix;
 
     StackingContextTransform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix, float scale);
+
+    [[nodiscard]] bool is_identity() const { return matrix.is_identity(); }
 };
 
 class WEB_API DisplayListRecorder {
@@ -109,6 +111,8 @@ public:
         bool isolate;
         StackingContextTransform transform;
         Optional<Gfx::Path> clip_path = {};
+
+        bool has_effect() const { return opacity != 1.0f || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || isolate || clip_path.has_value() || !transform.is_identity(); }
     };
     void push_stacking_context(PushStackingContextParams params);
     void pop_stacking_context();
