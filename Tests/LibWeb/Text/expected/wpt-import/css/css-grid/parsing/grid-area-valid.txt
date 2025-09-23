@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 57 tests
 
-40 Pass
-17 Fail
+52 Pass
+5 Fail
 Pass	e.style['grid-area'] = "auto" should set the property value
 Pass	e.style['grid-area'] = "auto / auto" should set the property value
 Pass	e.style['grid-area'] = "auto / auto / auto" should set the property value
@@ -12,7 +12,7 @@ Pass	e.style['grid-area'] = "AuTo" should set the property value
 Pass	e.style['grid-row'] = "auto" should set the property value
 Pass	e.style['grid-row'] = "auto/auto" should set the property value
 Pass	e.style['grid-column-end'] = "AuTo" should set the property value
-Fail	e.style['grid-area'] = "--a" should set the property value
+Pass	e.style['grid-area'] = "--a" should set the property value
 Pass	e.style['grid-row'] = "-zπ" should set the property value
 Pass	e.style['grid-row'] = "-zπ/-zπ" should set the property value
 Pass	e.style['grid-row'] = "i / i" should set the property value
@@ -40,19 +40,19 @@ Pass	e.style['grid-row-start'] = "span i" should set the property value
 Pass	e.style['grid-column-start'] = "SpAn i 2" should set the property value
 Pass	e.style['grid-row-end'] = "2 i span" should set the property value
 Pass	e.style['grid-column-end'] = "2 SpAn" should set the property value
-Fail	e.style['grid-area'] = "auto / i" should set the property value
-Fail	e.style['grid-area'] = "auto / i / auto / i" should set the property value
-Fail	e.style['grid-area'] = "auto / i / auto / 2 i" should set the property value
-Fail	e.style['grid-area'] = "1 / i  / auto / i" should set the property value
+Pass	e.style['grid-area'] = "auto / i" should set the property value
+Pass	e.style['grid-area'] = "auto / i / auto / i" should set the property value
+Pass	e.style['grid-area'] = "auto / i / auto / 2 i" should set the property value
+Pass	e.style['grid-area'] = "1 / i  / auto / i" should set the property value
 Pass	e.style['grid-area'] = "1 / auto / auto / auto" should set the property value
-Fail	e.style['grid-area'] = "1 / auto / i / auto" should set the property value
+Pass	e.style['grid-area'] = "1 / auto / i / auto" should set the property value
 Pass	e.style['grid-area'] = "1 / j / i / k" should set the property value
-Fail	e.style['grid-area'] = "1 / auto / 2 / auto" should set the property value
-Fail	e.style['grid-area'] = "1 / i / 2 / auto" should set the property value
-Fail	e.style['grid-area'] = "i / i / auto / auto" should set the property value
-Fail	e.style['grid-area'] = "i / auto / i / auto" should set the property value
-Fail	e.style['grid-area'] = "auto / i / 2 j" should set the property value
-Fail	e.style['grid-area'] = "auto / i / 2 j / span 3 k" should set the property value
+Pass	e.style['grid-area'] = "1 / auto / 2 / auto" should set the property value
+Pass	e.style['grid-area'] = "1 / i / 2 / auto" should set the property value
+Pass	e.style['grid-area'] = "i / i / auto / auto" should set the property value
+Pass	e.style['grid-area'] = "i / auto / i / auto" should set the property value
+Pass	e.style['grid-area'] = "auto / i / 2 j" should set the property value
+Pass	e.style['grid-area'] = "auto / i / 2 j / span 3 k" should set the property value
 Pass	e.style['grid-row'] = "auto / i" should set the property value
 Fail	e.style['grid-row'] = "i / auto" should set the property value
 Pass	e.style['grid-row'] = "2 i / auto" should set the property value

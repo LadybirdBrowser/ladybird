@@ -500,6 +500,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(String::join(' ', values));
     }
     case PropertyID::GridArea: {
+        // https://drafts.csswg.org/css-grid/#propdef-grid-area
+        // The grid-area property is a shorthand for grid-row-start, grid-column-start, grid-row-end and grid-column-end.
         auto row_start = longhand(PropertyID::GridRowStart);
         auto column_start = longhand(PropertyID::GridColumnStart);
         auto row_end = longhand(PropertyID::GridRowEnd);
@@ -509,18 +511,48 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
                 return track_placement->as_grid_track_placement().grid_track_placement().is_auto();
             return false;
         };
-        StringBuilder builder;
-        if (!is_auto(row_start))
-            builder.appendff("{}", row_start->to_string(mode));
-        if (!is_auto(column_start))
-            builder.appendff(" / {}", column_start->to_string(mode));
-        if (!is_auto(row_end))
-            builder.appendff(" / {}", row_end->to_string(mode));
-        if (!is_auto(column_end))
-            builder.appendff(" / {}", column_end->to_string(mode));
-        if (builder.is_empty())
-            return "auto"_string;
-        return MUST(builder.to_string());
+
+        auto serialize_values = [&]() {
+            if (first_is_equal_to_all_of(row_start, column_start, row_end, column_end))
+                return row_start->to_string(mode);
+            if (row_start == row_end && column_start == column_end)
+                return MUST(String::formatted("{} / {}", row_start->to_string(mode), column_start->to_string(mode)));
+            if (column_start == column_end) {
+                if (is_auto(row_end)) {
+                    if (is_auto(column_start))
+                        return row_start->to_string(mode);
+                    return MUST(String::formatted("{} / {}", row_start->to_string(mode), column_start->to_string(mode)));
+                }
+                return MUST(String::formatted("{} / {} / {}", row_start->to_string(mode), column_start->to_string(mode), row_end->to_string(mode)));
+            }
+            return MUST(String::formatted("{} / {} / {} / {}", row_start->to_string(mode), column_start->to_string(mode), row_end->to_string(mode), column_end->to_string(mode)));
+        };
+
+        // If four <grid-line> values are specified, grid-row-start is set to the first value, grid-column-start is set
+        // to the second value, grid-row-end is set to the third value, and grid-column-end is set to the fourth value.
+        if (!is_auto(row_start) && !is_auto(column_start) && !is_auto(row_end) && !is_auto(column_end))
+            return serialize_values();
+
+        // When grid-column-end is omitted, if grid-column-start is a <custom-ident>, grid-column-end is set to that
+        // <custom-ident>; otherwise, it is set to auto.
+        if (is_auto(column_end) && column_start->is_custom_ident()) {
+            column_end = column_start;
+        }
+
+        // When grid-column-start is omitted, if grid-row-start is a <custom-ident>, all four longhands are set to
+        // that value. Otherwise, it is set to auto.
+        if (is_auto(column_start) && row_start->is_custom_ident()) {
+            column_start = row_start;
+            row_end = row_start;
+            column_end = row_start;
+        }
+
+        // When grid-row-end is omitted, if grid-row-start is a <custom-ident>, grid-row-end is set to that
+        // <custom-ident>; otherwise, it is set to auto.
+        if (is_auto(row_end) && row_start->is_custom_ident())
+            row_end = row_start;
+
+        return serialize_values();
     }
         // FIXME: Serialize Grid differently once we support it better!
     case PropertyID::Grid:
