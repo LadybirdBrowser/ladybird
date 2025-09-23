@@ -2974,7 +2974,7 @@ RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentVal
     // normal | italic | left | right | oblique <angle [-90deg,90deg]>?
     auto transaction = tokens.begin_transaction();
     auto keyword_value = parse_css_value_for_property(PropertyID::FontStyle, tokens);
-    if (!keyword_value)
+    if (!keyword_value || !keyword_value->is_keyword())
         return nullptr;
     auto font_style = keyword_to_font_style(keyword_value->to_keyword());
     VERIFY(font_style.has_value());

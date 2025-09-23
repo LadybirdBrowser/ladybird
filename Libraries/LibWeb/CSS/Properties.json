@@ -1694,7 +1694,8 @@
     "inherited": true,
     "initial": "normal",
     "valid-types": [
-      "font-style"
+      "font-style",
+      "angle [-90,90]"
     ]
   },
   "font-variant": {
