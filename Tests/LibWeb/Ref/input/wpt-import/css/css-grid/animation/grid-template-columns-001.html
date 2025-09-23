@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+  <title>CSS Grid: Test grid-template-columns interpolation</title>
+  <link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizing">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/animation/grid-template-columns-001-ref.html">
+  <meta name="assert" content="The grid-template-columns property should have
+                               correct interpolation result.">
+  <style>
+    @keyframes anim {
+      from {
+        grid-template-columns: 20px 1fr;
+      }
+      to {
+        grid-template-columns: 100px 1fr;
+      }
+    }
+    .grid {
+      display: grid;
+      width: 400px;
+      grid-gap: 10px;
+      animation: anim 10s -5s paused linear;
+    }
+    span { border: 1px solid; }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <span>column1</span>
+    <span>column2</span>
+  </div>
+</body>
+<script>
+  requestAnimationFrame(() => {
+    document.documentElement.classList.remove('reftest-wait');
+  });
+</script>
+</html>

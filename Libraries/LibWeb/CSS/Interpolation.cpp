@@ -461,6 +461,138 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
         { interpolated_x_axis, interpolated_y_axis, interpolated_z_axis, interpolated_angle });
 }
 
+static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationContext const& calculation_context, GridTrackSizeList const& from, GridTrackSizeList const& to, float delta)
+{
+    auto interpolate_css_size = [&](Size const& from_size, Size const& to_size) -> Size {
+        if (from_size.is_length_percentage() && to_size.is_length_percentage()) {
+            auto interpolated_length = interpolate_length_percentage(calculation_context, from_size.length_percentage(), to_size.length_percentage(), delta);
+            return Size::make_length_percentage(*interpolated_length);
+        }
+
+        if (from_size.type() != to_size.type())
+            return delta < 0.5f ? from_size : to_size;
+
+        switch (from_size.type()) {
+        case Size::Type::FitContent: {
+            if (!from_size.fit_content_available_space().has_value() || !to_size.fit_content_available_space().has_value())
+                break;
+            auto interpolated_available_space = interpolate_length_percentage(calculation_context, *from_size.fit_content_available_space(), *to_size.fit_content_available_space(), delta);
+            if (!interpolated_available_space.has_value())
+                break;
+            return Size::make_fit_content(interpolated_available_space.release_value());
+        }
+        default:
+            break;
+        }
+
+        return delta < 0.5f ? from_size : to_size;
+    };
+
+    auto interpolate_grid_size = [&](GridSize const& from_grid_size, GridSize const& to_grid_size) -> GridSize {
+        if (from_grid_size.is_flexible_length() || to_grid_size.is_flexible_length()) {
+            if (from_grid_size.is_flexible_length() && to_grid_size.is_flexible_length()) {
+                auto interpolated_flex = interpolate_raw(from_grid_size.flex_factor(), to_grid_size.flex_factor(), delta);
+                return GridSize { Flex::make_fr(interpolated_flex) };
+            }
+        } else {
+            auto interpolated_size = interpolate_css_size(from_grid_size.css_size(), to_grid_size.css_size());
+            return GridSize { move(interpolated_size) };
+        }
+        return delta < 0.5f ? from_grid_size : to_grid_size;
+    };
+
+    struct ExpandedTracksAndLines {
+        Vector<ExplicitGridTrack> tracks;
+        Vector<Optional<GridLineNames>> line_names;
+    };
+
+    auto expand_tracks_and_lines = [](GridTrackSizeList const& list) -> ExpandedTracksAndLines {
+        ExpandedTracksAndLines result;
+        Optional<ExplicitGridTrack> current_track;
+        Optional<GridLineNames> current_line_names;
+        auto append_result = [&] {
+            result.tracks.append(*current_track);
+            result.line_names.append(move(current_line_names));
+            current_track.clear();
+            current_line_names.clear();
+        };
+
+        for (auto const& component : list.list()) {
+            if (auto const* grid_line_names = component.get_pointer<GridLineNames>()) {
+                VERIFY(!current_line_names.has_value());
+                current_line_names = *grid_line_names;
+            } else if (auto const* grid_track = component.get_pointer<ExplicitGridTrack>()) {
+                if (current_track.has_value())
+                    append_result();
+
+                current_track = *grid_track;
+            }
+            if (current_track.has_value() && current_line_names.has_value())
+                append_result();
+        }
+        if (current_track.has_value())
+            append_result();
+
+        return result;
+    };
+
+    auto expanded_from = expand_tracks_and_lines(from);
+    auto expanded_to = expand_tracks_and_lines(to);
+
+    if (expanded_from.tracks.size() != expanded_to.tracks.size())
+        return {};
+
+    GridTrackSizeList interpolated_grid_track_size_list;
+    auto add_interpolated_grid_track = [&](ExplicitGridTrack track, Optional<GridLineNames> line_names) {
+        interpolated_grid_track_size_list.append(move(track));
+        if (line_names.has_value())
+            interpolated_grid_track_size_list.append(line_names.release_value());
+    };
+
+    for (size_t i = 0; i < expanded_from.tracks.size(); ++i) {
+        auto& from_track = expanded_from.tracks[i];
+        auto& to_track = expanded_to.tracks[i];
+        auto interpolated_line_names = delta < 0.5f ? move(expanded_from.line_names[i]) : move(expanded_to.line_names[i]);
+
+        if (from_track.is_repeat() || to_track.is_repeat()) {
+            // https://drafts.csswg.org/css-grid/#repeat-interpolation
+            if (!from_track.is_repeat() || !to_track.is_repeat())
+                return {};
+
+            auto from_repeat = from_track.repeat();
+            auto to_repeat = to_track.repeat();
+            if (!from_repeat.is_fixed() || !to_repeat.is_fixed())
+                return {};
+            if (from_repeat.repeat_count() != to_repeat.repeat_count() || from_repeat.grid_track_size_list().track_list().size() != to_repeat.grid_track_size_list().track_list().size())
+                return {};
+
+            auto interpolated_repeat_grid_tracks = interpolate_grid_track_size_list(calculation_context, from_repeat.grid_track_size_list(), to_repeat.grid_track_size_list(), delta);
+            if (!interpolated_repeat_grid_tracks.has_value())
+                return {};
+
+            ExplicitGridTrack interpolated_grid_track { GridRepeat { from_repeat.type(), move(*interpolated_repeat_grid_tracks), from_repeat.repeat_count() } };
+            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+        } else if (from_track.is_minmax() && to_track.is_minmax()) {
+            auto from_minmax = from_track.minmax();
+            auto to_minmax = to_track.minmax();
+            auto interpolated_min = interpolate_grid_size(from_minmax.min_grid_size(), to_minmax.min_grid_size());
+            auto interpolated_max = interpolate_grid_size(from_minmax.max_grid_size(), to_minmax.max_grid_size());
+            ExplicitGridTrack interpolated_grid_track { GridMinMax { interpolated_min, interpolated_max } };
+            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+        } else if (from_track.is_default() && to_track.is_default()) {
+            auto const& from_grid_size = from_track.grid_size();
+            auto const& to_grid_size = to_track.grid_size();
+            auto interpolated_grid_size = interpolate_grid_size(from_grid_size, to_grid_size);
+            ExplicitGridTrack interpolated_grid_track { move(interpolated_grid_size) };
+            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+        } else {
+            auto interpolated_grid_track = delta < 0.5f ? move(from_track) : move(to_track);
+            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+        }
+    }
+    return interpolated_grid_track_size_list;
+}
+
 ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
 {
     auto from = with_keyword_values_resolved(element, property_id, a_from);
@@ -568,6 +700,19 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             if (auto result = interpolate_filter_value_list(element, calculation_context, from, to, delta, allow_discrete))
                 return result;
             return interpolate_discrete(from, to, delta, allow_discrete);
+        }
+
+        if (property_id == PropertyID::GridTemplateRows || property_id == PropertyID::GridTemplateColumns) {
+            // https://drafts.csswg.org/css-grid/#track-sizing
+            // If the list lengths match, by computed value type per item in the computed track list.
+            auto from_list = from->as_grid_track_size_list().grid_track_size_list();
+            auto to_list = to->as_grid_track_size_list().grid_track_size_list();
+
+            auto interpolated_grid_tack_size_list = interpolate_grid_track_size_list(calculation_context, from_list, to_list, delta);
+            if (!interpolated_grid_tack_size_list.has_value())
+                return interpolate_discrete(from, to, delta, allow_discrete);
+
+            return GridTrackSizeListStyleValue::create(interpolated_grid_tack_size_list.release_value());
         }
 
         // FIXME: Handle all custom animatable properties
