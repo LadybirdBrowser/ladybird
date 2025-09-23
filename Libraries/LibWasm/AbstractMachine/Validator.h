@@ -87,10 +87,10 @@ public:
         return Errors::invalid("FunctionIndex"sv);
     }
 
-    ErrorOr<void, ValidationError> validate(MemoryIndex index) const
+    ErrorOr<MemoryType, ValidationError> validate(MemoryIndex index) const
     {
         if (index.value() < m_context.memories.size())
-            return {};
+            return m_context.memories[index.value()];
         return Errors::invalid("MemoryIndex"sv);
     }
 
@@ -129,10 +129,10 @@ public:
         return Errors::invalid("LocalIndex"sv);
     }
 
-    ErrorOr<void, ValidationError> validate(TableIndex index) const
+    ErrorOr<TableType, ValidationError> validate(TableIndex index) const
     {
         if (index.value() < m_context.tables.size())
-            return {};
+            return m_context.tables[index.value()];
         return Errors::invalid("TableIndex"sv);
     }
 
@@ -293,6 +293,19 @@ public:
     ErrorOr<void, ValidationError> validate(TableType const&);
     ErrorOr<void, ValidationError> validate(MemoryType const&);
     ErrorOr<void, ValidationError> validate(GlobalType const&) { return {}; }
+
+    // Proposal 'memory64'
+    ErrorOr<void, ValidationError> take_memory_address(Stack& stack, MemoryType const& memory, Instruction::MemoryArgument const& arg)
+    {
+        if (memory.limits().address_type() == AddressType::I64) {
+            TRY((stack.take<ValueType::I64>()));
+        } else {
+            if (arg.offset > NumericLimits<u32>::max())
+                return Errors::out_of_bounds("memory op offset"sv, arg.offset, 0, NumericLimits<u32>::max());
+            TRY((stack.take<ValueType::I32>()));
+        }
+        return {};
+    }
 
 private:
     explicit Validator(Context context)
