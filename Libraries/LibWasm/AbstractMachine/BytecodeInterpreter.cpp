@@ -122,6 +122,16 @@ struct InstructionHandler { };
     };                                                               \
     template<bool HasDynamicInsnLimit, typename Continue>            \
     Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
+#define ALIAS_INSTRUCTION(new_name, existing_name)                                                                              \
+    template<>                                                                                                                  \
+    struct InstructionHandler<Instructions::new_name.value()> {                                                                 \
+        template<bool HasDynamicInsnLimit, typename Continue>                                                                   \
+        static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))                                                             \
+        {                                                                                                                       \
+            TAILCALL return InstructionHandler<Instructions::existing_name.value()>::operator()<HasDynamicInsnLimit, Continue>( \
+                HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));                                                                    \
+        }                                                                                                                       \
+    };
 
 struct Continue {
     static Outcome operator()(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const*, SourcesAndDestination addresses, u64 current_ip_value, Dispatch const* cc)
@@ -3670,6 +3680,80 @@ HANDLE_INSTRUCTION(i32x4_extmul_high_i16x8_s)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+ALIAS_INSTRUCTION(i8x16_relaxed_swizzle, i8x16_swizzle)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f32x4_s, i32x4_trunc_sat_f32x4_s)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f32x4_u, i32x4_trunc_sat_f32x4_u)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f64x2_s_zero, i32x4_trunc_sat_f64x2_s_zero)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f64x2_u_zero, i32x4_trunc_sat_f64x2_u_zero)
+
+HANDLE_INSTRUCTION(f32x4_relaxed_madd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplyAdd<4> {}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(f32x4_relaxed_nmadd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplySub<4> {}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(f64x2_relaxed_madd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplyAdd<2> {}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(f64x2_relaxed_nmadd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplySub<2> {}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+ALIAS_INSTRUCTION(i8x16_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(i16x8_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(i32x4_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(i64x2_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(f32x4_relaxed_min, f32x4_min)
+ALIAS_INSTRUCTION(f32x4_relaxed_max, f32x4_max)
+ALIAS_INSTRUCTION(f64x2_relaxed_min, f64x2_min)
+ALIAS_INSTRUCTION(f64x2_relaxed_max, f64x2_max)
+ALIAS_INSTRUCTION(i16x8_relaxed_q15mulr_s, i16x8_q15mulr_sat_s)
+
+HANDLE_INSTRUCTION(i16x8_relaxed_dot_i8x16_i7x16_s)
+{
+    if (interpreter.binary_numeric_operation<u128, u128, Operators::VectorDotProduct<8>>(configuration, addresses))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(i32x4_relaxed_dot_i8x16_i7x16_add_s)
+{
+    // do i16x8 dot first, then fold back down to i32, then do the final component add.
+    auto rhs = configuration.take_source(0, addresses.sources).to<u128>();
+    auto lhs = configuration.take_source(1, addresses.sources).to<u128>(); // bounds checked by verifier.
+    auto result = Operators::VectorDotProduct<4, Operators::VectorIntegerExtOpPairwise<4, Operators::Add>> {}(lhs, rhs);
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    c_slot = Value { Operators::VectorIntegerBinaryOp<4, Operators::Add, MakeSigned> {}(result, c_slot.to<u128>()) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 template<u64 opcode, bool HasDynamicInsnLimit, typename Continue, typename... Args>
 constexpr static auto handle_instruction(Args&&... a)
 {
@@ -4000,10 +4084,10 @@ bool BytecodeInterpreter::binary_numeric_operation(Configuration& configuration,
     return false;
 }
 
-template<typename PopType, typename PushType, typename Operator, typename... Args>
+template<typename PopType, typename PushType, typename Operator, size_t input_arg, typename... Args>
 bool BytecodeInterpreter::unary_operation(Configuration& configuration, SourcesAndDestination const& addresses, Args&&... args)
 {
-    auto& entry = configuration.source_value(0, addresses.sources); // bounds checked by verifier.
+    auto& entry = configuration.source_value(input_arg, addresses.sources); // bounds checked by verifier.
     auto value = entry.to<PopType>();
     auto call_result = Operator { forward<Args>(args)... }(value);
     PushType result;
