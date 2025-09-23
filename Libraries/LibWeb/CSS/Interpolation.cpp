@@ -1142,6 +1142,67 @@ static RefPtr<StyleValue const> interpolate_mixed_value(CalculationContext const
     return {};
 }
 
+template<typename T>
+static NonnullRefPtr<StyleValue const> length_percentage_or_auto_to_style_value(T const& value)
+{
+    if constexpr (requires { value.is_auto(); }) {
+        if (value.is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+    }
+    if (value.is_length())
+        return LengthStyleValue::create(value.length());
+    if (value.is_percentage())
+        return PercentageStyleValue::create(value.percentage());
+    if (value.is_calculated())
+        return value.calculated();
+    VERIFY_NOT_REACHED();
+}
+
+Optional<LengthPercentage> interpolate_length_percentage(CalculationContext const& calculation_context, LengthPercentage const& from, LengthPercentage const& to, float delta)
+{
+    if (from.is_length() && to.is_length())
+        return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
+    if (from.is_percentage() && to.is_percentage())
+        return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
+    auto from_style_value = length_percentage_or_auto_to_style_value(from);
+    auto to_style_value = length_percentage_or_auto_to_style_value(to);
+    auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
+    if (!interpolated_style_value)
+        return {};
+    if (interpolated_style_value->is_length())
+        return interpolated_style_value->as_length().length();
+    if (interpolated_style_value->is_percentage())
+        return interpolated_style_value->as_percentage().percentage();
+    if (interpolated_style_value->is_calculated())
+        return LengthPercentage { interpolated_style_value->as_calculated() };
+    VERIFY_NOT_REACHED();
+}
+
+Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta)
+{
+    if (from.is_auto() && to.is_auto())
+        return LengthPercentageOrAuto::make_auto();
+    if (from.is_length() && to.is_length())
+        return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
+    if (from.is_percentage() && to.is_percentage())
+        return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
+
+    auto from_style_value = length_percentage_or_auto_to_style_value(from);
+    auto to_style_value = length_percentage_or_auto_to_style_value(to);
+    auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
+    if (!interpolated_style_value)
+        return {};
+    if (interpolated_style_value->to_keyword() == Keyword::Auto)
+        return LengthPercentageOrAuto::make_auto();
+    if (interpolated_style_value->is_length())
+        return interpolated_style_value->as_length().length();
+    if (interpolated_style_value->is_percentage())
+        return interpolated_style_value->as_percentage().percentage();
+    if (interpolated_style_value->is_calculated())
+        return LengthPercentage { interpolated_style_value->as_calculated() };
+    VERIFY_NOT_REACHED();
+}
+
 static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
     if (from.type() != to.type() || from.is_calculated() || to.is_calculated()) {
@@ -1149,63 +1210,6 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         // https://www.w3.org/TR/css-values-4/#mixed-percentages
         return interpolate_mixed_value(calculation_context, from, to, delta);
     }
-
-    static auto length_percentage_or_auto_to_style_value = [](auto const& value) -> NonnullRefPtr<StyleValue const> {
-        if constexpr (requires { value.is_auto(); }) {
-            if (value.is_auto())
-                return KeywordStyleValue::create(Keyword::Auto);
-        }
-        if (value.is_length())
-            return LengthStyleValue::create(value.length());
-        if (value.is_percentage())
-            return PercentageStyleValue::create(value.percentage());
-        if (value.is_calculated())
-            return value.calculated();
-        VERIFY_NOT_REACHED();
-    };
-
-    static auto interpolate_length_percentage = [](CalculationContext const& calculation_context, LengthPercentage const& from, LengthPercentage const& to, float delta) -> Optional<LengthPercentage> {
-        if (from.is_length() && to.is_length())
-            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
-        if (from.is_percentage() && to.is_percentage())
-            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
-        auto from_style_value = length_percentage_or_auto_to_style_value(from);
-        auto to_style_value = length_percentage_or_auto_to_style_value(to);
-        auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
-        if (!interpolated_style_value)
-            return {};
-        if (interpolated_style_value->is_length())
-            return interpolated_style_value->as_length().length();
-        if (interpolated_style_value->is_percentage())
-            return interpolated_style_value->as_percentage().percentage();
-        if (interpolated_style_value->is_calculated())
-            return LengthPercentage { interpolated_style_value->as_calculated() };
-        VERIFY_NOT_REACHED();
-    };
-
-    static auto interpolate_length_percentage_or_auto = [](CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta) -> Optional<LengthPercentageOrAuto> {
-        if (from.is_auto() && to.is_auto())
-            return LengthPercentageOrAuto::make_auto();
-        if (from.is_length() && to.is_length())
-            return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
-        if (from.is_percentage() && to.is_percentage())
-            return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
-
-        auto from_style_value = length_percentage_or_auto_to_style_value(from);
-        auto to_style_value = length_percentage_or_auto_to_style_value(to);
-        auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
-        if (!interpolated_style_value)
-            return {};
-        if (interpolated_style_value->to_keyword() == Keyword::Auto)
-            return LengthPercentageOrAuto::make_auto();
-        if (interpolated_style_value->is_length())
-            return interpolated_style_value->as_length().length();
-        if (interpolated_style_value->is_percentage())
-            return interpolated_style_value->as_percentage().percentage();
-        if (interpolated_style_value->is_calculated())
-            return LengthPercentage { interpolated_style_value->as_calculated() };
-        VERIFY_NOT_REACHED();
-    };
 
     switch (from.type()) {
     case StyleValue::Type::Angle: {

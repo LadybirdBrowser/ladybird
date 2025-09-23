@@ -25,6 +25,9 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element&, Prope
 // https://drafts.csswg.org/css-transitions/#transitionable
 bool property_values_are_transitionable(PropertyID, StyleValue const& old_value, StyleValue const& new_value, DOM::Element&, TransitionBehavior);
 
+Optional<LengthPercentage> interpolate_length_percentage(CalculationContext const& calculation_context, LengthPercentage const& from, LengthPercentage const& to, float delta);
+Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta);
+
 RefPtr<StyleValue const> interpolate_value(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
