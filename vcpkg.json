@@ -212,7 +212,7 @@
     },
     {
       "name": "dbus",
-      "version": "1.16.2#1"
+      "version": "1.16.2#2"
     },
     {
       "name": "dirent",
