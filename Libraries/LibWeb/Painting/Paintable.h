@@ -111,6 +111,8 @@ public:
     GC::Ptr<HTML::Navigable> navigable() const;
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void set_needs_paint_only_properties_update(bool);
+    [[nodiscard]] bool needs_paint_only_properties_update() const { return m_needs_paint_only_properties_update; }
 
     PaintableBox* containing_block() const;
 
@@ -177,6 +179,7 @@ private:
     bool m_absolutely_positioned : 1 { false };
     bool m_floating : 1 { false };
     bool m_inline : 1 { false };
+    bool m_needs_paint_only_properties_update : 1 { true };
 };
 
 inline DOM::Node* HitTestResult::dom_node()

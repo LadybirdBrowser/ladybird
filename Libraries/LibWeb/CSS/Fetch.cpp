@@ -10,6 +10,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::CSS {
 
@@ -131,7 +132,8 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
 
             if (auto navigable = document->navigable()) {
                 // Once the image has loaded, we need to re-resolve CSS properties that depend on the image's dimensions.
-                document->set_needs_to_resolve_paint_only_properties();
+                if (auto paintable = document->paintable())
+                    paintable->set_needs_paint_only_properties_update(true);
 
                 // FIXME: Do less than a full repaint if possible?
                 document->set_needs_display();

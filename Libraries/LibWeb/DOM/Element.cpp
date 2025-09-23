@@ -762,14 +762,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     if (invalidation.is_none())
         return invalidation;
 
-    if (invalidation.repaint)
-        document().set_needs_to_resolve_paint_only_properties();
+    if (invalidation.repaint && paintable())
+        paintable()->set_needs_paint_only_properties_update(true);
 
     if (!invalidation.rebuild_layout_tree && layout_node()) {
         // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
         layout_node()->apply_style(*m_computed_properties);
-        if (invalidation.repaint && paintable())
+        if (invalidation.repaint && paintable()) {
+            paintable()->set_needs_paint_only_properties_update(true);
             paintable()->set_needs_display();
+        }
 
         // Do the same for pseudo-elements.
         for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
@@ -784,8 +786,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
             if (auto node_with_style = pseudo_element->layout_node()) {
                 node_with_style->apply_style(*pseudo_element_style);
-                if (invalidation.repaint && node_with_style->first_paintable())
+                if (invalidation.repaint && node_with_style->first_paintable()) {
+                    node_with_style->first_paintable()->set_needs_paint_only_properties_update(true);
                     node_with_style->first_paintable()->set_needs_display();
+                }
             }
         }
     }
