@@ -694,8 +694,9 @@ AnimationUpdateContext::~AnimationUpdateContext()
             }
         }
         if (invalidation.repaint) {
+            if (target->paintable())
+                target->paintable()->set_needs_paint_only_properties_update(true);
             element.document().set_needs_display();
-            element.document().set_needs_to_resolve_paint_only_properties();
         }
         if (invalidation.rebuild_stacking_context_tree)
             element.document().invalidate_stacking_context_tree();

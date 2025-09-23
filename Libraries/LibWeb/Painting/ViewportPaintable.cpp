@@ -302,6 +302,15 @@ void ViewportPaintable::refresh_scroll_state()
     });
 }
 
+static void resolve_paint_only_properties_in_subtree(Paintable& root)
+{
+    root.for_each_in_inclusive_subtree([&](auto& paintable) {
+        paintable.resolve_paint_properties();
+        paintable.set_needs_paint_only_properties_update(false);
+        return TraversalDecision::Continue;
+    });
+}
+
 void ViewportPaintable::resolve_paint_only_properties()
 {
     // Resolves layout-dependent properties not handled during layout and stores them in the paint tree.
@@ -313,7 +322,10 @@ void ViewportPaintable::resolve_paint_only_properties()
     // - Transform origins
     // - Outlines
     for_each_in_inclusive_subtree([&](Paintable& paintable) {
-        paintable.resolve_paint_properties();
+        if (paintable.needs_paint_only_properties_update()) {
+            resolve_paint_only_properties_in_subtree(paintable);
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
         return TraversalDecision::Continue;
     });
 }
