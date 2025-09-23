@@ -229,10 +229,7 @@ public:
         m_first_available_computed_font = m_font_list->font_for_code_point(' ');
     }
 
-    [[nodiscard]] CSSPixels compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
-
-    [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
-    void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }
+    [[nodiscard]] CSSPixels line_height() const;
     [[nodiscard]] CSSPixels font_size() const;
     double font_weight() const;
     Percentage font_width() const;
