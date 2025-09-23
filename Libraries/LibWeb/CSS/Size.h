@@ -45,6 +45,7 @@ public:
     bool is_max_content() const { return m_type == Type::MaxContent; }
     bool is_fit_content() const { return m_type == Type::FitContent; }
     bool is_none() const { return m_type == Type::None; }
+    Type type() const { return m_type; }
 
     bool is_length_percentage() const { return is_length() || is_percentage() || is_calculated(); }
 
