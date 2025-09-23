@@ -611,6 +611,32 @@ TEST_CASE(unsigned_integer)
     EXPECT(!actual_u64.has_value());
 }
 
+TEST_CASE(unicode_emojis_with_low_byte_in_UTF_16_matching_the_value_of_an_ascii_digit)
+{
+#define EXPECT_PARSE_TO_FAIL_FOR_EMOJI(string_value)                     \
+    do {                                                                 \
+        EXPECT(!AK::parse_number<u32>(string_value##sv).has_value());    \
+        EXPECT(!AK::parse_number<u32>(u##string_value##sv).has_value()); \
+    } while (false)
+
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("ℹ");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("ℹ️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("☸");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("☸️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("☹");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("☹️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("✳");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("✳️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("✴");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("✴️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("⤴");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("⤴️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("⤵");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("⤵️");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("〰");
+    EXPECT_PARSE_TO_FAIL_FOR_EMOJI("〰️");
+}
+
 TEST_CASE(octal)
 {
     auto value = AK::parse_number<u16>(StringView(), AK::TrimWhitespace::No, 8);
