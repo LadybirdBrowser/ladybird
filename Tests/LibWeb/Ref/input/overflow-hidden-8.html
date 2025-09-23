@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/overflow-hidden-8-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-70">
+<style>
+#outer {
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+    position: absolute;
+    border-radius: 9999px;
+}
+#middle {
+    overflow: hidden;
+    position: absolute;
+    transform: translateZ(0px);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    top: 0;
+}
+#inner {
+    background-color: blueviolet;
+    position: absolute;
+    height: 100%;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 100%;
+}
+</style><div id="outer"><div id="middle"><div id="inner">
