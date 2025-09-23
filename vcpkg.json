@@ -208,7 +208,7 @@
     },
     {
       "name": "curl",
-      "version": "8.15.0#1"
+      "version": "8.16.0#0"
     },
     {
       "name": "dbus",
