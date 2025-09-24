@@ -92,7 +92,6 @@ public:
     Optional<Length> resolve_length(CalculationResolutionContext const&) const;
 
     bool resolves_to_percentage() const { return m_resolved_type.matches_percentage(); }
-    Optional<Percentage> resolve_percentage_deprecated(CalculationResolutionContext const&) const;
     Optional<Percentage> resolve_percentage(CalculationResolutionContext const&) const;
 
     bool resolves_to_resolution() const { return m_resolved_type.matches_resolution(m_context.percentages_resolve_as); }

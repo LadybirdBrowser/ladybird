@@ -106,7 +106,7 @@ NonnullRefPtr<StyleValue const> NumberOrCalculated::create_style_value() const
 
 Optional<Percentage> PercentageOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_percentage_deprecated(context);
+    return calculated->resolve_percentage(context);
 }
 
 NonnullRefPtr<StyleValue const> PercentageOrCalculated::create_style_value() const

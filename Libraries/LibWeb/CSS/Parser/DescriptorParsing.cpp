@@ -191,7 +191,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                         }
                         // All calculations in descriptors must be resolvable at parse-time.
                         if (percentage_value->is_calculated()) {
-                            auto percentage = percentage_value->as_calculated().resolve_percentage_deprecated({});
+                            auto percentage = percentage_value->as_calculated().resolve_percentage({});
                             if (percentage.has_value() && percentage->value() >= 0)
                                 return PercentageStyleValue::create(percentage.release_value());
                             return nullptr;

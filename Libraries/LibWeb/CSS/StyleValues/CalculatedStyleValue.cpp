@@ -3029,14 +3029,6 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
     return {};
 }
 
-Optional<Percentage> CalculatedStyleValue::resolve_percentage_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_percentage())
-        return Percentage { result.value() };
-    return {};
-}
-
 Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);
