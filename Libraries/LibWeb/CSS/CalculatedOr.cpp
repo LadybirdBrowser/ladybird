@@ -60,7 +60,7 @@ NonnullRefPtr<StyleValue const> IntegerOrCalculated::create_style_value() const
 
 Optional<Length> LengthOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_length_deprecated(context);
+    return calculated->resolve_length(context);
 }
 
 NonnullRefPtr<StyleValue const> LengthOrCalculated::create_style_value() const
