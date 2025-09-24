@@ -126,7 +126,7 @@ NonnullRefPtr<StyleValue const> ResolutionOrCalculated::create_style_value() con
 
 Optional<Time> TimeOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_time_deprecated(context);
+    return calculated->resolve_time(context);
 }
 
 NonnullRefPtr<StyleValue const> TimeOrCalculated::create_style_value() const

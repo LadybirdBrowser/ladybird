@@ -3057,14 +3057,6 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
     return {};
 }
 
-Optional<Time> CalculatedStyleValue::resolve_time_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_time(m_context.percentages_resolve_as))
-        return Time::make_seconds(result.value());
-    return {};
-}
-
 Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);
