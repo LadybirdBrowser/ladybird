@@ -324,7 +324,7 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface const> vector_font() const { return m_vector_font; }
 
-    RefPtr<Gfx::Font const> font_with_point_size(float point_size);
+    RefPtr<Gfx::Font const> font_with_point_size(float point_size, Vector<std::pair<Gfx::FourByteTag, float>> const& axes = {});
     void start_loading_next_url();
 
     bool is_loading() const;

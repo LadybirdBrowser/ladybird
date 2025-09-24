@@ -58,8 +58,12 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
     if (it == m_typeface_by_family.end())
         return nullptr;
     for (auto const& typeface : it->value) {
-        if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope)
-            return typeface->font(point_size);
+        if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope) {
+            Vector<std::pair<Gfx::FourByteTag, float>> axes;
+            axes.append({ Gfx::MakeFourByteTag('w', 'g', 'h', 't'), static_cast<float>(weight) });
+
+            return typeface->font(point_size, axes);
+        }
     }
     return nullptr;
 }

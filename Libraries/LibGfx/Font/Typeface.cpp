@@ -47,10 +47,11 @@ Typeface::~Typeface()
         hb_blob_destroy(m_harfbuzz_blob);
 }
 
-NonnullRefPtr<Font> Typeface::font(float point_size) const
+NonnullRefPtr<Font> Typeface::font(float point_size, Vector<std::pair<FourByteTag, float>> const& axes) const
 {
-    auto it = m_fonts.find(point_size);
-    if (it != m_fonts.end())
+    FontCacheKey key { point_size, axes };
+
+    if (auto it = m_fonts.find(key); it != m_fonts.end())
         return *it->value;
 
     // FIXME: It might be nice to have a global cap on the number of fonts we cache
@@ -59,8 +60,15 @@ NonnullRefPtr<Font> Typeface::font(float point_size) const
     if (m_fonts.size() > max_cached_font_size_count)
         m_fonts.remove(m_fonts.begin());
 
-    auto font = adopt_ref(*new Font(*this, point_size, point_size));
-    m_fonts.set(point_size, font);
+    RefPtr<Typeface> used_typeface = const_cast<Typeface*>(this);
+    if (!axes.is_empty()) {
+        if (auto skia_typeface = dynamic_cast<TypefaceSkia const*>(this))
+            if (auto derived = skia_typeface->clone_with_variations(axes))
+                used_typeface = move(derived);
+    }
+
+    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size));
+    m_fonts.set(move(key), font);
     return font;
 }
 

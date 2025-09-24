@@ -91,6 +91,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <include/core/SkTypes.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -226,14 +227,14 @@ bool FontLoader::is_loading() const
     return m_fetch_controller && !m_vector_font;
 }
 
-RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
+RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size, Vector<std::pair<Gfx::FourByteTag, float>> const& axes)
 {
     if (!m_vector_font) {
         if (!m_fetch_controller)
             start_loading_next_url();
         return nullptr;
     }
-    return m_vector_font->font(point_size);
+    return m_vector_font->font(point_size, axes);
 }
 
 void FontLoader::start_loading_next_url()
@@ -327,18 +328,19 @@ struct StyleComputer::MatchingFontCandidate {
     FontFaceKey key;
     Variant<FontLoaderList*, Gfx::Typeface const*> loader_or_typeface;
 
-    [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size) const
+    // todo: implement it in all places
+    [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size, Vector<std::pair<Gfx::FourByteTag, float>> const& axes = {}) const
     {
         auto font_list = Gfx::FontCascadeList::create();
         if (auto* loader_list = loader_or_typeface.get_pointer<FontLoaderList*>(); loader_list) {
             for (auto const& loader : **loader_list) {
-                if (auto font = loader->font_with_point_size(point_size); font)
+                if (auto font = loader->font_with_point_size(point_size, axes); font)
                     font_list->add(*font, loader->unicode_ranges());
             }
             return font_list;
         }
 
-        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->font(point_size));
+        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->font(point_size, axes));
         return font_list;
     }
 };
@@ -1728,8 +1730,10 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_asce
     auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= target_weight; })
                           : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight > target_weight; });
     auto it = find_if(candidates.begin(), candidates.end(), pred);
+    Vector<std::pair<Gfx::FourByteTag, float>> axes;
+    axes.append({ Gfx::MakeFourByteTag('w', 'g', 'h', 't'), static_cast<float>(target_weight) });
     for (; it != candidates.end(); ++it) {
-        if (auto found_font = it->font_with_point_size(font_size_in_pt))
+        if (auto found_font = it->font_with_point_size(font_size_in_pt, axes))
             return found_font;
     }
     return {};
@@ -1741,8 +1745,10 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_desc
     auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight <= target_weight; })
                           : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight < target_weight; });
     auto it = find_if(candidates.rbegin(), candidates.rend(), pred);
+    Vector<std::pair<Gfx::FourByteTag, float>> axes;
+    axes.append({ Gfx::MakeFourByteTag('w', 'g', 'h', 't'), static_cast<float>(target_weight) });
     for (; it != candidates.rend(); ++it) {
-        if (auto found_font = it->font_with_point_size(font_size_in_pt))
+        if (auto found_font = it->font_with_point_size(font_size_in_pt, axes))
             return found_font;
     }
     return {};
@@ -1786,17 +1792,22 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyStr
     // If the desired weight is inclusively between 400 and 500, weights greater than or equal to the target weight
     // are checked in ascending order until 500 is hit and checked, followed by weights less than the target weight
     // in descending order, followed by weights greater than 500, until a match is found.
+
+
     if (weight >= 400 && weight <= 500) {
+        Vector<std::pair<Gfx::FourByteTag, float>> axes;
+        axes.append({ Gfx::MakeFourByteTag('w', 'g', 'h', 't'), static_cast<float>(weight) });
+
         auto it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
             [&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= weight; });
         for (; it != matching_family_fonts.end() && it->key.weight <= 500; ++it) {
-            if (auto found_font = it->font_with_point_size(font_size_in_pt))
+            if (auto found_font = it->font_with_point_size(font_size_in_pt, axes))
                 return found_font;
         }
         if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, false))
             return found_font;
         for (; it != matching_family_fonts.end(); ++it) {
-            if (auto found_font = it->font_with_point_size(font_size_in_pt))
+            if (auto found_font = it->font_with_point_size(font_size_in_pt, axes))
                 return found_font;
         }
     }
@@ -1896,10 +1907,17 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         auto result = Gfx::FontCascadeList::create();
         if (auto it = m_loaded_fonts.find(key); it != m_loaded_fonts.end()) {
             auto const& loaders = it->value;
+
+            // Build simple axes vector: map CSS weight -> 'wght'
+            Vector<std::pair<Gfx::FourByteTag, float>> axes;
+            axes.append({ Gfx::MakeFourByteTag('w', 'g', 'h', 't'), static_cast<float>(weight) });
+
+            // Forward axes to loader. Existing callers that don't supply axes will still work.
             for (auto const& loader : loaders) {
-                if (auto found_font = loader->font_with_point_size(font_size_in_pt))
+                if (auto found_font = loader->font_with_point_size(font_size_in_pt, axes))
                     result->add(*found_font, loader->unicode_ranges());
             }
+
             return result;
         }
 
