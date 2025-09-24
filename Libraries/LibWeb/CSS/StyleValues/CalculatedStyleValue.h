@@ -96,7 +96,6 @@ public:
     Optional<Percentage> resolve_percentage(CalculationResolutionContext const&) const;
 
     bool resolves_to_resolution() const { return m_resolved_type.matches_resolution(m_context.percentages_resolve_as); }
-    Optional<Resolution> resolve_resolution_deprecated(CalculationResolutionContext const&) const;
     Optional<Resolution> resolve_resolution(CalculationResolutionContext const&) const;
 
     bool resolves_to_time() const { return m_resolved_type.matches_time(m_context.percentages_resolve_as); }
