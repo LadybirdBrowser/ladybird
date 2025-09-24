@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibMedia/Audio/Forward.h>
+#include <LibMedia/Track.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::HTML {
@@ -22,14 +23,6 @@ public:
 
     void set_audio_track_list(Badge<AudioTrackList>, GC::Ptr<AudioTrackList> audio_track_list) { m_audio_track_list = audio_track_list; }
 
-    void play();
-    void pause();
-
-    AK::Duration duration();
-    void seek(double, MediaSeekMode);
-
-    void update_volume();
-
     String const& id() const { return m_id; }
     String const& kind() const { return m_kind; }
     String const& label() const { return m_label; }
@@ -38,8 +31,10 @@ public:
     bool enabled() const { return m_enabled; }
     void set_enabled(bool enabled);
 
+    Media::Track const& track_in_playback_manager() const { return m_track_in_playback_manager; }
+
 private:
-    AudioTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, NonnullRefPtr<Audio::Loader>);
+    AudioTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -62,7 +57,7 @@ private:
     GC::Ref<HTMLMediaElement> m_media_element;
     GC::Ptr<AudioTrackList> m_audio_track_list;
 
-    NonnullOwnPtr<Platform::AudioCodecPlugin> m_audio_plugin;
+    Media::Track m_track_in_playback_manager;
 };
 
 }
