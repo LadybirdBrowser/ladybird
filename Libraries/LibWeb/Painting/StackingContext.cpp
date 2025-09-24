@@ -326,6 +326,10 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         push_stacking_context_params.clip_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(device_pixel_scale, device_pixel_scale).set_translation(source_paintable_rect.location().to_type<float>()));
     }
 
+    if (paintable_box().layout_node().has_paint_containment()) {
+        push_stacking_context_params.bounding_rect = context.enclosing_device_rect(paintable_box().overflow_clip_edge_rect());
+    }
+
     if (!transform_matrix.is_identity())
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
     paintable_box().apply_scroll_offset(context);

@@ -193,7 +193,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
 
         if (command.has<PushStackingContext>()) {
             auto& push_stacking_context = command.get<PushStackingContext>();
-            if (push_stacking_context.can_aggregate_children_bounds) {
+            if (push_stacking_context.can_aggregate_children_bounds && !push_stacking_context.bounding_rect.has_value()) {
                 bounding_rect = compute_stacking_context_bounds(push_stacking_context, command_index);
                 push_stacking_context.bounding_rect = bounding_rect;
             }
