@@ -477,7 +477,6 @@ void TinyVGDecodedImageData::draw(Painter& painter) const
         auto draw_path = command.path;
         if (command.fill.has_value()) {
             auto fill_path = draw_path;
-            fill_path.close_all_subpaths();
             command.fill->visit(
                 [&](Color color) { painter.fill_path(fill_path, color, WindingRule::EvenOdd); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> const& style) {

@@ -21,7 +21,6 @@ public:
     virtual void clear() override;
     virtual void move_to(Gfx::FloatPoint const&) override;
     virtual void line_to(Gfx::FloatPoint const&) override;
-    virtual void close_all_subpaths() override;
     virtual void close() override;
     virtual void elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep) override;
     virtual void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) override;
