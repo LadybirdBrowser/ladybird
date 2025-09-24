@@ -50,7 +50,7 @@ NonnullRefPtr<StyleValue const> FrequencyOrCalculated::create_style_value() cons
 
 Optional<i64> IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_integer_deprecated(context);
+    return calculated->resolve_integer(context);
 }
 
 NonnullRefPtr<StyleValue const> IntegerOrCalculated::create_style_value() const
