@@ -13,7 +13,9 @@ shared_library("LibMedia") {
     "Containers/Matroska/MatroskaDemuxer.cpp",
     "Containers/Matroska/Reader.cpp",
     "PlaybackManager.cpp",
+    "Providers/AudioDataProvider.cpp",
     "Providers/VideoDataProvider.cpp",
+    "Sinks/AudioMixingSink.cpp",
     "Sinks/DisplayingVideoSink.cpp",
     "VideoFrame.cpp",
   ]
@@ -26,6 +28,7 @@ shared_library("LibMedia") {
   if (enable_ffmpeg) {
     sources += [
       "Audio/FFmpegLoader.cpp",
+      "FFmpeg/FFmpegAudioDecoder.cpp",
       "FFmpeg/FFmpegVideoDecoder.cpp",
     ]
   } else {

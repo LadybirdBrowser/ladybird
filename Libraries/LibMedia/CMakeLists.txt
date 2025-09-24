@@ -11,7 +11,9 @@ set(SOURCES
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     PlaybackManager.cpp
+    Providers/AudioDataProvider.cpp
     Providers/VideoDataProvider.cpp
+    Sinks/AudioMixingSink.cpp
     Sinks/DisplayingVideoSink.cpp
     VideoFrame.cpp
 )
@@ -21,6 +23,7 @@ target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThread
 
 target_sources(LibMedia PRIVATE
         Audio/FFmpegLoader.cpp
+        FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegDemuxer.cpp
         FFmpeg/FFmpegIOContext.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
