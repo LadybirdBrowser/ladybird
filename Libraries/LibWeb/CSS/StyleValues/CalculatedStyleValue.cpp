@@ -3001,14 +3001,6 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
     return {};
 }
 
-Optional<Frequency> CalculatedStyleValue::resolve_frequency_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_frequency(m_context.percentages_resolve_as))
-        return Frequency::make_hertz(result.value());
-    return {};
-}
-
 Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);

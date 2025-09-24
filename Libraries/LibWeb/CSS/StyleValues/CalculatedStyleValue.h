@@ -84,7 +84,6 @@ public:
 
     bool resolves_to_frequency() const { return m_resolved_type.matches_frequency(m_context.percentages_resolve_as); }
     bool resolves_to_frequency_percentage() const { return m_resolved_type.matches_frequency_percentage(m_context.percentages_resolve_as); }
-    Optional<Frequency> resolve_frequency_deprecated(CalculationResolutionContext const&) const;
     Optional<Frequency> resolve_frequency(CalculationResolutionContext const&) const;
 
     bool resolves_to_length() const { return m_resolved_type.matches_length(m_context.percentages_resolve_as); }
