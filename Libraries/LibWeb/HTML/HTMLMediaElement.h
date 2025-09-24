@@ -130,6 +130,8 @@ public:
     GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
     GC::Ref<TextTrackList> text_tracks() const { return *m_text_tracks; }
 
+    void set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool);
+
     void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
 
     void update_video_frame_and_timeline();
