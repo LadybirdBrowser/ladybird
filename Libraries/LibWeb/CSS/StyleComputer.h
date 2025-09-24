@@ -146,14 +146,10 @@ public:
     DOM::Document& document() { return m_document; }
     DOM::Document const& document() const { return m_document; }
 
-    void reset_ancestor_filter();
-    void push_ancestor(DOM::Element const&);
-    void pop_ancestor(DOM::Element const&);
-
     [[nodiscard]] GC::Ref<ComputedProperties> create_document_style() const;
 
-    [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
+    [[nodiscard]] GC::Ref<ComputedProperties> compute_element_style(DOM::AbstractElement);
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
@@ -212,6 +208,10 @@ public:
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const&);
     static NonnullRefPtr<StyleValue const> compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&);
     static NonnullRefPtr<StyleValue const> compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&);
+    CSS::RequiredInvalidationAfterStyleChange update_element_computed_style(Web::DOM::Element& element, bool& did_change_custom_properties);
+    CSS::RequiredInvalidationAfterStyleChange update_element_inherited_computed_style(Web::DOM::Element& element);
+    CSS::RequiredInvalidationAfterStyleChange update_document_computed_style();
+    void invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass pseudo_class, GC::Ptr<Web::DOM::Node>& element_slot, Web::DOM::Node& old_new_common_ancestor, GC::Ptr<Web::DOM::Node>& node);
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -235,6 +235,7 @@ private:
     };
 
     [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
+    [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
 
     LogicalAliasMappingContext compute_logical_alias_mapping_context(DOM::AbstractElement, ComputeStyleMode, MatchingRuleSet const&) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties) const;
@@ -247,6 +248,7 @@ private:
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;
     void transform_box_type_if_needed(ComputedProperties&, DOM::AbstractElement) const;
+    CSS::RequiredInvalidationAfterStyleChange update_computed_style_recursively(DOM::Node& node, bool needs_inherited_style_update, bool recompute_elements_depending_on_custom_properties);
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
@@ -310,6 +312,14 @@ private:
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
+    bool m_ancestor_filter_enabled = true;
+
+    bool ancestor_filter_enabled() { return m_ancestor_filter; }
+    void enable_ancestor_filter();
+    void disable_ancestor_filter();
+    void reset_ancestor_filter();
+    void push_ancestor(DOM::Element const&);
+    void pop_ancestor(DOM::Element const&);
 };
 
 class FontLoader final : public GC::Cell {
@@ -348,6 +358,10 @@ private:
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
 {
+    if (!m_ancestor_filter_enabled) {
+        return false;
+    }
+
     for (u32 hash : selector.ancestor_hashes()) {
         if (hash == 0)
             break;

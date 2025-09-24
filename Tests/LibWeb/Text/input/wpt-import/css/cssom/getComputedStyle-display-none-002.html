@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSOM: getComputedStyle gets invalidated for display: none elements (rules)</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=186882">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+#undisplayed {
+  display: none;
+  color: red;
+}
+.sibling + #undisplayed {
+  color: green;
+}
+
+.sibling + #undisplayed > div {
+  color: yellow;
+}
+</style>
+<div id="helper"></div>
+<div id="undisplayed"><div id="child"></div></div>
+<script>
+  test(function() {
+    let undisplayed_style = getComputedStyle(undisplayed);
+    let undisplayed_child_style = getComputedStyle(child);
+    assert_equals(undisplayed_style.color, "rgb(255, 0, 0)");
+    assert_equals(undisplayed_child_style.color, "rgb(255, 0, 0)");
+    helper.classList.add("sibling");
+    assert_equals(undisplayed_style.color, "rgb(0, 128, 0)");
+    assert_equals(undisplayed_child_style.color, "rgb(255, 255, 0)");
+  }, "getComputedStyle gets invalidated in display: none subtrees due to rule matching changes");
+</script>
