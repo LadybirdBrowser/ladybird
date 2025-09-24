@@ -728,25 +728,6 @@ static Optional<double> try_get_number(CalculationNode const& child)
     return maybe_number->value();
 }
 
-CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    if (m_value.has<Percentage>()) {
-        // NOTE: Depending on whether percentage_basis is set, the caller of resolve() is expecting a raw percentage or
-        //       resolved type.
-        return context.percentage_basis.visit(
-            [&](Empty const&) {
-                VERIFY(numeric_type_from_calculated_style_value(m_value, {}) == numeric_type());
-                return CalculatedStyleValue::CalculationResult::from_value(m_value, context, numeric_type());
-            },
-            [&](auto const& value) {
-                auto const calculated_value = value.percentage_of(m_value.get<Percentage>());
-                return CalculatedStyleValue::CalculationResult::from_value(calculated_value, context, numeric_type_from_calculated_style_value(calculated_value, {}));
-            });
-    }
-
-    return CalculatedStyleValue::CalculationResult::from_value(m_value, context, numeric_type());
-}
-
 RefPtr<StyleValue const> NumericCalculationNode::to_style_value(CalculationContext const& context) const
 {
     // TODO: Clamp values to the range allowed by the context.
@@ -861,22 +842,6 @@ bool SumCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult SumCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    Optional<CalculatedStyleValue::CalculationResult> total;
-
-    for (auto& additional_product : m_values) {
-        auto additional_value = additional_product->resolve(context);
-        if (!total.has_value()) {
-            total = additional_value;
-            continue;
-        }
-        total->add(additional_value);
-    }
-
-    return total.value();
-}
-
 NonnullRefPtr<CalculationNode const> SumCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_children_vector(*this, context, resolution_context);
@@ -939,22 +904,6 @@ bool ProductCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult ProductCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    Optional<CalculatedStyleValue::CalculationResult> total;
-
-    for (auto& additional_product : m_values) {
-        auto additional_value = additional_product->resolve(context);
-        if (!total.has_value()) {
-            total = additional_value;
-            continue;
-        }
-        total->multiply_by(additional_value);
-    }
-
-    return total.value();
-}
-
 NonnullRefPtr<CalculationNode const> ProductCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_children_vector(*this, context, resolution_context);
@@ -1007,13 +956,6 @@ NegateCalculationNode::~NegateCalculationNode() = default;
 bool NegateCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult NegateCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto child_value = m_value->resolve(context);
-    child_value.negate();
-    return child_value;
 }
 
 NonnullRefPtr<CalculationNode const> NegateCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -1069,13 +1011,6 @@ bool InvertCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult InvertCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto child_value = m_value->resolve(context);
-    child_value.invert();
-    return child_value;
-}
-
 NonnullRefPtr<CalculationNode const> InvertCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_child(*this, m_value, context, resolution_context);
@@ -1128,24 +1063,6 @@ bool MinCalculationNode::contains_percentage() const
     }
 
     return false;
-}
-
-CalculatedStyleValue::CalculationResult MinCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    CalculatedStyleValue::CalculationResult smallest_node = m_values.first()->resolve(context);
-    auto smallest_value = smallest_node.value();
-
-    for (size_t i = 1; i < m_values.size(); i++) {
-        auto child_resolved = m_values[i]->resolve(context);
-        auto child_value = child_resolved.value();
-
-        if (child_value < smallest_value) {
-            smallest_value = child_value;
-            smallest_node = child_resolved;
-        }
-    }
-
-    return smallest_node;
 }
 
 NonnullRefPtr<CalculationNode const> MinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -1262,24 +1179,6 @@ bool MaxCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult MaxCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    CalculatedStyleValue::CalculationResult largest_node = m_values.first()->resolve(context);
-    auto largest_value = largest_node.value();
-
-    for (size_t i = 1; i < m_values.size(); i++) {
-        auto child_resolved = m_values[i]->resolve(context);
-        auto child_value = child_resolved.value();
-
-        if (child_value > largest_value) {
-            largest_value = child_value;
-            largest_node = child_resolved;
-        }
-    }
-
-    return largest_node;
-}
-
 NonnullRefPtr<CalculationNode const> MaxCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_children_vector(*this, context, resolution_context);
@@ -1342,29 +1241,6 @@ ClampCalculationNode::~ClampCalculationNode() = default;
 bool ClampCalculationNode::contains_percentage() const
 {
     return m_min_value->contains_percentage() || m_center_value->contains_percentage() || m_max_value->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult ClampCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto min_node = m_min_value->resolve(context);
-    auto center_node = m_center_value->resolve(context);
-    auto max_node = m_max_value->resolve(context);
-
-    auto min_value = min_node.value();
-    auto center_value = center_node.value();
-    auto max_value = max_node.value();
-
-    // NOTE: The value should be returned as "max(MIN, min(VAL, MAX))"
-    auto chosen_value = max(min_value, min(center_value, max_value));
-    if (chosen_value == min_value)
-        return min_node;
-    if (chosen_value == center_value)
-        return center_node;
-    if (chosen_value == max_value)
-        return max_node;
-
-    // NOTE: Non-finite values end up here.
-    return CalculatedStyleValue::CalculationResult { chosen_value, numeric_type() };
 }
 
 NonnullRefPtr<CalculationNode const> ClampCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -1467,14 +1343,6 @@ bool AbsCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult AbsCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    if (node_a.value() < 0)
-        node_a.negate();
-    return node_a;
-}
-
 NonnullRefPtr<CalculationNode const> AbsCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_child(*this, m_value, context, resolution_context);
@@ -1524,20 +1392,6 @@ SignCalculationNode::~SignCalculationNode() = default;
 bool SignCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult SignCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto node_a_value = node_a.value();
-
-    if (node_a_value < 0)
-        return { -1, NumericType {} };
-
-    if (node_a_value > 0)
-        return { 1, NumericType {} };
-
-    return { 0, NumericType {} };
 }
 
 NonnullRefPtr<CalculationNode const> SignCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -1605,15 +1459,6 @@ SinCalculationNode::~SinCalculationNode() = default;
 bool SinCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult SinCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto node_a_value = AK::to_radians(node_a.value());
-    auto result = sin(node_a_value);
-
-    return { result, NumericType {} };
 }
 
 NonnullRefPtr<CalculationNode const> SinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -1701,15 +1546,6 @@ bool CosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult CosCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto node_a_value = AK::to_radians(node_a.value());
-    auto result = cos(node_a_value);
-
-    return { result, NumericType {} };
-}
-
 NonnullRefPtr<CalculationNode const> CosCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_child(*this, m_value, context, resolution_context);
@@ -1756,15 +1592,6 @@ bool TanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult TanCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto node_a_value = AK::to_radians(node_a.value());
-    auto result = tan(node_a_value);
-
-    return { result, NumericType {} };
-}
-
 NonnullRefPtr<CalculationNode const> TanCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_child(*this, m_value, context, resolution_context);
@@ -1809,13 +1636,6 @@ AsinCalculationNode::~AsinCalculationNode() = default;
 bool AsinCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult AsinCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto result = AK::to_degrees(asin(node_a.value()));
-    return { result, NumericType { NumericType::BaseType::Angle, 1 } };
 }
 
 NonnullRefPtr<CalculationNode const> AsinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -1908,13 +1728,6 @@ bool AcosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult AcosCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto result = AK::to_degrees(acos(node_a.value()));
-    return { result, NumericType { NumericType::BaseType::Angle, 1 } };
-}
-
 NonnullRefPtr<CalculationNode const> AcosCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_child(*this, m_value, context, resolution_context);
@@ -1959,13 +1772,6 @@ AtanCalculationNode::~AtanCalculationNode() = default;
 bool AtanCalculationNode::contains_percentage() const
 {
     return m_value->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult AtanCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto result = AK::to_degrees(atan(node_a.value()));
-    return { result, NumericType { NumericType::BaseType::Angle, 1 } };
 }
 
 NonnullRefPtr<CalculationNode const> AtanCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -2013,14 +1819,6 @@ Atan2CalculationNode::~Atan2CalculationNode() = default;
 bool Atan2CalculationNode::contains_percentage() const
 {
     return m_y->contains_percentage() || m_x->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult Atan2CalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_y->resolve(context);
-    auto node_b = m_x->resolve(context);
-    auto result = AK::to_degrees(atan2(node_a.value(), node_b.value()));
-    return { result, NumericType { NumericType::BaseType::Angle, 1 } };
 }
 
 NonnullRefPtr<CalculationNode const> Atan2CalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -2089,14 +1887,6 @@ PowCalculationNode::PowCalculationNode(NonnullRefPtr<CalculationNode const> x, N
 
 PowCalculationNode::~PowCalculationNode() = default;
 
-CalculatedStyleValue::CalculationResult PowCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_x->resolve(context);
-    auto node_b = m_y->resolve(context);
-    auto result = pow(node_a.value(), node_b.value());
-    return { result, NumericType {} };
-}
-
 NonnullRefPtr<CalculationNode const> PowCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_2_children(*this, m_x, m_y, context, resolution_context);
@@ -2151,13 +1941,6 @@ SqrtCalculationNode::SqrtCalculationNode(NonnullRefPtr<CalculationNode const> va
 }
 
 SqrtCalculationNode::~SqrtCalculationNode() = default;
-
-CalculatedStyleValue::CalculationResult SqrtCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto result = sqrt(node_a.value());
-    return { result, NumericType {} };
-}
 
 NonnullRefPtr<CalculationNode const> SqrtCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
@@ -2221,27 +2004,6 @@ bool HypotCalculationNode::contains_percentage() const
     }
 
     return false;
-}
-
-CalculatedStyleValue::CalculationResult HypotCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    double square_sum = 0.0;
-    Optional<NumericType> result_type;
-
-    for (auto const& value : m_values) {
-        auto child_resolved = value->resolve(context);
-        auto child_value = child_resolved.value();
-
-        square_sum += child_value * child_value;
-        if (result_type.has_value()) {
-            result_type = result_type->consistent_type(*child_resolved.type());
-        } else {
-            result_type = child_resolved.type();
-        }
-    }
-
-    auto result = sqrt(square_sum);
-    return { result, result_type };
 }
 
 NonnullRefPtr<CalculationNode const> HypotCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -2319,14 +2081,6 @@ LogCalculationNode::LogCalculationNode(NonnullRefPtr<CalculationNode const> x, N
 
 LogCalculationNode::~LogCalculationNode() = default;
 
-CalculatedStyleValue::CalculationResult LogCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_x->resolve(context);
-    auto node_b = m_y->resolve(context);
-    auto result = log2(node_a.value()) / log2(node_b.value());
-    return { result, NumericType {} };
-}
-
 NonnullRefPtr<CalculationNode const> LogCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_2_children(*this, m_x, m_y, context, resolution_context);
@@ -2382,13 +2136,6 @@ ExpCalculationNode::ExpCalculationNode(NonnullRefPtr<CalculationNode const> valu
 }
 
 ExpCalculationNode::~ExpCalculationNode() = default;
-
-CalculatedStyleValue::CalculationResult ExpCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_value->resolve(context);
-    auto result = exp(node_a.value());
-    return { result, NumericType {} };
-}
 
 NonnullRefPtr<CalculationNode const> ExpCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
@@ -2448,44 +2195,6 @@ RoundCalculationNode::~RoundCalculationNode() = default;
 bool RoundCalculationNode::contains_percentage() const
 {
     return m_x->contains_percentage() || m_y->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult RoundCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_x->resolve(context);
-    auto node_b = m_y->resolve(context);
-
-    auto node_a_value = node_a.value();
-    auto node_b_value = node_b.value();
-
-    auto upper_b = ceil(node_a_value / node_b_value) * node_b_value;
-    auto lower_b = floor(node_a_value / node_b_value) * node_b_value;
-
-    auto resolved_type = node_a.type()->consistent_type(*node_b.type());
-
-    if (m_strategy == RoundingStrategy::Nearest) {
-        auto upper_diff = fabs(upper_b - node_a_value);
-        auto lower_diff = fabs(node_a_value - lower_b);
-        auto rounded_value = upper_diff < lower_diff ? upper_b : lower_b;
-        return { rounded_value, resolved_type };
-    }
-
-    if (m_strategy == RoundingStrategy::Up) {
-        return { upper_b, resolved_type };
-    }
-
-    if (m_strategy == RoundingStrategy::Down) {
-        return { lower_b, resolved_type };
-    }
-
-    if (m_strategy == RoundingStrategy::ToZero) {
-        auto upper_diff = fabs(upper_b);
-        auto lower_diff = fabs(lower_b);
-        auto rounded_value = upper_diff < lower_diff ? upper_b : lower_b;
-        return { rounded_value, resolved_type };
-    }
-
-    VERIFY_NOT_REACHED();
 }
 
 NonnullRefPtr<CalculationNode const> RoundCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -2659,19 +2368,6 @@ bool ModCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult ModCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_x->resolve(context);
-    auto node_b = m_y->resolve(context);
-
-    auto node_a_value = node_a.value();
-    auto node_b_value = node_b.value();
-
-    auto quotient = floor(node_a_value / node_b_value);
-    auto value = node_a_value - (node_b_value * quotient);
-    return { value, node_a.type() };
-}
-
 NonnullRefPtr<CalculationNode const> ModCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
     return simplify_2_children(*this, m_x, m_y, context, resolution_context);
@@ -2760,14 +2456,6 @@ RemCalculationNode::~RemCalculationNode() = default;
 bool RemCalculationNode::contains_percentage() const
 {
     return m_x->contains_percentage() || m_y->contains_percentage();
-}
-
-CalculatedStyleValue::CalculationResult RemCalculationNode::resolve(CalculationResolutionContext const& context) const
-{
-    auto node_a = m_x->resolve(context);
-    auto node_b = m_y->resolve(context);
-    auto value = fmod(node_a.value(), node_b.value());
-    return { value, node_a.type() };
 }
 
 NonnullRefPtr<CalculationNode const> RemCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
