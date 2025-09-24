@@ -556,7 +556,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues con
                 auto containing_block_size_as_length = width ? containing_block_used_values->content_width() : containing_block_used_values->content_height();
                 context.percentage_basis = CSS::Length::make_px(containing_block_size_as_length);
             }
-            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.calculated().resolve_length_deprecated(context)->to_px(node), size, width));
+            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.calculated().resolve_length(context)->to_px(node), size, width));
             return true;
         }
 

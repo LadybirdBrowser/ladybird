@@ -3011,14 +3011,6 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutio
     return {};
 }
 
-Optional<Length> CalculatedStyleValue::resolve_length_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
-        return Length::make_px(result.value());
-    return {};
-}
-
 Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);

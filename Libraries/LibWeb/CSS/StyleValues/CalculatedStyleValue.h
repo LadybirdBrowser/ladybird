@@ -88,7 +88,6 @@ public:
 
     bool resolves_to_length() const { return m_resolved_type.matches_length(m_context.percentages_resolve_as); }
     bool resolves_to_length_percentage() const { return m_resolved_type.matches_length_percentage(m_context.percentages_resolve_as); }
-    Optional<Length> resolve_length_deprecated(CalculationResolutionContext const&) const;
     Optional<Length> resolve_length(CalculationResolutionContext const&) const;
 
     bool resolves_to_percentage() const { return m_resolved_type.matches_percentage(); }
