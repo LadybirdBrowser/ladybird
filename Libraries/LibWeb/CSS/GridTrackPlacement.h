@@ -21,12 +21,12 @@ public:
 
     static GridTrackPlacement make_line(Optional<IntegerOrCalculated> line_number, Optional<String> name)
     {
-        return GridTrackPlacement(AreaOrLine { .line_number = line_number, .name = name });
+        return GridTrackPlacement(AreaOrLine { .line_number = move(line_number), .name = move(name) });
     }
 
     static GridTrackPlacement make_span(IntegerOrCalculated value, Optional<String> name)
     {
-        return GridTrackPlacement(Span { .value = value, .name = name });
+        return GridTrackPlacement(Span { .value = move(value), .name = move(name) });
     }
 
     bool is_auto() const { return m_value.has<Auto>(); }
@@ -79,11 +79,11 @@ private:
     {
     }
     GridTrackPlacement(AreaOrLine value)
-        : m_value(value)
+        : m_value(move(value))
     {
     }
     GridTrackPlacement(Span value)
-        : m_value(value)
+        : m_value(move(value))
     {
     }
 
