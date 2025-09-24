@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 138 tests
 
-134 Pass
-4 Fail
+136 Pass
+2 Fail
 Pass	new DOMMatrix()
 Pass	new DOMMatrix(undefined)
 Pass	new DOMMatrix(new DOMMatrix())
@@ -53,7 +53,7 @@ Pass	new DOMMatrix("rotate(5)")
 Pass	new DOMMatrix("rotate(5, 5, 5)")
 Pass	new DOMMatrix("rotate(5, 5px, 5px)")
 Pass	new DOMMatrix("rotate(5deg, 5px, 5px)")
-Fail	new DOMMatrix("rotate(calc(5deg * sign(1em - 10px)))")
+Pass	new DOMMatrix("rotate(calc(5deg * sign(1em - 10px)))")
 Pass	new DOMMatrix("rotate(calc(5deg * sibling-index()))")
 Pass	new DOMMatrix(" ")
 Pass	new DOMMatrix("/**/")
@@ -122,7 +122,7 @@ Pass	new DOMMatrixReadOnly("rotate(5)")
 Pass	new DOMMatrixReadOnly("rotate(5, 5, 5)")
 Pass	new DOMMatrixReadOnly("rotate(5, 5px, 5px)")
 Pass	new DOMMatrixReadOnly("rotate(5deg, 5px, 5px)")
-Fail	new DOMMatrixReadOnly("rotate(calc(5deg * sign(1em - 10px)))")
+Pass	new DOMMatrixReadOnly("rotate(calc(5deg * sign(1em - 10px)))")
 Pass	new DOMMatrixReadOnly("rotate(calc(5deg * sibling-index()))")
 Pass	new DOMMatrixReadOnly(" ")
 Pass	new DOMMatrixReadOnly("/**/")

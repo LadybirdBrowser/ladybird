@@ -20,7 +20,7 @@ namespace Web::CSS {
 
 Optional<Angle> AngleOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_angle_deprecated(context);
+    return calculated->resolve_angle(context);
 }
 
 NonnullRefPtr<StyleValue const> AngleOrCalculated::create_style_value() const

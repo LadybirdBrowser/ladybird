@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 45 tests
 
-33 Pass
-12 Fail
+37 Pass
+8 Fail
 Pass	Property width value 'calc(NaN * 1px)'
 Pass	Property width value 'calc(NaN * 1%)'
 Pass	Property width value 'calc(infinity * 1px)'
@@ -39,13 +39,13 @@ Pass	Property transition-delay value 'calc(max(10000s, 0s) + min(-infinity * 1s,
 Pass	Property transition-delay value 'calc(min(-infinity * 1s, 10s))'
 Fail	Property rotate(calc(infinity * 1deg)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(-infinity * 1deg)) value expected same with rotate(0deg) in +/-0.0001
-Fail	Property rotate(calc(NaN * 1deg)) value expected same with rotate(0deg) in +/-0.0001
+Pass	Property rotate(calc(NaN * 1deg)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(infinity * 1turn)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(-infinity * 1turn)) value expected same with rotate(0deg) in +/-0.0001
-Fail	Property rotate(calc(NaN * 1turn)) value expected same with rotate(0deg) in +/-0.0001
+Pass	Property rotate(calc(NaN * 1turn)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(infinity * 1rad)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(-infinity * 1rad)) value expected same with rotate(0deg) in +/-0.0001
-Fail	Property rotate(calc(NaN * 1rad)) value expected same with rotate(0deg) in +/-0.0001
+Pass	Property rotate(calc(NaN * 1rad)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(infinity * 1grad)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(-infinity * 1grad)) value expected same with rotate(0deg) in +/-0.0001
-Fail	Property rotate(calc(NaN * 1grad)) value expected same with rotate(0deg) in +/-0.0001
+Pass	Property rotate(calc(NaN * 1grad)) value expected same with rotate(0deg) in +/-0.0001

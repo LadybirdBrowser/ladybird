@@ -2981,14 +2981,6 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
     return ResolvedValue { raw_value, value->type() };
 }
 
-Optional<Angle> CalculatedStyleValue::resolve_angle_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
-        return Angle::make_degrees(result.value());
-    return {};
-}
-
 Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);

@@ -77,7 +77,6 @@ public:
 
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(m_context.percentages_resolve_as); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(m_context.percentages_resolve_as); }
-    Optional<Angle> resolve_angle_deprecated(CalculationResolutionContext const&) const;
     Optional<Angle> resolve_angle(CalculationResolutionContext const&) const;
 
     bool resolves_to_flex() const { return m_resolved_type.matches_flex(m_context.percentages_resolve_as); }
