@@ -40,6 +40,12 @@ protected:
 
 private:
     virtual bool is_svg_path_paintable() const final { return true; }
+
+    virtual void resolve_paint_properties() override;
+
+    float m_stroke_thickness { 0 };
+    float m_stroke_dashoffset { 0 };
+    Vector<float> m_stroke_dasharray;
 };
 
 template<>
