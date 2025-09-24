@@ -3047,14 +3047,6 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolut
     return {};
 }
 
-Optional<Resolution> CalculatedStyleValue::resolve_resolution_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_resolution(m_context.percentages_resolve_as))
-        return Resolution::make_dots_per_pixel(result.value());
-    return {};
-}
-
 Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);
