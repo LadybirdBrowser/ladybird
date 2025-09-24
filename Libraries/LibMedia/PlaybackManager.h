@@ -32,6 +32,10 @@ public:
 
     using VideoTracks = Vector<Track, EXPECTED_VIDEO_TRACK_COUNT>;
 
+    static constexpr size_t EXPECTED_AUDIO_TRACK_COUNT = 1;
+
+    using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
+
     static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(NonnullOwnPtr<SeekableStream>&& stream);
     ~PlaybackManager();
 
@@ -41,6 +45,9 @@ public:
     VideoTracks const& video_tracks() const { return m_video_tracks; }
     Optional<Track> preferred_video_track();
 
+    VideoTracks const& audio_tracks() const { return m_audio_tracks; }
+    Optional<Track> preferred_audio_track();
+
     // Creates a DisplayingVideoSink for the specified track.
     //
     // Note that in order for the current frame to change based on the media time, users must call
@@ -49,6 +56,9 @@ public:
     // Removes the DisplayingVideoSink for the specified track. This will prevent the sink from
     // retrieving any subsequent frames from the decoder.
     void remove_the_displaying_video_sink_for_track(Track const& track);
+
+    void enable_an_audio_track(Track const& track);
+    void disable_an_audio_track(Track const& track);
 
     Function<void(DecoderError&&)> on_error;
 
@@ -91,12 +101,19 @@ private:
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
 
-    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, VideoTracks&&, VideoTrackDatas&&);
+    struct AudioTrackData {
+        Track track;
+        NonnullRefPtr<AudioDataProvider> provider;
+    };
+    using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
+
+    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&);
 
     void set_up_error_handlers();
     void dispatch_error(DecoderError&&);
 
     VideoTrackData& get_video_data_for_track(Track const& track);
+    AudioTrackData& get_audio_data_for_track(Track const& track);
 
     NonnullRefPtr<MutexedDemuxer> m_demuxer;
 
@@ -104,6 +121,10 @@ private:
 
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;
+
+    RefPtr<AudioMixingSink> m_audio_sink;
+    AudioTracks m_audio_tracks;
+    AudioTrackDatas m_audio_track_datas;
 
     MonotonicTime m_real_time_base;
 
