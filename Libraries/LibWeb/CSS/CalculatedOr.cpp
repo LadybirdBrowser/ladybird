@@ -40,7 +40,7 @@ NonnullRefPtr<StyleValue const> FlexOrCalculated::create_style_value() const
 
 Optional<Frequency> FrequencyOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_frequency_deprecated(context);
+    return calculated->resolve_frequency(context);
 }
 
 NonnullRefPtr<StyleValue const> FrequencyOrCalculated::create_style_value() const
