@@ -7,7 +7,6 @@
 #include <AK/IDAllocator.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibMedia/Audio/Loader.h>
 #include <LibWeb/Bindings/AudioTrackPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
@@ -16,8 +15,6 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Platform/AudioCodecPlugin.h>
 
 namespace Web::HTML {
 
@@ -25,24 +22,11 @@ GC_DEFINE_ALLOCATOR(AudioTrack);
 
 static IDAllocator s_audio_track_id_allocator;
 
-AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, NonnullRefPtr<Audio::Loader> loader)
+AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
     : PlatformObject(realm)
     , m_media_element(media_element)
-    , m_audio_plugin(Platform::AudioCodecPlugin::create(move(loader)).release_value_but_fixme_should_propagate_errors())
+    , m_track_in_playback_manager(track)
 {
-    m_audio_plugin->on_playback_position_updated = [this](auto position) {
-        if (auto* paintable = m_media_element->paintable())
-            paintable->set_needs_display();
-
-        auto playback_position = static_cast<double>(position.to_milliseconds()) / 1000.0;
-        m_media_element->set_current_playback_position(playback_position);
-    };
-
-    m_audio_plugin->on_decoder_error = [this](String error_message) {
-        m_media_element->set_decoder_error(move(error_message));
-    };
-
-    update_volume();
 }
 
 AudioTrack::~AudioTrack()
@@ -60,34 +44,6 @@ void AudioTrack::initialize(JS::Realm& realm)
 
     auto id = s_audio_track_id_allocator.allocate();
     m_id = String::number(id);
-}
-
-void AudioTrack::play()
-{
-    m_audio_plugin->resume_playback();
-}
-
-void AudioTrack::pause()
-{
-    m_audio_plugin->pause_playback();
-}
-
-AK::Duration AudioTrack::duration()
-{
-    return m_audio_plugin->duration();
-}
-
-void AudioTrack::seek(double position, MediaSeekMode seek_mode)
-{
-    // FIXME: Implement seeking mode.
-    (void)seek_mode;
-
-    m_audio_plugin->seek(position);
-}
-
-void AudioTrack::update_volume()
-{
-    m_audio_plugin->set_volume(m_media_element->effective_media_volume());
 }
 
 void AudioTrack::visit_edges(Cell::Visitor& visitor)
@@ -116,6 +72,7 @@ void AudioTrack::set_enabled(bool enabled)
     }
 
     m_enabled = enabled;
+    m_media_element->set_audio_track_enabled({}, this, enabled);
 }
 
 }
