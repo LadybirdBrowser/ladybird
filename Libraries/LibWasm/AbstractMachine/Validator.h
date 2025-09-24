@@ -314,7 +314,13 @@ private:
     }
 
     struct Errors {
-        static ValidationError invalid(StringView name) { return ByteString::formatted("Invalid {}", name); }
+        static ValidationError invalid(StringView name, SourceLocation location = SourceLocation::current())
+        {
+            if constexpr (WASM_VALIDATOR_DEBUG)
+                return ByteString::formatted("Invalid {} in {}", name, find_instruction_name(location));
+            else
+                return ByteString::formatted("Invalid {}", name);
+        }
 
         template<typename Expected, typename Given>
         static ValidationError invalid(StringView name, Expected expected, Given given, SourceLocation location = SourceLocation::current())
