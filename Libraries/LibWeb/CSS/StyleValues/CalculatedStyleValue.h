@@ -269,8 +269,6 @@ public:
     bool is_in_canonical_unit() const;
     virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
 
-    RefPtr<StyleValue const> to_style_value(CalculationContext const&) const;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
     String value_to_string() const;
