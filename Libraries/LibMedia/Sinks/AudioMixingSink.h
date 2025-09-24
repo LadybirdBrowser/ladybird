@@ -1,0 +1,84 @@
+/*
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/HashMap.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
+#include <LibCore/EventLoop.h>
+#include <LibMedia/Audio/Forward.h>
+#include <LibMedia/Audio/SampleFormats.h>
+#include <LibMedia/Export.h>
+#include <LibMedia/Forward.h>
+#include <LibMedia/Sinks/AudioSink.h>
+#include <LibThreading/ConditionVariable.h>
+#include <LibThreading/Mutex.h>
+
+namespace Media {
+
+class MEDIA_API AudioMixingSink final : public AudioSink {
+    class AudioMixingSinkWeakReference;
+
+public:
+    static ErrorOr<NonnullRefPtr<AudioMixingSink>> try_create();
+    AudioMixingSink(AudioMixingSinkWeakReference&);
+    virtual ~AudioMixingSink() override;
+
+    virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) override;
+    virtual RefPtr<AudioDataProvider> provider(Track const&) const override;
+
+private:
+    static constexpr size_t MAX_BLOCK_COUNT = 16;
+
+    class AudioMixingSinkWeakReference : public AtomicRefCounted<AudioMixingSinkWeakReference> {
+    public:
+        void emplace(AudioMixingSink& sink) { m_ptr = &sink; }
+        RefPtr<AudioMixingSink> take_strong() const
+        {
+            Threading::MutexLocker locker { m_mutex };
+            return m_ptr;
+        }
+        void revoke()
+        {
+            Threading::MutexLocker locker { m_mutex };
+            m_ptr = nullptr;
+        }
+
+    private:
+        mutable Threading::Mutex m_mutex;
+        AudioMixingSink* m_ptr { nullptr };
+    };
+
+    struct TrackMixingData {
+        TrackMixingData(NonnullRefPtr<AudioDataProvider> const& provider)
+            : provider(provider)
+        {
+        }
+
+        NonnullRefPtr<AudioDataProvider> provider;
+        AudioBlock current_block;
+        i64 current_block_first_sample_offset { NumericLimits<i64>::min() };
+    };
+
+    void deferred_create_playback_stream(Track const& track);
+    void create_playback_stream(u32 sample_rate, u32 channel_count);
+    ReadonlyBytes write_audio_data_to_playback_stream(Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count);
+
+    Core::EventLoop& m_main_thread_event_loop;
+    NonnullRefPtr<AudioMixingSinkWeakReference> m_weak_self;
+
+    Threading::Mutex m_mutex;
+    Threading::ConditionVariable m_wait_condition { m_mutex };
+    RefPtr<Audio::PlaybackStream> m_playback_stream;
+    u32 m_playback_stream_sample_rate { 0 };
+    u32 m_playback_stream_channel_count { 0 };
+
+    HashMap<Track, TrackMixingData> m_track_mixing_datas;
+    i64 m_next_sample_to_write { 0 };
+};
+
+}
