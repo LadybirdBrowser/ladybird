@@ -125,6 +125,28 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
 
     VERIFY(!m_surfaces.is_empty());
 
+    auto translate_command_by_scroll = [&](auto& command, int scroll_frame_id) {
+        auto cumulative_offset = scroll_state.cumulative_offset_for_frame_with_id(scroll_frame_id);
+        auto scroll_offset = cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
+        command.visit(
+            [scroll_offset](auto& command) {
+                if constexpr (requires { command.translate_by(scroll_offset); }) {
+                    command.translate_by(scroll_offset);
+                }
+            });
+    };
+
+    auto compute_stacking_context_bounds = [&](PushStackingContext const& push_stacking_context, size_t push_stacking_context_index) {
+        Gfx::IntRect bounding_rect;
+        display_list.for_each_command_in_range(push_stacking_context_index + 1, push_stacking_context.matching_pop_index, [&](auto command, auto scroll_frame_id) {
+            if (scroll_frame_id.has_value())
+                translate_command_by_scroll(command, scroll_frame_id.value());
+            bounding_rect.unite(*command_bounding_rectangle(command));
+            return IterationDecision::Continue;
+        });
+        return bounding_rect;
+    };
+
     Vector<RefPtr<ClipFrame const>> clip_frames_stack;
     clip_frames_stack.append({});
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
@@ -164,18 +186,19 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             }
         }
 
-        if (scroll_frame_id.has_value()) {
-            auto cumulative_offset = scroll_state.cumulative_offset_for_frame_with_id(scroll_frame_id.value());
-            auto scroll_offset = cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
-            command.visit(
-                [&](auto& command) {
-                    if constexpr (requires { command.translate_by(scroll_offset); }) {
-                        command.translate_by(scroll_offset);
-                    }
-                });
-        }
+        if (scroll_frame_id.has_value())
+            translate_command_by_scroll(command, scroll_frame_id.value());
 
         auto bounding_rect = command_bounding_rectangle(command);
+
+        if (command.has<PushStackingContext>()) {
+            auto& push_stacking_context = command.get<PushStackingContext>();
+            if (push_stacking_context.can_aggregate_children_bounds) {
+                bounding_rect = compute_stacking_context_bounds(push_stacking_context, command_index);
+                push_stacking_context.bounding_rect = bounding_rect;
+            }
+        }
+
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             // Any clip or mask that's located outside of the visible region is equivalent to a simple clip-rect,
             // so replace it with one to avoid doing unnecessary work.
@@ -185,6 +208,11 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                 } else {
                     add_clip_rect({ bounding_rect.release_value() });
                 }
+            }
+            if (command.has<PushStackingContext>()) {
+                auto pop_stacking_context = command.get<PushStackingContext>().matching_pop_index;
+                command_index = pop_stacking_context;
+                (void)clip_frames_stack.take_last();
             }
             continue;
         }
