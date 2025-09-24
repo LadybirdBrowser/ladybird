@@ -29,11 +29,12 @@ public:
     bool has_enabled_track() const;
 
     template<typename Callback>
-    void for_each_enabled_track(Callback&& callback)
+    void for_each_track(Callback&& callback)
     {
         for (auto& audio_track : m_audio_tracks) {
-            if (audio_track->enabled())
-                callback(*audio_track);
+            auto iteration_decision = callback(*audio_track);
+            if (iteration_decision == IterationDecision::Break)
+                break;
         }
     }
 

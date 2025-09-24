@@ -7,7 +7,6 @@
  */
 
 #include <LibJS/Runtime/Promise.h>
-#include <LibMedia/Audio/Loader.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
@@ -1127,6 +1126,14 @@ bool HTMLMediaElement::verify_response(GC::Ref<Fetch::Infrastructure::Response> 
     TODO();
 }
 
+void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool enabled)
+{
+    if (enabled)
+        m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
+    else
+        m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
+}
+
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
 {
     set_needs_style_update(true);
@@ -1195,17 +1202,51 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 
     m_playback_manager = playback_manager_result.release_value();
 
-    // FIXME: -> If the media resource is found to have an audio track
-    //            1. Create an AudioTrack object to represent the audio track.
-    //            2. Update the media element's audioTracks attribute's AudioTrackList object with the new AudioTrack object.
-    //            3. Let enable be unknown.
-    //            4. If either the media resource or the URL of the current media resource indicate a particular set of audio tracks to enable, or if
-    //               the user agent has information that would facilitate the selection of specific audio tracks to improve the user's experience, then:
-    //               if this audio track is one of the ones to enable, then set enable to true, otherwise, set enable to false.
-    //            5. If enable is still unknown, then, if the media element does not yet have an enabled audio track, then set enable to true, otherwise,
-    //               set enable to false.
-    //            6. If enable is true, then enable this audio track, otherwise, do not enable this audio track.
-    //            7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
+    // -> If the media resource is found to have an audio track
+    auto preferred_audio_track = m_playback_manager->preferred_audio_track();
+    auto has_enabled_preferred_audio_track = false;
+
+    for (auto const& track : m_playback_manager->audio_tracks()) {
+        // 1. Create an AudioTrack object to represent the audio track.
+        auto audio_track = realm.create<AudioTrack>(realm, *this, track);
+
+        // 2. Update the media element's audioTracks attribute's AudioTrackList object with the new AudioTrack object.
+        m_audio_tracks->add_track({}, audio_track);
+
+        // 3. Let enable be unknown.
+        auto enable = TriState::Unknown;
+
+        // 4. If either the media resource or the URL of the current media resource indicate a particular set of audio tracks to enable, or if
+        //    the user agent has information that would facilitate the selection of specific audio tracks to improve the user's experience, then:
+        //    if this audio track is one of the ones to enable, then set enable to true, otherwise, set enable to false.
+        if (preferred_audio_track.has_value()) {
+            if (track == preferred_audio_track && !has_enabled_preferred_audio_track) {
+                enable = TriState::True;
+                has_enabled_preferred_audio_track = true;
+            } else {
+                enable = TriState::False;
+            }
+        }
+
+        // 5. If enable is still unknown, then, if the media element does not yet have an enabled audio track, then set enable to true, otherwise,
+        //    set enable to false.
+        if (enable == TriState::Unknown)
+            enable = !m_audio_tracks->has_enabled_track() ? TriState::True : TriState::False;
+
+        // 6. If enable is true, then enable this audio track, otherwise, do not enable this audio track.
+        if (enable == TriState::True)
+            audio_track->set_enabled(true);
+
+        // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
+        TrackEventInit event_init {};
+        event_init.track = GC::make_root(audio_track);
+
+        auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));
+        m_audio_tracks->dispatch_event(event);
+    }
+
+    if (preferred_audio_track.has_value())
+        VERIFY(has_enabled_preferred_audio_track);
 
     // -> If the media resource is found to have a video track
     auto preferred_video_track = m_playback_manager->preferred_video_track();
@@ -1302,7 +1343,13 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
     // FIXME: 11. If either the media resource or the URL of the current media resource indicate a particular start time, then set the initial playback
     //            position to that time and, if jumped is still false, seek to that time.
 
-    // FIXME: 12. If there is no enabled audio track, then enable an audio track. This will cause a change event to be fired.
+    // 12. If there is no enabled audio track, then enable an audio track. This will cause a change event to be fired.
+    if (!m_audio_tracks->has_enabled_track()) {
+        m_audio_tracks->for_each_track([](auto& track) {
+            track.set_enabled(true);
+            return IterationDecision::Break;
+        });
+    }
 
     // 13. If there is no selected video track, then select a video track. This will cause a change event to be fired.
     if (m_video_tracks->selected_index() == -1) {
