@@ -728,30 +728,6 @@ static Optional<double> try_get_number(CalculationNode const& child)
     return maybe_number->value();
 }
 
-RefPtr<StyleValue const> NumericCalculationNode::to_style_value(CalculationContext const& context) const
-{
-    // TODO: Clamp values to the range allowed by the context.
-    return m_value.visit(
-        [&](Number const& number) -> RefPtr<StyleValue const> {
-            // FIXME: Returning infinity or NaN as a NumberStyleValue isn't valid.
-            //        This is a temporary fix until value-clamping is implemented here.
-            //        In future, we can remove these two lines and return NonnullRefPtr again.
-            if (!isfinite(number.value()))
-                return nullptr;
-
-            if (context.resolve_numbers_as_integers)
-                return IntegerStyleValue::create(llround(number.value()));
-            return NumberStyleValue::create(number.value());
-        },
-        [](Angle const& angle) -> RefPtr<StyleValue const> { return AngleStyleValue::create(angle); },
-        [](Flex const& flex) -> RefPtr<StyleValue const> { return FlexStyleValue::create(flex); },
-        [](Frequency const& frequency) -> RefPtr<StyleValue const> { return FrequencyStyleValue::create(frequency); },
-        [](Length const& length) -> RefPtr<StyleValue const> { return LengthStyleValue::create(length); },
-        [](Percentage const& percentage) -> RefPtr<StyleValue const> { return PercentageStyleValue::create(percentage); },
-        [](Resolution const& resolution) -> RefPtr<StyleValue const> { return ResolutionStyleValue::create(resolution); },
-        [](Time const& time) -> RefPtr<StyleValue const> { return TimeStyleValue::create(time); });
-}
-
 Optional<NonFiniteValue> NumericCalculationNode::infinite_or_nan_value() const
 {
     auto raw_value = m_value.visit(
