@@ -57,51 +57,6 @@ void PathImplSkia::line_to(Gfx::FloatPoint const& point)
     m_path->lineTo(point.x(), point.y());
 }
 
-void PathImplSkia::close_all_subpaths()
-{
-    SkPath new_path;
-    SkPath::Iter iter(*m_path, false);
-    SkPoint points[4];
-    SkPath::Verb verb;
-    bool need_close = false;
-
-    while ((verb = iter.next(points)) != SkPath::kDone_Verb) {
-        switch (verb) {
-        case SkPath::kMove_Verb:
-            if (need_close) {
-                new_path.close();
-            }
-            new_path.moveTo(points[0]);
-            need_close = true;
-            break;
-        case SkPath::kLine_Verb:
-            new_path.lineTo(points[1]);
-            break;
-        case SkPath::kQuad_Verb:
-            new_path.quadTo(points[1], points[2]);
-            break;
-        case SkPath::kCubic_Verb:
-            new_path.cubicTo(points[1], points[2], points[3]);
-            break;
-        case SkPath::kClose_Verb:
-            new_path.close();
-            need_close = false;
-            break;
-        case SkPath::kConic_Verb:
-            new_path.conicTo(points[1], points[2], iter.conicWeight());
-            break;
-        case SkPath::kDone_Verb:
-            break;
-        }
-    }
-
-    if (need_close) {
-        new_path.close();
-    }
-
-    *m_path = new_path;
-}
-
 void PathImplSkia::close()
 {
     m_path->close();

@@ -84,16 +84,6 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     auto path = computed_path()->copy_transformed(paint_transform);
     path.offset(offset);
 
-    // Fills are computed as though all subpaths are closed (https://svgwg.org/svg2-draft/painting.html#FillProperties)
-    auto closed_path = [&] {
-        // We need to fill the path before applying the stroke, however the filled
-        // path must be closed, whereas the stroke path may not necessary be closed.
-        // Copy the path and close it for filling, but use the previous path for stroke
-        auto copy = path;
-        copy.close_all_subpaths();
-        return copy;
-    };
-
     auto svg_viewport = [&] {
         if (maybe_view_box.has_value())
             return Gfx::FloatRect { maybe_view_box->min_x, maybe_view_box->min_y, maybe_view_box->width, maybe_view_box->height };
@@ -106,7 +96,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         // within a clipPath conceptually defines a 1-bit mask (with the possible exception of anti-aliasing along
         // the edge of the geometry) which represents the silhouette of the graphics associated with that element.
         context.display_list_recorder().fill_path({
-            .path = closed_path(),
+            .path = path,
             .paint_style_or_color = Gfx::Color(Color::Black),
             .winding_rule = to_gfx_winding_rule(graphics_element.clip_rule().value_or(SVG::ClipRule::Nonzero)),
             .should_anti_alias = should_anti_alias(),
@@ -125,7 +115,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
         if (auto paint_style = graphics_element.fill_paint_style(paint_context); paint_style.has_value()) {
             context.display_list_recorder().fill_path({
-                .path = closed_path(),
+                .path = path,
                 .opacity = fill_opacity,
                 .paint_style_or_color = *paint_style,
                 .winding_rule = winding_rule,
@@ -133,7 +123,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             });
         } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
             context.display_list_recorder().fill_path({
-                .path = closed_path(),
+                .path = path,
                 .paint_style_or_color = fill_color->with_opacity(fill_opacity),
                 .winding_rule = winding_rule,
                 .should_anti_alias = should_anti_alias(),

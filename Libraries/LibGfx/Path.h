@@ -25,7 +25,6 @@ public:
     virtual void clear() = 0;
     virtual void move_to(Gfx::FloatPoint const&) = 0;
     virtual void line_to(Gfx::FloatPoint const&) = 0;
-    virtual void close_all_subpaths() = 0;
     virtual void close() = 0;
     virtual void elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep) = 0;
     virtual void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) = 0;
@@ -73,7 +72,6 @@ public:
     void clear() { impl().clear(); }
     void move_to(Gfx::FloatPoint const& point) { impl().move_to(point); }
     void line_to(Gfx::FloatPoint const& point) { impl().line_to(point); }
-    void close_all_subpaths() { impl().close_all_subpaths(); }
     void close() { impl().close(); }
 
     enum class CapStyle {

@@ -405,12 +405,10 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
 
     paint_shadow_for_fill_internal(path, winding_rule);
 
-    auto path_to_fill = path;
-    path_to_fill.close_all_subpaths();
     auto& state = this->drawing_state();
-    painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.filter, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
+    painter->fill_path(path, state.fill_style.to_gfx_paint_style(), state.filter, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
 
-    did_draw(path_to_fill.bounding_box());
+    did_draw(path.bounding_box());
 }
 
 void CanvasRenderingContext2D::fill(StringView fill_rule)
@@ -674,7 +672,6 @@ void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule w
     if (!painter)
         return;
 
-    path.close_all_subpaths();
     painter->clip(path, winding_rule);
 }
 
@@ -968,9 +965,6 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     if (!painter)
         return;
 
-    auto path_to_fill = path;
-    path_to_fill.close_all_subpaths();
-
     auto& state = this->drawing_state();
 
     if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
@@ -981,11 +975,11 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur, state.current_compositing_and_blending_operator);
+    painter->fill_path(path, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur, state.current_compositing_and_blending_operator);
 
     painter->restore();
 
-    did_draw(path_to_fill.bounding_box());
+    did_draw(path.bounding_box());
 }
 
 void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const& path)

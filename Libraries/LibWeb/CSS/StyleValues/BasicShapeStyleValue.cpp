@@ -217,11 +217,6 @@ String Polygon::to_string(SerializationMode) const
 Gfx::Path Path::to_path(CSSPixelRect, Layout::Node const&) const
 {
     auto result = path_instructions.to_gfx_path();
-    // The UA must close a path with an implicit closepath command ("z" or "Z") if it is not present in the string for
-    // properties that require a closed loop (such as shape-outside and clip-path).
-    // https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-path
-    // FIXME: For now, all users want a closed path, so we'll always close it.
-    result.close_all_subpaths();
     result.set_fill_type(fill_rule);
     return result;
 }
