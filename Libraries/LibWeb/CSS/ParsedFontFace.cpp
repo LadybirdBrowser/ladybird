@@ -168,7 +168,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
                 if (setting_value->is_integer()) {
                     settings.set(feature_tag->as_open_type_tagged().tag(), setting_value->as_integer().integer());
                 } else if (setting_value->is_calculated() && setting_value->as_calculated().resolves_to_number()) {
-                    if (auto integer = setting_value->as_calculated().resolve_integer_deprecated({}); integer.has_value()) {
+                    if (auto integer = setting_value->as_calculated().resolve_integer({}); integer.has_value()) {
                         settings.set(feature_tag->as_open_type_tagged().tag(), *integer);
                     }
                 }
