@@ -2991,14 +2991,6 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
     return {};
 }
 
-Optional<Flex> CalculatedStyleValue::resolve_flex_deprecated(CalculationResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context);
-    if (result.type().has_value() && result.type()->matches_flex(m_context.percentages_resolve_as))
-        return Flex::make_fr(result.value());
-    return {};
-}
-
 Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);

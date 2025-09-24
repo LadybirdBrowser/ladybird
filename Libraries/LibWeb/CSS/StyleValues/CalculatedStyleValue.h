@@ -80,7 +80,6 @@ public:
     Optional<Angle> resolve_angle(CalculationResolutionContext const&) const;
 
     bool resolves_to_flex() const { return m_resolved_type.matches_flex(m_context.percentages_resolve_as); }
-    Optional<Flex> resolve_flex_deprecated(CalculationResolutionContext const&) const;
     Optional<Flex> resolve_flex(CalculationResolutionContext const&) const;
 
     bool resolves_to_frequency() const { return m_resolved_type.matches_frequency(m_context.percentages_resolve_as); }
