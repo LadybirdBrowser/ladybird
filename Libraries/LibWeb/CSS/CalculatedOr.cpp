@@ -96,7 +96,7 @@ LengthOrCalculated LengthOrAutoOrCalculated::without_auto() const
 
 Optional<double> NumberOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_number_deprecated(context);
+    return calculated->resolve_number(context);
 }
 
 NonnullRefPtr<StyleValue const> NumberOrCalculated::create_style_value() const

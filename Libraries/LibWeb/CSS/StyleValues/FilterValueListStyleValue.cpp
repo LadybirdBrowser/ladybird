@@ -34,7 +34,7 @@ float FilterOperation::Color::resolved_amount() const
     if (amount.is_calculated()) {
         CalculationResolutionContext context {};
         if (amount.calculated()->resolves_to_number())
-            return amount.calculated()->resolve_number_deprecated(context).value();
+            return amount.calculated()->resolve_number(context).value();
 
         if (amount.calculated()->resolves_to_percentage())
             return amount.calculated()->resolve_percentage_deprecated(context)->as_fraction();

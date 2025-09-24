@@ -190,7 +190,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
                 if (setting_value->is_number()) {
                     settings.set(variation_tag->as_open_type_tagged().tag(), setting_value->as_number().number());
                 } else if (setting_value->is_calculated() && setting_value->as_calculated().resolves_to_number()) {
-                    if (auto number = setting_value->as_calculated().resolve_number_deprecated({}); number.has_value()) {
+                    if (auto number = setting_value->as_calculated().resolve_number({}); number.has_value()) {
                         settings.set(variation_tag->as_open_type_tagged().tag(), *number);
                     }
                 }

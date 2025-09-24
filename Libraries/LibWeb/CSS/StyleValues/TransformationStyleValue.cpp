@@ -80,7 +80,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
             if (value->is_number())
                 return value->as_number().number();
             if (value->is_calculated() && value->as_calculated().resolves_to_number())
-                return value->as_calculated().resolve_number_deprecated({});
+                return value->as_calculated().resolve_number({});
 
             VERIFY_NOT_REACHED();
         };
