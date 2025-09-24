@@ -64,7 +64,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
             return value.as_percentage().percentage();
         if (value.is_calculated()) {
             // FIXME: These should probably be simplified already?
-            return value.as_calculated().resolve_percentage_deprecated({});
+            return value.as_calculated().resolve_percentage({});
         }
         if (value.to_keyword() == Keyword::Normal)
             return {};
