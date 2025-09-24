@@ -61,7 +61,8 @@ elseif (ENABLE_CI_BASELINE_CPU)
     elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         add_cxx_compile_options(-march=x86-64-v3)
     endif()
-else()
+elseif (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+    # RISC-V does not yet support -march=native.
     # In all other cases, compile for the native architecture of the host system.
     add_cxx_compile_options(-march=native)
 endif()
