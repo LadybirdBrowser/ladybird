@@ -411,7 +411,7 @@ Optional<int> ComputedProperties::z_index() const
     }
 
     if (value.is_calculated()) {
-        auto maybe_double = value.as_calculated().resolve_number_deprecated({});
+        auto maybe_double = value.as_calculated().resolve_number({});
         if (maybe_double.has_value()) {
             if (*maybe_double >= NumericLimits<int>::max())
                 return NumericLimits<int>::max();

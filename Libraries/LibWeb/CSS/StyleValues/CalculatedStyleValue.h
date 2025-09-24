@@ -103,7 +103,6 @@ public:
     Optional<Time> resolve_time(CalculationResolutionContext const&) const;
 
     bool resolves_to_number() const { return m_resolved_type.matches_number(m_context.percentages_resolve_as); }
-    Optional<double> resolve_number_deprecated(CalculationResolutionContext const&) const;
     Optional<double> resolve_number(CalculationResolutionContext const&) const;
     Optional<i64> resolve_integer(CalculationResolutionContext const&) const;
 

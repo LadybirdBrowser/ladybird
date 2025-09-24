@@ -368,7 +368,7 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
                 return maybe_calc->as_number().number();
             if (!maybe_calc->is_calculated() || !maybe_calc->as_calculated().resolves_to_number())
                 return {};
-            if (auto resolved_number = maybe_calc->as_calculated().resolve_number_deprecated({}); resolved_number.has_value() && resolved_number.value() >= 0) {
+            if (auto resolved_number = maybe_calc->as_calculated().resolve_number({}); resolved_number.has_value() && resolved_number.value() >= 0) {
                 return resolved_number.value();
             }
         }
