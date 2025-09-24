@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 33 tests
 
-29 Pass
-4 Fail
+31 Pass
+2 Fail
 Pass	Property grid-area value 'auto / auto / auto / auto'
 Pass	Property grid-row value 'auto / auto'
 Pass	Property grid-column-end value 'auto'
@@ -35,5 +35,5 @@ Pass	Property grid-area value 'auto / i / 2 j'
 Pass	Property grid-area value 'auto / i / 2 j / span 3 k'
 Pass	Property grid-row value 'auto / i'
 Pass	Property grid-column value '2 j / span 3 k'
-Fail	Property grid-column-end value '\31st'
-Fail	Property grid-column-end value '\31 st'
+Pass	Property grid-column-end value '\31st'
+Pass	Property grid-column-end value '\31 st'
