@@ -255,6 +255,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         if (result.is_trap())
             return InstantiationError { "Global instantiation trapped", move(result.trap()) };
         global_values.append(result.values().first());
+        auxiliary_instance.globals().append(m_store.allocate(entry.type(), result.values().first()).release_value());
     }
 
     if (auto result = allocate_all_initial_phase(module, main_module_instance, externs, global_values, module_functions); result.has_value())
@@ -267,7 +268,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
             config.set_frame(Frame {
-                auxiliary_instance,
+                main_module_instance,
                 Vector<Value> {},
                 entry,
                 entry.instructions().size() - 1,
@@ -302,7 +303,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         if (m_should_limit_instruction_count)
             config.enable_instruction_count_limit();
         config.set_frame(Frame {
-            auxiliary_instance,
+            main_module_instance,
             Vector<Value> {},
             active_ptr->expression,
             1,
@@ -337,7 +338,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 if (m_should_limit_instruction_count)
                     config.enable_instruction_count_limit();
                 config.set_frame(Frame {
-                    auxiliary_instance,
+                    main_module_instance,
                     Vector<Value> {},
                     data.offset,
                     1,
