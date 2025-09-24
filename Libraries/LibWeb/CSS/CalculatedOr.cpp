@@ -30,7 +30,7 @@ NonnullRefPtr<StyleValue const> AngleOrCalculated::create_style_value() const
 
 Optional<Flex> FlexOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, CalculationResolutionContext const& context) const
 {
-    return calculated->resolve_flex_deprecated(context);
+    return calculated->resolve_flex(context);
 }
 
 NonnullRefPtr<StyleValue const> FlexOrCalculated::create_style_value() const
