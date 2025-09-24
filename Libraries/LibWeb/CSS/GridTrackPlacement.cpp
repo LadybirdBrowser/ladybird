@@ -19,11 +19,11 @@ String GridTrackPlacement::to_string(SerializationMode mode) const
         },
         [&](AreaOrLine const& area_or_line) {
             if (area_or_line.line_number.has_value() && area_or_line.name.has_value()) {
-                builder.appendff("{} {}", area_or_line.line_number->to_string(mode), *area_or_line.name);
+                builder.appendff("{} {}", area_or_line.line_number->to_string(mode), serialize_an_identifier(*area_or_line.name));
             } else if (area_or_line.line_number.has_value()) {
                 builder.appendff("{}", area_or_line.line_number->to_string(mode));
             } else if (area_or_line.name.has_value()) {
-                builder.appendff("{}", *area_or_line.name);
+                builder.appendff("{}", serialize_an_identifier(*area_or_line.name));
             }
         },
         [&](Span const& span) {
