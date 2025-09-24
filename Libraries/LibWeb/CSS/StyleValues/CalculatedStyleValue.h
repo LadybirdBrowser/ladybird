@@ -100,7 +100,6 @@ public:
 
     bool resolves_to_time() const { return m_resolved_type.matches_time(m_context.percentages_resolve_as); }
     bool resolves_to_time_percentage() const { return m_resolved_type.matches_time_percentage(m_context.percentages_resolve_as); }
-    Optional<Time> resolve_time_deprecated(CalculationResolutionContext const&) const;
     Optional<Time> resolve_time(CalculationResolutionContext const&) const;
 
     bool resolves_to_number() const { return m_resolved_type.matches_number(m_context.percentages_resolve_as); }
