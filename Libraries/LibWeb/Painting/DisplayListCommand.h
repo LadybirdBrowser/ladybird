@@ -145,6 +145,10 @@ struct PushStackingContext {
     StackingContextTransform transform;
     Optional<Gfx::Path> clip_path = {};
 
+    size_t matching_pop_index { 0 };
+    bool can_aggregate_children_bounds { false };
+    Optional<Gfx::IntRect> bounding_rect {};
+
     void translate_by(Gfx::IntPoint const& offset)
     {
         transform.origin.translate_by(offset.to_type<float>());

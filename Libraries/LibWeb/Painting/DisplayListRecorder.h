@@ -148,6 +148,7 @@ public:
 private:
     Vector<Optional<i32>> m_scroll_frame_id_stack;
     Vector<RefPtr<ClipFrame const>> m_clip_frame_stack;
+    Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
 };
 

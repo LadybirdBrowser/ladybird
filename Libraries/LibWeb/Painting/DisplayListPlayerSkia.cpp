@@ -216,9 +216,12 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
         paint.setAlphaf(command.opacity);
         paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
 
-        // FIXME: If we knew the bounds of the stacking context including any transformed descendants etc,
-        //        we could use saveLayer with a bounds rect. For now, we pass nullptr and let Skia figure it out.
-        canvas.saveLayer(nullptr, &paint);
+        if (command.bounding_rect.has_value()) {
+            auto bounds = to_skia_rect(command.bounding_rect.value());
+            canvas.saveLayer(bounds, &paint);
+        } else {
+            canvas.saveLayer(nullptr, &paint);
+        }
     } else {
         canvas.save();
     }
