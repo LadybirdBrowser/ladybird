@@ -34,7 +34,6 @@ private:
     AK::Duration m_duration { AK::Duration::zero() };
     AK::Duration m_last_resume_in_media_time { AK::Duration::zero() };
     AK::Duration m_last_resume_in_device_time { AK::Duration::zero() };
-    AK::Duration m_last_good_device_time { AK::Duration::zero() };
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<Core::Timer> m_update_timer;
     bool m_paused { true };
