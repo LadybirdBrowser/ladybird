@@ -13,6 +13,9 @@
     </head>
     <body>
         <div id="background"></div>
+        
+        <!-- HACK: Force the document to wait for the image to load -->
+        <img src="../data/smiley.png" style="opacity: 0"/>
 
         <script>
             fetch("../data/smiley.png")
