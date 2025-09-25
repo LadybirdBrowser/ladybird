@@ -237,8 +237,6 @@ enum class PropertyID : @property_id_underlying_type@ {
     generator.append(R"~~~(
 };
 
-using PropertyIDOrCustomPropertyName = Variant<PropertyID, FlyString>;
-
 enum class AnimationType {
     Discrete,
     ByComputedValue,

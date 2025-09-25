@@ -7,8 +7,8 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
@@ -65,7 +65,7 @@ void CascadedProperties::resolve_unresolved_properties(DOM::AbstractElement abst
         for (auto& entry : entries) {
             if (!entry.property.value->is_unresolved())
                 continue;
-            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, property_id, entry.property.value->as_unresolved());
+            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), entry.property.value->as_unresolved());
         }
     }
 }
