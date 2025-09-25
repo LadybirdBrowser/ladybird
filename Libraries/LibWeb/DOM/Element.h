@@ -113,6 +113,8 @@ class WEB_API Element
 public:
     virtual ~Element() override;
 
+    virtual bool is_dom_element() const final { return true; }
+
     FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
     FlyString const& html_uppercased_qualified_name() const;
 
@@ -710,3 +712,6 @@ enum class ValidationContext {
 WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context);
 
 }
+
+template<>
+inline bool JS::Object::fast_is<Web::DOM::Element>() const { return is_dom_element(); }
