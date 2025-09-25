@@ -68,7 +68,7 @@ ErrorOr<NonnullOwnPtr<AudioCodecPluginAgnostic>> AudioCodecPluginAgnostic::creat
         }));
 
     output->set_underrun_callback([&plugin = *plugin, loader, output]() {
-        auto new_device_time = output->total_time_played().release_value_but_fixme_should_propagate_errors();
+        auto new_device_time = output->total_time_played();
         auto new_media_time = timestamp_from_samples(loader->loaded_samples(), loader->sample_rate());
         plugin.m_main_thread_event_loop.deferred_invoke([&plugin, new_device_time, new_media_time]() {
             plugin.m_last_resume_in_device_time = new_device_time;
@@ -118,12 +118,12 @@ void AudioCodecPluginAgnostic::pause_playback()
 {
     m_paused = true;
     m_output->drain_buffer_and_suspend()
-        ->when_resolved([self = make_weak_ptr<AudioCodecPluginAgnostic>()]() -> ErrorOr<void> {
+        ->when_resolved([self = make_weak_ptr<AudioCodecPluginAgnostic>()]() {
             if (!self)
-                return {};
+                return;
 
             auto new_media_time = timestamp_from_samples(self->m_loader->loaded_samples(), self->m_loader->sample_rate());
-            auto new_device_time = TRY(self->m_output->total_time_played());
+            auto new_device_time = self->m_output->total_time_played();
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_media_time, new_device_time]() {
                 if (!self)
@@ -134,8 +134,6 @@ void AudioCodecPluginAgnostic::pause_playback()
                 self->m_update_timer->stop();
                 self->update_timestamp();
             });
-
-            return {};
         })
         .when_rejected([](Error&&) {
             // FIXME: Propagate errors.
@@ -162,7 +160,7 @@ void AudioCodecPluginAgnostic::seek(double position)
                 return Error::from_string_literal("Seeking in audio loader failed");
 
             auto new_media_time = get_loader_timestamp(self->m_loader);
-            auto new_device_time = self->m_output->total_time_played().release_value_but_fixme_should_propagate_errors();
+            auto new_device_time = self->m_output->total_time_played();
 
             self->m_main_thread_event_loop.deferred_invoke([self, was_paused, new_device_time, new_media_time]() {
                 if (!self)
@@ -194,10 +192,7 @@ AK::Duration AudioCodecPluginAgnostic::duration()
 
 void AudioCodecPluginAgnostic::update_timestamp()
 {
-    auto current_device_time_result = m_output->total_time_played();
-    if (!current_device_time_result.is_error())
-        m_last_good_device_time = current_device_time_result.release_value();
-    auto current_device_time_delta = m_last_good_device_time - m_last_resume_in_device_time;
+    auto current_device_time_delta = m_output->total_time_played() - m_last_resume_in_device_time;
 
     auto current_media_time = m_last_resume_in_media_time + current_device_time_delta;
     current_media_time = min(current_media_time, m_duration);
