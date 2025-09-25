@@ -232,7 +232,7 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString con
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_name, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(FlyString const& property_name, StringView value, StringView priority)
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     if (is_computed())
@@ -283,14 +283,13 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(StringView property_n
     // 9. Otherwise,
     else {
         if (property_id == PropertyID::Custom) {
-            auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
             StyleProperty style_property {
                 .important = !priority.is_empty() ? Important::Yes : Important::No,
                 .property_id = property_id,
                 .value = component_value_list.release_nonnull(),
-                .custom_name = custom_name,
+                .custom_name = property_name,
             };
-            m_custom_properties.set(custom_name, style_property);
+            m_custom_properties.set(property_name, style_property);
             updated = true;
         } else {
             // let updated be the result of set the CSS declaration property with value component value list,
@@ -388,15 +387,14 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSStyleProperties::get_property_value(StringView property_name) const
+String CSSStyleProperties::get_property_value(FlyString const& property_name) const
 {
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
         return {};
 
     if (property_id.value() == PropertyID::Custom) {
-        auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
-        if (maybe_custom_property.has_value()) {
+        if (auto maybe_custom_property = custom_property(property_name); maybe_custom_property.has_value()) {
             return maybe_custom_property.value().value->to_string(
                 is_computed() ? SerializationMode::ResolvedValue
                               : SerializationMode::Normal);
@@ -413,13 +411,13 @@ String CSSStyleProperties::get_property_value(StringView property_name) const
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
-StringView CSSStyleProperties::get_property_priority(StringView property_name) const
+StringView CSSStyleProperties::get_property_priority(FlyString const& property_name) const
 {
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
         return {};
     if (property_id.value() == PropertyID::Custom) {
-        auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
+        auto maybe_custom_property = custom_property(property_name);
         if (!maybe_custom_property.has_value())
             return {};
         return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
@@ -430,7 +428,7 @@ StringView CSSStyleProperties::get_property_priority(StringView property_name) c
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
 }
 
-bool CSSStyleProperties::has_property(StringView property_name) const
+bool CSSStyleProperties::has_property(FlyString const& property_name) const
 {
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
@@ -438,7 +436,7 @@ bool CSSStyleProperties::has_property(StringView property_name) const
     return get_property_internal(*property_id).has_value();
 }
 
-RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(StringView property_name) const
+RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(FlyString const& property_name) const
 {
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
@@ -860,7 +858,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(StringView property_name)
+WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(FlyString const& property_name)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
@@ -890,8 +888,7 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(StringView prope
         } else {
             // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
             if (property_id == PropertyID::Custom) {
-                auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
-                removed = m_custom_properties.remove(custom_name);
+                removed = m_custom_properties.remove(property_name);
             } else {
                 removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
             }
@@ -923,14 +920,14 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(PropertyID prope
 String CSSStyleProperties::css_float() const
 {
     // The cssFloat attribute, on getting, must return the result of invoking getPropertyValue() with float as argument.
-    return get_property_value("float"sv);
+    return get_property_value("float"_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(StringView value)
 {
     // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
     // and no third argument. Any exceptions thrown must be re-thrown.
-    return set_property("float"sv, value, ""sv);
+    return set_property("float"_fly_string, value, ""sv);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block

@@ -110,12 +110,12 @@ namespace Web::Bindings {
         definition_generator.append(R"~~~(
 WebIDL::ExceptionOr<void> GeneratedCSSStyleProperties::set_@name:acceptable_cpp@(StringView value)
 {
-    return generated_style_properties_to_css_style_properties().set_property("@name@"sv, value, ""sv);
+    return generated_style_properties_to_css_style_properties().set_property("@name@"_fly_string, value, ""sv);
 }
 
 String GeneratedCSSStyleProperties::@name:acceptable_cpp@() const
 {
-    return generated_style_properties_to_css_style_properties().get_property_value("@name@"sv);
+    return generated_style_properties_to_css_style_properties().get_property_value("@name@"_fly_string);
 }
 )~~~");
     });

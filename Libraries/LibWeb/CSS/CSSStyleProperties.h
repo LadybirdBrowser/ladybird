@@ -39,19 +39,19 @@ public:
     WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
     WebIDL::ExceptionOr<String> remove_property(PropertyID);
 
-    virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name) override;
+    virtual WebIDL::ExceptionOr<void> set_property(FlyString const& property_name, StringView css_text, StringView priority) override;
+    virtual WebIDL::ExceptionOr<String> remove_property(FlyString const& property_name) override;
 
-    virtual String get_property_value(StringView property_name) const override;
-    virtual StringView get_property_priority(StringView property_name) const override;
+    virtual String get_property_value(FlyString const& property_name) const override;
+    virtual StringView get_property_priority(FlyString const& property_name) const override;
 
     Vector<StyleProperty> const& properties() const { return m_properties; }
     OrderedHashMap<FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
 
     size_t custom_property_count() const { return m_custom_properties.size(); }
 
-    virtual bool has_property(StringView property_name) const override;
-    virtual RefPtr<StyleValue const> get_property_style_value(StringView property_name) const override;
+    virtual bool has_property(FlyString const& property_name) const override;
+    virtual RefPtr<StyleValue const> get_property_style_value(FlyString const& property_name) const override;
 
     String css_float() const;
     WebIDL::ExceptionOr<void> set_css_float(StringView);

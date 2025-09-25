@@ -62,7 +62,7 @@ bool CSSDescriptors::set_a_css_declaration(DescriptorID descriptor_id, NonnullRe
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSDescriptors::set_property(StringView property, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSDescriptors::set_property(FlyString const& property, StringView value, StringView priority)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
@@ -128,7 +128,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(StringView property, Stri
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(StringView property)
+WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(FlyString const& property)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
@@ -169,7 +169,7 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(StringView property)
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSDescriptors::get_property_value(StringView property) const
+String CSSDescriptors::get_property_value(FlyString const& property) const
 {
     // 1. If property is not a custom property, follow these substeps: ...
     // NB: These substeps only apply to shorthands, and descriptors cannot be shorthands.
@@ -188,7 +188,7 @@ String CSSDescriptors::get_property_value(StringView property) const
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
-StringView CSSDescriptors::get_property_priority(StringView) const
+StringView CSSDescriptors::get_property_priority(FlyString const&) const
 {
     // AD-HOC: It's not valid for descriptors to be !important.
     return {};
@@ -281,7 +281,7 @@ RefPtr<StyleValue const> CSSDescriptors::descriptor_or_initial_value(DescriptorI
     return descriptor_initial_value(m_at_rule_id, descriptor_id);
 }
 
-bool CSSDescriptors::has_property(StringView property_name) const
+bool CSSDescriptors::has_property(FlyString const& property_name) const
 {
     auto descriptor_id = descriptor_id_from_string(m_at_rule_id, property_name);
     if (!descriptor_id.has_value())
@@ -289,7 +289,7 @@ bool CSSDescriptors::has_property(StringView property_name) const
     return descriptor(*descriptor_id) != nullptr;
 }
 
-RefPtr<StyleValue const> CSSDescriptors::get_property_style_value(StringView property_name) const
+RefPtr<StyleValue const> CSSDescriptors::get_property_style_value(FlyString const& property_name) const
 {
     auto descriptor_id = descriptor_id_from_string(m_at_rule_id, property_name);
     if (!descriptor_id.has_value())
