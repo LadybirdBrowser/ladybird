@@ -233,6 +233,7 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
             case Wasm::ValueType::V128:
             case Wasm::ValueType::FunctionReference:
             case Wasm::ValueType::ExternReference:
+            case Wasm::ValueType::ExceptionReference:
                 VERIFY_NOT_REACHED();
             }
             last_value = parsed.value.value();

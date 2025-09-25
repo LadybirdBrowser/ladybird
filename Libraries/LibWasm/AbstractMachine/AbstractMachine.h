@@ -38,6 +38,8 @@ AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, GlobalAddress, Arithmetic, Comparison, 
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, ElementAddress, Arithmetic, Comparison, Increment);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, DataAddress, Arithmetic, Comparison, Increment);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, MemoryAddress, Arithmetic, Comparison, Increment);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, TagAddress, Arithmetic, Comparison, Increment);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, ExceptionAddress, Arithmetic, Comparison, Increment);
 
 // FIXME: These should probably be made generic/virtual if/when we decide to do something more
 //        fancy than just a dumb interpreter.
@@ -53,8 +55,11 @@ public:
     struct Extern {
         ExternAddress address;
     };
+    struct Exception {
+        ExceptionAddress address;
+    };
 
-    using RefType = Variant<Null, Func, Extern>;
+    using RefType = Variant<Null, Func, Extern, Exception>;
     explicit Reference(RefType ref)
         : m_ref(move(ref))
     {
@@ -89,6 +94,10 @@ public:
         case ValueType::ExternReference:
             // ref.null externref
             m_value = u128(0, 3);
+            break;
+        case ValueType::ExceptionReference:
+            // ref.null exnref
+            m_value = u128(0, 4);
             break;
         }
     }
@@ -136,10 +145,14 @@ public:
         // 1: externref
         // 2: null funcref
         // 3: null externref
+        // 4: null exnref
+        // 5: exnref
         ref.ref().visit(
             [&](Reference::Func const& func) { m_value = u128(bit_cast<u64>(func.address), bit_cast<u64>(func.source_module.ptr())); },
             [&](Reference::Extern const& func) { m_value = u128(bit_cast<u64>(func.address), 1); },
-            [&](Reference::Null const& null) { m_value = u128(0, null.type.kind() == ValueType::Kind::FunctionReference ? 2 : 3); });
+            [&](Reference::Null const& null) { m_value = u128(0, null.type.kind() == ValueType::Kind::FunctionReference ? 2 : null.type.kind() == ValueType::Kind::ExceptionReference ? 4
+                                                                                                                                                                                      : 3); },
+            [&](Reference::Exception const& exn) { m_value = u128(bit_cast<u64>(exn.address), 5); });
     }
 
     template<SameAs<u128> T>
@@ -184,6 +197,10 @@ public:
                 return Reference { Reference::Null { ValueType(ValueType::Kind::FunctionReference) } };
             case 3:
                 return Reference { Reference::Null { ValueType(ValueType::Kind::ExternReference) } };
+            case 4:
+                return Reference { Reference::Null { ValueType(ValueType::Kind::ExceptionReference) } };
+            case 5:
+                return Reference { Reference::Exception { bit_cast<ExceptionAddress>(m_value.low()) } };
             }
         }
         VERIFY_NOT_REACHED();
@@ -273,7 +290,7 @@ struct InstantiationError {
     InstantiationErrorSource source { InstantiationErrorSource::Linking };
 };
 
-using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress>;
+using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, TagAddress>;
 
 class ExportInstance {
 public:
@@ -296,13 +313,16 @@ public:
     explicit ModuleInstance(
         Vector<FunctionType> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses,
         Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses,
+        Vector<TagAddress> tag_addresses, Vector<TagType> tag_types,
         Vector<ExportInstance> exports)
         : m_types(move(types))
+        , m_tag_types(move(tag_types))
         , m_functions(move(function_addresses))
         , m_tables(move(table_addresses))
         , m_memories(move(memory_addresses))
         , m_globals(move(global_addresses))
         , m_datas(move(data_addresses))
+        , m_tags(move(tag_addresses))
         , m_exports(move(exports))
     {
     }
@@ -317,6 +337,8 @@ public:
     auto& elements() const { return m_elements; }
     auto& datas() const { return m_datas; }
     auto& exports() const { return m_exports; }
+    auto& tags() const { return m_tags; }
+    auto& tag_types() const { return m_tag_types; }
 
     auto& types() { return m_types; }
     auto& functions() { return m_functions; }
@@ -326,15 +348,19 @@ public:
     auto& elements() { return m_elements; }
     auto& datas() { return m_datas; }
     auto& exports() { return m_exports; }
+    auto& tags() { return m_tags; }
+    auto& tag_types() { return m_tag_types; }
 
 private:
     Vector<FunctionType> m_types;
+    Vector<TagType> m_tag_types;
     Vector<FunctionAddress> m_functions;
     Vector<TableAddress> m_tables;
     Vector<MemoryAddress> m_memories;
     Vector<GlobalAddress> m_globals;
     Vector<ElementAddress> m_elements;
     Vector<DataAddress> m_datas;
+    Vector<TagAddress> m_tags;
     Vector<ExportInstance> m_exports;
 };
 
@@ -552,6 +578,38 @@ private:
     Vector<Reference> m_references;
 };
 
+class TagInstance {
+public:
+    TagInstance(FunctionType const& type, TagType::Flags flags)
+        : m_type(type)
+        , m_flags(flags)
+    {
+    }
+
+    auto& type() const { return m_type; }
+    auto flags() const { return m_flags; }
+
+private:
+    FunctionType m_type;
+    TagType::Flags m_flags;
+};
+
+class ExceptionInstance {
+public:
+    explicit ExceptionInstance(TagInstance const& type, Vector<Value> params)
+        : m_type(type)
+        , m_params(move(params))
+    {
+    }
+
+    auto& type() const { return m_type; }
+    auto& params() const { return m_params; }
+
+private:
+    TagInstance m_type;
+    Vector<Value> m_params;
+};
+
 class WASM_API Store {
 public:
     Store() = default;
@@ -563,6 +621,8 @@ public:
     Optional<DataAddress> allocate_data(Vector<u8>);
     Optional<GlobalAddress> allocate(GlobalType const&, Value);
     Optional<ElementAddress> allocate(ValueType const&, Vector<Reference>);
+    Optional<TagAddress> allocate(FunctionType const&, TagType::Flags);
+    Optional<ExceptionAddress> allocate(TagInstance const&, Vector<Value>);
 
     Module const* get_module_for(FunctionAddress);
     FunctionInstance* get(FunctionAddress);
@@ -571,6 +631,8 @@ public:
     GlobalInstance* get(GlobalAddress);
     DataInstance* get(DataAddress);
     ElementInstance* get(ElementAddress);
+    TagInstance* get(TagAddress);
+    ExceptionInstance* get(ExceptionAddress);
 
     MemoryInstance* unsafe_get(MemoryAddress address) { return &m_memories.data()[address.value()]; }
 
@@ -581,6 +643,8 @@ private:
     Vector<GlobalInstance> m_globals;
     Vector<ElementInstance> m_elements;
     Vector<DataInstance> m_datas;
+    Vector<TagInstance> m_tags;
+    Vector<ExceptionInstance> m_exceptions;
 };
 
 class Label {

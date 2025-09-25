@@ -252,7 +252,8 @@ void Printer::print(Wasm::ExportSection::Export const& entry)
             [this](FunctionIndex const& index) { print("(function index {})\n", index.value()); },
             [this](TableIndex const& index) { print("(table index {})\n", index.value()); },
             [this](MemoryIndex const& index) { print("(memory index {})\n", index.value()); },
-            [this](GlobalIndex const& index) { print("(global index {})\n", index.value()); });
+            [this](GlobalIndex const& index) { print("(global index {})\n", index.value()); },
+            [this](TagIndex const& index) { print("(tag index {})\n", index.value()); });
     }
     print_indent();
     print(")\n");
@@ -398,6 +399,18 @@ void Printer::print(Wasm::GlobalType const& type)
     print(")\n");
 }
 
+void Printer::print(Wasm::TagType const& type)
+{
+    print_indent();
+    print("(type tag\n");
+    {
+        TemporaryChange change { m_indent, m_indent + 1 };
+        print(type.type());
+    }
+    print_indent();
+    print(")\n");
+}
+
 void Printer::print(Wasm::ImportSection const& section)
 {
     if (section.imports().is_empty())
@@ -430,6 +443,35 @@ void Printer::print(Wasm::ImportSection::Import const& import)
     }
     print_indent();
     print(")\n");
+}
+
+void Printer::print(Wasm::TagSection const& section)
+{
+    // (section tag\n[ ](tag type)*)
+    if (section.tags().is_empty())
+        return;
+
+    print_indent();
+    print("(section tag\n");
+    {
+        TemporaryChange change { m_indent, m_indent + 1 };
+        for (auto& tag : section.tags())
+            print(tag);
+    }
+    print_indent();
+    print(")\n");
+}
+
+void Printer::print(Wasm::TagSection::Tag const& tag)
+{
+    print_indent();
+    print("(tag (type index {}))\n", tag.type().value());
+}
+
+void Printer::print(Wasm::TypeIndex const& index)
+{
+    print_indent();
+    print("(type index {})\n", index.value());
 }
 
 void Printer::print(Wasm::Instruction const& instruction)
@@ -472,6 +514,16 @@ void Printer::print(Wasm::Instruction const& instruction)
                 print_indent();
                 print("(else {}) (end {}))", args.else_ip.has_value() ? ByteString::number(args.else_ip->value()) : "(none)", args.end_ip.value());
             },
+            [&](Instruction::TryTableArgs const& args) {
+                print("(try_table ");
+                print(args.try_.block_type);
+                print(" (catches\n");
+                TemporaryChange change { m_indent, m_indent + 1 };
+                for (auto& catch_ : args.catches)
+                    print(catch_);
+                print_indent();
+                print(") (end {}))", args.try_.end_ip.value());
+            },
             [&](Instruction::TableBranchArgs const& args) {
                 print("(table_branch");
                 for (auto& label : args.labels)
@@ -489,6 +541,24 @@ void Printer::print(Wasm::Instruction const& instruction)
 
         print(")\n");
     }
+}
+
+void Printer::print(Catch const& catch_)
+{
+    print_indent();
+    StringBuilder name_builder;
+    name_builder.appendff("catch{}{}", catch_.matching_tag_index().has_value() ? ""sv : "_all"sv, catch_.is_ref() ? "_ref"sv : ""sv);
+    print("({} ", name_builder.string_view());
+    if (auto index = catch_.matching_tag_index(); index.has_value())
+        print("(tag index {})", index.value());
+    print("\n");
+    {
+        TemporaryChange change { m_indent, m_indent + 1 };
+        print_indent();
+        print("(label index {})\n", catch_.target_label().value());
+    }
+    print_indent();
+    print(")\n");
 }
 
 void Printer::print(Wasm::Limits const& limits)
@@ -566,6 +636,7 @@ void Printer::print(Wasm::Module const& module)
         print(module.function_section());
         print(module.table_section());
         print(module.memory_section());
+        print(module.tag_section());
         print(module.global_section());
         print(module.export_section());
         print(module.start_section());
@@ -682,9 +753,11 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
         break;
     case ValueType::FunctionReference:
     case ValueType::ExternReference:
+    case ValueType::ExceptionReference:
         print("addr({})",
             value.to<Reference>().ref().visit(
                 [](Wasm::Reference::Null const&) { return ByteString("null"); },
+                [](Wasm::Reference::Exception const&) { return ByteString("exception"); },
                 [](auto const& ref) { return ByteString::number(ref.address.value()); }));
         break;
     }
@@ -705,6 +778,7 @@ void Printer::print(Wasm::Reference const& value)
         "addr({})\n",
         value.ref().visit(
             [](Wasm::Reference::Null const&) { return ByteString("null"); },
+            [](Wasm::Reference::Exception const&) { return ByteString("exception"); },
             [](auto const& ref) { return ByteString::number(ref.address.value()); }));
 }
 
@@ -716,6 +790,9 @@ HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {
     { Instructions::block, "block" },
     { Instructions::loop, "loop" },
     { Instructions::if_, "if" },
+    { Instructions::try_table, "try_table" },
+    { Instructions::throw_, "throw" },
+    { Instructions::throw_ref, "throw_ref" },
     { Instructions::br, "br" },
     { Instructions::br_if, "br.if" },
     { Instructions::br_table, "br.table" },

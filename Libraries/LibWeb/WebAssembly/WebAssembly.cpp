@@ -617,6 +617,8 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         cache.add_extern_value(extern_addr, value);
         return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { extern_addr } } };
     }
+    case Wasm::ValueType::ExceptionReference:
+        return Wasm::Value(Wasm::ValueType { Wasm::ValueType::Kind::ExceptionReference });
     case Wasm::ValueType::V128:
         return vm.throw_completion<JS::TypeError>("Cannot convert a vector value to a javascript value"sv);
     }
@@ -636,6 +638,8 @@ Wasm::Value default_webassembly_value(JS::VM& vm, Wasm::ValueType type)
         return Wasm::Value(type);
     case Wasm::ValueType::ExternReference:
         return MUST(to_webassembly_value(vm, JS::js_undefined(), type));
+    case Wasm::ValueType::ExceptionReference:
+        return Wasm::Value(type);
     }
     VERIFY_NOT_REACHED();
 }
@@ -680,6 +684,7 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
         return value.release_value();
     }
     case Wasm::ValueType::V128:
+    case Wasm::ValueType::ExceptionReference:
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();

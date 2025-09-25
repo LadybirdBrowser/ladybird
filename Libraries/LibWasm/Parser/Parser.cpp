@@ -202,6 +202,16 @@ ParseResult<GlobalType> GlobalType::parse(ConstrainedStream& stream)
     return GlobalType { type_result, mutable_ == 0x01 };
 }
 
+ParseResult<TagType> TagType::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("TagType"sv);
+    auto flags = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+    if (flags != 0)
+        return ParseError::InvalidTag;
+    auto index = TRY(GenericIndexParser<TypeIndex>::parse(stream));
+    return TagType { index, static_cast<TagType::Flags>(flags) };
+}
+
 ParseResult<BlockType> BlockType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("BlockType"sv);
@@ -231,6 +241,38 @@ ParseResult<BlockType> BlockType::parse(ConstrainedStream& stream)
     return BlockType { TypeIndex(index_value) };
 }
 
+ParseResult<Catch> Catch::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("Catch"sv);
+    auto kind = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+    switch (kind) {
+    case 0: {
+        // catch x l
+        auto tag_index = TRY(GenericIndexParser<TagIndex>::parse(stream));
+        auto label_index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
+        return Catch { false, tag_index, label_index };
+    }
+    case 1: {
+        // catch_ref x l
+        auto tag_index = TRY(GenericIndexParser<TagIndex>::parse(stream));
+        auto label_index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
+        return Catch { true, tag_index, label_index };
+    }
+    case 2: {
+        // catch_all l
+        auto label_index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
+        return Catch { false, {}, label_index };
+    }
+    case 3: {
+        // catch_all_ref l
+        auto label_index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
+        return Catch { true, {}, label_index };
+    }
+    default:
+        return ParseError::InvalidTag;
+    }
+}
+
 ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Instruction"sv);
@@ -248,6 +290,19 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         return Instruction {
             opcode, StructuredInstructionArgs { block_type, {}, {} }
         };
+    }
+    case Instructions::try_table.value(): {
+        // try_table block_type (catch*) (instruction*) end
+        auto block_type = TRY(BlockType::parse(stream));
+        auto catch_types = TRY(parse_vector<Catch>(stream));
+        auto structured_args = StructuredInstructionArgs { block_type, {}, {} };
+        return Instruction {
+            opcode, TryTableArgs { move(structured_args), move(catch_types) }
+        };
+    }
+    case Instructions::throw_.value(): {
+        auto tag_index = TRY(GenericIndexParser<TagIndex>::parse(stream));
+        return Instruction { opcode, tag_index };
     }
     case Instructions::br.value():
     case Instructions::br_if.value(): {
@@ -384,6 +439,7 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         auto index = TRY(GenericIndexParser<FunctionIndex>::parse(stream));
         return Instruction { opcode, index };
     }
+    case Instructions::throw_ref.value():
     case Instructions::structured_end.value():
     case Instructions::structured_else.value():
     case Instructions::ref_is_null.value():
@@ -944,6 +1000,8 @@ ParseResult<ImportSection::Import> ImportSection::Import::parse(ConstrainedStrea
         return parse_with_type<MemoryType>(stream, module, name);
     case Constants::extern_global_tag:
         return parse_with_type<GlobalType>(stream, module, name);
+    case Constants::extern_tag_tag:
+        return parse_with_type<TagType>(stream, module, name);
     default:
         return ParseError::InvalidTag;
     }
@@ -1012,6 +1070,7 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
         case Instructions::block.value():
         case Instructions::loop.value():
         case Instructions::if_.value():
+        case Instructions::try_table.value():
             stack.append(ip);
             break;
         case Instructions::structured_end.value(): {
@@ -1019,10 +1078,16 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
                 instructions.empend(Instructions::synthetic_end_expression); // Synthetic noop to mark the end of the expression.
                 return Expression { move(instructions) };
             }
-            auto entry = stack.take_last();
-            auto& args = instructions[entry.value()].arguments().get<Instruction::StructuredInstructionArgs>();
             // Patch the end_ip of the last structured instruction
-            args.end_ip = ip + (args.else_ip.has_value() ? 1 : 0);
+            auto entry = stack.take_last();
+            instructions[entry.value()].arguments().visit(
+                [&](Instruction::StructuredInstructionArgs& args) {
+                    args.end_ip = ip + (args.else_ip.has_value() ? 1 : 0);
+                },
+                [&](Instruction::TryTableArgs& args) {
+                    args.try_.end_ip = ip + 1;
+                },
+                [](auto&) { VERIFY_NOT_REACHED(); });
             break;
         }
         case Instructions::structured_else.value(): {
@@ -1075,6 +1140,8 @@ ParseResult<ExportSection::Export> ExportSection::Export::parse(ConstrainedStrea
         return Export { name, ExportDesc { MemoryIndex { index } } };
     case Constants::extern_global_tag:
         return Export { name, ExportDesc { GlobalIndex { index } } };
+    case Constants::extern_tag_tag:
+        return Export { name, ExportDesc { TagIndex { index } } };
     default:
         return ParseError::InvalidTag;
     }
@@ -1256,6 +1323,25 @@ ParseResult<DataCountSection> DataCountSection::parse(ConstrainedStream& stream)
     return DataCountSection { value };
 }
 
+ParseResult<TagSection> TagSection::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("TagSection"sv);
+    // https://webassembly.github.io/exception-handling/core/binary/modules.html#binary-tagsec
+    auto tags = TRY(parse_vector<Tag>(stream));
+    return TagSection { move(tags) };
+}
+
+ParseResult<TagSection::Tag> TagSection::Tag::parse(ConstrainedStream& stream)
+{
+    // https://webassembly.github.io/exception-handling/core/binary/modules.html#binary-tagsec
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("Tag"sv);
+    auto flag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+    if (flag != 0)
+        return ParseError::InvalidTag; // currently the only valid flag is 0
+    auto type_index = TRY(GenericIndexParser<TypeIndex>::parse(stream));
+    return TagSection::Tag { type_index, static_cast<TagSection::Tag::Flags>(flag) };
+}
+
 ParseResult<SectionId> SectionId::parse(Stream& stream)
 {
     u8 id = TRY_READ(stream, u8, ParseError::ExpectedIndex);
@@ -1286,6 +1372,8 @@ ParseResult<SectionId> SectionId::parse(Stream& stream)
         return SectionId(SectionIdKind::Data);
     case 0x0c:
         return SectionId(SectionIdKind::DataCount);
+    case 0x0d:
+        return SectionId(SectionIdKind::Tag);
     default:
         return ParseError::InvalidIndex;
     }
@@ -1357,14 +1445,15 @@ ParseResult<NonnullRefPtr<Module>> Module::parse(Stream& stream)
         case SectionId::SectionIdKind::DataCount:
             module.data_count_section() = TRY(DataCountSection::parse(section_stream));
             break;
+        case SectionId::SectionIdKind::Tag:
+            module.tag_section() = TRY(TagSection::parse(section_stream));
+            break;
         default:
             return ParseError::InvalidIndex;
         }
-        if (section_id.kind() != SectionId::SectionIdKind::Custom) {
-            if (section_id.kind() < last_section_id)
-                return ParseError::SectionOutOfOrder;
-            last_section_id = section_id.kind();
-        }
+        if (!section_id.can_appear_after(last_section_id))
+            return ParseError::SectionOutOfOrder;
+        last_section_id = section_id.kind();
         if (section_stream.remaining() != 0)
             return ParseError::SectionSizeMismatch;
     }

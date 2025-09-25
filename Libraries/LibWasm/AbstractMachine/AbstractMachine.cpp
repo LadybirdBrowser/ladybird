@@ -76,6 +76,20 @@ Optional<ElementAddress> Store::allocate(ValueType const& type, Vector<Reference
     return address;
 }
 
+Optional<TagAddress> Store::allocate(FunctionType const& type, TagType::Flags flags)
+{
+    TagAddress address { m_tags.size() };
+    m_tags.append({ type, flags });
+    return address;
+}
+
+Optional<ExceptionAddress> Store::allocate(TagInstance const& tag_instance, Vector<Value> params)
+{
+    ExceptionAddress address { m_exceptions.size() };
+    m_exceptions.append(ExceptionInstance { tag_instance, move(params) });
+    return address;
+}
+
 FunctionInstance* Store::get(FunctionAddress address)
 {
     auto value = address.value();
@@ -130,6 +144,22 @@ DataInstance* Store::get(DataAddress address)
     if (m_datas.size() <= value)
         return nullptr;
     return &m_datas[value];
+}
+
+TagInstance* Store::get(TagAddress address)
+{
+    auto value = address.value();
+    if (m_tags.size() <= value)
+        return nullptr;
+    return &m_tags[value];
+}
+
+ExceptionInstance* Store::get(ExceptionAddress address)
+{
+    auto value = address.value();
+    if (m_exceptions.size() <= value)
+        return nullptr;
+    return &m_exceptions[value];
 }
 
 ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module)
@@ -201,6 +231,19 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                     return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
                 if (type.parameters() != other_type.parameters())
                     return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+                return {};
+            },
+            [&](TagType const& type) -> Optional<ByteString> {
+                if (!extern_.has<TagAddress>())
+                    return "Expected tag import"sv;
+                auto other_tag_instance = m_store.get(extern_.get<TagAddress>());
+                if (other_tag_instance->flags() != type.flags())
+                    return "Tag import and extern do not match"sv;
+
+                auto& this_type = module.type_section().types()[type.type().value()];
+
+                if (other_tag_instance->type().parameters() != this_type.parameters())
+                    return "Tag import and extern do not match"sv;
                 return {};
             },
             [&](TypeIndex type_index) -> Optional<ByteString> {
@@ -407,7 +450,8 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
             [&](FunctionAddress const& address) { module_instance.functions().append(address); },
             [&](TableAddress const& address) { module_instance.tables().append(address); },
             [&](MemoryAddress const& address) { module_instance.memories().append(address); },
-            [&](GlobalAddress const& address) { module_instance.globals().append(address); });
+            [&](GlobalAddress const& address) { module_instance.globals().append(address); },
+            [&](TagAddress const& address) { module_instance.tags().append(address); });
     }
 
     module_instance.functions().extend(own_functions);
@@ -434,8 +478,15 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
         index++;
     }
 
+    for (auto& entry : module.tag_section().tags()) {
+        auto& type = module.type_section().types()[entry.type().value()];
+        auto address = m_store.allocate(type, entry.flags());
+        VERIFY(address.has_value());
+        module_instance.tags().append(*address);
+    }
+
     for (auto& entry : module.export_section().entries()) {
-        Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, Empty> address {};
+        Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, TagAddress, Empty> address {};
         entry.description().visit(
             [&](FunctionIndex const& index) {
                 if (module_instance.functions().size() > index.value())
@@ -460,6 +511,12 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
                     address = GlobalAddress { module_instance.globals()[index.value()] };
                 else
                     dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.globals().size());
+            },
+            [&](TagIndex const& index) {
+                if (module_instance.tags().size() > index.value())
+                    address = TagAddress { module_instance.tags()[index.value()] };
+                else
+                    dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.tags().size());
             });
 
         if (address.has<Empty>()) {
@@ -469,7 +526,7 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
         module_instance.exports().append(ExportInstance {
             entry.name(),
-            move(address).downcast<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress>(),
+            move(address).downcast<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, TagAddress>(),
         });
     }
 

@@ -3754,6 +3754,36 @@ HANDLE_INSTRUCTION(i32x4_relaxed_dot_i8x16_i7x16_add_s)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+HANDLE_INSTRUCTION(throw_ref)
+{
+    interpreter.set_trap("Not Implemented: Proposal 'Exception-handling'"sv);
+    return Outcome::Return;
+}
+
+HANDLE_INSTRUCTION(throw_)
+{
+    {
+        auto tag_address = configuration.frame().module().tags()[instruction->arguments().get<TagIndex>().value()];
+        auto& tag_instance = *configuration.store().get(tag_address);
+        auto& type = tag_instance.type();
+        auto values = Vector<Value>(configuration.value_stack().span().slice_from_end(type.parameters().size()));
+        configuration.value_stack().shrink(configuration.value_stack().size() - type.parameters().size());
+        auto exception_address = configuration.store().allocate(tag_instance, move(values));
+        if (!exception_address.has_value()) {
+            interpreter.set_trap("Out of memory"sv);
+            return Outcome::Return;
+        }
+        configuration.value_stack().append(Value(Reference { Reference::Exception { *exception_address } }));
+    }
+    TAILCALL return InstructionHandler<Instructions::throw_ref.value()>::operator()<HasDynamicInsnLimit, Continue>(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(try_table)
+{
+    interpreter.set_trap("Not Implemented: Proposal 'Exception-handling'"sv);
+    return Outcome::Return;
+}
+
 template<u64 opcode, bool HasDynamicInsnLimit, typename Continue, typename... Args>
 constexpr static auto handle_instruction(Args&&... a)
 {
