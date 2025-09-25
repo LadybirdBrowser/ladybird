@@ -89,7 +89,7 @@ NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamPulseAudio::res
     TRY_OR_REJECT(m_state->check_is_running(), promise);
     m_state->enqueue([this, promise]() {
         TRY_OR_REJECT(m_state->stream()->resume());
-        promise->resolve(TRY_OR_REJECT(m_state->stream()->total_time_played()));
+        promise->resolve(m_state->stream()->total_time_played());
     });
     return promise;
 }
@@ -116,7 +116,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::discard_buf
     return promise;
 }
 
-ErrorOr<AK::Duration> PlaybackStreamPulseAudio::total_time_played()
+AK::Duration PlaybackStreamPulseAudio::total_time_played() const
 {
     if (m_state->stream() != nullptr)
         return m_state->stream()->total_time_played();
