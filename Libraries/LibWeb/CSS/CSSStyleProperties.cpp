@@ -397,11 +397,11 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 String CSSStyleProperties::get_property_value(FlyString const& property_name) const
 {
-    auto property_id = property_id_from_string(property_name);
-    if (!property_id.has_value())
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value())
         return {};
 
-    if (property_id.value() == PropertyID::Custom) {
+    if (property->is_custom_property()) {
         if (auto maybe_custom_property = custom_property(property_name); maybe_custom_property.has_value()) {
             return maybe_custom_property.value().value->to_string(
                 is_computed() ? SerializationMode::ResolvedValue
@@ -410,7 +410,7 @@ String CSSStyleProperties::get_property_value(FlyString const& property_name) co
         return {};
     }
 
-    auto maybe_property = get_property_internal(property_id.value());
+    auto maybe_property = get_property_internal(property.value());
     if (!maybe_property.has_value())
         return {};
     return maybe_property->value->to_string(
@@ -438,63 +438,76 @@ StringView CSSStyleProperties::get_property_priority(FlyString const& property_n
 
 bool CSSStyleProperties::has_property(FlyString const& property_name) const
 {
-    auto property_id = property_id_from_string(property_name);
-    if (!property_id.has_value())
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value())
         return false;
-    return get_property_internal(*property_id).has_value();
+    return get_property_internal(*property).has_value();
 }
 
 RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(FlyString const& property_name) const
 {
-    auto property_id = property_id_from_string(property_name);
-    if (!property_id.has_value())
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value())
         return nullptr;
-    if (auto style_property = get_property_internal(*property_id); style_property.has_value())
+    if (auto style_property = get_property_internal(*property); style_property.has_value())
         return style_property->value;
     return nullptr;
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID property_id) const
+Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAndID const& property) const
 {
-    // 2. If property is a shorthand property, then follow these substeps:
-    if (property_is_shorthand(property_id)) {
-        // 1. Let list be a new empty array.
-        Vector<ValueComparingNonnullRefPtr<StyleValue const>> list;
-        Optional<Important> last_important_flag;
+    // NB: This is our own method to get a StyleProperty, but following the algorithm for getPropertyValue() which
+    //     returns a String. (This way, we can use the same logic in other places.) That's why the spec steps talk
+    //     about strings and then we do something different.
 
-        // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        Vector<PropertyID> longhand_ids = longhands_for_shorthand(property_id);
-        for (auto longhand_property_id : longhand_ids) {
-            // 1. If longhand is a case-sensitive match for a property name of a CSS declaration in the declarations,
-            //    let declaration be that CSS declaration, or null otherwise.
-            auto declaration = get_property_internal(longhand_property_id);
+    // 1. If property is not a custom property, follow these substeps:
+    if (!property.is_custom_property()) {
+        // 1. Let property be property converted to ASCII lowercase.
+        // NB: Done already by PropertyNameAndID.
 
-            // 2. If declaration is null, then return the empty string.
-            if (!declaration.has_value())
-                return {};
+        // 2. If property is a shorthand property, then follow these substeps:
+        if (property_is_shorthand(property.id())) {
+            // 1. Let list be a new empty array.
+            Vector<ValueComparingNonnullRefPtr<StyleValue const>> list;
+            Optional<Important> last_important_flag;
 
-            // 3. Append the declaration to list.
-            list.append(declaration->value);
+            // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
+            Vector<PropertyID> longhand_ids = longhands_for_shorthand(property.id());
+            for (auto longhand_property_id : longhand_ids) {
+                // 1. If longhand is a case-sensitive match for a property name of a CSS declaration in the declarations,
+                //    let declaration be that CSS declaration, or null otherwise.
+                auto declaration = get_property_internal(PropertyNameAndID::from_id(longhand_property_id));
 
-            if (last_important_flag.has_value() && declaration->important != *last_important_flag)
-                return {};
-            last_important_flag = declaration->important;
+                // 2. If declaration is null, then return the empty string.
+                if (!declaration.has_value())
+                    return {};
+
+                // 3. Append the declaration to list.
+                list.append(declaration->value);
+
+                if (last_important_flag.has_value() && declaration->important != *last_important_flag)
+                    return {};
+                last_important_flag = declaration->important;
+            }
+
+            // 3. If important flags of all declarations in list are same, then return the serialization of list.
+            // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
+            return StyleProperty {
+                .important = last_important_flag.value(),
+                .property_id = property.id(),
+                .value = ShorthandStyleValue::create(property.id(), longhand_ids, list),
+            };
+
+            // 4. Return the empty string.
+            // NOTE: This is handled by the loop.
         }
-
-        // 3. If important flags of all declarations in list are same, then return the serialization of list.
-        // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
-        return StyleProperty {
-            .important = last_important_flag.value(),
-            .property_id = property_id,
-            .value = ShorthandStyleValue::create(property_id, longhand_ids, list),
-        };
-
-        // 4. Return the empty string.
-        // NOTE: This is handled by the loop.
     }
 
-    return get_property(property_id);
+    // 2. If property is a case-sensitive match for a property name of a CSS declaration in the declarations, then
+    //    return the result of invoking serialize a CSS value of that declaration.
+    // 3. Return the empty string.
+    return get_property(property.id());
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color)
