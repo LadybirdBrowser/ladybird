@@ -369,11 +369,14 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
     if (smallest_unit == Unit::Nanosecond && rounding_increment == 1)
         return diff;
 
-    // 5. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
+    // 5. Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime1).
+    auto origin_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time1);
+
+    // 6. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
     auto dest_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time2);
 
-    // 6. Return ? RoundRelativeDuration(diff, destEpochNs, isoDateTime1, UNSET, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
-    return TRY(round_relative_duration(vm, diff, dest_epoch_ns, iso_date_time1, {}, calendar, largest_unit, rounding_increment, smallest_unit, rounding_mode));
+    // 7. Return ? RoundRelativeDuration(diff, originEpochNs, destEpochNs, isoDateTime1, UNSET, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+    return TRY(round_relative_duration(vm, diff, origin_epoch_ns, dest_epoch_ns, iso_date_time1, {}, calendar, largest_unit, rounding_increment, smallest_unit, rounding_mode));
 }
 
 // 5.5.14 DifferencePlainDateTimeWithTotal ( isoDateTime1, isoDateTime2, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithtotal
@@ -397,11 +400,14 @@ ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&
     if (unit == Unit::Nanosecond)
         return move(diff.time);
 
-    // 5. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
+    // 5. Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime1).
+    auto origin_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time1);
+
+    // 6. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
     auto dest_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time2);
 
-    // 6. Return ? TotalRelativeDuration(diff, destEpochNs, isoDateTime1, UNSET, calendar, unit).
-    return TRY(total_relative_duration(vm, diff, dest_epoch_ns, iso_date_time1, {}, calendar, unit));
+    // 7. Return ? TotalRelativeDuration(diff, originEpochNs, destEpochNs, isoDateTime1, UNSET, calendar, unit).
+    return TRY(total_relative_duration(vm, diff, origin_epoch_ns, dest_epoch_ns, iso_date_time1, {}, calendar, unit));
 }
 
 // 5.5.15 DifferenceTemporalPlainDateTime ( operation, dateTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime

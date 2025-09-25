@@ -112,6 +112,17 @@ describe("correct behavior", () => {
             expect(result.months).toBe(1);
         });
     });
+
+    test("relativeTo falls within second wallclock occurence of DST transition", () => {
+        const duration = Temporal.Duration.from({ minutes: -59 });
+
+        const result = duration.round({
+            smallestUnit: "days",
+            relativeTo: "2025-11-02T01:00:00-08:00[America/Vancouver]",
+        });
+
+        expect(result.toString()).toBe("PT0S");
+    });
 });
 
 describe("errors", () => {

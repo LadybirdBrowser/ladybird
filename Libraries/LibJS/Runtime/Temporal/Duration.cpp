@@ -847,8 +847,8 @@ Crypto::BigFraction total_time_duration(TimeDuration const& time_duration, Unit 
     return Crypto::BigFraction { time_duration } / Crypto::BigFraction { Crypto::SignedBigInteger { divisor } };
 }
 
-// 7.5.33 NudgeToCalendarUnit ( sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
-ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, InternalDuration const& duration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit unit, RoundingMode rounding_mode)
+// 7.5.33 NudgeToCalendarUnit ( sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
+ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, InternalDuration const& duration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit unit, RoundingMode rounding_mode)
 {
     DateDuration start_duration;
     DateDuration end_duration;
@@ -947,35 +947,48 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
     else if (sign == -1)
         VERIFY(r1 <= 0 && r1 > r2);
 
-    // 7. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], startDuration, CONSTRAIN).
-    auto start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, start_duration, Overflow::Constrain));
+    Crypto::SignedBigInteger start_epoch_ns;
+    Crypto::SignedBigInteger end_epoch_ns;
 
-    // 8. Let end be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], endDuration, CONSTRAIN).
+    // 7. If r1 = 0, then
+    if (r1 == 0) {
+        // a. Let startEpochNs be originEpochNs.
+        start_epoch_ns = origin_epoch_ns;
+    }
+    // 8. Else,
+    else {
+        // a. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], startDuration, CONSTRAIN).
+        auto start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, start_duration, Overflow::Constrain));
+
+        // b. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
+        auto start_date_time = combine_iso_date_and_time_record(start, iso_date_time.time);
+
+        // c. If timeZone is UNSET, then
+        if (!time_zone.has_value()) {
+            // i. Let startEpochNs be GetUTCEpochNanoseconds(startDateTime).
+            start_epoch_ns = get_utc_epoch_nanoseconds(start_date_time);
+        }
+        // d. Else,
+        else {
+            // i. Let startEpochNs be ? GetEpochNanosecondsFor(timeZone, startDateTime, COMPATIBLE).
+            start_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, start_date_time, Disambiguation::Compatible));
+        }
+    }
+
+    // 9. Let end be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], endDuration, CONSTRAIN).
     auto end = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, end_duration, Overflow::Constrain));
-
-    // 9. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
-    auto start_date_time = combine_iso_date_and_time_record(start, iso_date_time.time);
 
     // 10. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
     auto end_date_time = combine_iso_date_and_time_record(end, iso_date_time.time);
 
-    Crypto::SignedBigInteger start_epoch_ns;
-    Crypto::SignedBigInteger end_epoch_ns;
-
     // 11. If timeZone is UNSET, then
     if (!time_zone.has_value()) {
-        // a. Let startEpochNs be GetUTCEpochNanoseconds(startDateTime).
-        start_epoch_ns = get_utc_epoch_nanoseconds(start_date_time);
-
-        // b. Let endEpochNs be GetUTCEpochNanoseconds(endDateTime).
+        // a. Let endEpochNs be GetUTCEpochNanoseconds(endDateTime).
         end_epoch_ns = get_utc_epoch_nanoseconds(end_date_time);
     }
     // 12. Else,
     else {
-        // a. Let startEpochNs be ? GetEpochNanosecondsFor(timeZone, startDateTime, COMPATIBLE).
-        start_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, start_date_time, Disambiguation::Compatible));
-
-        // b. Let endEpochNs be ? GetEpochNanosecondsFor(timeZone, endDateTime, COMPATIBLE).
+        // a. Let endEpochNs be ? GetEpochNanosecondsFor(timeZone, endDateTime, COMPATIBLE).
         end_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, end_date_time, Disambiguation::Compatible));
     }
 
@@ -1319,8 +1332,8 @@ ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, In
     return duration;
 }
 
-// 7.5.37 RoundRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, largestUnit, increment, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundrelativeduration
-ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDuration duration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
+// 7.5.37 RoundRelativeDuration ( duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, largestUnit, increment, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundrelativeduration
+ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDuration duration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
 {
     // 1. Let irregularLengthUnit be false.
     auto irregular_length_unit = false;
@@ -1340,8 +1353,8 @@ ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDura
 
     // 5. If irregularLengthUnit is true, then
     if (irregular_length_unit) {
-        // a. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode).
-        auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, dest_epoch_ns, iso_date_time, time_zone, calendar, increment, smallest_unit, rounding_mode));
+        // a. Let record be ? NudgeToCalendarUnit(sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode).
+        auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, origin_epoch_ns, dest_epoch_ns, iso_date_time, time_zone, calendar, increment, smallest_unit, rounding_mode));
 
         // b. Let nudgeResult be record.[[NudgeResult]].
         nudge_result = move(record.nudge_result);
@@ -1373,16 +1386,16 @@ ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDura
     return duration;
 }
 
-// 7.5.38 TotalRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
-ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalDuration const& duration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit unit)
+// 7.5.38 TotalRelativeDuration ( duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
+ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalDuration const& duration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit unit)
 {
     // 1. If IsCalendarUnit(unit) is true, or timeZone is not UNSET and unit is DAY, then
     if (is_calendar_unit(unit) || (time_zone.has_value() && unit == Unit::Day)) {
         // a. If InternalDurationSign(duration) < 0, let sign be -1; else let sign be 1.
         auto sign = internal_duration_sign(duration) < 0 ? -1 : 1;
 
-        // b. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, TRUNC).
-        auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, dest_epoch_ns, iso_date_time, time_zone, calendar, 1, unit, RoundingMode::Trunc));
+        // b. Let record be ? NudgeToCalendarUnit(sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, TRUNC).
+        auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, origin_epoch_ns, dest_epoch_ns, iso_date_time, time_zone, calendar, 1, unit, RoundingMode::Trunc));
 
         // c. Return record.[[Total]].
         return record.total;
