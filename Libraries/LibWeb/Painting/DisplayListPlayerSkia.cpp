@@ -211,6 +211,11 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
                              .translate(-command.transform.origin);
     auto matrix = to_skia_matrix(new_transform);
 
+    surface().canvas().save();
+    if (command.clip_path.has_value())
+        canvas.clipPath(to_skia_path(command.clip_path.value()), true);
+    canvas.concat(matrix);
+
     if (command.opacity < 1 || command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || command.isolate) {
         SkPaint paint;
         paint.setAlphaf(command.opacity);
@@ -218,6 +223,8 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
 
         if (command.bounding_rect.has_value()) {
             auto bounds = to_skia_rect(command.bounding_rect.value());
+            // NOTE: saveLayer() is invoked after transform matrix application because bounding rect is computed
+            //       in stacking context's coordinate space.
             canvas.saveLayer(bounds, &paint);
         } else {
             canvas.saveLayer(nullptr, &paint);
@@ -225,15 +232,13 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
     } else {
         canvas.save();
     }
-
-    if (command.clip_path.has_value())
-        canvas.clipPath(to_skia_path(command.clip_path.value()), true);
-
-    canvas.concat(matrix);
 }
 
 void DisplayListPlayerSkia::pop_stacking_context(PopStackingContext const&)
 {
+    // Restore corresponding for save() for transform and clip path application
+    surface().canvas().restore();
+    // Restore corresponding for saveLayer() required for opacity/blending/isolate
     surface().canvas().restore();
 }
 
