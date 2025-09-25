@@ -33,7 +33,7 @@ public:
     virtual size_t length() const override;
     virtual String item(size_t index) const override;
 
-    Optional<StyleProperty> property(PropertyID) const;
+    Optional<StyleProperty> get_property(PropertyID) const;
     Optional<StyleProperty const&> custom_property(FlyString const& custom_property_name) const;
 
     WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);

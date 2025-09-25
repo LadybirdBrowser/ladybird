@@ -156,7 +156,7 @@ String CSSStyleProperties::item(size_t index) const
     return CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id).to_string();
 }
 
-Optional<StyleProperty> CSSStyleProperties::property(PropertyID property_id) const
+Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id) const
 {
     if (is_computed()) {
         if (!owner_node().has_value())
@@ -430,7 +430,7 @@ StringView CSSStyleProperties::get_property_priority(FlyString const& property_n
             return {};
         return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
     }
-    auto maybe_property = property(property_id.value());
+    auto maybe_property = get_property(property_id.value());
     if (!maybe_property.has_value())
         return {};
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
@@ -494,7 +494,7 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyID pro
         // NOTE: This is handled by the loop.
     }
 
-    return property(property_id);
+    return get_property(property_id);
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color)

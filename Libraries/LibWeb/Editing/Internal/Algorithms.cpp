@@ -615,7 +615,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         if (!inline_style)
             return;
 
-        auto style_property = inline_style->property(CSS::PropertyID::TextDecoration);
+        auto style_property = inline_style->get_property(CSS::PropertyID::TextDecoration);
         if (!style_property.has_value())
             return;
 
@@ -2470,20 +2470,20 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     // * It is a b or strong element with exactly one attribute, which is style, and the style attribute sets exactly
     //   one CSS property (including invalid or unrecognized properties), which is "font-weight".
     if (html_element.local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::strong)
-        && inline_style->property(CSS::PropertyID::FontWeight).has_value())
+        && inline_style->get_property(CSS::PropertyID::FontWeight).has_value())
         return true;
 
     // * It is an i or em element with exactly one attribute, which is style, and the style attribute sets exactly one
     //   CSS property (including invalid or unrecognized properties), which is "font-style".
     if (html_element.local_name().is_one_of(HTML::TagNames::i, HTML::TagNames::em)
-        && inline_style->property(CSS::PropertyID::FontStyle).has_value())
+        && inline_style->get_property(CSS::PropertyID::FontStyle).has_value())
         return true;
 
     // * It is an a, font, or span element with exactly one attribute, which is style, and the style attribute sets
     //   exactly one CSS property (including invalid or unrecognized properties), and that property is not
     //   "text-decoration".
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::span)
-        && !inline_style->property(CSS::PropertyID::TextDecoration).has_value())
+        && !inline_style->get_property(CSS::PropertyID::TextDecoration).has_value())
         return true;
 
     // * It is an a, font, s, span, strike, or u element with exactly one attribute, which is style, and the style
@@ -2491,7 +2491,7 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     //   "text-decoration", which is set to "line-through" or "underline" or "overline" or "none".
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::s,
             HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::u)
-        && inline_style->property(CSS::PropertyID::TextDecoration).has_value()) {
+        && inline_style->get_property(CSS::PropertyID::TextDecoration).has_value()) {
         auto text_decoration = inline_style->text_decoration();
         if (first_is_one_of(text_decoration,
                 string_from_keyword(CSS::Keyword::LineThrough),
@@ -2713,7 +2713,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     ++number_of_matching_attributes;
                 if (element->has_attribute(HTML::AttributeNames::style) && element->inline_style()
                     && element->inline_style()->length() == 1) {
-                    auto text_align = element->inline_style()->property(CSS::PropertyID::TextAlign);
+                    auto text_align = element->inline_style()->get_property(CSS::PropertyID::TextAlign);
                     if (text_align.has_value()) {
                         auto align_value = text_align.value().value->to_string(CSS::SerializationMode::Normal);
                         if (align_value.equals_ignoring_ascii_case(alignment_keyword))
@@ -4692,7 +4692,7 @@ Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::R
         return {};
 
     // FIXME: This doesn't support shorthand properties.
-    auto style_property = inline_style->property(property_id);
+    auto style_property = inline_style->get_property(property_id);
     if (!style_property.has_value())
         return {};
 
@@ -4726,7 +4726,7 @@ Optional<NonnullRefPtr<CSS::StyleValue const>> resolved_value(GC::Ref<DOM::Node>
 
     // Retrieve resolved style value
     auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(element->realm(), DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
-    auto optional_style_property = resolved_css_style_declaration->property(property_id);
+    auto optional_style_property = resolved_css_style_declaration->get_property(property_id);
     if (!optional_style_property.has_value())
         return {};
     return optional_style_property.value().value;
