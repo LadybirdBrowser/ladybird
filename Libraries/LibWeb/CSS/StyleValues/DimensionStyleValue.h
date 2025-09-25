@@ -20,7 +20,7 @@ public:
     virtual double raw_value() const = 0;
     virtual FlyString unit_name() const = 0;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, String const& associated_property) const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
 protected:
     explicit DimensionStyleValue(Type type)

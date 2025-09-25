@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleValue);
 
-GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, String associated_property, String constructed_from_string)
+GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, FlyString associated_property, String constructed_from_string)
 {
     return realm.create<CSSStyleValue>(realm, move(associated_property), move(constructed_from_string));
 }
@@ -25,7 +25,7 @@ CSSStyleValue::CSSStyleValue(JS::Realm& realm)
 {
 }
 
-CSSStyleValue::CSSStyleValue(JS::Realm& realm, String associated_property, String constructed_from_string)
+CSSStyleValue::CSSStyleValue(JS::Realm& realm, FlyString associated_property, String constructed_from_string)
     : PlatformObject(realm)
     , m_associated_property(move(associated_property))
     , m_constructed_from_string(move(constructed_from_string))
@@ -39,7 +39,7 @@ void CSSStyleValue::initialize(JS::Realm& realm)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parse
-WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, String property, String css_text)
+WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, FlyString const& property, String css_text)
 {
     // The parse(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
     // cssText, and parseMultiple set to false, and return the result.
@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, Str
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parseall
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, String property, String css_text)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, FlyString const& property, String css_text)
 {
     // The parseAll(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
     // cssText, and parseMultiple set to true, and return the result.
@@ -61,7 +61,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue
-WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, String property, String css_text, ParseMultiple parse_multiple)
+WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, FlyString property, String css_text, ParseMultiple parse_multiple)
 {
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     if (!is_a_custom_property_name_string(property))
