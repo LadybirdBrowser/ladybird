@@ -21,7 +21,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, String const& associated_property) const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
     bool equals(StyleValue const& other) const override
     {

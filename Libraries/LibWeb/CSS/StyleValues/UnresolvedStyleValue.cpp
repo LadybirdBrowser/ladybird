@@ -166,7 +166,7 @@ static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& rea
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-list-of-component-values
-GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(JS::Realm& realm, String const&) const
+GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(JS::Realm& realm, FlyString const&) const
 {
     return reify_a_list_of_component_values(realm, m_values);
 }

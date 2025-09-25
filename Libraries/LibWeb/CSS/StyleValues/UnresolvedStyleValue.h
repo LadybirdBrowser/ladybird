@@ -30,7 +30,7 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, String const& associated_property) const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
 private:
     UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text);
