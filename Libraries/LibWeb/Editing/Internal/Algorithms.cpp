@@ -631,13 +631,13 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         if (!was_removed)
             return;
         if (new_values.is_empty()) {
-            MUST(inline_style->remove_property(string_from_property_id(CSS::PropertyID::TextDecoration)));
+            MUST(inline_style->remove_property(CSS::PropertyID::TextDecoration));
             return;
         }
 
         auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
         MUST(inline_style->set_property(
-            string_from_property_id(CSS::PropertyID::TextDecoration),
+            CSS::PropertyID::TextDecoration,
             new_style_value->to_string(CSS::SerializationMode::Normal),
             {}));
     };
@@ -654,7 +654,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
     if (command_definition->relevant_css_property.has_value()) {
         auto property_to_remove = command_definition->relevant_css_property.value();
         if (auto inline_style = element->inline_style())
-            MUST(inline_style->remove_property(string_from_property_id(property_to_remove)));
+            MUST(inline_style->remove_property(property_to_remove));
     }
 
     // 8. If element is a font element:
@@ -2935,9 +2935,9 @@ void outdent(GC::Ref<DOM::Node> node)
 
         // 2. Unset the margin, padding, and border CSS properties of node.
         if (auto inline_style = element.inline_style()) {
-            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Border)));
-            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Margin)));
-            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Padding)));
+            MUST(inline_style->remove_property(CSS::PropertyID::Border));
+            MUST(inline_style->remove_property(CSS::PropertyID::Margin));
+            MUST(inline_style->remove_property(CSS::PropertyID::Padding));
         }
 
         // 3. Set the tag name of node to "div".
