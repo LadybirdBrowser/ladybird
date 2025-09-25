@@ -16,6 +16,9 @@ public:
     virtual ~MediaTimeProvider() = default;
 
     virtual AK::Duration current_time() const = 0;
+    virtual void resume() = 0;
+    virtual void pause() = 0;
+    virtual void set_time(AK::Duration) = 0;
 };
 
 }
