@@ -72,6 +72,7 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, FunctionIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, TableIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, ElementIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, MemoryIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, TagIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, LocalIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, GlobalIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, LabelIndex);
@@ -167,6 +168,7 @@ public:
         V128,
         FunctionReference,
         ExternReference,
+        ExceptionReference,
     };
 
     explicit ValueType(Kind kind)
@@ -200,6 +202,8 @@ public:
             return "funcref";
         case ExternReference:
             return "externref";
+        case ExceptionReference:
+            return "exnref";
         }
         VERIFY_NOT_REACHED();
     }
@@ -336,6 +340,29 @@ private:
     bool m_is_mutable { false };
 };
 
+// https://webassembly.github.io/exception-handling/core/binary/types.html#tag-types
+class TagType {
+public:
+    enum Flags : u8 {
+        None = 0
+    };
+
+    TagType(TypeIndex type, Flags flags)
+        : m_flags(flags)
+        , m_type(type)
+    {
+    }
+
+    auto& type() const { return m_type; }
+    auto flags() const { return m_flags; }
+
+    static ParseResult<TagType> parse(ConstrainedStream& stream);
+
+private:
+    Flags m_flags { None };
+    TypeIndex m_type;
+};
+
 // https://webassembly.github.io/spec/core/bikeshed/#binary-blocktype
 class BlockType {
 public:
@@ -384,6 +411,35 @@ private:
         TypeIndex m_type_index;
         u8 m_empty;
     };
+};
+
+// Proposal "exception-handling"
+// https://webassembly.github.io/exception-handling/core/binary/instructions.html
+class Catch {
+public:
+    Catch(bool ref, TagIndex index, LabelIndex label) // catch[_ref] x l
+        : m_matching_tag_index(index)
+        , m_target_label(label)
+        , m_is_ref(ref)
+    {
+    }
+
+    explicit Catch(bool ref, LabelIndex label) // catch_all[_ref] l
+        : m_target_label(label)
+        , m_is_ref(ref)
+    {
+    }
+
+    auto& matching_tag_index() const { return m_matching_tag_index; }
+    auto& target_label() const { return m_target_label; }
+    auto is_ref() const { return m_is_ref; }
+
+    static ParseResult<Catch> parse(ConstrainedStream& stream);
+
+private:
+    Optional<TagIndex> m_matching_tag_index; // None for catch_all
+    LabelIndex m_target_label;
+    bool m_is_ref = false; // true if catch*_ref
 };
 
 // https://webassembly.github.io/spec/core/bikeshed/#binary-instr
@@ -457,6 +513,12 @@ public:
         MemoryIndex memory_index;
     };
 
+    // Proposal "exception-handling"
+    struct TryTableArgs {
+        StructuredInstructionArgs try_; // "else" unused.
+        Vector<Catch> catches;
+    };
+
     struct ShuffleArgument {
         explicit ShuffleArgument(u8 (&lanes)[16])
             : lanes {
@@ -509,6 +571,7 @@ private:
         ElementIndex,
         FunctionIndex,
         GlobalIndex,
+        TagIndex,
         IndirectCallArgs,
         LabelIndex,
         LaneIndex,
@@ -524,6 +587,7 @@ private:
         TableElementArgs,
         TableIndex,
         TableTableArgs,
+        TryTableArgs,
         ValueType,
         Vector<ValueType>,
         double,
@@ -568,6 +632,17 @@ struct CompiledInstructions {
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
 };
 
+template<Enum auto... Vs>
+consteval auto as_ordered()
+{
+    using Type = CommonType<decltype(to_underlying(Vs))...>;
+    Array<Type, sizeof...(Vs)> result;
+    [&]<Type... Is>(IntegerSequence<Type, Is...>) {
+        (void)((result[to_underlying(Vs)] = Is), ...);
+    }(MakeIntegerSequence<Type, static_cast<Type>(sizeof...(Vs))>());
+    return result;
+}
+
 struct SectionId {
 public:
     enum class SectionIdKind : u8 {
@@ -584,14 +659,44 @@ public:
         DataCount,
         Code,
         Data,
+        Tag,
     };
+
+    constexpr inline static auto section_order = as_ordered<
+        SectionIdKind::Type,
+        SectionIdKind::Import,
+        SectionIdKind::Function,
+        SectionIdKind::Table,
+        SectionIdKind::Memory,
+        SectionIdKind::Tag,
+        SectionIdKind::Global,
+        SectionIdKind::Export,
+        SectionIdKind::Start,
+        SectionIdKind::Element,
+        SectionIdKind::DataCount,
+        SectionIdKind::Code,
+        SectionIdKind::Data,
+        SectionIdKind::Custom>();
 
     explicit SectionId(SectionIdKind kind)
         : m_kind(kind)
     {
     }
 
-    SectionIdKind kind() const { return m_kind; }
+    bool can_appear_after(SectionIdKind other) const
+    {
+        if (kind() == SectionIdKind::Custom || other == SectionIdKind::Custom)
+            return true;
+
+        auto index = section_order[to_underlying(kind())];
+        auto other_index = section_order[to_underlying(other)];
+        return index >= other_index;
+    }
+
+    SectionIdKind kind() const
+    {
+        return m_kind;
+    }
 
     static ParseResult<SectionId> parse(Stream& stream);
 
@@ -638,7 +743,7 @@ class ImportSection {
 public:
     class Import {
     public:
-        using ImportDesc = Variant<TypeIndex, TableType, MemoryType, GlobalType, FunctionType>;
+        using ImportDesc = Variant<TypeIndex, TableType, MemoryType, GlobalType, FunctionType, TagType>;
         Import(ByteString module, ByteString name, ImportDesc description)
             : m_module(move(module))
             , m_name(move(name))
@@ -826,7 +931,7 @@ private:
 
 class ExportSection {
 private:
-    using ExportDesc = Variant<FunctionIndex, TableIndex, MemoryIndex, GlobalIndex>;
+    using ExportDesc = Variant<FunctionIndex, TableIndex, MemoryIndex, GlobalIndex, TagIndex>;
 
 public:
     class Export {
@@ -1059,6 +1164,43 @@ private:
     Optional<u32> m_count;
 };
 
+class TagSection {
+public:
+    class Tag {
+    public:
+        using Flags = TagType::Flags;
+
+        Tag(TypeIndex type, Flags flags)
+            : m_type(type)
+            , m_flags(flags)
+        {
+        }
+
+        auto type() const { return m_type; }
+        auto flags() const { return m_flags; }
+
+        static ParseResult<Tag> parse(ConstrainedStream& stream);
+
+    private:
+        TypeIndex m_type;
+        Flags m_flags { Flags::None };
+    };
+
+    TagSection() = default;
+
+    explicit TagSection(Vector<Tag> tags)
+        : m_tags(move(tags))
+    {
+    }
+
+    auto& tags() const { return m_tags; }
+
+    static ParseResult<TagSection> parse(ConstrainedStream& stream);
+
+private:
+    Vector<Tag> m_tags;
+};
+
 class WASM_API Module : public RefCounted<Module>
     , public Weakable<Module> {
 public:
@@ -1099,6 +1241,8 @@ public:
     auto& data_section() const { return m_data_section; }
     auto& data_count_section() { return m_data_count_section; }
     auto& data_count_section() const { return m_data_count_section; }
+    auto& tag_section() { return m_tag_section; }
+    auto& tag_section() const { return m_tag_section; }
 
     void set_validation_status(ValidationStatus status, Badge<Validator>) { set_validation_status(status); }
     ValidationStatus validation_status() const { return m_validation_status; }
@@ -1123,6 +1267,7 @@ private:
     CodeSection m_code_section;
     DataSection m_data_section;
     DataCountSection m_data_count_section;
+    TagSection m_tag_section;
 
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;

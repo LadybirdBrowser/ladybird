@@ -30,6 +30,7 @@ struct Context {
     COWVector<ValueType> elements;
     COWVector<bool> datas;
     COWVector<ValueType> locals;
+    COWVector<TagType> tags;
     Optional<u32> data_count;
     RefPtr<RefRBTree> references { make_ref_counted<RefRBTree>() };
     size_t imported_function_count { 0 };
@@ -68,6 +69,7 @@ public:
     ErrorOr<void, ValidationError> validate(MemorySection const&);
     ErrorOr<void, ValidationError> validate(TableSection const&);
     ErrorOr<void, ValidationError> validate(CodeSection const&);
+    ErrorOr<void, ValidationError> validate(TagSection const&);
     ErrorOr<void, ValidationError> validate(FunctionSection const&) { return {}; }
     ErrorOr<void, ValidationError> validate(DataCountSection const&) { return {}; }
     ErrorOr<void, ValidationError> validate(TypeSection const&) { return {}; }
@@ -134,6 +136,13 @@ public:
         if (index.value() < m_context.tables.size())
             return m_context.tables[index.value()];
         return Errors::invalid("TableIndex"sv);
+    }
+
+    ErrorOr<void, ValidationError> validate(TagIndex index) const
+    {
+        if (index.value() < m_context.tags.size())
+            return {};
+        return Errors::invalid("TagIndex"sv);
     }
 
     enum class FrameKind {
@@ -293,6 +302,7 @@ public:
     ErrorOr<void, ValidationError> validate(TableType const&);
     ErrorOr<void, ValidationError> validate(MemoryType const&);
     ErrorOr<void, ValidationError> validate(GlobalType const&) { return {}; }
+    ErrorOr<void, ValidationError> validate(TagType const&);
 
     // Proposal 'memory64'
     ErrorOr<void, ValidationError> take_memory_address(Stack& stack, MemoryType const& memory, Instruction::MemoryArgument const& arg)

@@ -314,9 +314,11 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                 }
                 case Wasm::ValueType::FunctionReference:
                 case Wasm::ValueType::ExternReference:
+                case Wasm::ValueType::ExceptionReference:
                     auto ref = global->value().to<Wasm::Reference>();
                     return ref.ref().visit(
                         [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
+                        [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
                         [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
                 }
             }
@@ -398,6 +400,12 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Extern { static_cast<u64>(double_value) } }));
             break;
+        case Wasm::ValueType::Kind::ExceptionReference:
+            if (argument.is_null())
+                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExceptionReference) } }));
+            else
+                return vm.throw_completion<JS::TypeError>("Exception references are not supported"sv);
+            break;
         }
     }
 
@@ -431,7 +439,9 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         }
         case Wasm::ValueType::FunctionReference:
         case Wasm::ValueType::ExternReference:
-            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+        case Wasm::ValueType::ExceptionReference:
+            return JS::js_null();
         }
         VERIFY_NOT_REACHED();
     };

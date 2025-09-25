@@ -44,6 +44,8 @@ struct WASM_API Printer {
     void print(Wasm::GlobalType const&);
     void print(Wasm::ImportSection const&);
     void print(Wasm::ImportSection::Import const&);
+    void print(Wasm::TagSection const&);
+    void print(Wasm::TagSection::Tag const&);
     void print(Wasm::Instruction const&);
     void print(Wasm::Limits const&);
     void print(Wasm::Locals const&);
@@ -59,8 +61,11 @@ struct WASM_API Printer {
     void print(Wasm::TableType const&);
     void print(Wasm::TypeSection const&);
     void print(Wasm::ValueType const&);
+    void print(Wasm::TagType const&);
     void print(Wasm::Value const&);
     void print(Wasm::Value const&, ValueType const&);
+    void print(Wasm::Catch const&);
+    void print(Wasm::TypeIndex const&);
 
 private:
     void print_indent();

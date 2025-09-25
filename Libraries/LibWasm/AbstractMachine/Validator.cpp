@@ -58,6 +58,10 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
                 m_globals_without_internal_globals.append(type);
                 m_context.globals.append(type);
                 return {};
+            },
+            [&](TagType const&) -> ErrorOr<void, ValidationError> {
+                m_context.tags.append(import_.description().get<TagType>());
+                return {};
             }));
     }
 
@@ -88,6 +92,10 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         m_context.elements.append(segment.type);
 
     m_context.datas.resize(module.data_section().data().size());
+
+    m_context.tags.ensure_capacity(m_context.tags.size() + module.tag_section().tags().size());
+    for (auto& tag : module.tag_section().tags())
+        m_context.tags.append(TagType(tag.type(), tag.flags()));
 
     // We need to build the set of declared functions to check that `ref.func` uses a specific set of predetermined functions, found in:
     // - Element initializer expressions
@@ -275,6 +283,17 @@ ErrorOr<void, ValidationError> Validator::validate(TableType const& type)
 ErrorOr<void, ValidationError> Validator::validate(MemoryType const& type)
 {
     return validate(type.limits(), 1 << 16);
+}
+
+ErrorOr<void, ValidationError> Validator::validate(Wasm::TagType const& tag_type)
+{
+    // The function type t1^n -> t2^m must be valid
+    TRY(validate(tag_type.type()));
+    auto& type = m_context.types[tag_type.type().value()];
+    // The type sequence t2^m must be empty
+    if (!type.results().is_empty())
+        return Errors::invalid("TagType"sv);
+    return {};
 }
 
 ErrorOr<FunctionType, ValidationError> Validator::validate(BlockType const& type)
@@ -2027,6 +2046,85 @@ VALIDATE_INSTRUCTION(if_)
     for (auto& parameter : parameters)
         stack.append(parameter);
 
+    return {};
+}
+
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-throw-x
+VALIDATE_INSTRUCTION(throw_)
+{
+    auto tag_index = instruction.arguments().get<TagIndex>();
+    TRY(validate(tag_index));
+
+    auto tag_type = m_context.tags[tag_index.value()];
+    auto& type = m_context.types[tag_type.type().value()];
+    if (!type.results().is_empty())
+        return Errors::invalid("throw type"sv, "empty"sv, type.results());
+
+    for (auto const& parameter : type.parameters().in_reverse())
+        TRY(stack.take(parameter));
+
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
+
+    return {};
+}
+
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-throw-ref
+VALIDATE_INSTRUCTION(throw_ref)
+{
+    TRY(stack.take<ValueType::ExceptionReference>());
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
+    return {};
+}
+
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-try-table-xref-syntax-instructions-syntax-blocktype-mathit-blocktype-xref-syntax-instructions-syntax-catch-mathit-catch-ast-xref-syntax-instructions-syntax-instr-mathit-instr-ast-xref-syntax-instructions-syntax-instr-control-mathsf-end
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-catch-x-l
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-catch-ref-x-l
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-catch-all-l
+// https://webassembly.github.io/exception-handling/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-catch-all-ref-l
+VALIDATE_INSTRUCTION(try_table)
+{
+    auto& args = instruction.arguments().get<Instruction::TryTableArgs>();
+    auto block_type = TRY(validate(args.try_.block_type));
+    for (auto& catch_ : args.catches) {
+        auto label = catch_.target_label();
+        TRY(validate(label));
+        auto& target_label_type = m_frames[(m_frames.size() - 1) - label.value()].labels();
+
+        if (auto tag = catch_.matching_tag_index(); tag.has_value()) {
+            TRY(validate(tag.value()));
+            auto tag_type = m_context.tags[tag->value()];
+            auto& type = m_context.types[tag_type.type().value()];
+            if (!type.results().is_empty())
+                return Errors::invalid("catch type"sv, "empty"sv, type.results());
+
+            Span<ValueType const> parameters_to_check = type.parameters().span();
+            if (catch_.is_ref()) {
+                // catch_ref x l
+                auto& parameters = type.parameters();
+                if (parameters.is_empty() || parameters.last().kind() != ValueType::ExceptionReference)
+                    return Errors::invalid("catch_ref type"sv, "[..., exnref]"sv, parameters);
+                parameters_to_check = parameters_to_check.slice(0, parameters.size() - 1);
+            } else {
+                // catch x l
+                // (noop here)
+            }
+
+            if (parameters_to_check != target_label_type.span())
+                return Errors::non_conforming_types("catch"sv, parameters_to_check, target_label_type.span());
+        } else {
+            if (catch_.is_ref()) {
+                // catch_all_ref l
+                if (target_label_type.size() != 1 || target_label_type[0].kind() != ValueType::ExceptionReference)
+                    return Errors::invalid("catch_all_ref type"sv, "[exnref]"sv, target_label_type);
+            } else {
+                // catch_all l
+                if (!target_label_type.is_empty())
+                    return Errors::invalid("catch_all type"sv, "empty"sv, target_label_type);
+            }
+        }
+    }
     return {};
 }
 

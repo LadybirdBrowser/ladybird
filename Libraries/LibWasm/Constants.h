@@ -34,6 +34,7 @@ static constexpr auto extern_function_tag = 0x00;
 static constexpr auto extern_table_tag = 0x01;
 static constexpr auto extern_memory_tag = 0x02;
 static constexpr auto extern_global_tag = 0x03;
+static constexpr auto extern_tag_tag = 0x04; // Proposal "exception-handling"
 
 static constexpr auto page_size = 64 * KiB;
 
