@@ -65,10 +65,7 @@ void ImageBox::dom_node_did_update_alt_text(Badge<ImageProvider>)
 
 bool ImageBox::renders_as_alt_text() const
 {
-    if (auto const* image_provider = as_if<ImageProvider>(dom_node().ptr()))
-        return !image_provider->is_image_available();
-
-    return false;
+    return !m_image_provider.is_image_available();
 }
 
 GC::Ptr<Painting::Paintable> ImageBox::create_paintable() const
