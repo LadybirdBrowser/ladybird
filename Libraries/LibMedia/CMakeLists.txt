@@ -12,6 +12,7 @@ set(SOURCES
     Containers/Matroska/Reader.cpp
     PlaybackManager.cpp
     Providers/AudioDataProvider.cpp
+    Providers/GenericTimeProvider.cpp
     Providers/VideoDataProvider.cpp
     Sinks/AudioMixingSink.cpp
     Sinks/DisplayingVideoSink.cpp

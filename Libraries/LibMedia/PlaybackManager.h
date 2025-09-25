@@ -39,7 +39,7 @@ public:
     static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
     ~PlaybackManager();
 
-    AK::Duration current_time() const;
+    AK::Duration current_time() const { return m_time_provider->current_time(); }
     AK::Duration duration() const;
 
     VideoTracks const& video_tracks() const { return m_video_tracks; }
@@ -63,7 +63,7 @@ public:
     Function<void(DecoderError&&)> on_error;
 
 private:
-    class WeakPlaybackManager final : public MediaTimeProvider {
+    class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {
         friend class PlaybackManager;
 
     public:
@@ -73,14 +73,6 @@ private:
         {
             Threading::MutexLocker locker { m_mutex };
             return m_manager;
-        }
-
-        virtual AK::Duration current_time() const override
-        {
-            Threading::MutexLocker locker { m_mutex };
-            if (m_manager)
-                return m_manager->current_time();
-            return AK::Duration::zero();
         }
 
     private:
@@ -107,7 +99,7 @@ private:
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&);
+    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&);
 
     void set_up_error_handlers();
     void dispatch_error(DecoderError&&);
@@ -119,14 +111,14 @@ private:
 
     NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
 
+    NonnullRefPtr<MediaTimeProvider> m_time_provider;
+
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;
 
     RefPtr<AudioMixingSink> m_audio_sink;
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
-
-    MonotonicTime m_real_time_base;
 
     bool m_is_in_error_state { false };
 };
