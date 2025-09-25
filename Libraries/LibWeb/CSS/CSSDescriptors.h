@@ -21,10 +21,10 @@ public:
 
     virtual size_t length() const override;
     virtual String item(size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_property(StringView property, StringView value, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(StringView property) override;
-    virtual String get_property_value(StringView property) const override;
-    virtual StringView get_property_priority(StringView property) const override;
+    virtual WebIDL::ExceptionOr<void> set_property(FlyString const& property, StringView value, StringView priority) override;
+    virtual WebIDL::ExceptionOr<String> remove_property(FlyString const& property) override;
+    virtual String get_property_value(FlyString const& property) const override;
+    virtual StringView get_property_priority(FlyString const& property) const override;
 
     Vector<Descriptor> const& descriptors() const { return m_descriptors; }
     RefPtr<StyleValue const> descriptor(DescriptorID) const;
@@ -33,8 +33,8 @@ public:
 
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
-    virtual bool has_property(StringView property_name) const override;
-    virtual RefPtr<StyleValue const> get_property_style_value(StringView property_name) const override;
+    virtual bool has_property(FlyString const& property_name) const override;
+    virtual RefPtr<StyleValue const> get_property_style_value(FlyString const& property_name) const override;
 
 protected:
     CSSDescriptors(JS::Realm&, AtRuleID, Vector<Descriptor>);
