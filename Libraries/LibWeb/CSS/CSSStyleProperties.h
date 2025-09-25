@@ -75,6 +75,9 @@ private:
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;
     Optional<StyleProperty> get_property_internal(PropertyID) const;
 
+    WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, StringView css_text, StringView priority);
+    WebIDL::ExceptionOr<String> remove_property_internal(Optional<PropertyNameAndID> const&);
+
     bool set_a_css_declaration(PropertyID, NonnullRefPtr<StyleValue const>, Important);
     void empty_the_declarations();
     void set_the_declarations(Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties);
