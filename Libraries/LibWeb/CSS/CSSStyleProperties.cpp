@@ -158,53 +158,7 @@ String CSSStyleProperties::item(size_t index) const
 
 Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id) const
 {
-    if (is_computed()) {
-        if (!owner_node().has_value())
-            return {};
-
-        auto abstract_element = *owner_node();
-
-        // https://www.w3.org/TR/cssom-1/#dom-window-getcomputedstyle
-        // NB: This is a partial enforcement of step 5 ("If elt is connected, ...")
-        if (!abstract_element.element().is_connected())
-            return {};
-
-        Layout::NodeWithStyle* layout_node = abstract_element.layout_node();
-
-        // FIXME: Be smarter about updating layout if there's no layout node.
-        //        We may legitimately have no layout node if we're not visible, but this protects against situations
-        //        where we're requesting the computed style before layout has happened.
-        if (!layout_node || property_needs_layout_for_getcomputedstyle(property_id)) {
-            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-            layout_node = abstract_element.layout_node();
-        } else {
-            // FIXME: If we had a way to update style for a single element, this would be a good place to use it.
-            abstract_element.document().update_style();
-        }
-
-        if (!layout_node) {
-            auto style = abstract_element.document().style_computer().compute_style(abstract_element);
-
-            return StyleProperty {
-                .property_id = property_id,
-                .value = style->property(property_id),
-            };
-        }
-
-        auto value = style_value_for_computed_property(*layout_node, property_id);
-        if (!value)
-            return {};
-        return StyleProperty {
-            .property_id = property_id,
-            .value = *value,
-        };
-    }
-
-    for (auto& property : m_properties) {
-        if (property.property_id == property_id)
-            return property;
-    }
-    return {};
+    return get_property_internal(PropertyNameAndID::from_id(property_id));
 }
 
 Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString const& custom_property_name) const
@@ -400,22 +354,12 @@ String CSSStyleProperties::get_property_value(FlyString const& property_name) co
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
         return {};
-
-    if (property->is_custom_property()) {
-        if (auto maybe_custom_property = custom_property(property_name); maybe_custom_property.has_value()) {
-            return maybe_custom_property.value().value->to_string(
-                is_computed() ? SerializationMode::ResolvedValue
-                              : SerializationMode::Normal);
-        }
-        return {};
+    if (auto style_property = get_property_internal(property.value()); style_property.has_value()) {
+        return style_property->value->to_string(
+            is_computed() ? SerializationMode::ResolvedValue
+                          : SerializationMode::Normal);
     }
-
-    auto maybe_property = get_property_internal(property.value());
-    if (!maybe_property.has_value())
-        return {};
-    return maybe_property->value->to_string(
-        is_computed() ? SerializationMode::ResolvedValue
-                      : SerializationMode::Normal);
+    return {};
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
@@ -507,7 +451,75 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
     // 2. If property is a case-sensitive match for a property name of a CSS declaration in the declarations, then
     //    return the result of invoking serialize a CSS value of that declaration.
     // 3. Return the empty string.
-    return get_property(property.id());
+    return get_direct_property(property);
+}
+
+Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndID const& property_name_and_id) const
+{
+    auto const property_id = property_name_and_id.id();
+
+    if (is_computed()) {
+        if (!owner_node().has_value())
+            return {};
+
+        auto abstract_element = *owner_node();
+
+        // https://www.w3.org/TR/cssom-1/#dom-window-getcomputedstyle
+        // NB: This is a partial enforcement of step 5 ("If elt is connected, ...")
+        if (!abstract_element.element().is_connected())
+            return {};
+
+        Layout::NodeWithStyle* layout_node = abstract_element.layout_node();
+
+        // FIXME: Be smarter about updating layout if there's no layout node.
+        //        We may legitimately have no layout node if we're not visible, but this protects against situations
+        //        where we're requesting the computed style before layout has happened.
+        if (!layout_node || property_needs_layout_for_getcomputedstyle(property_id)) {
+            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+            layout_node = abstract_element.layout_node();
+        } else {
+            // FIXME: If we had a way to update style for a single element, this would be a good place to use it.
+            abstract_element.document().update_style();
+        }
+
+        // FIXME: Somehow get custom properties if there's no layout node.
+        if (property_name_and_id.is_custom_property()) {
+            if (auto maybe_value = abstract_element.get_custom_property(property_name_and_id.name())) {
+                return StyleProperty {
+                    .property_id = property_id,
+                    .value = maybe_value.release_nonnull(),
+                    .custom_name = property_name_and_id.name(),
+                };
+            }
+            return {};
+        }
+
+        if (!layout_node) {
+            auto style = abstract_element.document().style_computer().compute_style(abstract_element);
+
+            return StyleProperty {
+                .property_id = property_id,
+                .value = style->property(property_id),
+            };
+        }
+
+        auto value = style_value_for_computed_property(*layout_node, property_id);
+        if (!value)
+            return {};
+        return StyleProperty {
+            .property_id = property_id,
+            .value = *value,
+        };
+    }
+
+    if (property_name_and_id.is_custom_property())
+        return custom_property(property_name_and_id.name()).map([](auto& it) { return it; });
+
+    for (auto const& property : m_properties) {
+        if (property.property_id == property_id)
+            return property;
+    }
+    return {};
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color)
