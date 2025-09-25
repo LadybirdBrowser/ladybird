@@ -36,9 +36,14 @@ private:
     ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count) override;
     virtual void visit_edges(Visitor&) override;
 
+    virtual bool is_bound_function() const final { return true; }
+
     GC::Ptr<FunctionObject> m_bound_target_function; // [[BoundTargetFunction]]
     Value m_bound_this;                              // [[BoundThis]]
     Vector<Value> m_bound_arguments;                 // [[BoundArguments]]
 };
+
+template<>
+inline bool FunctionObject::fast_is<BoundFunction>() const { return is_bound_function(); }
 
 }
