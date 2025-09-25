@@ -24,6 +24,8 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~Set() override = default;
 
+    virtual bool is_set_object() const final { return true; }
+
     // NOTE: Unlike what the spec says, we implement Sets using an underlying map,
     //       so all the functions below do not directly implement the operations as
     //       defined by the specification.
@@ -58,5 +60,8 @@ struct SetRecord {
 
 ThrowCompletionOr<SetRecord> get_set_record(VM&, Value);
 bool set_data_has(GC::Ref<Set>, Value);
+
+template<>
+inline bool Object::fast_is<Set>() const { return is_set_object(); }
 
 }
