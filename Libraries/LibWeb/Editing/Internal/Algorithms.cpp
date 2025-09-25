@@ -4691,7 +4691,6 @@ Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::R
     if (!inline_style)
         return {};
 
-    // FIXME: This doesn't support shorthand properties.
     auto style_property = inline_style->get_property(property_id);
     if (!style_property.has_value())
         return {};

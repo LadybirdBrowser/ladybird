@@ -74,6 +74,7 @@ private:
 
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;
     Optional<StyleProperty> get_property_internal(PropertyNameAndID const&) const;
+    Optional<StyleProperty> get_direct_property(PropertyNameAndID const&) const;
     WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, StringView css_text, StringView priority);
     WebIDL::ExceptionOr<String> remove_property_internal(Optional<PropertyNameAndID> const&);
 
