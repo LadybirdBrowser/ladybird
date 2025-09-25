@@ -23,6 +23,8 @@ public:
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
 private:
+    virtual bool is_svg_symbol_element() const final { return true; }
+
     SVGSymbolElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
@@ -34,5 +36,12 @@ private:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGSymbolElement>() const { return is_svg_symbol_element(); }
 
 }
