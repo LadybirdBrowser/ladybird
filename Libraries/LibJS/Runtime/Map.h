@@ -25,6 +25,8 @@ public:
 
     virtual ~Map() override = default;
 
+    virtual bool is_map_object() const final { return true; }
+
     void map_clear();
     bool map_remove(Value const&);
     Optional<Value> map_get(Value const&) const;
@@ -115,5 +117,8 @@ private:
     RedBlackTree<size_t, Value> m_keys;
     HashMap<Value, Value, ValueTraits> m_entries;
 };
+
+template<>
+inline bool Object::fast_is<Map>() const { return is_map_object(); }
 
 }
