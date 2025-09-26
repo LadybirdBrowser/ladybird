@@ -496,18 +496,15 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
             }
 
             // iii. If d is a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration, then
-            if (declaration.is_function_declaration()) {
-                VERIFY(is<FunctionDeclaration>(declaration));
-                auto const& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
-
+            if (auto const* function_declaration = as_if<FunctionDeclaration>(declaration)) {
                 // 1. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
                 // NOTE: Special case if the function is a default export of an anonymous function
                 //       it has name "*default*" but internally should have name "default".
-                auto function_name = function_declaration.name();
+                auto function_name = function_declaration->name();
                 if (function_name == ExportStatement::local_name_for_default)
                     function_name = "default"_utf16_fly_string;
                 auto function = ECMAScriptFunctionObject::create_from_function_node(
-                    function_declaration,
+                    *function_declaration,
                     move(function_name),
                     realm,
                     environment,
