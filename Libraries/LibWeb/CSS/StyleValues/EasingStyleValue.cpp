@@ -60,11 +60,6 @@ EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
     return steps;
 }
 
-bool EasingStyleValue::CubicBezier::operator==(Web::CSS::EasingStyleValue::CubicBezier const& other) const
-{
-    return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
-}
-
 // https://drafts.csswg.org/css-easing/#linear-canonicalization
 EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
 {
