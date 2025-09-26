@@ -33,9 +33,6 @@ public:
 
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
-    virtual bool has_property(FlyString const& property_name) const override;
-    virtual RefPtr<StyleValue const> get_property_style_value(FlyString const& property_name) const override;
-
 protected:
     CSSDescriptors(JS::Realm&, AtRuleID, Vector<Descriptor>);
 

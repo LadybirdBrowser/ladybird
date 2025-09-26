@@ -380,20 +380,14 @@ StringView CSSStyleProperties::get_property_priority(FlyString const& property_n
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
 }
 
-bool CSSStyleProperties::has_property(FlyString const& property_name) const
+bool CSSStyleProperties::has_property(PropertyNameAndID const& property) const
 {
-    auto property = PropertyNameAndID::from_name(property_name);
-    if (!property.has_value())
-        return false;
-    return get_property_internal(*property).has_value();
+    return get_property_internal(property).has_value();
 }
 
-RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(FlyString const& property_name) const
+RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(PropertyNameAndID const& property) const
 {
-    auto property = PropertyNameAndID::from_name(property_name);
-    if (!property.has_value())
-        return nullptr;
-    if (auto style_property = get_property_internal(*property); style_property.has_value())
+    if (auto style_property = get_property_internal(property); style_property.has_value())
         return style_property->value;
     return nullptr;
 }
