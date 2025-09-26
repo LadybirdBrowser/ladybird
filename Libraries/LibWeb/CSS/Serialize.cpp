@@ -8,6 +8,7 @@
 #include <AK/Utf8View.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS {
 
@@ -269,7 +270,7 @@ String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValu
 {
     // FIXME: There are special rules here where we should insert a comment between certain tokens. Do that!
     if (insert_whitespace == InsertWhitespace::Yes)
-        return MUST(String::join(' ', component_values));
+        return MUST(Infra::strip_and_collapse_whitespace(MUST(String::join(' ', component_values))));
     return MUST(String::join(""sv, component_values));
 }
 

@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 31 tests
+
+30 Pass
+1 Fail
+Pass	target1 --var2
+Pass	target1 margin-top
+Pass	target1 margin-right
+Pass	target1 margin-bottom
+Pass	target1 margin-left
+Pass	target2parent --var1
+Pass	target2parent --var2
+Pass	target2 --var1
+Pass	target2 --var2
+Pass	target3 --var1
+Pass	target3 --var2
+Pass	target4 --varA
+Pass	target4 --varB
+Pass	target4 --varC
+Pass	target5 --varA
+Pass	target5 --varB
+Pass	target5 --varC
+Pass	target6 --varA
+Pass	target6 --varB
+Fail	target6 --varC
+Pass	target7 --varA
+Pass	target7 --varB
+Pass	target7 --varC
+Pass	target8 --varA
+Pass	target8 --varB
+Pass	target9 --varA
+Pass	target9 --varB
+Pass	target9 --varC
+Pass	target10 --varA
+Pass	target10 --varB
+Pass	target10 --varC
