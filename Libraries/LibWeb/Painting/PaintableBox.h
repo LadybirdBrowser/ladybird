@@ -298,9 +298,6 @@ protected:
     TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
     CSSPixelPoint adjust_position_for_cumulative_scroll_offset(CSSPixelPoint) const;
 
-    Gfx::AffineTransform const& combined_css_transform() const { return m_combined_css_transform; }
-    void set_combined_css_transform(Gfx::AffineTransform const& transform) { m_combined_css_transform = transform; }
-
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
 

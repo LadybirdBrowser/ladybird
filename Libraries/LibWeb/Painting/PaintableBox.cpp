@@ -1561,9 +1561,6 @@ void PaintableBox::resolve_paint_properties()
     set_outline_data(outline_data);
     set_outline_offset(outline_offset);
 
-    auto combined_transform = compute_combined_css_transform();
-    set_combined_css_transform(combined_transform);
-
     CSSPixelRect background_rect;
     Color background_color = computed_values.background_color();
     auto const* background_layers = &computed_values.background_layers();
