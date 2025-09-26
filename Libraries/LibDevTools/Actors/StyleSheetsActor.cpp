@@ -69,9 +69,7 @@ void StyleSheetsActor::set_style_sheets(Vector<Web::CSS::StyleSheetIdentifier> s
 
 void StyleSheetsActor::style_sheet_source_received(Web::CSS::StyleSheetIdentifier const& style_sheet, String source)
 {
-    auto index = m_style_sheets.find_first_index_if([&](auto const& candidate) {
-        return candidate.type == style_sheet.type && candidate.url == style_sheet.url;
-    });
+    auto index = m_style_sheets.find_first_index(style_sheet);
     if (!index.has_value())
         return;
 
