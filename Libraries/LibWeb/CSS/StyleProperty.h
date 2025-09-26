@@ -16,11 +16,11 @@ enum class Important : u8 {
     Yes,
 };
 
-struct StyleProperty {
+struct WEB_API StyleProperty {
     ~StyleProperty();
 
     Important important { Important::No };
-    CSS::PropertyID property_id;
+    PropertyID property_id;
     NonnullRefPtr<StyleValue const> value;
     FlyString custom_name {};
 
