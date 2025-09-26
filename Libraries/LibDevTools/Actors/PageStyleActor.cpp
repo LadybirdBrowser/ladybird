@@ -30,7 +30,7 @@ static void received_layout(JsonObject& response, JsonValue const& node_box_sizi
         response.set(key, MUST(String::formatted("{}px", pixel_value(key))));
     };
     auto set_computed_value = [&](auto key) {
-        response.set(key, node_box_sizing.as_object().get_string(key).value_or(String {}));
+        response.set(key, node_box_sizing.as_object().get(key).value_or(String {}));
     };
 
     // FIXME: This response should also contain "top", "right", "bottom", and "left", but our box model metrics in
