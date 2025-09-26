@@ -161,10 +161,13 @@ void FrameActor::style_sheets_available(JsonObject& response, Vector<Web::CSS::S
         JsonValue title;
 
         if (style_sheet.url.has_value()) {
-            // LibWeb sets the URL to a style sheet name for UA style sheets. DevTools would reject these invalid URLs.
             if (style_sheet.type == Web::CSS::StyleSheetIdentifier::Type::UserAgent) {
+                // LibWeb sets the URL to a style sheet name for UA style sheets. DevTools would reject these invalid URLs.
+                href = MUST(String::formatted("resource://{}", style_sheet.url.value()));
                 title = *style_sheet.url;
                 source_map_base_url = tab_url;
+            } else if (style_sheet.type == Web::CSS::StyleSheetIdentifier::Type::StyleElement) {
+                source_map_base_url = *style_sheet.url;
             } else {
                 href = *style_sheet.url;
                 source_map_base_url = *style_sheet.url;
@@ -186,7 +189,7 @@ void FrameActor::style_sheets_available(JsonObject& response, Vector<Web::CSS::S
         sheet.set("sourceMapBaseURL"sv, move(source_map_base_url));
         sheet.set("sourceMapURL"sv, ""sv);
         sheet.set("styleSheetIndex"sv, i);
-        sheet.set("system"sv, false);
+        sheet.set("system"sv, style_sheet.type == Web::CSS::StyleSheetIdentifier::Type::UserAgent);
         sheet.set("title"sv, move(title));
 
         sheets.must_append(move(sheet));
