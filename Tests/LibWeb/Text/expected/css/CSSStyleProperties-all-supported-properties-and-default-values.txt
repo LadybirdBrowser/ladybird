@@ -741,6 +741,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'white-space-collapse': 'collapse'
 'whiteSpaceTrim': 'none'
 'white-space-trim': 'none'
+'widows': '2'
 'width': '284px'
 'willChange': 'auto'
 'will-change': 'auto'

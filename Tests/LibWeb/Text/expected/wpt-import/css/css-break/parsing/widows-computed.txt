@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property widows value '1'
+Pass	Property widows value '234'
+Pass	Property widows value 'calc(1 + 234)'

@@ -69,6 +69,7 @@ All properties associated with getComputedStyle(document.body):
     "text-wrap-style",
     "visibility",
     "white-space-collapse",
+    "widows",
     "word-break",
     "word-spacing",
     "word-wrap",
