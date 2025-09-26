@@ -67,6 +67,8 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlySt
         return ArbitrarySubstitutionFunction::Attr;
     if (name.equals_ignoring_ascii_case("env"sv))
         return ArbitrarySubstitutionFunction::Env;
+    if (name.equals_ignoring_ascii_case("sibling-count"sv))
+        return ArbitrarySubstitutionFunction::SiblingCount;
     if (name.equals_ignoring_ascii_case("var"sv))
         return ArbitrarySubstitutionFunction::Var;
     return {};
@@ -252,6 +254,39 @@ static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& elem
 
     // 3. Otherwise, the property or descriptor containing the env() function is invalid at computed-value time.
     return { ComponentValue { GuaranteedInvalidValue {} } };
+}
+
+// https://drafts.csswg.org/css-values-5/#tree-counting
+static DOM::Element& element_to_resolve_tree_counting_function_against(DOM::AbstractElement& element)
+{
+    // FIXME: When used on an element-backed pseudo-element which is also a real element, the tree counting functions
+    //        resolve for that real element. For other pseudo elements, they resolve as if they were resolved against
+    //        the originating element. It follows that for nested pseudo elements the resolution will recursively walk
+    //        the originating elements until a real element is found.
+
+    // FIXME: A tree counting function is a tree-scoped reference where it references an implicit tree-scoped name for
+    //        the element it resolves against. This is done to not leak tree information to an outer tree. A tree
+    //        counting function that is scoped to an outer tree relative to the element it resolves against, will alway
+    //        resolve to 0.
+    return element.element();
+}
+
+// https://drafts.csswg.org/css-values-5/#funcdef-sibling-count
+static Vector<ComponentValue> replace_a_sibling_count_function(DOM::AbstractElement& element)
+{
+    // The sibling-count() functional notation represents, as an <integer>, the total number of child elements in the
+    // parent of the element on which the notation is used.
+    auto const& parent = element_to_resolve_tree_counting_function_against(element).parent_element();
+
+    if (!parent)
+        return { Token::create_number(Number { Number::Type::Integer, 1 }) };
+
+    size_t count = 0;
+
+    for (auto const* child = parent->first_child_of_type<DOM::Element>(); child; child = child->next_element_sibling())
+        ++count;
+
+    return { Token::create_number(Number { Number::Type::Integer, static_cast<double>(count) }) };
 }
 
 // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
@@ -447,6 +482,9 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
         // AD-HOC: This doesn't have an argument-grammar definition.
         //         However, it follows the same format of "some CVs, then an optional comma and a fallback".
         return parse_declaration_value_then_optional_declaration_value(values);
+    case ArbitrarySubstitutionFunction::SiblingCount:
+        // https://drafts.csswg.org/css-values-5/#funcdef-sibling-count
+        return ArbitrarySubstitutionFunctionArguments {};
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
@@ -463,6 +501,8 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractE
         return replace_an_attr_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::Env:
         return replace_an_env_function(element, guarded_contexts, arguments);
+    case ArbitrarySubstitutionFunction::SiblingCount:
+        return replace_a_sibling_count_function(element);
     case ArbitrarySubstitutionFunction::Var:
         return replace_a_var_function(element, guarded_contexts, arguments);
     }
