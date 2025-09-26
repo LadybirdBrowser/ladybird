@@ -10,6 +10,7 @@
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
+#include <LibMedia/Providers/WrapperTimeProvider.h>
 #include <LibMedia/Sinks/AudioMixingSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
@@ -74,7 +75,11 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
         audio_sink = DECODER_TRY_ALLOC(AudioMixingSink::try_create());
 
     // Create the time provider.
-    auto time_provider = DECODER_TRY_ALLOC(try_make_ref_counted<GenericTimeProvider>());
+    auto time_provider = DECODER_TRY_ALLOC([&] -> ErrorOr<NonnullRefPtr<MediaTimeProvider>> {
+        if (audio_sink)
+            return TRY(try_make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*audio_sink));
+        return TRY(try_make_ref_counted<GenericTimeProvider>());
+    }());
 
     auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas))));
     weak_playback_manager->m_manager = playback_manager;
