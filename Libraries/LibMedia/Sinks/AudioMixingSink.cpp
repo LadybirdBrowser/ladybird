@@ -87,6 +87,18 @@ static inline i64 duration_to_sample(AK::Duration duration, u32 sample_rate)
     return sample;
 }
 
+static inline AK::Duration sample_to_duration(i64 sample, u32 sample_rate)
+{
+    VERIFY(sample_rate != 0);
+    auto seconds = sample / sample_rate;
+    auto seconds_in_time_units = seconds * sample_rate;
+
+    auto remainder_in_time_units = sample - seconds_in_time_units;
+    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000) + (sample_rate / 2)) / sample_rate;
+
+    return AK::Duration::from_seconds(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
+}
+
 void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
 {
     if (m_playback_stream_sample_rate >= sample_rate && m_playback_stream_channel_count >= channel_count) {
@@ -115,7 +127,7 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
         if (sample_rate != self->m_playback_stream_sample_rate || channel_count != self->m_playback_stream_channel_count)
             return buffer.slice(0, 0);
 
-        auto buffer_start = self->m_next_sample_to_write;
+        auto buffer_start = self->m_next_sample_to_write.load(MemoryOrder::memory_order_relaxed);
 
         for (auto& [track, track_data] : self->m_track_mixing_datas) {
             auto next_sample = buffer_start;
@@ -191,12 +203,121 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
             }
         }
 
-        self->m_next_sample_to_write += static_cast<i64>(sample_count);
+        self->m_next_sample_to_write.fetch_add(static_cast<i64>(sample_count), MemoryOrder::memory_order_relaxed);
         return buffer.slice(0, float_buffer_size);
     };
-    m_playback_stream = MUST(Audio::PlaybackStream::create(Audio::OutputState::Playing, sample_rate, channel_count, 100, move(callback)));
+    m_playback_stream = MUST(Audio::PlaybackStream::create(Audio::OutputState::Suspended, sample_rate, channel_count, 100, move(callback)));
     m_playback_stream_sample_rate = sample_rate;
     m_playback_stream_channel_count = channel_count;
+
+    if (m_playing)
+        resume();
+}
+
+AK::Duration AudioMixingSink::current_time() const
+{
+    if (!m_playback_stream)
+        return m_last_media_time;
+
+    auto time = m_last_media_time + (m_playback_stream->total_time_played() - m_last_stream_time);
+    auto max_time = sample_to_duration(m_next_sample_to_write, m_playback_stream_sample_rate);
+    time = min(time, max_time);
+    return time;
+}
+
+void AudioMixingSink::resume()
+{
+    m_playing = true;
+
+    if (!m_playback_stream)
+        return;
+    m_playback_stream->resume()
+        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream](auto new_device_time) {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            if (self->m_playback_stream != &playback_stream)
+                return;
+
+            self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
+                self->m_last_stream_time = new_device_time;
+            });
+        })
+        .when_rejected([](auto&& error) {
+            warnln("Unexpected error while resuming AudioMixingSink: {}", error.string_literal());
+        });
+}
+
+void AudioMixingSink::pause()
+{
+    m_playing = false;
+
+    if (!m_playback_stream)
+        return;
+    m_playback_stream->drain_buffer_and_suspend()
+        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream]() {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            if (self->m_playback_stream != &playback_stream)
+                return;
+
+            auto new_stream_time = self->m_playback_stream->total_time_played();
+            auto new_media_time = sample_to_duration(self->m_next_sample_to_write, self->m_playback_stream_sample_rate);
+
+            self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time, new_media_time]() {
+                self->m_last_stream_time = new_stream_time;
+                self->m_last_media_time = new_media_time;
+            });
+        })
+        .when_rejected([](auto&& error) {
+            warnln("Unexpected error while pausing AudioMixingSink: {}", error.string_literal());
+        });
+}
+
+void AudioMixingSink::set_time(AK::Duration time)
+{
+    if (!m_playing || !m_playback_stream) {
+        Threading::MutexLocker mixing_locker { m_mutex };
+        m_last_media_time = time;
+        m_next_sample_to_write = duration_to_sample(time, m_playback_stream_sample_rate);
+
+        for (auto& [track, track_data] : m_track_mixing_datas) {
+            track_data.current_block.clear();
+            track_data.current_block_first_sample_offset = 0;
+        }
+        return;
+    }
+
+    m_playback_stream->drain_buffer_and_suspend()
+        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream, time]() {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            if (self->m_playback_stream != &playback_stream)
+                return;
+
+            auto new_stream_time = self->m_playback_stream->total_time_played();
+
+            self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time, time]() {
+                {
+                    Threading::MutexLocker mixing_locker { self->m_mutex };
+                    self->m_last_stream_time = new_stream_time;
+                    self->m_last_media_time = time;
+                    self->m_next_sample_to_write = duration_to_sample(time, self->m_playback_stream_sample_rate);
+
+                    for (auto& [track, track_data] : self->m_track_mixing_datas) {
+                        track_data.current_block.clear();
+                        track_data.current_block_first_sample_offset = 0;
+                    }
+                }
+
+                self->resume();
+            });
+        })
+        .when_rejected([](auto&& error) {
+            warnln("Unexpected error while setting time on AudioMixingSink: {}", error.string_literal());
+        });
 }
 
 }
