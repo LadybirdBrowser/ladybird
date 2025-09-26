@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Testing substituting variable references inside of variable declerations</title>
+
+    <meta rel="author" title="Kevin Babbitt">
+    <meta rel="author" title="Greg Whitworth">
+    <link rel="author" title="Microsoft Corporation" href="http://microsoft.com" />
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#using-variables">
+
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+        #target1 {
+            margin: var(--var2);
+            --var2: var(--var1) 10px;
+            --var1: var(--var0) 13px 17px;
+            --var0: 23px;
+        }
+
+        #target2parent {
+            --var2: var(--var1, fallback);
+            --var1: var(--var2, fallback);
+        }
+        #target2 {
+            --var1: good;
+        }
+
+        #target3 {
+            --var2: var(--var1, 3px);
+            --var1: var(--var0, 5px);
+        }
+
+        #target4 {
+            --varA: var(--varB);
+            --varB: var(--varA);
+            --varC: var(--varB,13px);
+        }
+
+        #target5 {
+            --varA: var(--varB);
+            --varB: var(--varA) var(--varC);
+            --varC: var(--varB,13px);
+        }
+
+        #target6 {
+            --varA: var(--varB);
+            --varB: var(--varA) var(--varDoesNotExist,var(--varC));
+            --varC: var(--varB,13px);
+        }
+
+        #target7 {
+            --varDoesExist: 5px;
+            --varA: var(--varB);
+            --varB: var(--varA) var(--varDoesExist,var(--varC));
+            --varC: var(--varB,13px);
+        }
+
+        #target8 {
+            --varA: var(--varA, 9px);
+            --varB: var(--varA, 7px);
+        }
+
+        #target9 {
+            --varA: good;
+            --varB: very var(--varA, var(--varC));
+            --varC: var(--varB);
+        }
+
+        #target10parent {
+            --varA: good;
+            --varB: Also good;
+            --varC: another good one;
+        }
+
+        #target10 {
+            --varA: var(--varB);
+            --varB: var(--varA);
+            --varC: var(--varB);
+        }
+    </style>
+</head>
+<body>
+    <div id="target1"></div>
+    <div id="target2parent">
+        <div id="target2"></div>
+    </div>
+    <div id="target3"></div>
+    <div id="target4"></div>
+    <div id="target5"></div>
+    <div id="target6"></div>
+    <div id="target7"></div>
+    <div id="target8"></div>
+    <div id="target9"></div>
+    <div id="target10parent">
+        <div id="target10"></div>
+    </div>
+
+    <script type="text/javascript">
+        "use strict";
+
+        var testcases = [
+            { element: "target1",       propertyName: "--var2",         expectedPropertyValue: "23px 13px 17px 10px" },
+            { element: "target1",       propertyName: "margin-top",     expectedPropertyValue: "23px" },
+            { element: "target1",       propertyName: "margin-right",   expectedPropertyValue: "13px" },
+            { element: "target1",       propertyName: "margin-bottom",  expectedPropertyValue: "17px" },
+            { element: "target1",       propertyName: "margin-left",    expectedPropertyValue: "10px" },
+
+            { element: "target2parent", propertyName: "--var1",         expectedPropertyValue: "" },
+            { element: "target2parent", propertyName: "--var2",         expectedPropertyValue: "" },
+            { element: "target2",       propertyName: "--var1",         expectedPropertyValue: "good" },
+            { element: "target2",       propertyName: "--var2",         expectedPropertyValue: "" },
+
+            { element: "target3",       propertyName: "--var1",         expectedPropertyValue: "5px" },
+            { element: "target3",       propertyName: "--var2",         expectedPropertyValue: "5px" },
+
+            { element: "target4",       propertyName: "--varA",         expectedPropertyValue: "" },
+            { element: "target4",       propertyName: "--varB",         expectedPropertyValue: "" },
+            { element: "target4",       propertyName: "--varC",         expectedPropertyValue: "13px" },
+
+            { element: "target5",       propertyName: "--varA",         expectedPropertyValue: "" },
+            { element: "target5",       propertyName: "--varB",         expectedPropertyValue: "" },
+            { element: "target5",       propertyName: "--varC",         expectedPropertyValue: "" },
+
+            { element: "target6",       propertyName: "--varA",         expectedPropertyValue: "" },
+            { element: "target6",       propertyName: "--varB",         expectedPropertyValue: "" },
+            { element: "target6",       propertyName: "--varC",         expectedPropertyValue: "13px" },
+
+            { element: "target7",       propertyName: "--varA",         expectedPropertyValue: "" },
+            { element: "target7",       propertyName: "--varB",         expectedPropertyValue: "" },
+            { element: "target7",       propertyName: "--varC",         expectedPropertyValue: "13px" },
+
+            { element: "target8",       propertyName: "--varA",         expectedPropertyValue: "" },
+            { element: "target8",       propertyName: "--varB",         expectedPropertyValue: "7px" },
+
+            { element: "target9",       propertyName: "--varA",         expectedPropertyValue: "good" },
+            { element: "target9",       propertyName: "--varB",         expectedPropertyValue: "very good" },
+            { element: "target9",       propertyName: "--varC",         expectedPropertyValue: "very good" },
+
+            { element: "target10",      propertyName: "--varA",         expectedPropertyValue: "" },
+            { element: "target10",      propertyName: "--varB",         expectedPropertyValue: "" },
+            { element: "target10",      propertyName: "--varC",         expectedPropertyValue: "" },
+        ];
+
+        testcases.forEach(function (testcase) {
+            test( function () {
+                var div = document.getElementById(testcase.element);
+                var actualPropertyValue = window.getComputedStyle(div).getPropertyValue(testcase.propertyName);
+                assert_equals(actualPropertyValue, testcase.expectedPropertyValue);
+            }, testcase.element + " " + testcase.propertyName);
+        });
+    </script>
+</body>
+</html>
