@@ -484,6 +484,12 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
                 value.to_string(Web::CSS::SerializationMode::Normal));
         });
 
+        // FIXME: Custom properties are not yet included in ComputedProperties, so add them manually.
+        auto custom_properties = element.custom_properties(pseudo_element);
+        for (auto const& [name, value] : custom_properties) {
+            serialized.set(name, value.value->to_string(Web::CSS::SerializationMode::Normal));
+        }
+
         return serialized;
     };
 
