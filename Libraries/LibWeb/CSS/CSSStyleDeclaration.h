@@ -57,8 +57,8 @@ public:
     [[nodiscard]] bool is_updating() const { return m_updating; }
     void set_is_updating(bool value) { m_updating = value; }
 
-    virtual bool has_property(FlyString const& property_name) const = 0;
-    virtual RefPtr<StyleValue const> get_property_style_value(FlyString const& property_name) const = 0;
+    virtual bool has_property(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
+    virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
 
 protected:
     enum class Computed : u8 {
