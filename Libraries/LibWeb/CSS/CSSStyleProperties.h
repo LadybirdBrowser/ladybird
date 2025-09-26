@@ -51,7 +51,10 @@ public:
     size_t custom_property_count() const { return m_custom_properties.size(); }
 
     virtual bool has_property(PropertyNameAndID const&) const override;
+    bool has_property(PropertyID) const;
+
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const override;
+    RefPtr<StyleValue const> get_property_style_value(PropertyID) const;
 
     String css_float() const;
     WebIDL::ExceptionOr<void> set_css_float(StringView);
