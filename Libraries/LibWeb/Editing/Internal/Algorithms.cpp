@@ -6,6 +6,7 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -615,11 +616,9 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         if (!inline_style)
             return;
 
-        auto style_property = inline_style->get_property(CSS::PropertyID::TextDecoration);
-        if (!style_property.has_value())
+        auto style_value = inline_style->get_property_style_value(CSS::PropertyID::TextDecoration);
+        if (!style_value)
             return;
-
-        auto style_value = style_property.value().value;
         VERIFY(style_value->is_value_list());
         auto const& value_list = style_value->as_value_list();
         auto& old_values = value_list.values();
@@ -2470,20 +2469,20 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     // * It is a b or strong element with exactly one attribute, which is style, and the style attribute sets exactly
     //   one CSS property (including invalid or unrecognized properties), which is "font-weight".
     if (html_element.local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::strong)
-        && inline_style->get_property(CSS::PropertyID::FontWeight).has_value())
+        && inline_style->has_property(CSS::PropertyID::FontWeight))
         return true;
 
     // * It is an i or em element with exactly one attribute, which is style, and the style attribute sets exactly one
     //   CSS property (including invalid or unrecognized properties), which is "font-style".
     if (html_element.local_name().is_one_of(HTML::TagNames::i, HTML::TagNames::em)
-        && inline_style->get_property(CSS::PropertyID::FontStyle).has_value())
+        && inline_style->has_property(CSS::PropertyID::FontStyle))
         return true;
 
     // * It is an a, font, or span element with exactly one attribute, which is style, and the style attribute sets
     //   exactly one CSS property (including invalid or unrecognized properties), and that property is not
     //   "text-decoration".
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::span)
-        && !inline_style->get_property(CSS::PropertyID::TextDecoration).has_value())
+        && !inline_style->has_property(CSS::PropertyID::TextDecoration))
         return true;
 
     // * It is an a, font, s, span, strike, or u element with exactly one attribute, which is style, and the style
@@ -2491,7 +2490,7 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     //   "text-decoration", which is set to "line-through" or "underline" or "overline" or "none".
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::s,
             HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::u)
-        && inline_style->get_property(CSS::PropertyID::TextDecoration).has_value()) {
+        && inline_style->has_property(CSS::PropertyID::TextDecoration)) {
         auto text_decoration = inline_style->text_decoration();
         if (first_is_one_of(text_decoration,
                 string_from_keyword(CSS::Keyword::LineThrough),
@@ -2713,9 +2712,8 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     ++number_of_matching_attributes;
                 if (element->has_attribute(HTML::AttributeNames::style) && element->inline_style()
                     && element->inline_style()->length() == 1) {
-                    auto text_align = element->inline_style()->get_property(CSS::PropertyID::TextAlign);
-                    if (text_align.has_value()) {
-                        auto align_value = text_align.value().value->to_string(CSS::SerializationMode::Normal);
+                    if (auto text_align = element->inline_style()->get_property_style_value(CSS::PropertyID::TextAlign)) {
+                        auto align_value = text_align->to_string(CSS::SerializationMode::Normal);
                         if (align_value.equals_ignoring_ascii_case(alignment_keyword))
                             ++number_of_matching_attributes;
                     }

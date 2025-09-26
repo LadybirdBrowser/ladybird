@@ -385,11 +385,21 @@ bool CSSStyleProperties::has_property(PropertyNameAndID const& property) const
     return get_property_internal(property).has_value();
 }
 
+bool CSSStyleProperties::has_property(PropertyID property_id) const
+{
+    return has_property(PropertyNameAndID::from_id(property_id));
+}
+
 RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(PropertyNameAndID const& property) const
 {
     if (auto style_property = get_property_internal(property); style_property.has_value())
         return style_property->value;
     return nullptr;
+}
+
+RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(PropertyID property_id) const
+{
+    return get_property_style_value(PropertyNameAndID::from_id(property_id));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
