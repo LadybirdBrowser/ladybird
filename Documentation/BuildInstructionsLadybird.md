@@ -18,7 +18,7 @@ CMake 3.25 or newer must be available in $PATH.
 
 <!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libdrm-dev libgl1-mesa-dev nasm ninja-build pkg-config python3-venv qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libdrm-dev libgl1-mesa-dev libtool nasm ninja-build pkg-config python3-venv qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
