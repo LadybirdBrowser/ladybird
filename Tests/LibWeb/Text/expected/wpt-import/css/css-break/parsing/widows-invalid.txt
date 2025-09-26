@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['widows'] = "auto" should not set the property value
+Pass	e.style['widows'] = "1 234" should not set the property value
+Pass	e.style['widows'] = "-234" should not set the property value
+Pass	e.style['widows'] = "-1" should not set the property value
+Pass	e.style['widows'] = "0" should not set the property value

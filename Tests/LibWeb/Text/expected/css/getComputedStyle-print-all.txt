@@ -67,6 +67,7 @@ text-wrap-mode: wrap
 text-wrap-style: auto
 visibility: visible
 white-space-collapse: collapse
+widows: 2
 word-break: normal
 word-spacing: 0px
 word-wrap: normal
@@ -96,7 +97,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1470px
+block-size: 1485px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -173,7 +174,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2625px
+height: 2640px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

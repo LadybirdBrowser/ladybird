@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: getComputedStyle().widows</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-widows">
+<meta name="assert" content="widows computed value is specified integer.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("widows", "1");
+test_computed_value("widows", "234");
+test_computed_value("widows", "calc(1 + 234)", "235");
+</script>
+</body>
+</html>

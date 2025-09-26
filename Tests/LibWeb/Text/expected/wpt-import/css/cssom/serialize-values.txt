@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 687 tests
 
-663 Pass
-24 Fail
+665 Pass
+22 Fail
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -672,8 +672,8 @@ Pass	white-space: nowrap
 Pass	white-space: pre-wrap
 Pass	white-space: pre-line
 Pass	white-space: inherit
-Fail	widows: 101
-Fail	widows: inherit
+Pass	widows: 101
+Pass	widows: inherit
 Pass	width: 0px
 Pass	width: 1px
 Pass	width: .1em
