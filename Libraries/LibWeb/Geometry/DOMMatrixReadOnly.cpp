@@ -950,7 +950,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     // The result will be a <transform-list>, the keyword none, or failure.
     // If parsedValue is failure, or any <transform-function> has <length> values without absolute length units, or any keyword other than none is used, then return failure. [CSS3-SYNTAX] [CSS3-TRANSFORMS]
     auto transform_style_value = parse_css_value(CSS::Parser::ParsingParams {}, transform_list, CSS::PropertyID::Transform);
-    if (!transform_style_value || (transform_style_value->is_keyword() && transform_style_value->to_keyword() != CSS::Keyword::None))
+    if (!transform_style_value || (transform_style_value->is_keyword() && transform_style_value->to_keyword() != CSS::Keyword::None) || transform_style_value->is_unresolved())
         return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_utf16);
     auto parsed_value = CSS::ComputedProperties::transformations_for_style_value(*transform_style_value);
 
