@@ -4644,6 +4644,8 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     // AD-HOC: Report that we might rely on custom properties.
     if (unresolved.includes_attr_function())
         element.element().set_style_uses_attr_css_function();
+    if (unresolved.includes_tree_counting_function())
+        element.element().set_style_uses_tree_counting_function();
     if (unresolved.includes_var_function())
         element.element().set_style_uses_var_css_function();
 

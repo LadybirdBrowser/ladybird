@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Initially, the sibling-index() is 2 for #target
-Fail	Removing a preceding sibling of #target reduces the sibling-index()
+Pass	Removing a preceding sibling of #target reduces the sibling-index()
