@@ -559,7 +559,7 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
 {
     bool needs_block_declaration_instantiation = false;
     MUST(scope_node.for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
-        if (declaration.is_function_declaration()) {
+        if (is<FunctionDeclaration>(declaration)) {
             needs_block_declaration_instantiation = true;
             return;
         }
@@ -765,8 +765,8 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
             .loaded_value = dst,
         };
     }
-    if (expression.property().is_identifier()) {
-        auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
+    if (auto const* identifier = as_if<Identifier>(&expression.property())) {
+        auto identifier_table_ref = intern_identifier(identifier->string());
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
         emit_get_by_id(dst, base, identifier_table_ref, move(base_identifier));
         return ReferenceOperands {
@@ -776,8 +776,8 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
             .loaded_value = dst,
         };
     }
-    if (expression.property().is_private_identifier()) {
-        auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
+    if (auto const* identifier = as_if<PrivateIdentifier>(&expression.property())) {
+        auto identifier_table_ref = intern_identifier(identifier->string());
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
         emit<Bytecode::Op::GetPrivateById>(dst, base, identifier_table_ref);
         return ReferenceOperands {
@@ -823,11 +823,11 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
             if (expression.is_computed()) {
                 auto property = TRY(expression.property().generate_bytecode(*this)).value();
                 emit_put_by_value(object, property, value, PutKind::Normal, {});
-            } else if (expression.property().is_identifier()) {
-                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
+            } else if (auto const* identifier = as_if<Identifier>(&expression.property())) {
+                auto identifier_table_ref = intern_identifier(identifier->string());
                 emit_put_by_id(object, identifier_table_ref, value, Bytecode::PutKind::Normal, next_property_lookup_cache());
-            } else if (expression.property().is_private_identifier()) {
-                auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
+            } else if (auto const* private_identifier = as_if<PrivateIdentifier>(&expression.property())) {
+                auto identifier_table_ref = intern_identifier(private_identifier->string());
                 emit<Bytecode::Op::PutPrivateById>(object, identifier_table_ref, value);
             } else {
                 return CodeGenerationError {
@@ -902,8 +902,8 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
         if (expression.is_computed()) {
             auto property = TRY(expression.property().generate_bytecode(*this)).value();
             emit<Bytecode::Op::DeleteByValue>(dst, object, property);
-        } else if (expression.property().is_identifier()) {
-            auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
+        } else if (auto const* private_identifier = as_if<Identifier>(&expression.property())) {
+            auto identifier_table_ref = intern_identifier(private_identifier->string());
             emit<Bytecode::Op::DeleteById>(dst, object, identifier_table_ref);
         } else {
             // NOTE: Trying to delete a private field generates a SyntaxError in the parser.
@@ -963,30 +963,24 @@ void Generator::emit_set_variable(JS::Identifier const& identifier, ScopedOperan
 
 static Optional<Utf16String> expression_identifier(Expression const& expression)
 {
-    if (expression.is_identifier()) {
-        auto const& identifier = static_cast<Identifier const&>(expression);
-        return identifier.string().to_utf16_string();
+    if (auto const* identifier = as_if<Identifier>(&expression))
+        return identifier->string().to_utf16_string();
+
+    if (auto const* literal = as_if<NumericLiteral>(&expression)) {
+        return literal->value().to_utf16_string_without_side_effects();
     }
 
-    if (expression.is_numeric_literal()) {
-        auto const& literal = static_cast<NumericLiteral const&>(expression);
-        return literal.value().to_utf16_string_without_side_effects();
-    }
+    if (auto const* literal = as_if<StringLiteral>(&expression))
+        return Utf16String::formatted("'{}'", literal->value());
 
-    if (expression.is_string_literal()) {
-        auto const& literal = static_cast<StringLiteral const&>(expression);
-        return Utf16String::formatted("'{}'", literal.value());
-    }
-
-    if (expression.is_member_expression()) {
-        auto const& member_expression = static_cast<MemberExpression const&>(expression);
+    if (auto const* member_expression = as_if<MemberExpression>(&expression)) {
         StringBuilder builder(StringBuilder::Mode::UTF16);
 
-        if (auto identifier = expression_identifier(member_expression.object()); identifier.has_value())
+        if (auto identifier = expression_identifier(member_expression->object()); identifier.has_value())
             builder.append(*identifier);
 
-        if (auto identifier = expression_identifier(member_expression.property()); identifier.has_value()) {
-            if (member_expression.is_computed())
+        if (auto identifier = expression_identifier(member_expression->property()); identifier.has_value()) {
+            if (member_expression->is_computed())
                 builder.appendff("[{}]", *identifier);
             else
                 builder.appendff(".{}", *identifier);

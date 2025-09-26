@@ -11,7 +11,7 @@ namespace JS::Bytecode {
 
 Optional<Builtin> get_builtin(MemberExpression const& expression)
 {
-    if (expression.is_computed() || !expression.object().is_identifier() || !expression.property().is_identifier())
+    if (expression.is_computed() || !is<Identifier>(expression.object()) || !is<Identifier>(expression.property()))
         return {};
     auto base_name = static_cast<Identifier const&>(expression.object()).string();
     auto property_name = static_cast<Identifier const&>(expression.property()).string();

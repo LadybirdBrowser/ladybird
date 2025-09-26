@@ -163,7 +163,7 @@ public:
             }));
 
             m_node->add_lexical_declaration(move(declaration));
-        } else if (!declaration->is_function_declaration()) {
+        } else if (!is<FunctionDeclaration>(*declaration)) {
             // NOTE: Nothing in the callback throws an exception.
             MUST(declaration->for_each_bound_identifier([&](auto const& identifier) {
                 auto const& name = identifier.string();
@@ -4081,7 +4081,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_in_of_statement(NonnullRefPtr<A
                     has_annexB_for_in_init_extension = true;
             }
         }
-    } else if (!lhs->is_identifier() && !is<MemberExpression>(*lhs) && !is<CallExpression>(*lhs) && !is<UsingDeclaration>(*lhs)) {
+    } else if (!is<Identifier>(*lhs) && !is<MemberExpression>(*lhs) && !is<CallExpression>(*lhs) && !is<UsingDeclaration>(*lhs)) {
         bool valid = false;
         if (is<ObjectExpression>(*lhs) || is<ArrayExpression>(*lhs)) {
             auto synthesized_binding_pattern = synthesize_binding_pattern(static_cast<Expression const&>(*lhs));
@@ -4097,9 +4097,8 @@ NonnullRefPtr<Statement const> Parser::parse_for_in_of_statement(NonnullRefPtr<A
     auto is_in = in_or_of.type() == TokenType::In;
 
     if (!is_in) {
-        if (is<MemberExpression>(*lhs)) {
-            auto& member = static_cast<MemberExpression const&>(*lhs);
-            if (member.object().is_identifier() && static_cast<Identifier const&>(member.object()).string() == "let"sv)
+        if (auto const* member = as_if<MemberExpression>(*lhs)) {
+            if (auto const* id = as_if<Identifier>(member->object()); id && id->string() == "let"sv)
                 syntax_error("For of statement may not start with let."_string);
         }
         if (has_annexB_for_in_init_extension)
