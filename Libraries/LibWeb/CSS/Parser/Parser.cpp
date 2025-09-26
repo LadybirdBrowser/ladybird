@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
@@ -1615,26 +1616,22 @@ GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declarat
 
 Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& declaration)
 {
-    auto const& property_name = declaration.name;
-    auto property_id = property_id_from_string(property_name);
+    auto property = PropertyNameAndID::from_name(declaration.name);
 
-    if (!property_id.has_value()) {
-        if (property_name.bytes_as_string_view().starts_with("--"sv)) {
-            property_id = PropertyID::Custom;
-        } else if (has_ignored_vendor_prefix(property_name)) {
-            return {};
-        } else {
-            ErrorReporter::the().report(UnknownPropertyError { .property_name = property_name });
+    if (!property.has_value()) {
+        if (has_ignored_vendor_prefix(declaration.name)) {
             return {};
         }
+        ErrorReporter::the().report(UnknownPropertyError { .property_name = declaration.name });
+        return {};
     }
 
     auto value_token_stream = TokenStream(declaration.value);
-    auto value = parse_css_value(property_id.value(), value_token_stream, declaration.original_text);
+    auto value = parse_css_value(property->id(), value_token_stream, declaration.original_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
             ErrorReporter::the().report(InvalidPropertyError {
-                .property_name = property_name,
+                .property_name = property->name(),
                 .value_string = value_token_stream.dump_string(),
                 .description = "Failed to parse."_string,
             });
@@ -1642,10 +1639,10 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
         return {};
     }
 
-    if (property_id.value() == PropertyID::Custom)
-        return StyleProperty { declaration.important, property_id.value(), value.release_value(), declaration.name };
+    if (property->is_custom_property())
+        return StyleProperty { declaration.important, property->id(), value.release_value(), property->name() };
 
-    return StyleProperty { declaration.important, property_id.value(), value.release_value(), {} };
+    return StyleProperty { declaration.important, property->id(), value.release_value(), {} };
 }
 
 Optional<LengthOrAutoOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
