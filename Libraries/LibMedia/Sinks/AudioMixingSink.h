@@ -14,6 +14,7 @@
 #include <LibMedia/Audio/SampleFormats.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Sinks/AudioSink.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
@@ -30,6 +31,14 @@ public:
 
     virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) override;
     virtual RefPtr<AudioDataProvider> provider(Track const&) const override;
+
+    // This section implements the pure virtuals in MediaTimeProvider.
+    // AudioMixingSink cannot inherit from MediaTimeProvider, as AudioSink and MediaTimeProvider both inherit from
+    // AtomicRefCounted. In order to use AudioMixingSink as a MediaTimeProvider, wrap it with WrapperTimeProvider.
+    AK::Duration current_time() const;
+    void resume();
+    void pause();
+    void set_time(AK::Duration);
 
 private:
     static constexpr size_t MAX_BLOCK_COUNT = 16;
@@ -76,9 +85,13 @@ private:
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     u32 m_playback_stream_sample_rate { 0 };
     u32 m_playback_stream_channel_count { 0 };
+    bool m_playing { false };
 
     HashMap<Track, TrackMixingData> m_track_mixing_datas;
-    i64 m_next_sample_to_write { 0 };
+    Atomic<i64> m_next_sample_to_write { 0 };
+
+    AK::Duration m_last_stream_time;
+    AK::Duration m_last_media_time;
 };
 
 }
