@@ -69,6 +69,8 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlySt
         return ArbitrarySubstitutionFunction::Env;
     if (name.equals_ignoring_ascii_case("sibling-count"sv))
         return ArbitrarySubstitutionFunction::SiblingCount;
+    if (name.equals_ignoring_ascii_case("sibling-index"sv))
+        return ArbitrarySubstitutionFunction::SiblingIndex;
     if (name.equals_ignoring_ascii_case("var"sv))
         return ArbitrarySubstitutionFunction::Var;
     return {};
@@ -289,6 +291,25 @@ static Vector<ComponentValue> replace_a_sibling_count_function(DOM::AbstractElem
     return { Token::create_number(Number { Number::Type::Integer, static_cast<double>(count) }) };
 }
 
+static Vector<ComponentValue> replace_a_sibling_index_function(DOM::AbstractElement& element)
+{
+    // The sibling-index() functional notation represents, as an <integer>, the index of the element on which the
+    // notation is used among its inclusive siblings. Like :nth-child(), sibling-index() is 1-indexed.
+    auto const& element_to_resolve_against = element_to_resolve_tree_counting_function_against(element);
+
+    auto const& parent = element_to_resolve_against.parent_element();
+
+    if (!parent)
+        return { Token::create_number(Number { Number::Type::Integer, 1 }) };
+
+    size_t index = 1;
+
+    for (auto const* child = parent->first_child_of_type<DOM::Element>(); child && child != &element_to_resolve_against; child = child->next_element_sibling())
+        ++index;
+
+    return { Token::create_number(Number { Number::Type::Integer, static_cast<double>(index) }) };
+}
+
 // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
 static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -485,6 +506,9 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
     case ArbitrarySubstitutionFunction::SiblingCount:
         // https://drafts.csswg.org/css-values-5/#funcdef-sibling-count
         return ArbitrarySubstitutionFunctionArguments {};
+    case ArbitrarySubstitutionFunction::SiblingIndex:
+        // https://drafts.csswg.org/css-values-5/#funcdef-sibling-index
+        return ArbitrarySubstitutionFunctionArguments {};
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
@@ -503,6 +527,8 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractE
         return replace_an_env_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::SiblingCount:
         return replace_a_sibling_count_function(element);
+    case ArbitrarySubstitutionFunction::SiblingIndex:
+        return replace_a_sibling_index_function(element);
     case ArbitrarySubstitutionFunction::Var:
         return replace_a_var_function(element, guarded_contexts, arguments);
     }

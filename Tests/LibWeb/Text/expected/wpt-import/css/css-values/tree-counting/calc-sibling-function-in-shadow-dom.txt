@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Host children have sibling-index() and sibling-count() based on the DOM tree order
+1 Pass
+Pass	Host children have sibling-index() and sibling-count() based on the DOM tree order

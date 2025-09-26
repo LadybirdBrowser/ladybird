@@ -65,9 +65,10 @@ struct SubstitutionFunctionsPresence {
     bool attr { false };
     bool env { false };
     bool sibling_count { false };
+    bool sibling_index { false };
     bool var { false };
 
-    bool has_any() const { return attr || env || sibling_count || var; }
+    bool has_any() const { return attr || env || sibling_count || sibling_index || var; }
 };
 
 // https://drafts.csswg.org/css-syntax/#simple-block

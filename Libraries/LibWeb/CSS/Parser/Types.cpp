@@ -94,6 +94,9 @@ void Function::contains_arbitrary_substitution_function(SubstitutionFunctionsPre
     else if (name.equals_ignoring_ascii_case("sibling-count"sv))
         // Arguments are not allowed in the sibling-count function
         presence.sibling_count = !any_of(value, [](auto const& value) { return !value.is(Token::Type::Whitespace); });
+    else if (name.equals_ignoring_ascii_case("sibling-index"sv))
+        // Arguments are not allowed in the sibling-index function
+        presence.sibling_index = !any_of(value, [](auto const& value) { return !value.is(Token::Type::Whitespace); });
     else if (name.equals_ignoring_ascii_case("var"sv))
         presence.var = true;
     for (auto const& component_value : value) {
