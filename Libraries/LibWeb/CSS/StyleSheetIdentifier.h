@@ -26,6 +26,11 @@ struct StyleSheetIdentifier {
     Optional<UniqueNodeID> dom_element_unique_id {};
     Optional<String> url {};
     size_t rule_count { 0 };
+
+    bool operator==(StyleSheetIdentifier const& other) const
+    {
+        return type == other.type && dom_element_unique_id == other.dom_element_unique_id && url == other.url;
+    }
 };
 
 StringView style_sheet_identifier_type_to_string(StyleSheetIdentifier::Type);
