@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
@@ -17,7 +17,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
@@ -1380,9 +1380,13 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
             document->update_style();
 
             // computed value of parameter URL variables["property name"] from element's style declarations.
-            if (auto property = Web::CSS::property_id_from_string(name); property.has_value()) {
-                if (auto computed_properties = element->computed_properties())
-                    computed_value = computed_properties->property(property.value()).to_string(Web::CSS::SerializationMode::Normal);
+            if (auto property = Web::CSS::PropertyNameAndID::from_name(name); property.has_value()) {
+                if (property->is_custom_property()) {
+                    if (auto style_property = element->custom_properties({}).get(property->name()); style_property.has_value())
+                        computed_value = style_property->value->to_string(Web::CSS::SerializationMode::Normal);
+                } else if (auto computed_properties = element->computed_properties()) {
+                    computed_value = computed_properties->property(property->id()).to_string(Web::CSS::SerializationMode::Normal);
+                }
             }
         }
         // -> Otherwise
