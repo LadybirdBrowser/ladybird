@@ -236,21 +236,6 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
     return position;
 }
 
-Gfx::AffineTransform Paintable::compute_combined_css_transform() const
-{
-    Gfx::AffineTransform combined_transform;
-    if (is_paintable_box()) {
-        auto const& paintable_box = static_cast<PaintableBox const&>(*this);
-        auto affine_transform = Gfx::extract_2d_affine_transform(paintable_box.transform());
-        combined_transform = combined_transform.multiply(affine_transform);
-    }
-    for (auto const* ancestor = this->containing_block(); ancestor; ancestor = ancestor->containing_block()) {
-        auto affine_transform = Gfx::extract_2d_affine_transform(ancestor->transform());
-        combined_transform = combined_transform.multiply(affine_transform);
-    }
-    return combined_transform;
-}
-
 Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius)
 {
     Painting::BorderRadiiData radii_px {
