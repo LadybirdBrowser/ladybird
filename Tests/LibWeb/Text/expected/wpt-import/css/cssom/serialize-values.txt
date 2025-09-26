@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 687 tests
 
-661 Pass
-26 Fail
+663 Pass
+24 Fail
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -531,8 +531,8 @@ Pass	min-width: .1em
 Pass	min-width: 5%
 Pass	min-width: .5%
 Pass	min-width: inherit
-Fail	orphans: 101
-Fail	orphans: inherit
+Pass	orphans: 101
+Pass	orphans: inherit
 Pass	outline-color: black
 Pass	outline-color: red
 Pass	outline-color: rgb(50, 75, 100)

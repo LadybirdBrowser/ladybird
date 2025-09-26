@@ -39,6 +39,7 @@ list-style-type: disc
 math-depth: 0
 math-shift: normal
 math-style: normal
+orphans: 2
 paint-order: normal
 pointer-events: auto
 quotes: auto
@@ -95,7 +96,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1455px
+block-size: 1470px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -172,7 +173,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2610px
+height: 2625px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

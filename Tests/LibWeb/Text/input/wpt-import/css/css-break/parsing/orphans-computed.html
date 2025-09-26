@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: getComputedStyle().orphans</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-orphans">
+<meta name="assert" content="orphans computed value is specified integer.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("orphans", "1");
+test_computed_value("orphans", "234");
+test_computed_value("orphans", "calc(1 + 234)", "235");
+</script>
+</body>
+</html>

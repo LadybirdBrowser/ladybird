@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>orphans interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-break-3/#widows-orphans">
+<meta name="assert" content="orphans supports animation by computed value type">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  orphans: 30;
+}
+.target {
+  orphans: 10;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'orphans',
+  from: neutralKeyframe,
+  to: '20',
+}, [
+  {at: -0.5, expect: '5'},
+  {at: 0, expect: '10'},
+  {at: 0.3, expect: '13'},
+  {at: 0.7, expect: '17'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '25'},
+]);
+
+test_interpolation({
+  property: 'orphans',
+  from: 'initial',
+  to: '20',
+}, [
+  {at: -0.5, expect: '1'},
+  {at: 0, expect: '2'},
+  {at: 0.3, expect: '7'},
+  {at: 0.7, expect: '15'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '29'},
+]);
+
+test_interpolation({
+  property: 'orphans',
+  from: 'inherit',
+  to: '20',
+}, [
+  {at: -0.5, expect: '35'},
+  {at: 0, expect: '30'},
+  {at: 0.3, expect: '27'},
+  {at: 0.7, expect: '23'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '15'},
+]);
+
+test_interpolation({
+  property: 'orphans',
+  from: 'unset',
+  to: '20',
+}, [
+  {at: -0.5, expect: '35'},
+  {at: 0, expect: '30'},
+  {at: 0.3, expect: '27'},
+  {at: 0.7, expect: '23'},
+  {at: 1, expect: '20'},
+  {at: 1.5, expect: '15'},
+]);
+
+test_interpolation({
+  property: 'orphans',
+  from: '10',
+  to: '1'
+}, [
+  {at: -0.5, expect: '15'},
+  {at: 0, expect: '10'},
+  {at: 0.3, expect: '7'},
+  {at: 0.7, expect: '4'},
+  // Only positive integers are valid
+  {at: 1, expect: '1'},
+  {at: 1.5, expect: '1'}
+]);
+</script>

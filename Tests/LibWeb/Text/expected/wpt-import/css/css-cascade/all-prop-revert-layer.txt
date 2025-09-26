@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 263 tests
+Found 264 tests
 
-257 Pass
+258 Pass
 6 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -43,6 +43,7 @@ Pass	list-style-type
 Pass	math-depth
 Pass	math-shift
 Pass	math-style
+Pass	orphans
 Pass	paint-order
 Pass	pointer-events
 Pass	quotes

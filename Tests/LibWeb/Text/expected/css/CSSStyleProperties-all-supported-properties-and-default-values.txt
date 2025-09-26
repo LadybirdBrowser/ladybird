@@ -579,6 +579,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'object-position': '50% 50%'
 'opacity': '1'
 'order': '0'
+'orphans': '2'
 'outline': 'rgb(0, 0, 0) 0px'
 'outlineColor': 'rgb(0, 0, 0)'
 'outline-color': 'rgb(0, 0, 0)'

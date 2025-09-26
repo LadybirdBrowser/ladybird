@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property orphans value '1'
+Pass	Property orphans value '234'
+Pass	Property orphans value 'calc(1 + 234)'
