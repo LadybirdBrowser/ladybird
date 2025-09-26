@@ -61,7 +61,10 @@ public:
 
         mutable Vector<CachedSample> m_cached_x_samples {};
 
-        bool operator==(CubicBezier const&) const;
+        bool operator==(CubicBezier const& other) const
+        {
+            return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
+        }
 
         double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
