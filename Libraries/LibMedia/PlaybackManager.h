@@ -60,6 +60,9 @@ public:
     void enable_an_audio_track(Track const& track);
     void disable_an_audio_track(Track const& track);
 
+    void play();
+    void pause();
+
     Function<void(DecoderError&&)> on_error;
 
 private:
