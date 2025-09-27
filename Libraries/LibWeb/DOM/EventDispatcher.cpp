@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -89,7 +90,14 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
 
         // 11. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
         // FIXME: These should be wrapped for us in call_user_object_operation, but it currently doesn't do that.
-        auto* this_value = event.current_target().ptr();
+        JS::Object* this_value = event.current_target().ptr();
+
+        // AD-HOC: Rebind `this_value` to the WindowProxy object if it is a Window.
+        if (is<HTML::Window>(this_value)) {
+            auto& window = as<HTML::Window>(global);
+            this_value = window.self().ptr();
+        }
+
         auto* wrapped_event = &event;
         auto result = WebIDL::call_user_object_operation(callback, "handleEvent"_utf16_fly_string, this_value, { { wrapped_event } });
 
