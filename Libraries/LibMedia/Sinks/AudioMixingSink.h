@@ -40,6 +40,8 @@ public:
     void pause();
     void set_time(AK::Duration);
 
+    void set_volume(double);
+
 private:
     static constexpr size_t MAX_BLOCK_COUNT = 16;
 
@@ -86,6 +88,7 @@ private:
     u32 m_playback_stream_sample_rate { 0 };
     u32 m_playback_stream_channel_count { 0 };
     bool m_playing { false };
+    double m_volume { 1 };
 
     HashMap<Track, TrackMixingData> m_track_mixing_datas;
     Atomic<i64> m_next_sample_to_write { 0 };
