@@ -202,7 +202,7 @@ The simplest way to build and run ladybird is via the ladybird.py script:
 
 On macOS, to build using clang from homebrew:
 ```bash
-CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.py run
+CC=$(brew --prefix llvm@20)/bin/clang CXX=$(brew --prefix llvm@20)/bin/clang++ ./Meta/ladybird.py run
 ```
 
 You may also choose to start it in `gdb` using:
