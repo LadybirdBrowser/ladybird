@@ -63,6 +63,8 @@ public:
     void play();
     void pause();
 
+    void set_volume(double);
+
     Function<void(DecoderError&&)> on_error;
 
 private:

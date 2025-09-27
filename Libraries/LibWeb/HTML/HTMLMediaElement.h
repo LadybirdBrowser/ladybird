@@ -211,6 +211,7 @@ private:
     void set_duration(double);
 
     void volume_or_muted_attribute_changed();
+    void update_volume();
 
     bool is_eligible_for_autoplay() const;
     bool has_ended_playback() const;
