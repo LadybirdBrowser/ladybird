@@ -269,6 +269,47 @@ CMake Error: CMake was unable to find a build program corresponding to "Ninja". 
 If the error is not immediately clear from the terminal output, be sure to check the specified `vcpkg-manifest-install.log`.
 for more information.
 
+### Error while building ffmpeg
+
+If you encounter a problem like this
+
+```
+/home/YOURUSER/soft/ladybird/Build/release/vcpkg_installed/x64-linux-dynamic/tools/pkgconf/pkgconf: error while loading shared libraries: libpkgconf.so.7: cannot open shared object file: No such file or directory
+CMake Error at /home/YOURUSER/soft/ladybird/Build/release/vcpkg_installed/x64-linux-dynamic/share/vcpkg-pkgconfig-get-modules/x_vcpkg_pkgconfig_get_modules.cmake:31 (execute_process):
+  execute_process failed command indexes:
+
+    1: "Child return code: 127"
+
+Call Stack (most recent call first):
+  buildtrees/versioning_/versions/ffmpeg/f61f5a41a01c6228401fc2ae93496fb8617be96e/portfile.cmake:878 (x_vcpkg_pkgconfig_get_modules)
+  scripts/ports.cmake:206 (include)
+
+
+error: building ffmpeg:x64-linux-dynamic failed with: BUILD_FAILED
+See https://learn.microsoft.com/vcpkg/troubleshoot/build-failures?WT.mc_id=vcpkg_inproduct_cli for more information.
+Elapsed time to handle ffmpeg:x64-linux-dynamic: 43 s
+Please ensure you're using the latest port files with `git pull` and `vcpkg update`.
+Then check for known issues at:
+  https://github.com/microsoft/vcpkg/issues?q=is%3Aissue+is%3Aopen+in%3Atitle+ffmpeg
+You can submit a new issue at:
+  https://github.com/microsoft/vcpkg/issues/new?title=[ffmpeg]+Build+error+on+x64-linux-dynamic&body=Copy%20issue%20body%20from%20%2Fhome%2FYOURUSER%2Fsoft%2Fladybird%2FBuild%2Frelease%2Fvcpkg_installed%2Fvcpkg%2Fissue_body.md
+
+Completed submission of vcpkg-pkgconfig-get-modules:x64-linux-dynamic@2024-04-03 to 1 binary cache(s) in 1.48 ms
+-- Running vcpkg install - failed
+CMake Error at Build/vcpkg/scripts/buildsystems/vcpkg.cmake:941 (message):
+  vcpkg install failed.  See logs for more information:
+  /home/YOURUSER/soft/ladybird/Build/release/vcpkg-manifest-install.log
+Call Stack (most recent call first):
+  /usr/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:146 (include)
+  CMakeLists.txt:30 (project)
+```
+
+This error will be fixed by doing something like this
+
+```
+export LD_LIBRARY_PATH=$(pwd)/Build/release/vcpkg_installed/x64-linux-dynamic/lib/
+```
+
 ### Resource files
 
 Ladybird requires resource files from the ladybird/Base/res directory in order to properly load
