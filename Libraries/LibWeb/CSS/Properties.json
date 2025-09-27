@@ -2805,6 +2805,16 @@
       "mapping": "inline-xy"
     }
   },
+  "overflow-wrap": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-identifiers": [
+      "anywhere",
+      "break-word",
+      "normal"
+    ]
+  },
   "overflow-x": {
     "animation-type": "discrete",
     "inherited": false,
@@ -3744,14 +3754,7 @@
     ]
   },
   "word-wrap": {
-    "animation-type": "discrete",
-    "inherited": true,
-    "initial": "normal",
-    "valid-identifiers": [
-      "anywhere",
-      "break-word",
-      "normal"
-    ]
+    "legacy-alias-for": "overflow-wrap"
   },
   "writing-mode": {
     "animation-type": "none",
