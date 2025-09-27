@@ -1,0 +1,10 @@
+SaveLayer
+  PushStackingContext opacity=1 isolate=false has_clip_path=false transform=[1 0 0 1 0 0]
+    PushStackingContext opacity=1 isolate=false has_clip_path=false transform=[1 0 0 1 0 0]
+      FillRect rect=[8,8 91x22] color=rgb(169, 166, 160)
+      FillPath
+      DrawGlyphRun rect=[13,10 81x18] translation=[13,23.796875] color=rgb(255, 0, 0) scale=1
+    PopStackingContext
+  PopStackingContext
+Restore
+
