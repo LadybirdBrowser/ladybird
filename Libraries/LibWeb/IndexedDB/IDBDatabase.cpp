@@ -11,10 +11,13 @@
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
+#include <LibWeb/IndexedDB/Internal/IDBDatabaseObserver.h>
+#include <LibWeb/IndexedDB/Internal/IDBTransactionObserver.h>
 
 namespace Web::IndexedDB {
 
 GC_DEFINE_ALLOCATOR(IDBDatabase);
+GC_DEFINE_ALLOCATOR(IDBDatabase::TransactionFinishState);
 
 IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
     : EventTarget(realm)
@@ -42,9 +45,11 @@ void IDBDatabase::initialize(JS::Realm& realm)
 void IDBDatabase::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_database_observers_being_notified);
     visitor.visit(m_object_store_set);
     visitor.visit(m_associated_database);
     visitor.visit(m_transactions);
+    visitor.visit(m_transaction_finish_queue);
 }
 
 void IDBDatabase::set_onabort(WebIDL::CallbackType* event_handler)
@@ -239,6 +244,82 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
 
     // 9. Return an IDBTransaction object representing transaction.
     return transaction;
+}
+
+void IDBDatabase::register_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver& database_observer)
+{
+    auto result = m_database_observers.set(database_observer);
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+}
+
+void IDBDatabase::unregister_database_observer(Badge<IDBDatabaseObserver>, IDBDatabaseObserver& database_observer)
+{
+    bool was_removed = m_database_observers.remove(database_observer);
+    VERIFY(was_removed);
+}
+
+void IDBDatabase::set_state(ConnectionState state)
+{
+    m_state = state;
+    notify_each_database_observer([](IDBDatabaseObserver const& request_observer) {
+        return request_observer.connection_state_changed_observer();
+    });
+}
+
+void IDBDatabase::wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>> transactions, GC::Ref<GC::Function<void()>> on_complete)
+{
+    GC::Ptr<TransactionFinishState> transaction_finish_state;
+
+    for (auto const& entry : transactions) {
+        if (!entry->is_finished()) {
+            if (!transaction_finish_state) {
+                transaction_finish_state = heap().allocate<TransactionFinishState>();
+            }
+
+            transaction_finish_state->add_transaction_to_observe(entry);
+        }
+    }
+
+    if (transaction_finish_state) {
+        transaction_finish_state->after_all = GC::create_function(heap(), [this, transaction_finish_state, on_complete] {
+            bool was_removed = m_transaction_finish_queue.remove_first_matching([transaction_finish_state](GC::Ref<TransactionFinishState> pending_transaction_finish_state) {
+                return pending_transaction_finish_state == transaction_finish_state;
+            });
+            VERIFY(was_removed);
+            queue_a_database_task(on_complete);
+        });
+        m_transaction_finish_queue.append(transaction_finish_state.as_nonnull());
+    } else {
+        queue_a_database_task(on_complete);
+    }
+}
+
+void IDBDatabase::TransactionFinishState::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(transaction_observers);
+    visitor.visit(after_all);
+}
+
+void IDBDatabase::TransactionFinishState::add_transaction_to_observe(GC::Ref<IDBTransaction> transaction)
+{
+    auto transaction_observer = heap().allocate<IDBTransactionObserver>(transaction);
+    transaction_observer->set_transaction_finished_observer(GC::create_function(heap(), [this] {
+        transaction_observers.remove_all_matching([](GC::Ref<IDBTransactionObserver> const& transaction_observer) {
+            if (transaction_observer->transaction()->is_finished()) {
+                transaction_observer->unobserve();
+                return true;
+            }
+
+            return false;
+        });
+
+        if (transaction_observers.is_empty()) {
+            queue_a_database_task(after_all.as_nonnull());
+        }
+    }));
+
+    transaction_observers.append(transaction_observer);
 }
 
 }

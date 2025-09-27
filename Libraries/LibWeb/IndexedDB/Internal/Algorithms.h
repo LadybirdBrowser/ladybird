@@ -27,12 +27,12 @@ enum class RecordKind {
 using KeyPath = Variant<String, Vector<String>>;
 using RecordSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
 
-WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>);
+void open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>>);
 bool fire_a_version_change_event(JS::Realm&, FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
 WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm&, JS::Value, Vector<JS::Value> = {});
-void close_a_database_connection(GC::Ref<IDBDatabase>, bool forced = false);
-void upgrade_a_database(JS::Realm&, GC::Ref<IDBDatabase>, u64, GC::Ref<IDBRequest>);
-WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm&, StorageAPI::StorageKey, String, GC::Ref<IDBRequest>);
+void close_a_database_connection(GC::Ref<IDBDatabase>, GC::Ptr<GC::Function<void()>> on_complete = nullptr, bool forced = false);
+void upgrade_a_database(JS::Realm&, GC::Ref<IDBDatabase>, u64, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void()>>);
+void delete_a_database(JS::Realm&, StorageAPI::StorageKey, String, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<u64>)>>);
 void abort_a_transaction(GC::Ref<IDBTransaction>, GC::Ptr<WebIDL::DOMException>);
 JS::Value convert_a_key_to_a_value(JS::Realm&, GC::Ref<Key>);
 bool is_valid_key_path(KeyPath const&);
