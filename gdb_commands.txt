@@ -1,0 +1,3 @@
+set pagination off
+thread apply all backtrace
+quit

@@ -202,12 +202,36 @@ jobs:
           ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
           UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
+      - name: Test Checks
+        if: ${{ always() && contains(inputs.build_preset, 'Sanitizer') }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          if ${{ inputs.os_name == 'Linux' }} ; then
+            ps aux | grep Build
+            ./dump_backtraces.sh
+          fi
+          if ${{ inputs.os_name == 'macOS' }} ; then
+            ps aux
+          fi
+
       - name: Test
         if: ${{ inputs.build_preset != 'Fuzzers' && !contains(inputs.build_preset, 'Sanitizer') }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
+
+      - name: Test Checks
+        if: ${{ always() && inputs.build_preset != 'Fuzzers' && !contains(inputs.build_preset, 'Sanitizer') }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          if ${{ inputs.os_name == 'Linux' }} ; then
+            ps aux | grep Build
+            ./dump_backtraces.sh
+          fi
+          if ${{ inputs.os_name == 'macOS' }} ; then
+            ps aux
+          fi
 
       - name: Upload LibWeb Test Artifacts
         if: ${{ always() && inputs.build_preset != 'Fuzzers' }}
