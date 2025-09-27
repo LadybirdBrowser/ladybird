@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>CSS sibling-index() and sibling-count()</title>
+  <link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting" />
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+  <script>
+test_valid_value('left', 'calc(1px * sibling-index())');
+test_valid_value('left', 'calc(1px * sibling-index( ))', 'calc(1px * sibling-index())');
+test_valid_value('z-index', 'sibling-index()');
+
+test_invalid_value('left', 'calc(1px * sibling-index(100px))');
+test_invalid_value('left', 'calc(1px * sibling-index(1))');
+
+test_valid_value('left', 'calc(1px * sibling-count())');
+test_valid_value('left', 'calc(1px * sibling-count( ))', 'calc(1px * sibling-count())');
+test_valid_value('z-index', 'sibling-count()');
+
+test_invalid_value('left', 'calc(1px * sibling-count(100px))');
+test_invalid_value('left', 'calc(1px * sibling-count(1))');
+  </script>
+</body>
+</html>

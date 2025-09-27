@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() changing length value during @keyframes animation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @keyframes --anim {
+    from {
+      top: calc(100px * sibling-index());
+    }
+    to {
+      top: 0px;
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+    position: absolute;
+    top: 13px;
+    width: 100px;
+    height: 100px;
+  }
+</style>
+<div>
+  <div id="rm"></div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).top, "200px");
+  }, "Initially, the sibling-index() is 2 for #target");
+
+  test(() => {
+    rm.remove();
+    assert_equals(getComputedStyle(target).top, "100px");
+  }, "Removing a preceding sibling of #target reduces the sibling-index()");
+
+</script>

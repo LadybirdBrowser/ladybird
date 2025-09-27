@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() changing value during @keyframes animation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @keyframes --anim {
+    from {
+      z-index: sibling-index();
+    }
+    to {
+      z-index: 1;
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+    position: relative;
+    width: 100px;
+    height: 100px;
+    background: red;
+  }
+  #abs {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    z-index: 3;
+    background: green;
+  }
+</style>
+<p>You should see a green square below.</p>
+<div>
+  <div id="rm"></div>
+  <div id="abs"></div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).zIndex, "3");
+  }, "Initially, the sibling-index() is 3 for #target");
+
+  test(() => {
+    rm.remove();
+    assert_equals(getComputedStyle(target).zIndex, "2");
+  }, "Removing a preceding sibling of #target reduces the sibling-index()");
+
+</script>

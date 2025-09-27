@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() and sibling-count() invalid in media queries</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<link rel="help" href="https://drafts.csswg.org/mediaqueries-5/#width">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10982">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="test_sheet">
+  #target {
+    background-color: green;
+  }
+  @media (width > CALC(0px * sibling-index())) {
+    #target { background-color: red; }
+  }
+  @media (width > CALC(0px * sibling-count())) {
+    #target { background-color: red; }
+  }
+</style>
+<div id="target"></div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).backgroundColor, "rgb(0, 128, 0)");
+  }, "sibling-index() and sibling-count() are not valid in @media queries");
+
+  test(() => {
+    let rules = test_sheet.sheet.cssRules;
+    assert_equals(rules.length, 3);
+    assert_equals(rules[1].media.mediaText, "(width > CALC(0px * sibling-index()))");
+    assert_equals(rules[2].media.mediaText, "(width > CALC(0px * sibling-count()))");
+  }, "@media queries with sibling-index() and sibling-count() as general-enclosed");
+
+</script>
