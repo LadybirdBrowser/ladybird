@@ -454,7 +454,7 @@ public class HTMLTokenizer {
     }
 
     func isAppropriateEndTagToken(_ token: HTMLToken) -> Bool {
-        guard case let .EndTag(endTagName, _, _, _) = token.type else {
+        guard case .EndTag(let endTagName, _, _, _) = token.type else {
             preconditionFailure("isAppropriateEndTagToken called with non-end-tag token")
         }
         if let startTagName = self.lastStartTagName {
