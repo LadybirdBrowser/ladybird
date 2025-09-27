@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() changing font-variation-settings during @keyframes animation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @keyframes --anim {
+    from {
+      font-variation-settings: "wght" sibling-index();
+    }
+    to {
+      font-variation-settings: "wght" 10;
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+  }
+</style>
+<div>
+  <div id="rm"></div>
+  <div></div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).fontVariationSettings, '"wght" 3');
+  }, "Initially, the sibling-index() is 3 for #target");
+
+  test(() => {
+    rm.remove();
+    assert_equals(getComputedStyle(target).fontVariationSettings, '"wght" 2');
+  }, "Removing a preceding sibling of #target reduces the sibling-index()");
+
+</script>

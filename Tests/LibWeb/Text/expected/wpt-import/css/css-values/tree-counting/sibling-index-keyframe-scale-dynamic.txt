@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Initially, the sibling-index() is 3 for #target
+Fail	Removing a preceding sibling of #target reduces the sibling-index()

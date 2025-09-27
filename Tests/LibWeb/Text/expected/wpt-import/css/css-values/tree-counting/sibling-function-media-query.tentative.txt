@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	sibling-index() and sibling-count() are not valid in @media queries
+Pass	@media queries with sibling-index() and sibling-count() as general-enclosed

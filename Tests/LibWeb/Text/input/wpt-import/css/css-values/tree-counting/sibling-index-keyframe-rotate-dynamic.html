@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() changing rotate during @keyframes animation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @keyframes --anim {
+    from {
+      rotate: x calc(10deg * sibling-index());
+    }
+    to {
+      rotate: x 90deg;
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+  }
+</style>
+<div>
+  <div id="rm"></div>
+  <div></div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).rotate, "x 30deg");
+  }, "Initially, the sibling-index() is 3 for #target");
+
+  test(() => {
+    rm.remove();
+    assert_equals(getComputedStyle(target).rotate, "x 20deg");
+  }, "Removing a preceding sibling of #target reduces the sibling-index()");
+
+</script>
