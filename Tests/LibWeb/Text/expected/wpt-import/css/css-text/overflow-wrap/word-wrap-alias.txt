@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	word-wrap should be defined as an alias of overflow-wrap
+Pass	word-wrap is a legacy name alias for overflow-wrap

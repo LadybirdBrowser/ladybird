@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#propdef-word-wrap">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/866">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/shorthand-testcommon.js"></script>
+<div id="test" style="word-wrap: break-word; overflow-wrap: break-word;"></div>
+<script>
+test(function() {
+    const div = document.getElementById("test");
+    assert_equals(div.style.cssText, "overflow-wrap: break-word;", "Only overflow-wrap should appear when serializing the declaration.");
+    assert_equals(div.style.wordWrap, "break-word");
+    assert_equals(div.style.overflowWrap, "break-word");
+    assert_equals(getComputedStyle(div).wordWrap, "break-word");
+    assert_equals(getComputedStyle(div).overflowWrap, "break-word");
+}, "word-wrap should be defined as an alias of overflow-wrap");
+
+test_is_legacy_name_alias("word-wrap", "overflow-wrap");
+</script>

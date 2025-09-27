@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Module Test: parsing overflow-wrap with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-overflow-wrap">
+<meta name="assert" content="overflow-wrap supports only the grammar 'normal | break-word | anywhere'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("overflow-wrap", "auto");
+test_invalid_value("overflow-wrap", "normal break-word");
+test_invalid_value("overflow-wrap", "anywhere anywhere");
+</script>
+</body>
+</html>

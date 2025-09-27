@@ -40,6 +40,7 @@ math-depth: 0
 math-shift: normal
 math-style: normal
 orphans: 2
+overflow-wrap: normal
 paint-order: normal
 pointer-events: auto
 quotes: auto
@@ -70,7 +71,6 @@ white-space-collapse: collapse
 widows: 2
 word-break: normal
 word-spacing: 0px
-word-wrap: normal
 writing-mode: horizontal-tb
 align-content: normal
 align-items: normal
