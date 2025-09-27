@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() and sibling-count() invalid in descriptors</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10982">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="page_sheet">
+  @page {
+    margin: 100px;
+    margin: calc(0px * sibling-index());
+  }
+  @page {
+    margin: 100px;
+    margin: calc(0px * sibling-count());
+  }
+</style>
+<style id="font_face_sheet">
+  @font-face {
+    font-family: my-font;
+    font-weight: 300;
+    font-weight: calc(max(0 * sibling-index(), 400));
+    font-feature-settings: "vert" 2;
+    font-feature-settings: "vert" calc(max(sibling-index(), 1));
+  }
+  @font-face {
+    font-family: my-font;
+    font-weight: 300;
+    font-weight: calc(max(0 * sibling-count(), 400));
+    font-feature-settings: "vert" 2;
+    font-feature-settings: "vert" calc(max(sibling-count(), 1));
+  }
+</style>
+<style id="font_palette_sheet">
+  @font-palette-values --foo {
+    font-family: my-font;
+    base-palette: 1;
+    base-palette: calc(max(sibling-index(), 2));
+    override-colors: 1 green;
+    override-colors: sibling-index() red;
+  }
+  @font-palette-values --foo {
+    font-family: my-font;
+    base-palette: 1;
+    base-palette: calc(max(sibling-count(), 2));
+    override-colors: 1 green;
+    override-colors: sibling-count() red;
+  }
+</style>
+<style id="counter_style_sheet">
+  @counter-style --foo {
+    system: fixed 1;
+    system: fixed calc(max(sibling-index(), 2));
+    negative: --pass;
+    negative: linear-gradient(red calc(20px * sibling-index()), pink);
+    prefix: --pass;
+    prefix: linear-gradient(red calc(20px * sibling-index()), pink);
+    suffix: --pass;
+    suffix: linear-gradient(red calc(20px * sibling-index()), pink);
+    range: 1 infinite;
+    range: calc(max(sibling-index(), 2)) infinite;
+    pad: 1 --pass;
+    pad: 1 linear-gradient(red calc(20px * sibling-index()), pink);
+    pad: calc(max(sibling-index(), 2)) --fail;
+    symbols: --pass;
+    symbols: linear-gradient(red calc(20px * sibling-index()), pink);
+  }
+  @counter-style --foo {
+    system: fixed 1;
+    system: fixed calc(max(sibling-count(), 2));
+    negative: --pass;
+    negative: linear-gradient(green, green);
+    negative: linear-gradient(red calc(20px * sibling-count()), pink);
+    prefix: --pass;
+    prefix: linear-gradient(red calc(20px * sibling-count()), pink);
+    suffix: --pass;
+    suffix: linear-gradient(red calc(20px * sibling-count()), pink);
+    range: 1 infinite;
+    range: calc(max(sibling-count(), 2)) infinite;
+    pad: 1 --pass;
+    pad: 1 linear-gradient(red calc(20px * sibling-count()), pink);
+    pad: calc(max(sibling-count(), 2)) --fail;
+    symbols: --pass;
+    symbols: linear-gradient(red calc(20px * sibling-count()), pink);
+  }
+</style>
+<style id="font_features_sheet">
+  @font-feature-values foo {
+    @swash { pretty: 1; }
+    @swash { pretty: calc(max(sibling-index(), 2)); }
+  }
+  @font-feature-values bar {
+    @swash { pretty: 1; }
+    @swash { pretty: calc(max(sibling-count(), 2)); }
+  }
+</style>
+<script>
+  const page_rules = page_sheet.sheet.cssRules;
+
+  test(() => {
+    assert_equals(page_rules[0].style.margin, "100px");
+  }, "sibling-index() should not be allowed in @page properties");
+
+  test(() => {
+    assert_equals(page_rules[1].style.margin, "100px");
+  }, "sibling-count() should not be allowed in @page properties");
+
+  const font_face_rules = font_face_sheet.sheet.cssRules;
+
+  test(() => {
+    assert_equals(font_face_rules[0].style.fontWeight, "300");
+    assert_equals(font_face_rules[0].style.fontFeatureSettings, "\"vert\" 2");
+  }, "sibling-index() should not be allowed in @font-face descriptors");
+
+  test(() => {
+    assert_equals(font_face_rules[1].style.fontWeight, "300");
+    assert_equals(font_face_rules[1].style.fontFeatureSettings, "\"vert\" 2");
+  }, "sibling-count() should not be allowed in @font-face descriptors");
+
+  const font_palette_rules = font_palette_sheet.sheet.cssRules;
+
+  test(() => {
+    assert_equals(font_palette_rules[0].basePalette, "1");
+    assert_equals(font_palette_rules[0].overrideColors, "1 green");
+  }, "sibling-index() should not be allowed in @font-palette-values descriptors");
+
+  test(() => {
+    assert_equals(font_palette_rules[1].basePalette, "1");
+    assert_equals(font_palette_rules[1].overrideColors, "1 green");
+  }, "sibling-count() should not be allowed in @font-palette-values descriptors");
+
+  const counter_style_rules = counter_style_sheet.sheet.cssRules;
+
+  test(() => {
+    assert_equals(counter_style_rules[0].system, "fixed 1");
+    assert_equals(counter_style_rules[0].negative, "--pass");
+    assert_equals(counter_style_rules[0].prefix, "--pass");
+    assert_equals(counter_style_rules[0].suffix, "--pass");
+    assert_equals(counter_style_rules[0].range, "1 infinite");
+    assert_equals(counter_style_rules[0].pad, "1 --pass");
+    assert_equals(counter_style_rules[0].symbols, "--pass");
+  }, "sibling-index() should not be allowed in @counter-style descriptors");
+
+  test(() => {
+    assert_equals(counter_style_rules[1].system, "fixed 1");
+    assert_equals(counter_style_rules[1].negative, "--pass");
+    assert_equals(counter_style_rules[1].prefix, "--pass");
+    assert_equals(counter_style_rules[1].suffix, "--pass");
+    assert_equals(counter_style_rules[1].range, "1 infinite");
+    assert_equals(counter_style_rules[1].pad, "1 --pass");
+    assert_equals(counter_style_rules[1].symbols, "--pass");
+  }, "sibling-count() should not be allowed in @counter-style descriptors");
+
+
+  const font_features_rules = font_features_sheet.sheet.cssRules;
+
+  test(() => {
+    const swash = font_features_rules[0].swash;
+    assert_equals(swash.get("pretty")[0], 1);
+  }, "sibling-index() should not be allowed in @font-feature-values descriptors");
+
+  test(() => {
+    const swash = font_features_rules[1].swash;
+    assert_equals(swash.get("pretty")[0], 1);
+  }, "sibling-count() should not be allowed in @font-feature-values descriptors");
+
+</script>

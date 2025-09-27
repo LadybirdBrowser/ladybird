@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Initially 6th sibling
+Fail	5th sibling after removal
+Fail	Initially 6 siblings
+Fail	5 siblings after removal

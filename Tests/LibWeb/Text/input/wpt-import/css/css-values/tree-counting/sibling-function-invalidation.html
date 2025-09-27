@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: Invalidation for sibling-index() and sibling-count()</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #t1 {
+    width: calc(10px * sibling-index());
+    height: 50px;
+    background: teal;
+  }
+</style>
+<div>
+  <div id="rm1"></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div id="t1"></div>
+</div>
+<script>
+  test(() => assert_equals(t1.offsetWidth, 60), "Initially 6th sibling");
+  test(() => {
+    rm1.remove();
+    assert_equals(t1.offsetWidth, 50);
+  }, "5th sibling after removal");
+</script>
+
+<style>
+  #t2 {
+    width: 50px;
+    height: calc(10px * sibling-count());
+    background: teal;
+  }
+</style>
+<div>
+  <div id="t2"></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div id="rm2"></div>
+</div>
+<script>
+  test(() => assert_equals(t2.offsetHeight, 60), "Initially 6 siblings");
+  test(() => {
+    rm2.remove();
+    assert_equals(t2.offsetHeight, 50);
+  }, "5 siblings after removal");
+</script>
