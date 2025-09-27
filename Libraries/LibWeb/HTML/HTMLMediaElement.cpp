@@ -454,12 +454,12 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
     if (auto* paintable = this->paintable())
         paintable->set_needs_display();
 
-    // FIXME: Set the volume on the PlaybackManager.
+    update_volume();
 }
 
 void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
 {
-    // FIXME: Set the volume on the PlaybackManager.
+    update_volume();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
@@ -482,6 +482,12 @@ double HTMLMediaElement::effective_media_volume() const
     //    setting, values in between increasing in loudness. The range need not be linear. The loudest setting may be
     //    lower than the system's loudest possible setting; for example the user could have set a maximum volume.
     return volume;
+}
+
+void HTMLMediaElement::update_volume()
+{
+    if (m_playback_manager)
+        m_playback_manager->set_volume(effective_media_volume());
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack

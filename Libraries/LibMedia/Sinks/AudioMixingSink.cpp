@@ -212,6 +212,8 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
 
     if (m_playing)
         resume();
+
+    set_volume(m_volume);
 }
 
 AK::Duration AudioMixingSink::current_time() const
@@ -318,6 +320,18 @@ void AudioMixingSink::set_time(AK::Duration time)
         .when_rejected([](auto&& error) {
             warnln("Unexpected error while setting time on AudioMixingSink: {}", error.string_literal());
         });
+}
+
+void AudioMixingSink::set_volume(double volume)
+{
+    m_volume = volume;
+
+    if (m_playback_stream) {
+        m_playback_stream->set_volume(m_volume)
+            ->when_rejected([](Error&&) {
+                // FIXME: Do we even need this function to return a promise?
+            });
+    }
 }
 
 }
