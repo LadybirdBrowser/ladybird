@@ -648,27 +648,45 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         auto construct_rows_string = [&]() {
             StringBuilder builder;
-            size_t idx = 0;
-            for (auto const& row : rows.grid_track_size_list().track_list()) {
-                if (areas.grid_template_area().size() > idx) {
-                    builder.append("\""sv);
-                    for (size_t y = 0; y < areas.grid_template_area()[idx].size(); ++y) {
-                        builder.append(areas.grid_template_area()[idx][y]);
-                        if (y != areas.grid_template_area()[idx].size() - 1)
-                            builder.append(" "sv);
-                    }
-                    builder.append("\" "sv);
+            for (size_t i = 0; i < rows.grid_track_size_list().list().size(); ++i) {
+                auto track_size_or_line_names = rows.grid_track_size_list().list()[i];
+                if (auto* line_names = track_size_or_line_names.get_pointer<GridLineNames>()) {
+                    if (i != 0)
+                        builder.append(' ');
+                    builder.append(line_names->to_string());
                 }
-                builder.append(row.to_string(mode));
-                if (idx < rows.grid_track_size_list().track_list().size() - 1)
-                    builder.append(' ');
-                idx++;
+                if (areas.grid_template_area().size() > i) {
+                    if (!builder.is_empty())
+                        builder.append(' ');
+                    builder.append("\""sv);
+                    for (size_t y = 0; y < areas.grid_template_area()[i].size(); ++y) {
+                        if (y != 0)
+                            builder.append(' ');
+                        builder.append(areas.grid_template_area()[i][y]);
+                    }
+                    builder.append("\""sv);
+                }
+                if (auto* track_size = track_size_or_line_names.get_pointer<ExplicitGridTrack>()) {
+                    auto track_size_serialization = track_size->to_string(mode);
+                    if (track_size_serialization != "auto"sv) {
+                        if (!builder.is_empty())
+                            builder.append(' ');
+                        builder.append(track_size_serialization);
+                    }
+                }
             }
             return MUST(builder.to_string());
         };
 
-        if (columns.grid_track_size_list().track_list().size() == 0)
-            return MUST(String::formatted("{}", construct_rows_string()));
+        if (areas.grid_template_area().is_empty())
+            return MUST(String::formatted("{} / {}", rows.grid_track_size_list().to_string(mode), columns.grid_track_size_list().to_string(mode)));
+
+        auto rows_serialization = construct_rows_string();
+        if (rows_serialization.is_empty())
+            return String {};
+
+        if (columns.grid_track_size_list().is_empty())
+            return MUST(String::formatted("{}", rows_serialization));
         return MUST(String::formatted("{} / {}", construct_rows_string(), columns.grid_track_size_list().to_string(mode)));
     }
     case PropertyID::GridColumn: {
