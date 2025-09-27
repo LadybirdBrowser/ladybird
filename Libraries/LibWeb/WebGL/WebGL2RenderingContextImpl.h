@@ -206,6 +206,7 @@ public:
     void vertex_attrib4fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values);
     void vertex_attrib_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, bool normalized, WebIDL::Long stride, WebIDL::LongLong offset);
     void viewport(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
+    std::unique_ptr<Vector<float>> get_buffer_data_from_source_for_uniform_variables(Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, float const*& data, size_t* count);
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -225,6 +226,7 @@ private:
     GC::Ptr<WebGLBuffer> m_copy_write_buffer_binding;
     GC::Ptr<WebGLTexture> m_texture_binding_2d_array;
     GC::Ptr<WebGLTexture> m_texture_binding_3d;
+    Vector<float> m_temp_float_buffer;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 };
