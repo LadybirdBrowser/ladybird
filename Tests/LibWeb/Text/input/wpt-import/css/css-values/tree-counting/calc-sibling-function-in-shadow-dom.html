@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSS Values Test: sibling-index() and sibling-count() in flat tree</title>
+  <link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting" />
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <style>
+    #host > * {
+      orphans: sibling-index();
+      widows: sibling-count();
+    }
+  </style>
+  <div id="host">
+    <div>Some element.</div>
+    <div>Some other element.</div>
+    <div slot="unknown">This should be ignored.</div>
+    <div id="target">Some third element.</div>
+  </div>
+  <script>
+    test(() => {
+      host.attachShadow({mode: 'open'}).innerHTML = `
+       <style>
+         slot::slotted(*) {
+           z-index: sibling-index();
+           order: sibling-count();
+         }
+       </style>
+       <div>
+         <div>Some text before the slot.</div>
+         <slot></slot>
+       </div>
+      `;
+      assert_equals(getComputedStyle(target).zIndex, '4');
+      assert_equals(getComputedStyle(target).order, '4');
+      assert_equals(getComputedStyle(target).orphans, '4');
+      assert_equals(getComputedStyle(target).widows, '4');
+    }, 'Host children have sibling-index() and sibling-count() based on the DOM tree order');
+</script>

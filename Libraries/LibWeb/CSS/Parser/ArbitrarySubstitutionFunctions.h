@@ -39,6 +39,8 @@ private:
 enum class ArbitrarySubstitutionFunction : u8 {
     Attr,
     Env,
+    SiblingCount,
+    SiblingIndex,
     Var,
 };
 [[nodiscard]] Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlyString const& name);

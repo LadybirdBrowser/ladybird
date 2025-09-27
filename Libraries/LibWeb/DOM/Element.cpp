@@ -688,6 +688,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     VERIFY(parent());
 
     m_style_uses_attr_css_function = false;
+    m_style_uses_tree_counting_function = false;
     m_style_uses_var_css_function = false;
     m_affected_by_has_pseudo_class_in_subject_position = false;
     m_affected_by_has_pseudo_class_in_non_subject_position = false;
@@ -1392,6 +1393,14 @@ void Element::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Node::children_changed(metadata);
     set_needs_style_update(true);
+    for_each_child([&](DOM::Node& child) {
+        if (auto* element = as_if<DOM::Element>(child); element && element->style_uses_tree_counting_function()) {
+            element->set_needs_style_update(true);
+            set_child_needs_style_update(true);
+        }
+
+        return IterationDecision::Continue;
+    });
 }
 
 void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)

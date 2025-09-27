@@ -26,6 +26,7 @@ public:
     Vector<Parser::ComponentValue> const& values() const { return m_values; }
     bool contains_arbitrary_substitution_function() const { return m_substitution_functions_presence.has_any(); }
     bool includes_attr_function() const { return m_substitution_functions_presence.attr; }
+    bool includes_tree_counting_function() const { return m_substitution_functions_presence.sibling_count || m_substitution_functions_presence.sibling_index; }
     bool includes_var_function() const { return m_substitution_functions_presence.var; }
 
     virtual bool equals(StyleValue const& other) const override;

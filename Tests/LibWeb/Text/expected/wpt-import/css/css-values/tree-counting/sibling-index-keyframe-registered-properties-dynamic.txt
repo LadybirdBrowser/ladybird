@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Fail
+Fail	Initially, the sibling-index() is 3 for --time
+Fail	Initially, the sibling-index() is 3 for --angle
+Fail	Initially, the sibling-index() is 3 for --resolution
+Fail	Initially, the sibling-index() is 3 for --percentage
+Fail	Initially, the sibling-index() is 3 for --number
+Fail	Initially, the sibling-index() is 3 for --integer
+Fail	Initially, the sibling-index() is 3 for --length
+Fail	Initially, the sibling-index() is 3 for --length-percentage
+Fail	Initially, the sibling-index() is 3 for --color
+Fail	Initially, the sibling-index() is 3 for --list
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --time
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --angle
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --resolution
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --percentage
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --number
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --integer
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --length
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --length-percentage
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --color
+Fail	Removing a preceding sibling of #target reduces the sibling-index() for --list

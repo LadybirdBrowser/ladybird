@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() and sibling-count() in container queries</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-features">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @property --length {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: false;
+  }
+  .container { container-type: inline-size; }
+  #c1 {
+    width: 100px;
+    --length: 100px;
+  }
+  #c2 {
+    width: 400px;
+    --length: 400px;
+  }
+  span {
+    --match-100: no;
+    --match-400: no;
+  }
+  @container (width = calc(100px * sibling-index())) {
+    span { background-color: green; }
+  }
+  @container (width = calc(200px * sibling-count())) {
+    span { color: lime; }
+  }
+  @container style(--length: calc(100px * sibling-index())) {
+    span { --match-100: yes; }
+  }
+  @container style(--length: calc(200px * sibling-count())) {
+    span { --match-400: yes; }
+  }
+</style>
+<div style="color:black">
+  <div id="c1" class="container">
+    <span id="t1"></span>
+  </div>
+  <div id="c2" class="container">
+    <span id="t2"></span>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(t1).backgroundColor, "rgb(0, 128, 0)");
+    assert_equals(getComputedStyle(t1).color, "rgb(0, 0, 0)");
+  }, "sibling-index() in @container width query");
+
+  test(() => {
+    assert_equals(getComputedStyle(t2).backgroundColor, "rgba(0, 0, 0, 0)");
+    assert_equals(getComputedStyle(t2).color, "rgb(0, 255, 0)");
+  }, "sibling-count() in @container width query");
+
+  test(() => {
+    assert_equals(getComputedStyle(t1).getPropertyValue("--match-100"), "yes");
+    assert_equals(getComputedStyle(t1).getPropertyValue("--match-400"), "no");
+  }, "sibling-index() in @container style() query");
+
+  test(() => {
+    assert_equals(getComputedStyle(t2).getPropertyValue("--match-100"), "no");
+    assert_equals(getComputedStyle(t2).getPropertyValue("--match-400"), "yes");
+  }, "sibling-count() in @container style() query");
+</script>
