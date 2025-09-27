@@ -94,13 +94,36 @@ sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel li
 ### openSUSE:
 
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libtool nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 
-It is currently recommended to install the `libpulse-devel` package to avoid runtime dynamic linking issues
+If during the build process one or more of the base repository packages are flagged as not up to the required version, for example, on Leap 15.6 the autoconf package might be at 2.69, but an error message indicates that to build gperf requires 2.70. To get the needed version installed may require adding some additional repository such as the experimental `devel:tools:building`.
+
+As an example for Leap 15.6 (other releases would need to change the specific command used, do some searches online to get the most up to date information)
+
+```
+sudo zypper addrepo https://download.opensuse.org/repositories/devel:tools:building/15.6/devel:tools:building.repo
+sudo zypper refresh
+```
+
+Below is an example printout that might be received depending which versions of autoconf are available for installation:
+
+```
+> sudo zypper install autoconf
+Loading repository data...
+Reading installed packages...
+'autoconf' is already installed.
+There is an update candidate for 'autoconf' from vendor 'obs://build.opensuse.org/devel:tools', while the current vendor is 'SUSE LLC <https://www.suse.com/>'. Use 'zypper install autoconf-2.72-80.d_t_b.1.noarch' to install this candidate.
+Resolving package dependencies...
+Nothing to do.
+> sudo zypper install autoconf-2.72-80.d_t_b.1.noarch
+```
+
+It is currently recommended to install the `libpulse-devel` package to avoid runtime dynamic linking issues. If issues persist you may need to remove the `qt6-multimedia-devel` package to avoid linking issues.
 
 ```
 sudo zypper install libpulse-devel
+sudo zypper remove qt6-multimedia-devel
 ```
 
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install the package `python312` and create a virtual environment (venv) in this case.
