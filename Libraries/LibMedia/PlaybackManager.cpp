@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
@@ -16,9 +17,14 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(NonnullOwnPtr<SeekableStream>&& stream)
+DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(ReadonlyBytes data)
 {
-    auto inner_demuxer = DECODER_TRY_ALLOC(FFmpeg::FFmpegDemuxer::create(move(stream)));
+    auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
+        auto matroska_result = Matroska::MatroskaDemuxer::from_data(data);
+        if (!matroska_result.is_error())
+            return matroska_result.release_value();
+        return DECODER_TRY_ALLOC(FFmpeg::FFmpegDemuxer::create(make<FixedMemoryStream>(data)));
+    }());
     auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
 
     // Create the weak wrapper.
