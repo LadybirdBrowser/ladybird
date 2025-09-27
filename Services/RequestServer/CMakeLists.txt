@@ -6,6 +6,11 @@ set(SOURCES
     ConnectionFromClient.cpp
     WebSocketImplCurl.cpp
 )
+if (WIN32)
+    list(APPEND SOURCES RequestPipeWindows.cpp)
+else()
+    list(APPEND SOURCES RequestPipe.cpp)
+endif()
 
 set(GENERATED_SOURCES
     RequestClientEndpoint.h
@@ -35,6 +40,10 @@ target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/S
 target_link_libraries(RequestServer PRIVATE requestserverservice)
 target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)
 target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
+
+if (WIN32)
+    lagom_windows_bin(RequestServer)
+endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
     # Solaris has socket and networking related functions in two extra libraries

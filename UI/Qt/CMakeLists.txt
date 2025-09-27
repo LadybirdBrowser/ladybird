@@ -16,10 +16,10 @@ target_sources(ladybird PRIVATE
     ladybird.qrc
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
-lagom_copy_runtime_dlls(ladybird)
 create_ladybird_bundle(ladybird)
 
 if (WIN32)
+    lagom_windows_bin(ladybird)
     qt_generate_deploy_script(
         TARGET ladybird
         OUTPUT_SCRIPT ladybird_deploy_script
