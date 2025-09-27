@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "b0b3de1b1a0aa4b8f2822460aa7f42f991629b3f",
+  "builtin-baseline": "2e6fcc44573d091af0321f99c89b212997a76f1f",
   "dependencies": [
     {
       "name": "angle",
@@ -23,6 +23,47 @@
         "openssl",
         "websockets",
         "zstd"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "android",
+      "default-features": false,
+      "features": [
+        "vulkan"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "freebsd | openbsd",
+      "default-features": false,
+      "features": [
+        "vulkan"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "linux",
+      "default-features": false,
+      "features": [
+        "vulkan",
+        "wayland"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "osx",
+      "default-features": false,
+      "features": [
+        "metal"
+      ]
+    },
+    {
+      "name": "dawn",
+      "platform": "windows",
+      "default-features": false,
+      "features": [
+        "d3d12"
       ]
     },
     {
@@ -211,6 +252,10 @@
       "version": "8.16.0#0"
     },
     {
+      "name": "dawn",
+      "version": "20250922.223923#0"
+    },
+    {
       "name": "dbus",
       "version": "1.16.2#2"
     },
@@ -292,7 +337,7 @@
     },
     {
       "name": "skia",
-      "version": "129#0"
+      "version": "140#0"
     },
     {
       "name": "sqlite3",

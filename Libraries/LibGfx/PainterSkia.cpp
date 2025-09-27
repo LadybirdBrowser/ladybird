@@ -7,6 +7,7 @@
  */
 
 #define AK_DONT_REPLACE_STD
+#define SK_SUPPORT_UNSPANNED_APIS
 
 #include <AK/OwnPtr.h>
 #include <AK/String.h>

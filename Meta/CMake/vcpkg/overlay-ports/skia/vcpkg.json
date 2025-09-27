@@ -1,7 +1,6 @@
 {
   "name": "skia",
-  "version": "129",
-  "port-version": 2,
+  "version": "140",
   "description": [
     "Skia is an open source 2D graphics library which provides common APIs that work across a variety of hardware and software platforms.",
     "It serves as the graphics engine for Google Chrome and Chrome OS, Android, Mozilla Firefox and Firefox OS, and many other products.",
@@ -72,17 +71,25 @@
     "dawn": {
       "description": "dawn support for skia",
       "dependencies": [
-        "egl-registry",
-        "opengl-registry",
+        {
+          "name": "dawn",
+          "default-features": false,
+          "features": [
+            "wayland"
+          ],
+          "platform": "linux"
+        },
+        {
+          "name": "dawn",
+          "platform": "android | freebsd | openbsd | osx | windows"
+        },
         {
           "name": "skia",
           "default-features": false,
           "features": [
-            "graphite",
-            "vulkan"
+            "graphite"
           ]
-        },
-        "vulkan-utility-libraries"
+        }
       ]
     },
     "direct3d": {

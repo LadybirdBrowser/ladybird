@@ -1,0 +1,81 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 2698abd9bd..c1ea6741e6 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -9,10 +9,6 @@ import("gn/shared_sources.gni")
+ import("gn/skia.gni")
+ import("gn/toolchain/wasm.gni")
+ 
+-if (skia_use_dawn) {
+-  import("//third_party/externals/dawn/scripts/dawn_features.gni")
+-}
+-
+ if (defined(skia_settings)) {
+   import(skia_settings)
+ }
+@@ -885,30 +881,7 @@ optional("gpu_shared") {
+ 
+   if (skia_use_dawn) {
+     public_defines += [ "SK_DAWN" ]
+-
+-    # When building for WASM, the WebGPU headers are provided by Emscripten. For native builds we
+-    # have to depend on Dawn directly.
+-    if (!skia_use_webgpu) {
+-      public_deps += [
+-        "//third_party/externals/dawn/include/dawn:cpp_headers",
+-        "//third_party/externals/dawn/src/dawn:cpp",
+-        "//third_party/externals/dawn/src/dawn:proc",
+-      ]
+-
+-      if (dawn_enable_d3d12 || dawn_enable_d3d11 || dawn_enable_desktop_gl ||
+-          dawn_enable_metal || dawn_enable_opengles || dawn_enable_vulkan) {
+-        public_deps += [ "//third_party/externals/dawn/src/dawn/native" ]
+-      }
+-      if (dawn_enable_d3d12) {
+-        libs += [
+-          "d3d12.lib",
+-          "dxgi.lib",
+-          "d3dcompiler.lib",
+-        ]
+-      } else if (dawn_enable_metal) {
+-        frameworks += [ "Metal.framework" ]
+-      }
+-    }
++    deps += [ "//third_party/dawn" ]
+   }
+ 
+   if (skia_use_direct3d) {
+@@ -1958,10 +1931,6 @@ skia_source_set("public_headers_warnings_check") {
+     "modules/skottie",
+     "modules/skshaper",
+   ]
+-
+-  if (skia_use_dawn) {
+-    deps += [ "//third_party/externals/dawn/include/dawn:headers" ]
+-  }
+ }
+ 
+ # TODO: have each optional provide a target with examples and depend on those.
+@@ -2229,7 +2198,6 @@ if (skia_enable_tools) {
+       sources += [ "tools/gpu/d3d/D3DTestUtils.cpp" ]
+     }
+     if (skia_use_dawn) {
+-      public_deps += [ "//third_party/externals/dawn/include/dawn:headers" ]
+       if (is_clang) {
+         cflags_cc = [ "-Wno-microsoft-cast" ]
+       }
+diff --git a/tools/window/BUILD.gn b/tools/window/BUILD.gn
+index 4a30186dbd..c001232b44 100644
+--- a/tools/window/BUILD.gn
++++ b/tools/window/BUILD.gn
+@@ -5,10 +5,6 @@
+ 
+ import("../../gn/skia.gni")
+ 
+-if (skia_use_dawn) {
+-  import("//third_party/externals/dawn/scripts/dawn_features.gni")
+-}
+-
+ config("public_config") {
+   defines = []
+   include_dirs = [ "." ]
