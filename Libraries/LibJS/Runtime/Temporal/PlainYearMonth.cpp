@@ -254,14 +254,17 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
         // a. Let isoDateTime be CombineISODateAndTimeRecord(thisDate, MidnightTimeRecord()).
         auto iso_date_time = combine_iso_date_and_time_record(this_date, midnight_time_record());
 
-        // b. Let isoDateTimeOther be CombineISODateAndTimeRecord(otherDate, MidnightTimeRecord()).
+        // b. Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime).
+        auto origin_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time);
+
+        // c. Let isoDateTimeOther be CombineISODateAndTimeRecord(otherDate, MidnightTimeRecord()).
         auto iso_date_time_other = combine_iso_date_and_time_record(other_date, midnight_time_record());
 
-        // c. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
+        // d. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
         auto dest_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time_other);
 
-        // d. Set duration to ? RoundRelativeDuration(duration, destEpochNs, isoDateTime, UNSET, calendar, settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
-        duration = TRY(round_relative_duration(vm, move(duration), dest_epoch_ns, iso_date_time, {}, calendar, settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
+        // e. Set duration to ? RoundRelativeDuration(duration, originEpochNs, destEpochNs, isoDateTime, UNSET, calendar, settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+        duration = TRY(round_relative_duration(vm, move(duration), origin_epoch_ns, dest_epoch_ns, iso_date_time, {}, calendar, settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
     }
 
     // 17. Let result be ! TemporalDurationFromInternal(duration, DAY).

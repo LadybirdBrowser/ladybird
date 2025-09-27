@@ -369,7 +369,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // f. Set internalDuration to ? DifferenceZonedDateTimeWithRounding(relativeEpochNs, targetEpochNs, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
         internal_duration = TRY(difference_zoned_date_time_with_rounding(vm, relative_epoch_nanoseconds, target_epoch_nanoseconds, time_zone, calendar, largest_unit_value, rounding_increment, smallest_unit_value, rounding_mode));
 
-        // g. If TemporalUnitCategory(largestUnit) is date, set largestUnit to hour.
+        // g. If TemporalUnitCategory(largestUnit) is DATE, set largestUnit to HOUR.
         if (temporal_unit_category(largest_unit_value) == UnitCategory::Date)
             largest_unit_value = Unit::Hour;
 

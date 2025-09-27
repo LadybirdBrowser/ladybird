@@ -137,12 +137,12 @@ i8 time_duration_sign(TimeDuration const&);
 ThrowCompletionOr<double> date_duration_days(VM&, DateDuration const&, PlainDate const&);
 ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
 Crypto::BigFraction total_time_duration(TimeDuration const&, Unit);
-ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
+ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
 ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, StringView time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
 ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM&, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
 ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM&, i8 sign, InternalDuration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit);
-ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
-ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, TimeDuration const&, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit);
+ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, Unit);
 String temporal_duration_to_string(Duration const&, Precision);
 ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
 

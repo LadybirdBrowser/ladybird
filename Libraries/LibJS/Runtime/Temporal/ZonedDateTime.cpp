@@ -438,28 +438,37 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
     // 3. Let endDateTime be GetISODateTimeFor(timeZone, ns2).
     auto end_date_time = get_iso_date_time_for(time_zone, nanoseconds2);
 
-    // 4. If ns2 - ns1 < 0, let sign be -1; else let sign be 1.
+    // 4. If CompareISODate(startDateTime.[[ISODate]], endDateTime.[[ISODate]]) = 0, then
+    if (compare_iso_date(start_date_time.iso_date, end_date_time.iso_date) == 0) {
+        // a. Let timeDuration be TimeDurationFromEpochNanosecondsDifference(ns2, ns1).
+        auto time_duration = time_duration_from_epoch_nanoseconds_difference(nanoseconds2, nanoseconds1);
+
+        // b. Return CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+        return combine_date_and_time_duration(zero_date_duration(vm), move(time_duration));
+    }
+
+    // 5. If ns2 - ns1 < 0, let sign be -1; else let sign be 1.
     double sign = nanoseconds2 < nanoseconds1 ? -1 : 1;
 
-    // 5. If sign = 1, let maxDayCorrection be 2; else let maxDayCorrection be 1.
+    // 6. If sign = 1, let maxDayCorrection be 2; else let maxDayCorrection be 1.
     double max_day_correction = sign == 1 ? 2 : 1;
 
-    // 6. Let dayCorrection be 0.
+    // 7. Let dayCorrection be 0.
     double day_correction = 0;
 
-    // 7. Let timeDuration be DifferenceTime(startDateTime.[[Time]], endDateTime.[[Time]]).
+    // 8. Let timeDuration be DifferenceTime(startDateTime.[[Time]], endDateTime.[[Time]]).
     auto time_duration = difference_time(start_date_time.time, end_date_time.time);
 
-    // 8. If TimeDurationSign(timeDuration) = -sign, set dayCorrection to dayCorrection + 1.
+    // 9. If TimeDurationSign(timeDuration) = -sign, set dayCorrection to dayCorrection + 1.
     if (time_duration_sign(time_duration) == -sign)
         ++day_correction;
 
-    // 9. Let success be false.
+    // 10. Let success be false.
     auto success = false;
 
     ISODateTime intermediate_date_time;
 
-    // 10. Repeat, while dayCorrection ≤ maxDayCorrection and success is false,
+    // 11. Repeat, while dayCorrection ≤ maxDayCorrection and success is false,
     while (day_correction <= max_day_correction && !success) {
         // a. Let intermediateDate be BalanceISODate(endDateTime.[[ISODate]].[[Year]], endDateTime.[[ISODate]].[[Month]], endDateTime.[[ISODate]].[[Day]] - dayCorrection × sign).
         auto intermediate_date = balance_iso_date(end_date_time.iso_date.year, end_date_time.iso_date.month, static_cast<double>(end_date_time.iso_date.day) - (day_correction * sign));
@@ -486,16 +495,16 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
         ++day_correction;
     }
 
-    // 11. Assert: success is true.
+    // 12. Assert: success is true.
     VERIFY(success);
 
-    // 12. Let dateLargestUnit be LargerOfTwoTemporalUnits(largestUnit, DAY).
+    // 13. Let dateLargestUnit be LargerOfTwoTemporalUnits(largestUnit, DAY).
     auto date_largest_unit = larger_of_two_temporal_units(largest_unit, Unit::Day);
 
-    // 13. Let dateDifference be CalendarDateUntil(calendar, startDateTime.[[ISODate]], intermediateDateTime.[[ISODate]], dateLargestUnit).
+    // 14. Let dateDifference be CalendarDateUntil(calendar, startDateTime.[[ISODate]], intermediateDateTime.[[ISODate]], dateLargestUnit).
     auto date_difference = calendar_date_until(vm, calendar, start_date_time.iso_date, intermediate_date_time.iso_date, date_largest_unit);
 
-    // 14. Return CombineDateAndTimeDuration(dateDifference, timeDuration).
+    // 15. Return CombineDateAndTimeDuration(dateDifference, timeDuration).
     return combine_date_and_time_duration(date_difference, move(time_duration));
 }
 
@@ -518,8 +527,8 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&
     // 4. Let dateTime be GetISODateTimeFor(timeZone, ns1).
     auto date_time = get_iso_date_time_for(time_zone, nanoseconds1);
 
-    // 5. Return ? RoundRelativeDuration(difference, ns2, dateTime, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
-    return TRY(round_relative_duration(vm, difference, nanoseconds2, date_time, time_zone, calendar, largest_unit, rounding_increment, smallest_unit, rounding_mode));
+    // 5. Return ? RoundRelativeDuration(difference, ns1, ns2, dateTime, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+    return TRY(round_relative_duration(vm, difference, nanoseconds1, nanoseconds2, date_time, time_zone, calendar, largest_unit, rounding_increment, smallest_unit, rounding_mode));
 }
 
 // 6.5.8 DifferenceZonedDateTimeWithTotal ( ns1, ns2, timeZone, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithtotal
@@ -540,8 +549,8 @@ ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&
     // 3. Let dateTime be GetISODateTimeFor(timeZone, ns1).
     auto date_time = get_iso_date_time_for(time_zone, nanoseconds1);
 
-    // 4. Return ? TotalRelativeDuration(difference, ns2, dateTime, timeZone, calendar, unit).
-    return TRY(total_relative_duration(vm, difference, nanoseconds2, date_time, time_zone, calendar, unit));
+    // 4. Return ? TotalRelativeDuration(difference, ns1, ns2, dateTime, timeZone, calendar, unit).
+    return TRY(total_relative_duration(vm, difference, nanoseconds1, nanoseconds2, date_time, time_zone, calendar, unit));
 }
 
 // 6.5.9 DifferenceTemporalZonedDateTime ( operation, zonedDateTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime

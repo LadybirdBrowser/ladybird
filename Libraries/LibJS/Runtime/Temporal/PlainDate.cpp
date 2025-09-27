@@ -413,14 +413,17 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date(VM& vm, Dura
         // a. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], MidnightTimeRecord()).
         auto iso_date_time = combine_iso_date_and_time_record(temporal_date.iso_date(), midnight_time_record());
 
-        // b. Let isoDateTimeOther be CombineISODateAndTimeRecord(other.[[ISODate]], MidnightTimeRecord()).
+        // b. Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime).
+        auto origin_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time);
+
+        // c. Let isoDateTimeOther be CombineISODateAndTimeRecord(other.[[ISODate]], MidnightTimeRecord()).
         auto iso_date_time_other = combine_iso_date_and_time_record(other->iso_date(), midnight_time_record());
 
-        // c. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
+        // d. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
         auto dest_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time_other);
 
-        // d. Set duration to ? RoundRelativeDuration(duration, destEpochNs, isoDateTime, UNSET, temporalDate.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
-        duration = TRY(round_relative_duration(vm, move(duration), dest_epoch_ns, iso_date_time, {}, temporal_date.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
+        // e. Set duration to ? RoundRelativeDuration(duration, originEpochNs, destEpochNs, isoDateTime, UNSET, temporalDate.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+        duration = TRY(round_relative_duration(vm, move(duration), origin_epoch_ns, dest_epoch_ns, iso_date_time, {}, temporal_date.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
     }
 
     // 9. Let result be ! TemporalDurationFromInternal(duration, DAY).
