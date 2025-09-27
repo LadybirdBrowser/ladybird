@@ -370,29 +370,29 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
             paintable->set_selection_state(SelectionState::Full);
     }
 
-    // 4. Mark the selection end node as End (if text) or Full (if anything else).
-    if (auto* paintable = end_container->paintable(); paintable && !range.end().node->is_inert()) {
-        if (is<DOM::Text>(*end_container))
-            paintable->set_selection_state(SelectionState::End);
-        else
-            paintable->set_selection_state(SelectionState::Full);
+    // 4. Mark the nodes between the start and end of the selection as Full.
+    auto* start_at = start_container->child_at_index(range.start_offset());
+    // If the start container has no child at that index, we need to start on the node right after the start container.
+    if (!start_at) {
+        if (auto* last_child = start_container->last_child()) {
+            start_at = last_child->next_in_pre_order();
+        } else {
+            start_at = start_container->next_in_pre_order();
+        }
     }
 
-    // 5. Mark the nodes between start node and end node (in tree order) as Full.
-    // NOTE: If the start node is a descendant of the end node, we cannot traverse from it to the end node since the end node is before it in tree order.
-    //       Instead, we need to stop traversal somewhere inside the end node, or right after it.
-    DOM::Node* stop_at;
-    if (start_container->is_descendant_of(end_container)) {
-        stop_at = end_container->child_at_index(range.end_offset());
-    } else {
-        stop_at = end_container;
-    }
-
-    for (auto* node = start_container->next_in_pre_order(); node && node != stop_at; node = node->next_in_pre_order(end_container)) {
+    DOM::Node* stop_at = end_container->child_at_index(range.end_offset());
+    // Only stop at the end container if it has no children that may need to be included.
+    for (auto* node = start_at; node && (node != stop_at && !(node == end_container && !end_container->has_children())); node = node->next_in_pre_order(end_container)) {
         if (node->is_inert())
             continue;
         if (auto* paintable = node->paintable())
             paintable->set_selection_state(SelectionState::Full);
+    }
+
+    // 5. Mark the selection end node as End if it is a text node.
+    if (auto* paintable = end_container->paintable(); paintable && !range.end().node->is_inert() && is<DOM::Text>(*end_container)) {
+        paintable->set_selection_state(SelectionState::End);
     }
 }
 
