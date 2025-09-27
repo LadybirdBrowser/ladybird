@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() changing font-palette during @keyframes animation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @font-face {
+    font-family: "COLR-test-font";
+    src: url("resources/COLR-palettes-test-font.ttf") format("truetype");
+  }
+
+  @font-palette-values --MyFirstPalette {
+    font-family: "COLR-test-font";
+    base-palette: 1;
+  }
+
+  @font-palette-values --MySecondPalette {
+    font-family: "COLR-test-font";
+    base-palette: 2;
+  }
+
+  @keyframes --anim {
+    from {
+      font-palette: palette-mix(in lch, --MyFirstPalette calc(5% * sibling-index()), --MySecondPalette 80%);
+    }
+    to {
+      font-palette: palette-mix(in lch, --MyFirstPalette 90%, --MySecondPalette 10%);
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+  }
+</style>
+<div>
+  <div id="rm"></div>
+  <div></div>
+  <div></div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).fontPalette, "palette-mix(in lch, --MyFirstPalette 20%, --MySecondPalette)");
+  }, "Initially, the sibling-index() is 4 for #target");
+
+  test(() => {
+    rm.remove();
+    assert_equals(getComputedStyle(target).fontPalette, "palette-mix(in lch, --MyFirstPalette 15%, --MySecondPalette 80%)");
+  }, "Removing a preceding sibling of #target reduces the sibling-index()");
+</script>

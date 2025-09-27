@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	sibling-index() in @container width query
+Fail	sibling-count() in @container width query
+Fail	sibling-index() in @container style() query
+Fail	sibling-count() in @container style() query
