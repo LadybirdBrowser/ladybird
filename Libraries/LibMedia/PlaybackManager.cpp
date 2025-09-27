@@ -92,7 +92,6 @@ PlaybackManager::PlaybackManager(NonnullRefPtr<MutexedDemuxer> const& demuxer, N
     , m_audio_tracks(audio_tracks)
     , m_audio_track_datas(audio_track_datas)
 {
-    m_time_provider->resume();
 }
 
 PlaybackManager::~PlaybackManager()
@@ -205,6 +204,16 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.provider == m_audio_sink->provider(track));
     m_audio_sink->set_provider(track, nullptr);
+}
+
+void PlaybackManager::play()
+{
+    m_time_provider->resume();
+}
+
+void PlaybackManager::pause()
+{
+    m_time_provider->pause();
 }
 
 }
