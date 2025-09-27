@@ -221,4 +221,10 @@ void PlaybackManager::pause()
     m_time_provider->pause();
 }
 
+void PlaybackManager::set_volume(double volume)
+{
+    if (m_audio_sink)
+        m_audio_sink->set_volume(volume);
+}
+
 }
