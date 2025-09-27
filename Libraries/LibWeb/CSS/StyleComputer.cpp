@@ -44,6 +44,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
@@ -864,19 +865,32 @@ static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vec
 
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
+    OrderedHashMap<FlyString, StyleProperty> important_custom_properties;
     for (auto const& matching_rule : matching_rules) {
         for (auto const& it : matching_rule->declaration().custom_properties()) {
             auto style_value = it.value.value;
             if (style_value->is_revert_layer())
                 continue;
+
+            if (it.value.important == Important::Yes) {
+                important_custom_properties.set(it.key, it.value);
+            }
             custom_properties.set(it.key, it.value);
         }
     }
 
     if (!abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style())
-            custom_properties.update(inline_style->custom_properties());
+        if (auto const inline_style = abstract_element.element().inline_style()) {
+            for (auto const& it : inline_style->custom_properties()) {
+                if (it.value.important == Important::Yes) {
+                    important_custom_properties.set(it.key, it.value);
+                }
+                custom_properties.set(it.key, it.value);
+            }
+        }
     }
+
+    custom_properties.update(important_custom_properties);
 }
 
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
@@ -2413,7 +2427,6 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     auto old_custom_properties = abstract_element.custom_properties();
 
     // Resolve all the CSS custom properties ("variables") for this element:
-    // FIXME: Also resolve !important custom properties, in a second cascade.
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
         OrderedHashMap<FlyString, StyleProperty> custom_properties;
         for (auto& layer : matching_rule_set.author_rules) {
