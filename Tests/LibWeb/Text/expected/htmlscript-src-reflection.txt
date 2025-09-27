@@ -1,0 +1,3 @@
+is_string = true
+has_protocol = true
+ends_with_dummy = true

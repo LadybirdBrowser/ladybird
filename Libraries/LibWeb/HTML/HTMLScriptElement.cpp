@@ -641,6 +641,28 @@ void HTMLScriptElement::unmark_as_parser_inserted(Badge<DOM::Range>)
     m_parser_document = nullptr;
 }
 
+// NOTE: Manual [ReflectURL] until IDL generator supports TrustedScriptURLOrString.
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes
+TrustedTypes::TrustedScriptURLOrString HTMLScriptElement::src() const
+{
+    // 1. If contentAttributeValue is null, then return the empty string.
+    if (!has_attribute(AttributeNames::src))
+        return Utf16String {};
+
+    auto raw = get_attribute_value(AttributeNames::src);
+
+    // 2. Let urlString be the result of encoding-parsing-and-serializing a URL given
+    //    contentAttributeValue, relative to element’s node document.
+    auto url_string = document().encoding_parse_and_serialize_url(raw);
+
+    // 3. If urlString is not failure, then return urlString.
+    if (url_string.has_value())
+        return Utf16String::from_utf8(*url_string);
+
+    // Otherwise return the empty string.
+    return Utf16String {};
+}
+
 // https://www.w3.org/TR/trusted-types/#the-text-idl-attribute
 WebIDL::ExceptionOr<void> HTMLScriptElement::set_text(TrustedTypes::TrustedScriptOrString text)
 {
