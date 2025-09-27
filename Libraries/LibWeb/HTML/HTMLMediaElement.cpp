@@ -1774,7 +1774,8 @@ void HTMLMediaElement::notify_about_playing()
         resolve_pending_play_promises(promises);
     });
 
-    // FIXME: Implement resuming in PlaybackManager.
+    if (m_playback_manager)
+        m_playback_manager->play();
 
     if (m_audio_tracks->has_enabled_track())
         document().page().client().page_did_change_audio_play_state(AudioPlayState::Playing);
@@ -1799,7 +1800,8 @@ void HTMLMediaElement::set_paused(bool paused)
     m_paused = paused;
 
     if (m_paused) {
-        // FIXME: Implement pausing in PlaybackManager.
+        if (m_playback_manager)
+            m_playback_manager->pause();
 
         if (m_audio_tracks->has_enabled_track())
             document().page().client().page_did_change_audio_play_state(AudioPlayState::Paused);
