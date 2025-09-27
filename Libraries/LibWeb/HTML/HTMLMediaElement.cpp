@@ -1174,7 +1174,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 {
     auto& realm = this->realm();
 
-    auto playback_manager_result = Media::PlaybackManager::try_create(make<FixedMemoryStream>(m_media_data.bytes()));
+    auto playback_manager_result = Media::PlaybackManager::try_create(m_media_data.bytes());
 
     // -> If the media data cannot be fetched at all, due to network errors, causing the user agent to give up trying to fetch the resource
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
