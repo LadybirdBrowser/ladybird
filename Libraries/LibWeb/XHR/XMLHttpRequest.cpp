@@ -217,8 +217,13 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     // 6. Otherwise, if this’s response type is "blob", set this’s response object to a new Blob object representing this’s received bytes with type set to the result of get a final MIME type for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Blob) {
         auto mime_type_as_string = get_final_mime_type().serialized();
-        auto blob = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string));
-        m_response_object = GC::Ref<JS::Object> { blob };
+        if (!m_override_mime_type.has_value()) {
+            auto blob = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string));
+            m_response_object = GC::Ref<JS::Object> { blob };
+        } else {
+            auto blob = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string), FileAPI::TypeNormalization::None);
+            m_response_object = GC::Ref<JS::Object> { blob };
+        }
     }
     // 7. Otherwise, if this’s response type is "document", set a document response for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Document) {
