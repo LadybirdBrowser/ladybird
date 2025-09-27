@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: Tree-scoped sibling-index()</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #host1::part(--p) {
+    z-index: sibling-index();
+    /* Add 1 since widows does not accept 0 */
+    widows: calc(1 + sibling-count());
+  }
+</style>
+<div id="host1">
+  <template shadowrootmode="open">
+    <div></div>
+    <div></div>
+    <div id="t1" part="--p"></div>
+  </template>
+</div>
+<script>
+  test(() => {
+    const style = getComputedStyle(host1.shadowRoot.querySelector("#t1"));
+    assert_equals(style.zIndex, "0", "z-index should be 0");
+    assert_equals(style.widows, "1", "widows should be 1");
+  }, "sibling-index() and sibling-count() evaluates to 0 from outer tree with ::part");
+</script>
+
+<div>
+  <div></div>
+  <div></div>
+  <div id="t2">
+    <template shadowrootmode="open">
+      <style>
+        :host {
+          z-index: sibling-index();
+          widows: sibling-count();
+        }
+      </style>
+    </template>
+  </div>
+  <div></div>
+  <div></div>
+</div>
+<script>
+  test(() => {
+    const style = getComputedStyle(t2);
+    assert_equals(style.zIndex, "3", ":host is the third sibling");
+    assert_equals(style.widows, "5", ":host total sibling count is 5");
+  }, "sibling-index() and sibling-count() evaluate as normal from inner tree");
+</script>

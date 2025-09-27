@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: sibling-index() changing registered custom property values during @keyframes animation</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#tree-counting">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  @property --time { syntax: "<time>"; initial-value: 0s; inherits: false; }
+  @property --angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+  @property --resolution { syntax: "<resolution>"; initial-value: 1dppx; inherits: false; }
+  @property --percentage { syntax: "<percentage>"; initial-value: 0%; inherits: false; }
+  @property --number { syntax: "<number>"; initial-value: 0; inherits: false; }
+  @property --integer { syntax: "<integer>"; initial-value: 0; inherits: false; }
+  @property --length { syntax: "<length>"; initial-value: 0px; inherits: false; }
+  @property --length-percentage { syntax: "<length-percentage>"; initial-value: 0px; inherits: false; }
+  @property --color { syntax: "<color>"; initial-value: black; inherits: false; }
+  @property --list { syntax: "<integer>+"; initial-value: 0; inherits: false; }
+
+  @keyframes --anim {
+    from {
+      --time: calc(2s * sibling-index());
+      --angle: calc(30deg * sibling-index());
+      --resolution: calc(1dppx * sibling-index());
+      --percentage: calc(50% * sibling-index());
+      --number: sibling-index();
+      --integer: sibling-index();
+      --length: calc(sibling-index() * 7px);
+      --length-percentage: calc((sibling-index() * 8px) + (sibling-count() * 5%));
+      --color: color(srgb 0 calc(0.2 * sibling-index()) 0);
+      --list: 13 sibling-index();
+    }
+    to {
+      --time: 13s;
+      --angle: 13deg;
+      --resolution: 1dppx;
+      --percentage: 13%;
+      --number: 13;
+      --integer: 13;
+      --length: 13px;
+      --length-percentage: calc(13px + 7%);
+      --color: red;
+      --list: 29 sibling-index();
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+  }
+</style>
+<div>
+  <div id="rm"></div>
+  <div></div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--time"), "6s");
+  }, "Initially, the sibling-index() is 3 for --time");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--angle"), "90deg");
+  }, "Initially, the sibling-index() is 3 for --angle");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--resolution"), "3dppx");
+  }, "Initially, the sibling-index() is 3 for --resolution");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--percentage"), "150%");
+  }, "Initially, the sibling-index() is 3 for --percentage");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--number"), "3");
+  }, "Initially, the sibling-index() is 3 for --number");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--integer"), "3");
+  }, "Initially, the sibling-index() is 3 for --integer");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--length"), "21px");
+  }, "Initially, the sibling-index() is 3 for --length");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--length-percentage"), "calc(15% + 24px)");
+  }, "Initially, the sibling-index() is 3 for --length-percentage");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--color"), "color(srgb 0 0.6 0)");
+  }, "Initially, the sibling-index() is 3 for --color");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--list"), "13 3");
+  }, "Initially, the sibling-index() is 3 for --list");
+
+  rm.remove();
+
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--time"), "4s");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --time");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--angle"), "60deg");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --angle");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--resolution"), "2dppx");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --resolution");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--percentage"), "100%");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --percentage");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--number"), "2");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --number");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--integer"), "2");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --integer");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--length"), "14px");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --length");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--length-percentage"), "calc(10% + 16px)");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --length-percentage");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--color"), "color(srgb 0 0.4 0)");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --color");
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--list"), "13 2");
+  }, "Removing a preceding sibling of #target reduces the sibling-index() for --list");
+
+</script>
