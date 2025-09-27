@@ -36,7 +36,7 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(NonnullOwnPtr<SeekableStream>&& stream);
+    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
     ~PlaybackManager();
 
     AK::Duration current_time() const;
