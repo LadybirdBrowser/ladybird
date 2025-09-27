@@ -283,7 +283,11 @@ void LineBuilder::update_last_line()
 
             // NOTE: For fragments with a <length> vertical-align, shift the line box baseline down by the length.
             //       This ensures that we make enough vertical space on the line for any manually-aligned fragments.
-            if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
+            // However, flex items should ignore vertical-align.
+            bool skip_vertical_align = fragment.layout_node().parent() && fragment.layout_node().parent()->skip_vertical_align();
+
+            if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>();
+                length_percentage && !skip_vertical_align) {
                 if (length_percentage->is_length())
                     fragment_baseline += length_percentage->length().to_px(fragment.layout_node());
                 else if (length_percentage->is_percentage())
@@ -350,16 +354,24 @@ void LineBuilder::update_last_line()
         };
 
         auto const& vertical_align = fragment.layout_node().computed_values().vertical_align();
-        if (vertical_align.has<CSS::VerticalAlign>()) {
-            new_fragment_block_offset = block_offset_value_for_alignment(vertical_align.get<CSS::VerticalAlign>());
+
+        // Flex items should ignore vertical-align.
+        bool skip_vertical_align = fragment.layout_node().parent() && fragment.layout_node().parent()->skip_vertical_align();
+
+        if (skip_vertical_align) {
+            new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline);
         } else {
-            if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>()) {
-                if (length_percentage->is_length()) {
-                    auto vertical_align_amount = length_percentage->length().to_px(fragment.layout_node());
-                    new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
-                } else if (length_percentage->is_percentage()) {
-                    auto vertical_align_amount = m_context.containing_block().computed_values().line_height().scaled(length_percentage->percentage().as_fraction());
-                    new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
+            if (vertical_align.has<CSS::VerticalAlign>()) {
+                new_fragment_block_offset = block_offset_value_for_alignment(vertical_align.get<CSS::VerticalAlign>());
+            } else {
+                if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>()) {
+                    if (length_percentage->is_length()) {
+                        auto vertical_align_amount = length_percentage->length().to_px(fragment.layout_node());
+                        new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
+                    } else if (length_percentage->is_percentage()) {
+                        auto vertical_align_amount = m_context.containing_block().computed_values().line_height().scaled(length_percentage->percentage().as_fraction());
+                        new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
+                    }
                 }
             }
         }
@@ -383,7 +395,9 @@ void LineBuilder::update_last_line()
                 top_of_inline_box = (fragment.block_offset() + fragment.baseline() - CSSPixels::nearest_value_for(font_metrics.ascent) - half_leading);
                 bottom_of_inline_box = (fragment.block_offset() + fragment.baseline() + CSSPixels::nearest_value_for(font_metrics.descent) + half_leading);
             }
-            if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
+
+            if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>();
+                length_percentage && !skip_vertical_align) {
                 if (length_percentage->is_length())
                     bottom_of_inline_box += length_percentage->length().to_px(fragment.layout_node());
                 else if (length_percentage->is_percentage())
