@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+  <div id="host"></div>
+</body>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: 'open' });
+        const internal = document.createElement('div');
+        host.appendChild(internal);
+
+        const elm = host.shadowRoot.activeElement;
+        println(elm);
+    });
+</script>
