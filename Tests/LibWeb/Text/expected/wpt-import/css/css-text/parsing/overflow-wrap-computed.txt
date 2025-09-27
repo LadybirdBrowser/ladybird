@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property overflow-wrap value 'normal'
+Pass	Property overflow-wrap value 'break-word'
+Pass	Property overflow-wrap value 'anywhere'

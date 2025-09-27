@@ -410,7 +410,7 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
                 append_property("letter-spacing"sv);
                 // FIXME: line-break
                 // FIXME: line-padding
-                // FIXME: overflow-wrap
+                append_property("overflow-wrap"sv);
                 append_property("tab-size"sv);
                 append_property("text-align"sv);
                 // FIXME: text-align-all
@@ -431,7 +431,6 @@ bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID p
                 append_property("word-break"sv);
                 // FIXME: word-space-transform
                 append_property("word-spacing"sv);
-                append_property("word-wrap"sv);
                 // FIXME: wrap-after
                 // FIXME: wrap-before
                 // FIXME: wrap-inside

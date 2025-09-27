@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['overflow-wrap'] = "normal" should set the property value
+Pass	e.style['overflow-wrap'] = "break-word" should set the property value
+Pass	e.style['overflow-wrap'] = "anywhere" should set the property value
