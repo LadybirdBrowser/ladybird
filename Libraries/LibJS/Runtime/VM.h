@@ -112,7 +112,7 @@ public:
         // We hit stack limits sooner on macOS 14 arm64 with ASAN enabled.
         return m_stack_info.size_free() < 96 * KiB;
 #else
-        return m_stack_info.size_free() < 32 * KiB;
+        return m_stack_info.size_free() < 36 * KiB;
 #endif
     }
 
