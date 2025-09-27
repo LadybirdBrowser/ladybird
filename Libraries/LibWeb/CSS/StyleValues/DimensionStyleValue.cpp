@@ -15,7 +15,7 @@ Vector<Parser::ComponentValue> DimensionStyleValue::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
-GC::Ref<CSSStyleValue> DimensionStyleValue::reify(JS::Realm& realm, String const&) const
+GC::Ref<CSSStyleValue> DimensionStyleValue::reify(JS::Realm& realm, FlyString const&) const
 {
     // NB: Steps 1 and 2 don't apply here.
     // 3. Return a new CSSUnitValue with its value internal slot set to the numeric value of num, and its unit internal

@@ -35,7 +35,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    static RefPtr<StyleValue const> get_style_value(Source&, String property);
+    static RefPtr<StyleValue const> get_style_value(Source&, PropertyNameAndID const& property);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-declarations-slot
     // A StylePropertyMapReadOnly object has a [[declarations]] internal slot, which is a map reflecting the CSS

@@ -2772,7 +2772,7 @@ String CalculatedStyleValue::dump() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
-GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, String const& associated_property) const
+GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, FlyString const& associated_property) const
 {
     // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
     //     calculation tree. So we have a per-node method instead.

@@ -347,6 +347,7 @@ class Percentage;
 class PercentageOrCalculated;
 class PercentageStyleValue;
 class PositionStyleValue;
+class PropertyNameAndID;
 class RadialGradientStyleValue;
 class Ratio;
 class RatioStyleValue;

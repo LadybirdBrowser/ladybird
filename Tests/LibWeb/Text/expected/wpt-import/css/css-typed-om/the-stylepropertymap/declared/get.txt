@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 7 tests
 
-5 Pass
-2 Fail
+6 Pass
+1 Fail
 Pass	Getting a custom property not in the CSS rule returns undefined
 Pass	Getting a valid property not in the CSS rule returns undefined
 Pass	Getting a valid property from CSS rule returns the correct entry
-Fail	Getting a valid custom property from CSS rule returns the correct entry
+Pass	Getting a valid custom property from CSS rule returns the correct entry
 Fail	Getting a list-valued property from CSS rule returns only the first value
 Pass	Declared StylePropertyMap.get is not case-sensitive
 Pass	Declared StylePropertyMap.get reflects changes in the CSS rule

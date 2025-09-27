@@ -27,7 +27,7 @@ struct PropertyDefinition {
 
 WEB_API WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier);
 
-WEB_API bool supports(JS::VM&, StringView property, StringView value);
+WEB_API bool supports(JS::VM&, FlyString const& property, StringView value);
 WEB_API WebIDL::ExceptionOr<bool> supports(JS::VM&, StringView condition_text);
 
 WEB_API WebIDL::ExceptionOr<void> register_property(JS::VM&, PropertyDefinition definition);

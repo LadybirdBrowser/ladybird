@@ -6,6 +6,7 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -615,11 +616,9 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         if (!inline_style)
             return;
 
-        auto style_property = inline_style->property(CSS::PropertyID::TextDecoration);
-        if (!style_property.has_value())
+        auto style_value = inline_style->get_property_style_value(CSS::PropertyID::TextDecoration);
+        if (!style_value)
             return;
-
-        auto style_value = style_property.value().value;
         VERIFY(style_value->is_value_list());
         auto const& value_list = style_value->as_value_list();
         auto& old_values = value_list.values();
@@ -631,13 +630,13 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
         if (!was_removed)
             return;
         if (new_values.is_empty()) {
-            MUST(inline_style->remove_property(string_from_property_id(CSS::PropertyID::TextDecoration)));
+            MUST(inline_style->remove_property(CSS::PropertyID::TextDecoration));
             return;
         }
 
         auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
         MUST(inline_style->set_property(
-            string_from_property_id(CSS::PropertyID::TextDecoration),
+            CSS::PropertyID::TextDecoration,
             new_style_value->to_string(CSS::SerializationMode::Normal),
             {}));
     };
@@ -654,7 +653,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM
     if (command_definition->relevant_css_property.has_value()) {
         auto property_to_remove = command_definition->relevant_css_property.value();
         if (auto inline_style = element->inline_style())
-            MUST(inline_style->remove_property(string_from_property_id(property_to_remove)));
+            MUST(inline_style->remove_property(property_to_remove));
     }
 
     // 8. If element is a font element:
@@ -2470,20 +2469,20 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     // * It is a b or strong element with exactly one attribute, which is style, and the style attribute sets exactly
     //   one CSS property (including invalid or unrecognized properties), which is "font-weight".
     if (html_element.local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::strong)
-        && inline_style->property(CSS::PropertyID::FontWeight).has_value())
+        && inline_style->has_property(CSS::PropertyID::FontWeight))
         return true;
 
     // * It is an i or em element with exactly one attribute, which is style, and the style attribute sets exactly one
     //   CSS property (including invalid or unrecognized properties), which is "font-style".
     if (html_element.local_name().is_one_of(HTML::TagNames::i, HTML::TagNames::em)
-        && inline_style->property(CSS::PropertyID::FontStyle).has_value())
+        && inline_style->has_property(CSS::PropertyID::FontStyle))
         return true;
 
     // * It is an a, font, or span element with exactly one attribute, which is style, and the style attribute sets
     //   exactly one CSS property (including invalid or unrecognized properties), and that property is not
     //   "text-decoration".
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::span)
-        && !inline_style->property(CSS::PropertyID::TextDecoration).has_value())
+        && !inline_style->has_property(CSS::PropertyID::TextDecoration))
         return true;
 
     // * It is an a, font, s, span, strike, or u element with exactly one attribute, which is style, and the style
@@ -2491,7 +2490,7 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     //   "text-decoration", which is set to "line-through" or "underline" or "overline" or "none".
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::s,
             HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::u)
-        && inline_style->property(CSS::PropertyID::TextDecoration).has_value()) {
+        && inline_style->has_property(CSS::PropertyID::TextDecoration)) {
         auto text_decoration = inline_style->text_decoration();
         if (first_is_one_of(text_decoration,
                 string_from_keyword(CSS::Keyword::LineThrough),
@@ -2713,9 +2712,8 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
                     ++number_of_matching_attributes;
                 if (element->has_attribute(HTML::AttributeNames::style) && element->inline_style()
                     && element->inline_style()->length() == 1) {
-                    auto text_align = element->inline_style()->property(CSS::PropertyID::TextAlign);
-                    if (text_align.has_value()) {
-                        auto align_value = text_align.value().value->to_string(CSS::SerializationMode::Normal);
+                    if (auto text_align = element->inline_style()->get_property_style_value(CSS::PropertyID::TextAlign)) {
+                        auto align_value = text_align->to_string(CSS::SerializationMode::Normal);
                         if (align_value.equals_ignoring_ascii_case(alignment_keyword))
                             ++number_of_matching_attributes;
                     }
@@ -2935,9 +2933,9 @@ void outdent(GC::Ref<DOM::Node> node)
 
         // 2. Unset the margin, padding, and border CSS properties of node.
         if (auto inline_style = element.inline_style()) {
-            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Border)));
-            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Margin)));
-            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Padding)));
+            MUST(inline_style->remove_property(CSS::PropertyID::Border));
+            MUST(inline_style->remove_property(CSS::PropertyID::Margin));
+            MUST(inline_style->remove_property(CSS::PropertyID::Padding));
         }
 
         // 3. Set the tag name of node to "div".
@@ -4691,8 +4689,7 @@ Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::R
     if (!inline_style)
         return {};
 
-    // FIXME: This doesn't support shorthand properties.
-    auto style_property = inline_style->property(property_id);
+    auto style_property = inline_style->get_property(property_id);
     if (!style_property.has_value())
         return {};
 
@@ -4726,7 +4723,7 @@ Optional<NonnullRefPtr<CSS::StyleValue const>> resolved_value(GC::Ref<DOM::Node>
 
     // Retrieve resolved style value
     auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(element->realm(), DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
-    auto optional_style_property = resolved_css_style_declaration->property(property_id);
+    auto optional_style_property = resolved_css_style_declaration->get_property(property_id);
     if (!optional_style_property.has_value())
         return {};
     return optional_style_property.value().value;

@@ -25,7 +25,7 @@ public:
 
     virtual String to_string(SerializationMode) const override { return serialize_an_identifier(m_custom_ident.to_string()); }
     virtual Vector<Parser::ComponentValue> tokenize() const override;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, String const&) const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, FlyString const&) const override;
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return m_custom_ident == other.m_custom_ident; }
 
