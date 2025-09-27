@@ -9,7 +9,9 @@ import time
 
 from collections import defaultdict
 from typing import Dict
+from typing import List
 from typing import Optional
+from typing import Union
 
 """
 Description:
@@ -25,7 +27,7 @@ class Echo:
     method: str
     path: str
     status: int
-    headers: Optional[Dict[str, str]]
+    headers: Optional[Dict[str, Union[str, List[str]]]]
     body: Optional[str]
     delay_ms: Optional[int]
     reason_phrase: Optional[str]
@@ -144,7 +146,11 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Set only the headers defined in the echo definition
             if echo.headers is not None:
                 for header, value in echo.headers.items():
-                    self.send_header(header, value)
+                    if isinstance(value, list):
+                        for v in value:
+                            self.send_header(header, v)
+                    else:
+                        self.send_header(header, value)
                 self.end_headers()
 
             if echo.reflect_headers_in_body:
