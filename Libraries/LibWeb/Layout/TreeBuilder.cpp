@@ -4,6 +4,7 @@
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2025, Aziz B. Yesilyurt <abyesilyurt@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,9 @@
 #include <AK/Optional.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -269,6 +273,8 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
     auto pseudo_element_display = pseudo_element_style->display();
+
+    Optional<String> content_from_counter_style;
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
     // We also don't create them if they are `display: none`.
     if (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
@@ -277,14 +283,39 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
             || pseudo_element_content.type == CSS::ContentData::Type::None))
         return;
 
+    // For ::marker with content or display 'none' -- do nothing.
+    if (pseudo_element == CSS::PseudoElement::Marker
+        && (pseudo_element_display.is_none() || pseudo_element_content.type == CSS::ContentData::Type::None))
+        return;
+
+    // For ::marker with content 'normal', create the marker pseudo-element from a ListItemMarkerBox
+    // FIXME: This + ListItemBox + ListItemMarkerBox will disappear once ::marker pseudo-elements with 'normal' content
+    //        are rendered using the special list-item counter.
+    //        See: https://github.com/LadybirdBrowser/ladybird/issues/4782
+    if (pseudo_element == CSS::PseudoElement::Marker && pseudo_element_content.type == CSS::ContentData::Type::Normal)
+        if (auto* list_box = as_if<ListItemBox>(*element.layout_node())) {
+
+            auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(
+                document,
+                list_box->computed_values().list_style_type(),
+                list_box->computed_values().list_style_position(),
+                element,
+                *pseudo_element_style);
+            list_box->set_marker(list_item_marker);
+            element.set_computed_properties(CSS::PseudoElement::Marker, pseudo_element_style);
+            element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
+            list_box->prepend_child(*list_item_marker);
+            return;
+        }
+
     auto pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
     if (!pseudo_element_node)
         return;
 
-    auto& style_computer = document.style_computer();
-
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
     if (is<ListItemBox>(*pseudo_element_node)) {
+        auto& style_computer = document.style_computer();
+
         auto marker_style = style_computer.compute_style({ element, CSS::PseudoElement::Marker });
         auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(
             document,
@@ -777,27 +808,13 @@ void TreeBuilder::update_layout_tree_before_children(DOM::Node& dom_node, GC::Re
         auto& element = static_cast<DOM::Element&>(dom_node);
         push_parent(as<NodeWithStyle>(*layout_node));
         create_pseudo_element_if_needed(element, CSS::PseudoElement::Before, AppendOrPrepend::Prepend);
+
         pop_parent();
     }
 }
 
 void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref<Layout::Node> layout_node, TreeBuilder::Context& context, bool element_has_content_visibility_hidden)
 {
-    auto& document = dom_node.document();
-    auto& style_computer = document.style_computer();
-
-    if (is<ListItemBox>(*layout_node)) {
-        auto& element = static_cast<DOM::Element&>(dom_node);
-        DOM::AbstractElement list_marker_pseudo { element, CSS::PseudoElement::Marker };
-        auto marker_style = style_computer.compute_style(list_marker_pseudo);
-        auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), element, marker_style);
-        static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
-        element.set_computed_properties(CSS::PseudoElement::Marker, marker_style);
-        element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
-        layout_node->prepend_child(*list_item_marker);
-        CSS::resolve_counters(list_marker_pseudo);
-    }
-
     if (is<SVG::SVGGraphicsElement>(dom_node)) {
         auto& graphics_element = static_cast<SVG::SVGGraphicsElement&>(dom_node);
         // Create the layout tree for the SVG mask/clip paths as a child of the masked element.
@@ -820,6 +837,16 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
     if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         push_parent(as<NodeWithStyle>(*layout_node));
+
+        // https://drafts.csswg.org/css-lists-3/#marker-pseudo
+        // The marker box is generated by the ::marker pseudo-element of a list item as the list item’s first child,
+        // before the ::before pseudo-element (if it exists on the element). It is filled with content as defined
+        // in § 3.2 Generating Marker Contents.
+        // NOTE: This happens in update_layout_tree_after_children (and not in ..._before_...), since potential
+        //       block container wrapper children are created after update_layout_tree_before_children.
+        if (layout_node->is_list_item_box())
+            create_pseudo_element_if_needed(element, CSS::PseudoElement::Marker, AppendOrPrepend::Prepend);
+
         create_pseudo_element_if_needed(element, CSS::PseudoElement::After, AppendOrPrepend::Append);
         pop_parent();
     }
