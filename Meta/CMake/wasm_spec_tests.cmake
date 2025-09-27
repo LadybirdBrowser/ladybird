@@ -3,7 +3,7 @@
 #
 
 if(INCLUDE_WASM_SPEC_TESTS)
-    set(WASM_SPEC_TEST_COMMIT a8101597d3c3c660086c3cd1eedee608ff18d3c3) # 2025-09-10
+    set(WASM_SPEC_TEST_COMMIT 4b24564c844e3d34bf46dfcb3c774ee5163e31cc) # 2025-09-10
     set(WASM_SPEC_TEST_GZ_URL https://github.com/WebAssembly/testsuite/archive/${WASM_SPEC_TEST_COMMIT}.tar.gz)
     set(WASM_SPEC_TEST_GZ_PATH ${CMAKE_BINARY_DIR}/wasm-spec-testsuite.tar.gz CACHE PATH "")
     set(WASM_SPEC_TEST_PATH ${CMAKE_CURRENT_BINARY_DIR}/Tests/Fixtures/SpecTests CACHE PATH "")

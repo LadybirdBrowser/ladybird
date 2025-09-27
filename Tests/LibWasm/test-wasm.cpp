@@ -109,11 +109,11 @@ private:
         auto address_f64_f64 = alloc_noop_function(print_f64_f64_type);
         s_spec_test_namespace.set({ "spectest", "print_f64_f64", print_f64_f64_type }, Wasm::ExternValue { *address_f64_f64 });
 
-        Wasm::TableType table_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(10, 20) };
+        Wasm::TableType table_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(Wasm::AddressType::I32, 10, 20) };
         auto table_address = m_machine.store().allocate(table_type);
         s_spec_test_namespace.set({ "spectest", "table", table_type }, Wasm::ExternValue { *table_address });
 
-        Wasm::MemoryType memory_type { Wasm::Limits(1, 2) };
+        Wasm::MemoryType memory_type { Wasm::Limits(Wasm::AddressType::I32, 1, 2) };
         auto memory_address = m_machine.store().allocate(memory_type);
         s_spec_test_namespace.set({ "spectest", "memory", memory_type }, Wasm::ExternValue { *memory_address });
 
@@ -314,9 +314,11 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                 }
                 case Wasm::ValueType::FunctionReference:
                 case Wasm::ValueType::ExternReference:
+                case Wasm::ValueType::ExceptionReference:
                     auto ref = global->value().to<Wasm::Reference>();
                     return ref.ref().visit(
                         [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
+                        [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
                         [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
                 }
             }
@@ -398,6 +400,12 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Extern { static_cast<u64>(double_value) } }));
             break;
+        case Wasm::ValueType::Kind::ExceptionReference:
+            if (argument.is_null())
+                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExceptionReference) } }));
+            else
+                return vm.throw_completion<JS::TypeError>("Exception references are not supported"sv);
+            break;
         }
     }
 
@@ -431,7 +439,12 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         }
         case Wasm::ValueType::FunctionReference:
         case Wasm::ValueType::ExternReference:
-            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+            return (value.to<Wasm::Reference>()).ref().visit(
+                [&](Wasm::Reference::Null) { return JS::js_null(); },
+                [&](Wasm::Reference::Exception) { return JS::Value(); },
+                [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+        case Wasm::ValueType::ExceptionReference:
+            return JS::js_null();
         }
         VERIFY_NOT_REACHED();
     };
