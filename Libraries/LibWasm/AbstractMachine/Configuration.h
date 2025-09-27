@@ -21,7 +21,10 @@ public:
 
     void set_frame(Frame frame)
     {
-        Label label(frame.arity(), frame.expression().instructions().size() - 1, m_value_stack.size());
+        auto continuation = frame.expression().instructions().size() - 1;
+        if (auto size = frame.expression().compiled_instructions.dispatches.size(); size > 0)
+            continuation = size - 1;
+        Label label(frame.arity(), continuation, m_value_stack.size());
         frame.label_index() = m_label_stack.size();
         if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
             m_value_stack.ensure_capacity(*hint + m_value_stack.size());
@@ -113,7 +116,7 @@ private:
     Store& m_store;
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64> m_label_stack;
-    DoublyLinkedList<Frame, 128> m_frame_stack;
+    DoublyLinkedList<Frame, 512> m_frame_stack;
     size_t m_depth { 0 };
     u64 m_ip { 0 };
     bool m_should_limit_instruction_count { false };
