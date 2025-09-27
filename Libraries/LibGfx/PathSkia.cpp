@@ -142,6 +142,7 @@ static NonnullOwnPtr<PathImpl> place_text_along_impl(SkPath const& path, Font co
     SkScalar accumulated_distance = 0;
 
     auto output_path = PathImplSkia::create();
+    SkScalar path_length = path_measure.getLength();
 
     for (size_t i = 0; i < length_in_code_points; ++i) {
         SkGlyphID glyph = run_buffer.glyphs[i];
@@ -155,6 +156,11 @@ static NonnullOwnPtr<PathImpl> place_text_along_impl(SkPath const& path, Font co
         SkVector tangent;
         if (!path_measure.getPosTan(accumulated_distance, &position, &tangent))
             continue;
+
+        // Any typographic characters with mid-points that are not on the path are not rendered.
+        SkScalar midpoint_distance = accumulated_distance + (advance / 2.0f);
+        if (midpoint_distance > path_length)
+            break;
 
         SkMatrix matrix;
         matrix.setTranslate(position.x(), position.y());
