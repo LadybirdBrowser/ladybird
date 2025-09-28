@@ -1926,11 +1926,15 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
         return true;
     if (available_width.is_max_content() && max_width.is_max_content())
         return true;
+    // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (max_width.contains_percentage()) {
         if (available_width.is_max_content())
             return true;
-        if (available_width.is_min_content())
+        if (available_width.is_min_content()) {
+            if (!box.is_replaced_box())
+                return true;
             return false;
+        }
         if (!m_state.get(*box.non_anonymous_containing_block()).has_definite_width())
             return true;
     }
