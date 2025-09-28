@@ -457,6 +457,9 @@ TEST_CASE(is_within_range_float_to_int)
     static_assert(!AK::is_within_range<int>(NumericLimits<long double>::max()));
     static_assert(!AK::is_within_range<int>(NumericLimits<float>::lowest()));
 
+    static_assert(!AK::is_within_range<int>((float)NumericLimits<int>::max()));
+    static_assert(AK::is_within_range<int>((float)NumericLimits<int>::min()));
+
     static_assert(AK::is_within_range<long>(0.0));
     static_assert(AK::is_within_range<long long>(0.0));
 

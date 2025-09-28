@@ -29,6 +29,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/Concepts.h>
+#include <AK/ExactRepresentation.h>
 #include <AK/NumericLimits.h>
 #include <AK/StdLibExtras.h>
 
@@ -49,6 +50,30 @@ template<typename Destination, typename Source>
 struct TypeBoundsChecker<Destination, Source, false, true, true> {
     static constexpr bool is_within_range(Source value)
     {
+        if constexpr (std::is_floating_point<Source>() && !std::is_floating_point<Destination>()) {
+            if (value < NumericLimits<Destination>::max() && NumericLimits<Destination>::min() < value)
+                return true;
+
+            bool destination_max_has_exact_representation_in_source = has_exact_representation<Source>(NumericLimits<Destination>::max());
+            bool destination_min_has_exact_representation_in_source = has_exact_representation<Source>(NumericLimits<Destination>::min());
+
+            if (destination_max_has_exact_representation_in_source && destination_min_has_exact_representation_in_source) {
+                return value <= NumericLimits<Destination>::max()
+                    && NumericLimits<Destination>::min() <= value;
+            }
+
+            if (destination_max_has_exact_representation_in_source) {
+                return value <= NumericLimits<Destination>::max()
+                    && NumericLimits<Destination>::min() < value;
+            }
+
+            if (destination_min_has_exact_representation_in_source) {
+                return value < NumericLimits<Destination>::max()
+                    && NumericLimits<Destination>::min() <= value;
+            }
+
+            return false;
+        }
         return value <= NumericLimits<Destination>::max()
             && NumericLimits<Destination>::min() <= value;
     }
@@ -58,6 +83,19 @@ template<typename Destination, typename Source>
 struct TypeBoundsChecker<Destination, Source, false, false, true> {
     static constexpr bool is_within_range(Source value)
     {
+        if constexpr (std::is_floating_point<Source>() && !std::is_floating_point<Destination>()) {
+            if (value >= 0 && value < NumericLimits<Destination>::max())
+                return true;
+
+            bool destination_max_has_exact_representation_in_source = has_exact_representation<Source>(NumericLimits<Destination>::max());
+
+            if (destination_max_has_exact_representation_in_source) {
+                return value >= 0 && value <= NumericLimits<Destination>::max();
+            }
+
+            return false;
+        }
+
         return value >= 0 && value <= NumericLimits<Destination>::max();
     }
 };
