@@ -33,33 +33,33 @@ void SVGRectElement::attribute_changed(FlyString const& name, Optional<String> c
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::x) {
-        m_x = AttributeParser::parse_coordinate(value.value_or(String {}));
+        m_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::y) {
-        m_y = AttributeParser::parse_coordinate(value.value_or(String {}));
+        m_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::width) {
-        m_width = AttributeParser::parse_positive_length(value.value_or(String {}));
+        m_width = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::height) {
-        m_height = AttributeParser::parse_positive_length(value.value_or(String {}));
+        m_height = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::rx) {
-        m_radius_x = AttributeParser::parse_length(value.value_or(String {}));
+        m_radius_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::ry) {
-        m_radius_y = AttributeParser::parse_length(value.value_or(String {}));
+        m_radius_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
     }
 }
 
-Gfx::Path SVGRectElement::get_path(CSSPixelSize)
+Gfx::Path SVGRectElement::get_path(CSSPixelSize viewport_size)
 {
-    float width = m_width.value_or(0);
-    float height = m_height.value_or(0);
-    float x = m_x.value_or(0);
-    float y = m_y.value_or(0);
+    float width = m_width.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
+    float height = m_height.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
+    float x = m_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
+    float y = m_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
 
     Gfx::Path path;
     // If width or height is zero, rendering is disabled.
     if (width == 0 || height == 0)
         return path;
 
-    auto corner_radii = calculate_used_corner_radius_values();
+    auto corner_radii = calculate_used_corner_radius_values(viewport_size);
     float rx = corner_radii.width();
     float ry = corner_radii.height();
 
@@ -112,7 +112,7 @@ Gfx::Path SVGRectElement::get_path(CSSPixelSize)
     return path;
 }
 
-Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values() const
+Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values(CSSPixelSize viewport_size) const
 {
     // 1. Let rx and ry be length values.
     float rx = 0;
@@ -125,27 +125,27 @@ Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values() const
     }
     // 3. Otherwise, if a properly specified value is provided for ‘rx’, but not for ‘ry’, then set both rx and ry to the value of ‘rx’.
     else if (m_radius_x.has_value() && !m_radius_y.has_value()) {
-        rx = m_radius_x.value();
-        ry = m_radius_x.value();
+        rx = m_radius_x.value().resolve_relative_to(viewport_size.width().to_float());
+        ry = m_radius_x.value().resolve_relative_to(viewport_size.width().to_float());
     }
     // 4. Otherwise, if a properly specified value is provided for ‘ry’, but not for ‘rx’, then set both rx and ry to the value of ‘ry’.
     else if (m_radius_y.has_value() && !m_radius_x.has_value()) {
-        rx = m_radius_y.value();
-        ry = m_radius_y.value();
+        rx = m_radius_y.value().resolve_relative_to(viewport_size.height().to_float());
+        ry = m_radius_y.value().resolve_relative_to(viewport_size.height().to_float());
     }
     // 5. Otherwise, both ‘rx’ and ‘ry’ were specified properly. Set rx to the value of ‘rx’ and ry to the value of ‘ry’.
     else {
-        rx = m_radius_x.value();
-        ry = m_radius_y.value();
+        rx = m_radius_x.value().resolve_relative_to(viewport_size.width().to_float());
+        ry = m_radius_y.value().resolve_relative_to(viewport_size.height().to_float());
     }
 
     // 6. If rx is greater than half of ‘width’, then set rx to half of ‘width’.
-    auto half_width = m_width.value_or(0) / 2;
+    auto half_width = m_width.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float()) / 2;
     if (rx > half_width)
         rx = half_width;
 
     // 7. If ry is greater than half of ‘height’, then set ry to half of ‘height’.
-    auto half_height = m_height.value_or(0) / 2;
+    auto half_height = m_height.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float()) / 2;
     if (ry > half_height)
         ry = half_height;
 
@@ -158,8 +158,8 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::x() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::Yes);
+    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -168,8 +168,8 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::y() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::Yes);
+    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -178,8 +178,8 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::width() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_width.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_width.value_or(0), SVGLength::ReadOnly::Yes);
+    auto base_length = SVGLength::create(realm(), 0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -188,8 +188,8 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::height() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_height.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_height.value_or(0), SVGLength::ReadOnly::Yes);
+    auto base_length = SVGLength::create(realm(), 0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -198,8 +198,8 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::rx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::Yes);
+    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -208,8 +208,8 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::ry() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::Yes);
+    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 

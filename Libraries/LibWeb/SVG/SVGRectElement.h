@@ -34,14 +34,14 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    Gfx::FloatSize calculate_used_corner_radius_values() const;
+    Gfx::FloatSize calculate_used_corner_radius_values(CSSPixelSize viewport_size) const;
 
-    Optional<float> m_x;
-    Optional<float> m_y;
-    Optional<float> m_width;
-    Optional<float> m_height;
-    Optional<float> m_radius_x;
-    Optional<float> m_radius_y;
+    Optional<NumberPercentage> m_x;
+    Optional<NumberPercentage> m_y;
+    Optional<NumberPercentage> m_width;
+    Optional<NumberPercentage> m_height;
+    Optional<NumberPercentage> m_radius_x;
+    Optional<NumberPercentage> m_radius_y;
 };
 
 }
