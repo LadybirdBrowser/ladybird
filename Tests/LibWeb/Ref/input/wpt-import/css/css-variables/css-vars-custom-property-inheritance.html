@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Variables Test: custom properties use normal inheritance and cascade rules</title>
+    <link rel="author" title="Noah Collins" href="mailto:noahcollins@gmail.com">
+    <link rel="help" href="http://www.w3.org/TR/css-variables-1/#using-variables">
+    <meta name="assert" content="custom properties are resolved with the normal inheritance and cascade rules">
+    <link rel="match" href="../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square.xht">
+    <style type="text/css">
+
+        /* test cascade importance */
+        :root { --color-1: green !important; }
+        :root { --color-1: red; }
+        div.color1 { background-color: var(--color-1); }
+
+        /* test cascade order */
+        :root { --color-2: green; }
+        div.color2 { background-color: red; }
+        div.color2 { background-color: var(--color-2); }
+
+        div { width: 100px; height: 50px; }
+    </style>
+</head>
+<body>
+    <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+    <div class=color1></div>
+    <div class=color2></div>
+</body>
+</html>
