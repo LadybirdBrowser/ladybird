@@ -234,6 +234,7 @@ All properties associated with getComputedStyle(document.body):
     "padding-right",
     "padding-top",
     "position",
+    "position-area",
     "r",
     "right",
     "rotate",

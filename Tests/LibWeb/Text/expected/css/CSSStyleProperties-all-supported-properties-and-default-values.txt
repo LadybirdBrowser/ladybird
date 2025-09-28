@@ -630,6 +630,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'pointerEvents': 'auto'
 'pointer-events': 'auto'
 'position': 'static'
+'positionArea': 'none'
+'position-area': 'none'
 'quotes': 'auto'
 'r': '0px'
 'right': 'auto'

@@ -3010,6 +3010,18 @@
       "positioning"
     ]
   },
+  "position-area": {
+    "animation-type": "discrete",
+    "__comment": "Animation type is currently listed as TBD in the specification",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "position-area"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "quotes": {
     "animation-type": "discrete",
     "inherited": true,
