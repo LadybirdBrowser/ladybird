@@ -37,7 +37,7 @@ public:
     GC::Ptr<DOM::Element> source() const
     {
         // The source getter steps are to return the result of retargeting source against this's currentTarget.
-        return as<DOM::Element>(retarget(m_source, current_target()));
+        return as<DOM::Element>(retarget(m_source, current_target_internal()));
     }
 
     virtual void visit_edges(Cell::Visitor&) override;

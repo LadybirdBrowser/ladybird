@@ -12,6 +12,8 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::DOM {
@@ -261,6 +263,19 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
 
     // 17. Return composedPath.
     return composed_path;
+}
+
+GC::Ptr<JS::Object> Event::current_target() const
+{
+
+    if (!m_current_target) {
+        return m_current_target;
+    }
+    if (is<HTML::Window>(*m_current_target)) {
+        auto& window = as<HTML::Window>(*m_current_target);
+        return window.window();
+    }
+    return current_target_internal();
 }
 
 }
