@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+  @font-face { src: local('Test'); }
+</style>
+<script>
+  test(() => {
+        let rule = document.querySelector("style").sheet.cssRules[0];
+        println(rule.cssText);
+    });
+</script>
