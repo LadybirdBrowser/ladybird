@@ -232,6 +232,7 @@ padding-left: 0px
 padding-right: 0px
 padding-top: 0px
 position: static
+position-area: none
 r: 0px
 right: auto
 rotate: none
