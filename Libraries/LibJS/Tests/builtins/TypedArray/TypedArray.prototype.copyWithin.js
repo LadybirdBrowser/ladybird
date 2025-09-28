@@ -119,4 +119,18 @@ describe("normal behavior", () => {
             expect(array).toEqual(new T([1n, 2n, 1n]));
         });
     });
+
+    test("overwriting in middle with end", () => {
+        TYPED_ARRAYS.forEach(T => {
+            const array = new T([0, 54, 999, 1000, 0, 0]);
+            expect(array.copyWithin(3, 2, 4)).toEqual(array);
+            expect(array).toEqual(new T([0, 54, 999, 999, 1000, 0]));
+        });
+
+        BIGINT_TYPED_ARRAYS.forEach(T => {
+            const array = new T([0n, 54n, 999n, 1000n, 0n, 0n]);
+            expect(array.copyWithin(3, 2, 4)).toEqual(array);
+            expect(array).toEqual(new T([0n, 54n, 999n, 999n, 1000n, 0n]));
+        });
+    });
 });
