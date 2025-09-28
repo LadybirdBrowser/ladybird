@@ -27,8 +27,7 @@ ResizeObserver::ResizeObserver(JS::Realm& realm, WebIDL::CallbackType* callback)
     : PlatformObject(realm)
     , m_callback(callback)
 {
-    auto navigable = as<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
-    m_document = navigable->active_document().ptr();
+    m_document = as<HTML::Window>(HTML::relevant_global_object(*this)).document().ptr();
 }
 
 ResizeObserver::~ResizeObserver() = default;
