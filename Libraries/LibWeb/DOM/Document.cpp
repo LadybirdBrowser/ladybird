@@ -6802,6 +6802,23 @@ HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& Document::registered_cus
     return m_registered_custom_properties;
 }
 
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
+{
+    auto& realm = this->realm();
+    return XPath::create_expression(realm, expression, resolver);
+}
+
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
+{
+    auto& realm = this->realm();
+    return XPath::evaluate(realm, expression, context_node, resolver, type, result);
+}
+
+GC::Ref<DOM::Node> Document::create_ns_resolver(GC::Ref<DOM::Node> node_resolver)
+{
+    return node_resolver;
+}
+
 NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(FlyString const& name) const
 {
     auto maybe_custom_property = m_registered_custom_properties.get(name);
