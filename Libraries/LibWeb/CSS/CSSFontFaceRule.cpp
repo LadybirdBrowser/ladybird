@@ -60,39 +60,40 @@ String CSSFontFaceRule::serialized() const
     // 1. The string "@font-face {", followed by a single SPACE (U+0020).
     builder.append("@font-face { "sv);
 
-    // 2. If the rule’s associated font-family is present, follow these substeps:
-    //    The string "font-family:", followed by a single SPACE (U+0020).
-    //    followed by the result of performing serialize a string on the rule’s font family name.
-    //    followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto font_family = descriptors.descriptor(DescriptorID::FontFamily)) {
+        // 2. The string "font-family:", followed by a single SPACE (U+0020).
         builder.append("font-family: "sv);
+        // 3. The result of performing serialize a string on the rule’s font family name.
         builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(SerializationMode::Normal));
+        // 4. The string ";", i.e., SEMICOLON (U+003B).
         builder.append(';');
     }
 
-    // 3. If the rule’s associated source list is not empty, a single SPACE (U+0020),
-    //    followed by the string "src:", followed by a single SPACE (U+0020).
+    // 5. If the rule’s associated source list is not empty, follow these substeps:
     //    followed by the result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto sources = descriptors.descriptor(DescriptorID::Src)) {
-        builder.append("src: "sv);
+        // 1. A single SPACE (U+0020), followed by the string "src:", followed by a single SPACE (U+0020).
+        builder.append(" src: "sv);
+        // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
         builder.append(sources->to_string(SerializationMode::Normal));
+        // 3. The string ";", i.e., SEMICOLON (U+003B).
         builder.append(';');
     }
 
-    // 4. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
+    // 6. If rule’s associated unicode-range descriptor is present, a single SPACE (U+0020), followed by the string "unicode-range:", followed by a single SPACE (U+0020), followed by the result of performing serialize a <'unicode-range'>, followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto unicode_range = descriptors.descriptor(DescriptorID::UnicodeRange)) {
         builder.append(" unicode-range: "sv);
         builder.append(unicode_range->to_string(SerializationMode::Normal));
         builder.append(';');
     }
 
-    // FIXME: 5. If rule’s associated font-variant descriptor is present, a single SPACE (U+0020),
+    // FIXME: 7. If rule’s associated font-variant descriptor is present, a single SPACE (U+0020),
     // followed by the string "font-variant:", followed by a single SPACE (U+0020),
     // followed by the result of performing serialize a <'font-variant'>,
     // followed by the string ";", i.e., SEMICOLON (U+003B).
 
-    // 6. If rule’s associated font-feature-settings descriptor is present, a single SPACE (U+0020),
+    // 8. If rule’s associated font-feature-settings descriptor is present, a single SPACE (U+0020),
     //    followed by the string "font-feature-settings:", followed by a single SPACE (U+0020),
     //    followed by the result of performing serialize a <'font-feature-settings'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
@@ -102,7 +103,7 @@ String CSSFontFaceRule::serialized() const
         builder.append(";"sv);
     }
 
-    // 7. If rule’s associated font-stretch descriptor is present, a single SPACE (U+0020),
+    // 9. If rule’s associated font-stretch descriptor is present, a single SPACE (U+0020),
     //    followed by the string "font-stretch:", followed by a single SPACE (U+0020),
     //    followed by the result of performing serialize a <'font-stretch'>,
     //    followed by the string ";", i.e., SEMICOLON (U+003B).
@@ -113,7 +114,7 @@ String CSSFontFaceRule::serialized() const
         builder.append(";"sv);
     }
 
-    // 8. If rule’s associated font-weight descriptor is present, a single SPACE (U+0020),
+    // 10. If rule’s associated font-weight descriptor is present, a single SPACE (U+0020),
     //     followed by the string "font-weight:", followed by a single SPACE (U+0020),
     //     followed by the result of performing serialize a <'font-weight'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
@@ -123,7 +124,7 @@ String CSSFontFaceRule::serialized() const
         builder.append(";"sv);
     }
 
-    // 9. If rule’s associated font-style descriptor is present, a single SPACE (U+0020),
+    // 11. If rule’s associated font-style descriptor is present, a single SPACE (U+0020),
     //     followed by the string "font-style:", followed by a single SPACE (U+0020),
     //     followed by the result of performing serialize a <'font-style'>,
     //     followed by the string ";", i.e., SEMICOLON (U+003B).
@@ -133,7 +134,7 @@ String CSSFontFaceRule::serialized() const
         builder.append(";"sv);
     }
 
-    // 10. A single SPACE (U+0020), followed by the string "}", i.e., RIGHT CURLY BRACKET (U+007D).
+    // 12. A single SPACE (U+0020), followed by the string "}", i.e., RIGHT CURLY BRACKET (U+007D).
     builder.append(" }"sv);
 
     return MUST(builder.to_string());
