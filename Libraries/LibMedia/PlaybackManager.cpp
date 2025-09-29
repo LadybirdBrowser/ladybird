@@ -7,6 +7,7 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/MutexedDemuxer.h>
+#include <LibMedia/PlaybackStates/PausedStateHandler.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
@@ -84,6 +85,7 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
     auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas))));
     weak_playback_manager->m_manager = playback_manager;
     playback_manager->set_up_error_handlers();
+    playback_manager->m_handler = DECODER_TRY_ALLOC(try_make<PausedStateHandler>(*playback_manager));
     return playback_manager;
 }
 
@@ -213,12 +215,17 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
 
 void PlaybackManager::play()
 {
-    m_time_provider->resume();
+    m_handler->play();
 }
 
 void PlaybackManager::pause()
 {
-    m_time_provider->pause();
+    m_handler->pause();
+}
+
+bool PlaybackManager::is_playing()
+{
+    return m_handler->is_playing();
 }
 
 void PlaybackManager::set_volume(double volume)
