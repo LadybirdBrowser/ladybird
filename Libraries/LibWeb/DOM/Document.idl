@@ -27,6 +27,8 @@
 #import <HTML/Location.idl>
 #import <Selection/Selection.idl>
 #import <ViewTransition/ViewTransition.idl>
+#import <XPath/XPathResult.idl>
+#import <XPath/XPathExpression.idl>
 
 // https://dom.spec.whatwg.org/#document
 // https://html.spec.whatwg.org/multipage/dom.html#the-document-object
@@ -152,6 +154,11 @@ interface Document : Node {
     boolean queryCommandState(DOMString commandId);
     boolean queryCommandSupported(DOMString commandId);
     DOMString queryCommandValue(DOMString commandId);
+
+    // XPath
+    [NewObject] XPathExpression createExpression(DOMString expression, optional XPathNSResolver? resolver = null);
+    XPathResult evaluate(DOMString expression, Node contextNode, optional XPathNSResolver? resolver = null, optional unsigned short type = 0, optional XPathResult? result = null);
+    Node createNSResolver(Node nodeResolver); // legacy
 
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;

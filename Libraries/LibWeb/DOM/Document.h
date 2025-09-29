@@ -45,6 +45,7 @@
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
+#include <LibWeb/XPath/XPath.h>
 
 namespace Web::DOM {
 
@@ -681,6 +682,10 @@ public:
     WebIDL::ExceptionOr<bool> query_command_state(FlyString const& command);
     WebIDL::ExceptionOr<bool> query_command_supported(FlyString const& command);
     WebIDL::ExceptionOr<String> query_command_value(FlyString const& command);
+
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(String const& expression, const DOM::Node& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
+    GC::Ref<DOM::Node> create_ns_resolver(GC::Ref<DOM::Node> node_resolver); // legacy
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
