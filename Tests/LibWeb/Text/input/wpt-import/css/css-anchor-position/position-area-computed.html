@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area getComputedStyle()</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-area-computed">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  // Keywords that refer to the physical horizontal/vertical axes.
+
+  const horizontal = [
+    "left",
+    "right",
+    "span-left",
+    "span-right",
+    "x-start",
+    "x-end",
+    "span-x-start",
+    "span-x-end",
+    "x-self-start",
+    "x-self-end",
+    "span-x-self-start",
+    "span-x-self-end"
+  ];
+
+  const vertical = [
+    "top",
+    "bottom",
+    "span-top",
+    "span-bottom",
+    "y-start",
+    "y-end",
+    "span-y-start",
+    "span-y-end",
+    "y-self-start",
+    "y-self-end",
+    "span-y-self-start",
+    "span-y-self-end"
+  ];
+
+  // Keywords that refer to the logical block/inline axis.
+  // Key is the full form of the keyword, value is the equivalent reduced keyword.
+
+  const inline = {
+    "inline-start": "start",
+    "inline-end": "end",
+    "span-inline-start": "span-start",
+    "span-inline-end": "span-end",
+  }
+
+  const block = {
+    "block-start": "start",
+    "block-end": "end",
+    "span-block-start": "span-start",
+    "span-block-end": "span-end",
+  }
+
+  const self_inline = {
+    "self-inline-start": "self-start",
+    "self-inline-end": "self-end",
+    "span-self-inline-start": "span-self-start",
+    "span-self-inline-end": "span-self-end",
+  }
+
+  const self_block = {
+    "self-block-start": "self-start",
+    "self-block-end": "self-end",
+    "span-self-block-start": "span-self-start",
+    "span-self-block-end": "span-self-end",
+  }
+
+  // Keywords that refer to an ambiguous axis.
+  // Key is the keyword, value is the equivalent keyword if the original keyword refers
+  // to a block or inline axis.
+
+  const start_end = {
+    "start": { "block": "block-start", "inline": "inline-start" },
+    "end": { "block": "block-end", "inline": "inline-end" },
+    "span-start": { "block": "span-block-start", "inline": "span-inline-start" },
+    "span-end": { "block": "span-block-end", "inline": "span-inline-end" },
+  };
+
+  const self_start_end = {
+    "self-start": { "block": "self-block-start", "inline": "self-inline-start" },
+    "self-end": { "block": "self-block-end", "inline": "self-inline-end" },
+    "span-self-start": { "block": "span-self-block-start", "inline": "span-self-inline-start" },
+    "span-self-end": { "block": "span-self-block-end", "inline": "span-self-inline-end" },
+  };
+
+  function test_single_keyword(keywords) {
+    for (const keyword of keywords)
+      test_computed_value("position-area", keyword);
+  }
+
+  function test_physical_keywords(horizontal_keywords, vertical_keywords) {
+    for (const horizontal of horizontal_keywords) {
+      for (const vertical of vertical_keywords) {
+        test_computed_value("position-area", `${horizontal} ${vertical}`);
+        test_computed_value("position-area", `${vertical} ${horizontal}`, `${horizontal} ${vertical}`);
+      }
+    }
+
+    for (const keyword of horizontal_keywords) {
+      test_computed_value("position-area", `${keyword} span-all`, keyword);
+      test_computed_value("position-area", `span-all ${keyword}`, keyword);
+
+      test_computed_value("position-area", `${keyword} center`);
+      test_computed_value("position-area", `center ${keyword}`, `${keyword} center`);
+    }
+
+    for (const keyword of vertical_keywords) {
+      test_computed_value("position-area", `span-all ${keyword}`, keyword);
+      test_computed_value("position-area", `${keyword} span-all`, keyword);
+
+      test_computed_value("position-area", `center ${keyword}`);
+      test_computed_value("position-area", `${keyword} center`, `center ${keyword}`);
+    }
+  }
+
+  function test_unambiguous_logical_keywords(block_keywords, inline_keywords) {
+    for (const [block_long_keyword, block_short_keyword] of Object.entries(block_keywords)) {
+      for (const [inline_long_keyword, inline_short_keyword] of Object.entries(inline_keywords)) {
+        let expected_computed = `${block_short_keyword} ${inline_short_keyword}`;
+        if (block_short_keyword == inline_short_keyword)
+          expected_computed = block_short_keyword;
+
+        test_computed_value("position-area", `${block_long_keyword} ${inline_long_keyword}`, expected_computed);
+        test_computed_value("position-area", `${inline_long_keyword} ${block_long_keyword}`, expected_computed);
+      }
+    }
+
+    for (const [long_keyword, short_keyword] of Object.entries(block_keywords)) {
+      test_computed_value("position-area", `${long_keyword} span-all`, long_keyword);
+      test_computed_value("position-area", `span-all ${long_keyword}`, long_keyword);
+
+      test_computed_value("position-area", `${long_keyword} center`, `${short_keyword} center`);
+      test_computed_value("position-area", `center ${long_keyword}`, `${short_keyword} center`);
+    }
+
+    for (const [long_keyword, short_keyword] of Object.entries(inline_keywords)) {
+      test_computed_value("position-area", `${long_keyword} span-all`, long_keyword);
+      test_computed_value("position-area", `span-all ${long_keyword}`, long_keyword);
+
+      test_computed_value("position-area", `${long_keyword} center`, `center ${short_keyword}`);
+      test_computed_value("position-area", `center ${long_keyword}`, `center ${short_keyword}`);
+    }
+  }
+
+  function test_ambiguous_logical_keywords(keywords) {
+    for (const keyword1 of Object.keys(keywords)) {
+      for (const keyword2 of Object.keys(keywords)) {
+        if (keyword1 == keyword2)
+          test_computed_value("position-area", `${keyword1} ${keyword2}`, `${keyword1}`);
+        else
+          test_computed_value("position-area", `${keyword1} ${keyword2}`);
+      }
+    }
+
+    for (const [keyword, { block: block_keyword, inline: inline_keyword }] of Object.entries(keywords)) {
+      test_computed_value("position-area", `${keyword} span-all`, block_keyword);
+      test_computed_value("position-area", `span-all ${keyword}`, inline_keyword);
+
+      test_computed_value("position-area", `${keyword} center`);
+      test_computed_value("position-area", `center ${keyword}`);
+    };
+  }
+
+  // Test computed value when position-area is a single keyword.
+  test_computed_value("position-area", "none");
+  test_computed_value("position-area", "span-all");
+  test_computed_value("position-area", "center");
+  test_single_keyword(horizontal);
+  test_single_keyword(vertical);
+  test_single_keyword(Object.keys(inline));
+  test_single_keyword(Object.keys(block));
+  test_single_keyword(Object.keys(self_inline));
+  test_single_keyword(Object.keys(self_block));
+  test_single_keyword(Object.keys(start_end));
+  test_single_keyword(Object.keys(self_start_end));
+
+  // Test computed value when position-area are two keywords.
+  test_physical_keywords(horizontal, vertical);
+  test_unambiguous_logical_keywords(block, inline);
+  test_unambiguous_logical_keywords(self_block, self_inline);
+  test_ambiguous_logical_keywords(start_end);
+  test_ambiguous_logical_keywords(self_start_end);
+
+  test_computed_value("position-area", "span-all span-all", "span-all");
+  test_computed_value("position-area", "span-all center");
+  test_computed_value("position-area", "center span-all");
+  test_computed_value("position-area", "center center", "center");
+
+  assert_not_inherited("position-area", "none", "span-all");
+</script>
