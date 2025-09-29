@@ -49,6 +49,7 @@ static constexpr Array libweb_interface_namespaces = {
     "WebIDL"sv,
     "WebSockets"sv,
     "XHR"sv,
+    "XPath"sv,
 };
 
 }
