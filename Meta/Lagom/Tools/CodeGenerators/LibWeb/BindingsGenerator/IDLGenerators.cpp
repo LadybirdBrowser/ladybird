@@ -160,6 +160,7 @@ static bool is_platform_object(Type const& type)
         "Window"sv,
         "WindowProxy"sv,
         "WritableStream"sv,
+        "XPathResult"sv,
     };
     if (type.name().ends_with("Element"sv))
         return true;
@@ -681,7 +682,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_to_string(scoped_generator, parameter, variadic, optional, optional_default_value);
     } else if (parameter.type->is_boolean() || parameter.type->is_integer()) {
         generate_to_integral(scoped_generator, parameter, optional, optional_default_value);
-    } else if (parameter.type->name().is_one_of("EventListener", "NodeFilter")) {
+    } else if (parameter.type->name().is_one_of("EventListener", "NodeFilter", "XPathNSResolver")) {
         // FIXME: Replace this with support for callback interfaces. https://webidl.spec.whatwg.org/#idl-callback-interface
 
         if (parameter.type->name() == "EventListener")
@@ -4973,6 +4974,7 @@ using namespace Web::WebGL::Extensions;
 using namespace Web::WebIDL;
 using namespace Web::WebVTT;
 using namespace Web::XHR;
+using namespace Web::XPath;
 )~~~"sv);
 }
 

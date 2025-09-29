@@ -1292,3 +1292,12 @@ class TrustedTypePolicyFactory;
 struct TrustedTypePolicyOptions;
 
 }
+
+namespace Web::XPath {
+
+class XPathEvaluator;
+class XPathExpression;
+class XPathNSResolver;
+class XPathResult;
+
+}

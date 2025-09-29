@@ -1066,6 +1066,10 @@ set(SOURCES
     XHR/XMLHttpRequestUpload.cpp
     XLink/AttributeNames.cpp
     XML/XMLDocumentBuilder.cpp
+    XPath/XPathEvaluator.cpp
+    XPath/XPathExpression.cpp
+    XPath/XPathNSResolver.cpp
+    XPath/XPathResult.cpp
 )
 
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)

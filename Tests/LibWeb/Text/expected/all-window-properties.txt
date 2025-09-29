@@ -525,6 +525,9 @@ XMLHttpRequest
 XMLHttpRequestEventTarget
 XMLHttpRequestUpload
 XMLSerializer
+XPathEvaluator
+XPathExpression
+XPathResult
 __finishTest
 __preventMultipleTestFunctions
 animationFrame
