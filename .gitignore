@@ -33,6 +33,7 @@ output/
 .venv/
 .venv*/
 venv*/
+.env
 
 # Gradle/AndroidStudio
 .gradle/
