@@ -9,12 +9,14 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/Stream.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Mutex.h>
@@ -26,6 +28,11 @@ class MEDIA_API PlaybackManager final : public AtomicRefCounted<PlaybackManager>
     AK_MAKE_NONMOVABLE(PlaybackManager);
 
     class WeakPlaybackManager;
+
+#define __MAKE_PLAYBACK_STATE_HANDLER_FRIEND(clazz) \
+    friend class clazz;
+    ENUMERATE_PLAYBACK_STATE_HANDLERS(__MAKE_PLAYBACK_STATE_HANDLER_FRIEND)
+#undef __MAKE_PLAYBACK_STATE_HANDLER_FRIEND
 
 public:
     static constexpr size_t EXPECTED_VIDEO_TRACK_COUNT = 1;
@@ -63,8 +70,11 @@ public:
     void play();
     void pause();
 
+    bool is_playing();
+
     void set_volume(double);
 
+    Function<void()> on_playback_state_change;
     Function<void(DecoderError&&)> on_error;
 
 private:
@@ -112,6 +122,11 @@ private:
     VideoTrackData& get_video_data_for_track(Track const& track);
     AudioTrackData& get_audio_data_for_track(Track const& track);
 
+    template<typename T, typename... Args>
+    void replace_state_handler(Args&&... args);
+    inline void dispatch_state_change() const;
+
+    OwnPtr<PlaybackStateHandler> m_handler;
     NonnullRefPtr<MutexedDemuxer> m_demuxer;
 
     NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
@@ -127,5 +142,23 @@ private:
 
     bool m_is_in_error_state { false };
 };
+
+template<typename T, typename... Args>
+void PlaybackManager::replace_state_handler(Args&&... args)
+{
+    m_handler->on_exit();
+
+    OwnPtr<PlaybackStateHandler> new_handler = make<T>(*this, args...);
+    m_handler.swap(new_handler);
+
+    m_handler->on_enter();
+    dispatch_state_change();
+}
+
+void PlaybackManager::dispatch_state_change() const
+{
+    if (on_playback_state_change)
+        on_playback_state_change();
+}
 
 }
