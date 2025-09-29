@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-translate">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="helpers.js"></script>
+<body>
+<div id="context"></div>
+<script>
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span>^^^bar$$$</span><span><b>^^^</b></span><b>bar</b><b>foo</b>';
+  assert_equals(evaluateString('translate((./span)[1], (./b)[1], ./b[2])', context), '^^^foo$$$');
+}, 'translate() arguments depending on the context node');
+</script>
+</body>

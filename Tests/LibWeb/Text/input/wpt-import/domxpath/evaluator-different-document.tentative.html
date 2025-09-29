@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-document XPath evaluation</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+function toArray(result) {
+  var a = [];
+  while (true) {
+    var node = result.iterateNext();
+    if (node === null) break;
+    a.push(node);
+  }
+  return a;
+}
+
+var html_ns = "http://www.w3.org/1999/xhtml";
+var xml_doc = document.implementation.createDocument(html_ns, "html");
+var html_doc = document.implementation.createHTMLDocument();
+
+function ns_resolver(x) {
+  if (x === "html") {
+    return html_ns;
+  } else {
+    return null;
+  }
+}
+
+test(function() {
+  assert_array_equals(toArray(xml_doc.evaluate("//html", xml_doc)), []);
+}, "evaluate operation on XML document, context node in XML document, no namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(html_doc.evaluate("//html", html_doc)), [html_doc.documentElement]);
+}, "evaluate operation on HTML document, context node in HTML document, no namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(xml_doc.evaluate("//html", html_doc)), [html_doc.documentElement]);
+}, "evaluate operation on XML document, context node in HTML document, no namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(html_doc.evaluate("//html", xml_doc)), []);
+}, "evaluate operation on HTML document, context node in XML document, no namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(xml_doc.evaluate("//html", xml_doc, ns_resolver)), []);
+}, "evaluate operation on XML document, context node in XML document, with namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(html_doc.evaluate("//html", html_doc, ns_resolver)), [html_doc.documentElement]);
+}, "evaluate operation on HTML document, context node in HTML document, with namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(xml_doc.evaluate("//html", html_doc, ns_resolver)), [html_doc.documentElement]);
+}, "evaluate operation on XML document, context node in HTML document, with namespace resolver");
+
+test(function() {
+  assert_array_equals(toArray(html_doc.evaluate("//html", xml_doc, ns_resolver)), []);
+}, "evaluate operation on HTML document, context node in XML document, with namespace resolver");
+</script>

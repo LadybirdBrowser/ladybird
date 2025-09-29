@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	lang("en"): <root><match xmlns:ns1="http://www.w3.org/XML/1998/namespace" ns1:lang="en"/></root>
+Pass	lang("en"): <root><match xmlns:ns1="http://www.w3.org/XML/1998/namespace" ns1:lang="EN"/></root>
+Pass	lang("en"): <root><match xmlns:ns1="http://www.w3.org/XML/1998/namespace" ns1:lang="en-us"/></root>
+Pass	lang("en"): <root><unmatch/></root>
+Fail	lang("ja"): <root xmlns:ns1="http://www.w3.org/XML/1998/namespace" ns1:lang="ja"><match/></root>
+Pass	lang("ja"): <root xmlns:ns1="http://www.w3.org/XML/1998/namespace" ns1:lang="ja-jp"><unmatch xmlns:ns2="http://www.w3.org/XML/1998/namespace" ns2:lang="ja_JP"/></root>
+Pass	lang("ko"): <root><unmatch xmlns:ns1="http://www.w3.org/XML/1998/namespace" ns1:lang="Ko"/></root>

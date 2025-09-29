@@ -1,0 +1,31 @@
+<!doctype html>
+<title>XPath parent of documentElement</title>
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+<body>
+<script>
+test(function() {
+  var result = document.evaluate("..", // expression
+                                document.documentElement, // context node
+                                null, // resolver
+                                XPathResult.ANY_TYPE, // type
+                                null); // result
+  var matched = [];
+  var cur;
+  while ((cur = result.iterateNext()) !== null) {
+    matched.push(cur);
+  }
+  assert_array_equals(matched, [document]);
+  // Evaluate again, but reuse result from previous evaluation.
+  result = document.evaluate("..", // expression
+                            document.documentElement, // context node
+                            null, // resolver
+                            XPathResult.ANY_TYPE, // type
+                            result); // result
+  matched = [];
+  while ((cur = result.iterateNext()) !== null) {
+    matched.push(cur);
+  }
+  assert_array_equals(matched, [document]);
+});
+</script>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	createNSResolver() should return the specified node as is. (HTMLDocument)
+Pass	createNSResolver() resultant object should not add support of 'xml' prefix. (HTMLDocument)
+Pass	createNSResolver() should return the specified node as is. (XPathEvaluator)
+Pass	createNSResolver() resultant object should not add support of 'xml' prefix. (XPathEvaluator)

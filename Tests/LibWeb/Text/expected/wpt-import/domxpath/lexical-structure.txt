@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Literal: Only ' and " should be handled as literal quotes.
+Pass	ExprWhitespace: Only #x20 #x9 #xD or #xA must be handled as a whitespace.

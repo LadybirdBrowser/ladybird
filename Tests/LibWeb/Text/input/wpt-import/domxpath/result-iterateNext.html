@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Invalidation of iterators over XPath results</title>
+  <link rel="author" title="Simon Wülker" href="mailto:simon.wuelker@arcor.de">
+  <link rel="help" href="https://www.w3.org/TR/DOM-Level-3-XPath/xpath.html#XPathResult-iterateNext">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <ul id="list">
+      <li id="first-child"></li>
+      <li id="second-child"></li>
+  </ul>
+  <script>
+    function make_xpath_query(result_type) {
+      return document.evaluate(
+        "//li",
+        document,
+        null,
+        result_type,
+        null
+      );
+    }
+
+    function invalidate_iterator(test) {
+      let new_element = document.createElement("li");
+      document.getElementById("list").appendChild(new_element);
+      test.add_cleanup(() => {
+        new_element.remove();
+      })
+    }
+
+    test((t) => {
+      let iterator = make_xpath_query(XPathResult.ORDERED_NODE_ITERATOR_TYPE);
+
+      assert_equals(iterator.iterateNext(), document.getElementById("first-child"));
+      assert_equals(iterator.iterateNext(), document.getElementById("second-child"));
+      assert_equals(iterator.iterateNext(), null);
+      assert_false(iterator.invalidIteratorState);
+    }, "Using an ordered iterator without modifying the dom should yield the expected elements in correct order without errors.");
+
+    test((t) => {
+      let iterator = make_xpath_query(XPathResult.UNORDERED_NODE_ITERATOR_TYPE);
+
+      assert_not_equals(iterator.iterateNext(), null);
+      assert_not_equals(iterator.iterateNext(), null);
+      assert_equals(iterator.iterateNext(), null);
+      assert_false(iterator.invalidIteratorState);
+    }, "Using an unordered iterator without modifying the dom should yield the correct number of elements without errors.");
+
+    test((t) => {
+      let non_iterator_query = make_xpath_query(XPathResult.BOOLEAN_TYPE);
+
+      assert_false(non_iterator_query.invalidIteratorState);
+      invalidate_iterator(t);
+      assert_false(non_iterator_query.invalidIteratorState);
+    }, "invalidIteratorState should be false for non-iterable results.");
+
+    test((t) => {
+      let non_iterator_query = make_xpath_query(XPathResult.BOOLEAN_TYPE);
+
+      assert_throws_js(TypeError, () => non_iterator_query.iterateNext());
+    }, "Calling iterateNext on a non-iterable XPathResult should throw a TypeError.");
+
+    test((t) => {
+      let non_iterator_query = make_xpath_query(XPathResult.BOOLEAN_TYPE);
+      invalidate_iterator(t);
+      assert_throws_js(TypeError, () => non_iterator_query.iterateNext());
+    }, "Calling iterateNext on a non-iterable XPathResult after modifying the DOM should throw a TypeError.");
+
+    test((t) => {
+        let iterator = make_xpath_query(XPathResult.ORDERED_NODE_ITERATOR_TYPE);
+
+        iterator.iterateNext();
+
+        invalidate_iterator(t);
+
+        assert_throws_dom(
+          "InvalidStateError",
+          () => iterator.iterateNext(),
+        );
+    }, "Calling iterateNext after having modified the DOM should throw an exception.");
+
+    test((t) => {
+        let iterator = make_xpath_query(XPathResult.ORDERED_NODE_ITERATOR_TYPE);
+
+        iterator.iterateNext();
+        iterator.iterateNext();
+
+        invalidate_iterator(t);
+
+        assert_throws_dom(
+          "InvalidStateError",
+          () => iterator.iterateNext(),
+        );
+    }, "Calling iterateNext after having modified the DOM should throw an exception even if the iterator is exhausted.");
+  </script>
+</body>
+</html>

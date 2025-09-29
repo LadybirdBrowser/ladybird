@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-concat">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="helpers.js"></script>
+<body>
+<div id="context"></div>
+<script>
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span>foo</span><span>bar</span><b>ber</b>';
+  assert_equals(evaluateString('concat((./span)[2], ./b)', context), 'barber');
+}, 'concat() arguments depending on the context node');
+</script>
+</body>

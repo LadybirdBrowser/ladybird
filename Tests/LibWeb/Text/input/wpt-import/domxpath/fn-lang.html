@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-lang">
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+// Set the context node to the first child of the root element, and evaluate
+// the specified XPath expression. The test passes if
+//  - The first child element name is 'match' and XPath result is true, or
+//  - The first child element name is not 'match' and XPath result is false.
+function testFirstChild(expression, xmlString) {
+  let doc = (new DOMParser()).parseFromString(xmlString, 'text/xml');
+  test(() => {
+    let element = doc.documentElement.firstChild;
+    let result = doc.evaluate(expression, element, null, XPathResult.BOOLEAN_TYPE, null);
+    assert_equals(result.resultType, XPathResult.BOOLEAN_TYPE);
+    assert_equals(result.booleanValue, element.localName == 'match', element.outerHTML);
+  }, `${expression}: ${doc.documentElement.outerHTML}`);
+}
+
+testFirstChild('lang("en")', '<root><match xml:lang="en"/></root>');
+testFirstChild('lang("en")', '<root><match xml:lang="EN"/></root>');
+testFirstChild('lang("en")', '<root><match xml:lang="en-us"/></root>');
+testFirstChild('lang("en")', '<root><unmatch/></root>');
+
+// XPath 1.0 says:
+// if the context node has no xml:lang attribute, by the value of the
+// xml:lang attribute on the nearest ancestor of the context node that has
+// an xml:lang attribute.
+testFirstChild('lang("ja")', '<root xml:lang="ja"><match/></root>');
+
+// XPath 1.0 says:
+// if there is some suffix starting with - such that the attribute value is
+// equal to the argument ignoring that suffix of the attribute value
+testFirstChild('lang("ja")', '<root xml:lang="ja-jp"><unmatch xml:lang="ja_JP"/></root>');
+
+// XPath 3.1 is not to be followed as per: https://github.com/whatwg/dom/issues/1199
+testFirstChild('lang("ko")', '<root><unmatch xml:lang="&#x212A;o"/></root>');
+</script>
+</body>

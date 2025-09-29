@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id">
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+// Test the id() function with various scenarios
+function testIdFunction(expression, xmlString, expectedIds) {
+  let doc = (new DOMParser()).parseFromString(xmlString, 'text/xml');
+  test(() => {
+    let result = doc.evaluate(expression, doc.documentElement, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+    assert_equals(result.resultType, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE);
+    let actualIds = [];
+    for (let i = 0; i < result.snapshotLength; i++) {
+      actualIds.push(result.snapshotItem(i).getAttribute('id'));
+    }
+    actualIds.sort();
+    expectedIds.sort();
+    assert_array_equals(actualIds, expectedIds, `Expected IDs ${expectedIds}, got ${actualIds}`);
+  }, `${expression}: ${doc.documentElement.outerHTML}`);
+}
+
+// Test single ID
+testIdFunction('id("test1")', '<root><div id="test1">Match</div></root>', ['test1']);
+
+// Test multiple IDs in space-separated string
+testIdFunction('id("test1 test2")', '<root><div id="test1">First</div><div id="test2">Second</div></root>', ['test1', 'test2']);
+
+// Test non-existent ID
+testIdFunction('id("nonexistent")', '<root><div id="test1">No match</div></root>', []);
+
+// Test mixed case IDs (should be case-sensitive)
+testIdFunction('id("Test1")', '<root><div id="test1">No match</div></root>', []);
+
+// Test multiple elements with same ID (should return all)
+testIdFunction('id("duplicate")', '<root><div id="duplicate">First</div><div id="duplicate">Second</div></root>', ['duplicate', 'duplicate']);
+
+// Test IDs with special characters
+testIdFunction('id("test-1")', '<root><div id="test-1">Match</div></root>', ['test-1']);
+
+// Test empty ID string
+testIdFunction('id("")', '<root><div id="">Empty ID</div></root>', []);
+
+// Test whitespace in ID string
+testIdFunction('id(" test1 ")', '<root><div id="test1">Match</div></root>', ['test1']);
+</script>
+</body>
