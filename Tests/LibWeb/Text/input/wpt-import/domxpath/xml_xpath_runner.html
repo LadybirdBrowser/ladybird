@@ -1,0 +1,59 @@
+<!doctype html>
+<title>XPath tests</title>
+<meta name="timeout" content="long">
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+<script>
+setup({ explicit_done: true });
+
+function find_child_element(context, element) {
+  for (var i = 0; i < context.childNodes.length; i++) {
+    var child = context.childNodes[i];
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName === element)
+      return child;
+  }
+}
+
+function xpath_test(test_el) {
+  /* note this func adopts the tree! */
+  var new_doc = document.implementation.createDocument("", "");
+  var xpath = find_child_element(test_el, "xpath");
+  var result = find_child_element(test_el, "result");
+  var namespace = find_child_element(result, "namespace");
+  var localname = find_child_element(result, "localname");
+  var nth = find_child_element(result, "nth");
+  var tree = find_child_element(test_el, "tree");
+  var actual_tree = new_doc.adoptNode(tree.firstElementChild);
+  new_doc.appendChild(actual_tree);
+  test(function() {
+    var result = new_doc.evaluate(xpath.textContent, // expression
+                                  actual_tree, // context node
+                                  new_doc.createNSResolver(actual_tree), // resolver
+                                  XPathResult.ANY_TYPE, // type
+                                  null); // result
+    var matched = [];
+    var cur;
+    while ((cur = result.iterateNext()) !== null) {
+      matched.push(cur);
+    }
+    assert_equals(matched.length, 1, "Should match one node");
+    var similar = new_doc.getElementsByTagNameNS(namespace.textContent,
+                                                 localname.textContent);
+    assert_equals(matched[0], similar[nth.textContent]);
+  });
+}
+
+var xhr = new XMLHttpRequest();
+xhr.open("GET", "xml_xpath_tests.xml");
+xhr.onload = function(e) {
+  var tests = xhr.responseXML.documentElement;
+  for (var i = 0; i < tests.childNodes.length; i++) {
+    var child = tests.childNodes[i];
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      xpath_test(child);
+    }
+  }
+  done();
+};
+xhr.send();
+</script>

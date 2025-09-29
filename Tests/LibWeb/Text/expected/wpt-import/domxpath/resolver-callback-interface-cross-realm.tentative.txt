@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	XPathNSResolver is cross-realm plain object without 'lookupNamespaceURI' property
+Fail	XPathNSResolver is cross-realm plain object with non-callable 'lookupNamespaceURI' property
+Fail	XPathNSResolver is cross-realm non-callable revoked Proxy
+Fail	XPathNSResolver is cross-realm callable revoked Proxy
+Fail	XPathNSResolver is cross-realm plain object with revoked Proxy as 'lookupNamespaceURI' property

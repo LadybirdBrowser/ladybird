@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-document XPath expressions</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+function toArray(result) {
+  var a = [];
+  while (true) {
+    var node = result.iterateNext();
+    if (node === null) break;
+    a.push(node);
+  }
+  return a;
+}
+
+var html_ns = "http://www.w3.org/1999/xhtml";
+var xml_doc = document.implementation.createDocument(html_ns, "html");
+var html_doc = document.implementation.createHTMLDocument();
+
+function ns_resolver(x) {
+  if (x === "html") {
+    return html_ns;
+  } else {
+    return null;
+  }
+}
+
+test(function() {
+  var xml_doc_expression = xml_doc.createExpression("//html");
+  assert_array_equals(toArray(xml_doc_expression.evaluate(xml_doc)), []);
+}, "expression from XML document, context node in XML document, no namespace resolver");
+
+test(function() {
+  var html_doc_expression = html_doc.createExpression("//html");
+  assert_array_equals(toArray(html_doc_expression.evaluate(html_doc)), [html_doc.documentElement]);
+}, "expression from HTML document, context node in HTML document, no namespace resolver");
+
+test(function() {
+  var xml_doc_expression = xml_doc.createExpression("//html");
+  assert_array_equals(toArray(xml_doc_expression.evaluate(html_doc)), [html_doc.documentElement]);
+}, "expression from XML document, context node in HTML document, no namespace resolver");
+
+test(function() {
+  var html_doc_expression = html_doc.createExpression("//html");
+  assert_array_equals(toArray(html_doc_expression.evaluate(xml_doc)), []);
+}, "expression from HTML document, context node in XML document, no namespace resolver");
+
+test(function() {
+  var xml_doc_expression = xml_doc.createExpression("//html", ns_resolver);
+  assert_array_equals(toArray(xml_doc_expression.evaluate(xml_doc)), []);
+}, "expression from XML document, context node in XML document, with namespace resolver");
+
+test(function() {
+  var html_doc_expression = html_doc.createExpression("//html", ns_resolver);
+  assert_array_equals(toArray(html_doc_expression.evaluate(html_doc)), [html_doc.documentElement]);
+}, "expression from HTML document, context node in HTML document, with namespace resolver");
+
+test(function() {
+  var xml_doc_expression = xml_doc.createExpression("//html", ns_resolver);
+  assert_array_equals(toArray(xml_doc_expression.evaluate(html_doc)), [html_doc.documentElement]);
+}, "expression from XML document, context node in HTML document, with namespace resolver");
+
+test(function() {
+  var html_doc_expression = html_doc.createExpression("//html", ns_resolver);
+  assert_array_equals(toArray(html_doc_expression.evaluate(xml_doc)), []);
+}, "expression from HTML document, context node in XML document, with namespace resolver");
+</script>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	An expression in a predicate should not change the context node

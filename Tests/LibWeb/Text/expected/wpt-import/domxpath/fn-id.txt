@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	id("test1"): <root><div id="test1">Match</div></root>
+Pass	id("test1 test2"): <root><div id="test1">First</div><div id="test2">Second</div></root>
+Pass	id("nonexistent"): <root><div id="test1">No match</div></root>
+Pass	id("Test1"): <root><div id="test1">No match</div></root>
+Fail	id("duplicate"): <root><div id="duplicate">First</div><div id="duplicate">Second</div></root>
+Pass	id("test-1"): <root><div id="test-1">Match</div></root>
+Pass	id(""): <root><div id="">Empty ID</div></root>
+Fail	id(" test1 "): <root><div id="test1">Match</div></root>

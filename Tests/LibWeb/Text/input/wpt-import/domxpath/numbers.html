@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/1999/REC-xpath-19991116/#numbers">
+<body>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="helpers.js"></script>
+<div id="context"></div>
+<script>
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span></span><span></span><span></span><br><br>';
+  assert_equals(evaluateNumber('count((./span)[1]) + count(./br)', context), 3);
+}, '"+" operator depending on the context node');
+
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span></span><span></span><span></span><br><br>';
+  assert_equals(evaluateNumber('count((./span)[1]) - count(./br)', context), -1);
+}, '"-" operator depending on the context node');
+
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span></span><span></span><span></span><br><br>';
+  assert_equals(evaluateNumber('count((./span)[1]) * count(./br)', context), 2);
+}, '"*" operator depending on the context node');
+
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span></span><span></span><span></span><br><br>';
+  assert_equals(evaluateNumber('count((./span)[1]) div count(./br)', context), 0.5);
+}, '"div" operator depending on the context node');
+
+test(() => {
+  const context = document.querySelector('#context');
+  context.innerHTML = '<span></span><span></span><span></span><br><br>';
+  assert_equals(evaluateNumber('count((./span)[1]) mod count(./br)', context), 1);
+}, '"mod" operator depending on the context node');
+</script>
+</body>
