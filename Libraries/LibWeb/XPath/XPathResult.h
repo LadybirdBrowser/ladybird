@@ -46,6 +46,11 @@ public:
     GC::Ptr<DOM::Node> iterate_next();
     GC::Ptr<DOM::Node> snapshot_item(int index);
 
+    void set_number(WebIDL::Double number_value);
+    void set_string(String string_value);
+    void set_boolean(bool boolean_value);
+    void set_node_set(Vector<GC::Ptr<DOM::Node>> node_set, unsigned short type);
+
 private:
     WebIDL::UnsignedShort m_result_type;
     WebIDL::Double m_number_value;

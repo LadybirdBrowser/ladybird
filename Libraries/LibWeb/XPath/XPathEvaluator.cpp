@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/XPathEvaluatorPrototype.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+#include "XPath.h"
 #include "XPathEvaluator.h"
 #include "XPathExpression.h"
 #include "XPathResult.h"
@@ -39,13 +40,13 @@ void XPathEvaluator::initialize(JS::Realm& realm)
 WebIDL::ExceptionOr<GC::Ref<XPathExpression>> XPathEvaluator::create_expression(String const& expression, GC::Ptr<XPathNSResolver> resolver)
 {
     auto& realm = this->realm();
-    return realm.create<XPathExpression>(realm, expression, resolver);
+    return XPath::create_expression(realm, expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathEvaluator::evaluate(String const&, DOM::Node const&, GC::Ptr<XPathNSResolver>, WebIDL::UnsignedShort, GC::Ptr<XPathResult>)
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathEvaluator::evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
     auto& realm = this->realm();
-    return realm.create<XPathResult>(realm);
+    return XPath::evaluate(realm, expression, context_node, resolver, type, result);
 }
 
 GC::Ref<DOM::Node> XPathEvaluator::create_ns_resolver(GC::Ref<DOM::Node> node_resolver)
