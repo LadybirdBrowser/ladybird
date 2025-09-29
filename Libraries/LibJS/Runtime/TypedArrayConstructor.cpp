@@ -95,7 +95,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
         // c. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
         GC::RootVector<Value> arguments(vm.heap());
         arguments.empend(length);
-        auto* target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
+        auto target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
         // d. Let k be 0.
         // e. Repeat, while k < len,
@@ -142,7 +142,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
     // 10. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(length);
-    auto* target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
+    auto target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
     // 11. Let k be 0.
     // 12. Repeat, while k < len,
@@ -191,7 +191,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::of)
     // 4. Let newObj be ? TypedArrayCreate(C, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.append(Value(length));
-    auto* new_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
+    auto new_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,

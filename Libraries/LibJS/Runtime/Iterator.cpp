@@ -136,7 +136,7 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM& vm, Valu
     // 4. Else,
     else {
         // a. Let iterator be ? Call(method, obj).
-        iterator = TRY(call(vm, method, object));
+        iterator = TRY(call(vm, *method, object));
     }
 
     // 5. If iterator is not an Object, throw a TypeError exception.
@@ -154,12 +154,12 @@ ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM& vm, IteratorRecord& iterato
         // 1. If value is not present, then
         if (!value.has_value()) {
             // a. Let result be Completion(Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]])).
-            return call(vm, iterator_record.next_method, iterator_record.iterator);
+            return call(vm, iterator_record.next_method, *iterator_record.iterator);
         }
         // 2. Else,
         else {
             // a. Let result be Completion(Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »)).
-            return call(vm, iterator_record.next_method, iterator_record.iterator, *value);
+            return call(vm, iterator_record.next_method, *iterator_record.iterator, *value);
         }
     }();
 
@@ -280,7 +280,7 @@ static Completion iterator_close_impl(VM& vm, IteratorRecord const& iterator_rec
     // 1. Assert: Type(iteratorRecord.[[Iterator]]) is Object.
 
     // 2. Let iterator be iteratorRecord.[[Iterator]].
-    auto iterator = iterator_record.iterator;
+    auto iterator = iterator_record.iterator.as_nonnull();
 
     // OPTIMIZATION: "return" method is not defined on any of iterators we treat as built-in.
     if (iterator->as_builtin_iterator_if_next_is_not_redefined(iterator_record))
@@ -302,7 +302,7 @@ static Completion iterator_close_impl(VM& vm, IteratorRecord const& iterator_rec
             return completion;
 
         // c. Set innerResult to Completion(Call(return, iterator)).
-        inner_result = call(vm, return_method, iterator);
+        inner_result = call(vm, *return_method, iterator);
 
         // Note: If this is AsyncIteratorClose perform one extra step.
         if (iterator_hint == IteratorHint::Async && !inner_result.is_error()) {

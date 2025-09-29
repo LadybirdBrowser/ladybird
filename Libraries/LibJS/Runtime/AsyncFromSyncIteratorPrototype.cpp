@@ -38,7 +38,7 @@ enum class CloseOnRejection {
 };
 
 // 27.1.4.4 AsyncFromSyncIteratorContinuation ( result, promiseCapability, syncIteratorRecord, closeOnRejection ), https://tc39.es/ecma262/#sec-asyncfromsynciteratorcontinuation
-static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, PromiseCapability& promise_capability, IteratorRecord const& sync_iterator_record, CloseOnRejection close_on_rejection)
+static GC::Ref<Object> async_from_sync_iterator_continuation(VM& vm, Object& result, PromiseCapability& promise_capability, IteratorRecord const& sync_iterator_record, CloseOnRejection close_on_rejection)
 {
     auto& realm = *vm.current_realm();
 
@@ -70,7 +70,7 @@ static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, Pro
     // 9. Let unwrap be a new Abstract Closure with parameters (value) that captures done and performs the following steps when called:
     auto unwrap = [done](VM& vm) -> ThrowCompletionOr<Value> {
         // a. Return CreateIterResultObject(value, done).
-        return create_iterator_result_object(vm, vm.argument(0), done).ptr();
+        return create_iterator_result_object(vm, vm.argument(0), done);
     };
 
     // 10. Let onFulfilled be CreateBuiltinFunction(unwrap, 1, "", « »).
@@ -152,7 +152,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::return_)
     auto& sync_iterator_record = this_object->sync_iterator_record();
 
     // 5. Let syncIterator be syncIteratorRecord.[[Iterator]].
-    auto sync_iterator = sync_iterator_record.iterator;
+    auto sync_iterator = sync_iterator_record.iterator.as_nonnull();
 
     // 6. Let return be Completion(GetMethod(syncIterator, "return")).
     // 7. IfAbruptRejectPromise(return, promiseCapability).
@@ -176,8 +176,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::return_)
     //     a. Let result be Completion(Call(return, syncIterator)).
     // 11. IfAbruptRejectPromise(result, promiseCapability).
     auto result = TRY_OR_REJECT(vm, promise_capability,
-        (vm.argument_count() > 0 ? call(vm, return_method, sync_iterator, vm.argument(0))
-                                 : call(vm, return_method, sync_iterator)));
+        (vm.argument_count() > 0 ? call(vm, *return_method, sync_iterator, vm.argument(0))
+                                 : call(vm, *return_method, sync_iterator)));
 
     // 12. If Type(result) is not Object, then
     if (!result.is_object()) {
@@ -209,7 +209,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
     auto& sync_iterator_record = this_object->sync_iterator_record();
 
     // 5. Let syncIterator be syncIteratorRecord.[[Iterator]].
-    auto sync_iterator = sync_iterator_record.iterator;
+    auto sync_iterator = sync_iterator_record.iterator.as_nonnull();
 
     // 6. Let throw be Completion(GetMethod(syncIterator, "throw")).
     // 7. IfAbruptRejectPromise(throw, promiseCapability).
@@ -243,8 +243,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
     //     a. Let result be Completion(Call(throw, syncIterator)).
     // 11. IfAbruptRejectPromise(result, promiseCapability).
     auto result = TRY_OR_REJECT(vm, promise_capability,
-        (vm.argument_count() > 0 ? call(vm, throw_method, sync_iterator, vm.argument(0))
-                                 : call(vm, throw_method, sync_iterator)));
+        (vm.argument_count() > 0 ? call(vm, *throw_method, sync_iterator, vm.argument(0))
+                                 : call(vm, *throw_method, sync_iterator)));
 
     // 12. If result is not an Object, then
     if (!result.is_object()) {

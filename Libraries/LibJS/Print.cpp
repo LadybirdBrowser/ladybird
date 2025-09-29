@@ -275,7 +275,7 @@ ErrorOr<void> print_error(JS::PrintContext& print_context, JS::Object const& obj
     auto name = object.get_without_side_effects(print_context.vm.names.name);
     auto message = object.get_without_side_effects(print_context.vm.names.message);
     if (name.is_accessor() || message.is_accessor()) {
-        TRY(print_value(print_context, &object, seen_objects));
+        TRY(print_value(print_context, object, seen_objects));
     } else {
         auto name_string = name.to_string_without_side_effects();
         auto message_string = message.to_string_without_side_effects();
@@ -297,9 +297,9 @@ ErrorOr<void> print_proxy_object(JS::PrintContext& print_context, JS::ProxyObjec
 {
     TRY(print_type(print_context, "Proxy"sv));
     TRY(js_out(print_context, "\n  target: "));
-    TRY(print_value(print_context, &proxy_object.target(), seen_objects));
+    TRY(print_value(print_context, proxy_object.target(), seen_objects));
     TRY(js_out(print_context, "\n  handler: "));
-    TRY(print_value(print_context, &proxy_object.handler(), seen_objects));
+    TRY(print_value(print_context, proxy_object.handler(), seen_objects));
     return {};
 }
 
@@ -911,7 +911,7 @@ ErrorOr<void> print_string_object(JS::PrintContext& print_context, JS::StringObj
 {
     TRY(print_type(print_context, "String"sv));
     TRY(js_out(print_context, " "));
-    TRY(print_value(print_context, &string_object.primitive_string(), seen_objects));
+    TRY(print_value(print_context, string_object.primitive_string(), seen_objects));
     return {};
 }
 

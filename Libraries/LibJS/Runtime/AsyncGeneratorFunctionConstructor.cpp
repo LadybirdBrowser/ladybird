@@ -52,7 +52,7 @@ ThrowCompletionOr<GC::Ref<Object>> AsyncGeneratorFunctionConstructor::construct(
     auto* constructor = vm.active_function_object();
 
     // 2. If bodyArg is not present, set bodyArg to the empty String.
-    Value body_arg = &vm.empty_string();
+    Value body_arg = vm.empty_string();
     if (!arguments.is_empty())
         body_arg = arguments.last();
 

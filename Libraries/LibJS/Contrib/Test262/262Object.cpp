@@ -41,10 +41,10 @@ void $262Object::initialize(Realm& realm)
     define_native_function(realm, "detachArrayBuffer"_utf16_fly_string, detach_array_buffer, 1, attr);
     define_native_function(realm, "evalScript"_utf16_fly_string, eval_script, 1, attr);
 
-    define_direct_property("agent"_utf16_fly_string, m_agent, attr);
+    define_direct_property("agent"_utf16_fly_string, *m_agent, attr);
     define_direct_property("gc"_utf16_fly_string, realm.global_object().get_without_side_effects("gc"_utf16_fly_string), attr);
-    define_direct_property("global"_utf16_fly_string, &realm.global_object(), attr);
-    define_direct_property("IsHTMLDDA"_utf16_fly_string, m_is_htmldda, attr);
+    define_direct_property("global"_utf16_fly_string, realm.global_object(), attr);
+    define_direct_property("IsHTMLDDA"_utf16_fly_string, *m_is_htmldda, attr);
 }
 
 void $262Object::visit_edges(Cell::Visitor& visitor)
@@ -71,7 +71,9 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
         },
         nullptr));
     vm.pop_execution_context();
-    return Value(global_object->$262());
+    auto* $262_object = global_object->$262();
+    VERIFY($262_object);
+    return Value(*global_object->$262());
 }
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)

@@ -166,7 +166,7 @@ Optional<JS::Value> HTMLCollection::item_value(size_t index) const
     auto* element = item(index);
     if (!element)
         return {};
-    return element;
+    return *element;
 }
 
 JS::Value HTMLCollection::named_item_value(FlyString const& name) const
@@ -174,7 +174,7 @@ JS::Value HTMLCollection::named_item_value(FlyString const& name) const
     auto* element = named_item(name);
     if (!element)
         return JS::js_undefined();
-    return element;
+    return *element;
 }
 
 }

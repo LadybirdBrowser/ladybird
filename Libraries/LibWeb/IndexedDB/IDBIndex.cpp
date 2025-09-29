@@ -128,7 +128,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(JS::Value query, 
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+        auto result_cursor = iterate_a_cursor(realm, cursor);
+        return result_cursor ? *result_cursor : JS::js_null();
     });
 
     // 8. Let request be the result of running asynchronously execute a request with this and operation.
@@ -275,7 +276,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(JS::Value que
 
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, cursor));
+        auto result_cursor = iterate_a_cursor(realm, cursor);
+        return result_cursor ? *result_cursor : JS::js_null();
     });
 
     // 8. Let request be the result of running asynchronously execute a request with this and operation.

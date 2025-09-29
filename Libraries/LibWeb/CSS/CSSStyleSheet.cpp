@@ -224,7 +224,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         set_disallow_modification(false);
 
         // 5. Resolve promise with sheet.
-        WebIDL::resolve_promise(realm, *promise, this);
+        WebIDL::resolve_promise(realm, *promise, *this);
     }));
 
     return promise;

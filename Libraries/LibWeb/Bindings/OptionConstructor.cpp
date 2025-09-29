@@ -31,7 +31,7 @@ void OptionConstructor::initialize(JS::Realm& realm)
 
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "Option"_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLOptionElementPrototype>(realm, "HTMLOptionElement"_fly_string), 0);
+    define_direct_property(vm.names.prototype, ensure_web_prototype<Bindings::HTMLOptionElementPrototype>(realm, "HTMLOptionElement"_fly_string), 0);
 }
 
 JS::ThrowCompletionOr<JS::Value> OptionConstructor::call()
@@ -49,7 +49,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
     // NOTE: This implements the default value for the `text` parameter (the empty string "").
     auto text_value = vm.argument(0);
     if (text_value.is_undefined())
-        text_value = &vm.empty_string();
+        text_value = vm.empty_string();
 
     // 1. Let document be the current principal global object's associated Document.
     auto& window = as<HTML::Window>(HTML::current_principal_global_object());

@@ -132,10 +132,10 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::stringify)
 
 // 25.5.2.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/ecma262/#sec-serializejsonproperty
 // 1.4.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/proposal-json-parse-with-source/#sec-serializejsonproperty
-ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, Object* holder)
+ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, Object& holder)
 {
     // 1. Let value be ? Get(holder, key).
-    auto value = TRY(holder->get(key));
+    auto value = TRY(holder.get(key));
 
     // 2. If Type(value) is Object or BigInt, then
     if (value.is_object() || value.is_bigint()) {
@@ -182,7 +182,7 @@ ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, 
         // e. Else if value has a [[BigIntData]] internal slot, then
         else if (is<BigIntObject>(value_object)) {
             // i. Set value to value.[[BigIntData]].
-            value = Value(&static_cast<BigIntObject&>(value_object).bigint());
+            value = Value(static_cast<BigIntObject&>(value_object).bigint());
         }
     }
 
@@ -244,7 +244,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_object(VM& vm, StringifySta
     auto process_property = [&](PropertyKey const& key) -> ThrowCompletionOr<void> {
         if (key.is_symbol())
             return {};
-        auto serialized_property_string = TRY(serialize_json_property(vm, state, key, &object));
+        auto serialized_property_string = TRY(serialize_json_property(vm, state, key, object));
         if (serialized_property_string.has_value()) {
             property_strings.append(MUST(String::formatted(
                 "{}:{}{}",
@@ -315,7 +315,7 @@ ThrowCompletionOr<String> JSONObject::serialize_json_array(VM& vm, StringifyStat
     property_strings.ensure_capacity(length);
 
     for (size_t i = 0; i < length; ++i) {
-        auto serialized_property_string = TRY(serialize_json_property(vm, state, i, &object));
+        auto serialized_property_string = TRY(serialize_json_property(vm, state, i, object));
         if (!serialized_property_string.has_value()) {
             property_strings.append("null"_string);
         } else {
@@ -487,7 +487,7 @@ Value JSONObject::parse_json_value(VM& vm, JsonValue const& value)
     VERIFY_NOT_REACHED();
 }
 
-Object* JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
+GC::Ref<Object> JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
 {
     auto& realm = *vm.current_realm();
     auto object = Object::create(realm, realm.intrinsics().object_prototype());
@@ -497,7 +497,7 @@ Object* JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
     return object;
 }
 
-Array* JSONObject::parse_json_array(VM& vm, JsonArray const& json_array)
+GC::Ref<Array> JSONObject::parse_json_array(VM& vm, JsonArray const& json_array)
 {
     auto& realm = *vm.current_realm();
     auto array = MUST(Array::create(realm, 0));
@@ -509,15 +509,15 @@ Array* JSONObject::parse_json_array(VM& vm, JsonArray const& json_array)
 }
 
 // 25.5.1.1 InternalizeJSONProperty ( holder, name, reviver ), https://tc39.es/ecma262/#sec-internalizejsonproperty
-ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* holder, PropertyKey const& name, FunctionObject& reviver)
+ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object& holder, PropertyKey const& name, FunctionObject& reviver)
 {
-    auto value = TRY(holder->get(name));
+    auto value = TRY(holder.get(name));
     if (value.is_object()) {
         auto is_array = TRY(value.is_array(vm));
 
         auto& value_object = value.as_object();
         auto process_property = [&](PropertyKey const& key) -> ThrowCompletionOr<void> {
-            auto element = TRY(internalize_json_property(vm, &value_object, key, reviver));
+            auto element = TRY(internalize_json_property(vm, value_object, key, reviver));
             if (element.is_undefined())
                 TRY(value_object.internal_delete(key));
             else

@@ -1969,7 +1969,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         // This might need to change if we switch to a RootVector.
         if (is_platform_object(sequence_generic_type.parameters().first())) {
             scoped_generator.append(R"~~~(
-        auto* wrapped_element@recursion_depth@ = &(*element@recursion_depth@);
+        auto& wrapped_element@recursion_depth@ = *element@recursion_depth@;
 )~~~");
         } else {
             scoped_generator.append("JS::Value wrapped_element@recursion_depth@;\n"sv);
@@ -2036,9 +2036,13 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     } else if (type.is_integer()) {
         generate_from_integral(scoped_generator, type, generate_optional_integral_type);
-    } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
+    } else if (type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value@;
+)~~~");
+    } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray") {
+        scoped_generator.append(R"~~~(
+    @result_expression@ *@value@;
 )~~~");
     } else if (type.name() == "Promise") {
         scoped_generator.append(R"~~~(
@@ -2189,11 +2193,11 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
     } else if (type.name() == "object") {
         scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value(const_cast<JS::Object*>(@value@));
+    @result_expression@ JS::Value(const_cast<JS::Object&>(*@value@));
 )~~~");
     } else {
         scoped_generator.append(R"~~~(
-    @result_expression@ &const_cast<@type@&>(*@value@);
+    @result_expression@ const_cast<@type@&>(*@value@);
 )~~~");
     }
 
@@ -2269,7 +2273,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@@overload_suffi
 
     if (is_static_function == StaticFunction::No) {
         function_generator.append(R"~~~(
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 )~~~");
     }
 
@@ -2287,7 +2291,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@@overload_suffi
         if (function.extended_attributes.contains("CEReactions")) {
             // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
             function_generator.append(R"~~~(
-    auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*impl).custom_element_reactions_stack;
+    auto& reactions_stack = HTML::relevant_similar_origin_window_agent(impl).custom_element_reactions_stack;
     reactions_stack.element_queue_stack.append({});
 )~~~");
         }
@@ -2805,7 +2809,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
                 // 2. Set prototype to the interface prototype object for interface in targetRealm.
                 VERIFY(target_realm);
-                prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
+                prototype = Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@name@"_fly_string);
             }
 
             // 9. Set instance.[[Prototype]] to prototype.
@@ -2832,7 +2836,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
         // 2. Set prototype to the interface prototype object of realm whose interface is the same as the interface of the active function object.
         VERIFY(function_realm);
-        prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*function_realm, "@name@"_fly_string);
+        prototype = Bindings::ensure_web_prototype<@prototype_class@>(*function_realm, "@name@"_fly_string);
     }
 
     VERIFY(prototype.is_object());
@@ -2891,7 +2895,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct@overlo
 
         // 2. Set prototype to the interface prototype object for interface in targetRealm.
         VERIFY(target_realm);
-        prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@namespaced_name@"_fly_string);
+        prototype = Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@namespaced_name@"_fly_string);
     }
 
     // 4. Let instance be MakeBasicObject( « [[Prototype]], [[Extensible]], [[Realm]], [[PrimaryInterface]] »).
@@ -2943,7 +2947,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct@overlo
     //    11.5. Set instance.[[PreventExtensions]] as defined in § 3.9.5 [[PreventExtensions]].
     //    11.6. Set instance.[[OwnPropertyKeys]] as defined in § 3.9.6 [[OwnPropertyKeys]].
 
-    return *impl;
+    return impl;
 }
 )~~~");
     }
@@ -3340,7 +3344,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::to_json)
 {
     WebIDL::log_trace(vm, "@class_name@::to_json");
     auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());
 )~~~");
@@ -3889,7 +3893,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
 
     if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier || interface.set_entry_type.has_value()) {
         generator.append(R"~~~(
-[[maybe_unused]] static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
+[[maybe_unused]] static JS::ThrowCompletionOr<GC::Ref<@fully_qualified_name@>> impl_from(JS::VM& vm)
 {
     auto this_value = vm.this_value();
     JS::Object* this_object = nullptr;
@@ -3902,10 +3906,10 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
         if (interface.name.is_one_of("EventTarget", "Window")) {
             generator.append(R"~~~(
     if (is<HTML::Window>(this_object)) {
-        return static_cast<HTML::Window*>(this_object);
+        return static_cast<HTML::Window&>(*this_object);
     }
     if (is<HTML::WindowProxy>(this_object)) {
-        return static_cast<HTML::WindowProxy*>(this_object)->window().ptr();
+        return static_cast<HTML::WindowProxy*>(this_object)->window().as_nonnull();
     }
 )~~~");
         }
@@ -3913,7 +3917,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
         generator.append(R"~~~(
     if (!is<@fully_qualified_name@>(this_object))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@namespaced_name@");
-    return static_cast<@fully_qualified_name@*>(this_object);
+    return static_cast<@fully_qualified_name@&>(*this_object);
 }
 )~~~");
     }
@@ -3963,7 +3967,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
 
         attribute_generator.append(R"~~~(
-    [[maybe_unused]] auto* impl = TRY(impl_from(vm));
+    [[maybe_unused]] auto impl = TRY(impl_from(vm));
 )~~~");
 
         auto cache_result = false;
@@ -3973,7 +3977,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             attribute_generator.append(R"~~~(
     auto cached_@attribute.cpp_name@ = impl->cached_@attribute.cpp_name@();
     if (cached_@attribute.cpp_name@)
-        return cached_@attribute.cpp_name@;
+        return *cached_@attribute.cpp_name@;
 )~~~");
         }
 
@@ -4273,7 +4277,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                 attribute_generator.append(R"~~~(
     auto cached_@attribute.cpp_name@ = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->cached_@attribute.cpp_name@(); }));
     if (WebIDL::lists_contain_same_elements(cached_@attribute.cpp_name@, retval))
-        return cached_@attribute.cpp_name@;
+        return cached_@attribute.cpp_name@ ? *cached_@attribute.cpp_name@ : JS::js_null();
 
     auto result = TRY([&]() -> JS::ThrowCompletionOr<JS::Value> {
 )~~~");
@@ -4325,7 +4329,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             generate_wrap_statement(generator, "retval", *attribute.type, interface, ByteString::formatted("cached_{} =", attribute_generator.get("attribute.cpp_name")));
             attribute_generator.append(R"~~~(
     impl->set_cached_@attribute.cpp_name@(cached_@attribute.cpp_name@);
-    return cached_@attribute.cpp_name@;
+    return *cached_@attribute.cpp_name@;
 )~~~");
         } else {
             generate_return_statement(generator, *attribute.type, interface);
@@ -4361,7 +4365,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
     [[maybe_unused]] auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
 
@@ -4530,7 +4534,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
 
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
     JS::PropertyDescriptor descriptor { .value = vm.argument(0), .writable = true };
     TRY(impl->internal_define_own_property("@attribute.name@"_utf16_fly_string, descriptor));
     return JS::js_undefined();
@@ -4540,19 +4544,27 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
             attribute_generator.set("put_forwards_identifier"sv, *put_forwards_identifier);
             VERIFY(!put_forwards_identifier->is_empty() && !is_ascii_digit(put_forwards_identifier->byte_at(0))); // Ensure `PropertyKey`s are not Numbers.
 
+            if (attribute.type->is_nullable()) {
+                attribute_generator.set("put_forwards_null_check_if_statement", "if (receiver) {");
+                attribute_generator.set("put_forwards_null_check_end_of_if_statement", "}");
+            } else {
+                attribute_generator.set("put_forwards_null_check_if_statement", "");
+                attribute_generator.set("put_forwards_null_check_end_of_if_statement", "");
+            }
+
             attribute_generator.append(R"~~~(
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
     auto value = vm.argument(0);
 
     auto receiver = TRY(throw_dom_exception_if_needed(vm, [&]() { return impl->@attribute.cpp_name@(); }));
-    if (receiver != JS::js_null())
-        TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_utf16_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
-
+    @put_forwards_null_check_if_statement@
+    TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_utf16_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
+    @put_forwards_null_check_end_of_if_statement@
     return JS::js_undefined();
 }
 )~~~");
@@ -4593,7 +4605,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::to_string)
 {
     WebIDL::log_trace(vm, "@class_name@::to_string");
     [[maybe_unused]] auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
 )~~~");
         if (interface.stringifier_attribute.has_value()) {
@@ -4618,7 +4630,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::to_string)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::entries)
 {
     WebIDL::log_trace(vm, "@class_name@::entries");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     return TRY(throw_dom_exception_if_needed(vm, [&] { return @iterator_name@::create(*impl, Object::PropertyKind::KeyAndValue); }));
 }
@@ -4627,7 +4639,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
 {
     WebIDL::log_trace(vm, "@class_name@::for_each");
     [[maybe_unused]] auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     auto callback = vm.argument(0);
     if (!callback.is_function())
@@ -4649,7 +4661,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::keys)
 {
     WebIDL::log_trace(vm, "@class_name@::keys");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     return TRY(throw_dom_exception_if_needed(vm, [&] { return @iterator_name@::create(*impl, Object::PropertyKind::Key);  }));
 }
@@ -4657,7 +4669,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::keys)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 {
     WebIDL::log_trace(vm, "@class_name@::values");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     return TRY(throw_dom_exception_if_needed(vm, [&] { return @iterator_name@::create(*impl, Object::PropertyKind::Value); }));
 }
@@ -4673,7 +4685,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 {
     WebIDL::log_trace(vm, "@class_name@::values");
     auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 )~~~");
 
         StringBuilder arguments_builder;
@@ -4718,7 +4730,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::get_size)
 {
     WebIDL::log_trace(vm, "@class_name@::size");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4730,7 +4742,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::entries)
 {
     WebIDL::log_trace(vm, "@class_name@::entries");
     auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4742,7 +4754,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 {
     WebIDL::log_trace(vm, "@class_name@::values");
     auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4753,7 +4765,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
 {
     WebIDL::log_trace(vm, "@class_name@::for_each");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4773,7 +4785,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
 {
     WebIDL::log_trace(vm, "@class_name@::has");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4793,7 +4805,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
 {
     WebIDL::log_trace(vm, "@class_name@::add");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4816,7 +4828,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
 {
     WebIDL::log_trace(vm, "@class_name@::delete_");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -4838,7 +4850,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
 {
     WebIDL::log_trace(vm, "@class_name@::clear");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
 
     GC::Ref<JS::Set> set = impl->set_entries();
 
@@ -5276,7 +5288,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
     generator.append(R"~~~(
     define_direct_property(vm.names.length, JS::Value(@constructor.length@), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@name@"_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
+    define_direct_property(vm.names.prototype, ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
 
 )~~~");
 
@@ -5642,18 +5654,18 @@ void @prototype_class@::initialize(JS::Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@to_string_tag@"_string), JS::Attribute::Configurable);
 }
 
-static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
+static JS::ThrowCompletionOr<GC::Ref<@fully_qualified_name@>> impl_from(JS::VM& vm)
 {
     auto this_object = TRY(vm.this_value().to_object(vm));
     if (!is<@fully_qualified_name@>(*this_object))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@name@");
-    return static_cast<@fully_qualified_name@*>(this_object.ptr());
+    return static_cast<@fully_qualified_name@&>(*this_object);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(@prototype_class@::next)
 {
     WebIDL::log_trace(vm, "@prototype_class@::next");
-    auto* impl = TRY(impl_from(vm));
+    auto impl = TRY(impl_from(vm));
     return TRY(throw_dom_exception_if_needed(vm, [&] { return impl->next(); }));
 }
 

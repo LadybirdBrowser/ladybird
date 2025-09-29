@@ -78,9 +78,9 @@ Value from_property_descriptor(VM& vm, Optional<PropertyDescriptor> const& prope
     if (property_descriptor->writable.has_value())
         MUST(object->create_data_property_or_throw(vm.names.writable, Value(*property_descriptor->writable)));
     if (property_descriptor->get.has_value())
-        MUST(object->create_data_property_or_throw(vm.names.get, *property_descriptor->get ? Value(*property_descriptor->get) : js_undefined()));
+        MUST(object->create_data_property_or_throw(vm.names.get, *property_descriptor->get ? Value(**property_descriptor->get) : js_undefined()));
     if (property_descriptor->set.has_value())
-        MUST(object->create_data_property_or_throw(vm.names.set, *property_descriptor->set ? Value(*property_descriptor->set) : js_undefined()));
+        MUST(object->create_data_property_or_throw(vm.names.set, *property_descriptor->set ? Value(**property_descriptor->set) : js_undefined()));
     if (property_descriptor->enumerable.has_value())
         MUST(object->create_data_property_or_throw(vm.names.enumerable, Value(*property_descriptor->enumerable)));
     if (property_descriptor->configurable.has_value())

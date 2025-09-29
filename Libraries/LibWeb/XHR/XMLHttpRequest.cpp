@@ -1243,7 +1243,7 @@ JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const&
     // 4. If xhr’s synchronous flag is set, then throw exception.
     if (m_synchronous) {
         VERIFY(exception);
-        return JS::throw_completion(exception.ptr());
+        return JS::throw_completion(*exception);
     }
 
     // 5. Fire an event named readystatechange at xhr.

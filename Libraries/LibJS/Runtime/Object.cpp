@@ -122,7 +122,7 @@ ThrowCompletionOr<bool> Object::is_extensible() const
 ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key) const
 {
     // 1. Return ? O.[[Get]](P, O).
-    return TRY(internal_get(property_key, this));
+    return TRY(internal_get(property_key, *this));
 }
 
 // NOTE: 7.3.3 GetV ( V, P ) is implemented as Value::get().
@@ -135,7 +135,7 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
     VERIFY(!value.is_special_empty_value());
 
     // 1. Let success be ? O.[[Set]](P, V, O).
-    auto success = TRY(internal_set(property_key, value, this));
+    auto success = TRY(internal_set(property_key, value, *this));
 
     // 2. If success is false and Throw is true, throw a TypeError exception.
     if (!success && throw_exceptions == ShouldThrowExceptions::Yes) {
@@ -511,7 +511,7 @@ ThrowCompletionOr<GC::Ref<Object>> Object::snapshot_own_properties(VM& vm, GC::P
     // 2. If excludedKeys is not present, set excludedKeys to « ».
     // 3. If excludedValues is not present, set excludedValues to « ».
     // 4. Perform ? CopyDataProperties(copy, source, excludedKeys, excludedValues).
-    TRY(copy->copy_data_properties(vm, Value { this }, excluded_keys, excluded_values));
+    TRY(copy->copy_data_properties(vm, *this, excluded_keys, excluded_values));
 
     // 5. Return copy.
     return copy;
@@ -621,7 +621,7 @@ ThrowCompletionOr<Value> Object::private_get(PrivateName const& name)
         return vm.throw_completion<TypeError>(ErrorType::PrivateFieldGetAccessorWithoutGetter, name.description);
 
     // 7. Return ? Call(getter, O).
-    return TRY(call(vm, *getter, this));
+    return TRY(call(vm, *getter, *this));
 }
 
 // 7.3.32 PrivateSet ( O, P, value ), https://tc39.es/ecma262/#sec-privateset
@@ -664,7 +664,7 @@ ThrowCompletionOr<void> Object::private_set(PrivateName const& name, Value value
         return vm.throw_completion<TypeError>(ErrorType::PrivateFieldSetAccessorWithoutSetter, name.description);
 
     // d. Perform ? Call(setter, O, « value »).
-    TRY(call(vm, *setter, this, value));
+    TRY(call(vm, *setter, *this, value));
 
     // 6. Return unused.
     return {};
@@ -690,7 +690,7 @@ ThrowCompletionOr<void> Object::define_field(ClassFieldDefinition const& field)
             init_value = *initializer_value;
         } else {
             // a. Let initValue be ? Call(initializer, receiver).
-            init_value = TRY(call(vm, *initializer.get<GC::Ref<ECMAScriptFunctionObject>>(), this));
+            init_value = TRY(call(vm, *initializer.get<GC::Ref<ECMAScriptFunctionObject>>(), *this));
         }
     }
     // 4. Else, let initValue be undefined.
@@ -1325,7 +1325,7 @@ void Object::define_direct_accessor(PropertyKey const& property_key, FunctionObj
     auto* accessor = existing_property.is_accessor() ? &existing_property.as_accessor() : nullptr;
     if (!accessor) {
         accessor = Accessor::create(vm(), getter, setter);
-        define_direct_property(property_key, accessor, attributes);
+        define_direct_property(property_key, *accessor, attributes);
     } else {
         if (getter)
             accessor->set_getter(getter);
@@ -1410,7 +1410,7 @@ void Object::define_native_function(Realm& realm, PropertyKey const& property_ke
 }
 
 // 20.1.2.3.1 ObjectDefineProperties ( O, Properties ), https://tc39.es/ecma262/#sec-objectdefineproperties
-ThrowCompletionOr<Object*> Object::define_properties(Value properties)
+ThrowCompletionOr<GC::Ref<Object>> Object::define_properties(Value properties)
 {
     auto& vm = this->vm();
 
@@ -1458,7 +1458,7 @@ ThrowCompletionOr<Object*> Object::define_properties(Value properties)
     }
 
     // 6. Return O.
-    return this;
+    return *this;
 }
 
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
@@ -1539,7 +1539,7 @@ ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType pref
         // b. If IsCallable(method) is true, then
         if (method.is_function()) {
             // i. Let result be ? Call(method, O).
-            auto result = TRY(call(vm, method.as_function(), const_cast<Object*>(this)));
+            auto result = TRY(call(vm, method.as_function(), *this));
 
             // ii. If Type(result) is not Object, return result.
             if (!result.is_object())

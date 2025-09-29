@@ -52,7 +52,7 @@ void FormDataIterator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_form_data);
 }
 
-JS::Object* FormDataIterator::next()
+GC::Ref<JS::Object> FormDataIterator::next()
 {
     auto& vm = this->vm();
 
@@ -65,7 +65,7 @@ JS::Object* FormDataIterator::next()
 
     auto entry_value = entry.value.visit(
         [&](GC::Root<FileAPI::File> const& file) -> JS::Value {
-            return file.cell();
+            return *file;
         },
         [&](String const& string) -> JS::Value {
             return JS::PrimitiveString::create(vm, string);
@@ -74,7 +74,7 @@ JS::Object* FormDataIterator::next()
     if (m_iterator_kind == JS::Object::PropertyKind::Value)
         return create_iterator_result_object(vm, entry_value, false);
 
-    return create_iterator_result_object(vm, JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
+    return create_iterator_result_object(vm, JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm, entry.name), entry_value }), false);
 }
 
 }

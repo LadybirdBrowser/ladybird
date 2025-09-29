@@ -299,7 +299,7 @@ void ReplObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
+    define_direct_property("global"_utf16_fly_string, *this, JS::Attribute::Enumerable);
     u8 attr = JS::Attribute::Configurable | JS::Attribute::Writable | JS::Attribute::Enumerable;
     define_native_function(realm, "exit"_utf16_fly_string, exit_interpreter, 0, attr);
     define_native_function(realm, "help"_utf16_fly_string, repl_help, 0, attr);
@@ -323,7 +323,7 @@ void ReplObject::initialize(JS::Realm& realm)
             TRY(global_object.internal_delete(vm.names._));
 
             auto value = vm.argument(0);
-            TRY(global_object.internal_set(vm.names._, value, &global_object));
+            TRY(global_object.internal_set(vm.names._, value, global_object));
             return value;
         },
         attr);
@@ -384,7 +384,7 @@ void ScriptObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
+    define_direct_property("global"_utf16_fly_string, *this, JS::Attribute::Enumerable);
     u8 attr = JS::Attribute::Configurable | JS::Attribute::Writable | JS::Attribute::Enumerable;
     define_native_function(realm, "loadINI"_utf16_fly_string, load_ini, 1, attr);
     define_native_function(realm, "loadJSON"_utf16_fly_string, load_json, 1, attr);

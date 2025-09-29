@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     // 12. For each dictionary dictionary in dictionaries:
     //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
     auto methods = desired_type.create_methods(realm);
-    auto parameter = TRY(desired_type.parameter_from_value(vm, algorithm.get<GC::Root<JS::Object>>()));
+    auto parameter = TRY(desired_type.parameter_from_value(vm, *algorithm.get<GC::Root<JS::Object>>()));
 
     // 9. Set the name attribute of normalizedAlgorithm to algName.
     VERIFY(parameter->name.is_empty());

@@ -168,7 +168,7 @@ Optional<JS::Value> StyleSheetList::item_value(size_t index) const
     if (index >= m_sheets.size())
         return {};
 
-    return m_sheets[index].ptr();
+    return m_sheets[index];
 }
 
 DOM::Document& StyleSheetList::document()

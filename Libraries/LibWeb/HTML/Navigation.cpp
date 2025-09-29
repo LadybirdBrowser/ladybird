@@ -632,13 +632,14 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
 
     // 4. Let current be the current entry of navigation.
     auto current = current_entry();
+    VERIFY(current);
 
     // 5. If key equals current's session history entry's navigation API key, then return
     //    «[ "committed" → a promise resolved with current, "finished" → a promise resolved with current ]».
     if (key == current->session_history_entry().navigation_api_key()) {
         return NavigationResult {
-            .committed = WebIDL::create_resolved_promise(realm, current),
-            .finished = WebIDL::create_resolved_promise(realm, current)
+            .committed = WebIDL::create_resolved_promise(realm, *current),
+            .finished = WebIDL::create_resolved_promise(realm, *current)
         };
     }
 
@@ -761,7 +762,7 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
         event->set_cancelled(true);
 
     // 7. Signal abort on event's abort controller given error.
-    event->abort_controller()->abort(error);
+    event->abort_controller()->abort(*error);
 
     // 8. Set navigation's ongoing navigate event to null.
     m_ongoing_navigate_event = nullptr;
@@ -770,7 +771,7 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
     //   and message, filename, lineno, and colno initialized to appropriate values that can be extracted
     //   from error and the current JavaScript stack in the same underspecified way that the report the exception algorithm does.
     ErrorEventInit event_init = {};
-    event_init.error = error;
+    event_init.error = *error;
     // FIXME: Extract information from the exception and the JS context in the wishy-washy way the spec says here.
     event_init.filename = String {};
     event_init.colno = 0;
@@ -781,12 +782,12 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
 
     // 10. If navigation's ongoing API method tracker is non-null, then reject the finished promise for apiMethodTracker with error.
     if (m_ongoing_api_method_tracker != nullptr)
-        WebIDL::reject_promise(realm, m_ongoing_api_method_tracker->finished_promise, error);
+        WebIDL::reject_promise(realm, m_ongoing_api_method_tracker->finished_promise, *error);
 
     // 11. If navigation's transition is not null, then:
     if (m_transition != nullptr) {
         // 1. Reject navigation's transition's finished promise with error.
-        WebIDL::reject_promise(realm, m_transition->finished(), error);
+        WebIDL::reject_promise(realm, m_transition->finished(), *error);
 
         // 2. Set navigation's transition to null.
         m_transition = nullptr;
@@ -859,7 +860,7 @@ void Navigation::resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker
     VERIFY(api_method_tracker->committed_to_entry != nullptr);
 
     // 2. Resolve apiMethodTracker's finished promise with its committed-to entry.
-    WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, api_method_tracker->committed_to_entry);
+    WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, *api_method_tracker->committed_to_entry);
 
     // 3. Clean up apiMethodTracker.
     clean_up(api_method_tracker);

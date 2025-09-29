@@ -91,7 +91,7 @@ ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction& functio
     auto& target = function.wrapped_target_function();
 
     // 2. Assert: IsCallable(target) is true.
-    VERIFY(Value(&target).is_function());
+    VERIFY(Value(target).is_function());
 
     // 3. Let callerRealm be F.[[Realm]].
     auto* caller_realm = function.realm();
@@ -119,7 +119,7 @@ ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction& functio
     auto wrapped_this_argument = TRY(get_wrapped_value(vm, *target_realm, this_argument));
 
     // 9. Let result be the Completion Record of Call(target, wrappedThisArgument, wrappedArgs).
-    auto result = call(vm, &target, wrapped_this_argument, wrapped_args.span());
+    auto result = call(vm, target, wrapped_this_argument, wrapped_args.span());
 
     // 10. If result.[[Type]] is normal or result.[[Type]] is return, then
     if (!result.is_throw_completion()) {

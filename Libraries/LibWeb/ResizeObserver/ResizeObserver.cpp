@@ -112,10 +112,10 @@ void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> 
     for (size_t i = 0; i < entries.size(); ++i) {
         auto& record = entries.at(i);
         auto property_index = JS::PropertyKey { i };
-        MUST(wrapped_records->create_data_property(property_index, record.ptr()));
+        MUST(wrapped_records->create_data_property(property_index, record));
     }
 
-    (void)WebIDL::invoke_callback(callback, this, WebIDL::ExceptionBehavior::Report, { { wrapped_records, this } });
+    (void)WebIDL::invoke_callback(callback, *this, WebIDL::ExceptionBehavior::Report, { { wrapped_records, *this } });
 }
 
 void ResizeObserver::unregister_observer_if_needed()

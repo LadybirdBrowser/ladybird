@@ -1520,7 +1520,7 @@ public:
 
     bool has_name() const { return m_name; }
 
-    ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name = {}, Utf16FlyString const& class_name = {}) const;
+    ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name = {}, Utf16FlyString const& class_name = {}) const;
 
 private:
     virtual bool is_class_expression() const override { return true; }

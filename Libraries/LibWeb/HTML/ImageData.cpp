@@ -141,7 +141,7 @@ ImageData::ImageData(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Re
     : PlatformObject(realm)
     , m_bitmap(move(bitmap))
     , m_color_space(color_space)
-    , m_data(move(data))
+    , m_data(data)
 {
 }
 
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncod
     auto& vm = this->vm();
 
     // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
-    auto serialized_data = TRY(structured_serialize_internal(vm, m_data, for_storage, memory));
+    auto serialized_data = TRY(structured_serialize_internal(vm, m_data.as_nonnull(), for_storage, memory));
     serialized.append(move(serialized_data));
 
     // 2. Set serialized.[[Width]] to the value of value's width attribute.

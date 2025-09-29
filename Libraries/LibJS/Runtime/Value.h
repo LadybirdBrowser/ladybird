@@ -215,51 +215,39 @@ public:
     {
     }
 
-    Value(Cell const* cell)
-        : Value(GC::IS_CELL_BIT << GC::TAG_SHIFT, reinterpret_cast<void const*>(cell))
+    Value(Cell const& cell)
+        : Value(GC::IS_CELL_BIT << GC::TAG_SHIFT, reinterpret_cast<void const*>(&cell))
     {
     }
 
-    Value(Object const* object)
-        : Value(OBJECT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(object))
+    Value(Object const& object)
+        : Value(OBJECT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(&object))
     {
     }
 
-    Value(PrimitiveString const* string)
-        : Value(STRING_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(string))
+    Value(PrimitiveString const& string)
+        : Value(STRING_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(&string))
     {
     }
 
-    Value(Symbol const* symbol)
-        : Value(SYMBOL_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(symbol))
+    Value(Symbol const& symbol)
+        : Value(SYMBOL_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(&symbol))
     {
     }
 
-    Value(Accessor const* accessor)
-        : Value(ACCESSOR_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(accessor))
+    Value(Accessor const& accessor)
+        : Value(ACCESSOR_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(&accessor))
     {
     }
 
-    Value(BigInt const* bigint)
-        : Value(BIGINT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(bigint))
-    {
-    }
-
-    template<typename T>
-    Value(GC::Ptr<T> ptr)
-        : Value(ptr.ptr())
+    Value(BigInt const& bigint)
+        : Value(BIGINT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(&bigint))
     {
     }
 
     template<typename T>
     Value(GC::Ref<T> ptr)
-        : Value(ptr.ptr())
-    {
-    }
-
-    template<typename T>
-    Value(GC::Root<T> const& ptr)
-        : Value(ptr.ptr())
+        : Value(*ptr.ptr())
     {
     }
 
@@ -435,13 +423,8 @@ private:
     template<typename PointerType>
     Value(u64 tag, PointerType const* ptr)
     {
-        if (!ptr) {
-            // Make sure all nullptrs are null
-            m_value.tag = NULL_TAG;
-            return;
-        }
-
         ASSERT((tag & 0x8000000000000000ul) == 0x8000000000000000ul);
+        ASSERT(ptr);
 
         if constexpr (sizeof(PointerType*) < sizeof(u64)) {
             m_value.encoded = tag | reinterpret_cast<u32>(ptr);

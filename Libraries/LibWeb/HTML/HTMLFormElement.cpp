@@ -1033,7 +1033,7 @@ Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
     // To determine the value of an indexed property for a form element, the user agent must return the value returned by
     // the item method on the elements collection, when invoked with the given index as its argument.
     if (auto value = elements()->item(index))
-        return value;
+        return *value;
     return {};
 }
 
@@ -1186,10 +1186,11 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
     // 5. Otherwise, candidates contains exactly one node. Add a mapping from name to the node in candidates in the form
     //    element's past names map, replacing the previous entry with the same name, if any.
     auto const* node = candidates->item(0);
-    m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = node, .insertion_time = MonotonicTime::now() });
+    VERIFY(node);
+    m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = *node, .insertion_time = MonotonicTime::now() });
 
     // 6. Return the node in candidates.
-    return node;
+    return *node;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button

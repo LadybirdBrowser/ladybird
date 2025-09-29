@@ -377,7 +377,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
                     WebIDL::resolve_promise(realm, *reaction_promise->promise, JS::js_undefined());
                 }
 
-                return reaction_promise->promise;
+                return JS::Value { *reaction_promise->promise };
             }));
 
         return *reaction_promise->promise;
@@ -488,7 +488,7 @@ WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm& realm, WebIDL::Ar
     VERIFY(!view.viewed_array_buffer()->is_detached());
 
     // 4. Let buffer be ? CloneArrayBuffer(O.[[ViewedArrayBuffer]], O.[[ByteOffset]], O.[[ByteLength]], %ArrayBuffer%).
-    auto* buffer = TRY(JS::clone_array_buffer(vm, *view.viewed_array_buffer(), view.byte_offset(), view.byte_length()));
+    auto buffer = TRY(JS::clone_array_buffer(vm, *view.viewed_array_buffer(), view.byte_offset(), view.byte_length()));
 
     // 5. Let array be ! Construct(%Uint8Array%, « buffer »).
     auto array = MUST(JS::construct(vm, *realm.intrinsics().uint8_array_constructor(), buffer));

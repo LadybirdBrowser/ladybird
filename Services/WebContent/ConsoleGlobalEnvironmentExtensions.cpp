@@ -57,7 +57,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
     if (!inspected_node)
         return JS::js_undefined();
 
-    return inspected_node;
+    return *inspected_node;
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$__getter)
@@ -80,13 +80,15 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
         }
 
         auto& element = static_cast<Web::DOM::ParentNode&>(element_value.as_object());
-        return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
-            return element.query_selector(selector);
+        return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&] -> Web::WebIDL::ExceptionOr<JS::Value> {
+            auto const maybe_found_element = TRY(element.query_selector(selector));
+            return maybe_found_element ? *maybe_found_element : JS::js_null();
         }));
     }
 
-    return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
-        return window.associated_document().query_selector(selector);
+    return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&] -> Web::WebIDL::ExceptionOr<JS::Value> {
+        auto const maybe_found_element = TRY(window.associated_document().query_selector(selector));
+        return maybe_found_element ? *maybe_found_element : JS::js_null();
     }));
 }
 

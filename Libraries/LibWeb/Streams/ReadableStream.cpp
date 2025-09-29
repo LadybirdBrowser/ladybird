@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::
     auto readable_stream = realm.create<ReadableStream>(realm);
 
     // 1. If underlyingSource is missing, set it to null.
-    auto underlying_source = underlying_source_object.has_value() ? JS::Value(underlying_source_object.value()) : JS::js_null();
+    auto underlying_source = underlying_source_object.has_value() ? JS::Value(*underlying_source_object.value()) : JS::js_null();
 
     // 2. Let underlyingSourceDict be underlyingSource, converted to an IDL value of type UnderlyingSource.
     auto underlying_source_dict = TRY(UnderlyingSource::from_value(vm, underlying_source));

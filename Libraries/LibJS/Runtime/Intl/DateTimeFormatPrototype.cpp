@@ -142,7 +142,8 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::format)
     }
 
     // 5. Return dtf.[[BoundFormat]].
-    return date_time_format->bound_format();
+    VERIFY(date_time_format->bound_format());
+    return *date_time_format->bound_format();
 }
 
 // 11.3.4 Intl.DateTimeFormat.prototype.formatRange ( startDate, endDate ), https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.formatRange

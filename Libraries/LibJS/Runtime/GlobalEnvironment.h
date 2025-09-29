@@ -27,9 +27,9 @@ public:
     virtual ThrowCompletionOr<Value> get_binding_value(VM&, Utf16FlyString const& name, bool strict) override;
     virtual ThrowCompletionOr<bool> delete_binding(VM&, Utf16FlyString const& name) override;
 
-    ObjectEnvironment& object_record() { return *m_object_record; }
-    Object& global_this_value() { return *m_global_this_value; }
-    DeclarativeEnvironment& declarative_record() { return *m_declarative_record; }
+    ObjectEnvironment& object_record() const { return *m_object_record; }
+    Object& global_this_value() const { return *m_global_this_value; }
+    DeclarativeEnvironment& declarative_record() const { return *m_declarative_record; }
 
     bool has_lexical_declaration(Utf16FlyString const& name) const;
     ThrowCompletionOr<bool> has_restricted_global_property(Utf16FlyString const& name) const;
@@ -44,9 +44,9 @@ private:
     virtual bool is_global_environment() const override { return true; }
     virtual void visit_edges(Visitor&) override;
 
-    GC::Ptr<ObjectEnvironment> m_object_record;           // [[ObjectRecord]]
-    GC::Ptr<Object> m_global_this_value;                  // [[GlobalThisValue]]
-    GC::Ptr<DeclarativeEnvironment> m_declarative_record; // [[DeclarativeRecord]]
+    GC::Ref<ObjectEnvironment> m_object_record;           // [[ObjectRecord]]
+    GC::Ref<Object> m_global_this_value;                  // [[GlobalThisValue]]
+    GC::Ref<DeclarativeEnvironment> m_declarative_record; // [[DeclarativeRecord]]
 };
 
 template<>

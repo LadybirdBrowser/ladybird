@@ -70,12 +70,12 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorConstructor::from)
     auto iterator_record = TRY(get_iterator_flattenable(vm, object, PrimitiveHandling::IterateStringPrimitives));
 
     // 2. Let hasInstance be ? OrdinaryHasInstance(%Iterator%, iteratorRecord.[[Iterator]]).
-    auto has_instance = TRY(ordinary_has_instance(vm, iterator_record->iterator, realm.intrinsics().iterator_constructor()));
+    auto has_instance = TRY(ordinary_has_instance(vm, *iterator_record->iterator, realm.intrinsics().iterator_constructor()));
 
     // 3. If hasInstance is true, then
     if (has_instance.is_boolean() && has_instance.as_bool()) {
         // a. Return iteratorRecord.[[Iterator]].
-        return iterator_record->iterator;
+        return *iterator_record->iterator;
     }
 
     // 4. Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, « [[Iterated]] »).

@@ -16,7 +16,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(ProxyConstructor);
 
 // 10.5.14 ProxyCreate ( target, handler ), https://tc39.es/ecma262/#sec-proxycreate
-static ThrowCompletionOr<ProxyObject*> proxy_create(VM& vm, Value target, Value handler)
+static ThrowCompletionOr<GC::Ref<ProxyObject>> proxy_create(VM& vm, Value target, Value handler)
 {
     auto& realm = *vm.current_realm();
 
@@ -37,7 +37,7 @@ static ThrowCompletionOr<ProxyObject*> proxy_create(VM& vm, Value target, Value 
     // 6. Set P.[[ProxyTarget]] to target.
     // 7. Set P.[[ProxyHandler]] to handler.
     // 8. Return P.
-    return ProxyObject::create(realm, target.as_object(), handler.as_object()).ptr();
+    return ProxyObject::create(realm, target.as_object(), handler.as_object());
 }
 
 ProxyConstructor::ProxyConstructor(Realm& realm)
@@ -83,7 +83,7 @@ JS_DEFINE_NATIVE_FUNCTION(ProxyConstructor::revocable)
     auto handler = vm.argument(1);
 
     // 1. Let p be ? ProxyCreate(target, handler).
-    auto* proxy = TRY(proxy_create(vm, target, handler));
+    auto proxy = TRY(proxy_create(vm, target, handler));
 
     // 2. Let revokerClosure be a new Abstract Closure with no parameters that captures nothing and performs the following steps when called:
     auto revoker_closure = [proxy](auto&) -> ThrowCompletionOr<Value> {

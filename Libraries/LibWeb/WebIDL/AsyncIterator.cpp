@@ -27,7 +27,7 @@ void AsyncIterator::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://webidl.spec.whatwg.org/#ref-for-dfn-asynchronous-iterator-prototype-object%E2%91%A2
-JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> AsyncIterator::iterator_next_impl()
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -136,11 +136,11 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
     }
 
     // 12. Return object’s ongoing promise.
-    return m_ongoing_promise;
+    return m_ongoing_promise.as_nonnull();
 }
 
 // https://webidl.spec.whatwg.org/#ref-for-asynchronous-iterator-return
-JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(GC::Ref<WebIDL::Promise> return_promise_capability, JS::Value value)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> AsyncIterator::iterator_return_impl(GC::Ref<WebIDL::Promise> return_promise_capability, JS::Value value)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();

@@ -180,6 +180,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
             array = MUST(Array::create(realm, 0));
         }
 
+        VERIFY(array);
+
         // c. Let iteratorRecord be ? GetIteratorFromMethod(items, usingIterator).
         auto iterator = TRY(get_iterator_from_method(vm, items, *using_iterator));
 
@@ -207,7 +209,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
                 TRY(array->set(vm.names.length, Value(k), Object::ShouldThrowExceptions::Yes));
 
                 // 2. Return A.
-                return array;
+                return *array;
             }
 
             Value mapped_value;
@@ -250,6 +252,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
         array = TRY(Array::create(realm, length));
     }
 
+    VERIFY(array);
+
     // 11. Let k be 0.
     // 12. Repeat, while k < len,
     for (size_t k = 0; k < length; ++k) {
@@ -281,7 +285,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
     TRY(array->set(vm.names.length, Value(length), Object::ShouldThrowExceptions::Yes));
 
     // 14. Return A.
-    return array;
+    return *array;
 }
 
 // 2.1.1.1 Array.fromAsync ( asyncItems [ , mapfn [ , thisArg ] ] ), https://tc39.es/proposal-array-from-async/#sec-array.fromAsync
@@ -359,6 +363,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
                 array = MUST(Array::create(realm, 0));
             }
 
+            VERIFY(array);
+
             // iii. Let k be 0.
             // iv. Repeat,
             for (size_t k = 0;; ++k) {
@@ -379,7 +385,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
                 //        be happening).
 
                 // 3. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-                auto next_result = TRY(JS::call(vm, iterator_record->next_method, iterator_record->iterator));
+                auto next_result = TRY(JS::call(vm, iterator_record->next_method, *iterator_record->iterator));
 
                 // 4. Set nextResult to ? Await(nextResult).
                 next_result = TRY(await(vm, next_result));
@@ -397,7 +403,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
                     TRY(array->set(vm.names.length, Value(k), Object::ShouldThrowExceptions::Yes));
 
                     // b. Return Completion Record { [[Type]]: return, [[Value]]: A, [[Target]]: empty }.
-                    return Completion { Completion::Type::Return, array };
+                    return Completion { Completion::Type::Return, *array };
                 }
 
                 // 8. Let nextValue be ? IteratorValue(nextResult).
@@ -465,6 +471,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
                 array = TRY(Array::create(realm, length));
             }
 
+            VERIFY(array);
+
             // vi. Let k be 0.
             // vii. Repeat, while k < len,
             for (size_t k = 0; k < length; ++k) {
@@ -502,7 +510,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
             TRY(array->set(vm.names.length, Value(length), Object::ShouldThrowExceptions::Yes));
 
             // ix. Return Completion Record { [[Type]]: return, [[Value]]: A, [[Target]]: empty }.
-            return Completion { Completion::Type::Return, array };
+            return Completion { Completion::Type::Return, *array };
         }
     });
 
@@ -547,6 +555,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::of)
         array = TRY(Array::create(realm, len));
     }
 
+    VERIFY(array);
+
     // 6. Let k be 0.
     // 7. Repeat, while k < len,
     for (size_t k = 0; k < len; ++k) {
@@ -566,7 +576,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::of)
     TRY(array->set(vm.names.length, len_number, Object::ShouldThrowExceptions::Yes));
 
     // 9. Return A.
-    return array;
+    return *array;
 }
 
 // 23.1.2.5 get Array [ @@species ], https://tc39.es/ecma262/#sec-get-array-@@species

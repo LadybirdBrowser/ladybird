@@ -211,7 +211,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
         prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
 
         // b. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-        function->define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
+        function->define_direct_property(vm.names.prototype, *prototype, Attribute::Writable);
     }
     // 31. Else if kind is asyncGenerator, then
     else if (kind == FunctionKind::AsyncGenerator) {
@@ -219,14 +219,14 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
         prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
 
         // b. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-        function->define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
+        function->define_direct_property(vm.names.prototype, *prototype, Attribute::Writable);
     }
     // 32. Else if kind is normal, perform MakeConstructor(F).
     else if (kind == FunctionKind::Normal) {
         // FIXME: Implement MakeConstructor
         prototype = Object::create_prototype(realm, realm.intrinsics().object_prototype());
         prototype->define_direct_property(vm.names.constructor, function, Attribute::Writable | Attribute::Configurable);
-        function->define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
+        function->define_direct_property(vm.names.prototype, *prototype, Attribute::Writable);
     }
 
     // 33. NOTE: Functions whose kind is async are not constructible and do not have a [[Construct]] internal method or a "prototype" property.
@@ -256,7 +256,7 @@ ThrowCompletionOr<GC::Ref<Object>> FunctionConstructor::construct(FunctionObject
     auto* constructor = vm.active_function_object();
 
     // 2. If bodyArg is not present, set bodyArg to the empty String.
-    Value body_arg = &vm.empty_string();
+    Value body_arg = vm.empty_string();
     if (!arguments.is_empty())
         body_arg = arguments.last();
 

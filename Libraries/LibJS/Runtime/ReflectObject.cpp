@@ -181,7 +181,8 @@ JS_DEFINE_NATIVE_FUNCTION(ReflectObject::get_prototype_of)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, target.to_string_without_side_effects());
 
     // 2. Return ? target.[[GetPrototypeOf]]().
-    return TRY(target.as_object().internal_get_prototype_of());
+    auto* prototype = TRY(target.as_object().internal_get_prototype_of());
+    return prototype ? *prototype : js_null();
 }
 
 // 28.1.8 Reflect.has ( target, propertyKey ), https://tc39.es/ecma262/#sec-reflect.has

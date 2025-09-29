@@ -153,7 +153,7 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
     auto typed_array_record = TRY(validate_integer_typed_array(vm, typed_array, true));
 
     // 2. Let buffer be taRecord.[[Object]].[[ViewedArrayBuffer]].
-    auto* buffer = typed_array_record.object->viewed_array_buffer();
+    auto buffer = typed_array_record.object->viewed_array_buffer();
 
     // 3. If IsSharedArrayBuffer(buffer) is false, throw a TypeError exception.
     if (!buffer->is_shared_array_buffer())
@@ -254,13 +254,13 @@ void AtomicsObject::initialize(Realm& realm)
 // 25.4.4 Atomics.add ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.add
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::add)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
 
     auto atomic_add = [](auto* storage, auto value) { return AK::atomic_fetch_add(storage, value); };
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(perform_atomic_operation<Type>(vm, *typed_array, move(atomic_add)));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(perform_atomic_operation<Type>(vm, typed_array, move(atomic_add)));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
@@ -270,13 +270,13 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::add)
 // 25.4.5 Atomics.and ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.and
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::and_)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
 
     auto atomic_and = [](auto* storage, auto value) { return AK::atomic_fetch_and(storage, value); };
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(perform_atomic_operation<Type>(vm, *typed_array, move(atomic_and)));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(perform_atomic_operation<Type>(vm, typed_array, move(atomic_and)));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
@@ -317,7 +317,7 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     //       In our implementation, accessing [[ArrayBufferData]] on a detached buffer will fail assertions.
 
     // 2. Let buffer be typedArray.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array.viewed_array_buffer();
+    auto buffer = typed_array.viewed_array_buffer();
 
     // 3. Let block be buffer.[[ArrayBufferData]].
     auto& block = buffer->buffer();
@@ -365,14 +365,14 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
 // 25.4.6 Atomics.compareExchange ( typedArray, index, expectedValue, replacementValue ), https://tc39.es/ecma262/#sec-atomics.compareexchange
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::compare_exchange)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
     auto index = vm.argument(1);
     auto expected_value = vm.argument(2);
     auto replacement_value = vm.argument(3);
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(atomic_compare_exchange_impl<Type>(vm, *typed_array, index, expected_value, replacement_value));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(atomic_compare_exchange_impl<Type>(vm, typed_array, index, expected_value, replacement_value));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
@@ -382,13 +382,13 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::compare_exchange)
 // 25.4.7 Atomics.exchange ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.exchange
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::exchange)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
 
     auto atomic_exchange = [](auto* storage, auto value) { return AK::atomic_exchange(storage, value); };
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(perform_atomic_operation<Type>(vm, *typed_array, move(atomic_exchange)));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(perform_atomic_operation<Type>(vm, typed_array, move(atomic_exchange)));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
@@ -413,14 +413,14 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::is_lock_free)
 // 25.4.9 Atomics.load ( typedArray, index ), https://tc39.es/ecma262/#sec-atomics.load
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::load)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
     auto index = vm.argument(1);
 
     // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
-    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, *typed_array, index));
+    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, typed_array, index));
 
     // 2. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
-    TRY(revalidate_atomic_access(vm, *typed_array, byte_index_in_buffer));
+    TRY(revalidate_atomic_access(vm, typed_array, byte_index_in_buffer));
 
     // 3. Let buffer be typedArray.[[ViewedArrayBuffer]].
     // 4. Let elementType be TypedArrayElementType(typedArray).
@@ -431,13 +431,13 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::load)
 // 25.4.10 Atomics.or ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.or
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::or_)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
 
     auto atomic_or = [](auto* storage, auto value) { return AK::atomic_fetch_or(storage, value); };
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(perform_atomic_operation<Type>(vm, *typed_array, move(atomic_or)));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(perform_atomic_operation<Type>(vm, typed_array, move(atomic_or)));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
@@ -481,12 +481,12 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::pause)
 // 25.4.11 Atomics.store ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.store
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::store)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
     auto index = vm.argument(1);
     auto value = vm.argument(2);
 
     // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
-    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, *typed_array, index));
+    auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, typed_array, index));
 
     // 2. If typedArray.[[ContentType]] is bigint, let v be ? ToBigInt(value).
     if (typed_array->content_type() == TypedArrayBase::ContentType::BigInt)
@@ -496,7 +496,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::store)
         value = Value(TRY(value.to_integer_or_infinity(vm)));
 
     // 4. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
-    TRY(revalidate_atomic_access(vm, *typed_array, byte_index_in_buffer));
+    TRY(revalidate_atomic_access(vm, typed_array, byte_index_in_buffer));
 
     // 5. Let buffer be typedArray.[[ViewedArrayBuffer]].
     // 6. Let elementType be TypedArrayElementType(typedArray).
@@ -510,13 +510,13 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::store)
 // 25.4.12 Atomics.sub ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.sub
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::sub)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
 
     auto atomic_sub = [](auto* storage, auto value) { return AK::atomic_fetch_sub(storage, value); };
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(perform_atomic_operation<Type>(vm, *typed_array, move(atomic_sub)));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(perform_atomic_operation<Type>(vm, typed_array, move(atomic_sub)));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
@@ -526,31 +526,31 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::sub)
 // 25.4.13 Atomics.wait ( typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-atomics.wait
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::wait)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
     auto index = vm.argument(1);
     auto value = vm.argument(2);
     auto timeout = vm.argument(3);
 
     // 1. Return ? DoWait(sync, typedArray, index, value, timeout).
-    return TRY(do_wait(vm, WaitMode::Sync, *typed_array, index, value, timeout));
+    return TRY(do_wait(vm, WaitMode::Sync, typed_array, index, value, timeout));
 }
 
 // 25.4.14 Atomics.waitAsync ( typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-atomics.waitasync
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::wait_async)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
     auto index = vm.argument(1);
     auto value = vm.argument(2);
     auto timeout = vm.argument(3);
 
     // 1. Return ? DoWait(async, typedArray, index, value, timeout).
-    return TRY(do_wait(vm, WaitMode::Async, *typed_array, index, value, timeout));
+    return TRY(do_wait(vm, WaitMode::Async, typed_array, index, value, timeout));
 }
 
 // 25.4.15 Atomics.notify ( typedArray, index, count ), https://tc39.es/ecma262/#sec-atomics.notify
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
     auto index = vm.argument(1);
     auto count_value = vm.argument(2);
 
@@ -573,7 +573,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
     }
 
     // 4. Let buffer be typedArray.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array->viewed_array_buffer();
+    auto buffer = typed_array->viewed_array_buffer();
 
     // 5. Let block be buffer.[[ArrayBufferData]].
     auto& block = buffer->buffer();
@@ -593,13 +593,13 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
 // 25.4.16 Atomics.xor ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.xor
 JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::xor_)
 {
-    auto* typed_array = TRY(typed_array_from(vm, vm.argument(0)));
+    auto typed_array = TRY(typed_array_from(vm, vm.argument(0)));
 
     auto atomic_xor = [](auto* storage, auto value) { return AK::atomic_fetch_xor(storage, value); };
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
-    if (is<ClassName>(typed_array))                                                 \
-        return TRY(perform_atomic_operation<Type>(vm, *typed_array, move(atomic_xor)));
+    if (is<ClassName>(*typed_array))                                                \
+        return TRY(perform_atomic_operation<Type>(vm, typed_array, move(atomic_xor)));
     JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 

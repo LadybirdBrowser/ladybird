@@ -19,20 +19,20 @@ class JS_API DataView : public Object {
     GC_DECLARE_ALLOCATOR(DataView);
 
 public:
-    static GC::Ref<DataView> create(Realm&, ArrayBuffer*, ByteLength byte_length, size_t byte_offset);
+    static GC::Ref<DataView> create(Realm&, GC::Ref<ArrayBuffer>, ByteLength byte_length, size_t byte_offset);
 
     virtual ~DataView() override = default;
 
-    ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
+    GC::Ref<ArrayBuffer> viewed_array_buffer() const { return m_viewed_array_buffer; }
     ByteLength const& byte_length() const { return m_byte_length; }
     u32 byte_offset() const { return m_byte_offset; }
 
 private:
-    DataView(ArrayBuffer*, ByteLength byte_length, size_t byte_offset, Object& prototype);
+    DataView(GC::Ref<ArrayBuffer>, ByteLength byte_length, size_t byte_offset, Object& prototype);
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
+    GC::Ref<ArrayBuffer> m_viewed_array_buffer;
     ByteLength m_byte_length { 0 };
     size_t m_byte_offset { 0 };
 };

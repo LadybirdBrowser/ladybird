@@ -14,13 +14,13 @@
 
 namespace Web::HTML {
 
-Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const&);
+Vector<CrossOriginProperty> cross_origin_properties(Variant<GC::Ref<HTML::Location const>, GC::Ref<HTML::Window const>> const&);
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS::VM&, JS::PropertyKey const&);
 bool is_platform_object_same_origin(JS::Object const&);
-Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HTML::Location*, HTML::Window*> const&, JS::PropertyKey const&);
+Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<GC::Ref<HTML::Location>, GC::Ref<HTML::Window>> const&, JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::Value> cross_origin_get(JS::VM&, JS::Object const&, JS::PropertyKey const&, JS::Value receiver);
 JS::ThrowCompletionOr<bool> cross_origin_set(JS::VM&, JS::Object&, JS::PropertyKey const&, JS::Value, JS::Value receiver);
-GC::RootVector<JS::Value> cross_origin_own_property_keys(Variant<HTML::Location const*, HTML::Window const*> const&);
+GC::RootVector<JS::Value> cross_origin_own_property_keys(Variant<GC::Ref<HTML::Location const>, GC::Ref<HTML::Window const>> const&);
 
 }

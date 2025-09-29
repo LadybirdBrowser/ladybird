@@ -217,7 +217,7 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
 Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
 {
     if (auto value = get_the_all_indexed_element(index))
-        return value;
+        return *value;
     return {};
 }
 

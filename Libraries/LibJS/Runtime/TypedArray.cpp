@@ -20,13 +20,13 @@
 
 namespace JS {
 
-ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM& vm, Value typed_array_value)
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_from(VM& vm, Value typed_array_value)
 {
     auto this_object = TRY(typed_array_value.to_object(vm));
     if (!this_object->is_typed_array())
         return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, "TypedArray");
 
-    return static_cast<TypedArrayBase*>(this_object.ptr());
+    return as<TypedArrayBase>(*this_object);
 }
 
 // 22.2.5.1.3 InitializeTypedArrayFromArrayBuffer, https://tc39.es/ecma262/#sec-initializetypedarrayfromarraybuffer
@@ -113,7 +113,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM& vm, 
     }
 
     // 10. Set O.[[ViewedArrayBuffer]] to buffer.
-    typed_array.set_viewed_array_buffer(&array_buffer);
+    typed_array.set_viewed_array_buffer(array_buffer);
 
     // 11. Set O.[[ByteOffset]] to offset.
     typed_array.set_byte_offset(offset);
@@ -129,8 +129,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_typed_array(VM& vm, T
     auto& realm = *vm.current_realm();
 
     // 1. Let srcData be srcArray.[[ViewedArrayBuffer]].
-    auto* source_data = source_array.viewed_array_buffer();
-    VERIFY(source_data);
+    auto source_data = source_array.viewed_array_buffer();
 
     // 2. Let elementType be TypedArrayElementType(O).
     auto const& element_type = typed_array.element_name();
@@ -163,7 +162,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_typed_array(VM& vm, T
     if (byte_length.has_overflow())
         return vm.template throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
 
-    ArrayBuffer* data = nullptr;
+    GC::Ptr<ArrayBuffer> data;
 
     // 11. If elementType is srcType, then
     if (element_type == source_type) {
@@ -205,7 +204,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_typed_array(VM& vm, T
     }
 
     // 13. Set O.[[ViewedArrayBuffer]] to data.
-    typed_array.set_viewed_array_buffer(data);
+    typed_array.set_viewed_array_buffer(data.as_nonnull());
 
     // 14. Set O.[[ByteLength]] to byteLength.
     typed_array.set_byte_length(byte_length.value());
@@ -241,7 +240,7 @@ static ThrowCompletionOr<void> allocate_typed_array_buffer(VM& vm, TypedArray<T>
     auto byte_length = element_size * length;
 
     // 4. Let data be ? AllocateArrayBuffer(%ArrayBuffer%, byteLength).
-    auto* data = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), byte_length));
+    auto data = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), byte_length));
 
     // 5. Set O.[[ViewedArrayBuffer]] to data.
     typed_array.set_viewed_array_buffer(data);
@@ -315,7 +314,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArr
 }
 
 // 23.2.4.2 TypedArrayCreate ( constructor, argumentList ), https://tc39.es/ecma262/#typedarray-create
-ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& constructor, GC::RootVector<Value> arguments)
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_create(VM& vm, FunctionObject& constructor, GC::RootVector<Value> arguments)
 {
     Optional<double> first_argument;
     if (arguments.size() == 1 && arguments[0].is_number())
@@ -342,11 +341,11 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& co
     }
 
     // 4. Return newTypedArray.
-    return static_cast<TypedArrayBase*>(new_typed_array.ptr());
+    return as<TypedArrayBase>(*new_typed_array);
 }
 
 // 23.2.4.3 TypedArrayCreateSameType ( exemplar, argumentList ), https://tc39.es/ecma262/#sec-typedarray-create-same-type
-ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments)
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_create_same_type(VM& vm, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments)
 {
     auto& realm = *vm.current_realm();
 
@@ -354,7 +353,7 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArr
     auto constructor = exemplar.intrinsic_constructor(realm);
 
     // 2. Let result be ? TypedArrayCreate(constructor, argumentList).
-    auto* result = TRY(typed_array_create(vm, constructor, move(arguments)));
+    auto result = TRY(typed_array_create(vm, constructor, move(arguments)));
 
     // 3. Assert: result has [[TypedArrayName]] and [[ContentType]] internal slots.
     // 4. Assert: result.[[ContentType]] is exemplar.[[ContentType]].
@@ -392,7 +391,7 @@ ThrowCompletionOr<double> compare_typed_array_elements(VM& vm, Value x, Value y,
     // 2. If comparefn is not undefined, then
     if (comparefn != nullptr) {
         // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
-        auto value = TRY(call(vm, comparefn, js_undefined(), x, y));
+        auto value = TRY(call(vm, *comparefn, js_undefined(), x, y));
         auto value_number = TRY(value.to_number(vm));
 
         // b. If v is NaN, return +0𝔽.
@@ -602,7 +601,7 @@ JS_ENUMERATE_TYPED_ARRAYS
 TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArrayBase const& typed_array, ArrayBuffer::Order order)
 {
     // 1. Let buffer be obj.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array.viewed_array_buffer();
+    auto buffer = typed_array.viewed_array_buffer();
 
     ByteLength byte_length { 0 };
 
@@ -732,7 +731,7 @@ bool is_typed_array_fixed_length(TypedArrayBase const& typed_array)
         return false;
 
     // 2. Let buffer be O.[[ViewedArrayBuffer]].
-    auto const* buffer = typed_array.viewed_array_buffer();
+    auto const buffer = typed_array.viewed_array_buffer();
 
     // 3. If IsFixedLengthArrayBuffer(buffer) is false and IsSharedArrayBuffer(buffer) is false, return false.
     if (!buffer->is_fixed_length() && !buffer->is_shared_array_buffer())

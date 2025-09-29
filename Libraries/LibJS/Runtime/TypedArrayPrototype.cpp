@@ -75,7 +75,7 @@ void TypedArrayPrototype::initialize(Realm& realm)
     define_direct_property(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.values), attr);
 }
 
-static ThrowCompletionOr<TypedArrayBase*> typed_array_from_this(VM& vm)
+static ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_from_this(VM& vm)
 {
     auto this_value = vm.this_value();
     return typed_array_from(vm, this_value);
@@ -92,7 +92,7 @@ static ThrowCompletionOr<GC::Ref<FunctionObject>> callback_from_args(VM& vm, Str
 }
 
 // 23.2.4.1 TypedArraySpeciesCreate ( exemplar, argumentList ), https://tc39.es/ecma262/#typedarray-species-create
-static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments)
+static ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments)
 {
     auto& realm = *vm.current_realm();
 
@@ -100,10 +100,10 @@ static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, Typ
     auto default_constructor = exemplar.intrinsic_constructor(realm);
 
     // 2. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-    auto* constructor = TRY(species_constructor(vm, exemplar, *default_constructor));
+    auto constructor = TRY(species_constructor(vm, exemplar, *default_constructor));
 
     // 3. Let result be ? TypedArrayCreate(constructor, argumentList).
-    auto* result = TRY(typed_array_create(vm, *constructor, move(arguments)));
+    auto result = TRY(typed_array_create(vm, constructor, move(arguments)));
 
     // 4. Assert: result has [[TypedArrayName]] and [[ContentType]] internal slots.
     // 5. If result.[[ContentType]] ≠ exemplar.[[ContentType]], throw a TypeError exception.
@@ -120,10 +120,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::at)
     auto index = vm.argument(0);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -162,11 +162,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::buffer_getter)
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
     // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 4. Let buffer be O.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array->viewed_array_buffer();
-    VERIFY(buffer);
+    auto buffer = typed_array->viewed_array_buffer();
 
     // 5. Return buffer.
     return Value(buffer);
@@ -178,10 +177,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::byte_length_getter)
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
     // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
     // 5. Let size be TypedArrayByteLength(taRecord).
     auto size = typed_array_byte_length(typed_array_record);
@@ -196,10 +195,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::byte_offset_getter)
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
     // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
     // 5. If IsTypedArrayOutOfBounds(taRecord) is true, return +0𝔽.
     if (is_typed_array_out_of_bounds(typed_array_record))
@@ -220,10 +219,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
     auto end = vm.argument(2);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -291,10 +290,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
         // a. NOTE: The copying must be performed in a manner that preserves the bit-level encoding of the source data.
 
         // b. Let buffer be O.[[ViewedArrayBuffer]].
-        auto* buffer = typed_array->viewed_array_buffer();
+        auto buffer = typed_array->viewed_array_buffer();
 
         // c. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-        typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+        typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
         // d. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
         if (is_typed_array_out_of_bounds(typed_array_record))
@@ -439,10 +438,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::entries)
     auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Perform ? ValidateTypedArray(O, seq-cst).
-    (void)TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    (void)TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Return CreateArrayIterator(O, key+value).
     return ArrayIterator::create(realm, typed_array, Object::PropertyKind::KeyAndValue);
@@ -454,10 +453,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::every)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -524,10 +523,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::fill)
     auto end = vm.argument(2);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -572,7 +571,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::fill)
         final = min(relative_end, length);
 
     // 14. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-    typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
     // 15. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(typed_array_record))
@@ -587,25 +586,25 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::fill)
     if (value.is_int32()) {
         switch (typed_array->kind()) {
         case TypedArrayBase::Kind::Uint8Array:
-            fast_typed_array_fill<u8>(*typed_array, k, final, static_cast<u8>(value.as_i32()));
+            fast_typed_array_fill<u8>(typed_array, k, final, static_cast<u8>(value.as_i32()));
             return typed_array;
         case TypedArrayBase::Kind::Uint16Array:
-            fast_typed_array_fill<u16>(*typed_array, k, final, static_cast<u16>(value.as_i32()));
+            fast_typed_array_fill<u16>(typed_array, k, final, static_cast<u16>(value.as_i32()));
             return typed_array;
         case TypedArrayBase::Kind::Uint32Array:
-            fast_typed_array_fill<u32>(*typed_array, k, final, static_cast<u32>(value.as_i32()));
+            fast_typed_array_fill<u32>(typed_array, k, final, static_cast<u32>(value.as_i32()));
             return typed_array;
         case TypedArrayBase::Kind::Int8Array:
-            fast_typed_array_fill<i8>(*typed_array, k, final, static_cast<i8>(value.as_i32()));
+            fast_typed_array_fill<i8>(typed_array, k, final, static_cast<i8>(value.as_i32()));
             return typed_array;
         case TypedArrayBase::Kind::Int16Array:
-            fast_typed_array_fill<i16>(*typed_array, k, final, static_cast<i16>(value.as_i32()));
+            fast_typed_array_fill<i16>(typed_array, k, final, static_cast<i16>(value.as_i32()));
             return typed_array;
         case TypedArrayBase::Kind::Int32Array:
-            fast_typed_array_fill<i32>(*typed_array, k, final, value.as_i32());
+            fast_typed_array_fill<i32>(typed_array, k, final, value.as_i32());
             return typed_array;
         case TypedArrayBase::Kind::Uint8ClampedArray:
-            fast_typed_array_fill<u8>(*typed_array, k, final, clamp(value.as_i32(), 0, 255));
+            fast_typed_array_fill<u8>(typed_array, k, final, clamp(value.as_i32(), 0, 255));
             return typed_array;
         default:
             // FIXME: Support more TypedArray kinds.
@@ -621,7 +620,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::fill)
         switch (typed_array->kind()) {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     case TypedArrayBase::Kind::ClassName:                                           \
-        (void)typed_array_set_element<Type>(*typed_array, canonical_index, value);  \
+        (void)typed_array_set_element<Type>(typed_array, canonical_index, value);   \
         break;
             JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
@@ -641,10 +640,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -685,7 +684,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     // 9. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(captured) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(captured);
-    auto* filter_array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    auto filter_array = TRY(typed_array_species_create(vm, typed_array, move(arguments)));
 
     // 10. Let n be 0.
     size_t index = 0;
@@ -753,7 +752,7 @@ static ThrowCompletionOr<FoundValue> find_via_predicate(VM& vm, TypedArrayBase c
         auto value = TRY(typed_array.get(property_key));
 
         // d. Let testResult be ? Call(predicate, thisArg, « kValue, 𝔽(k), O »).
-        auto test_result = TRY(call(vm, *predicate, this_arg, value, Value { k }, &typed_array));
+        auto test_result = TRY(call(vm, *predicate, this_arg, value, Value { k }, typed_array));
 
         // e. If ToBoolean(testResult) is true, return the Record { [[Index]]: 𝔽(k), [[Value]]: kValue }.
         if (test_result.to_boolean())
@@ -770,16 +769,16 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, ascending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Ascending, this_arg, "find"sv));
+    auto find_record = TRY(find_via_predicate(vm, typed_array, length, Direction::Ascending, this_arg, "find"sv));
 
     // 5. Return findRec.[[Value]].
     return find_record.value;
@@ -791,16 +790,16 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find_index)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, ascending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Ascending, this_arg, "findIndex"sv));
+    auto find_record = TRY(find_via_predicate(vm, typed_array, length, Direction::Ascending, this_arg, "findIndex"sv));
 
     // 5. Return findRec.[[Index]].
     return find_record.index_to_value();
@@ -812,16 +811,16 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find_last)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, descending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Descending, this_arg, "findLast"sv));
+    auto find_record = TRY(find_via_predicate(vm, typed_array, length, Direction::Descending, this_arg, "findLast"sv));
 
     // 5. Return findRec.[[Value]].
     return find_record.value;
@@ -833,16 +832,16 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::find_last_index)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let findRec be ? FindViaPredicate(O, len, descending, predicate, thisArg).
-    auto find_record = TRY(find_via_predicate(vm, *typed_array, length, Direction::Descending, this_arg, "findLastIndex"sv));
+    auto find_record = TRY(find_via_predicate(vm, typed_array, length, Direction::Descending, this_arg, "findLastIndex"sv));
 
     // 5. Return findRec.[[Index]].
     return find_record.index_to_value();
@@ -854,10 +853,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::for_each)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -891,10 +890,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::includes)
     auto from_index = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -960,10 +959,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::index_of)
     auto from_index = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1034,10 +1033,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::join)
     auto separator = vm.argument(0);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1086,10 +1085,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::keys)
     auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Perform ? ValidateTypedArray(O, seq-cst).
-    (void)TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    (void)TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Return CreateArrayIterator(O, key).
     return ArrayIterator::create(realm, typed_array, Object::PropertyKind::Key);
@@ -1102,10 +1101,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::last_index_of)
     auto from_index = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1171,10 +1170,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::length_getter)
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
     // 3. Assert: O has [[ViewedArrayBuffer]] and [[ArrayLength]] internal slots.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
     // 5. If IsTypedArrayOutOfBounds(taRecord) is true, return +0𝔽.
     if (is_typed_array_out_of_bounds(typed_array_record))
@@ -1193,10 +1192,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1207,7 +1206,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     // 5. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(length);
-    auto* array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    auto array = TRY(typed_array_species_create(vm, typed_array, move(arguments)));
 
     // 6. Let k be 0.
     // 7. Repeat, while k < len,
@@ -1237,10 +1236,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce)
     auto initial_value = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1300,10 +1299,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce_right)
     auto initial_value = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1361,10 +1360,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce_right)
 JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reverse)
 {
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1407,7 +1406,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reverse)
 static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArrayBase& target, double target_offset, TypedArrayBase const& source)
 {
     // 1. Let targetBuffer be target.[[ViewedArrayBuffer]].
-    auto* target_buffer = target.viewed_array_buffer();
+    auto target_buffer = target.viewed_array_buffer();
 
     // 2. Let targetRecord be MakeTypedArrayWithBufferWitnessRecord(target, seq-cst)
     auto target_record = make_typed_array_with_buffer_witness_record(target, ArrayBuffer::Order::SeqCst);
@@ -1420,7 +1419,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
     auto target_length = typed_array_length(target_record);
 
     // 5. Let srcBuffer be source.[[ViewedArrayBuffer]].
-    auto* source_buffer = source.viewed_array_buffer();
+    auto source_buffer = source.viewed_array_buffer();
 
     // 6. Let srcRecord be MakeTypedArrayWithBufferWitnessRecord(source, seq-cst).
     auto source_record = make_typed_array_with_buffer_witness_record(source, ArrayBuffer::Order::SeqCst);
@@ -1610,7 +1609,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::set)
     // 1. Let target be the this value.
     // 2. Perform ? RequireInternalSlot(target, [[TypedArrayName]]).
     // 3. Assert: target has a [[ViewedArrayBuffer]] internal slot.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 4. Let targetOffset be ? ToIntegerOrInfinity(offset).
     auto target_offset = TRY(offset.to_integer_or_infinity(vm));
@@ -1624,12 +1623,12 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::set)
         auto& source_typed_array = static_cast<TypedArrayBase&>(source.as_object());
 
         // a. Perform ? SetTypedArrayFromTypedArray(target, targetOffset, source).
-        TRY(set_typed_array_from_typed_array(vm, *typed_array, target_offset, source_typed_array));
+        TRY(set_typed_array_from_typed_array(vm, typed_array, target_offset, source_typed_array));
     }
     // 7. Else,
     else {
         // a. Perform ? SetTypedArrayFromArrayLike(target, targetOffset, source).
-        TRY(set_typed_array_from_array_like(vm, *typed_array, target_offset, source));
+        TRY(set_typed_array_from_array_like(vm, typed_array, target_offset, source));
     }
 
     // 8. Return undefined.
@@ -1643,10 +1642,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
     auto end = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1689,12 +1688,12 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
     // 13. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(count) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(count);
-    auto* array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    auto array = TRY(typed_array_species_create(vm, typed_array, move(arguments)));
 
     // 14. If count > 0, then
     if (count > 0) {
         // a. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-        typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+        typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
         // b. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
         if (is_typed_array_out_of_bounds(typed_array_record))
@@ -1799,10 +1798,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::some)
     auto this_arg = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1843,10 +1842,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::sort)
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, compare_function);
 
     // 2. Let obj be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 3. Let taRecord be ? ValidateTypedArray(obj, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 4. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -1859,7 +1858,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::sort)
     };
 
     // 7. Let sortedList be ? SortIndexedProperties(obj, len, SortCompare, read-through-holes).
-    auto sorted_list = TRY(sort_indexed_properties(vm, *typed_array, length, sort_compare, Holes::ReadThroughHoles));
+    auto sorted_list = TRY(sort_indexed_properties(vm, typed_array, length, sort_compare, Holes::ReadThroughHoles));
 
     // 8. Let j be 0.
     // 9. Repeat, while j < len,
@@ -1883,13 +1882,13 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
     // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 4. Let buffer be O.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array->viewed_array_buffer();
+    auto buffer = typed_array->viewed_array_buffer();
 
     // 5. Let srcRecord be MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
-    auto source_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
+    auto source_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
 
     u32 source_length = 0;
     // 6. If IsTypedArrayOutOfBounds(srcRecord) is true, then
@@ -1970,7 +1969,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
     }
 
     // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
-    return TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    return TRY(typed_array_species_create(vm, typed_array, move(arguments)));
 }
 
 // 23.2.3.31 %TypedArray%.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-%typedarray%.prototype.tolocalestring
@@ -1984,12 +1983,12 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_locale_string)
     // If its result is an abrupt completion that exception is thrown instead of evaluating the algorithm.
 
     // 1. Let array be ? ToObject(this value).
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let len be ? ToLength(? Get(array, "length")).
     // The implementation of the algorithm may be optimized with the knowledge that the this value is an object that
     // has a fixed length and whose integer-indexed properties are not sparse.
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
     auto length = typed_array_length(typed_array_record);
 
     // 3. Let separator be the implementation-defined list-separator String value appropriate for the host environment's current locale (such as ", ").
@@ -2031,10 +2030,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_locale_string)
 JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_reversed)
 {
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let length be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -2042,7 +2041,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_reversed)
     // 4. Let A be ? TypedArrayCreateSameType(O, « 𝔽(length) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(length);
-    auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
+    auto array = TRY(typed_array_create_same_type(vm, typed_array, move(arguments)));
 
     // 5. Let k be 0.
     // 6. Repeat, while k < length,
@@ -2076,10 +2075,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_sorted)
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, compare_function);
 
     // 2. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 3. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 4. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -2087,7 +2086,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_sorted)
     // 5. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(length);
-    auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
+    auto array = TRY(typed_array_create_same_type(vm, typed_array, move(arguments)));
 
     // 6. NOTE: The following closure performs a numeric comparison rather than the string comparison used in 23.1.3.34.
     Function<ThrowCompletionOr<double>(Value, Value)> sort_compare = [&](auto x, auto y) -> ThrowCompletionOr<double> {
@@ -2096,7 +2095,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_sorted)
     };
 
     // 8. Let sortedList be ? SortIndexedProperties(O, len, SortCompare, read-through-holes).
-    auto sorted_list = TRY(sort_indexed_properties(vm, *typed_array, length, sort_compare, Holes::ReadThroughHoles));
+    auto sorted_list = TRY(sort_indexed_properties(vm, typed_array, length, sort_compare, Holes::ReadThroughHoles));
 
     // 9. Let j be 0.
     // 10. Repeat, while j < len,
@@ -2117,10 +2116,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::values)
     auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Perform ? ValidateTypedArray(O, seq-cst).
-    (void)TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    (void)TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Return CreateArrayIterator(O, value).
     return ArrayIterator::create(realm, typed_array, Object::PropertyKind::Value);
@@ -2133,10 +2132,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::with)
     auto value = vm.argument(1);
 
     // 1. Let O be the this value.
-    auto* typed_array = TRY(typed_array_from_this(vm));
+    auto typed_array = TRY(typed_array_from_this(vm));
 
     // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
-    auto typed_array_record = TRY(validate_typed_array(vm, *typed_array, ArrayBuffer::Order::SeqCst));
+    auto typed_array_record = TRY(validate_typed_array(vm, typed_array, ArrayBuffer::Order::SeqCst));
 
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
@@ -2161,13 +2160,13 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::with)
         numeric_value = TRY(value.to_number(vm));
 
     // 9. If IsValidIntegerIndex(O, 𝔽(actualIndex)) is false, throw a RangeError exception.
-    if (!is_valid_integer_index(*typed_array, TRY(CanonicalIndex::from_double(vm, CanonicalIndex::Type::Index, actual_index))))
+    if (!is_valid_integer_index(typed_array, TRY(CanonicalIndex::from_double(vm, CanonicalIndex::Type::Index, actual_index))))
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidIntegerIndex, actual_index);
 
     // 10. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(length);
-    auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
+    auto array = TRY(typed_array_create_same_type(vm, typed_array, move(arguments)));
 
     // 11. Let k be 0.
     // 12. Repeat, while k < len,

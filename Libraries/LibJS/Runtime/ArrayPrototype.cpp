@@ -110,14 +110,14 @@ void ArrayPrototype::initialize(Realm& realm)
 }
 
 // 10.4.2.3 ArraySpeciesCreate ( originalArray, length ), https://tc39.es/ecma262/#sec-arrayspeciescreate
-static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_array, size_t length)
+static ThrowCompletionOr<GC::Ref<Object>> array_species_create(VM& vm, Object& original_array, size_t length)
 {
     auto& realm = *vm.current_realm();
 
-    auto is_array = TRY(Value(&original_array).is_array(vm));
+    auto is_array = TRY(Value(original_array).is_array(vm));
 
     if (!is_array)
-        return TRY(Array::create(realm, length)).ptr();
+        return TRY(Array::create(realm, length));
 
     auto constructor = TRY(original_array.get(vm.names.constructor));
     if (constructor.is_constructor()) {
@@ -137,12 +137,12 @@ static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_
     }
 
     if (constructor.is_undefined())
-        return TRY(Array::create(realm, length)).ptr();
+        return TRY(Array::create(realm, length));
 
     if (!constructor.is_constructor())
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
 
-    return TRY(construct(vm, constructor.as_function(), Value(length))).ptr();
+    return TRY(construct(vm, constructor.as_function(), Value(length)));
 }
 
 // 23.1.3.1 Array.prototype.at ( index ), https://tc39.es/ecma262/#sec-array.prototype.at
@@ -170,7 +170,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::concat)
 {
     auto this_object = TRY(vm.this_value().to_object(vm));
 
-    auto* new_array = TRY(array_species_create(vm, this_object, 0));
+    auto new_array = TRY(array_species_create(vm, this_object, 0));
 
     size_t n = 0;
 
@@ -402,7 +402,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::filter)
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback_function.to_string_without_side_effects());
 
     // 4. Let A be ? ArraySpeciesCreate(O, 0).
-    auto* array = TRY(array_species_create(vm, object, 0));
+    auto array = TRY(array_species_create(vm, object, 0));
 
     // 5. Let k be 0.
     size_t k = 0;
@@ -612,7 +612,7 @@ static ThrowCompletionOr<size_t> flatten_into_array(VM& vm, Object& new_array, O
         auto value = TRY(array.get(j));
 
         if (mapper_func)
-            value = TRY(call(vm, *mapper_func, this_arg, value, Value(j), &array));
+            value = TRY(call(vm, *mapper_func, this_arg, value, Value(j), array));
 
         if (depth > 0 && TRY(value.is_array(vm))) {
             if (vm.did_reach_stack_space_limit())
@@ -646,7 +646,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::flat)
         depth = max(depth_num, 0.0);
     }
 
-    auto* new_array = TRY(array_species_create(vm, this_object, 0));
+    auto new_array = TRY(array_species_create(vm, this_object, 0));
 
     TRY(flatten_into_array(vm, *new_array, this_object, length, 0, depth));
     return new_array;
@@ -669,7 +669,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::flat_map)
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, mapper_function.to_string_without_side_effects());
 
     // 4. Let A be ? ArraySpeciesCreate(O, 0).
-    auto* array = TRY(array_species_create(vm, object, 0));
+    auto array = TRY(array_species_create(vm, object, 0));
 
     // 5. Perform ? FlattenIntoArray(A, O, sourceLen, 0, 1, mapperFunction, thisArg).
     TRY(flatten_into_array(vm, *array, object, source_length, 0, 1, &mapper_function.as_function(), this_arg));
@@ -950,7 +950,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::map)
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback_function.to_string_without_side_effects());
 
     // 4. Let A be ? ArraySpeciesCreate(O, len).
-    auto* array = TRY(array_species_create(vm, object, length));
+    auto array = TRY(array_species_create(vm, object, length));
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,
@@ -1287,7 +1287,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::slice)
 
     auto count = max(final - actual_start, 0.0);
 
-    auto* new_array = TRY(array_species_create(vm, this_object, count));
+    auto new_array = TRY(array_species_create(vm, this_object, count));
 
     size_t index = 0;
     size_t k = actual_start;
@@ -1509,7 +1509,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
         return vm.throw_completion<TypeError>(ErrorType::ArrayMaxSize);
 
     // 12. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
-    auto* removed_elements = TRY(array_species_create(vm, this_object, actual_delete_count));
+    auto removed_elements = TRY(array_species_create(vm, this_object, actual_delete_count));
 
     // 13. Let k be 0.
     // 14. Repeat, while k < actualDeleteCount,

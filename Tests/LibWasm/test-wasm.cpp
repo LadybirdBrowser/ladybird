@@ -54,7 +54,7 @@ public:
     Wasm::Module& module() { return *m_module; }
     Wasm::ModuleInstance& module_instance() { return *m_module_instance; }
 
-    static JS::ThrowCompletionOr<WebAssemblyModule*> create(JS::Realm& realm, NonnullRefPtr<Wasm::Module> module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
+    static JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> create(JS::Realm& realm, NonnullRefPtr<Wasm::Module> module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
     {
         auto& vm = realm.vm();
         auto instance = realm.create<WebAssemblyModule>(realm.intrinsics().object_prototype());
@@ -69,7 +69,7 @@ public:
         if (result.is_error())
             return vm.throw_completion<JS::TypeError>(result.release_error().error);
         instance->m_module_instance = result.release_value();
-        return instance.ptr();
+        return instance;
     }
     void initialize(JS::Realm&) override;
 

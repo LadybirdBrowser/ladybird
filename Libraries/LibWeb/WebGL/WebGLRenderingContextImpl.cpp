@@ -1361,7 +1361,7 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_ARRAY_BUFFER_BINDING: {
         if (!m_array_buffer_binding)
             return JS::js_null();
-        return JS::Value(m_array_buffer_binding);
+        return JS::Value(*m_array_buffer_binding);
     }
     case GL_BLEND: {
         GLboolean result { GL_FALSE };
@@ -1434,7 +1434,7 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_CURRENT_PROGRAM: {
         if (!m_current_program)
             return JS::js_null();
-        return JS::Value(m_current_program);
+        return JS::Value(*m_current_program);
     }
     case GL_DEPTH_BITS: {
         GLint result { 0 };
@@ -1478,12 +1478,12 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_ELEMENT_ARRAY_BUFFER_BINDING: {
         if (!m_element_array_buffer_binding)
             return JS::js_null();
-        return JS::Value(m_element_array_buffer_binding);
+        return JS::Value(*m_element_array_buffer_binding);
     }
     case GL_FRAMEBUFFER_BINDING: {
         if (!m_framebuffer_binding)
             return JS::js_null();
-        return JS::Value(m_framebuffer_binding);
+        return JS::Value(*m_framebuffer_binding);
     }
     case GL_FRONT_FACE: {
         GLint result { 0 };
@@ -1602,7 +1602,7 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_RENDERBUFFER_BINDING: {
         if (!m_renderbuffer_binding)
             return JS::js_null();
-        return JS::Value(m_renderbuffer_binding);
+        return JS::Value(*m_renderbuffer_binding);
     }
     case GL_RENDERER: {
         auto result = reinterpret_cast<char const*>(glGetString(GL_RENDERER));
@@ -1749,12 +1749,12 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_TEXTURE_BINDING_2D: {
         if (!m_texture_binding_2d)
             return JS::js_null();
-        return JS::Value(m_texture_binding_2d);
+        return JS::Value(*m_texture_binding_2d);
     }
     case GL_TEXTURE_BINDING_CUBE_MAP: {
         if (!m_texture_binding_cube_map)
             return JS::js_null();
-        return JS::Value(m_texture_binding_cube_map);
+        return JS::Value(*m_texture_binding_cube_map);
     }
     case GL_UNPACK_ALIGNMENT: {
         GLint result { 0 };

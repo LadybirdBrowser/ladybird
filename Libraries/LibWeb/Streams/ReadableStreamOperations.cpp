@@ -1816,8 +1816,8 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
         return {};
 
     // 3. Let buffer be chunk.[[ViewedArrayBuffer]].
-    auto* typed_array = TRY(JS::typed_array_from(vm, chunk));
-    auto* buffer = typed_array->viewed_array_buffer();
+    auto typed_array = TRY(JS::typed_array_from(vm, chunk));
+    auto buffer = typed_array->viewed_array_buffer();
 
     // 4. Let byteOffset be chunk.[[ByteOffset]].
     auto byte_offset = typed_array->byte_offset();
@@ -1944,7 +1944,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_t
 
     // 2. If cloneResult is an abrupt completion,
     if (clone_result.is_throw_completion()) {
-        auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return clone_result; }).throw_completion();
+        auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [clone_result = move(clone_result)] { return clone_result; }).throw_completion();
 
         // 1. Perform ! ReadableByteStreamControllerError(controller, cloneResult.[[Value]]).
         readable_byte_stream_controller_error(controller, throw_completion.value());
@@ -1954,7 +1954,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_t
     }
 
     // 3. Perform ! ReadableByteStreamControllerEnqueueChunkToQueue(controller, cloneResult.[[Value]], 0, byteLength).
-    readable_byte_stream_controller_enqueue_chunk_to_queue(controller, *clone_result.release_value(), 0, byte_length);
+    readable_byte_stream_controller_enqueue_chunk_to_queue(controller, clone_result.release_value(), 0, byte_length);
 
     return {};
 }

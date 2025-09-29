@@ -346,7 +346,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM& vm, FunctionObject& ne
     regexp_object->set_realm(this_realm);
 
     // 4. If SameValue(newTarget, thisRealm.[[Intrinsics]].[[%RegExp%]]) is true, then
-    if (same_value(&new_target, this_realm.intrinsics().regexp_constructor())) {
+    if (same_value(new_target, this_realm.intrinsics().regexp_constructor())) {
         // i. Set the value of obj’s [[LegacyFeaturesEnabled]] internal slot to true.
         regexp_object->set_legacy_features_enabled(true);
     }

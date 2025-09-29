@@ -140,7 +140,7 @@ static void initialize_constructor(VM& vm, PropertyKey const& property_key, Obje
 {
     constructor.define_direct_property(vm.names.name, PrimitiveString::create(vm, property_key.as_string()), Attribute::Configurable);
     if (prototype)
-        prototype->define_direct_property(vm.names.constructor, &constructor, constructor_property_attributes);
+        prototype->define_direct_property(vm.names.constructor, constructor, constructor_property_attributes);
 }
 
 // 9.3.2 CreateIntrinsics ( realmRec ), https://tc39.es/ecma262/#sec-createintrinsics
@@ -306,10 +306,10 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     initialize_constructor(vm, vm.names.AsyncFunction, *async_function_constructor(), async_function_prototype(), Attribute::Configurable);
 
     // 27.5.1.1 Generator.prototype.constructor, https://tc39.es/ecma262/#sec-generator.prototype.constructor
-    m_generator_prototype->define_direct_property(vm.names.constructor, m_generator_function_prototype, Attribute::Configurable);
+    m_generator_prototype->define_direct_property(vm.names.constructor, *m_generator_function_prototype, Attribute::Configurable);
 
     // 27.6.1.1 AsyncGenerator.prototype.constructor, https://tc39.es/ecma262/#sec-asyncgenerator-prototype-constructor
-    m_async_generator_prototype->define_direct_property(vm.names.constructor, m_async_generator_function_prototype, Attribute::Configurable);
+    m_async_generator_prototype->define_direct_property(vm.names.constructor, *m_async_generator_function_prototype, Attribute::Configurable);
 
     m_array_prototype_values_function = &array_prototype()->get_without_side_effects(vm.names.values).as_function();
     m_date_constructor_now_function = &date_constructor()->get_without_side_effects(vm.names.now).as_function();

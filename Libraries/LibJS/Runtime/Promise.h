@@ -12,7 +12,7 @@
 
 namespace JS {
 
-ThrowCompletionOr<Object*> promise_resolve(VM&, Object& constructor, Value);
+ThrowCompletionOr<GC::Ref<Object>> promise_resolve(VM&, Object& constructor, Value);
 
 class JS_API Promise : public Object {
     JS_OBJECT(Promise, Object);

@@ -172,7 +172,7 @@ void Animation::set_start_time(Optional<double> const& new_start_time)
     if (pending()) {
         m_pending_play_task = TaskState::None;
         m_pending_pause_task = TaskState::None;
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        WebIDL::resolve_promise(realm(), current_ready_promise(), *this);
     }
 
     // 8. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<void> Animation::set_current_time(Optional<double> const& se
         m_pending_pause_task = TaskState::None;
 
         // 5 Resolve animation’s current ready promise with animation.
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        WebIDL::resolve_promise(realm(), current_ready_promise(), *this);
     }
 
     // 3. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -542,7 +542,7 @@ WebIDL::ExceptionOr<void> Animation::finish()
 
     if (should_resolve_ready_promise) {
         HTML::TemporaryExecutionContext execution_context { realm() };
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        WebIDL::resolve_promise(realm(), current_ready_promise(), *this);
     }
 
     // 8. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -1119,7 +1119,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
 
             // 2. Resolve animation’s current finished promise object with animation.
             HTML::TemporaryExecutionContext execution_context { realm };
-            WebIDL::resolve_promise(realm, current_finished_promise(), this);
+            WebIDL::resolve_promise(realm, current_finished_promise(), *this);
             m_is_finished = true;
 
             // 3. Create an AnimationPlaybackEvent, finishEvent.
@@ -1219,7 +1219,7 @@ void Animation::reset_an_animations_pending_tasks()
 
     // 7. Let animation’s current ready promise be the result of creating a new resolved Promise object with value
     //    animation in the relevant Realm of animation.
-    m_current_ready_promise = WebIDL::create_resolved_promise(realm, this);
+    m_current_ready_promise = WebIDL::create_resolved_promise(realm, *this);
 }
 
 // Step 12 of https://www.w3.org/TR/web-animations-1/#playing-an-animation-section
@@ -1273,7 +1273,7 @@ void Animation::run_pending_play_task()
 
     // 4. Resolve animation’s current ready promise with animation.
     HTML::TemporaryExecutionContext execution_context { realm() };
-    WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+    WebIDL::resolve_promise(realm(), current_ready_promise(), *this);
 
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
@@ -1303,7 +1303,7 @@ void Animation::run_pending_pause_task()
 
     // 5. Resolve animation’s current ready promise with animation.
     HTML::TemporaryExecutionContext execution_context { realm() };
-    WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+    WebIDL::resolve_promise(realm(), current_ready_promise(), *this);
 
     // 6. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
@@ -1315,7 +1315,7 @@ GC::Ref<WebIDL::Promise> Animation::current_ready_promise() const
     if (!m_current_ready_promise) {
         // The current ready promise is initially a resolved Promise created using the procedure to create a new
         // resolved Promise with the animation itself as its value and created in the relevant Realm of the animation.
-        m_current_ready_promise = WebIDL::create_resolved_promise(realm(), this);
+        m_current_ready_promise = WebIDL::create_resolved_promise(realm(), *this);
     }
 
     return *m_current_ready_promise;

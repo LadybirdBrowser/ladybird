@@ -40,12 +40,12 @@ public:
     ByteLength const& byte_length() const { return m_byte_length; }
     u32 byte_offset() const { return m_byte_offset; }
     ContentType content_type() const { return m_content_type; }
-    ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
+    GC::Ref<ArrayBuffer> viewed_array_buffer() const { return m_viewed_array_buffer; }
 
     void set_array_length(ByteLength length) { m_array_length = move(length); }
     void set_byte_length(ByteLength length) { m_byte_length = move(length); }
     void set_byte_offset(u32 offset) { m_byte_offset = offset; }
-    void set_viewed_array_buffer(ArrayBuffer* array_buffer) { m_viewed_array_buffer = array_buffer; }
+    void set_viewed_array_buffer(GC::Ref<ArrayBuffer> array_buffer) { m_viewed_array_buffer = array_buffer; }
 
     [[nodiscard]] Kind kind() const { return m_kind; }
 
@@ -66,10 +66,11 @@ public:
     virtual GC::Ref<NativeFunction> intrinsic_constructor(Realm&) const = 0;
 
 protected:
-    TypedArrayBase(Object& prototype, Kind kind, u32 element_size)
+    TypedArrayBase(Object& prototype, Kind kind, u32 element_size, ArrayBuffer& array_buffer)
         : Object(ConstructWithPrototypeTag::Tag, prototype, MayInterfereWithIndexedPropertyAccess::Yes)
         , m_element_size(element_size)
         , m_kind(kind)
+        , m_viewed_array_buffer(array_buffer)
     {
         set_is_typed_array();
     }
@@ -80,7 +81,7 @@ protected:
     u32 m_byte_offset { 0 };
     ContentType m_content_type { ContentType::Number };
     Kind m_kind {};
-    GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
+    GC::Ref<ArrayBuffer> m_viewed_array_buffer;
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -368,7 +369,7 @@ public:
             // b. If numericIndex is not undefined, then
             if (!numeric_index.is_undefined()) {
                 // i. If SameValue(O, Receiver) is true, then
-                if (same_value(this, receiver)) {
+                if (same_value(*this, receiver)) {
                     // 1. Perform ? TypedArraySetElement(O, numericIndex, V).
                     TRY(typed_array_set_element<T>(*this, numeric_index, value));
 
@@ -498,10 +499,9 @@ public:
 
 protected:
     TypedArray(Object& prototype, u32 array_length, ArrayBuffer& array_buffer, Kind kind)
-        : TypedArrayBase(prototype, kind, sizeof(UnderlyingBufferDataType))
+        : TypedArrayBase(prototype, kind, sizeof(UnderlyingBufferDataType), array_buffer)
     {
         VERIFY(!Checked<u32>::multiplication_would_overflow(array_length, sizeof(UnderlyingBufferDataType)));
-        m_viewed_array_buffer = &array_buffer;
         if (array_length)
             VERIFY(!data().is_null());
         m_array_length = array_length;
@@ -509,9 +509,9 @@ protected:
     }
 };
 
-JS_API ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM&, Value);
-ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM&, FunctionObject& constructor, GC::RootVector<Value> arguments);
-ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM&, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments);
+JS_API ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_from(VM&, Value);
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_create(VM&, FunctionObject& constructor, GC::RootVector<Value> arguments);
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_create_same_type(VM&, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments);
 ThrowCompletionOr<TypedArrayWithBufferWitness> validate_typed_array(VM&, Object const&, ArrayBuffer::Order);
 ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 

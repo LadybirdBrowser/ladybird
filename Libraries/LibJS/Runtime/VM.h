@@ -229,7 +229,7 @@ public:
 
     Value get_new_target();
 
-    Object* get_import_meta();
+    Object& get_import_meta();
 
     Object& get_global_object();
 
@@ -281,7 +281,7 @@ public:
     Function<void(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload)> host_load_imported_module;
 
     Function<HashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;
-    Function<void(Object*, SourceTextModule const&)> host_finalize_import_meta;
+    Function<void(Object&, SourceTextModule const&)> host_finalize_import_meta;
 
     Function<Vector<Utf16String>()> host_get_supported_import_attributes;
 

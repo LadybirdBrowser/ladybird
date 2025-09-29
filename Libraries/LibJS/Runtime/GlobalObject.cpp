@@ -115,7 +115,7 @@ void set_default_global_bindings(Realm& realm)
     global.define_direct_property(vm.names.encodeURIComponent, realm.intrinsics().encode_uri_component_function(), attr);
 
     // 19.1 Value Properties of the Global Object, https://tc39.es/ecma262/#sec-value-properties-of-the-global-object
-    global.define_direct_property(vm.names.globalThis, &global, attr);
+    global.define_direct_property(vm.names.globalThis, global, attr);
     global.define_direct_property(vm.names.Infinity, js_infinity(), 0);
     global.define_direct_property(vm.names.NaN, js_nan(), 0);
     global.define_direct_property(vm.names.undefined, js_undefined(), 0);

@@ -74,7 +74,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ModuleNamespaceObject::internal_
         return Optional<PropertyDescriptor> {};
 
     // 4. Let value be ? O.[[Get]](P, O).
-    auto value = TRY(internal_get(property_key, this));
+    auto value = TRY(internal_get(property_key, *this));
 
     // 5. Return PropertyDescriptor { [[Value]]: value, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: false }.
     return PropertyDescriptor { .value = value, .writable = true, .enumerable = true, .configurable = false };

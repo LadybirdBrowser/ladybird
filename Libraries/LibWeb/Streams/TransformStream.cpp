@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     auto stream = realm.create<TransformStream>(realm);
 
     // 1. If transformer is missing, set it to null.
-    auto transformer = transformer_object.has_value() ? JS::Value { transformer_object.value() } : JS::js_null();
+    auto transformer = transformer_object.has_value() ? JS::Value { *transformer_object.value() } : JS::js_null();
 
     // 2. Let transformerDict be transformer, converted to an IDL value of type Transformer.
     auto transformer_dict = TRY(Transformer::from_value(vm, transformer));
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     // 12. If transformerDict["start"] exists, then resolve startPromise with the result of invoking
     //     transformerDict["start"] with argument list « this.[[controller]] » and callback this value transformer.
     if (transformer_dict.start) {
-        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, { { stream->controller() } }));
+        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, { { stream->controller().as_nonnull() } }));
         WebIDL::resolve_promise(realm, start_promise, result);
     }
     // 13. Otherwise, resolve startPromise with undefined.

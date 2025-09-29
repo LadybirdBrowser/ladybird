@@ -22,7 +22,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(Promise);
 
 // 27.2.4.7.1 PromiseResolve ( C, x ), https://tc39.es/ecma262/#sec-promise-resolve
-ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value value)
+ThrowCompletionOr<GC::Ref<Object>> promise_resolve(VM& vm, Object& constructor, Value value)
 {
     // 1. If IsPromise(x) is true, then
     if (value.is_object() && is<Promise>(value.as_object())) {
@@ -30,18 +30,18 @@ ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value va
         auto value_constructor = TRY(value.as_object().get(vm.names.constructor));
 
         // b. If SameValue(xConstructor, C) is true, return x.
-        if (same_value(value_constructor, &constructor))
-            return &static_cast<Promise&>(value.as_object());
+        if (same_value(value_constructor, constructor))
+            return static_cast<Promise&>(value.as_object());
     }
 
     // 2. Let promiseCapability be ? NewPromiseCapability(C).
-    auto promise_capability = TRY(new_promise_capability(vm, &constructor));
+    auto promise_capability = TRY(new_promise_capability(vm, constructor));
 
     // 3. Perform ? Call(promiseCapability.[[Resolve]], undefined, « x »).
     (void)TRY(call(vm, *promise_capability->resolve(), js_undefined(), value));
 
     // 4. Return promiseCapability.[[Promise]].
-    return promise_capability->promise().ptr();
+    return promise_capability->promise();
 }
 
 GC::Ref<Promise> Promise::create(Realm& realm)

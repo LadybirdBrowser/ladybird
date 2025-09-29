@@ -169,7 +169,7 @@ JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
 
     // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode", and « node ».
     //    If this throws an exception, then unset traverser’s active flag and rethrow the exception.
-    auto result = WebIDL::call_user_object_operation(m_filter->callback(), "acceptNode"_utf16_fly_string, {}, { { &node } });
+    auto result = WebIDL::call_user_object_operation(m_filter->callback(), "acceptNode"_utf16_fly_string, {}, { { node } });
     if (result.is_abrupt()) {
         m_active = false;
         return result;
