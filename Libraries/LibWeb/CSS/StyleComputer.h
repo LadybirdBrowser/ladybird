@@ -212,6 +212,7 @@ public:
     static NonnullRefPtr<StyleValue const> compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& specified_value);
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, Length::ResolutionContext const&);
     static NonnullRefPtr<StyleValue const> compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&);
+    static NonnullRefPtr<StyleValue const> compute_position_area(NonnullRefPtr<StyleValue const> const& specified_value);
     static NonnullRefPtr<StyleValue const> compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&);
 
 private:

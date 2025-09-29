@@ -3225,6 +3225,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:
         return compute_opacity(specified_value, computation_context);
+    case PropertyID::PositionArea:
+        return compute_position_area(specified_value);
     case PropertyID::TextUnderlineOffset:
         return compute_text_underline_offset(specified_value, computation_context);
     default:
@@ -3565,6 +3567,105 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<Sty
         return NumberStyleValue::create(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction());
 
     VERIFY_NOT_REACHED();
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-area-computed
+NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefPtr<StyleValue const> const& specified_value)
+{
+    // The computed value of a <position-area> value is the two keywords indicating the selected tracks in each axis,
+    // with the long (block-start) and short (start) logical keywords treated as equivalent. It serializes in the order
+    // given in the grammar (above), with the logical keywords serialized in their short forms (e.g. start start
+    // instead of block-start inline-start).
+    if (specified_value->is_keyword())
+        return specified_value;
+
+    auto to_short_keyword = [](NonnullRefPtr<KeywordStyleValue const> const& keyword_value) -> NonnullRefPtr<KeywordStyleValue const> {
+        switch (keyword_value->keyword()) {
+        case Keyword::BlockStart:
+        case Keyword::InlineStart:
+            return KeywordStyleValue::create(Keyword::Start);
+        case Keyword::BlockEnd:
+        case Keyword::InlineEnd:
+            return KeywordStyleValue::create(Keyword::End);
+        case Keyword::SelfBlockStart:
+        case Keyword::SelfInlineStart:
+            return KeywordStyleValue::create(Keyword::SelfStart);
+        case Keyword::SelfBlockEnd:
+        case Keyword::SelfInlineEnd:
+            return KeywordStyleValue::create(Keyword::SelfEnd);
+        case Keyword::SpanBlockStart:
+        case Keyword::SpanInlineStart:
+            return KeywordStyleValue::create(Keyword::SpanStart);
+        case Keyword::SpanBlockEnd:
+        case Keyword::SpanInlineEnd:
+            return KeywordStyleValue::create(Keyword::SpanEnd);
+        case Keyword::SpanSelfBlockStart:
+        case Keyword::SpanSelfInlineStart:
+            return KeywordStyleValue::create(Keyword::SpanSelfStart);
+        case Keyword::SpanSelfBlockEnd:
+        case Keyword::SpanSelfInlineEnd:
+            return KeywordStyleValue::create(Keyword::SpanSelfEnd);
+        default:
+            break;
+        }
+        return keyword_value;
+    };
+
+    auto const& value_list = specified_value->as_value_list();
+    VERIFY(value_list.size() == 2);
+
+    auto const& block_value = value_list.values().at(0);
+    auto const& inline_value = value_list.values().at(1);
+    if (block_value->as_keyword().keyword() == Keyword::SpanAll) {
+        switch (inline_value->as_keyword().keyword()) {
+        case Keyword::Start:
+            return KeywordStyleValue::create(Keyword::InlineStart);
+        case Keyword::End:
+            return KeywordStyleValue::create(Keyword::InlineEnd);
+        case Keyword::SelfStart:
+            return KeywordStyleValue::create(Keyword::SelfInlineStart);
+        case Keyword::SelfEnd:
+            return KeywordStyleValue::create(Keyword::SelfInlineEnd);
+        case Keyword::SpanStart:
+            return KeywordStyleValue::create(Keyword::SpanInlineStart);
+        case Keyword::SpanEnd:
+            return KeywordStyleValue::create(Keyword::SpanInlineEnd);
+        case Keyword::SpanSelfStart:
+            return KeywordStyleValue::create(Keyword::SpanSelfInlineStart);
+        case Keyword::SpanSelfEnd:
+            return KeywordStyleValue::create(Keyword::SpanSelfInlineEnd);
+        default:
+            return specified_value;
+        }
+    }
+    if (inline_value->as_keyword().keyword() == Keyword::SpanAll) {
+        switch (block_value->as_keyword().keyword()) {
+        case Keyword::Start:
+            return KeywordStyleValue::create(Keyword::BlockStart);
+        case Keyword::End:
+            return KeywordStyleValue::create(Keyword::BlockEnd);
+        case Keyword::SelfStart:
+            return KeywordStyleValue::create(Keyword::SelfBlockStart);
+        case Keyword::SelfEnd:
+            return KeywordStyleValue::create(Keyword::SelfBlockEnd);
+        case Keyword::SpanStart:
+            return KeywordStyleValue::create(Keyword::SpanBlockStart);
+        case Keyword::SpanEnd:
+            return KeywordStyleValue::create(Keyword::SpanBlockEnd);
+        case Keyword::SpanSelfStart:
+            return KeywordStyleValue::create(Keyword::SpanSelfBlockStart);
+        case Keyword::SpanSelfEnd:
+            return KeywordStyleValue::create(Keyword::SpanSelfBlockEnd);
+        default:
+            return specified_value;
+        }
+    }
+    auto short_block_value = to_short_keyword(block_value->as_keyword());
+    auto short_inline_value = to_short_keyword(inline_value->as_keyword());
+    if (*block_value != short_block_value || *inline_value != short_inline_value)
+        return StyleValueList::create({ short_block_value, short_inline_value }, StyleValueList::Separator::Space);
+
+    return specified_value;
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
