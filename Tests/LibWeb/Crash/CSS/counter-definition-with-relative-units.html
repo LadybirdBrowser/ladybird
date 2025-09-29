@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <style>
+            #foo {
+                counter-set: foo calc(sign(1em - 1px));
+                counter-increment: bar calc(sign(1em - 1px));
+                counter-reset: baz calc(sign(1em - 1px));
+            }
+        </style>
+        <div>
+            <div id="foo"></div>
+        </div>
+    </body>
+</html>
