@@ -1,0 +1,20 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    Box <body> at [8,8] flex-container(row) [8+0+0 80 0+0+712] [8+0+0 36 0+0+8] [FFC] children: not-inline
+      BlockContainer <div.item1> at [8,8] flex-item [0+0+0 71.109375 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [8,8 62.796875x18] baseline: 13.796875
+            "foo bar"
+        frag 1 from TextNode start: 8, length: 3, rect: [8,26 27.203125x18] baseline: 13.796875
+            "baz"
+        TextNode <#text> (not painted)
+      BlockContainer <div.item2> at [79.109375,8] flex-item [0+0+0 8.890625 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x52]
+    PaintableBox (Box<BODY>) [8,8 80x36]
+      PaintableWithLines (BlockContainer<DIV>.item1) [8,8 71.109375x36]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.item2) [79.109375,8 8.890625x10]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x52] [children: 0] (z-index: auto)

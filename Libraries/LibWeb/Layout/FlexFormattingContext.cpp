@@ -22,6 +22,14 @@ CSSPixels FlexFormattingContext::get_pixel_width(FlexItem const& item, CSS::Size
 
 CSSPixels FlexFormattingContext::get_pixel_height(FlexItem const& item, CSS::Size const& size) const
 {
+    if (is_row_layout()) {
+        // NOTE: In a row layout, after we've determined the main size, we use that as the available width
+        //       for any intrinsic sizing layout needed to resolve the height.
+        auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
+        auto available_height = AvailableSize::make_indefinite();
+        auto available_space = AvailableSpace { available_width, available_height };
+        return calculate_inner_height(item.box, available_space, size);
+    }
     return calculate_inner_height(item.box, m_available_space.value(), size);
 }
 
