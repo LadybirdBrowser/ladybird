@@ -102,6 +102,7 @@
       "name": "mman",
       "platform": "windows"
     },
+    "libxml2",
     "openssl",
     {
       "name": "qtbase",

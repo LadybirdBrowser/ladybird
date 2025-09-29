@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
+#include "XPath.h"
 #include "XPathEvaluator.h"
 #include "XPathExpression.h"
 #include "XPathResult.h"
@@ -40,10 +41,10 @@ void XPathExpression::visit_edges(Cell::Visitor& visitor)
 
 XPathExpression::~XPathExpression() = default;
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(DOM::Node const&, WebIDL::UnsignedShort, GC::Ptr<XPathResult>)
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
     auto& realm = this->realm();
-    return realm.create<XPathResult>(realm);
+    return XPath::evaluate(realm, m_expression, context_node, m_resolver, type, result);
 }
 
 }

@@ -1066,6 +1066,7 @@ set(SOURCES
     XHR/XMLHttpRequestUpload.cpp
     XLink/AttributeNames.cpp
     XML/XMLDocumentBuilder.cpp
+    XPath/XPath.cpp
     XPath/XPathEvaluator.cpp
     XPath/XPathExpression.cpp
     XPath/XPathNSResolver.cpp
@@ -1116,7 +1117,9 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3)
+find_package(LibXml2 REQUIRED)
+
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
