@@ -19,12 +19,11 @@
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
+#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
-
-class CalculationNode;
 
 // https://drafts.csswg.org/css-values-4/#calc-context
 // Contains the context available at parse-time.
@@ -146,7 +145,7 @@ public:
     enum class Type {
         Numeric,
         // NOTE: Currently, any value with a `var()` or `attr()` function in it is always an
-        //       UnresolvedStyleValue so we do not have to implement a NonMathFunction type here.
+        //       UnresolvedStyleValue so we do not have to implement them as CalculationNodes.
 
         // Comparison function nodes, a sub-type of operator node
         // https://drafts.csswg.org/css-values-4/#comp-func
@@ -189,6 +188,9 @@ public:
         Round,
         Mod,
         Rem,
+
+        // Non-math functions
+        NonMathFunction
     };
     using NumericValue = CalculatedStyleValue::CalculationResult::Value;
 
@@ -762,6 +764,25 @@ private:
     RemCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     NonnullRefPtr<CalculationNode const> m_x;
     NonnullRefPtr<CalculationNode const> m_y;
+};
+
+class NonMathFunctionCalculationNode final : public CalculationNode {
+public:
+    static NonnullRefPtr<NonMathFunctionCalculationNode const> create(AbstractNonMathCalcFunctionStyleValue const&, NumericType);
+    ~NonMathFunctionCalculationNode();
+
+    virtual bool contains_percentage() const override { return false; }
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
+
+    virtual void dump(StringBuilder&, int indent) const override;
+    virtual bool equals(CalculationNode const&) const override;
+
+    ValueComparingNonnullRefPtr<AbstractNonMathCalcFunctionStyleValue const> function() const { return m_function; }
+
+private:
+    NonMathFunctionCalculationNode(AbstractNonMathCalcFunctionStyleValue const& function, NumericType);
+    ValueComparingNonnullRefPtr<AbstractNonMathCalcFunctionStyleValue const> m_function;
 };
 
 // https://drafts.csswg.org/css-values-4/#calc-simplification
