@@ -72,12 +72,11 @@ struct ObjectPosition {
 
 // https://drafts.csswg.org/css-contain-2/#containment-types
 struct Containment {
-    // FIXME: It'd be nice if this was a single-byte bitfield instead of some bools.
-    bool size_containment = false;
-    bool inline_size_containment = false;
-    bool layout_containment = false;
-    bool style_containment = false;
-    bool paint_containment = false;
+    bool size_containment : 1 { false };
+    bool inline_size_containment : 1 { false };
+    bool layout_containment : 1 { false };
+    bool style_containment : 1 { false };
+    bool paint_containment : 1 { false };
 
     bool is_empty() const { return !(size_containment || inline_size_containment || layout_containment || style_containment || paint_containment); }
 };
