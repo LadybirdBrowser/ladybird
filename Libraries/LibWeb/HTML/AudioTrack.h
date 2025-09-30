@@ -1,21 +1,22 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/Time.h>
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/HTML/MediaTrackBase.h>
 
 namespace Web::HTML {
 
-class AudioTrack final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioTrack, Bindings::PlatformObject);
+class AudioTrack final : public MediaTrackBase {
+    WEB_PLATFORM_OBJECT(AudioTrack, MediaTrackBase);
     GC_DECLARE_ALLOCATOR(AudioTrack);
 
 public:
@@ -23,15 +24,8 @@ public:
 
     void set_audio_track_list(Badge<AudioTrackList>, GC::Ptr<AudioTrackList> audio_track_list) { m_audio_track_list = audio_track_list; }
 
-    String const& id() const { return m_id; }
-    String const& kind() const { return m_kind; }
-    String const& label() const { return m_label; }
-    String const& language() const { return m_language; }
-
     bool enabled() const { return m_enabled; }
     void set_enabled(bool enabled);
-
-    Media::Track const& track_in_playback_manager() const { return m_track_in_playback_manager; }
 
 private:
     AudioTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const&);
@@ -39,25 +33,10 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-id
-    String m_id;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-kind
-    String m_kind;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-label
-    String m_label;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-language
-    String m_language;
-
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-enabled
     bool m_enabled { false };
 
-    GC::Ref<HTMLMediaElement> m_media_element;
     GC::Ptr<AudioTrackList> m_audio_track_list;
-
-    Media::Track m_track_in_playback_manager;
 };
 
 }
