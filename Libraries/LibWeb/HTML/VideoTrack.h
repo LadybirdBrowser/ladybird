@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,11 +11,12 @@
 #include <AK/Time.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/HTML/MediaTrackBase.h>
 
 namespace Web::HTML {
 
-class VideoTrack final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(VideoTrack, Bindings::PlatformObject);
+class VideoTrack final : public MediaTrackBase {
+    WEB_PLATFORM_OBJECT(VideoTrack, MediaTrackBase);
     GC_DECLARE_ALLOCATOR(VideoTrack);
 
 public:
@@ -22,15 +24,8 @@ public:
 
     void set_video_track_list(Badge<VideoTrackList>, GC::Ptr<VideoTrackList> video_track_list) { m_video_track_list = video_track_list; }
 
-    String const& id() const { return m_id; }
-    String const& kind() const { return m_kind; }
-    String const& label() const { return m_label; }
-    String const& language() const { return m_language; }
-
     bool selected() const { return m_selected; }
     void set_selected(bool selected);
-
-    Media::Track const& track_in_playback_manager() const { return m_track_in_playback_manager; }
 
 private:
     VideoTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const& track);
@@ -38,25 +33,10 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-id
-    String m_id;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-kind
-    String m_kind;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-label
-    String m_label;
-
-    // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-language
-    String m_language;
-
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-selected
     bool m_selected { false };
 
-    GC::Ref<HTMLMediaElement> m_media_element;
     GC::Ptr<VideoTrackList> m_video_track_list;
-
-    Media::Track m_track_in_playback_manager;
 };
 
 }
