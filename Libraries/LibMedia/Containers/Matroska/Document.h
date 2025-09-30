@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Hunter Salyer <thefalsehonesty@gmail.com>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -119,6 +120,8 @@ public:
     void set_name(String const& name) { m_name = name; }
     String language() const { return m_language; }
     void set_language(String const& language) { m_language = language; }
+    Optional<String> const& language_bcp_47() const { return m_language_bcp_47; }
+    void set_language_bcp_47(String const& language_bcp_47) { m_language_bcp_47 = language_bcp_47; }
     String codec_id() const { return m_codec_id; }
     void set_codec_id(String const& codec_id) { m_codec_id = codec_id; }
     ReadonlyBytes codec_private_data() const LIFETIME_BOUND { return m_codec_private_data.span(); }
@@ -154,6 +157,7 @@ private:
     TrackType m_track_type { Invalid };
     String m_name;
     String m_language = "eng"_string;
+    Optional<String> m_language_bcp_47;
     String m_codec_id;
     FixedArray<u8> m_codec_private_data;
     double m_timestamp_scale { 1 };
