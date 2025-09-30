@@ -402,104 +402,44 @@ void WebGLRenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> locati
     glUniform4fv(location->handle(), span.size() / 4, span.data());
 }
 
-void WebGLRenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v)
+void WebGLRenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
     if (!location)
         return;
-
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    glUniform1iv(location->handle(), count / 1, data);
+    auto span = span_from_int32_list(v);
+    glUniform1iv(location->handle(), span.size() / 1, span.data());
 }
 
-void WebGLRenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v)
+void WebGLRenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
     if (!location)
         return;
-
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    glUniform2iv(location->handle(), count / 2, data);
+    auto span = span_from_int32_list(v);
+    glUniform2iv(location->handle(), span.size() / 2, span.data());
 }
 
-void WebGLRenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v)
+void WebGLRenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
     if (!location)
         return;
-
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    glUniform3iv(location->handle(), count / 3, data);
+    auto span = span_from_int32_list(v);
+    glUniform3iv(location->handle(), span.size() / 3, span.data());
 }
 
-void WebGLRenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v)
+void WebGLRenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
     if (!location)
         return;
-
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    glUniform4iv(location->handle(), count / 4, data);
+    auto span = span_from_int32_list(v);
+    glUniform4iv(location->handle(), span.size() / 4, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
