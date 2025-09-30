@@ -778,9 +778,8 @@ RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>
         tokens.discard_a_token(); // integer
         return IntegerStyleValue::create(peek_token.token().number().integer_value());
     }
-    if (auto calc = parse_calculated_value(peek_token); calc
-        && (calc->is_integer() || (calc->is_calculated() && calc->as_calculated().resolves_to_number()))) {
 
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -795,9 +794,8 @@ RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>&
         tokens.discard_a_token(); // number
         return NumberStyleValue::create(peek_token.token().number().value());
     }
-    if (auto calc = parse_calculated_value(peek_token); calc
-        && (calc->is_number() || (calc->is_calculated() && calc->as_calculated().resolves_to_number()))) {
 
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -838,9 +836,8 @@ RefPtr<StyleValue const> Parser::parse_percentage_value(TokenStream<ComponentVal
         tokens.discard_a_token(); // percentage
         return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
     }
-    if (auto calc = parse_calculated_value(peek_token); calc
-        && (calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_percentage()))) {
 
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_percentage()) {
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -1045,9 +1042,7 @@ RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& 
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_angle() || (calc->is_calculated() && calc->as_calculated().resolves_to_angle()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_angle()) {
         transaction.commit();
         return calc;
     }
@@ -1079,9 +1074,7 @@ RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<Compon
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_angle() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_angle_percentage()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_angle_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -1101,9 +1094,7 @@ RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& t
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_flex() || (calc->is_calculated() && calc->as_calculated().resolves_to_flex()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_flex()) {
         transaction.commit();
         return calc;
     }
@@ -1123,9 +1114,7 @@ RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValu
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_frequency() || (calc->is_calculated() && calc->as_calculated().resolves_to_frequency()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_frequency()) {
         transaction.commit();
         return calc;
     }
@@ -1148,9 +1137,7 @@ RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<Co
         return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_frequency() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_frequency_percentage()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_frequency_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -1195,9 +1182,7 @@ RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>&
         return parse_anchor_size(tokens);
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_length() || (calc->is_calculated() && calc->as_calculated().resolves_to_length()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_length()) {
         transaction.commit();
         return calc;
     }
@@ -1245,9 +1230,7 @@ RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<Compo
         return parse_anchor_size(tokens);
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_length() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_length_percentage()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_length_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -1272,9 +1255,7 @@ RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentVal
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_resolution() || (calc->is_calculated() && calc->as_calculated().resolves_to_resolution()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_resolution()) {
         transaction.commit();
         return calc;
     }
@@ -1294,9 +1275,7 @@ RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& t
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_time() || (calc->is_calculated() && calc->as_calculated().resolves_to_time()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_time()) {
         transaction.commit();
         return calc;
     }
@@ -1319,9 +1298,7 @@ RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<Compone
         return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
-        && (calc->is_time() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_time_percentage()))) {
-
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_time_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -4060,7 +4037,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
     return nullptr;
 }
 
-RefPtr<StyleValue const> Parser::parse_calculated_value(ComponentValue const& component_value)
+RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue const& component_value)
 {
     if (!component_value.is_function())
         return nullptr;
