@@ -149,6 +149,7 @@ All properties associated with getComputedStyle(document.body):
     "column-span",
     "column-width",
     "contain",
+    "container-type",
     "content",
     "content-visibility",
     "counter-increment",

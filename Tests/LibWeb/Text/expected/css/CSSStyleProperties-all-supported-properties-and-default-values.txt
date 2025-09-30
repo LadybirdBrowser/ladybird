@@ -358,6 +358,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'column-width': 'auto'
 'columns': 'auto'
 'contain': 'none'
+'containerType': 'normal'
+'container-type': 'normal'
 'content': 'normal'
 'contentVisibility': 'visible'
 'content-visibility': 'visible'
