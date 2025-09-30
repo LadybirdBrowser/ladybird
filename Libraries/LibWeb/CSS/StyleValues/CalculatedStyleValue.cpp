@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
@@ -411,9 +412,11 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     // NOTE: Already the case.
 
     // 2. If root is a numeric value, or a non-math function, serialize root per the normal rules for it and return the result.
-    // FIXME: Support non-math functions in calculation trees.
     if (root.type() == CalculationNode::Type::Numeric)
         return static_cast<NumericCalculationNode const&>(root).value_to_string();
+
+    if (root.type() == CalculationNode::Type::NonMathFunction)
+        return as<NonMathFunctionCalculationNode>(root).function()->to_string(serialization_mode);
 
     // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math function for the function
     //    corresponding to the node type, treating the node’s children as the function’s comma-separated calculation
@@ -580,6 +583,7 @@ StringView CalculationNode::name() const
     case Type::Product:
     case Type::Negate:
     case Type::Invert:
+    case Type::NonMathFunction:
         return "calc"sv;
     }
     VERIFY_NOT_REACHED();
@@ -2473,6 +2477,35 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
 }
 
+NonnullRefPtr<NonMathFunctionCalculationNode const> NonMathFunctionCalculationNode::create(AbstractNonMathCalcFunctionStyleValue const& function, NumericType numeric_type)
+{
+    return adopt_ref(*new (nothrow) NonMathFunctionCalculationNode(move(function), move(numeric_type)));
+}
+
+NonMathFunctionCalculationNode::NonMathFunctionCalculationNode(AbstractNonMathCalcFunctionStyleValue const& function, NumericType numeric_type)
+    : CalculationNode(Type::NonMathFunction, numeric_type)
+    , m_function(function)
+{
+}
+
+NonMathFunctionCalculationNode::~NonMathFunctionCalculationNode() = default;
+
+void NonMathFunctionCalculationNode::dump(StringBuilder& builder, int indent) const
+{
+    builder.appendff("{: >{}}NON-MATH FUNCTION: {}", "", indent, m_function->to_string(SerializationMode::Normal));
+}
+
+bool NonMathFunctionCalculationNode::equals(CalculationNode const& other) const
+{
+    if (this == &other)
+        return true;
+
+    if (type() != other.type())
+        return false;
+
+    return static_cast<NonMathFunctionCalculationNode const&>(other).function() == m_function;
+}
+
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, CalculationResolutionContext const& context, Optional<NumericType> numeric_type)
 {
     auto number = value.visit(
@@ -2931,7 +2964,15 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
     }
 
     // 2. If root is any other leaf node (not an operator node):
-    // FIXME: We don't yet allow any of these inside a calculation tree. Revisit once we do.
+    if (root->type() == CalculationNode::Type::NonMathFunction) {
+        //  1. If there is enough information available to determine its numeric value, return its value, expressed in
+        //     the value’s canonical unit.
+        if (auto resolved_calculation_node = as<NonMathFunctionCalculationNode>(*root).function()->resolve_to_calculation_node(context, resolution_context))
+            return resolved_calculation_node.release_nonnull();
+
+        // 2. Otherwise, return root.
+        return root;
+    }
 
     // 3. At this point, root is an operator node. Simplify all the calculation children of root.
     root = root->with_simplified_children(context, resolution_context);

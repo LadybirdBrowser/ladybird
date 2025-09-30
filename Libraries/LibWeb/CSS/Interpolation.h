@@ -14,8 +14,6 @@
 
 namespace Web::CSS {
 
-struct CalculationContext;
-
 enum class AllowDiscrete {
     Yes,
     No,

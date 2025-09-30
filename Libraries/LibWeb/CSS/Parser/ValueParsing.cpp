@@ -19,6 +19,7 @@
 #include <AK/StringConversions.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -4249,8 +4250,7 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             }
 
             // 2. If leaf is a math function, replace leaf with the internal representation of that math function.
-            // NOTE: All function tokens at this point should be math functions.
-            if (component_value->is_function()) {
+            if (component_value->is_function() && math_function_from_string(component_value->function().name).has_value()) {
                 auto const& function = component_value->function();
                 auto leaf_calculation = parse_a_calc_function_node(function, context);
                 if (!leaf_calculation)
