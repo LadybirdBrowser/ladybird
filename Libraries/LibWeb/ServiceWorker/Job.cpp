@@ -237,7 +237,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         // 4. If the isTopLevel flag is unset, then return the result of fetching request.
         // FIXME: Needs spec issue, this wording is confusing and contradicts the way perform the fetch hook is used in `run a worker`
         if (top_level == HTML::TopLevelModule::No) {
-            TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+            Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
             return {};
         }
 
@@ -376,7 +376,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             process_response_completion_result = WebIDL::ExceptionOr<void> {};
         };
 
-        auto fetch_controller = TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+        auto fetch_controller = Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
         // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
         auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
@@ -455,6 +455,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         // FIXME: Credentials mode
         // FIXME: Use a 'stub' service worker ESO as the fetch "environment"
         (void)HTML::fetch_module_worker_script_graph(job->script_url, *job->client, Fetch::Infrastructure::Request::Destination::ServiceWorker, *job->client, perform_the_fetch_hook, on_fetch_complete);
+        break;
     }
 }
 
