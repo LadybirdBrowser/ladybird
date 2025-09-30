@@ -28,12 +28,12 @@ String CursorStyleValue::to_string(SerializationMode mode) const
     return builder.to_string_without_validation();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     return CursorStyleValue::create(
-        m_properties.image->absolutized(viewport_rect, font_metrics, root_font_metrics)->as_abstract_image(),
-        m_properties.x.map([&](NumberOrCalculated const& value) { return value.absolutized(viewport_rect, font_metrics, root_font_metrics); }),
-        m_properties.y.map([&](NumberOrCalculated const& value) { return value.absolutized(viewport_rect, font_metrics, root_font_metrics); }));
+        m_properties.image->absolutized(computation_context)->as_abstract_image(),
+        m_properties.x.map([&](NumberOrCalculated const& value) { return value.absolutized(computation_context); }),
+        m_properties.y.map([&](NumberOrCalculated const& value) { return value.absolutized(computation_context); }));
 }
 
 Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const

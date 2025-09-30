@@ -76,6 +76,10 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFamily))
         font_family = extract_font_name(*value);
 
+    ComputationContext computation_context {
+        .length_resolution_context = Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window())
+    };
+
     Optional<int> weight;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontWeight)) {
         // https://drafts.csswg.org/css-fonts-4/#font-prop-desc
@@ -86,7 +90,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
             weight = 400;
         else
             // NOTE: The value we pass here for inherited_font_weight is irrelevant as relative keywords (lighter, bolder) should be disallowed at parse time
-            weight = StyleComputer::compute_font_weight(*value, 0, Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window()))->as_number().number();
+            weight = StyleComputer::compute_font_weight(*value, 0, computation_context)->as_number().number();
     }
 
     Optional<int> slope;
@@ -98,7 +102,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         if (value->to_keyword() == Keyword::Auto)
             slope = 0;
         else
-            slope = StyleComputer::compute_font_style(*value, Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window()))->as_font_style().to_font_slope();
+            slope = StyleComputer::compute_font_style(*value, computation_context)->as_font_style().to_font_slope();
     }
 
     Optional<int> width;
@@ -110,7 +114,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         if (value->to_keyword() == Keyword::Auto)
             width = 100;
         else
-            width = StyleComputer::compute_font_width(*value, Length::ResolutionContext::for_window(*descriptors.parent_rule()->parent_style_sheet()->owning_document()->window()))->as_percentage().raw_value();
+            width = StyleComputer::compute_font_width(*value, computation_context)->as_percentage().raw_value();
     }
 
     Vector<Source> sources;

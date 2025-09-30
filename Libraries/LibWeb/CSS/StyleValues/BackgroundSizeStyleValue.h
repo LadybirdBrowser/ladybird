@@ -28,7 +28,7 @@ public:
     LengthPercentageOrAuto size_y() const { return m_properties.size_y; }
 
     virtual String to_string(SerializationMode) const override;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 
