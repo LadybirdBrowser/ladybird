@@ -26,12 +26,12 @@ String BackgroundSizeStyleValue::to_string(SerializationMode mode) const
     return MUST(String::formatted("{} {}", m_properties.size_x.to_string(mode), m_properties.size_y.to_string(mode)));
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     auto absolutize = [&](auto& size) -> LengthPercentageOrAuto {
         if (size.is_auto())
             return size;
-        return size.length_percentage().absolutized(viewport_rect, font_metrics, root_font_metrics);
+        return size.length_percentage().absolutized(computation_context);
     };
 
     auto absolutized_size_x = absolutize(m_properties.size_x);

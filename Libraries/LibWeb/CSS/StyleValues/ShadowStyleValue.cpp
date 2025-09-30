@@ -56,12 +56,12 @@ ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::spread_distance(
     return *m_properties.spread_distance;
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto absolutized_offset_x = offset_x()->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_offset_y = offset_y()->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_blur_radius = blur_radius()->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_spread_distance = spread_distance()->absolutized(viewport_rect, font_metrics, root_font_metrics);
+    auto absolutized_offset_x = offset_x()->absolutized(computation_context);
+    auto absolutized_offset_y = offset_y()->absolutized(computation_context);
+    auto absolutized_blur_radius = blur_radius()->absolutized(computation_context);
+    auto absolutized_spread_distance = spread_distance()->absolutized(computation_context);
     return create(m_properties.shadow_type, color(), absolutized_offset_x, absolutized_offset_y, absolutized_blur_radius, absolutized_spread_distance, placement());
 }
 

@@ -2533,15 +2533,9 @@ String CalculatedStyleValue::to_string(SerializationMode serialization_mode) con
     return serialize_a_math_function(m_calculation, m_context, serialization_mode);
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    Length::ResolutionContext length_resolution_context {
-        .viewport_rect = viewport_rect,
-        .font_metrics = font_metrics,
-        .root_font_metrics = root_font_metrics
-    };
-
-    auto simplified_calculation_tree = simplify_a_calculation_tree(m_calculation, m_context, { .length_resolution_context = length_resolution_context });
+    auto simplified_calculation_tree = simplify_a_calculation_tree(m_calculation, m_context, CalculationResolutionContext::from_computation_context(computation_context));
 
     auto const simplified_percentage_dimension_mix = [&]() -> Optional<ValueComparingNonnullRefPtr<StyleValue const>> {
         // NOTE: A percentage dimension mix is a SumCalculationNode with two NumericCalculationNode children which have

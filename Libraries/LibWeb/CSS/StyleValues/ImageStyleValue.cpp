@@ -186,7 +186,7 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
     m_style_sheet = style_sheet;
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
+ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(ComputationContext const&) const
 {
     if (m_url.url().is_empty())
         return *this;
