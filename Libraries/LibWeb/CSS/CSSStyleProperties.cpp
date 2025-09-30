@@ -820,8 +820,6 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return KeywordStyleValue::create(Keyword::Normal);
         return get_computed_value(property_id);
     }
-    case PropertyID::Invalid:
-        return KeywordStyleValue::create(Keyword::Invalid);
     case PropertyID::Custom:
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for custom properties was requested (?)");
         return nullptr;
