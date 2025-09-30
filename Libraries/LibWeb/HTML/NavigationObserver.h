@@ -22,6 +22,9 @@ public:
     [[nodiscard]] GC::Ptr<GC::Function<void()>> navigation_complete() const { return m_navigation_complete; }
     void set_navigation_complete(Function<void()>);
 
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> ongoing_navigation_changed() const { return m_ongoing_navigation_changed; }
+    void set_ongoing_navigation_changed(Function<void()>);
+
 private:
     NavigationObserver(JS::Realm&, Navigable&);
 
@@ -31,6 +34,7 @@ private:
     IntrusiveListNode<NavigationObserver> m_list_node;
     GC::Ref<Navigable> m_navigable;
     GC::Ptr<GC::Function<void()>> m_navigation_complete;
+    GC::Ptr<GC::Function<void()>> m_ongoing_navigation_changed;
 
 public:
     using NavigationObserversList = IntrusiveList<&NavigationObserver::m_list_node>;

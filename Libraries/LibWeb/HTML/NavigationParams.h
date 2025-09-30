@@ -42,7 +42,7 @@ struct NavigationParams : GC::Cell {
     GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller { nullptr };
 
     // null or an algorithm accepting a Document, once it has been created
-    Function<void(DOM::Document&)> commit_early_hints { nullptr };
+    GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints { nullptr };
 
     // an opener policy enforcement result, used for reporting and potentially for causing a browsing context group switch
     OpenerPolicyEnforcementResult coop_enforcement_result;
@@ -79,7 +79,7 @@ protected:
         GC::Ptr<Fetch::Infrastructure::Request> request,
         GC::Ptr<Fetch::Infrastructure::Response> response,
         GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller,
-        Function<void(DOM::Document&)> commit_early_hints,
+        GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints,
         OpenerPolicyEnforcementResult coop_enforcement_result,
         Fetch::Infrastructure::Request::ReservedClientType reserved_environment,
         URL::Origin origin,
@@ -93,7 +93,7 @@ protected:
         , request(request)
         , response(response)
         , fetch_controller(fetch_controller)
-        , commit_early_hints(move(commit_early_hints))
+        , commit_early_hints(commit_early_hints)
         , coop_enforcement_result(move(coop_enforcement_result))
         , reserved_environment(reserved_environment)
         , origin(move(origin))
