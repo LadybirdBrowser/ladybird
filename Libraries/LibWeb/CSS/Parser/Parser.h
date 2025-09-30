@@ -76,6 +76,8 @@ struct DescriptorContext {
 };
 enum SpecialContext : u8 {
     AngularColorStopList,
+    DOMMatrixInitString,
+    MediaCondition,
     ShadowBlurRadius,
     TranslateZArgument,
 };
@@ -579,6 +581,7 @@ private:
         return ScopeGuard { [&] { m_value_context.take_last(); } };
     }
     bool context_allows_quirky_length() const;
+    bool context_allows_tree_counting_functions() const;
 
     Vector<RuleContext> m_rule_context;
     HashTable<FlyString> m_declared_namespaces;
