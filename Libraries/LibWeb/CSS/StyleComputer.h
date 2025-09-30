@@ -191,7 +191,7 @@ public:
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&) const;
 
-    void compute_property_values(ComputedProperties&) const;
+    void compute_property_values(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void compute_font(ComputedProperties&, Optional<DOM::AbstractElement>) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;

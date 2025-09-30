@@ -82,6 +82,7 @@ public:
         // and with system fonts being computed to explicit values.
         // FIXME: with the 'line-height' component forced to 'normal'
         // FIXME: with the 'font-size' component converted to CSS pixels
+        // FIXME: Disallow tree counting functions if this is an offscreen canvas
         auto font_style_value_result = parse_css_value(CSS::Parser::ParsingParams {}, font, CSS::PropertyID::Font);
 
         // If the new value is syntactically incorrect (including using property-independent style sheet syntax like 'inherit' or 'initial'), then it must be ignored, without assigning a new font value.
@@ -115,6 +116,7 @@ public:
                 // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
                 //        a font-size of 10px) for OffscreenCanvas
                 auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
+                Optional<CSS::TreeCountingFunctionResolutionContext> tree_counting_function_resolution_context;
 
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
                     // NOTE: The canvas itself is considered the inheritance parent
@@ -124,12 +126,17 @@ public:
                         inherited_math_depth = canvas_element.computed_properties()->math_depth();
                         inherited_font_size = canvas_element.computed_properties()->font_size();
                         inherited_font_weight = canvas_element.computed_properties()->font_weight();
-                        length_resolution_context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
+
+                        DOM::AbstractElement abstract_element { canvas_element };
+
+                        length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element);
+                        tree_counting_function_resolution_context = abstract_element.tree_counting_function_resolution_context();
                     }
                 }
 
                 CSS::ComputationContext computation_context {
-                    .length_resolution_context = length_resolution_context
+                    .length_resolution_context = length_resolution_context,
+                    .tree_counting_function_resolution_context = tree_counting_function_resolution_context
                 };
 
                 auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context);
