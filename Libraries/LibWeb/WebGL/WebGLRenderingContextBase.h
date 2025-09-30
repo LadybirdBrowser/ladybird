@@ -18,6 +18,8 @@ using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::Image
 //        We should make WebGL code generator to produce implementation for this interface.
 class WebGLRenderingContextBase {
 public:
+    using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;
+
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
     virtual OpenGLContext& context() = 0;
