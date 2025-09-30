@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024-2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -424,30 +424,18 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
     m_context->make_current();
     m_context->notify_content_will_change();
 
-    float const* data = nullptr;
-    size_t count = 0;
-    if (values.has<Vector<float>>()) {
-        auto& vector = values.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (values.has<GC::Root<JS::Float32Array>>()) {
-        auto& float32_array = values.get<GC::Root<JS::Float32Array>>();
-        data = float32_array->data().data();
-        count = float32_array->array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+    auto span = span_from_float32_list(values);
 
     switch (buffer) {
     case GL_COLOR:
-        if (src_offset + 4 > count) {
+        if (src_offset + 4 > span.size()) {
             set_error(GL_INVALID_VALUE);
             return;
         }
         break;
     case GL_DEPTH:
     case GL_STENCIL:
-        if (src_offset + 1 > count) {
+        if (src_offset + 1 > span.size()) {
             set_error(GL_INVALID_VALUE);
             return;
         }
@@ -458,8 +446,8 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
         return;
     }
 
-    data += src_offset;
-    glClearBufferfv(buffer, drawbuffer, data);
+    span = span.slice(src_offset);
+    glClearBufferfv(buffer, drawbuffer, span.data());
     needs_to_present();
 }
 
@@ -1202,40 +1190,28 @@ void WebGL2RenderingContextImpl::compressed_tex_sub_image2d(WebIDL::UnsignedLong
     glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, count, src_data->byte_length(), pixels_ptr);
 }
 
-void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    float const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<JS::Float32Array>>()) {
-        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
-        data = typed_array->data().data();
-        count = typed_array->array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_float32_list(values);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform1fv(location->handle(), count / 1, data);
+    glUniform1fv(location->handle(), count, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1245,33 +1221,21 @@ void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> locat
     if (!location)
         return;
 
-    float const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<JS::Float32Array>>()) {
-        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
-        data = typed_array->data().data();
-        count = typed_array->array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    if (src_offset + src_length > count) {
+    auto span = span_from_float32_list(v);
+    auto count = span.size();
+    if (src_offset + src_length > span.size()) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform2fv(location->handle(), count / 2, data);
+    glUniform2fv(location->handle(), count / 2, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1281,33 +1245,21 @@ void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> locat
     if (!location)
         return;
 
-    float const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<JS::Float32Array>>()) {
-        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
-        data = typed_array->data().data();
-        count = typed_array->array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_float32_list(v);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform3fv(location->handle(), count / 3, data);
+    glUniform3fv(location->handle(), count / 3, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1317,33 +1269,21 @@ void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> locat
     if (!location)
         return;
 
-    float const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<float>>()) {
-        auto& vector = v.get<Vector<float>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<JS::Float32Array>>()) {
-        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
-        data = typed_array->data().data();
-        count = typed_array->array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_float32_list(v);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform4fv(location->handle(), count / 4, data);
+    glUniform4fv(location->handle(), count / 4, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1502,31 +1442,22 @@ void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation
         return;
 
     auto matrix_size = 2 * 2;
-    float const* raw_data = nullptr;
-    u64 count = 0;
-    if (data.has<Vector<float>>()) {
-        auto& vector_data = data.get<Vector<float>>();
-        raw_data = vector_data.data();
-        count = vector_data.size() / matrix_size;
-    } else {
-        auto& float32_array = data.get<GC::Root<JS::Float32Array>>();
-        raw_data = float32_array->data().data();
-        count = float32_array->array_length().length() / matrix_size;
-    }
+    auto span = span_from_float32_list(data);
+    auto count = span.size() / matrix_size;
 
     if (src_offset + src_length > (count * matrix_size)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    raw_data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniformMatrix2fv(location->handle(), count, transpose, raw_data);
+    glUniformMatrix2fv(location->handle(), count, transpose, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1537,31 +1468,22 @@ void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation
         return;
 
     auto matrix_size = 3 * 3;
-    float const* raw_data = nullptr;
-    u64 count = 0;
-    if (data.has<Vector<float>>()) {
-        auto& vector_data = data.get<Vector<float>>();
-        raw_data = vector_data.data();
-        count = vector_data.size() / matrix_size;
-    } else {
-        auto& float32_array = data.get<GC::Root<JS::Float32Array>>();
-        raw_data = float32_array->data().data();
-        count = float32_array->array_length().length() / matrix_size;
-    }
+    auto span = span_from_float32_list(data);
+    auto count = span.size() / matrix_size;
 
     if (src_offset + src_length > (count * matrix_size)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    raw_data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniformMatrix3fv(location->handle(), count, transpose, raw_data);
+    glUniformMatrix3fv(location->handle(), count, transpose, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1572,31 +1494,22 @@ void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation
         return;
 
     auto matrix_size = 4 * 4;
-    float const* raw_data = nullptr;
-    u64 count = 0;
-    if (data.has<Vector<float>>()) {
-        auto& vector_data = data.get<Vector<float>>();
-        raw_data = vector_data.data();
-        count = vector_data.size() / matrix_size;
-    } else {
-        auto& float32_array = data.get<GC::Root<JS::Float32Array>>();
-        raw_data = float32_array->data().data();
-        count = float32_array->array_length().length() / matrix_size;
-    }
+    auto span = span_from_float32_list(data);
+    auto count = span.size() / matrix_size;
 
     if (src_offset + src_length > (count * matrix_size)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    raw_data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniformMatrix4fv(location->handle(), count, transpose, raw_data);
+    glUniformMatrix4fv(location->handle(), count, transpose, span.data());
 }
 
 void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
@@ -3431,100 +3344,48 @@ void WebGL2RenderingContextImpl::vertex_attrib1fv(WebIDL::UnsignedLong index, Fl
 {
     m_context->make_current();
 
-    if (values.has<Vector<float>>()) {
-        auto& data = values.get<Vector<float>>();
-        if (data.size() < 1) {
-            set_error(GL_INVALID_VALUE);
-            return;
-        }
-
-        glVertexAttrib1fv(index, data.data());
-        return;
-    }
-
-    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
-    if (float32_array.byte_length().length() < 1 * sizeof(float)) {
+    auto span = span_from_float32_list(values);
+    if (span.size() < 1) {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    float const* data = float32_array.data().data();
-    glVertexAttrib1fv(index, data);
+    glVertexAttrib1fv(index, span.data());
 }
 
 void WebGL2RenderingContextImpl::vertex_attrib2fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
-    if (values.has<Vector<float>>()) {
-        auto& data = values.get<Vector<float>>();
-        if (data.size() < 2) {
-            set_error(GL_INVALID_VALUE);
-            return;
-        }
-
-        glVertexAttrib2fv(index, data.data());
-        return;
-    }
-
-    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
-    if (float32_array.byte_length().length() < 2 * sizeof(float)) {
+    auto span = span_from_float32_list(values);
+    if (span.size() < 2) {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    float const* data = float32_array.data().data();
-    glVertexAttrib2fv(index, data);
+    glVertexAttrib2fv(index, span.data());
 }
 
 void WebGL2RenderingContextImpl::vertex_attrib3fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
-    if (values.has<Vector<float>>()) {
-        auto& data = values.get<Vector<float>>();
-        if (data.size() < 3) {
-            set_error(GL_INVALID_VALUE);
-            return;
-        }
-
-        glVertexAttrib3fv(index, data.data());
-        return;
-    }
-
-    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
-    if (float32_array.byte_length().length() < 3 * sizeof(float)) {
+    auto span = span_from_float32_list(values);
+    if (span.size() < 3) {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    float const* data = float32_array.data().data();
-    glVertexAttrib3fv(index, data);
+    glVertexAttrib3fv(index, span.data());
 }
 
 void WebGL2RenderingContextImpl::vertex_attrib4fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
-    if (values.has<Vector<float>>()) {
-        auto& data = values.get<Vector<float>>();
-        if (data.size() < 4) {
-            set_error(GL_INVALID_VALUE);
-            return;
-        }
-
-        glVertexAttrib4fv(index, data.data());
-        return;
-    }
-
-    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
-    if (float32_array.byte_length().length() < 4 * sizeof(float)) {
+    auto span = span_from_float32_list(values);
+    if (span.size() < 4) {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    float const* data = float32_array.data().data();
-    glVertexAttrib4fv(index, data);
+    glVertexAttrib4fv(index, span.data());
 }
 
 void WebGL2RenderingContextImpl::vertex_attrib_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, bool normalized, WebIDL::Long stride, WebIDL::LongLong offset)
