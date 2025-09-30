@@ -62,9 +62,10 @@ XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupp
     m_namespace_stack.append({ {}, 1 });
 }
 
-void XMLDocumentBuilder::set_source(ByteString source)
+ErrorOr<void> XMLDocumentBuilder::set_source(ByteString source)
 {
-    m_document->set_source(MUST(String::from_byte_string(source)));
+    m_document->set_source(TRY(String::from_byte_string(source)));
+    return {};
 }
 
 void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)

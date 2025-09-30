@@ -30,7 +30,7 @@ public:
     bool has_error() const { return m_has_error; }
 
 private:
-    virtual void set_source(ByteString) override;
+    virtual ErrorOr<void> set_source(ByteString) override;
     virtual void set_doctype(XML::Doctype) override;
     virtual void element_start(XML::Name const& name, OrderedHashMap<XML::Name, ByteString> const& attributes) override;
     virtual void element_end(XML::Name const& name) override;

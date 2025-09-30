@@ -34,7 +34,7 @@ struct ParseError {
 struct Listener {
     virtual ~Listener() { }
 
-    virtual void set_source(ByteString) { }
+    virtual ErrorOr<void> set_source(ByteString) { return {}; }
     virtual void set_doctype(XML::Doctype) { }
     virtual void document_start() { }
     virtual void document_end() { }
