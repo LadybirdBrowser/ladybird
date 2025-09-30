@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -23,6 +24,13 @@ public:
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
     virtual OpenGLContext& context() = 0;
+
+    static Span<float> span_from_float32_list(Float32List& float32_list)
+    {
+        if (float32_list.has<Vector<float>>())
+            return float32_list.get<Vector<float>>();
+        return float32_list.get<GC::Root<JS::Float32Array>>()->data();
+    }
 };
 
 }
