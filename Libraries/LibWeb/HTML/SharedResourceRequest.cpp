@@ -109,8 +109,7 @@ void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infr
     auto fetch_controller = Fetch::Fetching::fetch(
         realm,
         request,
-        Fetch::Infrastructure::FetchAlgorithms::create(realm.vm(), move(fetch_algorithms_input)))
-                                .release_value_but_fixme_should_propagate_errors();
+        Fetch::Infrastructure::FetchAlgorithms::create(realm.vm(), move(fetch_algorithms_input)));
 
     set_fetch_controller(fetch_controller);
 }

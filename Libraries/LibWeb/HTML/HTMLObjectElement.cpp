@@ -315,11 +315,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             };
 
             // 5. Fetch request.
-            auto result = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
-            if (result.is_error()) {
-                resource_did_fail();
-                return;
-            }
+            (void)Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
             //    Fetching the resource must delay the load event of the element's node document until the task that is
             //    queued by the networking task source once the resource has been fetched (defined next) has been run.

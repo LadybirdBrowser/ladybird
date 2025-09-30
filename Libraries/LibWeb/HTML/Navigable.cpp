@@ -834,7 +834,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
-static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, UserNavigationInvolvement user_involvement, Optional<String> navigation_id)
+static Navigable::NavigationParamsVariant create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, UserNavigationInvolvement user_involvement, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
@@ -892,7 +892,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     // 6. If documentResource is a POST resource:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.
-        request->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy("POST"sv.bytes())));
+        request->set_method(MUST(ByteBuffer::copy("POST"sv.bytes())));
 
         // 2. Set request's body to documentResource's request body.
         request->set_body(document_resource.get<POSTResource>().request_body.value());
@@ -1068,7 +1068,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
                 response_holder->set_response(fetch_response);
             };
 
-            fetch_controller = TRY(Fetch::Fetching::fetch(
+            fetch_controller = Fetch::Fetching::fetch(
                 realm,
                 request,
                 Fetch::Infrastructure::FetchAlgorithms::create(vm,
@@ -1080,7 +1080,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
                         .process_response_end_of_body = {},
                         .process_response_consume_body = {},
                     }),
-                Fetch::Fetching::UseParallelQueue::Yes));
+                Fetch::Fetching::UseParallelQueue::Yes);
         }
         // 6. Otherwise, process the next manual redirect for fetchController.
         else {
@@ -1213,7 +1213,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     if (response_holder->response()->is_network_error()) {
         // AD-HOC: We pass the error message if we have one in NullWithError
         if (response_holder->response()->network_error_message().has_value())
-            return response_holder->response()->network_error_message().value();
+            return response_holder->response()->network_error_message();
         else
             return Navigable::NullOrError {};
     } else if (location_url.is_error() || (location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())))
@@ -1271,7 +1271,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
-WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
+void Navigable::populate_session_history_entry_document(
     GC::Ptr<SessionHistoryEntry> entry,
     SourceSnapshotParams const& source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
@@ -1284,7 +1284,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
-        return {};
+        return;
 
     // FIXME: 1. Assert: this is running in parallel.
 
@@ -1311,7 +1311,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //    sourceSnapshotParams, targetSnapshotParams, cspNavigationType, userInvolvement, navigationId, and
         //    navTimingType.
         else if (Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()) && (document_resource.has<Empty>() || allow_POST)) {
-            navigation_params = TRY(create_navigation_params_by_fetching(entry, this, source_snapshot_params, target_snapshot_params, csp_navigation_type, user_involvement, navigation_id));
+            navigation_params = create_navigation_params_by_fetching(entry, this, source_snapshot_params, target_snapshot_params, csp_navigation_type, user_involvement, navigation_id);
         }
         // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch
         //    scheme navigation params, with:
@@ -1337,7 +1337,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
-        return {};
+        return;
 
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
     queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, user_involvement, completion_steps, csp_navigation_type]() mutable {
@@ -1474,8 +1474,6 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         if (completion_steps)
             completion_steps->function()();
     }));
-
-    return {};
 }
 
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
@@ -1837,7 +1835,7 @@ void Navigable::begin_navigation(NavigateParams params)
                 }
                 finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry);
             }));
-        })).release_value_but_fixme_should_propagate_errors();
+        }));
     }));
 }
 
