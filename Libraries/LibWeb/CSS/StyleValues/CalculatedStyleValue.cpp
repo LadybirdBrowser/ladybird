@@ -400,9 +400,11 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     // NOTE: Already the case.
 
     // 2. If root is a numeric value, or a non-math function, serialize root per the normal rules for it and return the result.
-    // FIXME: Support non-math functions in calculation trees.
     if (root.type() == CalculationNode::Type::Numeric)
         return static_cast<NumericCalculationNode const&>(root).value_to_string();
+
+    if (root.type() == CalculationNode::Type::NonMathFunction)
+        return static_cast<NonMathFunctionCalculationNode const&>(root).function().to_string();
 
     // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math function for the function
     //    corresponding to the node type, treating the node’s children as the function’s comma-separated calculation
@@ -569,6 +571,7 @@ StringView CalculationNode::name() const
     case Type::Product:
     case Type::Negate:
     case Type::Invert:
+    case Type::NonMathFunction:
         return "calc"sv;
     }
     VERIFY_NOT_REACHED();
@@ -2460,6 +2463,35 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
         return false;
     return m_x->equals(*static_cast<RemCalculationNode const&>(other).m_x)
         && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
+}
+
+NonnullRefPtr<NonMathFunctionCalculationNode const> NonMathFunctionCalculationNode::create(Parser::Function function, NumericType numeric_type)
+{
+    return adopt_ref(*new (nothrow) NonMathFunctionCalculationNode(move(function), move(numeric_type)));
+}
+
+NonMathFunctionCalculationNode::NonMathFunctionCalculationNode(Parser::Function function, NumericType numeric_type)
+    : CalculationNode(Type::NonMathFunction, numeric_type)
+    , m_function(move(function))
+{
+}
+
+NonMathFunctionCalculationNode::~NonMathFunctionCalculationNode() = default;
+
+void NonMathFunctionCalculationNode::dump(StringBuilder& builder, int indent) const
+{
+    builder.appendff("{: >{}}NON-MATH FUNCTION({})", "", indent, m_function.to_string());
+}
+
+bool NonMathFunctionCalculationNode::equals(CalculationNode const& other) const
+{
+    if (this == &other)
+        return true;
+
+    if (type() != other.type())
+        return false;
+
+    return static_cast<NonMathFunctionCalculationNode const&>(other).function() == m_function;
 }
 
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, CalculationResolutionContext const& context, Optional<NumericType> numeric_type)
