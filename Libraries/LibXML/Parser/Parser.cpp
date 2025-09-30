@@ -199,7 +199,12 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
 {
     m_listener = &listener;
     ScopeGuard unset_listener { [this] { m_listener = nullptr; } };
-    m_listener->set_source(m_source);
+
+    if (auto const maybe_source_error = m_listener->set_source(m_source); maybe_source_error.is_error()) {
+        auto const error_message = maybe_source_error.error().string_literal();
+        return parse_error(m_lexer.current_position(), Expectation { error_message });
+    }
+
     m_listener->document_start();
     auto result = parse_internal();
     if (result.is_error())
