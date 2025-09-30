@@ -1676,15 +1676,13 @@ RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, Toke
     RefPtr<StyleValue const> border_color;
     RefPtr<StyleValue const> border_style;
 
-    auto color_property = PropertyID::Invalid;
-    auto style_property = PropertyID::Invalid;
-    auto width_property = PropertyID::Invalid;
+    auto color_property = PropertyID::BorderColor;
+    auto style_property = PropertyID::BorderStyle;
+    auto width_property = PropertyID::BorderWidth;
 
     switch (property_id) {
     case PropertyID::Border:
-        color_property = PropertyID::BorderColor;
-        style_property = PropertyID::BorderStyle;
-        width_property = PropertyID::BorderWidth;
+        // Already set above.
         break;
     case PropertyID::BorderBlock:
         color_property = PropertyID::BorderBlockColor;
