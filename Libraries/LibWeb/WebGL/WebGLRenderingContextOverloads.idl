@@ -9,8 +9,7 @@ typedef (ImageBitmap or
          // FIXME: VideoFrame
          ) TexImageSource;
 
-// FIXME: BufferSource should be a Int32Array
-typedef (BufferSource or sequence<GLint>) Int32List;
+typedef (Int32Array or sequence<GLint>) Int32List;
 
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 interface mixin WebGLRenderingContextOverloads {

@@ -42,10 +42,10 @@ public:
     void uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v);
     void uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v);
     void uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v);
-    void uniform1iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform2iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform3iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform4iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
+    void uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v);
     void uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
     void uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
     void uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);

@@ -451,25 +451,13 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
     needs_to_present();
 }
 
-void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> values, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Int32List values, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
     m_context->notify_content_will_change();
 
-    int const* data = nullptr;
-    size_t count = 0;
-    if (values.has<Vector<int>>()) {
-        auto& vector = values.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (values.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+    auto span = span_from_int32_list(values);
+    auto count = span.size();
 
     switch (buffer) {
     case GL_COLOR:
@@ -491,8 +479,8 @@ void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, Web
         return;
     }
 
-    data += src_offset;
-    glClearBufferiv(buffer, drawbuffer, data);
+    span = span.slice(src_offset);
+    glClearBufferiv(buffer, drawbuffer, span.data());
     needs_to_present();
 }
 
@@ -1286,152 +1274,100 @@ void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> locat
     glUniform4fv(location->handle(), count / 4, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_int32_list(v);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform1iv(location->handle(), count / 1, data);
+    glUniform1iv(location->handle(), count / 1, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_int32_list(v);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform2iv(location->handle(), count / 2, data);
+    glUniform2iv(location->handle(), count / 2, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_int32_list(v);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform3iv(location->handle(), count / 3, data);
+    glUniform3iv(location->handle(), count / 3, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    int const* data = nullptr;
-    size_t count = 0;
-    if (v.has<Vector<int>>()) {
-        auto& vector = v.get<Vector<int>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Int32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_int32_list(v);
+    auto count = span.size();
     if (src_offset + src_length > count) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    data += src_offset;
+    span = span.slice(src_offset);
     if (src_length == 0) {
         count -= src_offset;
     } else {
         count = src_length;
     }
 
-    glUniform4iv(location->handle(), count / 4, data);
+    glUniform4iv(location->handle(), count / 4, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)

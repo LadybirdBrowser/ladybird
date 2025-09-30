@@ -20,6 +20,7 @@ using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::Image
 class WebGLRenderingContextBase {
 public:
     using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;
+    using Int32List = Variant<GC::Root<JS::Int32Array>, Vector<WebIDL::Long>>;
 
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
@@ -30,6 +31,13 @@ public:
         if (float32_list.has<Vector<float>>())
             return float32_list.get<Vector<float>>();
         return float32_list.get<GC::Root<JS::Float32Array>>()->data();
+    }
+
+    static Span<int> span_from_int32_list(Int32List& int32_list)
+    {
+        if (int32_list.has<Vector<int>>())
+            return int32_list.get<Vector<int>>();
+        return int32_list.get<GC::Root<JS::Int32Array>>()->data();
     }
 };
 
