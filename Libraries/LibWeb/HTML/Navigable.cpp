@@ -59,30 +59,57 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Navigable);
 
-class ResponseHolder : public JS::Cell {
-    GC_CELL(ResponseHolder, JS::Cell);
-    GC_DECLARE_ALLOCATOR(ResponseHolder);
+struct NavigationParamsFetchStateHolder : public JS::Cell {
+    GC_CELL(NavigationParamsFetchStateHolder, JS::Cell);
+    GC_DECLARE_ALLOCATOR(NavigationParamsFetchStateHolder);
 
-public:
-    [[nodiscard]] static GC::Ref<ResponseHolder> create(JS::VM& vm)
+    NavigationParamsFetchStateHolder(OpenerPolicyEnforcementResult&& coop_enforcement_result, URL::URL current_url, GC::Ref<Fetch::Infrastructure::Request> request)
+        : coop_enforcement_result(move(coop_enforcement_result))
+        , current_url(move(current_url))
+        , request(request)
     {
-        return vm.heap().allocate<ResponseHolder>();
     }
 
-    [[nodiscard]] GC::Ptr<Fetch::Infrastructure::Response> response() const { return m_response; }
-    void set_response(GC::Ptr<Fetch::Infrastructure::Response> response) { m_response = response; }
+    GC::Ptr<Fetch::Infrastructure::Response> response;
+    Optional<URL::Origin> response_origin;
+    GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller;
+    OpenerPolicyEnforcementResult coop_enforcement_result;
+    SandboxingFlagSet final_sandbox_flags {};
+    GC::Ptr<PolicyContainer> response_policy_container;
+    OpenerPolicy response_coop {};
+    ErrorOr<Optional<URL::URL>> location_url { OptionalNone {} };
+    URL::URL current_url;
+    GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints;
+
+    GC::Ptr<SessionHistoryEntry> entry;
+    GC::Ref<Fetch::Infrastructure::Request> request;
+    GC::Ptr<Navigable> navigable;
+    ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+    TargetSnapshotParams target_snapshot_params;
+    Optional<String> navigation_id;
+
+    enum class ContinuationReason {
+        GotResponse,
+        OngoingNavigationChanged,
+    };
+
+    GC::Ptr<GC::Function<void(ContinuationReason)>> continuation_steps;
 
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        visitor.visit(m_response);
+        visitor.visit(response);
+        visitor.visit(fetch_controller);
+        visitor.visit(response_policy_container);
+        visitor.visit(commit_early_hints);
+        visitor.visit(entry);
+        visitor.visit(request);
+        visitor.visit(navigable);
+        visitor.visit(continuation_steps);
     }
-
-private:
-    GC::Ptr<Fetch::Infrastructure::Response> m_response;
 };
 
-GC_DEFINE_ALLOCATOR(ResponseHolder);
+GC_DEFINE_ALLOCATOR(NavigationParamsFetchStateHolder);
 
 HashTable<GC::RawRef<Navigable>>& all_navigables()
 {
@@ -401,6 +428,11 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
 
     // 3. Set navigable's ongoing navigation to newValue.
     m_ongoing_navigation = ongoing_navigation;
+
+    for (auto& navigation_observer : m_navigation_observers) {
+        if (navigation_observer.ongoing_navigation_changed())
+            navigation_observer.ongoing_navigation_changed()->function()();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -832,8 +864,213 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         user_involvement);
 }
 
+static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<NavigationParamsFetchStateHolder> state_holder, GC::Ref<GC::Function<void(Navigable::NavigationParamsVariant)>> top_level_completion_steps, GC::Ref<GC::Function<void()>> fetch_completion_steps)
+{
+    // 21. While true:
+    // NOTE: To make this async, a loop is performed by calling "perform_navigation_params_fetch" again from within "perform_navigation_params_fetch",
+    //       performs breaks by calling the passed in fetch completion steps and then returning and performs returns by
+    //       calling the top level completion steps and then returning.
+
+    // 1. If request's reserved client is not null and currentURL's origin is not the same as request's reserved client's creation URL's origin, then:
+    if (state_holder->request->reserved_client() && !state_holder->current_url.origin().is_same_origin(state_holder->request->reserved_client()->creation_url.origin())) {
+        // 1. Run the environment discarding steps for request's reserved client.
+        state_holder->request->reserved_client()->discard_environment();
+
+        // 2. Set request's reserved client to null.
+        state_holder->request->set_reserved_client(nullptr);
+
+        // 3. Set commitEarlyHints to null.
+        state_holder->commit_early_hints = nullptr;
+    }
+
+    // 2. If request's reserved client is null, then:
+    if (!state_holder->request->reserved_client()) {
+        // 1. Let topLevelCreationURL be currentURL.
+        Optional<URL::URL> top_level_creation_url = state_holder->current_url;
+
+        // 2. Let topLevelOrigin be null.
+        Optional<URL::Origin> top_level_origin;
+
+        // 3. If navigable is not a top-level traversable, then:
+        if (!state_holder->navigable->is_top_level_traversable()) {
+            // 1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
+            auto& parent_environment = state_holder->navigable->parent()->active_document()->relevant_settings_object();
+
+            // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
+            top_level_creation_url = parent_environment.top_level_creation_url;
+
+            // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
+            top_level_origin = parent_environment.top_level_origin;
+        }
+
+        // 4. Set request's reserved client to a new environment whose id is a unique opaque string,
+        //    target browsing context is navigable's active browsing context,
+        //    creation URL is currentURL,
+        //    top-level creation URL is topLevelCreationURL,
+        //    and top-level origin is topLevelOrigin.
+        // FIXME: Make this a proper unique opaque string.
+        static int next_id = 1;
+        auto id_string = MUST(String::formatted("create-by-fetching-{}", next_id++));
+        state_holder->request->set_reserved_client(realm.create<Environment>(id_string, state_holder->current_url, top_level_creation_url, top_level_origin, state_holder->navigable->active_browsing_context()));
+    }
+
+    // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
+    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(state_holder->request, state_holder->csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Blocked by Content Security Policy"_string);
+        fetch_completion_steps->function()();
+        return;
+    }
+
+    // 4. Set response to null.
+    state_holder->response = nullptr;
+
+    // 5. If fetchController is null, then set fetchController to the result of fetching request,
+    //    with processEarlyHintsResponse set to processEarlyHintsResponse as defined below, processResponse
+    //    set to processResponse as defined below, and useParallelQueue set to true.
+    if (!state_holder->fetch_controller) {
+        // FIXME: Let processEarlyHintsResponse be the following algorithm given a response earlyResponse:
+
+        // Let processResponse be the following algorithm given a response fetchedResponse:
+        auto process_response = [state_holder](GC::Ref<Fetch::Infrastructure::Response> fetch_response) {
+            // 1. Set response to fetchedResponse.
+            state_holder->response = fetch_response;
+            VERIFY(state_holder->continuation_steps);
+            state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::GotResponse);
+        };
+
+        state_holder->fetch_controller = Fetch::Fetching::fetch(
+            realm,
+            state_holder->request,
+            Fetch::Infrastructure::FetchAlgorithms::create(realm.vm(),
+                {
+                    .process_request_body_chunk_length = {},
+                    .process_request_end_of_body = {},
+                    .process_early_hints_response = {},
+                    .process_response = move(process_response),
+                    .process_response_end_of_body = {},
+                    .process_response_consume_body = {},
+                }),
+            Fetch::Fetching::UseParallelQueue::Yes);
+    }
+    // 6. Otherwise, process the next manual redirect for fetchController.
+    else {
+        state_holder->fetch_controller->process_next_manual_redirect();
+    }
+
+    // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
+    GC::Ptr<NavigationObserver> ongoing_navigation_changed_observer;
+    if (state_holder->navigation_id.has_value()) {
+        ongoing_navigation_changed_observer = realm.create<NavigationObserver>(realm, *state_holder->navigable);
+        ongoing_navigation_changed_observer->set_ongoing_navigation_changed([state_holder] {
+            VERIFY(state_holder->continuation_steps);
+            state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged);
+        });
+    }
+
+    state_holder->continuation_steps = GC::create_function(realm.heap(), [&realm, state_holder, ongoing_navigation_changed_observer, top_level_completion_steps, fetch_completion_steps](NavigationParamsFetchStateHolder::ContinuationReason continuation_reason) {
+        // If the latter condition occurs, then abort fetchController, and return. Otherwise, proceed onward.
+        if (state_holder->navigation_id.has_value()) {
+            VERIFY(ongoing_navigation_changed_observer);
+            ongoing_navigation_changed_observer->set_ongoing_navigation_changed({});
+
+            if (continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged) {
+                if (!state_holder->navigable->ongoing_navigation().has<String>() || state_holder->navigable->ongoing_navigation().get<String>() != *state_holder->navigation_id) {
+                    state_holder->fetch_controller->abort(realm, {});
+                    top_level_completion_steps->function()(Navigable::NullOrError {});
+                    return;
+                }
+            }
+        }
+
+        // 8. If request's body is null, then set entry's document state's resource to null.
+        if (!state_holder->request->body().has<Empty>()) {
+            state_holder->entry->document_state()->set_resource(Empty {});
+        }
+
+        // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
+        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(realm.heap(), *state_holder->response, state_holder->request->reserved_client());
+
+        // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
+        state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list->csp_derived_sandboxing_flags();
+
+        // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
+        state_holder->response_origin = determine_the_origin(state_holder->response->url(), state_holder->final_sandbox_flags, state_holder->entry->document_state()->initiator_origin());
+
+        // 12. If navigable is a top-level traversable, then:
+        if (state_holder->navigable->is_top_level_traversable()) {
+            // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
+            state_holder->response_coop = obtain_an_opener_policy(*state_holder->response, state_holder->request->reserved_client());
+
+            // FIXME: 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
+            //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult and request's referrer.
+
+            // FIXME: 3. If finalSandboxFlags is not empty and responseCOOP's value is not "unsafe-none", then set response to an appropriate network error and break.
+            // NOTE: This results in a network error as one cannot simultaneously provide a clean slate to a response
+            //       using opener policy and sandbox the result of navigating to that response.
+        }
+
+        // 13. FIXME If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
+        //    with navigable's container document's origin, navigable's container document's relevant settings object, request's destination, response,
+        //    and true is blocked, then set response to a network error and break.
+        // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself
+        //       This is because we care about the same-originness of the embedded content against the parent context, not the navigation source.
+
+        // 14. Set locationURL to response's location URL given currentURL's fragment.
+        state_holder->location_url = state_holder->response->location_url(state_holder->current_url.fragment());
+
+        // 15. If locationURL is failure or null, then break.
+        if (state_holder->location_url.is_error() || !state_holder->location_url.value().has_value()) {
+            fetch_completion_steps->function()();
+            return;
+        }
+
+        // 16. Assert: locationURL is a URL.
+        // 17. Set entry's classic history API state to StructuredSerializeForStorage(null).
+        state_holder->entry->set_classic_history_api_state(MUST(structured_serialize_for_storage(realm.vm(), JS::js_null())));
+
+        // 18. Let oldDocState be entry's document state.
+        auto old_doc_state = state_holder->entry->document_state();
+
+        // 19. Set entry's document state to a new document state, with
+        // history policy container: a clone of the oldDocState's history policy container if it is non-null; null otherwise
+        // request referrer: oldDocState's request referrer
+        // request referrer policy: oldDocState's request referrer policy
+        // origin: oldDocState's origin
+        // resource: oldDocState's resource
+        // ever populated: oldDocState's ever populated
+        // navigable target name: oldDocState's navigable target name
+        auto new_document_state = state_holder->navigable->heap().allocate<DocumentState>();
+        new_document_state->set_history_policy_container(old_doc_state->history_policy_container());
+        new_document_state->set_request_referrer(old_doc_state->request_referrer());
+        new_document_state->set_request_referrer_policy(old_doc_state->request_referrer_policy());
+        new_document_state->set_origin(old_doc_state->origin());
+        new_document_state->set_resource(old_doc_state->resource());
+        new_document_state->set_ever_populated(old_doc_state->ever_populated());
+        new_document_state->set_navigable_target_name(old_doc_state->navigable_target_name());
+        state_holder->entry->set_document_state(new_document_state);
+
+        // 20. If locationURL's scheme is not an HTTP(S) scheme, then:
+        if (!Fetch::Infrastructure::is_http_or_https_scheme(state_holder->location_url.value()->scheme())) {
+            // 1. Set entry's document state's resource to null.
+            state_holder->entry->document_state()->set_resource(Empty {});
+
+            // 2. Break.
+            fetch_completion_steps->function()();
+            return;
+        }
+
+        // 21. Set currentURL to locationURL.
+        state_holder->current_url = state_holder->location_url.value().value();
+
+        // 22. Set entry's URL to currentURL.
+        state_holder->entry->set_url(state_holder->current_url);
+
+        perform_navigation_params_fetch(realm, state_holder, top_level_completion_steps, fetch_completion_steps);
+    });
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
-static Navigable::NavigationParamsVariant create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, UserNavigationInvolvement user_involvement, Optional<String> navigation_id)
+static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, UserNavigationInvolvement user_involvement, Optional<String> navigation_id, GC::Ref<GC::Function<void(Navigable::NavigationParamsVariant)>> completion_steps)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
@@ -959,16 +1196,11 @@ static Navigable::NavigationParamsVariant create_navigation_params_by_fetching(G
         }
     }
 
+    // NOTE: We use a heap-allocated cell to hold all the following state because the callbacks below will use them
+    //       after this stack is freed.
     // 11. Let response be null.
-    // NOTE: We use a heap-allocated cell to hold the response pointer because the processResponse callback below
-    //       might use it after this stack is freed.
-    auto response_holder = ResponseHolder::create(vm);
-
     // 12. Let responseOrigin be null.
-    Optional<URL::Origin> response_origin;
-
     // 13. Let fetchController be null.
-    GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller = nullptr;
 
     // 14. Let coopEnforcementResult be a new opener policy enforcement result, with
     // - url: navigable's active document's URL
@@ -984,289 +1216,107 @@ static Navigable::NavigationParamsVariant create_navigation_params_by_fetching(G
     };
 
     // 15. Let finalSandboxFlags be an empty sandboxing flag set.
-    SandboxingFlagSet final_sandbox_flags = {};
-
     // 16. Let responsePolicyContainer be null.
-    GC::Ptr<PolicyContainer> response_policy_container = {};
-
     // 17. Let responseCOOP be a new opener policy.
-    OpenerPolicy response_coop = {};
-
     // 18. Let locationURL be null.
-    ErrorOr<Optional<URL::URL>> location_url { OptionalNone {} };
-
     // 19. Let currentURL be request's current URL.
-    URL::URL current_url = request->current_url();
-
     // 20. Let commitEarlyHints be null.
-    Function<void(DOM::Document&)> commit_early_hints = nullptr;
+    // AD-HOC: Store required variables on the state holder to keep them alive whilst waiting on the fetch to complete.
+    auto state_holder = realm.heap().allocate<NavigationParamsFetchStateHolder>(move(coop_enforcement_result), request->current_url(), request);
+    state_holder->entry = entry;
+    state_holder->navigable = navigable;
+    state_holder->csp_navigation_type = csp_navigation_type;
+    state_holder->target_snapshot_params = target_snapshot_params;
+    state_holder->navigation_id = move(navigation_id);
 
-    // 21. While true:
-    while (true) {
-        // 1. If request's reserved client is not null and currentURL's origin is not the same as request's reserved client's creation URL's origin, then:
-        if (request->reserved_client() && !current_url.origin().is_same_origin(request->reserved_client()->creation_url.origin())) {
-            // 1. Run the environment discarding steps for request's reserved client.
-            request->reserved_client()->discard_environment();
-
-            // 2. Set request's reserved client to null.
-            request->set_reserved_client(nullptr);
-
-            // 3. Set commitEarlyHints to null.
-            commit_early_hints = nullptr;
+    perform_navigation_params_fetch(realm, state_holder, completion_steps, GC::create_function(realm.heap(), [&realm, state_holder, &source_snapshot_params, user_involvement, completion_steps] {
+        // 22. If locationURL is a URL whose scheme is not a fetch scheme, then return a new non-fetch scheme navigation params, with
+        if (!state_holder->location_url.is_error() && state_holder->location_url.value().has_value() && !Fetch::Infrastructure::is_fetch_scheme(state_holder->location_url.value().value().scheme())) {
+            // - id: navigationId
+            // - navigable: navigable
+            // - URL: locationURL
+            // - target snapshot sandboxing flags: targetSnapshotParams's sandboxing flags
+            // - source snapshot has transient activation: sourceSnapshotParams's has transient activation
+            // - initiator origin: responseOrigin
+            // FIXME: - navigation timing type: navTimingType
+            // - user involvement: userInvolvement
+            completion_steps->function()(realm.heap().allocate<NonFetchSchemeNavigationParams>(
+                state_holder->navigation_id,
+                state_holder->navigable,
+                state_holder->location_url.value().value(),
+                state_holder->target_snapshot_params.sandboxing_flags,
+                source_snapshot_params.has_transient_activation,
+                *state_holder->response_origin,
+                user_involvement));
+            return;
         }
 
-        // 2. If request's reserved client is null, then:
-        if (!request->reserved_client()) {
-            // 1. Let topLevelCreationURL be currentURL.
-            Optional<URL::URL> top_level_creation_url = current_url;
-
-            // 2. Let topLevelOrigin be null.
-            Optional<URL::Origin> top_level_origin;
-
-            // 3. If navigable is not a top-level traversable, then:
-            if (!navigable->is_top_level_traversable()) {
-                // 1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
-                auto& parent_environment = navigable->parent()->active_document()->relevant_settings_object();
-
-                // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
-                top_level_creation_url = parent_environment.top_level_creation_url;
-
-                // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
-                top_level_origin = parent_environment.top_level_origin;
-            }
-
-            // 4. Set request's reserved client to a new environment whose id is a unique opaque string,
-            //    target browsing context is navigable's active browsing context,
-            //    creation URL is currentURL,
-            //    top-level creation URL is topLevelCreationURL,
-            //    and top-level origin is topLevelOrigin.
-            // FIXME: Make this a proper unique opaque string.
-            static int next_id = 1;
-            auto id_string = MUST(String::formatted("create-by-fetching-{}", next_id++));
-            request->set_reserved_client(realm.create<Environment>(id_string, current_url, top_level_creation_url, top_level_origin, navigable->active_browsing_context()));
+        // 23. If any of the following are true:
+        //       - response is a network error;
+        //       - locationURL is failure; or
+        //       - locationURL is a URL whose scheme is a fetch scheme
+        //     then return null.
+        if (state_holder->response->is_network_error()) {
+            // AD-HOC: We pass the error message if we have one in NullWithError
+            completion_steps->function()(state_holder->response->network_error_message());
+            return;
         }
 
-        // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
-        if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-            response_holder->set_response(Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"_string));
-            break;
+        if (state_holder->location_url.is_error() || (state_holder->location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(state_holder->location_url.value().value().scheme()))) {
+            completion_steps->function()(Navigable::NullOrError {});
+            return;
         }
 
-        // 4. Set response to null.
-        response_holder->set_response(nullptr);
+        // 24. Assert: locationURL is null and response is not a network error.
+        VERIFY(!state_holder->location_url.value().has_value());
+        VERIFY(!state_holder->response->is_network_error());
 
-        // 5. If fetchController is null, then set fetchController to the result of fetching request,
-        //    with processEarlyHintsResponse set to processEarlyHintsResponseas defined below, processResponse
-        //    set to processResponse as defined below, and useParallelQueue set to true.
-        if (!fetch_controller) {
-            // FIXME: Let processEarlyHintsResponse be the following algorithm given a response earlyResponse:
+        // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
+        //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
+        GC::Ptr<PolicyContainer> history_policy_container = state_holder->entry->document_state()->history_policy_container().visit(
+            [](GC::Ref<PolicyContainer> const& c) -> GC::Ptr<PolicyContainer> { return c; },
+            [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
+        auto result_policy_container = determine_navigation_params_policy_container(*state_holder->response->url(), realm.heap(), history_policy_container, source_snapshot_params.source_policy_container, {}, state_holder->response_policy_container);
 
-            // Let processResponse be the following algorithm given a response fetchedResponse:
-            auto process_response = [response_holder](GC::Ref<Fetch::Infrastructure::Response> fetch_response) {
-                // 1. Set response to fetchedResponse.
-                response_holder->set_response(fetch_response);
-            };
-
-            fetch_controller = Fetch::Fetching::fetch(
-                realm,
-                request,
-                Fetch::Infrastructure::FetchAlgorithms::create(vm,
-                    {
-                        .process_request_body_chunk_length = {},
-                        .process_request_end_of_body = {},
-                        .process_early_hints_response = {},
-                        .process_response = move(process_response),
-                        .process_response_end_of_body = {},
-                        .process_response_consume_body = {},
-                    }),
-                Fetch::Fetching::UseParallelQueue::Yes);
-        }
-        // 6. Otherwise, process the next manual redirect for fetchController.
-        else {
-            fetch_controller->process_next_manual_redirect();
+        // 26. If navigable's container is an iframe, and response's timing allow passed flag is set,
+        //     then set navigable's container's pending resource-timing start time to null.
+        if (state_holder->navigable->container() && state_holder->response->timing_allow_passed()) {
+            if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*state_holder->navigable->container()))
+                iframe_element->set_pending_resource_start_time({});
         }
 
-        // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(vm.heap(), [navigation_id, navigable, response_holder]() {
-            if (response_holder->response() != nullptr)
-                return true;
-
-            if (navigation_id.has_value() && (!navigable->ongoing_navigation().has<String>() || navigable->ongoing_navigation().get<String>() != *navigation_id))
-                return true;
-
-            return false;
-        }));
-        // If the latter condition occurs, then abort fetchController, and return. Otherwise, proceed onward.
-        if (navigation_id.has_value() && (!navigable->ongoing_navigation().has<String>() || navigable->ongoing_navigation().get<String>() != *navigation_id)) {
-            fetch_controller->abort(realm, {});
-            return Navigable::NullOrError {};
-        }
-
-        // 8. If request's body is null, then set entry's document state's resource to null.
-        if (!request->body().has<Empty>()) {
-            entry->document_state()->set_resource(Empty {});
-        }
-
-        // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        response_policy_container = create_a_policy_container_from_a_fetch_response(realm.heap(), *response_holder->response(), request->reserved_client());
-
-        // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
-        final_sandbox_flags = target_snapshot_params.sandboxing_flags | response_policy_container->csp_list->csp_derived_sandboxing_flags();
-
-        // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
-        response_origin = determine_the_origin(response_holder->response()->url(), final_sandbox_flags, entry->document_state()->initiator_origin());
-
-        // 12. If navigable is a top-level traversable, then:
-        if (navigable->is_top_level_traversable()) {
-            // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
-            response_coop = obtain_an_opener_policy(*response_holder->response(), request->reserved_client());
-
-            // FIXME: 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
-            //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult and request's referrer.
-
-            // FIXME: 3. If finalSandboxFlags is not empty and responseCOOP's value is not "unsafe-none", then set response to an appropriate network error and break.
-            // NOTE: This results in a network error as one cannot simultaneously provide a clean slate to a response
-            //       using opener policy and sandbox the result of navigating to that response.
-        }
-
-        // 13. FIXME If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
-        //    with navigable's container document's origin, navigable's container document's relevant settings object, request's destination, response,
-        //    and true is blocked, then set response to a network error and break.
-        // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself
-        //       This is because we care about the same-originness of the embedded content against the parent context, not the navigation source.
-
-        // 14. Set locationURL to response's location URL given currentURL's fragment.
-        location_url = response_holder->response()->location_url(current_url.fragment());
-
-        // 15. If locationURL is failure or null, then break.
-        if (location_url.is_error() || !location_url.value().has_value()) {
-            break;
-        }
-
-        // 16. Assert: locationURL is a URL.
-        // 17. Set entry's classic history API state to StructuredSerializeForStorage(null).
-        entry->set_classic_history_api_state(MUST(structured_serialize_for_storage(vm, JS::js_null())));
-
-        // 18. Let oldDocState be entry's document state.
-        auto old_doc_state = entry->document_state();
-
-        // 19. Set entry's document state to a new document state, with
-        // history policy container: a clone of the oldDocState's history policy container if it is non-null; null otherwise
-        // request referrer: oldDocState's request referrer
-        // request referrer policy: oldDocState's request referrer policy
-        // origin: oldDocState's origin
-        // resource: oldDocState's resource
-        // ever populated: oldDocState's ever populated
-        // navigable target name: oldDocState's navigable target name
-        auto new_document_state = navigable->heap().allocate<DocumentState>();
-        new_document_state->set_history_policy_container(old_doc_state->history_policy_container());
-        new_document_state->set_request_referrer(old_doc_state->request_referrer());
-        new_document_state->set_request_referrer_policy(old_doc_state->request_referrer_policy());
-        new_document_state->set_origin(old_doc_state->origin());
-        new_document_state->set_resource(old_doc_state->resource());
-        new_document_state->set_ever_populated(old_doc_state->ever_populated());
-        new_document_state->set_navigable_target_name(old_doc_state->navigable_target_name());
-        entry->set_document_state(new_document_state);
-
-        // 20. If locationURL's scheme is not an HTTP(S) scheme, then:
-        if (!Fetch::Infrastructure::is_http_or_https_scheme(location_url.value()->scheme())) {
-            // 1. Set entry's document state's resource to null.
-            entry->document_state()->set_resource(Empty {});
-
-            // 2. Break.
-            break;
-        }
-
-        // 21. Set currentURL to locationURL.
-        current_url = location_url.value().value();
-
-        // 22. Set entry's URL to currentURL.
-        entry->set_url(current_url);
-    }
-
-    // 22. If locationURL is a URL whose scheme is not a fetch scheme, then return a new non-fetch scheme navigation params, with
-    if (!location_url.is_error() && location_url.value().has_value() && !Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())) {
-        // - id: navigationId
-        // - navigable: navigable
-        // - URL: locationURL
-        // - target snapshot sandboxing flags: targetSnapshotParams's sandboxing flags
-        // - source snapshot has transient activation: sourceSnapshotParams's has transient activation
-        // - initiator origin: responseOrigin
-        // FIXME: - navigation timing type: navTimingType
-        // - user involvement: userInvolvement
-        return vm.heap().allocate<NonFetchSchemeNavigationParams>(
-            navigation_id,
-            navigable,
-            location_url.release_value().value(),
-            target_snapshot_params.sandboxing_flags,
-            source_snapshot_params.has_transient_activation,
-            move(*response_origin),
-            user_involvement);
-    }
-
-    // 23. If any of the following are true:
-    //       - response is a network error;
-    //       - locationURL is failure; or
-    //       - locationURL is a URL whose scheme is a fetch scheme
-    //     then return null.
-    if (response_holder->response()->is_network_error()) {
-        // AD-HOC: We pass the error message if we have one in NullWithError
-        if (response_holder->response()->network_error_message().has_value())
-            return response_holder->response()->network_error_message();
-        else
-            return Navigable::NullOrError {};
-    } else if (location_url.is_error() || (location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())))
-        return Navigable::NullOrError {};
-
-    // 24. Assert: locationURL is null and response is not a network error.
-    VERIFY(!location_url.value().has_value());
-    VERIFY(!response_holder->response()->is_network_error());
-
-    // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
-    //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
-    GC::Ptr<PolicyContainer> history_policy_container = entry->document_state()->history_policy_container().visit(
-        [](GC::Ref<PolicyContainer> const& c) -> GC::Ptr<PolicyContainer> { return c; },
-        [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
-    auto result_policy_container = determine_navigation_params_policy_container(*response_holder->response()->url(), realm.heap(), history_policy_container, source_snapshot_params.source_policy_container, {}, response_policy_container);
-
-    // 26. If navigable's container is an iframe, and response's timing allow passed flag is set,
-    //     then set navigable's container's pending resource-timing start time to null.
-    if (navigable->container() && response_holder->response()->timing_allow_passed()) {
-        if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*navigable->container()))
-            iframe_element->set_pending_resource_start_time({});
-    }
-
-    // 27. Return a new navigation params, with
-    //     id: navigationId
-    //     navigable: navigable
-    //     request: request
-    //     response: response
-    //     fetch controller: fetchController
-    //     commit early hints: commitEarlyHints
-    //     opener policy: responseCOOP
-    //     reserved environment: request's reserved client
-    //     origin: responseOrigin
-    //     policy container: resultPolicyContainer
-    //     final sandboxing flag set: finalSandboxFlags
-    //     COOP enforcement result: coopEnforcementResult
-    //     FIXME: navigation timing type: navTimingType
-    //     about base URL: entry's document state's about base URL
-    //     user involvement: userInvolvement
-    return vm.heap().allocate<NavigationParams>(
-        navigation_id,
-        navigable,
-        request,
-        *response_holder->response(),
-        fetch_controller,
-        move(commit_early_hints),
-        coop_enforcement_result,
-        request->reserved_client(),
-        *response_origin,
-        result_policy_container,
-        final_sandbox_flags,
-        response_coop,
-        entry->document_state()->about_base_url(),
-        user_involvement);
+        // 27. Return a new navigation params, with
+        //     id: navigationId
+        //     navigable: navigable
+        //     request: request
+        //     response: response
+        //     fetch controller: fetchController
+        //     commit early hints: commitEarlyHints
+        //     opener policy: responseCOOP
+        //     reserved environment: request's reserved client
+        //     origin: responseOrigin
+        //     policy container: resultPolicyContainer
+        //     final sandboxing flag set: finalSandboxFlags
+        //     COOP enforcement result: coopEnforcementResult
+        //     FIXME: navigation timing type: navTimingType
+        //     about base URL: entry's document state's about base URL
+        //     user involvement: userInvolvement
+        completion_steps->function()(realm.heap().allocate<NavigationParams>(
+            state_holder->navigation_id,
+            state_holder->navigable,
+            state_holder->request,
+            *state_holder->response,
+            state_holder->fetch_controller,
+            state_holder->commit_early_hints,
+            state_holder->coop_enforcement_result,
+            state_holder->request->reserved_client(),
+            *state_holder->response_origin,
+            result_policy_container,
+            state_holder->final_sandbox_flags,
+            state_holder->response_coop,
+            state_holder->entry->document_state()->about_base_url(),
+            user_involvement));
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
@@ -1294,13 +1344,155 @@ void Navigable::populate_session_history_entry_document(
     // 3. Let documentResource be entry's document state's resource.
     auto document_resource = entry->document_state()->resource();
 
+    auto received_navigation_params = GC::create_function(heap(), [this, entry, navigation_id, user_involvement, completion_steps, csp_navigation_type](NavigationParamsVariant received_navigation_params) {
+        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+        if (!active_window())
+            return;
+
+        // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, received_navigation_params = move(received_navigation_params), navigation_id, user_involvement, completion_steps, csp_navigation_type]() mutable {
+            // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
+            if (has_been_destroyed())
+                return;
+
+            // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
+            if (navigation_id.has_value() && (!ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != *navigation_id)) {
+                if (completion_steps)
+                    completion_steps->function()();
+                return;
+            }
+
+            // 2. Let saveExtraDocumentState be true.
+            auto saveExtraDocumentState = true;
+
+            // 3. If navigationParams is a non-fetch scheme navigation params, then:
+            if (received_navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>()) {
+                // 1. Set entry's document state's document to the result of running attempt to create a non-fetch scheme
+                //    document given navigationParams.
+                //    NOTE: This can result in setting entry's document state's document to null, e.g., when handing-off to
+                //    external software.
+                entry->document_state()->set_document(attempt_to_create_a_non_fetch_scheme_document(received_navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>()));
+                if (entry->document()) {
+                    entry->document_state()->set_ever_populated(true);
+                }
+
+                // 2. Set saveExtraDocumentState to false.
+                saveExtraDocumentState = false;
+            }
+
+            // 4. Otherwise, if any of the following are true:
+            //  - navigationParams is null;
+            //  - the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
+            //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
+            //  - the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
+            //    then:
+            else if (received_navigation_params.visit(
+                         [](NullOrError) { return true; },
+                         [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
+                             auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, *this);
+                             if (csp_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+                                 return true;
+
+                             // FIXME: Pass in navigationParams's policy container's CSP list
+                             return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->policy_container->csp_list, navigation_params->origin);
+                         },
+                         [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
+                // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
+                auto error_message = received_navigation_params.has<NullOrError>() ? received_navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
+
+                auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
+                entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
+                    auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
+                    document.set_url(URL::about_error());
+                    parser->run();
+
+                    // NOTE: Once the page has been set up, the user agent must act as if it had stopped parsing.
+                    // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
+                    //        However the response is never processed when parser->the_end is called.
+                    //        Queuing a global task is a workaround for now.
+                    queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(heap(), [&document]() {
+                        HTMLParser::the_end(document);
+                    }));
+                }));
+
+                // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
+                entry->document()->make_unsalvageable("navigation-failure"_string);
+
+                // 3. Set saveExtraDocumentState to false.
+                saveExtraDocumentState = false;
+
+                // 4. If navigationParams is not null, then:
+                if (!received_navigation_params.has<NullOrError>()) {
+                    // 1. Run the environment discarding steps for navigationParams's reserved environment.
+                    received_navigation_params.visit(
+                        [](GC::Ref<NavigationParams> const& it) {
+                            it->reserved_environment->discard_environment();
+                        },
+                        [](auto const&) {});
+
+                    // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
+                }
+            }
+
+            // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
+            //    disposition type, then:
+            else if (false) {
+            }
+
+            // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
+            //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
+            else if (auto const& response = received_navigation_params.get<GC::Ref<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
+                auto document = load_document(received_navigation_params.get<GC::Ref<NavigationParams>>());
+                entry->document_state()->set_document(document);
+            }
+
+            // 7. If entry's document state's document is not null, then:
+            if (entry->document()) {
+                // 1. Set entry's document state's ever populated to true.
+                entry->document_state()->set_ever_populated(true);
+
+                // 2. If saveExtraDocumentState is true:
+                if (saveExtraDocumentState) {
+                    // 1. Let document be entry's document state's document.
+                    auto document = entry->document();
+
+                    // 2. Set entry's document state's origin to document's origin.
+                    entry->document_state()->set_origin(document->origin());
+
+                    // 3. If document's URL requires storing the policy container in history, then:
+                    if (url_requires_storing_the_policy_container_in_history(document->url())) {
+                        // 1. Assert: navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params).
+                        VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>());
+
+                        // 2. Set entry's document state's history policy container to navigationParams's policy container.
+                        entry->document_state()->set_history_policy_container(GC::Ref { *received_navigation_params.get<GC::Ref<NavigationParams>>()->policy_container });
+                    }
+                }
+
+                // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
+                if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
+                    && (!received_navigation_params.has<NullOrError>() && received_navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
+                    // 1. Assert: navigationParams's request is not null.
+                    VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>() && received_navigation_params.get<GC::Ref<NavigationParams>>()->request);
+
+                    // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
+                    entry->document_state()->set_request_referrer(received_navigation_params.get<GC::Ref<NavigationParams>>()->request->referrer());
+                }
+            }
+
+            // 8. Run completionSteps.
+            if (completion_steps)
+                completion_steps->function()();
+        }));
+    });
+
     // 4. If navigationParams is null, then:
     if (navigation_params.has<NullOrError>()) {
         // 1. If documentResource is a string, then set navigationParams to the result of creating navigation params
         //    from a srcdoc resource given entry, navigable, targetSnapshotParams, userInvolvement, navigationId, and
         //    navTimingType.
         if (document_resource.has<String>()) {
-            navigation_params = create_navigation_params_from_a_srcdoc_resource(entry, this, target_snapshot_params, user_involvement, navigation_id);
+            received_navigation_params->function()(create_navigation_params_from_a_srcdoc_resource(entry, this, target_snapshot_params, user_involvement, navigation_id));
         }
         // 2. Otherwise, if all of the following are true:
         //    - entry's URL's scheme is a fetch scheme; and
@@ -1310,7 +1502,7 @@ void Navigable::populate_session_history_entry_document(
         //    sourceSnapshotParams, targetSnapshotParams, cspNavigationType, userInvolvement, navigationId, and
         //    navTimingType.
         else if (Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()) && (document_resource.has<Empty>() || allow_POST)) {
-            navigation_params = create_navigation_params_by_fetching(entry, this, source_snapshot_params, target_snapshot_params, csp_navigation_type, user_involvement, navigation_id);
+            create_navigation_params_by_fetching(entry, this, source_snapshot_params, target_snapshot_params, csp_navigation_type, user_involvement, navigation_id, received_navigation_params);
         }
         // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch
         //    scheme navigation params, with:
@@ -1323,156 +1515,18 @@ void Navigable::populate_session_history_entry_document(
             // - initiator origin: entry's document state's initiator origin
             // FIXME: - navigation timing type: navTimingType
             // - user involvement: userInvolvement
-            navigation_params = vm().heap().allocate<NonFetchSchemeNavigationParams>(
+            received_navigation_params->function()(vm().heap().allocate<NonFetchSchemeNavigationParams>(
                 navigation_id,
                 this,
                 entry->url(),
                 target_snapshot_params.sandboxing_flags,
                 source_snapshot_params.has_transient_activation,
                 *entry->document_state()->initiator_origin(),
-                user_involvement);
+                user_involvement));
         }
+    } else {
+        received_navigation_params->function()(move(navigation_params));
     }
-
-    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-    if (!active_window())
-        return;
-
-    // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, user_involvement, completion_steps, csp_navigation_type]() mutable {
-        // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-        if (has_been_destroyed())
-            return;
-
-        // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
-        if (navigation_id.has_value() && (!ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != *navigation_id)) {
-            if (completion_steps)
-                completion_steps->function()();
-            return;
-        }
-
-        // 2. Let saveExtraDocumentState be true.
-        auto saveExtraDocumentState = true;
-
-        // 3. If navigationParams is a non-fetch scheme navigation params, then:
-        if (navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>()) {
-            // 1. Set entry's document state's document to the result of running attempt to create a non-fetch scheme
-            //    document given navigationParams.
-            //    NOTE: This can result in setting entry's document state's document to null, e.g., when handing-off to
-            //    external software.
-            entry->document_state()->set_document(attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>()));
-            if (entry->document()) {
-                entry->document_state()->set_ever_populated(true);
-            }
-
-            // 2. Set saveExtraDocumentState to false.
-            saveExtraDocumentState = false;
-        }
-
-        // 4. Otherwise, if any of the following are true:
-        //  - navigationParams is null;
-        //  - the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
-        //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
-        //  - the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
-        //    then:
-        else if (navigation_params.visit(
-                     [](NullOrError) { return true; },
-                     [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
-                         auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, *this);
-                         if (csp_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
-                             return true;
-
-                         // FIXME: Pass in navigationParams's policy container's CSP list
-                         return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->policy_container->csp_list, navigation_params->origin);
-                     },
-                     [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
-            // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
-            auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
-
-            auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
-            entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
-                auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
-                document.set_url(URL::about_error());
-                parser->run();
-
-                // NOTE: Once the page has been set up, the user agent must act as if it had stopped parsing.
-                // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
-                //        However the response is never processed when parser->the_end is called.
-                //        Queuing a global task is a workaround for now.
-                queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(heap(), [&document]() {
-                    HTMLParser::the_end(document);
-                }));
-            }));
-
-            // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
-            entry->document()->make_unsalvageable("navigation-failure"_string);
-
-            // 3. Set saveExtraDocumentState to false.
-            saveExtraDocumentState = false;
-
-            // 4. If navigationParams is not null, then:
-            if (!navigation_params.has<NullOrError>()) {
-                // 1. Run the environment discarding steps for navigationParams's reserved environment.
-                navigation_params.visit(
-                    [](GC::Ref<NavigationParams> const& it) {
-                        it->reserved_environment->discard_environment();
-                    },
-                    [](auto const&) {});
-
-                // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
-            }
-        }
-
-        // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
-        //    disposition type, then:
-        else if (false) {
-        }
-
-        // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
-        //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
-        else if (auto const& response = navigation_params.get<GC::Ref<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
-            auto document = load_document(navigation_params.get<GC::Ref<NavigationParams>>());
-            entry->document_state()->set_document(document);
-        }
-
-        // 7. If entry's document state's document is not null, then:
-        if (entry->document()) {
-            // 1. Set entry's document state's ever populated to true.
-            entry->document_state()->set_ever_populated(true);
-
-            // 2. If saveExtraDocumentState is true:
-            if (saveExtraDocumentState) {
-                // 1. Let document be entry's document state's document.
-                auto document = entry->document();
-
-                // 2. Set entry's document state's origin to document's origin.
-                entry->document_state()->set_origin(document->origin());
-
-                // 3. If document's URL requires storing the policy container in history, then:
-                if (url_requires_storing_the_policy_container_in_history(document->url())) {
-                    // 1. Assert: navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params).
-                    VERIFY(navigation_params.has<GC::Ref<NavigationParams>>());
-
-                    // 2. Set entry's document state's history policy container to navigationParams's policy container.
-                    entry->document_state()->set_history_policy_container(GC::Ref { *navigation_params.get<GC::Ref<NavigationParams>>()->policy_container });
-                }
-            }
-
-            // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
-            if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-                && (!navigation_params.has<NullOrError>() && navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
-                // 1. Assert: navigationParams's request is not null.
-                VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->request);
-
-                // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
-                entry->document_state()->set_request_referrer(navigation_params.get<GC::Ref<NavigationParams>>()->request->referrer());
-            }
-        }
-
-        // 8. Run completionSteps.
-        if (completion_steps)
-            completion_steps->function()();
-    }));
 }
 
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
