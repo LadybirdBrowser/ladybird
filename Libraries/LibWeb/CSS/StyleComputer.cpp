@@ -1137,8 +1137,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontStyle, PropertyID::LineHeight))
                 continue;
 
-            auto const& computed_value = compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context);
-            result.set(property_id, computed_value->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics));
+            result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, property_value_computation_context));
         }
 
         return result;
@@ -2163,11 +2162,9 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
     style.for_each_property([&](PropertyID property_id, auto& specified_value) {
         auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context);
 
-        // FIXME: Any required absolutization should be done within compute_value_of_property() - we can remove this once that's implemented.
-        auto const& absolutized_value = computed_value->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
         auto const& is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
 
-        style.set_property(property_id, absolutized_value, is_inherited);
+        style.set_property(property_id, computed_value, is_inherited);
     });
 
     style.set_display_before_box_type_transformation(style.display());
@@ -3215,50 +3212,49 @@ static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<St
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, PropertyValueComputationContext const& computation_context)
 {
+    auto const& absolutized_value = specified_value->absolutized(computation_context.length_resolution_context.viewport_rect, computation_context.length_resolution_context.font_metrics, computation_context.length_resolution_context.root_font_metrics);
+
     switch (property_id) {
     case PropertyID::AnimationName:
-        return compute_animation_name(specified_value, computation_context);
+        return compute_animation_name(absolutized_value);
     case PropertyID::BorderBottomWidth:
-        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderBottomStyle), computation_context);
+        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderBottomStyle), computation_context);
     case PropertyID::BorderLeftWidth:
-        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderLeftStyle), computation_context);
+        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderLeftStyle), computation_context);
     case PropertyID::BorderRightWidth:
-        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderRightStyle), computation_context);
+        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderRightStyle), computation_context);
     case PropertyID::BorderTopWidth:
-        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
+        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderTopStyle), computation_context);
     case PropertyID::OutlineWidth:
-        return compute_border_or_outline_width(specified_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
+        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::OutlineStyle), computation_context);
     case PropertyID::FontVariationSettings:
-        return compute_font_variation_settings(specified_value);
+        return compute_font_variation_settings(absolutized_value);
     case PropertyID::LetterSpacing:
     case PropertyID::WordSpacing:
-        if (specified_value->to_keyword() == Keyword::Normal)
+        if (absolutized_value->to_keyword() == Keyword::Normal)
             return LengthStyleValue::create(Length::make_px(0));
-        return specified_value;
+        return absolutized_value;
     case PropertyID::FillOpacity:
     case PropertyID::FloodOpacity:
     case PropertyID::Opacity:
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:
-        return compute_opacity(specified_value, computation_context);
+        return compute_opacity(absolutized_value);
     case PropertyID::PositionArea:
-        return compute_position_area(specified_value);
-    case PropertyID::TextUnderlineOffset:
-        return compute_text_underline_offset(specified_value, computation_context);
+        return compute_position_area(absolutized_value);
     default:
-        // FIXME: We should replace this with a VERIFY_NOT_REACHED() once all properties have their own handling.
-        return specified_value;
+        return absolutized_value;
     }
 
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const&)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
     // https://drafts.csswg.org/css-animations-1/#animation-name
     // list, each item either a case-sensitive css identifier or the keyword none
 
-    return compute_style_value_list(specified_value, [](NonnullRefPtr<StyleValue const> const& entry) -> NonnullRefPtr<StyleValue const> {
+    return compute_style_value_list(absolutized_value, [](NonnullRefPtr<StyleValue const> const& entry) -> NonnullRefPtr<StyleValue const> {
         // none | <custom-ident>
         if (entry->to_keyword() == Keyword::None || entry->is_custom_ident())
             return entry;
@@ -3278,16 +3274,16 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
     });
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& specified_value)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
-    if (specified_value->is_keyword())
-        return specified_value;
+    if (absolutized_value->is_keyword())
+        return absolutized_value;
 
     // https://drafts.csswg.org/css-fonts-4/#font-variation-settings-def
     // If the same axis name appears more than once, the value associated with the last appearance supersedes any
     // previous value for that axis. This deduplication is observable by accessing the computed value of this property."
     // So, we deduplicate them here using a HashSet.
-    auto const& value_list = specified_value->as_value_list();
+    auto const& value_list = absolutized_value->as_value_list();
     OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
     for (size_t i = 0; i < value_list.values().size(); i++) {
         auto const& axis_tag = value_list.values().at(i)->as_open_type_tagged();
@@ -3307,7 +3303,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(N
     return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& specified_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& absolutized_value, NonnullRefPtr<StyleValue const> const& style_specified_value, PropertyValueComputationContext const& computation_context)
 {
     // https://drafts.csswg.org/css-backgrounds/#border-width
     // absolute length, snapped as a border width; zero if the border style is none or hidden
@@ -3315,14 +3311,14 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(N
         return LengthStyleValue::create(Length::make_px(0));
 
     auto const absolute_length = [&]() -> CSSPixels {
-        if (specified_value->is_calculated())
-            return specified_value->as_calculated().resolve_length({ .length_resolution_context = computation_context.length_resolution_context })->absolute_length_to_px();
+        if (absolutized_value->is_calculated())
+            return absolutized_value->as_calculated().resolve_length({})->absolute_length_to_px();
 
-        if (specified_value->is_length())
-            return specified_value->as_length().length().to_px(computation_context.length_resolution_context);
+        if (absolutized_value->is_length())
+            return absolutized_value->as_length().length().absolute_length_to_px();
 
-        if (specified_value->is_keyword())
-            return line_width_keyword_to_css_pixels(specified_value->to_keyword());
+        if (absolutized_value->is_keyword())
+            return line_width_keyword_to_css_pixels(absolutized_value->to_keyword());
 
         VERIFY_NOT_REACHED();
     }();
@@ -3561,39 +3557,39 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
     // https://drafts.csswg.org/css-color-4/#transparency
     // specified number, clamped to the range [0,1]
 
     // <number>
-    if (specified_value->is_number())
-        return NumberStyleValue::create(clamp(specified_value->as_number().number(), 0, 1));
+    if (absolutized_value->is_number())
+        return NumberStyleValue::create(clamp(absolutized_value->as_number().number(), 0, 1));
 
     // NOTE: We also support calc()'d numbers
-    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_number())
-        return NumberStyleValue::create(specified_value->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value());
+    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
+        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
 
     // <percentage>
-    if (specified_value->is_percentage())
-        return NumberStyleValue::create(clamp(specified_value->as_percentage().percentage().as_fraction(), 0, 1));
+    if (absolutized_value->is_percentage())
+        return NumberStyleValue::create(clamp(absolutized_value->as_percentage().percentage().as_fraction(), 0, 1));
 
     // NOTE: We also support calc()'d percentages
-    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_percentage())
-        return NumberStyleValue::create(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction());
+    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_percentage())
+        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_percentage({})->as_fraction());
 
     VERIFY_NOT_REACHED();
 }
 
 // https://drafts.csswg.org/css-anchor-position/#position-area-computed
-NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefPtr<StyleValue const> const& specified_value)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
     // The computed value of a <position-area> value is the two keywords indicating the selected tracks in each axis,
     // with the long (block-start) and short (start) logical keywords treated as equivalent. It serializes in the order
     // given in the grammar (above), with the logical keywords serialized in their short forms (e.g. start start
     // instead of block-start inline-start).
-    if (specified_value->is_keyword())
-        return specified_value;
+    if (absolutized_value->is_keyword())
+        return absolutized_value;
 
     auto to_short_keyword = [](NonnullRefPtr<KeywordStyleValue const> const& keyword_value) -> NonnullRefPtr<KeywordStyleValue const> {
         switch (keyword_value->keyword()) {
@@ -3627,7 +3623,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
         return keyword_value;
     };
 
-    auto const& value_list = specified_value->as_value_list();
+    auto const& value_list = absolutized_value->as_value_list();
     VERIFY(value_list.size() == 2);
 
     auto const& block_value = value_list.values().at(0);
@@ -3651,7 +3647,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
         case Keyword::SpanSelfEnd:
             return KeywordStyleValue::create(Keyword::SpanSelfInlineEnd);
         default:
-            return specified_value;
+            return absolutized_value;
         }
     }
     if (inline_value->as_keyword().keyword() == Keyword::SpanAll) {
@@ -3673,7 +3669,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
         case Keyword::SpanSelfEnd:
             return KeywordStyleValue::create(Keyword::SpanSelfBlockEnd);
         default:
-            return specified_value;
+            return absolutized_value;
         }
     }
     auto short_block_value = to_short_keyword(block_value->as_keyword());
@@ -3681,25 +3677,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
     if (*block_value != short_block_value || *inline_value != short_inline_value)
         return StyleValueList::create({ short_block_value, short_inline_value }, StyleValueList::Separator::Space);
 
-    return specified_value;
-}
-
-NonnullRefPtr<StyleValue const> StyleComputer::compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)
-{
-    // https://drafts.csswg.org/css-text-decor-4/#underline-offset
-    // as specified, with <length-percentage> values computed
-
-    // auto
-    // <percentage>
-    if (specified_value->to_keyword() == Keyword::Auto || specified_value->is_percentage())
-        return specified_value;
-
-    // <length>
-    // NOTE: We also support calc()'d <length-percentage>
-    if (specified_value->is_calculated() || specified_value->is_length())
-        return specified_value->absolutized(computation_context.length_resolution_context.viewport_rect, computation_context.length_resolution_context.font_metrics, computation_context.length_resolution_context.root_font_metrics);
-
-    VERIFY_NOT_REACHED();
+    return absolutized_value;
 }
 
 void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::AbstractElement> element) const
