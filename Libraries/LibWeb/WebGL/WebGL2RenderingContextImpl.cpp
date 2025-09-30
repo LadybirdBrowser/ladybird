@@ -419,7 +419,7 @@ void WebGL2RenderingContextImpl::draw_buffers(Vector<WebIDL::UnsignedLong> buffe
     glDrawBuffers(buffers.size(), buffers.data());
 }
 
-void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Float32List values, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
     m_context->notify_content_will_change();
@@ -430,11 +430,10 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
         auto& vector = values.get<Vector<float>>();
         data = vector.data();
         count = vector.size();
-    } else if (values.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
+    } else if (values.has<GC::Root<JS::Float32Array>>()) {
+        auto& float32_array = values.get<GC::Root<JS::Float32Array>>();
+        data = float32_array->data().data();
+        count = float32_array->array_length().length();
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -1203,7 +1202,7 @@ void WebGL2RenderingContextImpl::compressed_tex_sub_image2d(WebIDL::UnsignedLong
     glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, count, src_data->byte_length(), pixels_ptr);
 }
 
-void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1216,11 +1215,10 @@ void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> locat
         auto& vector = v.get<Vector<float>>();
         data = vector.data();
         count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
+    } else if (v.has<GC::Root<JS::Float32Array>>()) {
+        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
+        data = typed_array->data().data();
+        count = typed_array->array_length().length();
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -1240,7 +1238,7 @@ void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> locat
     glUniform1fv(location->handle(), count / 1, data);
 }
 
-void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1253,11 +1251,10 @@ void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> locat
         auto& vector = v.get<Vector<float>>();
         data = vector.data();
         count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
+    } else if (v.has<GC::Root<JS::Float32Array>>()) {
+        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
+        data = typed_array->data().data();
+        count = typed_array->array_length().length();
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -1277,7 +1274,7 @@ void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> locat
     glUniform2fv(location->handle(), count / 2, data);
 }
 
-void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1290,11 +1287,10 @@ void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> locat
         auto& vector = v.get<Vector<float>>();
         data = vector.data();
         count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
+    } else if (v.has<GC::Root<JS::Float32Array>>()) {
+        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
+        data = typed_array->data().data();
+        count = typed_array->array_length().length();
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -1314,7 +1310,7 @@ void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> locat
     glUniform3fv(location->handle(), count / 3, data);
 }
 
-void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1327,11 +1323,10 @@ void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> locat
         auto& vector = v.get<Vector<float>>();
         data = vector.data();
         count = vector.size();
-    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Float32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
+    } else if (v.has<GC::Root<JS::Float32Array>>()) {
+        auto& typed_array = v.get<GC::Root<JS::Float32Array>>();
+        data = typed_array->data().data();
+        count = typed_array->array_length().length();
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -1499,7 +1494,7 @@ void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> locat
     glUniform4iv(location->handle(), count / 4, data);
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1514,10 +1509,9 @@ void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation
         raw_data = vector_data.data();
         count = vector_data.size() / matrix_size;
     } else {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*data.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& float32_array = as<JS::Float32Array>(typed_array_base);
-        raw_data = float32_array.data().data();
-        count = float32_array.array_length().length() / matrix_size;
+        auto& float32_array = data.get<GC::Root<JS::Float32Array>>();
+        raw_data = float32_array->data().data();
+        count = float32_array->array_length().length() / matrix_size;
     }
 
     if (src_offset + src_length > (count * matrix_size)) {
@@ -1535,7 +1529,7 @@ void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation
     glUniformMatrix2fv(location->handle(), count, transpose, raw_data);
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1550,10 +1544,9 @@ void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation
         raw_data = vector_data.data();
         count = vector_data.size() / matrix_size;
     } else {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*data.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& float32_array = as<JS::Float32Array>(typed_array_base);
-        raw_data = float32_array.data().data();
-        count = float32_array.array_length().length() / matrix_size;
+        auto& float32_array = data.get<GC::Root<JS::Float32Array>>();
+        raw_data = float32_array->data().data();
+        count = float32_array->array_length().length() / matrix_size;
     }
 
     if (src_offset + src_length > (count * matrix_size)) {
@@ -1571,7 +1564,7 @@ void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation
     glUniformMatrix3fv(location->handle(), count, transpose, raw_data);
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1586,10 +1579,9 @@ void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation
         raw_data = vector_data.data();
         count = vector_data.size() / matrix_size;
     } else {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*data.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& float32_array = as<JS::Float32Array>(typed_array_base);
-        raw_data = float32_array.data().data();
-        count = float32_array.array_length().length() / matrix_size;
+        auto& float32_array = data.get<GC::Root<JS::Float32Array>>();
+        raw_data = float32_array->data().data();
+        count = float32_array->array_length().length() / matrix_size;
     }
 
     if (src_offset + src_length > (count * matrix_size)) {
@@ -3435,7 +3427,7 @@ void WebGL2RenderingContextImpl::vertex_attrib4f(WebIDL::UnsignedLong index, flo
     glVertexAttrib4f(index, x, y, z, w);
 }
 
-void WebGL2RenderingContextImpl::vertex_attrib1fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values)
+void WebGL2RenderingContextImpl::vertex_attrib1fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
@@ -3450,19 +3442,17 @@ void WebGL2RenderingContextImpl::vertex_attrib1fv(WebIDL::UnsignedLong index, Va
         return;
     }
 
-    auto& buffer_source = values.get<GC::Root<WebIDL::BufferSource>>();
-    if (buffer_source->byte_length() < 1 * sizeof(float)) {
+    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
+    if (float32_array.byte_length().length() < 1 * sizeof(float)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*buffer_source->raw_object());
-    auto& float32_array = as<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib1fv(index, data);
 }
 
-void WebGL2RenderingContextImpl::vertex_attrib2fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values)
+void WebGL2RenderingContextImpl::vertex_attrib2fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
@@ -3477,19 +3467,17 @@ void WebGL2RenderingContextImpl::vertex_attrib2fv(WebIDL::UnsignedLong index, Va
         return;
     }
 
-    auto& buffer_source = values.get<GC::Root<WebIDL::BufferSource>>();
-    if (buffer_source->byte_length() < 2 * sizeof(float)) {
+    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
+    if (float32_array.byte_length().length() < 2 * sizeof(float)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*buffer_source->raw_object());
-    auto& float32_array = as<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib2fv(index, data);
 }
 
-void WebGL2RenderingContextImpl::vertex_attrib3fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values)
+void WebGL2RenderingContextImpl::vertex_attrib3fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
@@ -3504,19 +3492,17 @@ void WebGL2RenderingContextImpl::vertex_attrib3fv(WebIDL::UnsignedLong index, Va
         return;
     }
 
-    auto& buffer_source = values.get<GC::Root<WebIDL::BufferSource>>();
-    if (buffer_source->byte_length() < 3 * sizeof(float)) {
+    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
+    if (float32_array.byte_length().length() < 3 * sizeof(float)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*buffer_source->raw_object());
-    auto& float32_array = as<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib3fv(index, data);
 }
 
-void WebGL2RenderingContextImpl::vertex_attrib4fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values)
+void WebGL2RenderingContextImpl::vertex_attrib4fv(WebIDL::UnsignedLong index, Float32List values)
 {
     m_context->make_current();
 
@@ -3531,14 +3517,12 @@ void WebGL2RenderingContextImpl::vertex_attrib4fv(WebIDL::UnsignedLong index, Va
         return;
     }
 
-    auto& buffer_source = values.get<GC::Root<WebIDL::BufferSource>>();
-    if (buffer_source->byte_length() < 4 * sizeof(float)) {
+    auto& float32_array = *values.get<GC::Root<JS::Float32Array>>();
+    if (float32_array.byte_length().length() < 4 * sizeof(float)) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*buffer_source->raw_object());
-    auto& float32_array = as<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib4fv(index, data);
 }
