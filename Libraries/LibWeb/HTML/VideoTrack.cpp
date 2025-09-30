@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/IDAllocator.h>
 #include <AK/Time.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
@@ -20,36 +20,22 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(VideoTrack);
 
-static IDAllocator s_video_track_id_allocator;
-
 VideoTrack::VideoTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
-    : PlatformObject(realm)
-    , m_media_element(media_element)
-    , m_track_in_playback_manager(track)
+    : MediaTrackBase(realm, media_element, track)
 {
 }
 
-VideoTrack::~VideoTrack()
-{
-    auto id = m_id.to_number<int>();
-    VERIFY(id.has_value());
-
-    s_video_track_id_allocator.deallocate(id.value());
-}
+VideoTrack::~VideoTrack() = default;
 
 void VideoTrack::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(VideoTrack);
     Base::initialize(realm);
-
-    auto id = s_video_track_id_allocator.allocate();
-    m_id = String::number(id);
 }
 
 void VideoTrack::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_media_element);
     visitor.visit(m_video_track_list);
 }
 
@@ -77,7 +63,7 @@ void VideoTrack::set_selected(bool selected)
         auto selected_track_was_unselected_without_another_selection = m_selected && !selected;
 
         if (previously_unselected_track_is_selected || selected_track_was_unselected_without_another_selection) {
-            m_media_element->queue_a_media_element_task([this]() {
+            media_element().queue_a_media_element_task([this]() {
                 m_video_track_list->dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
             });
         }
@@ -86,7 +72,7 @@ void VideoTrack::set_selected(bool selected)
     m_selected = selected;
 
     // AD-HOC: Inform the element node that we have (un)selected a video track for layout.
-    m_media_element->set_selected_video_track({}, m_selected ? this : nullptr);
+    media_element().set_selected_video_track({}, m_selected ? this : nullptr);
 }
 
 }

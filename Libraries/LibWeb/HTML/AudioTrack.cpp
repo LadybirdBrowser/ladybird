@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/IDAllocator.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/AudioTrackPrototype.h>
@@ -20,36 +20,22 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(AudioTrack);
 
-static IDAllocator s_audio_track_id_allocator;
-
 AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
-    : PlatformObject(realm)
-    , m_media_element(media_element)
-    , m_track_in_playback_manager(track)
+    : MediaTrackBase(realm, media_element, track)
 {
 }
 
-AudioTrack::~AudioTrack()
-{
-    auto id = m_id.to_number<int>();
-    VERIFY(id.has_value());
-
-    s_audio_track_id_allocator.deallocate(id.value());
-}
+AudioTrack::~AudioTrack() = default;
 
 void AudioTrack::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioTrack);
     Base::initialize(realm);
-
-    auto id = s_audio_track_id_allocator.allocate();
-    m_id = String::number(id);
 }
 
 void AudioTrack::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_media_element);
     visitor.visit(m_audio_track_list);
 }
 
@@ -66,13 +52,13 @@ void AudioTrack::set_enabled(bool enabled)
         // Whenever an audio track in an AudioTrackList that was disabled is enabled, and whenever one that was enabled
         // is disabled, the user agent must queue a media element task given the media element to fire an event named
         // change at the AudioTrackList object.
-        m_media_element->queue_a_media_element_task([this]() {
+        media_element().queue_a_media_element_task([this]() {
             m_audio_track_list->dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
         });
     }
 
     m_enabled = enabled;
-    m_media_element->set_audio_track_enabled({}, this, enabled);
+    media_element().set_audio_track_enabled({}, this, enabled);
 }
 
 }
