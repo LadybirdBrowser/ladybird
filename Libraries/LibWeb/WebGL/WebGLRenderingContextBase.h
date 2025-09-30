@@ -21,6 +21,7 @@ class WebGLRenderingContextBase {
 public:
     using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;
     using Int32List = Variant<GC::Root<JS::Int32Array>, Vector<WebIDL::Long>>;
+    using Uint32List = Variant<GC::Root<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
@@ -38,6 +39,13 @@ public:
         if (int32_list.has<Vector<int>>())
             return int32_list.get<Vector<int>>();
         return int32_list.get<GC::Root<JS::Int32Array>>()->data();
+    }
+
+    static Span<u32> span_from_uint32_list(Uint32List& int32_list)
+    {
+        if (int32_list.has<Vector<u32>>())
+            return int32_list.get<Vector<u32>>();
+        return int32_list.get<GC::Root<JS::Uint32Array>>()->data();
     }
 };
 
