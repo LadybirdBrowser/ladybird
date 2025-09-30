@@ -50,7 +50,7 @@ public:
     void draw_buffers(Vector<WebIDL::UnsignedLong> buffers);
     void clear_bufferfv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Float32List values, WebIDL::UnsignedLongLong src_offset);
     void clear_bufferiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Int32List values, WebIDL::UnsignedLongLong src_offset);
-    void clear_bufferuiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::UnsignedLong>> values, WebIDL::UnsignedLongLong src_offset);
+    void clear_bufferuiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Uint32List values, WebIDL::UnsignedLongLong src_offset);
     void clear_bufferfi(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, float depth, WebIDL::Long stencil);
     GC::Root<WebGLSampler> create_sampler();
     void delete_sampler(GC::Root<WebGLSampler> sampler);

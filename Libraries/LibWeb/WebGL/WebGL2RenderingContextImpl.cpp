@@ -484,36 +484,22 @@ void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, Web
     needs_to_present();
 }
 
-void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::UnsignedLong>> values, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Uint32List values, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
     m_context->notify_content_will_change();
 
-    u32 const* data = nullptr;
-    size_t count = 0;
-    if (values.has<Vector<u32>>()) {
-        auto& vector = values.get<Vector<u32>>();
-        data = vector.data();
-        count = vector.size();
-    } else if (values.has<GC::Root<WebIDL::BufferSource>>()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = as<JS::Uint32Array>(typed_array_base);
-        data = typed_array.data().data();
-        count = typed_array.array_length().length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    auto span = span_from_uint32_list(values);
     switch (buffer) {
     case GL_COLOR:
-        if (src_offset + 4 > count) {
+        if (src_offset + 4 > span.size()) {
             set_error(GL_INVALID_VALUE);
             return;
         }
         break;
     case GL_DEPTH:
     case GL_STENCIL:
-        if (src_offset + 1 > count) {
+        if (src_offset + 1 > span.size()) {
             set_error(GL_INVALID_VALUE);
             return;
         }
@@ -524,8 +510,8 @@ void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, We
         return;
     }
 
-    data += src_offset;
-    glClearBufferuiv(buffer, drawbuffer, data);
+    span = span.slice(src_offset);
+    glClearBufferuiv(buffer, drawbuffer, span.data());
     needs_to_present();
 }
 

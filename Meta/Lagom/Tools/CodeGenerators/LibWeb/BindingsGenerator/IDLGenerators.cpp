@@ -183,6 +183,7 @@ static bool is_javascript_builtin(Type const& type)
         "Float64Array"sv,
         "Int32Array"sv,
         "Uint8Array"sv,
+        "Uint32Array"sv,
         "Uint8ClampedArray"sv,
     };
 
