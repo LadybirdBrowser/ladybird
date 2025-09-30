@@ -537,6 +537,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_columns_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::Contain:
+        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::ContainerType:
+        if (auto parsed_value = parse_container_type_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Content:
         if (auto parsed_value = parse_content_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -813,10 +821,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     case PropertyID::Scale:
         if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::Contain:
-        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::WhiteSpace:
@@ -6069,6 +6073,59 @@ RefPtr<StyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>
         containment_values.append(style_value.release_nonnull());
     if (paint_value)
         containment_values.append(paint_value.release_nonnull());
+
+    transaction.commit();
+
+    return StyleValueList::create(move(containment_values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-conditional-5/#propdef-container-type
+RefPtr<StyleValue const> Parser::parse_container_type_value(TokenStream<ComponentValue>& tokens)
+{
+    // normal | [ [ size | inline-size ] || scroll-state ]
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // normal
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
+        transaction.commit();
+        return none;
+    }
+
+    // [ [ size | inline-size ] || scroll-state ]
+    if (!tokens.has_next_token())
+        return {};
+
+    RefPtr<StyleValue const> size_value;
+    RefPtr<StyleValue const> scroll_state_value;
+
+    while (tokens.has_next_token()) {
+        auto keyword_value = parse_keyword_value(tokens);
+        if (!keyword_value)
+            return {};
+        switch (keyword_value->to_keyword()) {
+        case Keyword::Size:
+        case Keyword::InlineSize:
+            if (size_value)
+                return {};
+            size_value = move(keyword_value);
+            break;
+        case Keyword::ScrollState:
+            if (scroll_state_value)
+                return {};
+            scroll_state_value = move(keyword_value);
+            break;
+        default:
+            return {};
+        }
+        tokens.discard_whitespace();
+    }
+
+    StyleValueVector containment_values;
+    if (size_value)
+        containment_values.append(size_value.release_nonnull());
+    if (scroll_state_value)
+        containment_values.append(scroll_state_value.release_nonnull());
 
     transaction.commit();
 

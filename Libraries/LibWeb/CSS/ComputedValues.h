@@ -82,6 +82,14 @@ struct Containment {
     bool is_empty() const { return !(size_containment || inline_size_containment || layout_containment || style_containment || paint_containment); }
 };
 
+struct ContainerType {
+    bool is_size_container : 1 { false };
+    bool is_inline_size_container : 1 { false };
+    bool is_scroll_state_container : 1 { false };
+
+    bool is_empty() const { return !(is_size_container || is_inline_size_container || is_scroll_state_container); }
+};
+
 struct ScrollbarColorData {
     Color thumb_color { Color::Transparent };
     Color track_color { Color::Transparent };
@@ -242,6 +250,7 @@ public:
     static UserSelect user_select() { return UserSelect::Auto; }
     static Isolation isolation() { return Isolation::Auto; }
     static Containment contain() { return {}; }
+    static ContainerType container_type() { return {}; }
     static MixBlendMode mix_blend_mode() { return MixBlendMode::Normal; }
     static Optional<int> z_index() { return OptionalNone(); }
 
@@ -563,6 +572,7 @@ public:
     UserSelect user_select() const { return m_noninherited.user_select; }
     Isolation isolation() const { return m_noninherited.isolation; }
     Containment const& contain() const { return m_noninherited.contain; }
+    ContainerType const& container_type() const { return m_noninherited.container_type; }
     MixBlendMode mix_blend_mode() const { return m_noninherited.mix_blend_mode; }
     Optional<FlyString> view_transition_name() const { return m_noninherited.view_transition_name; }
     TouchActionData touch_action() const { return m_noninherited.touch_action; }
@@ -841,6 +851,7 @@ protected:
         UserSelect user_select { InitialValues::user_select() };
         Isolation isolation { InitialValues::isolation() };
         Containment contain { InitialValues::contain() };
+        ContainerType container_type { InitialValues::container_type() };
         MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
         WhiteSpaceTrimData white_space_trim;
         Optional<FlyString> view_transition_name;
@@ -1046,6 +1057,7 @@ public:
     void set_user_select(UserSelect value) { m_noninherited.user_select = value; }
     void set_isolation(Isolation value) { m_noninherited.isolation = value; }
     void set_contain(Containment value) { m_noninherited.contain = move(value); }
+    void set_container_type(ContainerType value) { m_noninherited.container_type = move(value); }
     void set_mix_blend_mode(MixBlendMode value) { m_noninherited.mix_blend_mode = value; }
     void set_view_transition_name(Optional<FlyString> value) { m_noninherited.view_transition_name = move(value); }
     void set_touch_action(TouchActionData value) { m_noninherited.touch_action = value; }

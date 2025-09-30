@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	e.style['container-type'] = "initial" should set the property value
+Pass	e.style['container-type'] = "inherit" should set the property value
+Pass	e.style['container-type'] = "unset" should set the property value
+Pass	e.style['container-type'] = "revert" should set the property value
+Pass	e.style['container-type'] = "normal" should set the property value
+Pass	e.style['container-type'] = "size" should set the property value
+Pass	e.style['container-type'] = "inline-size" should set the property value
+Pass	e.style['container-type'] = "none" should not set the property value
+Pass	e.style['container-type'] = "auto" should not set the property value
+Pass	e.style['container-type'] = "block-size" should not set the property value
+Pass	e.style['container-type'] = "normal normal" should not set the property value
+Pass	e.style['container-type'] = "normal inline-size" should not set the property value
+Pass	e.style['container-type'] = "inline-size normal" should not set the property value
+Pass	e.style['container-type'] = "inline-size inline-size" should not set the property value
+Pass	e.style['container-type'] = "inline-size block-size" should not set the property value
+Pass	e.style['container-type'] = "block-size inline-size" should not set the property value
+Pass	e.style['container-type'] = "size inline-size" should not set the property value
+Pass	e.style['container-type'] = "inline-size size" should not set the property value
+Pass	e.style['container-type'] = "normal, normal" should not set the property value
+Pass	e.style['container-type'] = "foo" should not set the property value
+Pass	e.style['container-type'] = "\"foo\"" should not set the property value
+Pass	e.style['container-type'] = "foo, bar" should not set the property value
+Pass	e.style['container-type'] = "#fff" should not set the property value
+Pass	e.style['container-type'] = "1px" should not set the property value
+Pass	e.style['container-type'] = "default" should not set the property value
+Pass	e.style['container-type'] = "size nonsense" should not set the property value
+Pass	e.style['container-type'] = "style" should not set the property value
+Pass	e.style['container-type'] = "inline-size style" should not set the property value
+Pass	e.style['container-type'] = "style inline-size" should not set the property value
+Pass	e.style['container-type'] = "style size" should not set the property value

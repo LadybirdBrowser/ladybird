@@ -898,6 +898,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
     computed_values.set_contain(computed_style.contain());
+    computed_values.set_container_type(computed_style.container_type());
     computed_values.set_shape_rendering(computed_values.shape_rendering());
     computed_values.set_will_change(computed_style.will_change());
 
@@ -1226,6 +1227,9 @@ bool Node::has_size_containment() const
     if (computed_values().contain().size_containment)
         return true;
 
+    if (computed_values().container_type().is_size_container)
+        return true;
+
     return false;
 }
 // https://drafts.csswg.org/css-contain-2/#containment-inline-size
@@ -1248,6 +1252,9 @@ bool Node::has_inline_size_containment() const
     // FIXME: Implement this.
 
     if (computed_values().contain().inline_size_containment)
+        return true;
+
+    if (computed_values().container_type().is_inline_size_container)
         return true;
 
     return false;
@@ -1287,6 +1294,9 @@ bool Node::has_style_containment() const
     // Note: This is the principal box
 
     if (computed_values().contain().style_containment)
+        return true;
+
+    if (computed_values().container_type().is_size_container || computed_values().container_type().is_inline_size_container)
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto

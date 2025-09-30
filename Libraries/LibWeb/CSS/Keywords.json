@@ -456,6 +456,7 @@
   "screen",
   "scroll",
   "scroll-position",
+  "scroll-state",
   "scrollbar",
   "se-resize",
   "searchfield",

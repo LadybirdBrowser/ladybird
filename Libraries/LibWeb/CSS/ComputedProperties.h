@@ -183,6 +183,7 @@ public:
     Isolation isolation() const;
     TouchActionData touch_action() const;
     Containment contain() const;
+    ContainerType container_type() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
 

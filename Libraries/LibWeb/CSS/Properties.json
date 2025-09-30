@@ -1343,6 +1343,18 @@
       "contain"
     ]
   },
+  "container-type": {
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-identifiers": [
+      "normal",
+      "size",
+      "inline-size",
+      "scroll-state"
+    ]
+  },
   "content": {
     "animation-type": "discrete",
     "inherited": false,
