@@ -141,7 +141,7 @@ void SVGScriptElement::process_the_script_element()
             response->body()->fully_read(realm, on_data_read, on_error, GC::Ref { global });
         };
 
-        auto fetch_promise = Fetch::Fetching::fetch(realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        (void)Fetch::Fetching::fetch(realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
         // Block until the resource has been fetched or determined invalid
         HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return fetch_done; }));

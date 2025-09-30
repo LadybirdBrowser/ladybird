@@ -80,7 +80,7 @@ bool g_http_cache_enabled = false;
     })
 
 // https://fetch.spec.whatwg.org/#concept-fetch
-WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
+GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch' with: request @ {}", &request);
 
@@ -240,7 +240,7 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     }
 
     // 15. Run main fetch given fetchParams.
-    (void)TRY(main_fetch(realm, fetch_params));
+    (void)main_fetch(realm, fetch_params);
 
     // 16. Return fetchParams’s controller.
     return fetch_params->controller();
@@ -295,7 +295,7 @@ void populate_request_from_client(JS::Realm const& realm, Infrastructure::Reques
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
+GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -364,7 +364,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         request->current_url().set_scheme("https"_string);
     }
 
-    auto get_response = GC::create_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<GC::Ref<PendingResponse>> {
+    auto get_response = GC::create_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> GC::Ref<PendingResponse> {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' get_response() function");
         auto const* origin = request->origin().get_pointer<URL::Origin>();
 
@@ -443,7 +443,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             auto returned_pending_response = PendingResponse::create(vm, request);
 
             // 2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
-            auto cors_with_preflight_response = TRY(http_fetch(realm, fetch_params, MakeCORSPreflight::Yes));
+            auto cors_with_preflight_response = http_fetch(realm, fetch_params, MakeCORSPreflight::Yes);
             cors_with_preflight_response->when_loaded([returned_pending_response](GC::Ref<Infrastructure::Response> cors_with_preflight_response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' cors_with_preflight_response load callback");
                 // 3. If corsWithPreflightResponse is a network error, then clear cache entries using request.
@@ -470,7 +470,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = !response
-            ? TRY(get_response->function()())
+            ? get_response->function()()
             : PendingResponse::create(vm, request, *response);
 
         // 13. If recursive is true, then return response.
@@ -483,10 +483,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         //     matching statement:
         auto pending_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
         if (!response) {
-            auto pending_response_or_error = get_response->function()();
-            if (pending_response_or_error.is_error())
-                return;
-            pending_response = pending_response_or_error.release_value();
+            pending_response = get_response->function()();
         }
         pending_response->when_loaded([&realm, &vm, &fetch_params, request, response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_response) mutable {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
@@ -825,7 +822,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 }
 
 // https://fetch.spec.whatwg.org/#concept-scheme-fetch
-WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params)
+GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'scheme fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -858,7 +855,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         }
 
         // FIXME: This is actually wrong, see note above.
-        return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
+        return nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params);
     }
     // -> "blob"
     else if (request->current_url().scheme() == "blob"sv) {
@@ -968,7 +965,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
             }
 
             // 8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
-            auto sliced_blob = TRY(blob->slice(*range_start, *range_end + 1, type));
+            auto sliced_blob = MUST(blob->slice(*range_start, *range_end + 1, type));
 
             // 9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
             auto sliced_body_with_type = safely_extract_body(realm, sliced_blob->raw_bytes());
@@ -1035,7 +1032,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         // For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
         // When in doubt, return a network error.
         if (request->origin().has<URL::Origin>() && (request->origin().get<URL::Origin>().is_opaque() || request->origin().get<URL::Origin>().scheme() == "file"sv || request->origin().get<URL::Origin>().scheme() == "resource"sv))
-            return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
+            return nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params);
         else
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'file:' or 'resource:' URL blocked"_string));
     }
@@ -1053,7 +1050,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-fetch
-WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, MakeCORSPreflight make_cors_preflight)
+GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, MakeCORSPreflight make_cors_preflight)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' with: fetch_params @ {}, make_cors_preflight = {}",
         &fetch_params, make_cors_preflight == MakeCORSPreflight::Yes ? "Yes"sv : "No"sv);
@@ -1144,12 +1141,12 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
                 //   FIXME: We currently have no cache, so there will always be no header-name cache entry.
                 || !Infrastructure::get_cors_unsafe_header_names(request->header_list()).is_empty())) {
             // 1. Let preflightResponse be the result of running CORS-preflight fetch given request.
-            pending_preflight_response = TRY(cors_preflight_fetch(realm, request));
+            pending_preflight_response = cors_preflight_fetch(realm, request);
 
             // NOTE: Step 2 is performed in pending_preflight_response's load callback below.
         }
 
-        auto fetch_main_content = [request = GC::make_root(request), realm = GC::make_root(realm), fetch_params = GC::make_root(fetch_params)]() -> WebIDL::ExceptionOr<GC::Ref<PendingResponse>> {
+        auto fetch_main_content = [request = GC::make_root(request), realm = GC::make_root(realm), fetch_params = GC::make_root(fetch_params)]() -> GC::Ref<PendingResponse> {
             // 2. If request’s redirect mode is "follow", then set request’s service-workers mode to "none".
             // NOTE: Redirects coming from the network (as opposed to from a service worker) are not to be exposed to a
             //       service worker.
@@ -1171,14 +1168,14 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
                     return;
                 }
 
-                auto pending_main_content_response = TRY_OR_IGNORE(fetch_main_content());
+                auto pending_main_content_response = fetch_main_content();
                 pending_main_content_response->when_loaded([pending_actual_response](GC::Ref<Infrastructure::Response> main_content_response) {
                     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_main_content_response load callback");
                     pending_actual_response->resolve(main_content_response);
                 });
             });
         } else {
-            pending_actual_response = TRY(fetch_main_content());
+            pending_actual_response = fetch_main_content();
         }
     } else {
         pending_actual_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
@@ -1249,7 +1246,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
             // -> "follow"
             case Infrastructure::Request::RedirectMode::Follow:
                 // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
-                inner_pending_response = TRY_OR_IGNORE(http_redirect_fetch(realm, fetch_params, *response));
+                inner_pending_response = http_redirect_fetch(realm, fetch_params, *response);
                 break;
             default:
                 VERIFY_NOT_REACHED();
@@ -1272,7 +1269,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
-WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
+GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-redirect fetch' with: fetch_params @ {}, response = {}", &fetch_params, &response);
 
@@ -1696,7 +1693,7 @@ static RefPtr<CachePartition> determine_the_http_cache_partition(Infrastructure:
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
-WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch)
+GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' with: fetch_params @ {}, is_authentication_fetch = {}, is_new_connection_fetch = {}",
         &fetch_params, is_authentication_fetch == IsAuthenticationFetch::Yes ? "Yes"sv : "No"sv, is_new_connection_fetch == IsNewConnectionFetch::Yes ? "Yes"sv : "No"sv);
@@ -1852,7 +1849,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
         if (http_request->referrer().has<URL::URL>()) {
             // 1. Let referrerValue be httpRequest’s referrer, serialized and isomorphic encoded.
             auto referrer_string = http_request->referrer().get<URL::URL>().serialize();
-            auto referrer_value = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(referrer_string.bytes()));
+            auto referrer_value = MUST(ByteBuffer::copy(referrer_string.bytes()));
 
             // 2. Append (`Referer`, referrerValue) to httpRequest’s header list.
             auto header = Infrastructure::Header {
@@ -1981,7 +1978,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
                 else if (http_request->current_url().includes_credentials() && is_authentication_fetch == IsAuthenticationFetch::Yes) {
                     auto const& url = http_request->current_url();
                     auto payload = MUST(String::formatted("{}:{}", URL::percent_decode(url.username()), URL::percent_decode(url.password())));
-                    authorization_value = TRY_OR_THROW_OOM(vm, encode_base64(payload.bytes()));
+                    authorization_value = MUST(encode_base64(payload.bytes()));
                 }
 
                 // 4. If authorizationValue is non-null, then append (`Authorization`, authorizationValue) to
@@ -2087,7 +2084,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
 
         // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
         //    and isNewConnectionFetch.
-        pending_forward_response = TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch));
+        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch);
     } else {
         pending_forward_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
     }
@@ -2205,7 +2202,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
             }
 
             // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
-            inner_pending_response = TRY_OR_IGNORE(http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes));
+            inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
         }
 
         inner_pending_response->when_loaded([&realm, &vm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](GC::Ref<Infrastructure::Response> response) {
@@ -2255,7 +2252,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
                 }
                 // 2. Set response to the result of running HTTP-network-or-cache fetch given fetchParams,
                 //    isAuthenticationFetch, and true.
-                inner_pending_response = TRY_OR_IGNORE(http_network_or_cache_fetch(realm, fetch_params, is_authentication_fetch, IsNewConnectionFetch::Yes));
+                inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, is_authentication_fetch, IsNewConnectionFetch::Yes);
             }
 
             inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](GC::Ref<Infrastructure::Response> response) {
@@ -2301,7 +2298,7 @@ static void log_response(auto const& status_code, auto const& headers, auto cons
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // Drop-in replacement for 'HTTP-network fetch', but obviously non-standard :^)
 // It also handles file:// URLs since those can also go through ResourceLoader.
-WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IncludeCredentials include_credentials, IsNewConnectionFetch is_new_connection_fetch)
+GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IncludeCredentials include_credentials, IsNewConnectionFetch is_new_connection_fetch)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'non-standard HTTP-network fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -2329,18 +2326,15 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
         load_request.set_header(ByteString::copy(header.name), ByteString::copy(header.value));
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
-        TRY((*body)->source().visit(
-            [&](ByteBuffer const& byte_buffer) -> WebIDL::ExceptionOr<void> {
-                load_request.set_body(TRY_OR_THROW_OOM(vm, ByteBuffer::copy(byte_buffer)));
-                return {};
+        (*body)->source().visit(
+            [&](ByteBuffer const& byte_buffer) {
+                load_request.set_body(MUST(ByteBuffer::copy(byte_buffer)));
             },
-            [&](GC::Root<FileAPI::Blob> const& blob_handle) -> WebIDL::ExceptionOr<void> {
-                load_request.set_body(TRY_OR_THROW_OOM(vm, ByteBuffer::copy(blob_handle->raw_bytes())));
-                return {};
+            [&](GC::Root<FileAPI::Blob> const& blob_handle) {
+                load_request.set_body(MUST(ByteBuffer::copy(blob_handle->raw_bytes())));
             },
-            [](Empty) -> WebIDL::ExceptionOr<void> {
-                return {};
-            }));
+            [](Empty) {
+            });
     }
 
     auto pending_response = PendingResponse::create(vm, request);
@@ -2528,7 +2522,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
 }
 
 // https://fetch.spec.whatwg.org/#cors-preflight-fetch-0
-WebIDL::ExceptionOr<GC::Ref<PendingResponse>> cors_preflight_fetch(JS::Realm& realm, Infrastructure::Request& request)
+GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::Request& request)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' with request @ {}", &request);
 
@@ -2538,7 +2532,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> cors_preflight_fetch(JS::Realm& re
     //    request’s initiator, destination is request’s destination, origin is request’s origin, referrer is request’s referrer,
     //    referrer policy is request’s referrer policy, mode is "cors", and response tainting is "cors".
     auto preflight = Fetch::Infrastructure::Request::create(vm);
-    preflight->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy("OPTIONS"sv.bytes())));
+    preflight->set_method(MUST(ByteBuffer::copy("OPTIONS"sv.bytes())));
     preflight->set_url_list(request.url_list());
     preflight->set_initiator(request.initiator());
     preflight->set_destination(request.destination());
@@ -2569,14 +2563,14 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> cors_preflight_fetch(JS::Realm& re
         bool first = true;
         for (auto const& header : headers) {
             if (!first)
-                TRY_OR_THROW_OOM(vm, value.try_append(','));
-            TRY_OR_THROW_OOM(vm, value.try_append(header));
+                value.append(',');
+            value.append(header);
             first = false;
         }
 
         // 2. Append (`Access-Control-Request-Headers`, value) to preflight’s header list.
         temp_header = Infrastructure::Header {
-            .name = TRY_OR_THROW_OOM(vm, ByteBuffer::copy("Access-Control-Request-Headers"sv.bytes())),
+            .name = MUST(ByteBuffer::copy("Access-Control-Request-Headers"sv.bytes())),
             .value = move(value),
         };
         preflight->header_list()->append(move(temp_header));
@@ -2589,7 +2583,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> cors_preflight_fetch(JS::Realm& re
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
-    auto preflight_response = TRY(http_network_or_cache_fetch(realm, fetch_params));
+    auto preflight_response = http_network_or_cache_fetch(realm, fetch_params);
 
     preflight_response->when_loaded([&vm, &request, returned_pending_response](GC::Ref<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");

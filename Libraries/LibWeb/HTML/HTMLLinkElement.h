@@ -38,7 +38,7 @@ public:
     bool has_loaded_icon() const;
     bool load_favicon_and_use_if_window_is_active();
 
-    static WebIDL::ExceptionOr<void> load_fallback_favicon_if_needed(GC::Ref<DOM::Document>);
+    static void load_fallback_favicon_if_needed(GC::Ref<DOM::Document>);
 
     void set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document) { m_parser_document = document; }
     void set_was_enabled_when_created_by_parser(Badge<HTMLParser>, bool was_enabled_when_created_by_parser) { m_was_enabled_when_created_by_parser = was_enabled_when_created_by_parser; }

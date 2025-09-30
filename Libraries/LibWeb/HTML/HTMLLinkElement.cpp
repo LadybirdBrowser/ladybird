@@ -449,7 +449,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 
     if (m_fetch_controller)
         m_fetch_controller->abort(realm(), {});
-    m_fetch_controller = MUST(Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))));
+    m_fetch_controller = Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input)));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-dns-prefetch:fetch-and-process-the-linked-resource-2
@@ -730,7 +730,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
             process_response->function()(response);
     };
 
-    m_fetch_controller = MUST(Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+    m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
     // 12. Let commit be the following steps given a Document document:
     auto commit = GC::Function<void(DOM::Document&)>::create(realm.heap(), [entry, report_timing](DOM::Document& document) {
@@ -933,7 +933,7 @@ bool HTMLLinkElement::load_favicon_and_use_if_window_is_active()
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#rel-icon:the-link-element-3
-WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> document)
+void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> document)
 {
     auto& realm = document->realm();
     auto& vm = realm.vm();
@@ -941,9 +941,9 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
     // In the absence of a link with the icon keyword, for Document objects whose URL's scheme is an HTTP(S) scheme,
     // user agents may instead run these steps in parallel:
     if (document->has_active_favicon())
-        return {};
+        return;
     if (!document->url().scheme().is_one_of("http"sv, "https"sv))
-        return {};
+        return;
 
     // 1. Let request be a new request whose URL is the URL record obtained by resolving the URL "/favicon.ico" against
     //    the Document object's URL, client is the Document object's relevant settings object, destination is "image",
@@ -978,8 +978,7 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
             body->fully_read(realm, process_body, process_body_error, global);
     };
 
-    TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
-    return {};
+    Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 }
 
 bool HTMLLinkElement::should_fetch_and_process_resource_type() const

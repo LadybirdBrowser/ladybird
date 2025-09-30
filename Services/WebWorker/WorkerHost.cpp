@@ -105,7 +105,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // 1. If isTopLevel is false, fetch request with processResponseConsumeBody set to processCustomFetchResponse, and abort these steps.
         if (is_top_level == Web::HTML::TopLevelModule::No) {
             fetch_algorithms_input.process_response_consume_body = move(process_custom_fetch_response);
-            TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+            Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
             return {};
         }
 
@@ -150,7 +150,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             // 9. Run processCustomFetchResponse with response and bodyBytes.
             process_custom_fetch_response_function->function()(response, body_bytes);
         };
-        TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+        Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
         return {};
     };
     auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));

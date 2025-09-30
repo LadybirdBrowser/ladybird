@@ -182,7 +182,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         response->body()->fully_read(realm, on_image_data_read, empty_algorithm, GC::Ref { global });
     };
 
-    m_fetch_controller = TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+    m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
     return {};
 }
