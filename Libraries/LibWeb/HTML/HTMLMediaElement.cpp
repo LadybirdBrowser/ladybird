@@ -1237,6 +1237,18 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         if (enable == TriState::True)
             audio_track->set_enabled(true);
 
+        // AD-HOC(ish): According to https://dev.w3.org/html5/html-sourcing-inband-tracks/, kind should be set according to format, and the following criteria within
+        //              the specified formats.
+        // WebM:
+        //     - "main": the FlagDefault element is set on the track
+        //     - "translation": not first audio (video) track
+        // MP4:
+        //     - "main": first audio (video) track
+        //     - "translation": not first audio (video) track
+        // Though the behavior for WebM is not clear if its first track is not marked with FlagDefault, the idea here seems to be that the preferred
+        // track should be marked as "main", and the rest should be marked as "translation".
+        audio_track->set_kind(enable == TriState::True ? "main"_utf16 : "translation"_utf16);
+
         // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
         TrackEventInit event_init {};
         event_init.track = GC::make_root(audio_track);
@@ -1283,6 +1295,9 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         //    If other tracks are unselected, then a change event will be fired.
         if (enable == TriState::True)
             video_track->set_selected(true);
+
+        // AD-HOC(ish): See the comment regarding AudioTrack.kind above with regard to https://dev.w3.org/html5/html-sourcing-inband-tracks/.
+        video_track->set_kind(enable == TriState::True ? "main"_utf16 : "translation"_utf16);
 
         // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
         TrackEventInit event_init {};
