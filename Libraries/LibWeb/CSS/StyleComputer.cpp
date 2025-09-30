@@ -1068,10 +1068,12 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             });
         }
 
+        auto tree_counting_function_resolution_context = abstract_element.tree_counting_function_resolution_context();
         auto const& inheritance_parent = abstract_element.element_to_inherit_style_from();
         auto inheritance_parent_has_computed_properties = inheritance_parent.has_value() && inheritance_parent->computed_properties();
         ComputationContext font_computation_context {
-            .length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window())
+            .length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window()),
+            .tree_counting_function_resolution_context = tree_counting_function_resolution_context
         };
 
         if (auto const& font_size_specified_value = specified_values.get(PropertyID::FontSize); font_size_specified_value.has_value()) {
@@ -1115,7 +1117,8 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                         computed_properties.font_size(),
                         computed_properties.first_available_computed_font().pixel_metrics(),
                         inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height() },
-                    .root_font_metrics = m_root_element_font_metrics }
+                    .root_font_metrics = m_root_element_font_metrics },
+                .tree_counting_function_resolution_context = tree_counting_function_resolution_context
             };
 
             result.set(PropertyID::LineHeight, compute_line_height(*line_height_specified_value.value(), line_height_computation_context));
@@ -1126,6 +1129,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 .viewport_rect = viewport_rect(),
                 .font_metrics = font_metrics,
                 .root_font_metrics = m_root_element_font_metrics },
+            .tree_counting_function_resolution_context = tree_counting_function_resolution_context
         };
 
         // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
@@ -2031,8 +2035,12 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto inherited_font_size = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_size() : InitialValues::font_size();
     auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
+
+    auto tree_counting_function_resolution_context = abstract_element.map([](auto abstract_element) { return abstract_element.tree_counting_function_resolution_context(); }).value_or({ .sibling_count = 1, .sibling_index = 1 });
+
     ComputationContext font_computation_context {
-        .length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window())
+        .length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window()),
+        .tree_counting_function_resolution_context = tree_counting_function_resolution_context
     };
 
     auto const& font_size_specified_value = style.property(PropertyID::FontSize, ComputedProperties::WithAnimationsApplied::No);
@@ -2086,7 +2094,8 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
             .viewport_rect = viewport_rect(),
             .font_metrics = line_height_font_metrics,
             .root_font_metrics = abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element()) ? line_height_font_metrics : m_root_element_font_metrics,
-        }
+        },
+        .tree_counting_function_resolution_context = tree_counting_function_resolution_context
     };
 
     auto const& line_height_specified_value = style.property(CSS::PropertyID::LineHeight, ComputedProperties::WithAnimationsApplied::No);
@@ -2147,7 +2156,7 @@ Gfx::Font const& StyleComputer::initial_font() const
     return font;
 }
 
-void StyleComputer::compute_property_values(ComputedProperties& style) const
+void StyleComputer::compute_property_values(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     Length::FontMetrics font_metrics {
         style.font_size(),
@@ -2161,6 +2170,7 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
             .font_metrics = font_metrics,
             .root_font_metrics = m_root_element_font_metrics,
         },
+        .tree_counting_function_resolution_context = abstract_element.map([](auto abstract_element) { return abstract_element.tree_counting_function_resolution_context(); }).value_or({ .sibling_count = 1, .sibling_index = 1 })
     };
 
     // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that
@@ -2392,7 +2402,7 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 
     compute_math_depth(style, {});
     compute_font(style, {});
-    compute_property_values(style);
+    compute_property_values(style, {});
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
@@ -2643,7 +2653,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     compute_font(computed_style, abstract_element);
 
     // 4. Convert properties into their computed forms
-    compute_property_values(computed_style);
+    compute_property_values(computed_style, abstract_element);
 
     // FIXME: Support multiple entries for `animation` properties
     // Animation declarations [css-animations-2]
