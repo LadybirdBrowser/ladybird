@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Computed position-try-fallbacks</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-fallbacks">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/inheritance-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  test_computed_value("position-try-fallbacks", "none");
+  test_computed_value("position-try-fallbacks", "flip-block");
+  test_computed_value("position-try-fallbacks", "flip-inline");
+  test_computed_value("position-try-fallbacks", "flip-start");
+  test_computed_value("position-try-fallbacks", "flip-block, flip-inline");
+  test_computed_value("position-try-fallbacks", "--foo, --bar");
+  test_computed_value("position-try-fallbacks", "flip-start flip-inline flip-block");
+  test_computed_value("position-try-fallbacks", "flip-start --flop", "--flop flip-start");
+  test_computed_value("position-try-fallbacks", "--flop flip-start");
+  test_computed_value("position-try-fallbacks", "left top");
+  test_computed_value("position-try-fallbacks", "top left", "left top");
+  test_computed_value("position-try-fallbacks", "start start", "start");
+  test_computed_value("position-try-fallbacks", "left, right");
+  test_computed_value("position-try-fallbacks", "--foo, left");
+  test_computed_value("position-try-fallbacks", "--foo, left, --bar");
+  test_computed_value("position-try-fallbacks", "--foo, flip-start, left");
+  test_computed_value("position-try-fallbacks", "--foo flip-start, left");
+  test_computed_value("position-try-fallbacks", "left, --bar flip-start");
+
+  assert_not_inherited("position-try-fallbacks", "none", "flip-inline");
+</script>

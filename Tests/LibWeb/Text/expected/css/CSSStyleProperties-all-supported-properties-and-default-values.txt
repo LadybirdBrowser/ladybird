@@ -640,6 +640,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'position-anchor': 'auto'
 'positionArea': 'none'
 'position-area': 'none'
+'positionTryFallbacks': 'none'
+'position-try-fallbacks': 'none'
 'quotes': 'auto'
 'r': '0px'
 'right': 'auto'
