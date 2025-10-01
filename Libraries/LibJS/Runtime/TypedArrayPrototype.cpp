@@ -231,35 +231,35 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
     // 4. Let relativeTarget be ? ToIntegerOrInfinity(target).
     auto relative_target = TRY(target.to_integer_or_infinity(vm));
 
-    double to;
-    // 5. If relativeTarget = -∞, let to be 0.
+    double target_index;
+    // 5. If relativeTarget = -∞, let targetIndex be 0.
     if (Value { relative_target }.is_negative_infinity()) {
-        to = 0.0;
+        target_index = 0.0;
     }
-    // 6. Else if relativeTarget < 0, let to be max(len + relativeTarget, 0).
+    // 6. Else if relativeTarget < 0, let targetIndex be max(len + relativeTarget, 0).
     else if (relative_target < 0) {
-        to = max(length + relative_target, 0.0);
+        target_index = max(length + relative_target, 0.0);
     }
-    // 7. Else, let to be min(relativeTarget, len).
+    // 7. Else, let targetIndex be min(relativeTarget, len).
     else {
-        to = min(relative_target, (double)length);
+        target_index = min(relative_target, (double)length);
     }
 
     // 8. Let relativeStart be ? ToIntegerOrInfinity(start).
     auto relative_start = TRY(start.to_integer_or_infinity(vm));
 
-    double from;
-    // 9. If relativeStart = -∞, let from be 0.
+    double start_index;
+    // 9. If relativeStart = -∞, let startIndex be 0.
     if (Value { relative_start }.is_negative_infinity()) {
-        from = 0.0;
+        start_index = 0.0;
     }
-    // 10. Else if relativeStart < 0, let from be max(len + relativeStart, 0).
+    // 10. Else if relativeStart < 0, let startIndex be max(len + relativeStart, 0).
     else if (relative_start < 0) {
-        from = max(length + relative_start, 0.0);
+        start_index = max(length + relative_start, 0.0);
     }
-    // 11. Else, let from be min(relativeStart, len).
+    // 11. Else, let startIndex be min(relativeStart, len).
     else {
-        from = min(relative_start, (double)length);
+        start_index = min(relative_start, (double)length);
     }
 
     double relative_end;
@@ -269,22 +269,22 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
     else
         relative_end = TRY(end.to_integer_or_infinity(vm));
 
-    double final;
-    // 13. If relativeEnd = -∞, let final be 0.
+    double end_index;
+    // 13. If relativeEnd = -∞, let endIndex be 0.
     if (Value { relative_end }.is_negative_infinity()) {
-        final = 0.0;
+        end_index = 0.0;
     }
-    // 14. Else if relativeEnd < 0, let final be max(len + relativeEnd, 0).
+    // 14. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
     else if (relative_end < 0) {
-        final = max(length + relative_end, 0.0);
+        end_index = max(length + relative_end, 0.0);
     }
-    // 15. Else, let final be min(relativeEnd, len).
+    // 15. Else, let endIndex be min(relativeEnd, len).
     else {
-        final = min(relative_end, (double)length);
+        end_index = min(relative_end, (double)length);
     }
 
-    // 16. Let count be min(final - from, len - to).
-    double count = min(final - from, length - to);
+    // 16. Let count be min(endIndex - startIndex, len - targetIndex).
+    double count = min(end_index - start_index, length - target_index);
 
     // 17. If count > 0, then
     if (count > 0.0) {
@@ -293,7 +293,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
         // b. Let buffer be O.[[ViewedArrayBuffer]].
         auto* buffer = typed_array->viewed_array_buffer();
 
-        // c. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
+        // c. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, SEQ-CST).
         typed_array_record = make_typed_array_with_buffer_witness_record(*typed_array, ArrayBuffer::Order::SeqCst);
 
         // d. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
@@ -303,25 +303,22 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
         // e. Set len to TypedArrayLength(taRecord).
         length = typed_array_length(typed_array_record);
 
-        // f. Let elementSize be TypedArrayElementSize(O).
+        // f. NOTE: Side-effects of the above steps may have reduced the size of O, in which case copying should proceed
+        //    with the longest still-applicable prefix.
+
+        // g. Set count to min(count, len - startIndex, len - targetIndex).
+        count = min(count, min(length - start_index, length - target_index));
+
+        // h. Let elementSize be TypedArrayElementSize(O).
         auto element_size = typed_array->element_size();
 
-        // g. Let byteOffset be O.[[ByteOffset]].
+        // i. Let byteOffset be O.[[ByteOffset]].
         auto byte_offset = typed_array->byte_offset();
 
         // FIXME: Not exactly sure what we should do when overflow occurs. Just return as if succeeded for now.
 
-        // h. Let bufferByteLimit be len × elementSize + byteOffset.
-        Checked<size_t> buffer_byte_limit_checked = static_cast<size_t>(length);
-        buffer_byte_limit_checked *= element_size;
-        buffer_byte_limit_checked += byte_offset;
-        if (buffer_byte_limit_checked.has_overflow()) {
-            dbgln("TypedArrayPrototype::copy_within: buffer_byte_limit overflowed, returning as if succeeded.");
-            return typed_array;
-        }
-
-        // i. Let toByteIndex be to × elementSize + byteOffset.
-        Checked<size_t> to_byte_index_checked = static_cast<size_t>(to);
+        // j. Let toByteIndex be (targetIndex × elementSize) + byteOffset.
+        Checked<size_t> to_byte_index_checked = static_cast<size_t>(target_index);
         to_byte_index_checked *= element_size;
         to_byte_index_checked += byte_offset;
         if (to_byte_index_checked.has_overflow()) {
@@ -329,8 +326,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
             return typed_array;
         }
 
-        // j. Let fromByteIndex be from × elementSize + byteOffset.
-        Checked<size_t> from_byte_index_checked = static_cast<size_t>(from);
+        // k. Let fromByteIndex be (startIndex × elementSize) + byteOffset.
+        Checked<size_t> from_byte_index_checked = static_cast<size_t>(start_index);
         from_byte_index_checked *= element_size;
         from_byte_index_checked += byte_offset;
         if (from_byte_index_checked.has_overflow()) {
@@ -338,7 +335,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
             return typed_array;
         }
 
-        // k. Let countBytes be count × elementSize.
+        // l. Let countBytes be count × elementSize.
         Checked<size_t> count_bytes_checked = static_cast<size_t>(count);
         count_bytes_checked *= element_size;
         if (count_bytes_checked.has_overflow()) {
@@ -346,7 +343,6 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
             return typed_array;
         }
 
-        auto buffer_byte_limit = buffer_byte_limit_checked.value();
         auto to_byte_index = to_byte_index_checked.value();
         auto from_byte_index = from_byte_index_checked.value();
         auto count_bytes = count_bytes_checked.value();
@@ -362,13 +358,11 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
         if (!buffer->is_shared_array_buffer()) {
             Checked<size_t> from_end = from_byte_index;
             from_end += count_bytes;
+
             Checked<size_t> to_end = to_byte_index;
             to_end += count_bytes;
 
-            if (!from_end.has_overflow()
-                && !to_end.has_overflow()
-                && from_end.value() <= buffer_byte_limit
-                && to_end.value() <= buffer_byte_limit) {
+            if (!from_end.has_overflow() && !to_end.has_overflow()) {
                 auto* base = buffer->buffer().data();
                 void const* src = base + from_byte_index;
                 void* dst = base + to_byte_index;
@@ -383,6 +377,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
         if (from_byte_index < to_byte_index && to_byte_index < from_plus_count.value()) {
             // i. Let direction be -1.
             direction = -1;
+
             // ii. Set fromByteIndex to fromByteIndex + countBytes - 1.
             from_byte_index = from_plus_count.value() - 1;
 
@@ -402,30 +397,22 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::copy_within)
             direction = 1;
         }
 
-        // n. Repeat, while countBytes > 0,
+        // o. Repeat, while countBytes > 0,
         while (count_bytes > 0) {
-            // i. If fromByteIndex < bufferByteLimit and toByteIndex < bufferByteLimit, then
-            if (from_byte_index < buffer_byte_limit && to_byte_index < buffer_byte_limit) {
-                // 1. Let value be GetValueFromBuffer(buffer, fromByteIndex, uint8, true, unordered).
-                auto value = buffer->get_value<u8>(from_byte_index, true, ArrayBuffer::Order::Unordered);
+            // i. Let value be GetValueFromBuffer(buffer, fromByteIndex, UINT8, true, UNORDERED).
+            auto value = buffer->get_value<u8>(from_byte_index, true, ArrayBuffer::Order::Unordered);
 
-                // 2. Perform SetValueInBuffer(buffer, toByteIndex, uint8, value, true, unordered).
-                buffer->set_value<u8>(to_byte_index, value, true, ArrayBuffer::Order::Unordered);
+            // ii. Perform SetValueInBuffer(buffer, toByteIndex, UINT8, value, true, UNORDERED).
+            buffer->set_value<u8>(to_byte_index, value, true, ArrayBuffer::Order::Unordered);
 
-                // 3. Set fromByteIndex to fromByteIndex + direction.
-                from_byte_index += direction;
+            // iii. Set fromByteIndex to fromByteIndex + direction.
+            from_byte_index += direction;
 
-                // 4. Set toByteIndex to toByteIndex + direction.
-                to_byte_index += direction;
+            // iv. Set toByteIndex to toByteIndex + direction.
+            to_byte_index += direction;
 
-                // 5. Set countBytes to countBytes - 1.
-                --count_bytes;
-            }
-            // ii. Else,
-            else {
-                // 1. Set countBytes to 0.
-                count_bytes = 0;
-            }
+            // v. Set countBytes to countBytes - 1.
+            --count_bytes;
         }
     }
 

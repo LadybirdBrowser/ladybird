@@ -133,4 +133,26 @@ describe("normal behavior", () => {
             expect(array).toEqual(new T([0n, 54n, 999n, 999n, 1000n, 0n]));
         });
     });
+
+    test("resizing during copyWithin", () => {
+        TYPED_ARRAYS.forEach(T => {
+            let arrayBuffer = new ArrayBuffer(T.BYTES_PER_ELEMENT * 4, {
+                maxByteLength: T.BYTES_PER_ELEMENT * 8,
+            });
+
+            let typedArray = new T(arrayBuffer);
+            typedArray[0] = 1;
+            typedArray[1] = 2;
+            typedArray[2] = 3;
+            typedArray[3] = 4;
+
+            const resize = () => {
+                arrayBuffer.resize(3 * T.BYTES_PER_ELEMENT);
+                return 2;
+            };
+
+            typedArray.copyWithin({ valueOf: resize }, 1);
+            expect(typedArray).toEqual(new T([1, 2, 2]));
+        });
+    });
 });
