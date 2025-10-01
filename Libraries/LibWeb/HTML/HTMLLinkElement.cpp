@@ -385,6 +385,13 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
 // https://html.spec.whatwg.org/multipage/semantics.html#fetch-and-process-the-linked-resource
 void HTMLLinkElement::fetch_and_process_linked_resource()
 {
+    // NB: Step 2 of "process the linked resource" for stylesheets is implemented here.
+    // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
+    if (m_fetch_controller) {
+        m_fetch_controller->stop_fetch();
+        document().script_blocking_style_sheet_set().remove(*this);
+    }
+
     if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload))
         default_fetch_and_process_linked_resource();
     else if (m_relationship & Relationship::Preload)
@@ -458,8 +465,6 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
         process_linked_resource(success, response, move(successful_body_bytes));
     };
 
-    if (m_fetch_controller)
-        m_fetch_controller->abort(realm(), {});
     m_fetch_controller = Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input)));
 }
 
@@ -801,8 +806,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     if (mime_type_string.has_value() && mime_type_string != "text/css"sv)
         success = false;
 
-    // FIXME: 2. If el no longer creates an external resource link that contributes to the styling processing model,
-    //           or if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
+    // 2. If el no longer creates an external resource link that contributes to the styling processing model, or
+    //    if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
+    // NB: This is implemented in fetch_and_process_linked_resource() by stopping the outdated fetch,
+    //     which prevents this callback from running at all.
 
     // 3. If el has an associated CSS style sheet, remove the CSS style sheet.
     if (m_loaded_style_sheet) {
