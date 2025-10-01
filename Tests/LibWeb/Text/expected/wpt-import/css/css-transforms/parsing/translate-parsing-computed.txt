@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 19 tests
 
-18 Pass
-1 Fail
+19 Pass
 Pass	Property translate value 'none'
 Pass	Property translate value '0px'
 Pass	Property translate value '100%'
@@ -20,6 +19,6 @@ Pass	Property translate value '100px 200px 300px'
 Pass	Property translate value '100% 200% 300px'
 Pass	Property translate value '100% 0% 200px'
 Pass	Property translate value '0% 0% 100px'
-Fail	Property translate value '0em 0em 100px'
+Pass	Property translate value '0em 0em 100px'
 Pass	Property translate value '0'
 Pass	Property translate value '1px 2px 0'

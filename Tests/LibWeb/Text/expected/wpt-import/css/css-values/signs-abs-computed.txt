@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 233 tests
 
-212 Pass
-21 Fail
+221 Pass
+12 Fail
 Pass	abs(1) should be used-value-equivalent to 1
 Pass	sign(1) should be used-value-equivalent to 1
 Pass	abs(-1) should be used-value-equivalent to 1
@@ -210,18 +210,18 @@ Pass	abs(-1turn) should be used-value-equivalent to 1turn
 Pass	sign(10px - 1em) should be used-value-equivalent to 0; fontSize=10px
 Pass	sign(10px - 2em) should be used-value-equivalent to -1; fontSize=10px
 Pass	calc(sign(10%) * 100px) should be used-value-equivalent to 100px
-Fail	calc(2.5 - sign(41px - 2em) / 2) should be used-value-equivalent to 2
-Fail	calc(2.5 - sign(40px - 2em) / 2) should be used-value-equivalent to 2.5
-Fail	calc(2.5 - sign(39px - 2em) / 2) should be used-value-equivalent to 3
+Pass	calc(2.5 - sign(41px - 2em) / 2) should be used-value-equivalent to 2
+Pass	calc(2.5 - sign(40px - 2em) / 2) should be used-value-equivalent to 2.5
+Pass	calc(2.5 - sign(39px - 2em) / 2) should be used-value-equivalent to 3
 Pass	calc(3 + sign(42px - 2em)) should be used-value-equivalent to 4
 Pass	calc(3 + sign(40px - 2em)) should be used-value-equivalent to 3
 Pass	calc(3 + sign(38px - 2em)) should be used-value-equivalent to 2
 Pass	calc(50px + 100px * sign(42px - 2em)) should be used-value-equivalent to 150px
 Pass	calc(50px + 100px * sign(40px - 2em)) should be used-value-equivalent to 50px
 Pass	calc(50px + 100px * sign(38px - 2em)) should be used-value-equivalent to -50px
-Fail	calc(90deg + 30deg * sign(42px - 2em)) should be used-value-equivalent to 120deg
-Fail	calc(90deg + 30deg * sign(40px - 2em)) should be used-value-equivalent to 90deg
-Fail	calc(90deg + 30deg * sign(38px - 2em)) should be used-value-equivalent to 60deg
+Pass	calc(90deg + 30deg * sign(42px - 2em)) should be used-value-equivalent to 120deg
+Pass	calc(90deg + 30deg * sign(40px - 2em)) should be used-value-equivalent to 90deg
+Pass	calc(90deg + 30deg * sign(38px - 2em)) should be used-value-equivalent to 60deg
 Pass	calc(5s + 15s * sign(42px - 2em)) should be used-value-equivalent to 20s
 Pass	calc(5s + 15s * sign(40px - 2em)) should be used-value-equivalent to 5s
 Pass	calc(5s + 15s * sign(38px - 2em)) should be used-value-equivalent to -10s
@@ -231,9 +231,9 @@ Fail	calc(100dpi + 20dpi * sign(38px - 2em)) should be used-value-equivalent to 
 Fail	calc(3fr + 1fr * sign(42px - 2em)) should be used-value-equivalent to 4fr
 Fail	calc(3fr + 1fr * sign(40px - 2em)) should be used-value-equivalent to 3fr
 Fail	calc(3fr + 1fr * sign(38px - 2em)) should be used-value-equivalent to 2fr
-Fail	calc(2.5 - sign(33px - 2rem) / 2) should be used-value-equivalent to 2
-Fail	calc(2.5 - sign(32px - 2rem) / 2) should be used-value-equivalent to 2.5
-Fail	calc(2.5 - sign(31px - 2rem) / 2) should be used-value-equivalent to 3
+Pass	calc(2.5 - sign(33px - 2rem) / 2) should be used-value-equivalent to 2
+Pass	calc(2.5 - sign(32px - 2rem) / 2) should be used-value-equivalent to 2.5
+Pass	calc(2.5 - sign(31px - 2rem) / 2) should be used-value-equivalent to 3
 Pass	calc(50px + 100px * sign(34px - 2rem)) should be used-value-equivalent to 150px
 Pass	calc(50px + 100px * sign(32px - 2rem)) should be used-value-equivalent to 50px
 Pass	calc(50px + 100px * sign(30px - 2rem)) should be used-value-equivalent to -50px
