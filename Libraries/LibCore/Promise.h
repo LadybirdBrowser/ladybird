@@ -29,7 +29,7 @@ public:
     virtual ~Promise() = default;
     static NonnullRefPtr<Promise> construct() { return adopt_ref(*new Promise()); }
 
-    Function<ErrorOr<void>(Result&)> on_resolution;
+    Function<ErrorOr<void, TError>(Result&)> on_resolution;
     Function<void(ErrorType&)> on_rejection;
 
     template<typename U>
@@ -168,7 +168,7 @@ public:
 
 private:
     template<typename T>
-    void possibly_handle_rejection(ErrorOr<T>& result)
+    void possibly_handle_rejection(ErrorOr<T, TError>& result)
     {
         if (result.is_error() && on_rejection)
             on_rejection(result.error());
