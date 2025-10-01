@@ -30,6 +30,8 @@ public:
     virtual String to_string(SerializationMode) const override;
     GC::Ref<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+
     bool properties_equal(TransformationStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:

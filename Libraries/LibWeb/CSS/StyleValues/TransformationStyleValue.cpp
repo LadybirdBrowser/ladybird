@@ -375,6 +375,27 @@ GC::Ref<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     VERIFY_NOT_REACHED();
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    StyleValueVector absolutized_values;
+
+    bool absolutized_values_different = false;
+
+    for (auto const& value : m_properties.values) {
+        auto const& absolutized_value = value->absolutized(computation_context);
+
+        if (absolutized_value != value)
+            absolutized_values_different = true;
+
+        absolutized_values.append(absolutized_value);
+    }
+
+    if (!absolutized_values_different)
+        return *this;
+
+    return TransformationStyleValue::create(m_properties.property, m_properties.transform_function, move(absolutized_values));
+}
+
 bool TransformationStyleValue::Properties::operator==(Properties const& other) const
 {
     return property == other.property
