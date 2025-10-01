@@ -2952,7 +2952,17 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
     }
 
     // 2. If root is any other leaf node (not an operator node):
-    // FIXME: We don't yet allow any of these inside a calculation tree. Revisit once we do.
+    if (root->type() == CalculationNode::Type::NonMathFunction) {
+        auto const& non_math_function = as<NonMathFunctionCalculationNode>(*root);
+
+        if (resolution_context.tree_counting_function_resolution_context.has_value()) {
+            if (non_math_function.function().name == "sibling-count"sv)
+                return NumericCalculationNode::create(Number { Number::Type::Integer, static_cast<double>(resolution_context.tree_counting_function_resolution_context->sibling_count) }, context);
+
+            if (non_math_function.function().name == "sibling-index"sv)
+                return NumericCalculationNode::create(Number { Number::Type::Integer, static_cast<double>(resolution_context.tree_counting_function_resolution_context->sibling_index) }, context);
+        }
+    }
 
     // 3. At this point, root is an operator node. Simplify all the calculation children of root.
     root = root->with_simplified_children(context, resolution_context);
