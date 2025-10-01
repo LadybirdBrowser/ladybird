@@ -469,6 +469,7 @@ private:
     RefPtr<StyleValue const> parse_position_area_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_single_position_try_fallbacks_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_position_try_fallbacks_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_position_visibility_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_quotes_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_single_repeat_style_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_scrollbar_color_value(TokenStream<ComponentValue>&);

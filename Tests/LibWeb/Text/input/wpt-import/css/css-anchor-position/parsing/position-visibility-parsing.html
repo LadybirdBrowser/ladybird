@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Parsing of position-visibility</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-visibility">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  test_valid_value("position-visibility", "initial");
+  test_valid_value("position-visibility", "inherit");
+  test_valid_value("position-visibility", "unset");
+  test_valid_value("position-visibility", "revert");
+
+  test_valid_value("position-visibility", "always");
+  test_valid_value("position-visibility", "anchors-valid");
+  test_valid_value("position-visibility", "anchors-visible");
+  test_valid_value("position-visibility", "no-overflow");
+
+  test_valid_value("position-visibility", "anchors-valid anchors-visible");
+  test_valid_value("position-visibility", "anchors-valid no-overflow");
+  test_valid_value("position-visibility", "anchors-visible anchors-valid", "anchors-valid anchors-visible");
+  test_valid_value("position-visibility", "anchors-visible no-overflow");
+  test_valid_value("position-visibility", "no-overflow anchors-valid", "anchors-valid no-overflow");
+  test_valid_value("position-visibility", "no-overflow anchors-visible", "anchors-visible no-overflow");
+
+  test_valid_value("position-visibility", "anchors-valid anchors-visible no-overflow");
+  test_valid_value("position-visibility", "anchors-valid no-overflow anchors-visible", "anchors-valid anchors-visible no-overflow");
+  test_valid_value("position-visibility", "anchors-visible anchors-valid no-overflow", "anchors-valid anchors-visible no-overflow");
+  test_valid_value("position-visibility", "anchors-visible no-overflow anchors-valid", "anchors-valid anchors-visible no-overflow");
+  test_valid_value("position-visibility", "no-overflow anchors-valid anchors-visible", "anchors-valid anchors-visible no-overflow");
+  test_valid_value("position-visibility", "no-overflow anchors-visible anchors-valid", "anchors-valid anchors-visible no-overflow");
+
+  test_invalid_value("position-visibility", "foobar");
+
+  test_invalid_value("position-visibility", "always foobar");
+  test_invalid_value("position-visibility", "always anchors-valid");
+  test_invalid_value("position-visibility", "always anchors-visible");
+  test_invalid_value("position-visibility", "always no-overflow");
+  test_invalid_value("position-visibility", "always anchors-valid no-overflow");
+  test_invalid_value("position-visibility", "always anchors-valid anchors-visible no-overflow");
+
+  test_invalid_value("position-visibility", "no-overflow foobar");
+  test_invalid_value("position-visibility", "anchors-valid no-overflow foobar");
+  test_invalid_value("position-visibility", "anchors-valid no-overflow anchors-valid anchors-visible");
+</script>
