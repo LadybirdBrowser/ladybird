@@ -158,6 +158,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'all': ''
 'anchorName': 'none'
 'anchor-name': 'none'
+'anchorScope': 'none'
+'anchor-scope': 'none'
 'animation': 'none'
 'animationComposition': 'replace'
 'animation-composition': 'replace'

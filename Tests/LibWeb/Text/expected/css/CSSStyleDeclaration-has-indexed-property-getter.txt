@@ -78,6 +78,7 @@ All properties associated with getComputedStyle(document.body):
     "align-items",
     "align-self",
     "anchor-name",
+    "anchor-scope",
     "animation-composition",
     "animation-delay",
     "animation-direction",

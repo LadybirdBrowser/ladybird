@@ -205,6 +205,16 @@
       "custom-ident ![none]"
     ]
   },
+  "anchor-scope": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none",
+      "all"
+    ]
+  },
   "animation": {
     "affects-layout": false,
     "inherited": false,
