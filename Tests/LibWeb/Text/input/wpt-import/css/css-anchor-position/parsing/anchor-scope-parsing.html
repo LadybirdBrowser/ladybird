@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: Parsing of anchor-scope</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-scope">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  test_valid_value("anchor-scope", "initial");
+  test_valid_value("anchor-scope", "inherit");
+  test_valid_value("anchor-scope", "unset");
+  test_valid_value("anchor-scope", "revert");
+  test_valid_value("anchor-scope", "none");
+  test_valid_value("anchor-scope", "all");
+  test_valid_value("anchor-scope", "--a");
+  test_valid_value("anchor-scope", "--a, --b");
+  test_valid_value("anchor-scope", "--a, --b, --c");
+  test_valid_value('anchor-scope', '--foo, --bar');
+  test_valid_value('anchor-scope', '--bar, --foo');
+
+  test_invalid_value("anchor-scope", "--a none");
+  test_invalid_value("anchor-scope", "none --a");
+  test_invalid_value("anchor-scope", "none all");
+  test_invalid_value("anchor-scope", "--a --b");
+  test_invalid_value("anchor-scope", "a, b, c");
+  test_invalid_value("anchor-scope", "");
+</script>

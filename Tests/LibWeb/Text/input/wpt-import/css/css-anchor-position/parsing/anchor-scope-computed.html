@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: Computed anchor-scope</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-scope">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/inheritance-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  test_computed_value("anchor-scope", "none");
+  test_computed_value("anchor-scope", "initial", "none");
+  test_computed_value("anchor-scope", "all");
+  test_computed_value("anchor-scope", "--a");
+  test_computed_value("anchor-scope", "--a, --b");
+  test_computed_value("anchor-scope", "--a, --b, --c");
+  test_computed_value('anchor-scope', '--foo, --bar');
+  test_computed_value('anchor-scope', '--bar, --foo');
+
+  assert_not_inherited("anchor-scope", "none", "all");
+</script>

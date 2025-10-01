@@ -450,6 +450,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_anchor_name_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::AnchorScope:
+        if (auto parsed_value = parse_anchor_scope_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::AspectRatio:
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -1218,6 +1222,24 @@ RefPtr<StyleValue const> Parser::parse_anchor_name_value(TokenStream<ComponentVa
         auto dashed_ident = parse_dashed_ident(inner_tokens);
         if (!dashed_ident.has_value())
             return nullptr;
+        return CustomIdentStyleValue::create(*dashed_ident);
+    });
+}
+
+// https://drafts.csswg.org/css-anchor-position/#anchor-scope
+RefPtr<StyleValue const> Parser::parse_anchor_scope_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | all | <dashed-ident>#
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    if (auto all = parse_all_as_single_keyword_value(tokens, Keyword::All))
+        return all;
+
+    return parse_comma_separated_value_list(tokens, [this](TokenStream<ComponentValue>& inner_tokens) -> RefPtr<StyleValue const> {
+        auto dashed_ident = parse_dashed_ident(inner_tokens);
+        if (!dashed_ident.has_value())
+            return {};
         return CustomIdentStyleValue::create(*dashed_ident);
     });
 }
