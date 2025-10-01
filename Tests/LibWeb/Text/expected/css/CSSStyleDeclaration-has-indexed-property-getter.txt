@@ -238,6 +238,7 @@ All properties associated with getComputedStyle(document.body):
     "position",
     "position-anchor",
     "position-area",
+    "position-try-fallbacks",
     "r",
     "right",
     "rotate",

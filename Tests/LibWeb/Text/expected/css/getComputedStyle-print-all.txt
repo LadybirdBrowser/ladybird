@@ -236,6 +236,7 @@ padding-top: 0px
 position: static
 position-anchor: auto
 position-area: none
+position-try-fallbacks: none
 r: 0px
 right: auto
 rotate: none

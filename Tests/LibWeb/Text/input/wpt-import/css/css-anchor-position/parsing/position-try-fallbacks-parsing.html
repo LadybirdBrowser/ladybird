@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Parsing of position-try-fallbacks</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-fallbacks">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  test_valid_value("position-try-fallbacks", "initial");
+  test_valid_value("position-try-fallbacks", "inherit");
+  test_valid_value("position-try-fallbacks", "unset");
+  test_valid_value("position-try-fallbacks", "revert");
+  test_valid_value("position-try-fallbacks", "none");
+  test_valid_value("position-try-fallbacks", "flip-block");
+  test_valid_value("position-try-fallbacks", "flip-block ", 'flip-block');
+  test_valid_value("position-try-fallbacks", "flip-start, flip-block");
+  test_valid_value("position-try-fallbacks", "flip-start flip-inline, flip-block");
+  test_valid_value("position-try-fallbacks", "flip-start, flip-start");
+  test_valid_value("position-try-fallbacks", "flip-start flip-inline flip-block");
+  test_valid_value("position-try-fallbacks", "flip-block, --foo");
+  test_valid_value("position-try-fallbacks", "--bar, flip-block flip-start");
+  test_valid_value("position-try-fallbacks", "--foo, --bar, --baz");
+  test_valid_value("position-try-fallbacks", "--bar flip-block");
+  test_valid_value("position-try-fallbacks", "--bar flip-inline flip-block");
+  test_valid_value("position-try-fallbacks", "flip-inline --foo", "--foo flip-inline");
+  test_valid_value("position-try-fallbacks", "flip-inline flip-start --foo", "--foo flip-inline flip-start");
+  test_valid_value("position-try-fallbacks", "left top");
+  test_valid_value("position-try-fallbacks", "top left", "left top");
+  test_valid_value("position-try-fallbacks", "start start", "start");
+  test_valid_value("position-try-fallbacks", "left, right");
+  test_valid_value("position-try-fallbacks", "--foo, left");
+  test_valid_value("position-try-fallbacks", "--foo, left, --bar");
+  test_valid_value("position-try-fallbacks", "--foo, flip-start, left");
+  test_valid_value("position-try-fallbacks", "--foo flip-start, left");
+  test_valid_value("position-try-fallbacks", "left, --bar flip-start");
+
+  test_invalid_value("position-try-fallbacks", "none, flip-start");
+  test_invalid_value("position-try-fallbacks", "flip-block flip-block");
+  test_invalid_value("position-try-fallbacks", "flip-block flip-inline flip-inline");
+  test_invalid_value("position-try-fallbacks", "flip-block, flip-inline flip-inline");
+  test_invalid_value("position-try-fallbacks", "--bar flip-block --foo");
+  test_invalid_value("position-try-fallbacks", "--foo --bar");
+  test_invalid_value("position-try-fallbacks", "flip-inline --bar flip-block");
+  test_invalid_value("position-try-fallbacks", "-foo");
+  test_invalid_value("position-try-fallbacks", "foo");
+  test_invalid_value("position-try-fallbacks", "flip-start 123");
+  test_invalid_value("position-try-fallbacks", "--foo 123");
+  test_invalid_value("position-try-fallbacks", "--foo left");
+  test_invalid_value("position-try-fallbacks", "flip-start left");
+  test_invalid_value("position-try-fallbacks", "left --foo ");
+  test_invalid_value("position-try-fallbacks", "left flip-start");
+  test_invalid_value("position-try-fallbacks", "--foo, none");
+</script>
