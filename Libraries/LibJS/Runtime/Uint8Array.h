@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -31,10 +31,10 @@ public:
     static void initialize(Realm&, Object& prototype);
 
 private:
-    JS_DECLARE_NATIVE_FUNCTION(to_base64);
-    JS_DECLARE_NATIVE_FUNCTION(to_hex);
     JS_DECLARE_NATIVE_FUNCTION(set_from_base64);
     JS_DECLARE_NATIVE_FUNCTION(set_from_hex);
+    JS_DECLARE_NATIVE_FUNCTION(to_base64);
+    JS_DECLARE_NATIVE_FUNCTION(to_hex);
 };
 
 enum class Alphabet {

@@ -29,10 +29,10 @@ void Uint8ArrayPrototypeHelpers::initialize(Realm& realm, Object& prototype)
     auto& vm = prototype.vm();
 
     static constexpr u8 attr = Attribute::Writable | Attribute::Configurable;
-    prototype.define_native_function(realm, vm.names.toBase64, to_base64, 0, attr);
-    prototype.define_native_function(realm, vm.names.toHex, to_hex, 0, attr);
     prototype.define_native_function(realm, vm.names.setFromBase64, set_from_base64, 1, attr);
     prototype.define_native_function(realm, vm.names.setFromHex, set_from_hex, 1, attr);
+    prototype.define_native_function(realm, vm.names.toBase64, to_base64, 0, attr);
+    prototype.define_native_function(realm, vm.names.toHex, to_hex, 0, attr);
 }
 
 static ThrowCompletionOr<Alphabet> parse_alphabet(VM& vm, Object& options)
@@ -77,7 +77,235 @@ static ThrowCompletionOr<AK::LastChunkHandling> parse_last_chunk_handling(VM& vm
     return vm.throw_completion<TypeError>(ErrorType::OptionIsNotValidValue, last_chunk_handling, "lastChunkHandling"sv);
 }
 
-// 1 Uint8Array.prototype.toBase64 ( [ options ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
+// 23.3.1.1 Uint8Array.fromBase64 ( string [ , options ] ), https://tc39.es/ecma262/#sec-uint8array.frombase64
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+    auto options_value = vm.argument(1);
+
+    // 1. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 2. Let opts be ? GetOptionsObject(options).
+    auto options = TRY(get_options_object(vm, options_value));
+
+    // 3. Let alphabet be ? Get(opts, "alphabet").
+    // 4. If alphabet is undefined, set alphabet to "base64".
+    // 5. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
+    auto alphabet = TRY(parse_alphabet(vm, *options));
+
+    // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
+    // 7. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
+    // 8. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
+    auto last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
+
+    // 9. Let result be FromBase64(string, alphabet, lastChunkHandling).
+    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling);
+
+    // 10. If result.[[Error]] is not NONE, then
+    if (result.error.has_value()) {
+        // a. Return ThrowCompletion(result.[[Error]]).
+        return result.error.release_value();
+    }
+
+    // 11. Let resultLength be the number of elements in result.[[Bytes]].
+    auto result_length = result.bytes.size();
+
+    // 12. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
+    auto typed_array = TRY(Uint8Array::create(realm, result_length));
+
+    // 13. Assert: ta.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is the number of elements in result.[[Bytes]].
+    VERIFY(typed_array->viewed_array_buffer()->byte_length() == result_length);
+
+    // 14. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
+    //     index of result.[[Bytes]].
+    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
+
+    for (size_t index = 0; index < result_length; ++index)
+        array_buffer_data[index] = result.bytes[index];
+
+    // 15. Return ta.
+    return typed_array;
+}
+
+// 23.3.1.2 Uint8Array.fromHex ( string ), https://tc39.es/ecma262/#sec-uint8array.fromhex
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+
+    // 1. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 2. Let result be FromHex(string).
+    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view());
+
+    // 3. If result.[[Error]] is not NONE, then
+    if (result.error.has_value()) {
+        // a. Return ThrowCompletion(result.[[Error]]).
+        return result.error.release_value();
+    }
+
+    // 4. Let resultLength be the number of elements in result.[[Bytes]].
+    auto result_length = result.bytes.size();
+
+    // 5. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
+    auto typed_array = TRY(Uint8Array::create(realm, result_length));
+
+    // 6. Assert: ta.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is the number of elements in result.[[Bytes]].
+    VERIFY(typed_array->viewed_array_buffer()->byte_length() == result_length);
+
+    // 7. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
+    //    index of result.[[Bytes]].
+    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
+
+    for (size_t index = 0; index < result_length; ++index)
+        array_buffer_data[index] = result.bytes[index];
+
+    // 8. Return ta.
+    return typed_array;
+}
+
+// 23.3.2.1 Uint8Array.prototype.setFromBase64 ( string [ , options ] ), https://tc39.es/ecma262/#sec-uint8array.prototype.setfrombase64
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+    auto options_value = vm.argument(1);
+
+    // 1. Let into be the this value.
+    // 2. Perform ? ValidateUint8Array(into).
+    auto into = TRY(validate_uint8_array(vm));
+
+    // 3. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 4. Let opts be ? GetOptionsObject(options).
+    auto options = TRY(get_options_object(vm, options_value));
+
+    // 5. Let alphabet be ? Get(opts, "alphabet").
+    // 6. If alphabet is undefined, set alphabet to "base64".
+    // 7. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
+    auto alphabet = TRY(parse_alphabet(vm, *options));
+
+    // 8. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
+    // 9. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
+    // 10. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
+    auto last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
+
+    // 11. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, SEQ-CST).
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(into, ArrayBuffer::Order::SeqCst);
+
+    // 12. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+    if (is_typed_array_out_of_bounds(typed_array_record))
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+
+    // 13. Let byteLength be TypedArrayLength(taRecord).
+    auto byte_length = typed_array_length(typed_array_record);
+
+    // 14. Let result be FromBase64(string, alphabet, lastChunkHandling, byteLength).
+    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling, byte_length);
+
+    // 15. Let bytes be result.[[Bytes]].
+    auto bytes = move(result.bytes);
+
+    // 16. Let written be the number of elements in bytes.
+    auto written = bytes.size();
+
+    // 17. NOTE: FromBase64 does not invoke any user code, so the ArrayBuffer backing into cannot have been detached or shrunk.
+    // 18. Assert: written ≤ byteLength.
+    VERIFY(written <= byte_length);
+
+    // 19. Perform SetUint8ArrayBytes(into, bytes).
+    set_uint8_array_bytes(into, bytes);
+
+    // 20. If result.[[Error]] is not NONE, then
+    if (result.error.has_value()) {
+        // a. Return ThrowCompletion(result.[[Error]]).
+        return result.error.release_value();
+    }
+
+    // 21. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+    auto result_object = Object::create(realm, realm.intrinsics().object_prototype());
+
+    // 22. Perform ! CreateDataPropertyOrThrow(resultObject, "read", 𝔽(result.[[Read]])).
+    MUST(result_object->create_data_property(vm.names.read, Value { result.read }));
+
+    // 23. Perform ! CreateDataPropertyOrThrow(resultObject, "written", 𝔽(written)).
+    MUST(result_object->create_data_property(vm.names.written, Value { written }));
+
+    // 24. Return resultObject.
+    return result_object;
+}
+
+// 23.3.2.2 Uint8Array.prototype.setFromHex ( string ), https://tc39.es/ecma262/#sec-uint8array.prototype.setfromhex
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+
+    // 1. Let into be the this value.
+    // 2. Perform ? ValidateUint8Array(into).
+    auto into = TRY(validate_uint8_array(vm));
+
+    // 3. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, SEQ-CST).
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(into, ArrayBuffer::Order::SeqCst);
+
+    // 5. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+    if (is_typed_array_out_of_bounds(typed_array_record))
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+
+    // 6. Let byteLength be TypedArrayLength(taRecord).
+    auto byte_length = typed_array_length(typed_array_record);
+
+    // 7. Let result be FromHex(string, byteLength).
+    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view(), byte_length);
+
+    // 8. Let bytes be result.[[Bytes]].
+    auto bytes = move(result.bytes);
+
+    // 9. Let written be the number of elements in bytes.
+    auto written = bytes.size();
+
+    // 10. NOTE: FromHex does not invoke any user code, so the ArrayBuffer backing into cannot have been detached or shrunk.
+    // 11. Assert: written ≤ byteLength.
+    VERIFY(written <= byte_length);
+
+    // 12. Perform SetUint8ArrayBytes(into, bytes).
+    set_uint8_array_bytes(into, bytes);
+
+    // 13. If result.[[Error]] is not NONE, then
+    if (result.error.has_value()) {
+        // a. Return ThrowCompletion(result.[[Error]]).
+        return result.error.release_value();
+    }
+
+    // 14. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+    auto result_object = Object::create(realm, realm.intrinsics().object_prototype());
+
+    // 15. Perform ! CreateDataPropertyOrThrow(resultObject, "read", 𝔽(result.[[Read]])).
+    MUST(result_object->create_data_property(vm.names.read, Value { result.read }));
+
+    // 16. Perform ! CreateDataPropertyOrThrow(resultObject, "written", 𝔽(written)).
+    MUST(result_object->create_data_property(vm.names.written, Value { written }));
+
+    // 17. Return resultObject.
+    return result_object;
+}
+
+// 23.3.2.3 Uint8Array.prototype.toBase64 ( [ options ] ), https://tc39.es/ecma262/#sec-uint8array.prototype.tobase64
 JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
 {
     auto options_value = vm.argument(0);
@@ -121,7 +349,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
     return PrimitiveString::create(vm, move(out_ascii));
 }
 
-// 2 Uint8Array.prototype.toHex ( ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
+// 23.3.2.4 Uint8Array.prototype.toHex ( ), https://tc39.es/ecma262/#sec-uint8array.prototype.tohex
 JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_hex)
 {
     // 1. Let O be the this value.
@@ -146,229 +374,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_hex)
     return PrimitiveString::create(vm, MUST(out.to_string()));
 }
 
-// 3 Uint8Array.fromBase64 ( string [ , options ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
-JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
-{
-    auto& realm = *vm.current_realm();
-
-    auto string_value = vm.argument(0);
-    auto options_value = vm.argument(1);
-
-    // 1. If string is not a String, throw a TypeError exception.
-    if (!string_value.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
-
-    // 2. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
-
-    // 3. Let alphabet be ? Get(opts, "alphabet").
-    // 4. If alphabet is undefined, set alphabet to "base64".
-    // 5. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
-    auto alphabet = TRY(parse_alphabet(vm, *options));
-
-    // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
-    // 7. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
-    // 8. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
-    auto last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
-
-    // 9. Let result be FromBase64(string, alphabet, lastChunkHandling).
-    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling);
-
-    // 10. If result.[[Error]] is not none, then
-    if (result.error.has_value()) {
-        // a. Throw result.[[Error]].
-        return result.error.release_value();
-    }
-
-    // 11. Let resultLength be the length of result.[[Bytes]].
-    auto result_length = result.bytes.size();
-
-    // 12. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
-    auto typed_array = TRY(Uint8Array::create(realm, result_length));
-
-    // 13. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
-    //     index of result.[[Bytes]].
-    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
-
-    for (size_t index = 0; index < result_length; ++index)
-        array_buffer_data[index] = result.bytes[index];
-
-    // 14. Return ta.
-    return typed_array;
-}
-
-// 4 Uint8Array.prototype.setFromBase64 ( string [ , options ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfrombase64
-JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
-{
-    auto& realm = *vm.current_realm();
-
-    auto string_value = vm.argument(0);
-    auto options_value = vm.argument(1);
-
-    // 1. Let into be the this value.
-    // 2. Perform ? ValidateUint8Array(into).
-    auto into = TRY(validate_uint8_array(vm));
-
-    // 3. If string is not a String, throw a TypeError exception.
-    if (!string_value.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
-
-    // 4. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
-
-    // 5. Let alphabet be ? Get(opts, "alphabet").
-    // 6. If alphabet is undefined, set alphabet to "base64".
-    // 7. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
-    auto alphabet = TRY(parse_alphabet(vm, *options));
-
-    // 8. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
-    // 9. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
-    // 10. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
-    auto last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
-
-    // 11. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(into, ArrayBuffer::Order::SeqCst);
-
-    // 12. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
-    if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
-
-    // 13. Let byteLength be TypedArrayLength(taRecord).
-    auto byte_length = typed_array_length(typed_array_record);
-
-    // 14. Let result be FromBase64(string, alphabet, lastChunkHandling, byteLength).
-    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling, byte_length);
-
-    // 15. Let bytes be result.[[Bytes]].
-    auto bytes = move(result.bytes);
-
-    // 16. Let written be the length of bytes.
-    auto written = bytes.size();
-
-    // 17. NOTE: FromBase64 does not invoke any user code, so the ArrayBuffer backing into cannot have been detached or shrunk.
-    // 18. Assert: written ≤ byteLength.
-    VERIFY(written <= byte_length);
-
-    // 19. Perform SetUint8ArrayBytes(into, bytes).
-    set_uint8_array_bytes(into, bytes);
-
-    // 20. If result.[[Error]] is not none, then
-    if (result.error.has_value()) {
-        // a. Throw result.[[Error]].
-        return result.error.release_value();
-    }
-
-    // 21. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
-    auto result_object = Object::create(realm, realm.intrinsics().object_prototype());
-
-    // 22. Perform ! CreateDataPropertyOrThrow(resultObject, "read", 𝔽(result.[[Read]])).
-    MUST(result_object->create_data_property(vm.names.read, Value { result.read }));
-
-    // 23. Perform ! CreateDataPropertyOrThrow(resultObject, "written", 𝔽(written)).
-    MUST(result_object->create_data_property(vm.names.written, Value { written }));
-
-    // 24. Return resultObject.
-    return result_object;
-}
-
-// 5 Uint8Array.fromHex ( string ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.fromhex
-JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
-{
-    auto& realm = *vm.current_realm();
-
-    auto string_value = vm.argument(0);
-
-    // 1. If string is not a String, throw a TypeError exception.
-    if (!string_value.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
-
-    // 2. Let result be FromHex(string).
-    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view());
-
-    // 3. If result.[[Error]] is not none, then
-    if (result.error.has_value()) {
-        // a. Throw result.[[Error]].
-        return result.error.release_value();
-    }
-
-    // 4. Let resultLength be the length of result.[[Bytes]].
-    auto result_length = result.bytes.size();
-
-    // 5. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
-    auto typed_array = TRY(Uint8Array::create(realm, result_length));
-
-    // 6. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
-    //    index of result.[[Bytes]].
-    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
-
-    for (size_t index = 0; index < result_length; ++index)
-        array_buffer_data[index] = result.bytes[index];
-
-    // 7. Return ta.
-    return typed_array;
-}
-
-// 6 Uint8Array.prototype.setFromHex ( string ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfromhex
-JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
-{
-    auto& realm = *vm.current_realm();
-
-    auto string_value = vm.argument(0);
-
-    // 1. Let into be the this value.
-    // 2. Perform ? ValidateUint8Array(into).
-    auto into = TRY(validate_uint8_array(vm));
-
-    // 3. If string is not a String, throw a TypeError exception.
-    if (!string_value.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
-
-    // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(into, ArrayBuffer::Order::SeqCst);
-
-    // 5. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
-    if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
-
-    // 6. Let byteLength be TypedArrayLength(taRecord).
-    auto byte_length = typed_array_length(typed_array_record);
-
-    // 7. Let result be FromHex(string, byteLength).
-    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view(), byte_length);
-
-    // 8. Let bytes be result.[[Bytes]].
-    auto bytes = move(result.bytes);
-
-    // 9. Let written be the length of bytes.
-    auto written = bytes.size();
-
-    // 10. NOTE: FromHex does not invoke any user code, so the ArrayBuffer backing into cannot have been detached or shrunk.
-    // 11. Assert: written ≤ byteLength.
-    VERIFY(written <= byte_length);
-
-    // 12. Perform SetUint8ArrayBytes(into, bytes).
-    set_uint8_array_bytes(into, bytes);
-
-    // 13. If result.[[Error]] is not none, then
-    if (result.error.has_value()) {
-        // a. Throw result.[[Error]].
-        return result.error.release_value();
-    }
-
-    // 14. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
-    auto result_object = Object::create(realm, realm.intrinsics().object_prototype());
-
-    // 15. Perform ! CreateDataPropertyOrThrow(resultObject, "read", 𝔽(result.[[Read]])).
-    MUST(result_object->create_data_property(vm.names.read, Value { result.read }));
-
-    // 16. Perform ! CreateDataPropertyOrThrow(resultObject, "written", 𝔽(written)).
-    MUST(result_object->create_data_property(vm.names.written, Value { written }));
-
-    // 17. Return resultObject.
-    return result_object;
-}
-
-// 7 ValidateUint8Array ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-validateuint8array
+// 23.3.3.1 ValidateUint8Array ( ta ), https://tc39.es/ecma262/#sec-validateuint8array
 ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM& vm)
 {
     auto this_object = TRY(vm.this_value().to_object(vm));
@@ -387,7 +393,7 @@ ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM& vm)
     return typed_array;
 }
 
-// 8 GetUint8ArrayBytes ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-getuint8arraybytes
+// 23.3.3.2 GetUint8ArrayBytes ( ta ), https://tc39.es/ecma262/#sec-getuint8arraybytes
 ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM& vm, TypedArrayBase const& typed_array)
 {
     // 1. Let buffer be ta.[[ViewedArrayBuffer]].
@@ -426,13 +432,13 @@ ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM& vm, TypedArrayBase const
     return bytes;
 }
 
-// 9 SetUint8ArrayBytes ( into, bytes ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-writeuint8arraybytes
+// 23.3.3.3 SetUint8ArrayBytes ( into, bytes ), https://tc39.es/ecma262/#sec-setuint8arraybytes
 void set_uint8_array_bytes(TypedArrayBase& into, ReadonlyBytes bytes)
 {
     // 1. Let offset be into.[[ByteOffset]].
     auto offset = into.byte_offset();
 
-    // 2. Let len be the length of bytes.
+    // 2. Let len be the number of elements in bytes.
     auto length = bytes.size();
 
     // 3. Let index be 0.
@@ -449,9 +455,11 @@ void set_uint8_array_bytes(TypedArrayBase& into, ReadonlyBytes bytes)
 
         // d. Set index to index + 1.
     }
+
+    // 5. Return UNUSED.
 }
 
-// 10.3 FromBase64 ( string, alphabet, lastChunkHandling [ , maxLength ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-frombase64
+// 23.3.3.7 FromBase64 ( string, alphabet, lastChunkHandling [ , maxLength ] ), https://tc39.es/ecma262/#sec-frombase64
 DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length)
 {
     auto output = MUST(ByteBuffer::create_uninitialized(max_length.value_or_lazy_evaluated([&]() {
@@ -470,44 +478,44 @@ DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, AK::LastC
     return { .read = result.value(), .bytes = move(output), .error = {} };
 }
 
-// 10.4 FromHex ( string [ , maxLength ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-fromhex
+// 23.3.3.8 FromHex ( string [ , maxLength ] ), https://tc39.es/ecma262/#sec-fromhex
 DecodeResult from_hex(VM& vm, StringView string, Optional<size_t> max_length)
 {
-    // 1. If maxLength is not present, let maxLength be 2**53 - 1.
+    // 1. If maxLength is not present, set maxLength to 2**53 - 1.
     if (!max_length.has_value())
         max_length = MAX_ARRAY_LIKE_INDEX;
 
     // 2. Let length be the length of string.
     auto length = string.length();
 
-    // 3. Let bytes be « ».
+    // 3. Let bytes be a new empty List.
     ByteBuffer bytes;
 
     // 4. Let read be 0.
     size_t read = 0;
 
-    // 5. If length modulo 2 is not 0, then
+    // 5. If length modulo 2 ≠ 0, then
     if (length % 2 != 0) {
-        // a. Let error be a new SyntaxError exception.
+        // a. Let error be a newly created SyntaxError object.
         auto error = vm.throw_completion<SyntaxError>("Hex string must have an even length"sv);
 
         // b. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
         return { .read = read, .bytes = move(bytes), .error = move(error) };
     }
 
-    // 6. Repeat, while read < length and the length of bytes < maxLength,
+    // 6. Repeat, while read < length and the number of elements in bytes < maxLength,
     while (read < length && bytes.size() < *max_length) {
         // a. Let hexits be the substring of string from read to read + 2.
         auto hexits = string.substring_view(read, 2);
 
-        // d. Let byte be the integer value represented by hexits in base-16 notation, using the letters A-F and a-f
-        //    for digits with values 10 through 15.
+        // d. Let byte be the integer value represented by hexits in base-16 notation, using the letters A through F and
+        //    a through f for digits with values 10 through 15.
         // NOTE: We do this early so that we don't have to effectively parse hexits twice.
         auto byte = AK::parse_hexadecimal_number<u8>(hexits, TrimWhitespace::No);
 
         // b. If hexits contains any code units which are not in "0123456789abcdefABCDEF", then
         if (!byte.has_value()) {
-            // i. Let error be a new SyntaxError exception.
+            // i. Let error be a newly created SyntaxError object.
             auto error = vm.throw_completion<SyntaxError>("Hex string must only contain hex characters"sv);
 
             // ii. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
