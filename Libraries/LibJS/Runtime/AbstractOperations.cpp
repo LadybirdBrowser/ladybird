@@ -1897,7 +1897,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
     return promise_capability->promise();
 }
 
-// 14.5.2.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject
+// 7.3.36 GetOptionsObject ( options ), https://tc39.es/ecma262/#sec-getoptionsobject
 ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM& vm, Value options)
 {
     auto& realm = *vm.current_realm();
