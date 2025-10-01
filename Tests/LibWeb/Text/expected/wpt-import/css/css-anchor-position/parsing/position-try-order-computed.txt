@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property position-try-order value 'normal'
+Pass	Property position-try-order value 'most-width'
+Pass	Property position-try-order value 'most-height'
+Pass	Property position-try-order value 'most-block-size'
+Pass	Property position-try-order value 'most-inline-size'
+Pass	Property position-try-order has initial value normal
+Pass	Property position-try-order does not inherit
