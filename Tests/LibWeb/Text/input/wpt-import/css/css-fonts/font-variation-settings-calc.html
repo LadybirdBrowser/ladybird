@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>CSS Fonts Test: Allow complex calc expressions in font-variation-settings</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variation-settings">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<div>
+  <div id="target"></div>
+</div>
+<script>
+  test_valid_value('font-variation-settings', '"wght" sign(1em - 1px)');
+  test_valid_value('font-variation-settings', '"wght" sibling-index()');
+  test_valid_value('font-variation-settings', '"wght" calc(10)');
+  test_valid_value('font-variation-settings', '"wght" sign(2px)', '"wght" calc(1)');
+  test_computed_value('font-variation-settings', '"wght" sign(1em - 1px)', '"wght" 1');
+  test_computed_value('font-variation-settings', '"wght" sibling-index()', '"wght" 1');
+  test_computed_value('font-variation-settings', '"wght" calc(10)', '"wght" 10');
+  test_computed_value('font-variation-settings', '"wght" sign(2px)', '"wght" 1');
+</script>
