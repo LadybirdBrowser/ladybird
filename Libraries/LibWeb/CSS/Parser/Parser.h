@@ -67,6 +67,20 @@ struct NegateNode {
 
 }
 
+struct FunctionContext {
+    StringView name;
+};
+struct DescriptorContext {
+    AtRuleID at_rule;
+    DescriptorID descriptor;
+};
+enum SpecialContext : u8 {
+    ShadowBlurRadius,
+    TranslateZArgument,
+};
+
+using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
+
 enum class ParsingMode {
     Normal,
     SVGPresentationAttribute, // See https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
@@ -81,6 +95,7 @@ struct ParsingParams {
     GC::Ptr<DOM::Document const> document;
     ParsingMode mode { ParsingMode::Normal };
 
+    Vector<ValueParsingContext> value_context;
     Vector<RuleContext> rule_context;
     HashTable<FlyString> declared_namespaces;
 };
@@ -554,18 +569,6 @@ private:
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;
 
-    struct FunctionContext {
-        StringView name;
-    };
-    struct DescriptorContext {
-        AtRuleID at_rule;
-        DescriptorID descriptor;
-    };
-    enum SpecialContext : u8 {
-        ShadowBlurRadius,
-        TranslateZArgument
-    };
-    using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
     Vector<ValueParsingContext> m_value_context;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
     {
