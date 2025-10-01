@@ -238,6 +238,7 @@ position-anchor: auto
 position-area: none
 position-try-fallbacks: none
 position-try-order: normal
+position-visibility: anchors-visible
 r: 0px
 right: auto
 rotate: none

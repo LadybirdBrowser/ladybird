@@ -3089,6 +3089,17 @@
       "normal"
     ]
   },
+  "position-visibility": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "anchors-visible",
+    "valid-identifiers": [
+      "always",
+      "anchors-valid",
+      "anchors-visible",
+      "no-overflow"
+    ]
+  },
   "quotes": {
     "animation-type": "discrete",
     "inherited": true,
