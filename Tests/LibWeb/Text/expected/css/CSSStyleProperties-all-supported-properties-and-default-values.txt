@@ -642,6 +642,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'position-area': 'none'
 'positionTryFallbacks': 'none'
 'position-try-fallbacks': 'none'
+'positionTryOrder': 'normal'
+'position-try-order': 'normal'
 'quotes': 'auto'
 'r': '0px'
 'right': 'auto'

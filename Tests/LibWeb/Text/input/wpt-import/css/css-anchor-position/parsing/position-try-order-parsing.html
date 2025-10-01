@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Parsing of position-try-order</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-order-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  test_valid_value("position-try-order", "initial");
+  test_valid_value("position-try-order", "inherit");
+  test_valid_value("position-try-order", "unset");
+  test_valid_value("position-try-order", "revert");
+  test_valid_value("position-try-order", "normal");
+  test_valid_value("position-try-order", "most-width");
+  test_valid_value("position-try-order", "most-height");
+  test_valid_value("position-try-order", "most-block-size");
+  test_valid_value("position-try-order", "most-inline-size");
+
+  test_invalid_value("position-try-order", "normal most-inline-size");
+  test_invalid_value("position-try-order", "most-block-size most-inline-size");
+  test_invalid_value("position-try-order", "most-block-size, most-inline-size");
+</script>
