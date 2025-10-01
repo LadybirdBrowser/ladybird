@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
+1 Pass
+1 Fail
 Fail	sibling-index() and sibling-count() evaluates to 0 from outer tree with ::part
-Fail	sibling-index() and sibling-count() evaluate as normal from inner tree
+Pass	sibling-index() and sibling-count() evaluate as normal from inner tree

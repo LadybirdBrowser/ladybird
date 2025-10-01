@@ -1,0 +1,64 @@
+/*
+ * Copyright (c) 2025, Callum Law <callumlaw1709@outlook.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include "TreeCountingFunctionStyleValue.h"
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+
+namespace Web::CSS {
+
+String TreeCountingFunctionStyleValue::to_string(SerializationMode) const
+{
+    switch (m_function) {
+    case TreeCountingFunction::SiblingCount:
+        return "sibling-count()"_string;
+    case TreeCountingFunction::SiblingIndex:
+        return "sibling-index()"_string;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+size_t TreeCountingFunctionStyleValue::resolve(TreeCountingFunctionResolutionContext const& tree_counting_function_resolution_context) const
+{
+    switch (m_function) {
+    case TreeCountingFunction::SiblingCount:
+        return tree_counting_function_resolution_context.sibling_count;
+    case TreeCountingFunction::SiblingIndex:
+        return tree_counting_function_resolution_context.sibling_index;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    // FIXME: We should clamp this value in case it falls outside the valid range for the context it is in
+    VERIFY(computation_context.tree_counting_function_resolution_context.has_value());
+
+    size_t value = resolve(computation_context.tree_counting_function_resolution_context.value());
+
+    switch (m_computed_type) {
+    case ComputedType::Integer:
+        return IntegerStyleValue::create(value);
+    case ComputedType::Number:
+        return NumberStyleValue::create(static_cast<double>(value));
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+bool TreeCountingFunctionStyleValue::equals(StyleValue const& other) const
+{
+    if (type() != other.type())
+        return false;
+
+    auto const& other_tree_counting_function = other.as_tree_counting_function();
+
+    return m_function == other_tree_counting_function.m_function && m_computed_type == other_tree_counting_function.m_computed_type;
+}
+
+}

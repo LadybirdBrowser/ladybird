@@ -190,11 +190,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         auto context_guard = push_temporary_value_parsing_context(*property);
         auto transaction = tokens.begin_transaction();
         if (auto value = parse_integer_value(tokens)) {
-            if (value->is_calculated()) {
-                transaction.commit();
-                return PropertyAndValue { *property, value };
-            }
-            if (value->is_integer() && property_accepts_integer(*property, value->as_integer().integer())) {
+            if ((value->is_integer() && property_accepts_integer(*property, value->as_integer().integer())) || !value->is_integer()) {
                 transaction.commit();
                 return PropertyAndValue { *property, value };
             }
@@ -205,11 +201,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         auto context_guard = push_temporary_value_parsing_context(*property);
         auto transaction = tokens.begin_transaction();
         if (auto value = parse_number_value(tokens)) {
-            if (value->is_calculated()) {
-                transaction.commit();
-                return PropertyAndValue { *property, value };
-            }
-            if (value->is_number() && property_accepts_number(*property, value->as_number().number())) {
+            if ((value->is_number() && property_accepts_number(*property, value->as_number().number())) || !value->is_number()) {
                 transaction.commit();
                 return PropertyAndValue { *property, value };
             }
