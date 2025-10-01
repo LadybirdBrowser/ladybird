@@ -5,6 +5,7 @@
  */
 
 #include "TreeCountingFunctionStyleValue.h"
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
@@ -32,6 +33,14 @@ size_t TreeCountingFunctionStyleValue::resolve(TreeCountingFunctionResolutionCon
     }
 
     VERIFY_NOT_REACHED();
+}
+
+RefPtr<CalculationNode const> TreeCountingFunctionStyleValue::resolve_to_calculation_node(CalculationContext const& calculation_context, CalculationResolutionContext const& calculation_resolution_context) const
+{
+    if (!calculation_resolution_context.tree_counting_function_resolution_context.has_value())
+        return nullptr;
+
+    return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.tree_counting_function_resolution_context.value())) }, calculation_context);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context) const

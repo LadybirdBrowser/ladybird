@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 45 tests
 
-36 Pass
-9 Fail
+39 Pass
+6 Fail
 Pass	acos(1) should be used-value-equivalent to 0deg
 Pass	atan(0) should be used-value-equivalent to 0deg
 Pass	asin(0) should be used-value-equivalent to 0deg
@@ -24,9 +24,9 @@ Pass	calc(atan2(0,1)) should be used-value-equivalent to 0deg
 Pass	calc(atan2(0,-1) / 4) should be used-value-equivalent to 45deg
 Pass	calc(atan2(1,-1)) should be used-value-equivalent to 135deg
 Pass	calc(atan2(-1,1)) should be used-value-equivalent to -45deg
-Fail	calc(asin(sin(180deg * sibling-index()))) should be used-value-equivalent to 0deg
-Fail	calc(acos(cos(180deg * sibling-index()))) should be used-value-equivalent to 180deg
-Fail	calc(atan(tan(180deg * sibling-index()))) should be used-value-equivalent to 0deg
+Pass	calc(asin(sin(180deg * sibling-index()))) should be used-value-equivalent to 0deg
+Pass	calc(acos(cos(180deg * sibling-index()))) should be used-value-equivalent to 180deg
+Pass	calc(atan(tan(180deg * sibling-index()))) should be used-value-equivalent to 0deg
 Pass	calc(cos(sin(acos(cos(pi))))) should be used-value-equivalent to 1
 Pass	atan2(1px, -1px) should be used-value-equivalent to 135deg
 Pass	atan2(1cm, -1cm) should be used-value-equivalent to 135deg

@@ -4314,6 +4314,10 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             if (component_value->is(Token::Type::Percentage))
                 return NumericCalculationNode::create(Percentage { component_value->token().percentage() }, context);
 
+            auto tree_counting_function_tokens = TokenStream<ComponentValue>::of_single_token(component_value);
+            if (auto tree_counting_function = parse_tree_counting_function(tree_counting_function_tokens, TreeCountingFunctionStyleValue::ComputedType::Number))
+                return NonMathFunctionCalculationNode::create(tree_counting_function.release_nonnull(), NumericType {});
+
             // NOTE: If we get here, then we have a ComponentValue that didn't get replaced with something else,
             //       so the calc() is invalid.
             ErrorReporter::the().report(InvalidValueError {
