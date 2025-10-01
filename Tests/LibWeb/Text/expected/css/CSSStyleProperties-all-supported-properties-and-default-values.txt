@@ -644,6 +644,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'position-try-fallbacks': 'none'
 'positionTryOrder': 'normal'
 'position-try-order': 'normal'
+'positionVisibility': 'anchors-visible'
+'position-visibility': 'anchors-visible'
 'quotes': 'auto'
 'r': '0px'
 'right': 'auto'

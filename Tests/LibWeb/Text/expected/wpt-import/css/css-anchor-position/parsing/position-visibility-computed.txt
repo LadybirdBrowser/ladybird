@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	Property position-visibility value 'always'
+Pass	Property position-visibility value 'anchors-valid'
+Pass	Property position-visibility value 'anchors-visible'
+Pass	Property position-visibility value 'no-overflow'
+Pass	Property position-visibility value 'initial'
+Pass	Property position-visibility value 'anchors-valid anchors-visible'
+Pass	Property position-visibility value 'anchors-valid no-overflow'
+Pass	Property position-visibility value 'anchors-visible anchors-valid'
+Pass	Property position-visibility value 'anchors-visible no-overflow'
+Pass	Property position-visibility value 'no-overflow anchors-valid'
+Pass	Property position-visibility value 'no-overflow anchors-visible'
+Pass	Property position-visibility value 'anchors-valid anchors-visible no-overflow'
+Pass	Property position-visibility value 'anchors-valid no-overflow anchors-visible'
+Pass	Property position-visibility value 'anchors-visible anchors-valid no-overflow'
+Pass	Property position-visibility value 'anchors-visible no-overflow anchors-valid'
+Pass	Property position-visibility value 'no-overflow anchors-valid anchors-visible'
+Pass	Property position-visibility value 'no-overflow anchors-visible anchors-valid'
+Pass	Property position-visibility has initial value anchors-visible
+Pass	Property position-visibility does not inherit
