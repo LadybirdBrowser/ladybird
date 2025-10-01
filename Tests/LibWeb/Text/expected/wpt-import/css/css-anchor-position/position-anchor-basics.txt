@@ -1,0 +1,59 @@
+Harness status: OK
+
+Found 54 tests
+
+54 Pass
+Pass	e.style['position-anchor'] = "auto" should set the property value
+Pass	e.style['position-anchor'] = "--foo" should set the property value
+Pass	e.style['position-anchor'] = "none" should not set the property value
+Pass	e.style['position-anchor'] = "foo-bar" should not set the property value
+Pass	e.style['position-anchor'] = "--foo --bar" should not set the property value
+Pass	e.style['position-anchor'] = "--foo, --bar" should not set the property value
+Pass	e.style['position-anchor'] = "100px" should not set the property value
+Pass	e.style['position-anchor'] = "100%" should not set the property value
+Pass	Property position-anchor value 'auto'
+Pass	Property position-anchor value '--foo'
+Pass	Property position-anchor has initial value auto
+Pass	Property position-anchor does not inherit
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (-0.3) should be [--foo]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0) should be [--foo]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0.3) should be [--foo]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0.5) should be [auto]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0.6) should be [auto]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (1) should be [auto]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <position-anchor> from [--foo] to [auto] at (1.5) should be [auto]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (-0.3) should be [--foo]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0) should be [--foo]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0.3) should be [--foo]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0.5) should be [auto]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (0.6) should be [auto]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (1) should be [auto]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <position-anchor> from [--foo] to [auto] at (1.5) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (-0.3) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (0) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (0.3) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (0.5) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (0.6) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (1) should be [auto]
+Pass	CSS Transitions: property <position-anchor> from [--foo] to [auto] at (1.5) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (-0.3) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (0) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (0.3) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (0.5) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (0.6) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (1) should be [auto]
+Pass	CSS Transitions with transition: all: property <position-anchor> from [--foo] to [auto] at (1.5) should be [auto]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (-0.3) should be [--foo]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (0) should be [--foo]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (0.3) should be [--foo]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (0.5) should be [auto]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (0.6) should be [auto]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (1) should be [auto]
+Pass	CSS Animations: property <position-anchor> from [--foo] to [auto] at (1.5) should be [auto]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (-0.3) should be [--foo]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (0) should be [--foo]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (0.3) should be [--foo]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (0.5) should be [auto]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (0.6) should be [auto]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (1) should be [auto]
+Pass	Web Animations: property <position-anchor> from [--foo] to [auto] at (1.5) should be [auto]

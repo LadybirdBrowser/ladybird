@@ -3043,6 +3043,17 @@
       "positioning"
     ]
   },
+  "position-anchor": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "custom-ident ![auto]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
   "position-area": {
     "animation-type": "discrete",
     "__comment": "Animation type is currently listed as TBD in the specification",

@@ -746,6 +746,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_place_self_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::PositionAnchor:
+        if (auto parsed_value = parse_position_anchor_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::PositionArea:
         if (auto parsed_value = parse_position_area_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -4181,6 +4185,20 @@ RefPtr<StyleValue const> Parser::parse_place_self_value(TokenStream<ComponentVal
     return ShorthandStyleValue::create(PropertyID::PlaceSelf,
         { PropertyID::AlignSelf, PropertyID::JustifySelf },
         { *maybe_align_self_value, *maybe_justify_self_value });
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-anchor
+RefPtr<StyleValue const> Parser::parse_position_anchor_value(TokenStream<ComponentValue>& tokens)
+{
+    // auto | <anchor-name>
+    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return auto_keyword;
+
+    // <anchor-name> = <dashed-ident>
+    auto dashed_ident = parse_dashed_ident(tokens);
+    if (!dashed_ident.has_value())
+        return nullptr;
+    return CustomIdentStyleValue::create(*dashed_ident);
 }
 
 // https://drafts.csswg.org/css-anchor-position/#position-area
