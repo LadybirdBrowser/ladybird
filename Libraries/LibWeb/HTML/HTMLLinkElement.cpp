@@ -516,10 +516,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     // 6. If el contributes a script-blocking style sheet, then:
     if (contributes_a_script_blocking_style_sheet()) {
         // 1. Assert: el's node document's script-blocking style sheet set contains el.
-        VERIFY(document().script_blocking_style_sheet_set().contains(*this));
-
-        // 2. Remove el from its node document's script-blocking style sheet set.
-        document().script_blocking_style_sheet_set().remove(*this);
+        if (document().script_blocking_style_sheet_set().contains(*this)) {
+            // 2. Remove el from its node document's script-blocking style sheet set.
+            document().script_blocking_style_sheet_set().remove(*this);
+        }
     }
 
     // 7. Unblock rendering on el.
