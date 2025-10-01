@@ -116,11 +116,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsers.html#tlbc-group
     GC::Ptr<BrowsingContextGroup> m_group;
-
-    GC::Ptr<BrowsingContext> m_first_child;
-    GC::Ptr<BrowsingContext> m_last_child;
-    GC::Ptr<BrowsingContext> m_next_sibling;
-    GC::Ptr<BrowsingContext> m_previous_sibling;
 };
 
 URL::Origin determine_the_origin(Optional<URL::URL const&>, SandboxingFlagSet, Optional<URL::Origin> source_origin);
