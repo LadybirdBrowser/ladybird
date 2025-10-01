@@ -254,6 +254,9 @@ Optional<FrequencyPercentage> Parser::parse_frequency_percentage(TokenStream<Com
 
 Optional<IntegerOrCalculated> Parser::parse_integer(TokenStream<ComponentValue>& tokens)
 {
+    // FIXME: We don't have a way to represent tree counting functions within IntegerOrCalculated, we should avoid
+    //        parsing directly to IntegerOrCalculated unless tree counting functions are disallowed in the relevant
+    //        context
     if (auto value = parse_integer_value(tokens)) {
         if (value->is_integer())
             return value->as_integer().integer();
@@ -291,6 +294,9 @@ Optional<LengthPercentage> Parser::parse_length_percentage(TokenStream<Component
 
 Optional<NumberOrCalculated> Parser::parse_number(TokenStream<ComponentValue>& tokens)
 {
+    // FIXME: We don't have a way to represent tree counting functions within NumberOrCalculated, we should avoid
+    //        parsing directly to NumberOrCalculated unless tree counting functions are disallowed in the relevant
+    //        context
     if (auto value = parse_number_value(tokens)) {
         if (value->is_number())
             return value->as_number().number();
@@ -784,6 +790,11 @@ RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>
         return calc;
     }
 
+    if (auto tree_counting_function = parse_tree_counting_function(peek_token, TreeCountingFunctionStyleValue::ComputedType::Integer); tree_counting_function) {
+        tokens.discard_a_token(); // tree counting function
+        return tree_counting_function;
+    }
+
     return nullptr;
 }
 
@@ -798,6 +809,11 @@ RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>&
     if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
         tokens.discard_a_token(); // calc
         return calc;
+    }
+
+    if (auto tree_counting_function = parse_tree_counting_function(peek_token, TreeCountingFunctionStyleValue::ComputedType::Number); tree_counting_function) {
+        tokens.discard_a_token(); // tree counting function
+        return tree_counting_function;
     }
 
     return nullptr;
@@ -4401,6 +4417,25 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue>
 
     // 6. Return the result of simplifying a calculation tree from values.
     return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {});
+}
+
+// https://drafts.csswg.org/css-values-5/#tree-counting
+RefPtr<TreeCountingFunctionStyleValue const> Parser::parse_tree_counting_function(ComponentValue const& token, TreeCountingFunctionStyleValue::ComputedType computed_type)
+{
+    if (!context_allows_tree_counting_functions())
+        return nullptr;
+
+    auto has_no_arguments = [](Vector<ComponentValue> const& component_values) {
+        return !any_of(component_values, [](ComponentValue const& value) { return !value.is(Token::Type::Whitespace); });
+    };
+
+    if (token.is_function("sibling-count"sv) && has_no_arguments(token.function().value))
+        return TreeCountingFunctionStyleValue::create(TreeCountingFunctionStyleValue::TreeCountingFunction::SiblingCount, computed_type);
+
+    if (token.is_function("sibling-index"sv) && has_no_arguments(token.function().value))
+        return TreeCountingFunctionStyleValue::create(TreeCountingFunctionStyleValue::TreeCountingFunction::SiblingIndex, computed_type);
+
+    return nullptr;
 }
 
 // https://drafts.csswg.org/css-fonts/#typedef-opentype-tag
