@@ -358,6 +358,12 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 // https://html.spec.whatwg.org/multipage/semantics.html#default-fetch-and-process-the-linked-resource
 void HTMLLinkElement::default_fetch_and_process_linked_resource()
 {
+    if (m_fetch_controller) {
+        m_fetch_controller->stop_fetch();
+        if (document().script_blocking_style_sheet_set().contains(*this))
+            document().script_blocking_style_sheet_set().remove(*this);
+    }
+
     // https://html.spec.whatwg.org/multipage/semantics.html#the-link-element:attr-link-href-4
     // If both the href and imagesrcset attributes are absent, then the element does not define a link.
     // FIXME: Support imagesrcset attribute
@@ -412,8 +418,6 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
         process_linked_resource(success, response, body_bytes);
     };
 
-    if (m_fetch_controller)
-        m_fetch_controller->abort(realm(), {});
     m_fetch_controller = MUST(Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))));
 }
 

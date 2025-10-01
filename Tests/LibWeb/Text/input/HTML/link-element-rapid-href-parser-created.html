@@ -1,0 +1,19 @@
+<!doctype html>
+<link id="l" rel="stylesheet" href="initial.css">
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    const l = document.getElementById('l');
+
+    println('Starting parser-created element test...');
+
+    for (let i = 0; i < 10; i++) {
+        l.setAttribute('href', `change-${i}.css`);
+    }
+
+    setTimeout(() => {
+        println('Survived parser-created element stress test');
+        done();
+    }, 200);
+});
+</script>
