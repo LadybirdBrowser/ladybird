@@ -189,7 +189,10 @@ static ErrorOr<void> decode_frame(GIFLoadingContext& context, size_t frame_index
         if (image->lzw_min_code_size > 8)
             return Error::from_string_literal("LZW minimum code size is greater than 8");
 
-        auto decoded_stream = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(image->lzw_encoded_bytes, image->lzw_min_code_size));
+        ByteBuffer decoded_stream;
+        if (!image->lzw_encoded_bytes.is_empty()) {
+            decoded_stream = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(image->lzw_encoded_bytes, image->lzw_min_code_size));
+        }
 
         auto const& color_map = image->use_global_color_map ? context.logical_screen.color_map : image->color_map;
 
@@ -237,8 +240,8 @@ static ErrorOr<void> decode_frame(GIFLoadingContext& context, size_t frame_index
 
 static ErrorOr<void> load_header_and_logical_screen(GIFLoadingContext& context)
 {
-    if (TRY(context.stream.size()) < 32)
-        return Error::from_string_literal("Size too short for GIF frame descriptors");
+    if (TRY(context.stream.size()) < 26)
+        return Error::from_string_literal("Size too short for minimal GIF structure");
 
     TRY(decode_gif_header(context.stream));
 
