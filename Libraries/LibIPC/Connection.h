@@ -36,8 +36,6 @@ public:
 protected:
     explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 
-    virtual void may_have_become_unresponsive() { }
-    virtual void did_become_responsive() { }
     virtual void shutdown_with_error(Error const&);
     virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<File>&) = 0;
 
@@ -51,8 +49,6 @@ protected:
 
     NonnullOwnPtr<Transport> m_transport;
 
-    RefPtr<Core::Timer> m_responsiveness_timer;
-
     Vector<NonnullOwnPtr<Message>> m_unprocessed_messages;
 
     u32 m_local_endpoint_magic { 0 };
@@ -64,12 +60,6 @@ public:
     Connection(IPC::Stub& local_stub, NonnullOwnPtr<Transport> transport)
         : ConnectionBase(local_stub, move(transport), LocalEndpoint::static_magic())
     {
-    }
-
-    template<typename MessageType>
-    OwnPtr<MessageType> wait_for_specific_message()
-    {
-        return wait_for_specific_endpoint_message<MessageType, LocalEndpoint>();
     }
 
     template<typename RequestType, typename... Args>
