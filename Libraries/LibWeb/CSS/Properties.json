@@ -3078,6 +3078,17 @@
       "none"
     ]
   },
+  "position-try-order": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "try-order"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ]
+  },
   "quotes": {
     "animation-type": "discrete",
     "inherited": true,
