@@ -970,88 +970,25 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sqrt)
     return sqrt_impl(vm, vm.argument(0));
 }
 
-// 21.3.2.34 Math.tan ( x ), https://tc39.es/ecma262/#sec-math.tan
-ThrowCompletionOr<Value> MathObject::tan_impl(VM& vm, Value value)
-{
-    // Let n be ? ToNumber(x).
-    auto number = TRY(value.to_number(vm));
-
-    // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
-    if (number.is_nan() || number.is_positive_zero() || number.is_negative_zero())
-        return number;
-
-    // 3. If n is +∞𝔽, or n is -∞𝔽, return NaN.
-    if (number.is_infinity())
-        return js_nan();
-
-    // 4. Return an implementation-approximated Number value representing the result of the tangent of ℝ(n).
-    return Value(::tan(number.as_double()));
-}
-
-JS_DEFINE_NATIVE_FUNCTION(MathObject::tan)
-{
-    return tan_impl(vm, vm.argument(0));
-}
-
-// 21.3.2.35 Math.tanh ( x ), https://tc39.es/ecma262/#sec-math.tanh
-JS_DEFINE_NATIVE_FUNCTION(MathObject::tanh)
-{
-    // 1. Let n be ? ToNumber(x).
-    auto number = TRY(vm.argument(0).to_number(vm));
-
-    // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
-    if (number.is_nan() || number.is_positive_zero() || number.is_negative_zero())
-        return number;
-
-    // 3. If n is +∞𝔽, return 1𝔽.
-    if (number.is_positive_infinity())
-        return Value(1);
-
-    // 4. If n is -∞𝔽, return -1𝔽.
-    if (number.is_negative_infinity())
-        return Value(-1);
-
-    // 5. Return an implementation-approximated Number value representing the result of the hyperbolic tangent of ℝ(n).
-    return Value(::tanh(number.as_double()));
-}
-
-// 21.3.2.36 Math.trunc ( x ), https://tc39.es/ecma262/#sec-math.trunc
-JS_DEFINE_NATIVE_FUNCTION(MathObject::trunc)
-{
-    // 1. Let n be ? ToNumber(x).
-    auto number = TRY(vm.argument(0).to_number(vm));
-
-    // 2. If n is not finite or n is either +0𝔽 or -0𝔽, return n.
-    if (number.is_nan() || number.is_infinity() || number.as_double() == 0)
-        return number;
-
-    // 3. If n < 1𝔽 and n > +0𝔽, return +0𝔽.
-    // 4. If n < -0𝔽 and n > -1𝔽, return -0𝔽.
-    // 5. Return the integral Number nearest n in the direction of +0𝔽.
-    return Value(number.as_double() < 0
-            ? ::ceil(number.as_double())
-            : ::floor(number.as_double()));
-}
-
 struct TwoSumResult {
-    double hi;
-    double lo;
+    double hi { 0 };
+    double lo { 0 };
 };
 
-static TwoSumResult two_sum(double x, double y)
+static constexpr TwoSumResult two_sum(double x, double y)
 {
     double hi = x + y;
     double lo = y - (hi - x);
     return { hi, lo };
 }
 
-// 2 Math.sumPrecise ( items ), https://tc39.es/proposal-math-sum/#sec-math.sumprecise
+// 21.3.2.34 Math.sumPrecise ( items ), https://tc39.es/ecma262/#sec-math.sumprecise
 JS_DEFINE_NATIVE_FUNCTION(MathObject::sumPrecise)
 {
-    static constexpr double MAX_DOUBLE = 1.79769313486231570815e+308;         // std::numeric_limits<double>::max()
-    static constexpr double PENULTIMATE_DOUBLE = 1.79769313486231550856e+308; // std::nextafter(DBL_MAX, 0)
-    static constexpr double MAX_ULP = MAX_DOUBLE - PENULTIMATE_DOUBLE;
-    static constexpr double POW_2_1023 = 8.98846567431158e+307; // 2^1023
+    static constexpr double MAX_DOUBLE = NumericLimits<double>::max();
+    static double MAX_ULP = MAX_DOUBLE - nextafter(MAX_DOUBLE, 0.0);
+
+    static constexpr double POW_2_1023 = 8.98846567431158e+307;
 
     enum class State {
         MinusZero,
@@ -1089,22 +1026,20 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sumPrecise)
         auto next_value = next.value();
 
         // b. If next is not DONE, then
-        // i. Set count to count + 1.
-        ++count;
 
-        // ii. If count ≥ 2**53, then
-        if (count >= (1ULL << 53)) {
-            // 1. Let error be ThrowCompletion(a newly created RangeError object).
+        // i. If count ≥ 2**53 - 1, then
+        if (count >= (1ULL << 53) - 1) {
+            // 1. NOTE: This step is not expected to be reached in practice and is included only so that implementations
+            //    may rely on inputs being "reasonably sized" without violating this specification.
+
+            // 2. Let error be ThrowCompletion(a newly created RangeError object).
             auto error = vm.throw_completion<RangeError>(ErrorType::ArrayMaxSize);
 
-            // 2. Return ? IteratorClose(iteratorRecord, error).
+            // 3. Return ? IteratorClose(iteratorRecord, error).
             return iterator_close(vm, iterator_record, error);
         }
 
-        // iii. NOTE: The above case is not expected to be reached in practice and is included only so that implementations
-        //      may rely on inputs being "reasonably sized" without violating this specification.
-
-        // iv. If next is not a Number, then
+        // ii. If next is not a Number, then
         if (!next_value.is_number()) {
             // 1. Let error be ThrowCompletion(a newly created TypeError object).
             auto error = vm.throw_completion<TypeError>(ErrorType::IsNotA, next_value, "number");
@@ -1113,10 +1048,10 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sumPrecise)
             return iterator_close(vm, iterator_record, error);
         }
 
-        // v. Let n be next.
+        // iii. Let n be next.
         auto n = next_value.as_double();
 
-        // vi. If state is not NOT-A-NUMBER, then
+        // iv. If state is not NOT-A-NUMBER, then
         if (state != State::NotANumber) {
             // 1. If n is NaN, then
             if (next_value.is_nan()) {
@@ -1185,6 +1120,9 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sumPrecise)
                 }
             }
         }
+
+        // v. Set count to count + 1.
+        ++count;
     }
 
     // 8. If state is NOT-A-NUMBER, return NaN.
@@ -1270,6 +1208,69 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::sumPrecise)
     }
 
     return hi;
+}
+
+// 21.3.2.35 Math.tan ( x ), https://tc39.es/ecma262/#sec-math.tan
+ThrowCompletionOr<Value> MathObject::tan_impl(VM& vm, Value value)
+{
+    // Let n be ? ToNumber(x).
+    auto number = TRY(value.to_number(vm));
+
+    // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
+    if (number.is_nan() || number.is_positive_zero() || number.is_negative_zero())
+        return number;
+
+    // 3. If n is +∞𝔽, or n is -∞𝔽, return NaN.
+    if (number.is_infinity())
+        return js_nan();
+
+    // 4. Return an implementation-approximated Number value representing the result of the tangent of ℝ(n).
+    return Value(::tan(number.as_double()));
+}
+
+JS_DEFINE_NATIVE_FUNCTION(MathObject::tan)
+{
+    return tan_impl(vm, vm.argument(0));
+}
+
+// 21.3.2.36 Math.tanh ( x ), https://tc39.es/ecma262/#sec-math.tanh
+JS_DEFINE_NATIVE_FUNCTION(MathObject::tanh)
+{
+    // 1. Let n be ? ToNumber(x).
+    auto number = TRY(vm.argument(0).to_number(vm));
+
+    // 2. If n is NaN, n is +0𝔽, or n is -0𝔽, return n.
+    if (number.is_nan() || number.is_positive_zero() || number.is_negative_zero())
+        return number;
+
+    // 3. If n is +∞𝔽, return 1𝔽.
+    if (number.is_positive_infinity())
+        return Value(1);
+
+    // 4. If n is -∞𝔽, return -1𝔽.
+    if (number.is_negative_infinity())
+        return Value(-1);
+
+    // 5. Return an implementation-approximated Number value representing the result of the hyperbolic tangent of ℝ(n).
+    return Value(::tanh(number.as_double()));
+}
+
+// 21.3.2.37 Math.trunc ( x ), https://tc39.es/ecma262/#sec-math.trunc
+JS_DEFINE_NATIVE_FUNCTION(MathObject::trunc)
+{
+    // 1. Let n be ? ToNumber(x).
+    auto number = TRY(vm.argument(0).to_number(vm));
+
+    // 2. If n is not finite or n is either +0𝔽 or -0𝔽, return n.
+    if (number.is_nan() || number.is_infinity() || number.as_double() == 0)
+        return number;
+
+    // 3. If n < 1𝔽 and n > +0𝔽, return +0𝔽.
+    // 4. If n < -0𝔽 and n > -1𝔽, return -0𝔽.
+    // 5. Return the integral Number nearest n in the direction of +0𝔽.
+    return Value(number.as_double() < 0
+            ? ::ceil(number.as_double())
+            : ::floor(number.as_double()));
 }
 
 }
