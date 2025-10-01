@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 22 tests
 
-20 Pass
-2 Fail
+21 Pass
+1 Fail
 Pass	Property transition-timing-function value 'linear'
 Pass	Property transition-timing-function value 'ease'
 Pass	Property transition-timing-function value 'ease-in'
@@ -21,7 +21,7 @@ Pass	Property transition-timing-function value 'steps(2, jump-start)'
 Pass	Property transition-timing-function value 'steps(2, jump-end)'
 Pass	Property transition-timing-function value 'steps(2, jump-both)'
 Pass	Property transition-timing-function value 'steps(2, jump-none)'
-Fail	Property transition-timing-function value 'steps(calc(2 * sibling-index()), jump-none)'
+Pass	Property transition-timing-function value 'steps(calc(2 * sibling-index()), jump-none)'
 Fail	Property transition-timing-function value 'steps(sibling-index(), jump-none)'
 Pass	Property transition-timing-function value 'steps(calc(2 * sign(1em - 1000px)), jump-none)'
 Pass	Property transition-timing-function value 'steps(calc(2 * sign(1em - 1000px)), start)'
