@@ -67,6 +67,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     , m_parsing_mode(context.mode)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
+    , m_value_context(move(context.value_context))
     , m_rule_context(move(context.rule_context))
     , m_declared_namespaces(move(context.declared_namespaces))
 {
