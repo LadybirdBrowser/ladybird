@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	e.style['font-variation-settings'] = "\"wght\" sign(1em - 1px)" should set the property value
+Fail	e.style['font-variation-settings'] = "\"wght\" sibling-index()" should set the property value
+Pass	e.style['font-variation-settings'] = "\"wght\" calc(10)" should set the property value
+Pass	e.style['font-variation-settings'] = "\"wght\" sign(2px)" should set the property value
+Pass	Property font-variation-settings value '"wght" sign(1em - 1px)'
+Fail	Property font-variation-settings value '"wght" sibling-index()'
+Pass	Property font-variation-settings value '"wght" calc(10)'
+Pass	Property font-variation-settings value '"wght" sign(2px)'
