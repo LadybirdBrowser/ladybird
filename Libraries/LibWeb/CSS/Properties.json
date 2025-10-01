@@ -3115,6 +3115,18 @@
       "none"
     ]
   },
+  "position-try-fallbacks": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident ![none]",
+      "try-tactic"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "quotes": {
     "animation-type": "discrete",
     "inherited": true,

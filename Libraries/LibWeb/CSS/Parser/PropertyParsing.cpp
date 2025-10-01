@@ -748,7 +748,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_position_area_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
-
+    case PropertyID::PositionTryFallbacks:
+        if (auto parsed_value = parse_position_try_fallbacks_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::Quotes:
         if (auto parsed_value = parse_quotes_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -4170,17 +4173,108 @@ RefPtr<StyleValue const> Parser::parse_position_anchor_value(TokenStream<Compone
     return CustomIdentStyleValue::create(*dashed_ident);
 }
 
-// https://drafts.csswg.org/css-anchor-position/#position-area
-RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<ComponentValue>& tokens)
+// https://drafts.csswg.org/css-anchor-position/#position-try-fallbacks
+RefPtr<StyleValue const> Parser::parse_position_try_fallbacks_value(TokenStream<ComponentValue>& tokens)
 {
-    // none | <position-area>
+    // none | [ [<dashed-ident> || <try-tactic>] | <position-area> ]#
 
-    // none
-    if (auto none_keyword_value = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return none_keyword_value;
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
-    // <position-area>
-    // https://drafts.csswg.org/css-anchor-position/#position-area-syntax
+    return parse_comma_separated_value_list(tokens, [&](auto& inner_tokens) {
+        return parse_single_position_try_fallbacks_value(inner_tokens);
+    });
+}
+
+RefPtr<StyleValue const> Parser::parse_single_position_try_fallbacks_value(TokenStream<ComponentValue>& tokens)
+{
+    // [<dashed-ident> || <try-tactic>] | <position-area>
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    if (auto position_area = parse_position_area(tokens)) {
+        transaction.commit();
+        return position_area;
+    }
+
+    Optional<FlyString> dashed_ident;
+    RefPtr<StyleValue const> try_tactic;
+    while (tokens.has_next_token()) {
+        if (auto try_tactic_value = parse_try_tactic_value(tokens)) {
+            if (try_tactic)
+                return {};
+            try_tactic = try_tactic_value.release_nonnull();
+        } else if (auto maybe_dashed_ident = parse_dashed_ident(tokens); maybe_dashed_ident.has_value()) {
+            if (dashed_ident.has_value())
+                return {};
+            dashed_ident = maybe_dashed_ident.release_value();
+        } else {
+            break;
+        }
+        tokens.discard_whitespace();
+    }
+
+    StyleValueVector values;
+    if (dashed_ident.has_value())
+        values.append(CustomIdentStyleValue::create(dashed_ident.release_value()));
+    if (try_tactic)
+        values.append(try_tactic.release_nonnull());
+
+    if (values.is_empty())
+        return {};
+
+    transaction.commit();
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic
+RefPtr<StyleValue const> Parser::parse_try_tactic_value(TokenStream<ComponentValue>& tokens)
+{
+    // <try-tactic> = flip-block || flip-inline || flip-start
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    StyleValueVector values;
+    bool has_flip_block = false;
+    bool has_flip_inline = false;
+    bool has_flip_start = false;
+    while (tokens.has_next_token()) {
+        auto keyword_value = parse_keyword_value(tokens);
+        if (!keyword_value)
+            break;
+        switch (keyword_value->to_keyword()) {
+        case Keyword::FlipBlock:
+            if (has_flip_block)
+                return {};
+            has_flip_block = true;
+            values.append(keyword_value.release_nonnull());
+            break;
+        case Keyword::FlipInline:
+            if (has_flip_inline)
+                return {};
+            has_flip_inline = true;
+            values.append(keyword_value.release_nonnull());
+            break;
+        case Keyword::FlipStart:
+            if (has_flip_start)
+                return {};
+            has_flip_start = true;
+            values.append(keyword_value.release_nonnull());
+            break;
+        default:
+            return {};
+        }
+        tokens.discard_whitespace();
+    }
+
+    transaction.commit();
+    if (values.is_empty())
+        return {};
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-area-syntax
+RefPtr<StyleValue const> Parser::parse_position_area(TokenStream<ComponentValue>& tokens)
+{
     // <position-area> = [
     //    [ left | center | right | span-left | span-right
     //    | x-start | x-end | span-x-start | span-x-end
@@ -4367,7 +4461,7 @@ RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<Component
         transaction.commit();
 
         // If only a single keyword is given, it behaves as if the second keyword is span-all if the given keyword is
-        // unambigous about its axis.
+        // unambiguous about its axis.
         // These conditions ensure the span-all keyword is omitted when it would be implied.
         if (!is_axis_ambiguous(first.as_keyword().keyword()) && second.as_keyword().keyword() == Keyword::SpanAll)
             return first;
@@ -4382,16 +4476,14 @@ RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<Component
         return nullptr;
 
     tokens.discard_whitespace();
-    if (!tokens.has_next_token()) {
+    auto second_keyword_value = parse_keyword_value(tokens);
+    if (!second_keyword_value) {
         auto first_position_area_keyword = keyword_to_position_area(first_keyword_value->as_keyword().keyword());
         if (!first_position_area_keyword.has_value())
             return nullptr;
         transaction.commit();
         return first_keyword_value;
     }
-    auto second_keyword_value = parse_keyword_value(tokens);
-    if (!second_keyword_value)
-        return nullptr;
 
     auto first_keyword = first_keyword_value->as_keyword().keyword();
     auto second_keyword = second_keyword_value->as_keyword().keyword();
@@ -4417,6 +4509,19 @@ RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<Component
         return create_keyword_list(*first_keyword_value, *second_keyword_value);
 
     return nullptr;
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-area
+RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | <position-area>
+
+    // none
+    if (auto none_keyword_value = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none_keyword_value;
+
+    // <position-area>
+    return parse_position_area(tokens);
 }
 
 RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>& tokens)

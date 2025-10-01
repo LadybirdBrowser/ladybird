@@ -824,6 +824,11 @@
     "normal",
     "allow-discrete"
   ],
+  "try-tactic": [
+    "flip-block",
+    "flip-inline",
+    "flip-start"
+  ],
   "unicode-bidi": [
     "bidi-override",
     "embed",
