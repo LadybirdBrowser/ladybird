@@ -1623,48 +1623,23 @@ RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID p
 {
     auto transaction = tokens.begin_transaction();
 
-    auto get_length_percentage_or_auto = [](StyleValue const& style_value) -> Optional<LengthPercentageOrAuto> {
-        if (style_value.has_auto())
-            return LengthPercentageOrAuto::make_auto();
-        if (style_value.is_percentage())
-            return LengthPercentage { style_value.as_percentage().percentage() };
-        if (style_value.is_length())
-            return LengthPercentage { style_value.as_length().length() };
-        if (style_value.is_calculated())
-            return LengthPercentage { style_value.as_calculated() };
-        return {};
-    };
-
     auto maybe_x_value = parse_css_value_for_property(property, tokens);
     if (!maybe_x_value)
         return nullptr;
-    auto x_value = maybe_x_value.release_nonnull();
 
-    if (x_value->to_keyword() == Keyword::Cover || x_value->to_keyword() == Keyword::Contain) {
+    if (maybe_x_value->to_keyword() == Keyword::Cover || maybe_x_value->to_keyword() == Keyword::Contain) {
         transaction.commit();
-        return x_value;
+        return maybe_x_value;
     }
 
     auto maybe_y_value = parse_css_value_for_property(property, tokens);
     if (!maybe_y_value) {
-        auto y_value = LengthPercentageOrAuto::make_auto();
-        auto x_size = get_length_percentage_or_auto(*x_value);
-        if (!x_size.has_value())
-            return nullptr;
-
         transaction.commit();
-        return BackgroundSizeStyleValue::create(x_size.value(), y_value);
+        return BackgroundSizeStyleValue::create(maybe_x_value.release_nonnull(), KeywordStyleValue::create(Keyword::Auto));
     }
 
-    auto y_value = maybe_y_value.release_nonnull();
-    auto x_size = get_length_percentage_or_auto(*x_value);
-    auto y_size = get_length_percentage_or_auto(*y_value);
-
-    if (!x_size.has_value() || !y_size.has_value())
-        return nullptr;
-
     transaction.commit();
-    return BackgroundSizeStyleValue::create(x_size.release_value(), y_size.release_value());
+    return BackgroundSizeStyleValue::create(maybe_x_value.release_nonnull(), maybe_y_value.release_nonnull());
 }
 
 // https://drafts.csswg.org/css-backgrounds-3/#propdef-border

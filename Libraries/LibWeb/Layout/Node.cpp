@@ -492,8 +492,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                 if (size_value->is_background_size()) {
                     auto& size = size_value->as_background_size();
                     layer.size_type = CSS::BackgroundSize::LengthPercentage;
-                    layer.size_x = size.size_x();
-                    layer.size_y = size.size_y();
+                    layer.size_x = CSS::LengthPercentageOrAuto::from_style_value(size.size_x());
+                    layer.size_y = CSS::LengthPercentageOrAuto::from_style_value(size.size_y());
                 } else if (size_value->is_keyword()) {
                     switch (size_value->to_keyword()) {
                     case CSS::Keyword::Contain:
