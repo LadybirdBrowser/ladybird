@@ -40,7 +40,7 @@ void StylePropertyMap::initialize(JS::Realm& realm)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set
-WebIDL::ExceptionOr<void> StylePropertyMap::set(String property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
 {
     // The set(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -81,7 +81,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(String property, Vector<Variant<
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-append
-WebIDL::ExceptionOr<void> StylePropertyMap::append(String property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
 {
     // The append(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(String property, Vector<Varia
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-delete
-WebIDL::ExceptionOr<void> StylePropertyMap::delete_(String property)
+WebIDL::ExceptionOr<void> StylePropertyMap::delete_(FlyString property)
 {
     // The delete(property) method, when called on a StylePropertyMap this, must perform the following steps:
 
