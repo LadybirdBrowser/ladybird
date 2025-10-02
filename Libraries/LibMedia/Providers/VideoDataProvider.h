@@ -18,6 +18,7 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/SeekMode.h>
 #include <LibMedia/TimedImage.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
@@ -34,6 +35,7 @@ public:
     using ImageQueue = Queue<TimedImage, QUEUE_CAPACITY>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
+    using SeekCompletionHandler = Function<void(AK::Duration)>;
 
     static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
     static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
@@ -45,7 +47,7 @@ public:
 
     TimedImage retrieve_frame();
 
-    void seek(AK::Duration timestamp);
+    void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
 
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
@@ -60,11 +62,15 @@ private:
         ImageQueue& queue();
         TimedImage take_frame();
 
-        void seek(AK::Duration timestamp);
+        void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&&);
 
         bool should_thread_exit() const;
         static void set_cicp_values(VideoFrame&, CodedFrame const&);
         void queue_frame(TimedImage&&);
+        bool handle_seek();
+        template<typename T>
+        void process_seek_on_main_thread(u32 seek_id, T&&);
+        void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
 
         [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
@@ -87,6 +93,12 @@ private:
         ImageQueue m_queue;
         ErrorHandler m_error_handler;
         bool m_is_in_error_state { false };
+
+        u32 m_last_processed_seek_id { 0 };
+        Atomic<u32> m_seek_id { 0 };
+        SeekCompletionHandler m_seek_completion_handler;
+        AK::Duration m_seek_timestamp;
+        SeekMode m_seek_mode { SeekMode::Accurate };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

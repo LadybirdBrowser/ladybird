@@ -10,10 +10,10 @@
 
 namespace Media {
 
-enum class PlaybackState : u8 {
-    Playing,
-    Paused,
-    Seeking,
+enum class SeekMode : u8 {
+    Accurate,
+    FastBefore,
+    FastAfter,
 };
 
 }

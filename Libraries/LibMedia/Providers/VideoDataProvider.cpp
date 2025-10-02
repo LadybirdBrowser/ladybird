@@ -35,8 +35,10 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
-        while (!thread_data->should_thread_exit())
+        while (!thread_data->should_thread_exit()) {
+            thread_data->handle_seek();
             thread_data->push_data_and_decode_some_frames();
+        }
         return 0;
     }));
     thread->start();
@@ -76,9 +78,9 @@ TimedImage VideoDataProvider::retrieve_frame()
     return result;
 }
 
-void VideoDataProvider::seek(AK::Duration timestamp)
+void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
 {
-    m_thread_data->seek(timestamp);
+    m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 
 VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track, NonnullOwnPtr<VideoDecoder>&& decoder, RefPtr<MediaTimeProvider> const& time_provider)
@@ -115,16 +117,14 @@ TimedImage VideoDataProvider::ThreadData::take_frame()
     return m_queue.dequeue();
 }
 
-void VideoDataProvider::ThreadData::seek(AK::Duration timestamp)
+void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
 {
-    auto seek_result = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp);
-    if (seek_result.is_error()) {
-        m_error_handler(seek_result.release_error());
-    } else {
-        auto locker = take_lock();
-        m_is_in_error_state = false;
-        m_wait_condition.broadcast();
-    }
+    auto locker = take_lock();
+    m_seek_id++;
+    m_seek_completion_handler = move(completion_handler);
+    m_seek_timestamp = timestamp;
+    m_seek_mode = seek_mode;
+    m_wait_condition.broadcast();
 }
 
 bool VideoDataProvider::ThreadData::should_thread_exit() const
@@ -163,6 +163,195 @@ void VideoDataProvider::ThreadData::queue_frame(TimedImage&& frame)
     m_queue.enqueue(move(frame));
 }
 
+template<typename T>
+void VideoDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&& function)
+{
+    m_last_processed_seek_id = seek_id;
+    m_main_thread_event_loop.deferred_invoke([this, seek_id, function] mutable {
+        if (m_seek_id != seek_id)
+            return;
+        function();
+    });
+}
+
+void VideoDataProvider::ThreadData::resolve_seek(u32 seek_id, AK::Duration const& timestamp)
+{
+    VERIFY(!m_queue.is_empty());
+    m_is_in_error_state = false;
+    process_seek_on_main_thread(seek_id, [this, timestamp] mutable {
+        auto handler = move(m_seek_completion_handler);
+        if (handler)
+            handler(timestamp);
+    });
+}
+
+bool VideoDataProvider::ThreadData::handle_seek()
+{
+    auto seek_id = m_seek_id.load();
+    if (m_last_processed_seek_id == seek_id)
+        return false;
+
+    auto handle_error = [&](DecoderError&& error) {
+        m_is_in_error_state = true;
+        {
+            auto locker = take_lock();
+            m_queue.clear();
+        }
+        process_seek_on_main_thread(seek_id,
+            [this, error = move(error)] mutable {
+                m_error_handler(move(error));
+                m_seek_completion_handler = nullptr;
+            });
+    };
+
+    AK::Duration timestamp;
+    SeekMode mode { SeekMode::Accurate };
+
+    while (true) {
+        {
+            auto locker = take_lock();
+            seek_id = m_seek_id;
+            timestamp = m_seek_timestamp;
+            mode = m_seek_mode;
+        }
+
+        auto seek_options = mode == SeekMode::Accurate ? DemuxerSeekOptions::None : DemuxerSeekOptions::Force;
+        auto demuxer_seek_result = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
+        if (demuxer_seek_result.is_error()) {
+            handle_error(demuxer_seek_result.release_error());
+            return true;
+        }
+        auto demuxer_timestamp = demuxer_seek_result.release_value();
+
+        if (demuxer_timestamp.has_value())
+            m_decoder->flush();
+
+        if (mode != SeekMode::Accurate) {
+            auto found_keyframe = false;
+            auto earliest_timestamp = mode == SeekMode::FastBefore ? timestamp : AK::Duration::max();
+
+            auto locker = take_lock();
+            m_queue.clear();
+
+            // Ensure that we have at least one frame ready in the queue when exiting seek.
+            // If the seek mode is FastAfter, skip all coded frames until we reach a keyframe after the requested
+            // timestamp, then queue up some frames.
+            while (true) {
+                auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
+                if (coded_frame_result.is_error()) {
+                    handle_error(coded_frame_result.release_error());
+                    return true;
+                }
+
+                auto coded_frame = coded_frame_result.release_value();
+                auto decoded_a_frame = false;
+
+                if (!found_keyframe) {
+                    if (mode == SeekMode::FastBefore
+                        || (coded_frame.is_keyframe() && coded_frame.timestamp() >= timestamp))
+                        found_keyframe = true;
+                }
+
+                if (found_keyframe) {
+                    auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
+                    if (decode_result.is_error()) {
+                        handle_error(decode_result.release_error());
+                        return true;
+                    }
+
+                    while (true) {
+                        auto frame_result = m_decoder->get_decoded_frame();
+                        if (frame_result.is_error()) {
+                            if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput) {
+                                break;
+                            }
+                            handle_error(frame_result.release_error());
+                            return true;
+                        }
+
+                        auto current_frame = frame_result.release_value();
+                        set_cicp_values(*current_frame, coded_frame);
+
+                        auto current_frame_bitmap_result = current_frame->to_bitmap();
+                        if (current_frame_bitmap_result.is_error()) {
+                            handle_error(current_frame_bitmap_result.release_error());
+                            return true;
+                        }
+
+                        queue_frame(TimedImage(current_frame->timestamp(), current_frame_bitmap_result.release_value()));
+                        earliest_timestamp = min(earliest_timestamp, current_frame->timestamp());
+                        decoded_a_frame = true;
+                    }
+
+                    if (decoded_a_frame)
+                        break;
+                }
+            }
+
+            resolve_seek(seek_id, earliest_timestamp);
+            return true;
+        }
+
+        auto new_seek_id = m_seek_id.load();
+        OwnPtr<VideoFrame> last_frame;
+
+        while (new_seek_id == seek_id) {
+            auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
+            if (coded_frame_result.is_error()) {
+                handle_error(coded_frame_result.release_error());
+                return true;
+            }
+
+            auto coded_frame = coded_frame_result.release_value();
+            auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
+            if (decode_result.is_error()) {
+                handle_error(decode_result.release_error());
+                return true;
+            }
+
+            while (new_seek_id == seek_id) {
+                auto frame_result = m_decoder->get_decoded_frame();
+                if (frame_result.is_error()) {
+                    if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
+                        break;
+                    handle_error(frame_result.release_error());
+                    return true;
+                }
+
+                auto current_frame = frame_result.release_value();
+                set_cicp_values(*current_frame, coded_frame);
+                if (current_frame->timestamp() > timestamp) {
+                    auto locker = take_lock();
+                    m_queue.clear();
+
+                    if (last_frame != nullptr) {
+                        auto last_frame_bitmap_result = last_frame->to_bitmap();
+                        if (last_frame_bitmap_result.is_error()) {
+                            handle_error(last_frame_bitmap_result.release_error());
+                            return true;
+                        }
+                        queue_frame(TimedImage(last_frame->timestamp(), last_frame_bitmap_result.release_value()));
+                    }
+
+                    auto current_frame_bitmap_result = current_frame->to_bitmap();
+                    if (current_frame_bitmap_result.is_error()) {
+                        handle_error(current_frame_bitmap_result.release_error());
+                        return true;
+                    }
+                    queue_frame(TimedImage(current_frame->timestamp(), current_frame_bitmap_result.release_value()));
+
+                    resolve_seek(seek_id, timestamp);
+                    return true;
+                }
+
+                last_frame = move(current_frame);
+
+                new_seek_id = m_seek_id;
+            }
+        }
+    }
+}
+
 void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
 {
     // FIXME: Check if the PlaybackManager's current time is ahead of the next keyframe, and seek to it if so.
@@ -182,8 +371,11 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             m_error_handler(move(error));
         });
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Video Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (m_is_in_error_state)
+        while (m_is_in_error_state) {
+            if (handle_seek())
+                break;
             m_wait_condition.wait();
+        }
     };
 
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
@@ -221,6 +413,8 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         {
             auto locker = take_lock();
             while (m_queue.size() >= m_queue_max_size) {
+                if (handle_seek())
+                    return;
                 m_wait_condition.wait();
                 if (should_thread_exit())
                     return;
