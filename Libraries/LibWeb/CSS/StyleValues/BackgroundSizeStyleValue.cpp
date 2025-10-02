@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-BackgroundSizeStyleValue::BackgroundSizeStyleValue(LengthPercentageOrAuto size_x, LengthPercentageOrAuto size_y)
+BackgroundSizeStyleValue::BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y)
     : StyleValueWithDefaultOperators(Type::BackgroundSize)
     , m_properties { .size_x = move(size_x), .size_y = move(size_y) }
 {
@@ -21,21 +21,15 @@ BackgroundSizeStyleValue::~BackgroundSizeStyleValue() = default;
 
 String BackgroundSizeStyleValue::to_string(SerializationMode mode) const
 {
-    if (m_properties.size_x.is_auto() && m_properties.size_y.is_auto())
+    if (m_properties.size_x->has_auto() && m_properties.size_y->has_auto())
         return "auto"_string;
-    return MUST(String::formatted("{} {}", m_properties.size_x.to_string(mode), m_properties.size_y.to_string(mode)));
+    return MUST(String::formatted("{} {}", m_properties.size_x->to_string(mode), m_properties.size_y->to_string(mode)));
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto absolutize = [&](auto& size) -> LengthPercentageOrAuto {
-        if (size.is_auto())
-            return size;
-        return size.length_percentage().absolutized(computation_context);
-    };
-
-    auto absolutized_size_x = absolutize(m_properties.size_x);
-    auto absolutized_size_y = absolutize(m_properties.size_y);
+    auto absolutized_size_x = m_properties.size_x->absolutized(computation_context);
+    auto absolutized_size_y = m_properties.size_y->absolutized(computation_context);
 
     if (absolutized_size_x == m_properties.size_x && absolutized_size_y == m_properties.size_y)
         return *this;

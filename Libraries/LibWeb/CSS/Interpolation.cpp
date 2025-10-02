@@ -1364,9 +1364,9 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return AngleStyleValue::create(Angle::make_degrees(interpolated_value));
     }
     case StyleValue::Type::BackgroundSize: {
-        auto interpolated_x = interpolate_length_percentage_or_auto(calculation_context, from.as_background_size().size_x(), to.as_background_size().size_x(), delta);
-        auto interpolated_y = interpolate_length_percentage_or_auto(calculation_context, from.as_background_size().size_y(), to.as_background_size().size_y(), delta);
-        if (!interpolated_x.has_value() || !interpolated_y.has_value())
+        auto interpolated_x = interpolate_value(element, calculation_context, from.as_background_size().size_x(), to.as_background_size().size_x(), delta, allow_discrete);
+        auto interpolated_y = interpolate_value(element, calculation_context, from.as_background_size().size_y(), to.as_background_size().size_y(), delta, allow_discrete);
+        if (!interpolated_x || !interpolated_y)
             return {};
 
         return BackgroundSizeStyleValue::create(*interpolated_x, *interpolated_y);
