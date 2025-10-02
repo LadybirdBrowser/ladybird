@@ -122,4 +122,14 @@ WebIDL::ExceptionOr<String> CSSStyleValue::to_string() const
     return String {};
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSStyleValue::create_an_internal_representation(PropertyNameAndID const&) const
+{
+    // If value is a direct CSSStyleValue,
+    //     Return value’s associated value.
+    if (!m_source_value)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Missing {}::create_an_internal_representation() overload", class_name())) };
+    return NonnullRefPtr { *m_source_value };
+}
+
 }

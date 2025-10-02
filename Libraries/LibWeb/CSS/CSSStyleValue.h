@@ -37,6 +37,8 @@ public:
 
     virtual WebIDL::ExceptionOr<String> to_string() const;
 
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const;
+
 protected:
     explicit CSSStyleValue(JS::Realm&);
     explicit CSSStyleValue(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);

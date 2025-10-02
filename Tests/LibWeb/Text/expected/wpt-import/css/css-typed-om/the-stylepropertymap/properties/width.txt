@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 95 tests
 
-95 Fail
+54 Pass
+41 Fail
 Fail	Can set 'width' to CSS-wide keywords: initial
 Fail	Can set 'width' to CSS-wide keywords: inherit
 Fail	Can set 'width' to CSS-wide keywords: unset
@@ -17,24 +18,24 @@ Fail	Can set 'width' to a length: 0px
 Fail	Can set 'width' to a length: -3.14em
 Fail	Can set 'width' to a length: 3.14cm
 Fail	Can set 'width' to a length: calc(0px + 0em)
-Fail	Setting 'width' to a time: 0s throws TypeError
-Fail	Setting 'width' to a time: -3.14ms throws TypeError
-Fail	Setting 'width' to a time: 3.14s throws TypeError
-Fail	Setting 'width' to a time: calc(0s + 0ms) throws TypeError
-Fail	Setting 'width' to an angle: 0deg throws TypeError
-Fail	Setting 'width' to an angle: 3.14rad throws TypeError
-Fail	Setting 'width' to an angle: -3.14deg throws TypeError
-Fail	Setting 'width' to an angle: calc(0rad + 0deg) throws TypeError
-Fail	Setting 'width' to a flexible length: 0fr throws TypeError
-Fail	Setting 'width' to a flexible length: 1fr throws TypeError
-Fail	Setting 'width' to a flexible length: -3.14fr throws TypeError
-Fail	Setting 'width' to a number: 0 throws TypeError
-Fail	Setting 'width' to a number: -3.14 throws TypeError
-Fail	Setting 'width' to a number: 3.14 throws TypeError
-Fail	Setting 'width' to a number: calc(2 + 3) throws TypeError
-Fail	Setting 'width' to a transform: translate(50%, 50%) throws TypeError
-Fail	Setting 'width' to a transform: perspective(10em) throws TypeError
-Fail	Setting 'width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Setting 'width' to a time: 0s throws TypeError
+Pass	Setting 'width' to a time: -3.14ms throws TypeError
+Pass	Setting 'width' to a time: 3.14s throws TypeError
+Pass	Setting 'width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'width' to an angle: 0deg throws TypeError
+Pass	Setting 'width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'width' to a number: 0 throws TypeError
+Pass	Setting 'width' to a number: -3.14 throws TypeError
+Pass	Setting 'width' to a number: 3.14 throws TypeError
+Pass	Setting 'width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
 Fail	Can set 'min-width' to CSS-wide keywords: initial
 Fail	Can set 'min-width' to CSS-wide keywords: inherit
 Fail	Can set 'min-width' to CSS-wide keywords: unset
@@ -48,24 +49,24 @@ Fail	Can set 'min-width' to a length: 0px
 Fail	Can set 'min-width' to a length: -3.14em
 Fail	Can set 'min-width' to a length: 3.14cm
 Fail	Can set 'min-width' to a length: calc(0px + 0em)
-Fail	Setting 'min-width' to a time: 0s throws TypeError
-Fail	Setting 'min-width' to a time: -3.14ms throws TypeError
-Fail	Setting 'min-width' to a time: 3.14s throws TypeError
-Fail	Setting 'min-width' to a time: calc(0s + 0ms) throws TypeError
-Fail	Setting 'min-width' to an angle: 0deg throws TypeError
-Fail	Setting 'min-width' to an angle: 3.14rad throws TypeError
-Fail	Setting 'min-width' to an angle: -3.14deg throws TypeError
-Fail	Setting 'min-width' to an angle: calc(0rad + 0deg) throws TypeError
-Fail	Setting 'min-width' to a flexible length: 0fr throws TypeError
-Fail	Setting 'min-width' to a flexible length: 1fr throws TypeError
-Fail	Setting 'min-width' to a flexible length: -3.14fr throws TypeError
-Fail	Setting 'min-width' to a number: 0 throws TypeError
-Fail	Setting 'min-width' to a number: -3.14 throws TypeError
-Fail	Setting 'min-width' to a number: 3.14 throws TypeError
-Fail	Setting 'min-width' to a number: calc(2 + 3) throws TypeError
-Fail	Setting 'min-width' to a transform: translate(50%, 50%) throws TypeError
-Fail	Setting 'min-width' to a transform: perspective(10em) throws TypeError
-Fail	Setting 'min-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Setting 'min-width' to a time: 0s throws TypeError
+Pass	Setting 'min-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'min-width' to a time: 3.14s throws TypeError
+Pass	Setting 'min-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'min-width' to an angle: 0deg throws TypeError
+Pass	Setting 'min-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'min-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'min-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'min-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'min-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'min-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'min-width' to a number: 0 throws TypeError
+Pass	Setting 'min-width' to a number: -3.14 throws TypeError
+Pass	Setting 'min-width' to a number: 3.14 throws TypeError
+Pass	Setting 'min-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'min-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'min-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'min-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
 Fail	Can set 'max-width' to CSS-wide keywords: initial
 Fail	Can set 'max-width' to CSS-wide keywords: inherit
 Fail	Can set 'max-width' to CSS-wide keywords: unset
@@ -80,21 +81,21 @@ Fail	Can set 'max-width' to a length: 0px
 Fail	Can set 'max-width' to a length: -3.14em
 Fail	Can set 'max-width' to a length: 3.14cm
 Fail	Can set 'max-width' to a length: calc(0px + 0em)
-Fail	Setting 'max-width' to a time: 0s throws TypeError
-Fail	Setting 'max-width' to a time: -3.14ms throws TypeError
-Fail	Setting 'max-width' to a time: 3.14s throws TypeError
-Fail	Setting 'max-width' to a time: calc(0s + 0ms) throws TypeError
-Fail	Setting 'max-width' to an angle: 0deg throws TypeError
-Fail	Setting 'max-width' to an angle: 3.14rad throws TypeError
-Fail	Setting 'max-width' to an angle: -3.14deg throws TypeError
-Fail	Setting 'max-width' to an angle: calc(0rad + 0deg) throws TypeError
-Fail	Setting 'max-width' to a flexible length: 0fr throws TypeError
-Fail	Setting 'max-width' to a flexible length: 1fr throws TypeError
-Fail	Setting 'max-width' to a flexible length: -3.14fr throws TypeError
-Fail	Setting 'max-width' to a number: 0 throws TypeError
-Fail	Setting 'max-width' to a number: -3.14 throws TypeError
-Fail	Setting 'max-width' to a number: 3.14 throws TypeError
-Fail	Setting 'max-width' to a number: calc(2 + 3) throws TypeError
-Fail	Setting 'max-width' to a transform: translate(50%, 50%) throws TypeError
-Fail	Setting 'max-width' to a transform: perspective(10em) throws TypeError
-Fail	Setting 'max-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Setting 'max-width' to a time: 0s throws TypeError
+Pass	Setting 'max-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'max-width' to a time: 3.14s throws TypeError
+Pass	Setting 'max-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'max-width' to an angle: 0deg throws TypeError
+Pass	Setting 'max-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'max-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'max-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'max-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'max-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'max-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'max-width' to a number: 0 throws TypeError
+Pass	Setting 'max-width' to a number: -3.14 throws TypeError
+Pass	Setting 'max-width' to a number: 3.14 throws TypeError
+Pass	Setting 'max-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'max-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'max-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'max-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
