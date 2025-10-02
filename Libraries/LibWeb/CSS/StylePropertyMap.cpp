@@ -8,7 +8,12 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StylePropertyMapPrototype.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/CSSUnparsedValue.h>
+#include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/PropertyName.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -39,43 +44,101 @@ void StylePropertyMap::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+static bool any_have_non_matching_associated_property(FlyString const& property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+{
+    return any_of(values, [&property](Variant<GC::Root<CSSStyleValue>, String> const& value) {
+        if (auto* style_value = value.get_pointer<GC::Root<CSSStyleValue>>()) {
+            if (auto associated_property = (*style_value)->associated_property();
+                associated_property.has_value() && associated_property != property)
+                return true;
+        }
+        return false;
+    });
+}
+
+static bool any_are_unparsed_or_variable_reference(Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+{
+    return any_of(values, [](Variant<GC::Root<CSSStyleValue>, String> const& value) {
+        auto* style_value = value.get_pointer<GC::Root<CSSStyleValue>>();
+        return style_value
+            && (is<CSSUnparsedValue>(style_value->ptr()) || is<CSSVariableReferenceValue>(style_value->ptr()));
+    });
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Root<CSSStyleValue>, String> const& value)
+{
+    // To create an internal representation, given a string property and a string or CSSStyleValue value:
+    return value.visit(
+        [&property](GC::Root<CSSStyleValue> const& css_style_value) {
+            return css_style_value->create_an_internal_representation(property);
+        },
+        [&](String const& css_text) -> WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> {
+            // If value is a USVString,
+            //     Parse a CSSStyleValue with property property, cssText value, and parseMultiple set to false, and
+            //     return the result.
+            // FIXME: Avoid passing name as a string, as it gets immediately converted back to PropertyNameAndID.
+            auto result = TRY(CSSStyleValue::parse_a_css_style_value(vm, property.name(), css_text, CSSStyleValue::ParseMultiple::No));
+            // AD-HOC: Result is a CSSStyleValue but we want an internal representation, so... convert it again I guess?
+            return result.get<GC::Ref<CSSStyleValue>>()->create_an_internal_representation(property);
+        });
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set
-WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
 {
     // The set(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
-    if (!is_a_custom_property_name_string(property))
-        property = property.to_ascii_lowercase();
-
     // 2. If property is not a valid CSS property, throw a TypeError.
-    if (!is_a_valid_css_property(property))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property)) };
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
 
-    // FIXME: 3. If property is a single-valued property and values has more than one item, throw a TypeError.
+    // 3. If property is a single-valued property and values has more than one item, throw a TypeError.
+    // NB: Custom properties should all be single-valued.
+    if ((property->is_custom_property() || property_is_single_valued(property->id())) && values.size() > 1)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Property '{}' only accepts a single value", property_name)) };
 
-    // FIXME: 4. If any of the items in values have a non-null [[associatedProperty]] internal slot, and that slot’s value is anything other than property, throw a TypeError.
+    // 4. If any of the items in values have a non-null [[associatedProperty]] internal slot, and that slot’s value is
+    //    anything other than property, throw a TypeError.
+    if (any_have_non_matching_associated_property(property->name(), values))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "One of the passed CSSStyleValues has a different associated property"_string };
 
-    // FIXME: 5. If the size of values is two or more, and one or more of the items are a CSSUnparsedValue or CSSVariableReferenceValue object, throw a TypeError.
+    // 5. If the size of values is two or more, and one or more of the items are a CSSUnparsedValue or
+    //    CSSVariableReferenceValue object, throw a TypeError.
     // NOTE: Having 2+ values implies that you’re setting multiple items of a list-valued property, but the presence of
     //       a var() function in the string-based OM disables all syntax parsing, including splitting into individual
     //       iterations (because there might be more commas inside of the var() value, so you can’t tell how many items
     //       are actually going to show up). This step’s restriction preserves the same semantics in the Typed OM.
+    if (values.size() >= 2 && any_are_unparsed_or_variable_reference(values))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide multiple values if one is an CSSUnparsedValue or CSSVariableReferenceValue"_string };
 
     // 6. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = declarations();
 
     // 7. If props[property] exists, remove it.
-    TRY(props.remove_property(property));
+    // FIXME: Avoid converting to string and back.
+    TRY(props.remove_property(property->name()));
 
-    // FIXME: 8. Let values to set be an empty list.
+    // 8. Let values to set be an empty list.
+    StyleValueVector values_to_set;
 
-    // FIXME: 9. For each value in values, create an internal representation for property and value, and append the result to values to set.
-    (void)values;
+    // 9. For each value in values, create an internal representation for property and value, and append the result to values to set.
+    for (auto const& value : values) {
+        values_to_set.append(TRY(create_an_internal_representation(vm(), property.value(), value)));
+    }
 
-    // FIXME: 10. Set props[property] to values to set.
+    // 10. Set props[property] to values to set.
     // NOTE: The property is deleted then added back so that it gets put at the end of the ordered map, which gives the
     //       expected behavior in the face of shorthand properties.
+    if (values_to_set.size() == 1) {
+        TRY(props.set_property_style_value(property.value(), values_to_set.take_first()));
+    } else {
+        // FIXME: How do we know if this is comma-separated or not?
+        auto values_list = StyleValueList::create(move(values_to_set), StyleValueList::Separator::Comma);
+        TRY(props.set_property_style_value(property.value(), move(values_list)));
+    }
 
     return {};
 }

@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 14 tests
 
-3 Pass
-11 Fail
+9 Pass
+5 Fail
 Pass	Setting a StylePropertyMap with an unsupported property name throws TypeError
 Pass	Setting a StylePropertyMap with an null property name throws TypeError
 Pass	Setting a StylePropertyMap with a descriptor throws TypeError
-Fail	Setting a StylePropertyMap with an invalid CSSStyleValue throws TypeError
-Fail	Setting a StylePropertyMap with an invalid String throws TypeError
-Fail	Setting a non list-valued property with multiple arguments throws TypeError
-Fail	Setting a non list-valued property with list-valued string throws TypeError
-Fail	Setting a list-valued property with a CSSUnparsedValue and other values throws TypeError
-Fail	Setting a list-valued property with a var ref() and other values throws TypeError
+Pass	Setting a StylePropertyMap with an invalid CSSStyleValue throws TypeError
+Pass	Setting a StylePropertyMap with an invalid String throws TypeError
+Pass	Setting a non list-valued property with multiple arguments throws TypeError
+Pass	Setting a non list-valued property with list-valued string throws TypeError
+Pass	Setting a list-valued property with a CSSUnparsedValue and other values throws TypeError
+Pass	Setting a list-valued property with a var ref() and other values throws TypeError
 Fail	Setting a property with CSSStyleValue or String updates its value
 Fail	Setting a list-valued property with CSSStyleValue or String updates its values
 Fail	Setting a list-valued property with a list-valued string updates its value
