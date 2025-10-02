@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibTest/Macros.h>
 #include <LibTest/TestCase.h>
 
 #include <AK/Time.h>
@@ -914,4 +915,27 @@ TEST_CASE(formatter_unix_date_time)
     test("2038-01-19 03:14:07"sv, 2038, 1, 19, 3, 14, 7);    // 32-bit Unix time max
     test("2022-12-31 23:59:59"sv, 2022, 12, 31, 23, 59, 59); // End of year
     test("2023-04-01 00:00:00"sv, 2023, 4, 1, 0, 0, 0);      // Start of month
+}
+
+TEST_CASE(from_f64_seconds)
+{
+    constexpr auto max_seconds = Duration::from_seconds(NumericLimits<i64>::max());
+    EXPECT_EQ(Duration::from_seconds_f64(NumericLimits<float>::max()), max_seconds);
+    auto smaller_float = nextafterf(NumericLimits<float>::max(), 0.0f);
+    EXPECT_EQ(Duration::from_seconds_f64(smaller_float), max_seconds);
+    auto max_representable_float = nextafterf(static_cast<float>(NumericLimits<i64>::max()), 0.0f);
+    constexpr auto max_representable_float_as_integer = 9223371487098961920LL;
+    EXPECT_EQ(Duration::from_seconds_f64(max_representable_float), Duration::from_seconds(max_representable_float_as_integer));
+
+    constexpr auto min_seconds = Duration::from_seconds(NumericLimits<i64>::min());
+    EXPECT_EQ(Duration::from_seconds_f64(NumericLimits<float>::lowest()), min_seconds);
+    EXPECT_EQ(Duration::from_seconds_f64(-smaller_float), min_seconds);
+    EXPECT_EQ(Duration::from_seconds_f64(-max_representable_float), Duration::from_seconds(-max_representable_float_as_integer));
+
+    EXPECT_EQ(Duration::from_seconds_f64(1.5f), Duration::from_milliseconds(1500));
+    EXPECT_EQ(Duration::from_seconds_f64(205321.25f), Duration::from_milliseconds(205321250));
+    EXPECT_EQ(Duration::from_seconds_f64(-0.25f), Duration::from_milliseconds(-250));
+    EXPECT_EQ(Duration::from_seconds_f64(-1.75f), Duration::from_milliseconds(-1750));
+
+    EXPECT_DEATH("Converting float NaN seconds", (void)Duration::from_seconds_f64(NAN));
 }
