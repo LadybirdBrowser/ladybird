@@ -51,8 +51,16 @@ RefPtr<VideoDataProvider> DisplayingVideoSink::provider(Track const& track) cons
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 {
+    if (m_pause_updates)
+        return DisplayingVideoSinkUpdateResult::NoChange;
+
     auto current_time = m_time_provider->current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
+    if (m_cleared_current_frame) {
+        result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        m_cleared_current_frame = false;
+    }
+
     Threading::MutexLocker locker { m_mutex };
     while (true) {
         if (!m_next_frame.is_valid()) {
@@ -72,6 +80,21 @@ RefPtr<Gfx::Bitmap> DisplayingVideoSink::current_frame()
 {
     Threading::MutexLocker locker { m_mutex };
     return m_current_frame;
+}
+
+void DisplayingVideoSink::pause_updates()
+{
+    Threading::MutexLocker locker { m_mutex };
+    m_pause_updates = true;
+}
+
+void DisplayingVideoSink::resume_updates()
+{
+    Threading::MutexLocker locker { m_mutex };
+    m_next_frame.clear();
+    m_current_frame = nullptr;
+    m_pause_updates = false;
+    m_cleared_current_frame = true;
 }
 
 }

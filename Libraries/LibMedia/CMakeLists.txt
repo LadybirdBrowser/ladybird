@@ -11,6 +11,7 @@ set(SOURCES
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     PlaybackManager.cpp
+    PlaybackStates/PlaybackStateHandler.cpp
     Providers/AudioDataProvider.cpp
     Providers/GenericTimeProvider.cpp
     Providers/VideoDataProvider.cpp
