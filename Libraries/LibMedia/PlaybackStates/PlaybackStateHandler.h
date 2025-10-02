@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Time.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
+#include <LibMedia/SeekMode.h>
 
 namespace Media {
 
@@ -24,6 +26,7 @@ public:
 
     virtual void play() = 0;
     virtual void pause() = 0;
+    virtual void seek(AK::Duration timestamp, SeekMode);
 
     virtual bool is_playing() = 0;
     virtual PlaybackState state() = 0;

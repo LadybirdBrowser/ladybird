@@ -11,7 +11,9 @@
 #define ENUMERATE_PLAYBACK_STATE_HANDLERS(X) \
     X(PlaybackStateHandler)                  \
     X(PlayingStateHandler)                   \
-    X(PausedStateHandler)
+    X(PausedStateHandler)                    \
+    X(ResumingStateHandler)                  \
+    X(SeekingStateHandler)
 
 namespace Media {
 
