@@ -2,34 +2,34 @@ Harness status: OK
 
 Found 56 tests
 
-30 Pass
-26 Fail
+51 Pass
+5 Fail
 Fail	Can set 'display' to CSS-wide keywords: initial
 Fail	Can set 'display' to CSS-wide keywords: inherit
 Fail	Can set 'display' to CSS-wide keywords: unset
 Fail	Can set 'display' to CSS-wide keywords: revert
 Fail	Can set 'display' to var() references:  var(--A)
-Fail	Can set 'display' to the 'none' keyword: none
-Fail	Can set 'display' to the 'block' keyword: block
-Fail	Can set 'display' to the 'inline' keyword: inline
-Fail	Can set 'display' to the 'flow-root' keyword: flow-root
-Fail	Can set 'display' to the 'table' keyword: table
-Fail	Can set 'display' to the 'flex' keyword: flex
-Fail	Can set 'display' to the 'grid' keyword: grid
-Fail	Can set 'display' to the 'list-item' keyword: list-item
-Fail	Can set 'display' to the 'table-row-group' keyword: table-row-group
-Fail	Can set 'display' to the 'table-header-group' keyword: table-header-group
-Fail	Can set 'display' to the 'table-footer-group' keyword: table-footer-group
-Fail	Can set 'display' to the 'table-row' keyword: table-row
-Fail	Can set 'display' to the 'table-cell' keyword: table-cell
-Fail	Can set 'display' to the 'table-column-group' keyword: table-column-group
-Fail	Can set 'display' to the 'table-column' keyword: table-column
-Fail	Can set 'display' to the 'table-caption' keyword: table-caption
-Fail	Can set 'display' to the 'contents' keyword: contents
-Fail	Can set 'display' to the 'inline-block' keyword: inline-block
-Fail	Can set 'display' to the 'inline-table' keyword: inline-table
-Fail	Can set 'display' to the 'inline-flex' keyword: inline-flex
-Fail	Can set 'display' to the 'inline-grid' keyword: inline-grid
+Pass	Can set 'display' to the 'none' keyword: none
+Pass	Can set 'display' to the 'block' keyword: block
+Pass	Can set 'display' to the 'inline' keyword: inline
+Pass	Can set 'display' to the 'flow-root' keyword: flow-root
+Pass	Can set 'display' to the 'table' keyword: table
+Pass	Can set 'display' to the 'flex' keyword: flex
+Pass	Can set 'display' to the 'grid' keyword: grid
+Pass	Can set 'display' to the 'list-item' keyword: list-item
+Pass	Can set 'display' to the 'table-row-group' keyword: table-row-group
+Pass	Can set 'display' to the 'table-header-group' keyword: table-header-group
+Pass	Can set 'display' to the 'table-footer-group' keyword: table-footer-group
+Pass	Can set 'display' to the 'table-row' keyword: table-row
+Pass	Can set 'display' to the 'table-cell' keyword: table-cell
+Pass	Can set 'display' to the 'table-column-group' keyword: table-column-group
+Pass	Can set 'display' to the 'table-column' keyword: table-column
+Pass	Can set 'display' to the 'table-caption' keyword: table-caption
+Pass	Can set 'display' to the 'contents' keyword: contents
+Pass	Can set 'display' to the 'inline-block' keyword: inline-block
+Pass	Can set 'display' to the 'inline-table' keyword: inline-table
+Pass	Can set 'display' to the 'inline-flex' keyword: inline-flex
+Pass	Can set 'display' to the 'inline-grid' keyword: inline-grid
 Pass	Setting 'display' to a length: 0px throws TypeError
 Pass	Setting 'display' to a length: -3.14em throws TypeError
 Pass	Setting 'display' to a length: 3.14cm throws TypeError

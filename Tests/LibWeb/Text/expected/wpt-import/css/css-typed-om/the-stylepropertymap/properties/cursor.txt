@@ -2,49 +2,49 @@ Harness status: OK
 
 Found 69 tests
 
-28 Pass
-41 Fail
+64 Pass
+5 Fail
 Fail	Can set 'cursor' to CSS-wide keywords: initial
 Fail	Can set 'cursor' to CSS-wide keywords: inherit
 Fail	Can set 'cursor' to CSS-wide keywords: unset
 Fail	Can set 'cursor' to CSS-wide keywords: revert
 Fail	Can set 'cursor' to var() references:  var(--A)
-Fail	Can set 'cursor' to the 'auto' keyword: auto
-Fail	Can set 'cursor' to the 'default' keyword: default
-Fail	Can set 'cursor' to the 'none' keyword: none
-Fail	Can set 'cursor' to the 'context-menu' keyword: context-menu
-Fail	Can set 'cursor' to the 'help' keyword: help
-Fail	Can set 'cursor' to the 'pointer' keyword: pointer
-Fail	Can set 'cursor' to the 'progress' keyword: progress
-Fail	Can set 'cursor' to the 'wait' keyword: wait
-Fail	Can set 'cursor' to the 'cell' keyword: cell
-Fail	Can set 'cursor' to the 'crosshair' keyword: crosshair
-Fail	Can set 'cursor' to the 'text' keyword: text
-Fail	Can set 'cursor' to the 'vertical-text' keyword: vertical-text
-Fail	Can set 'cursor' to the 'alias' keyword: alias
-Fail	Can set 'cursor' to the 'copy' keyword: copy
-Fail	Can set 'cursor' to the 'move' keyword: move
-Fail	Can set 'cursor' to the 'no-drop' keyword: no-drop
-Fail	Can set 'cursor' to the 'not-allowed' keyword: not-allowed
-Fail	Can set 'cursor' to the 'grab' keyword: grab
-Fail	Can set 'cursor' to the 'grabbing' keyword: grabbing
-Fail	Can set 'cursor' to the 'e-resize' keyword: e-resize
-Fail	Can set 'cursor' to the 'n-resize' keyword: n-resize
-Fail	Can set 'cursor' to the 'ne-resize' keyword: ne-resize
-Fail	Can set 'cursor' to the 'nw-resize' keyword: nw-resize
-Fail	Can set 'cursor' to the 's-resize' keyword: s-resize
-Fail	Can set 'cursor' to the 'se-resize' keyword: se-resize
-Fail	Can set 'cursor' to the 'sw-resize' keyword: sw-resize
-Fail	Can set 'cursor' to the 'w-resize' keyword: w-resize
-Fail	Can set 'cursor' to the 'ew-resize' keyword: ew-resize
-Fail	Can set 'cursor' to the 'ns-resize' keyword: ns-resize
-Fail	Can set 'cursor' to the 'nesw-resize' keyword: nesw-resize
-Fail	Can set 'cursor' to the 'nwse-resize' keyword: nwse-resize
-Fail	Can set 'cursor' to the 'col-resize' keyword: col-resize
-Fail	Can set 'cursor' to the 'row-resize' keyword: row-resize
-Fail	Can set 'cursor' to the 'all-scroll' keyword: all-scroll
-Fail	Can set 'cursor' to the 'zoom-in' keyword: zoom-in
-Fail	Can set 'cursor' to the 'zoom-out' keyword: zoom-out
+Pass	Can set 'cursor' to the 'auto' keyword: auto
+Pass	Can set 'cursor' to the 'default' keyword: default
+Pass	Can set 'cursor' to the 'none' keyword: none
+Pass	Can set 'cursor' to the 'context-menu' keyword: context-menu
+Pass	Can set 'cursor' to the 'help' keyword: help
+Pass	Can set 'cursor' to the 'pointer' keyword: pointer
+Pass	Can set 'cursor' to the 'progress' keyword: progress
+Pass	Can set 'cursor' to the 'wait' keyword: wait
+Pass	Can set 'cursor' to the 'cell' keyword: cell
+Pass	Can set 'cursor' to the 'crosshair' keyword: crosshair
+Pass	Can set 'cursor' to the 'text' keyword: text
+Pass	Can set 'cursor' to the 'vertical-text' keyword: vertical-text
+Pass	Can set 'cursor' to the 'alias' keyword: alias
+Pass	Can set 'cursor' to the 'copy' keyword: copy
+Pass	Can set 'cursor' to the 'move' keyword: move
+Pass	Can set 'cursor' to the 'no-drop' keyword: no-drop
+Pass	Can set 'cursor' to the 'not-allowed' keyword: not-allowed
+Pass	Can set 'cursor' to the 'grab' keyword: grab
+Pass	Can set 'cursor' to the 'grabbing' keyword: grabbing
+Pass	Can set 'cursor' to the 'e-resize' keyword: e-resize
+Pass	Can set 'cursor' to the 'n-resize' keyword: n-resize
+Pass	Can set 'cursor' to the 'ne-resize' keyword: ne-resize
+Pass	Can set 'cursor' to the 'nw-resize' keyword: nw-resize
+Pass	Can set 'cursor' to the 's-resize' keyword: s-resize
+Pass	Can set 'cursor' to the 'se-resize' keyword: se-resize
+Pass	Can set 'cursor' to the 'sw-resize' keyword: sw-resize
+Pass	Can set 'cursor' to the 'w-resize' keyword: w-resize
+Pass	Can set 'cursor' to the 'ew-resize' keyword: ew-resize
+Pass	Can set 'cursor' to the 'ns-resize' keyword: ns-resize
+Pass	Can set 'cursor' to the 'nesw-resize' keyword: nesw-resize
+Pass	Can set 'cursor' to the 'nwse-resize' keyword: nwse-resize
+Pass	Can set 'cursor' to the 'col-resize' keyword: col-resize
+Pass	Can set 'cursor' to the 'row-resize' keyword: row-resize
+Pass	Can set 'cursor' to the 'all-scroll' keyword: all-scroll
+Pass	Can set 'cursor' to the 'zoom-in' keyword: zoom-in
+Pass	Can set 'cursor' to the 'zoom-out' keyword: zoom-out
 Pass	Setting 'cursor' to a length: 0px throws TypeError
 Pass	Setting 'cursor' to a length: -3.14em throws TypeError
 Pass	Setting 'cursor' to a length: 3.14cm throws TypeError

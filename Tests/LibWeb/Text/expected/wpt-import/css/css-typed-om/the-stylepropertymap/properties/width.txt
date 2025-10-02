@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 95 tests
 
-54 Pass
-41 Fail
+56 Pass
+39 Fail
 Fail	Can set 'width' to CSS-wide keywords: initial
 Fail	Can set 'width' to CSS-wide keywords: inherit
 Fail	Can set 'width' to CSS-wide keywords: unset
 Fail	Can set 'width' to CSS-wide keywords: revert
 Fail	Can set 'width' to var() references:  var(--A)
-Fail	Can set 'width' to the 'auto' keyword: auto
+Pass	Can set 'width' to the 'auto' keyword: auto
 Fail	Can set 'width' to a percent: 0%
 Fail	Can set 'width' to a percent: -3.14%
 Fail	Can set 'width' to a percent: 3.14%
@@ -72,7 +72,7 @@ Fail	Can set 'max-width' to CSS-wide keywords: inherit
 Fail	Can set 'max-width' to CSS-wide keywords: unset
 Fail	Can set 'max-width' to CSS-wide keywords: revert
 Fail	Can set 'max-width' to var() references:  var(--A)
-Fail	Can set 'max-width' to the 'none' keyword: none
+Pass	Can set 'max-width' to the 'none' keyword: none
 Fail	Can set 'max-width' to a percent: 0%
 Fail	Can set 'max-width' to a percent: -3.14%
 Fail	Can set 'max-width' to a percent: 3.14%

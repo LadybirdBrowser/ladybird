@@ -29,6 +29,7 @@ public:
     WebIDL::ExceptionOr<void> set_value(FlyString value);
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const override;
 
 private:
     explicit CSSKeywordValue(JS::Realm&, FlyString value);
