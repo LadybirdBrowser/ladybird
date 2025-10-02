@@ -201,7 +201,7 @@ Then Install pkg-config using chocolatey.
 choco install pkgconfiglite -y
 ```
 > [!NOTE]
-> The Android port is currently [broken](https://github.com/LadybirdBrowser/ladybird/issues/2774) and won't build.
+> The Android port is [experimental](https://github.com/LadybirdBrowser/ladybird/issues/2774) and most likely won't build.
 
 ### Android:
 
