@@ -47,6 +47,13 @@ public:
             return int32_list.get<Vector<u32>>();
         return int32_list.get<GC::Root<JS::Uint32Array>>()->data();
     }
+
+    struct ConvertedTexture {
+        ByteBuffer buffer;
+        int width { 0 };
+        int height { 0 };
+    };
+    static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
 };
 
 }
