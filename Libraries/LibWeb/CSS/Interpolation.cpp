@@ -1330,13 +1330,7 @@ Optional<LengthPercentage> interpolate_length_percentage(CalculationContext cons
     auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
     if (!interpolated_style_value)
         return {};
-    if (interpolated_style_value->is_length())
-        return interpolated_style_value->as_length().length();
-    if (interpolated_style_value->is_percentage())
-        return interpolated_style_value->as_percentage().percentage();
-    if (interpolated_style_value->is_calculated())
-        return LengthPercentage { interpolated_style_value->as_calculated() };
-    VERIFY_NOT_REACHED();
+    return LengthPercentage::from_style_value(*interpolated_style_value);
 }
 
 Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta)
@@ -1353,15 +1347,7 @@ Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(Calculati
     auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
     if (!interpolated_style_value)
         return {};
-    if (interpolated_style_value->to_keyword() == Keyword::Auto)
-        return LengthPercentageOrAuto::make_auto();
-    if (interpolated_style_value->is_length())
-        return interpolated_style_value->as_length().length();
-    if (interpolated_style_value->is_percentage())
-        return interpolated_style_value->as_percentage().percentage();
-    if (interpolated_style_value->is_calculated())
-        return LengthPercentage { interpolated_style_value->as_calculated() };
-    VERIFY_NOT_REACHED();
+    return LengthPercentageOrAuto::from_style_value(*interpolated_style_value);
 }
 
 static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
