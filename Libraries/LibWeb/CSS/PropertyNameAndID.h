@@ -30,7 +30,7 @@ public:
 
     static PropertyNameAndID from_id(PropertyID property_id)
     {
-        VERIFY(!first_is_one_of(property_id, PropertyID::Invalid, PropertyID::Custom));
+        VERIFY(property_id != PropertyID::Custom);
         return PropertyNameAndID({}, property_id);
     }
 
