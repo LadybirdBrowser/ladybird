@@ -41,28 +41,28 @@ public:
         });
     }
 
-    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) override
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const& track) override
     {
         return m_demuxer.with_locked([&](auto& demuxer) {
             return demuxer->get_next_sample_for_track(track);
         });
     }
 
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override
+    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const& track) override
     {
         return m_demuxer.with_locked([&](auto& demuxer) {
             return demuxer->get_codec_id_for_track(track);
         });
     }
 
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) override
+    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const& track) override
     {
         return m_demuxer.with_locked([&](auto& demuxer) {
             return demuxer->get_codec_initialization_data_for_track(track);
         });
     }
 
-    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = {}) override
+    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = {}) override
     {
         return m_demuxer.with_locked([&](auto& demuxer) {
             return demuxer->seek_to_most_recent_keyframe(track, timestamp, earliest_available_sample);
