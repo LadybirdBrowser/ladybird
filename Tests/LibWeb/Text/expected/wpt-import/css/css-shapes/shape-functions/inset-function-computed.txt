@@ -2,13 +2,14 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
+2 Pass
+9 Fail
 Fail	Property shape-outside value 'inset(100%)'
 Fail	Property shape-outside value 'inset(0 1px)'
 Fail	Property shape-outside value 'inset(0px 1px 2%)'
 Fail	Property shape-outside value 'inset(-20px -20px 2%)'
-Fail	Property shape-outside value 'inset(0px 1px 2% 3em)'
-Fail	Property shape-outside value 'inset(0px calc(100% - 20px) 2% 3em)'
+Pass	Property shape-outside value 'inset(0px 1px 2% 3em)'
+Pass	Property shape-outside value 'inset(0px calc(100% - 20px) 2% 3em)'
 Fail	Property shape-outside value 'inset(0px round 100%)'
 Fail	Property shape-outside value 'inset(0px round 0 1px)'
 Fail	Property shape-outside value 'inset(0px round 0px 1px 2%)'

@@ -246,4 +246,93 @@ String BasicShapeStyleValue::to_string(SerializationMode mode) const
     });
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    auto absolutized_shape = m_basic_shape.visit(
+        [&](Inset const& shape) -> BasicShape {
+            auto absolutized_top = shape.top->absolutized(computation_context);
+            auto absolutized_right = shape.right->absolutized(computation_context);
+            auto absolutized_bottom = shape.bottom->absolutized(computation_context);
+            auto absolutized_left = shape.left->absolutized(computation_context);
+
+            if (absolutized_top == shape.top && absolutized_right == shape.right && absolutized_bottom == shape.bottom && absolutized_left == shape.left)
+                return shape;
+
+            return Inset { absolutized_top, absolutized_right, absolutized_bottom, absolutized_left };
+        },
+        [&](Xywh const& shape) -> BasicShape {
+            auto absolutized_x = shape.x->absolutized(computation_context);
+            auto absolutized_y = shape.y->absolutized(computation_context);
+            auto absolutized_width = shape.width->absolutized(computation_context);
+            auto absolutized_height = shape.height->absolutized(computation_context);
+
+            if (absolutized_x == shape.x && absolutized_y == shape.y && absolutized_width == shape.width && absolutized_height == shape.height)
+                return shape;
+
+            return Xywh { absolutized_x, absolutized_y, absolutized_width, absolutized_height };
+        },
+        [&](Rect const& shape) -> BasicShape {
+            auto absolutized_top = shape.top->absolutized(computation_context);
+            auto absolutized_right = shape.right->absolutized(computation_context);
+            auto absolutized_bottom = shape.bottom->absolutized(computation_context);
+            auto absolutized_left = shape.left->absolutized(computation_context);
+
+            if (absolutized_top == shape.top && absolutized_right == shape.right && absolutized_bottom == shape.bottom && absolutized_left == shape.left)
+                return shape;
+
+            return Rect { absolutized_top, absolutized_right, absolutized_bottom, absolutized_left };
+        },
+        [&](Circle const& shape) -> BasicShape {
+            auto absolutized_radius = shape.radius->absolutized(computation_context);
+            auto absolutized_position = shape.position->absolutized(computation_context);
+
+            if (absolutized_radius == shape.radius && absolutized_position->as_position() == *shape.position)
+                return shape;
+
+            return Circle { absolutized_radius, absolutized_position->as_position() };
+        },
+        [&](Ellipse const& shape) -> BasicShape {
+            auto absolutized_radius_x = shape.radius_x->absolutized(computation_context);
+            auto absolutized_radius_y = shape.radius_y->absolutized(computation_context);
+            auto absolutized_position = shape.position->absolutized(computation_context);
+
+            if (absolutized_radius_x == shape.radius_x && absolutized_radius_y == shape.radius_y && absolutized_position->as_position() == *shape.position)
+                return shape;
+
+            return Ellipse { absolutized_radius_x, absolutized_radius_y, absolutized_position->as_position() };
+        },
+        [&](Polygon const& shape) -> BasicShape {
+            Vector<Polygon::Point> absolutized_points;
+            absolutized_points.ensure_capacity(shape.points.size());
+
+            bool any_point_required_absolutization = false;
+
+            for (auto const& point : shape.points) {
+                auto absolutized_x = point.x->absolutized(computation_context);
+                auto absolutized_y = point.y->absolutized(computation_context);
+
+                if (absolutized_x == point.x && absolutized_y == point.y) {
+                    absolutized_points.append(point);
+                    continue;
+                }
+
+                any_point_required_absolutization = true;
+                absolutized_points.append({ absolutized_x, absolutized_y });
+            }
+
+            if (!any_point_required_absolutization)
+                return shape;
+
+            return Polygon { shape.fill_rule, absolutized_points };
+        },
+        [&](Path const& shape) -> BasicShape {
+            return shape;
+        });
+
+    if (absolutized_shape == m_basic_shape)
+        return *this;
+
+    return BasicShapeStyleValue::create(absolutized_shape);
+}
+
 }
