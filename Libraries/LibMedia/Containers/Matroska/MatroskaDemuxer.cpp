@@ -114,7 +114,7 @@ DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(Tr
     return result;
 }
 
-DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(Track track)
+DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(Track const& track)
 {
     if (!m_track_statuses.contains(track)) {
         auto iterator = TRY(m_reader.create_sample_iterator(track.identifier()));
@@ -158,18 +158,18 @@ static CodecID get_codec_id_for_string(String const& codec_id)
     return CodecID::Unknown;
 }
 
-DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track track)
+DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track const& track)
 {
     auto codec_id = TRY(m_reader.track_for_track_number(track.identifier()))->codec_id();
     return get_codec_id_for_string(codec_id);
 }
 
-DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for_track(Track track)
+DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for_track(Track const& track)
 {
     return TRY(m_reader.track_for_track_number(track.identifier()))->codec_private_data();
 }
 
-DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
+DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
 {
     // Removing the track status will cause us to start from the beginning.
     if (timestamp.is_zero()) {
@@ -197,7 +197,7 @@ DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyf
     return track_status.iterator.last_timestamp();
 }
 
-DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track track)
+DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track const& track)
 {
     // FIXME: This makes a copy of the sample, which shouldn't be necessary.
     //        Matroska should make a RefPtr<ByteBuffer>, probably.
