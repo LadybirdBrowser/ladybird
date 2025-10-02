@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/EnumBits.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventReceiver.h>
 
@@ -16,6 +17,13 @@
 #include "Track.h"
 
 namespace Media {
+
+enum class DemuxerSeekOptions : u8 {
+    None = 0,
+    Force = 1 << 0,
+};
+
+AK_ENUM_BITWISE_OPERATORS(DemuxerSeekOptions);
 
 class Demuxer : public AtomicRefCounted<Demuxer> {
 public:
@@ -35,7 +43,7 @@ public:
     // Returns the timestamp of the keyframe that was seeked to.
     // The value is `Optional` to allow the demuxer to decide not to seek so that it can keep its position
     // in the case that the timestamp is closer to the current time than the nearest keyframe.
-    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) = 0;
+    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
     virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
