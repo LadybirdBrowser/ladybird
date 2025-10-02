@@ -37,6 +37,10 @@ public:
     {
         return false;
     }
+    virtual PlaybackState state() override
+    {
+        return PlaybackState::Paused;
+    }
 };
 
 }
