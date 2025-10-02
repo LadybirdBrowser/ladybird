@@ -205,8 +205,7 @@ public:
 
     void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
-    CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
-    CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style();
+    CSS::RequiredInvalidationAfterStyleChange update_inherited_computed_style();
 
     Optional<CSS::PseudoElement> use_pseudo_element() const { return m_use_pseudo_element; }
     void set_use_pseudo_element(Optional<CSS::PseudoElement> use_pseudo_element) { m_use_pseudo_element = move(use_pseudo_element); }
@@ -539,6 +538,7 @@ public:
     bool had_duplicate_attribute_during_tokenization() const { return m_had_duplicate_attribute_during_tokenization; }
 
     GC::Ref<CSS::StylePropertyMapReadOnly> computed_style_map();
+    void reset_style_invalidation_flags();
 
 protected:
     Element(Document&, DOM::QualifiedName);
@@ -554,7 +554,7 @@ protected:
     // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
-    virtual void computed_properties_changed() { }
+    virtual void computed_properties_changed(GC::Ptr<CSS::ComputedProperties> old_properties, GC::Ptr<CSS::ComputedProperties> new_properties);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
