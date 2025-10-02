@@ -30,16 +30,16 @@ public:
     DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
     DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
 
-    DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
+    DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
 
     DecoderErrorOr<AK::Duration> duration_of_track(Track const& track) override;
     DecoderErrorOr<AK::Duration> total_duration() override;
 
-    DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
+    DecoderErrorOr<CodecID> get_codec_id_for_track(Track const& track) override;
 
-    DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) override;
+    DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const& track) override;
 
-    DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) override;
+    DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const& track) override;
 
 private:
     struct TrackStatus {
@@ -53,7 +53,7 @@ private:
         }
     };
 
-    DecoderErrorOr<TrackStatus*> get_track_status(Track track);
+    DecoderErrorOr<TrackStatus*> get_track_status(Track const& track);
 
     Reader m_reader;
 

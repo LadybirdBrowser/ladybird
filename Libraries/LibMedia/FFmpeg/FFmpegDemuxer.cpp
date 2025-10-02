@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -140,7 +141,7 @@ DecoderErrorOr<Optional<Track>> FFmpegDemuxer::get_preferred_track_for_type(Trac
     return get_track_for_stream_index(best_stream_index);
 }
 
-DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
+DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
 {
     // FIXME: What do we do with this here?
     (void)earliest_available_sample;
@@ -157,21 +158,21 @@ DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyfra
     return timestamp;
 }
 
-DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track track)
+DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track const& track)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
     return media_codec_id_from_ffmpeg_codec_id(stream->codecpar->codec_id);
 }
 
-DecoderErrorOr<ReadonlyBytes> FFmpegDemuxer::get_codec_initialization_data_for_track(Track track)
+DecoderErrorOr<ReadonlyBytes> FFmpegDemuxer::get_codec_initialization_data_for_track(Track const& track)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
     return ReadonlyBytes { stream->codecpar->extradata, static_cast<size_t>(stream->codecpar->extradata_size) };
 }
 
-DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track track)
+DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const& track)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
