@@ -30,6 +30,8 @@ void MapPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.entries, entries, 0, attr);
     define_native_function(realm, vm.names.forEach, for_each, 1, attr);
     define_native_function(realm, vm.names.get, get, 1, attr);
+    define_native_function(realm, vm.names.getOrInsert, get_or_insert, 2, attr);
+    define_native_function(realm, vm.names.getOrInsertComputed, get_or_insert_computed, 2, attr);
     define_native_function(realm, vm.names.has, has, 1, attr);
     define_native_function(realm, vm.names.keys, keys, 0, attr);
     define_native_function(realm, vm.names.set, set, 2, attr);
@@ -144,6 +146,73 @@ JS_DEFINE_NATIVE_FUNCTION(MapPrototype::get)
 
     // 4. Return undefined.
     return js_undefined();
+}
+
+// 1 Map.prototype.getOrInsert ( key, value ), https://tc39.es/proposal-upsert/#sec-map.prototype.getOrInsert
+JS_DEFINE_NATIVE_FUNCTION(MapPrototype::get_or_insert)
+{
+    auto key = vm.argument(0);
+    auto value = vm.argument(1);
+
+    // 1. Let M be the this value.
+    // 2. Perform ? RequireInternalSlot(M, [[MapData]]).
+    auto map = TRY(typed_this_object(vm));
+
+    // 3. Set key to CanonicalizeKeyedCollectionKey(key).
+    key = canonicalize_keyed_collection_key(key);
+
+    // 4. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
+    if (auto result = map->map_get(key); result.has_value()) {
+        // a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, return p.[[Value]].
+        return result.release_value();
+    }
+
+    // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
+    // 6. Append p to M.[[MapData]].
+    map->map_set(key, value);
+
+    // 7. Return value.
+    return value;
+}
+
+// 2 Map.prototype.getOrInsertComputed ( key, callback ), https://tc39.es/proposal-upsert/#sec-map.prototype.getOrInsertComputed
+JS_DEFINE_NATIVE_FUNCTION(MapPrototype::get_or_insert_computed)
+{
+    auto key = vm.argument(0);
+    auto callback = vm.argument(1);
+
+    // 1. Let M be the this value.
+    // 2. Perform ? RequireInternalSlot(M, [[MapData]]).
+    auto map = TRY(typed_this_object(vm));
+
+    // 3. If IsCallable(callback) is false, throw a TypeError exception.
+    if (!callback.is_function())
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback);
+
+    // 4. Set key to CanonicalizeKeyedCollectionKey(key).
+    key = canonicalize_keyed_collection_key(key);
+
+    // 5. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
+    if (auto result = map->map_get(key); result.has_value()) {
+        // a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, return p.[[Value]].
+        return result.release_value();
+    }
+
+    // 6. Let value be ? Call(callback, undefined, « key »).
+    auto value = TRY(call(vm, callback.as_function(), js_undefined(), key));
+
+    // 7. NOTE: The Map may have been modified during execution of callback.
+
+    // 8. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
+    //     a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, then
+    //         i. Set p.[[Value]] to value.
+    //         ii. Return value.
+    // 9. Let p be the Record { [[Key]]: key, [[Value]]: value }.
+    // 10. Append p to M.[[MapData]].
+    map->map_set(key, value);
+
+    // 11. Return value.
+    return value;
 }
 
 // 24.1.3.7 Map.prototype.has ( key ), https://tc39.es/ecma262/#sec-map.prototype.has
