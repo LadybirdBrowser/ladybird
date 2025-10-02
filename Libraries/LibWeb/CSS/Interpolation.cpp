@@ -1626,74 +1626,62 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (from_shape.index() != to_shape.index())
             return {};
 
-        auto interpolate_length_box = [](CalculationContext const& calculation_context, LengthBox const& from, LengthBox const& to, float delta) -> Optional<LengthBox> {
-            auto interpolated_top = interpolate_length_percentage_or_auto(calculation_context, from.top(), to.top(), delta);
-            auto interpolated_right = interpolate_length_percentage_or_auto(calculation_context, from.right(), to.right(), delta);
-            auto interpolated_bottom = interpolate_length_percentage_or_auto(calculation_context, from.bottom(), to.bottom(), delta);
-            auto interpolated_left = interpolate_length_percentage_or_auto(calculation_context, from.left(), to.left(), delta);
-            if (!interpolated_top.has_value() || !interpolated_right.has_value() || !interpolated_bottom.has_value() || !interpolated_left.has_value())
-                return {};
-            return LengthBox { *interpolated_top, *interpolated_right, *interpolated_bottom, *interpolated_left };
-        };
-
         auto interpolated_shape = from_shape.visit(
             [&](Inset const& from_inset) -> Optional<BasicShape> {
                 // If both shapes are of type inset(), interpolate between each value in the shape functions.
                 auto& to_inset = to_shape.get<Inset>();
-                auto interpolated_inset_box = interpolate_length_box(calculation_context, from_inset.inset_box, to_inset.inset_box, delta);
-                if (!interpolated_inset_box.has_value())
+                auto interpolated_top = interpolate_value(element, calculation_context, from_inset.top, to_inset.top, delta, allow_discrete);
+                auto interpolated_right = interpolate_value(element, calculation_context, from_inset.right, to_inset.right, delta, allow_discrete);
+                auto interpolated_bottom = interpolate_value(element, calculation_context, from_inset.bottom, to_inset.bottom, delta, allow_discrete);
+                auto interpolated_left = interpolate_value(element, calculation_context, from_inset.left, to_inset.left, delta, allow_discrete);
+                if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left)
                     return {};
-                return Inset { *interpolated_inset_box };
+                return Inset { interpolated_top.release_nonnull(), interpolated_right.release_nonnull(), interpolated_bottom.release_nonnull(), interpolated_left.release_nonnull() };
             },
             [&](Xywh const& from_xywh) -> Optional<BasicShape> {
                 auto& to_xywh = to_shape.get<Xywh>();
-                auto interpolated_x = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
-                auto interpolated_y = interpolate_length_percentage(calculation_context, from_xywh.x, to_xywh.x, delta);
-                auto interpolated_width = interpolate_length_percentage(calculation_context, from_xywh.width, to_xywh.width, delta);
-                auto interpolated_height = interpolate_length_percentage(calculation_context, from_xywh.height, to_xywh.height, delta);
-                if (!interpolated_x.has_value() || !interpolated_y.has_value() || !interpolated_width.has_value() || !interpolated_height.has_value())
+                auto interpolated_x = interpolate_value(element, calculation_context, from_xywh.x, to_xywh.x, delta, allow_discrete);
+                auto interpolated_y = interpolate_value(element, calculation_context, from_xywh.x, to_xywh.x, delta, allow_discrete);
+                auto interpolated_width = interpolate_value(element, calculation_context, from_xywh.width, to_xywh.width, delta, allow_discrete);
+                auto interpolated_height = interpolate_value(element, calculation_context, from_xywh.height, to_xywh.height, delta, allow_discrete);
+                if (!interpolated_x || !interpolated_y || !interpolated_width || !interpolated_height)
                     return {};
-                return Xywh { *interpolated_x, *interpolated_y, *interpolated_width, *interpolated_height };
+                return Xywh { interpolated_x.release_nonnull(), interpolated_y.release_nonnull(), interpolated_width.release_nonnull(), interpolated_height.release_nonnull() };
             },
             [&](Rect const& from_rect) -> Optional<BasicShape> {
                 auto const& to_rect = to_shape.get<Rect>();
-                auto from_rect_box = from_rect.box;
-                auto to_rect_box = to_rect.box;
-                auto interpolated_rect_box = interpolate_length_box(calculation_context, from_rect_box, to_rect_box, delta);
-                if (!interpolated_rect_box.has_value())
+                auto interpolated_top = interpolate_value(element, calculation_context, from_rect.top, to_rect.top, delta, allow_discrete);
+                auto interpolated_right = interpolate_value(element, calculation_context, from_rect.right, to_rect.right, delta, allow_discrete);
+                auto interpolated_bottom = interpolate_value(element, calculation_context, from_rect.bottom, to_rect.bottom, delta, allow_discrete);
+                auto interpolated_left = interpolate_value(element, calculation_context, from_rect.left, to_rect.left, delta, allow_discrete);
+                if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left)
                     return {};
-                return Rect { *interpolated_rect_box };
+                return Rect { interpolated_top.release_nonnull(), interpolated_right.release_nonnull(), interpolated_bottom.release_nonnull(), interpolated_left.release_nonnull() };
             },
             [&](Circle const& from_circle) -> Optional<BasicShape> {
                 // If both shapes are the same type, that type is ellipse() or circle(), and the radiuses are specified
                 // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.
                 auto const& to_circle = to_shape.get<Circle>();
-                if (!from_circle.radius.has<LengthPercentage>() || !to_circle.radius.has<LengthPercentage>())
+                if (from_circle.radius->is_keyword() || to_circle.radius->is_keyword())
                     return {};
-                auto interpolated_radius = interpolate_length_percentage(calculation_context, from_circle.radius.get<LengthPercentage>(), to_circle.radius.get<LengthPercentage>(), delta);
-                if (!interpolated_radius.has_value())
-                    return {};
+                auto interpolated_radius = interpolate_value(element, calculation_context, from_circle.radius, to_circle.radius, delta, allow_discrete);
                 auto interpolated_position = interpolate_value(element, calculation_context, from_circle.position, to_circle.position, delta, allow_discrete);
-                if (!interpolated_position)
+                if (!interpolated_radius || !interpolated_position)
                     return {};
-                return Circle { *interpolated_radius, interpolated_position->as_position() };
+                return Circle { interpolated_radius.release_nonnull(), interpolated_position->as_position() };
             },
             [&](Ellipse const& from_ellipse) -> Optional<BasicShape> {
                 auto const& to_ellipse = to_shape.get<Ellipse>();
-                if (!from_ellipse.radius_x.has<LengthPercentage>() || !to_ellipse.radius_x.has<LengthPercentage>())
+                if (from_ellipse.radius_x->is_keyword() || to_ellipse.radius_x->is_keyword())
                     return {};
-                if (!from_ellipse.radius_y.has<LengthPercentage>() || !to_ellipse.radius_y.has<LengthPercentage>())
+                if (from_ellipse.radius_y->is_keyword() || to_ellipse.radius_y->is_keyword())
                     return {};
-                auto interpolated_radius_x = interpolate_length_percentage(calculation_context, from_ellipse.radius_x.get<LengthPercentage>(), to_ellipse.radius_x.get<LengthPercentage>(), delta);
-                if (!interpolated_radius_x.has_value())
-                    return {};
-                auto interpolated_radius_y = interpolate_length_percentage(calculation_context, from_ellipse.radius_y.get<LengthPercentage>(), to_ellipse.radius_y.get<LengthPercentage>(), delta);
-                if (!interpolated_radius_y.has_value())
-                    return {};
+                auto interpolated_radius_x = interpolate_value(element, calculation_context, from_ellipse.radius_x, to_ellipse.radius_x, delta, allow_discrete);
+                auto interpolated_radius_y = interpolate_value(element, calculation_context, from_ellipse.radius_y, to_ellipse.radius_y, delta, allow_discrete);
                 auto interpolated_position = interpolate_value(element, calculation_context, from_ellipse.position, to_ellipse.position, delta, allow_discrete);
-                if (!interpolated_position)
+                if (!interpolated_radius_x || !interpolated_radius_y || !interpolated_position)
                     return {};
-                return Ellipse { *interpolated_radius_x, *interpolated_radius_y, interpolated_position->as_position() };
+                return Ellipse { interpolated_radius_x.release_nonnull(), interpolated_radius_y.release_nonnull(), interpolated_position->as_position() };
             },
             [&](Polygon const& from_polygon) -> Optional<BasicShape> {
                 // If both shapes are of type polygon(), both polygons have the same number of vertices, and use the
@@ -1708,9 +1696,9 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 for (size_t i = 0; i < from_polygon.points.size(); i++) {
                     auto const& from_point = from_polygon.points[i];
                     auto const& to_point = to_polygon.points[i];
-                    auto interpolated_point_x = interpolate_length_percentage(calculation_context, from_point.x, to_point.x, delta);
-                    auto interpolated_point_y = interpolate_length_percentage(calculation_context, from_point.y, to_point.y, delta);
-                    if (!interpolated_point_x.has_value() || !interpolated_point_y.has_value())
+                    auto interpolated_point_x = interpolate_value(element, calculation_context, from_point.x, to_point.x, delta, allow_discrete);
+                    auto interpolated_point_y = interpolate_value(element, calculation_context, from_point.y, to_point.y, delta, allow_discrete);
+                    if (!interpolated_point_x || !interpolated_point_y)
                         return {};
                     interpolated_points.unchecked_append(Polygon::Point { *interpolated_point_x, *interpolated_point_y });
                 }

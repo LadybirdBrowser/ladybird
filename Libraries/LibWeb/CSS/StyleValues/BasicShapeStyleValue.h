@@ -9,8 +9,6 @@
 
 #include <AK/Variant.h>
 #include <LibGfx/WindingRule.h>
-#include <LibWeb/CSS/LengthBox.h>
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -23,7 +21,10 @@ struct Inset {
 
     bool operator==(Inset const&) const = default;
 
-    LengthBox inset_box;
+    ValueComparingNonnullRefPtr<StyleValue const> top;
+    ValueComparingNonnullRefPtr<StyleValue const> right;
+    ValueComparingNonnullRefPtr<StyleValue const> bottom;
+    ValueComparingNonnullRefPtr<StyleValue const> left;
 };
 
 struct Xywh {
@@ -32,10 +33,10 @@ struct Xywh {
 
     bool operator==(Xywh const&) const = default;
 
-    LengthPercentage x;
-    LengthPercentage y;
-    LengthPercentage width;
-    LengthPercentage height;
+    ValueComparingNonnullRefPtr<StyleValue const> x;
+    ValueComparingNonnullRefPtr<StyleValue const> y;
+    ValueComparingNonnullRefPtr<StyleValue const> width;
+    ValueComparingNonnullRefPtr<StyleValue const> height;
 };
 
 struct Rect {
@@ -44,15 +45,11 @@ struct Rect {
 
     bool operator==(Rect const&) const = default;
 
-    LengthBox box;
+    ValueComparingNonnullRefPtr<StyleValue const> top;
+    ValueComparingNonnullRefPtr<StyleValue const> right;
+    ValueComparingNonnullRefPtr<StyleValue const> bottom;
+    ValueComparingNonnullRefPtr<StyleValue const> left;
 };
-
-enum class FitSide {
-    ClosestSide,
-    FarthestSide,
-};
-
-using ShapeRadius = Variant<LengthPercentage, FitSide>;
 
 struct Circle {
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
@@ -60,7 +57,7 @@ struct Circle {
 
     bool operator==(Circle const&) const = default;
 
-    ShapeRadius radius;
+    ValueComparingNonnullRefPtr<StyleValue const> radius;
     ValueComparingNonnullRefPtr<PositionStyleValue const> position;
 };
 
@@ -70,16 +67,16 @@ struct Ellipse {
 
     bool operator==(Ellipse const&) const = default;
 
-    ShapeRadius radius_x;
-    ShapeRadius radius_y;
+    ValueComparingNonnullRefPtr<StyleValue const> radius_x;
+    ValueComparingNonnullRefPtr<StyleValue const> radius_y;
     ValueComparingNonnullRefPtr<PositionStyleValue const> position;
 };
 
 struct Polygon {
     struct Point {
         bool operator==(Point const&) const = default;
-        LengthPercentage x;
-        LengthPercentage y;
+        ValueComparingNonnullRefPtr<StyleValue const> x;
+        ValueComparingNonnullRefPtr<StyleValue const> y;
     };
 
     Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
