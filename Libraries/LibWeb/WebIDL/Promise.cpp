@@ -218,7 +218,7 @@ GC_DEFINE_ALLOCATOR(WaitForAllResults);
 void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps)
 {
     // FIXME: Fix spec typo, fullfilled --> fulfilled
-    // 1. Let fullfilledCount be 0.
+    // 1. Let fulfilledCount be 0.
     // Handled later in WaitForAllResults
 
     // 2. Let rejected be false.
@@ -277,10 +277,10 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
             // 1. Set result[promiseIndex] to arg.
             results->result[promise_index] = arg;
 
-            // 2. Set fullfilledCount to fullfilledCount + 1.
+            // 2. Set fulfilledCount to fulfilledCount + 1.
             ++results->fulfilled_count;
 
-            // 3. If fullfilledCount equals total, then perform successSteps given result.
+            // 3. If fulfilledCount equals total, then perform successSteps given result.
             if (results->fulfilled_count == results->total)
                 results->success_steps->function()(results->result);
 
