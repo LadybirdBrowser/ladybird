@@ -11,14 +11,10 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/HTML/HTMLCanvasElement.h>
-#include <LibWeb/HTML/HTMLImageElement.h>
-#include <LibWeb/HTML/HTMLVideoElement.h>
-#include <LibWeb/HTML/ImageBitmap.h>
-#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextImpl.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
@@ -35,11 +31,6 @@ extern "C" {
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
-#include <core/SkColorSpace.h>
-#include <core/SkColorType.h>
-#include <core/SkImage.h>
-#include <core/SkPixmap.h>
-
 namespace Web::WebGL {
 
 static Vector<GLchar> null_terminated_string(StringView string)
@@ -49,193 +40,6 @@ static Vector<GLchar> null_terminated_string(StringView string)
         result.append(c);
     result.append('\0');
     return result;
-}
-
-static constexpr Optional<int> opengl_format_number_of_components(WebIDL::UnsignedLong format)
-{
-    switch (format) {
-    case GL_RED:
-    case GL_RED_INTEGER:
-    case GL_LUMINANCE:
-    case GL_ALPHA:
-    case GL_DEPTH_COMPONENT:
-        return 1;
-    case GL_RG:
-    case GL_RG_INTEGER:
-    case GL_DEPTH_STENCIL:
-    case GL_LUMINANCE_ALPHA:
-        return 2;
-    case GL_RGB:
-    case GL_RGB_INTEGER:
-        return 3;
-    case GL_RGBA:
-    case GL_RGBA_INTEGER:
-        return 4;
-    default:
-        return OptionalNone {};
-    }
-}
-
-static constexpr Optional<int> opengl_type_size_in_bytes(WebIDL::UnsignedLong type)
-{
-    switch (type) {
-    case GL_UNSIGNED_BYTE:
-    case GL_BYTE:
-        return 1;
-    case GL_UNSIGNED_SHORT:
-    case GL_SHORT:
-    case GL_HALF_FLOAT:
-    case GL_UNSIGNED_SHORT_5_6_5:
-    case GL_UNSIGNED_SHORT_4_4_4_4:
-    case GL_UNSIGNED_SHORT_5_5_5_1:
-        return 2;
-    case GL_UNSIGNED_INT:
-    case GL_INT:
-    case GL_UNSIGNED_INT_2_10_10_10_REV:
-    case GL_UNSIGNED_INT_10F_11F_11F_REV:
-    case GL_UNSIGNED_INT_5_9_9_9_REV:
-    case GL_UNSIGNED_INT_24_8:
-        return 4;
-    case GL_FLOAT_32_UNSIGNED_INT_24_8_REV:
-        return 8;
-    default:
-        return OptionalNone {};
-    }
-}
-
-static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
-{
-    switch (format) {
-    case GL_RGB:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return SkColorType::kRGB_888x_SkColorType;
-        case GL_UNSIGNED_SHORT_5_6_5:
-            return SkColorType::kRGB_565_SkColorType;
-        default:
-            break;
-        }
-        break;
-    case GL_RGBA:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return SkColorType::kRGBA_8888_SkColorType;
-        case GL_UNSIGNED_SHORT_4_4_4_4:
-            // FIXME: This is not exactly the same as RGBA.
-            return SkColorType::kARGB_4444_SkColorType;
-        case GL_UNSIGNED_SHORT_5_5_5_1:
-            dbgln("WebGL2 FIXME: Support conversion to RGBA5551.");
-            break;
-        default:
-            break;
-        }
-        break;
-    case GL_ALPHA:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return SkColorType::kAlpha_8_SkColorType;
-        default:
-            break;
-        }
-        break;
-    case GL_LUMINANCE:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return SkColorType::kGray_8_SkColorType;
-        default:
-            break;
-        }
-        break;
-    default:
-        break;
-    }
-
-    dbgln("WebGL2: Unsupported format and type combination. format: 0x{:04x}, type: 0x{:04x}", format, type);
-    return SkColorType::kUnknown_SkColorType;
-}
-
-struct ConvertedTexture {
-    ByteBuffer buffer;
-    int width { 0 };
-    int height { 0 };
-};
-
-static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {})
-{
-    // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
-    //        an INVALID_VALUE error is generated.
-    // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
-    //        error is generated.
-    // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
-    //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
-    //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
-    //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
-    // FIXME: If source is null then an INVALID_VALUE error is generated.
-    auto bitmap = source.visit(
-        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->immutable_bitmap();
-        },
-        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto surface = source->surface();
-            if (!surface)
-                return {};
-            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
-            surface->read_into_bitmap(*bitmap);
-            return Gfx::ImmutableBitmap::create(*bitmap);
-        },
-        [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(source->bitmap());
-        });
-    if (!bitmap)
-        return OptionalNone {};
-
-    int width = destination_width.value_or(bitmap->width());
-    int height = destination_height.value_or(bitmap->height());
-
-    Checked<size_t> buffer_pitch = width;
-
-    auto number_of_components = opengl_format_number_of_components(format);
-    if (!number_of_components.has_value())
-        return OptionalNone {};
-
-    buffer_pitch *= number_of_components.value();
-
-    auto type_size = opengl_type_size_in_bytes(type);
-    if (!type_size.has_value())
-        return OptionalNone {};
-
-    buffer_pitch *= type_size.value();
-
-    if (buffer_pitch.has_overflow())
-        return OptionalNone {};
-
-    if (Checked<size_t>::multiplication_would_overflow(buffer_pitch.value(), height))
-        return OptionalNone {};
-
-    auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
-
-    auto skia_format = opengl_format_and_type_to_skia_color_type(format, type);
-
-    // FIXME: Respect UNPACK_PREMULTIPLY_ALPHA_WEBGL
-    // FIXME: Respect unpackColorSpace
-    auto color_space = SkColorSpace::MakeSRGB();
-    auto image_info = SkImageInfo::Make(width, height, skia_format, SkAlphaType::kPremul_SkAlphaType, color_space);
-    SkPixmap const pixmap(image_info, buffer.data(), buffer_pitch.value());
-    bitmap->sk_image()->readPixels(pixmap, 0, 0);
-    return ConvertedTexture {
-        .buffer = move(buffer),
-        .width = width,
-        .height = height,
-    };
 }
 
 WebGL2RenderingContextImpl::WebGL2RenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)

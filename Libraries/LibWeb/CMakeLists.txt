@@ -1034,6 +1034,7 @@ set(SOURCES
     WebGL/WebGLQuery.cpp
     WebGL/WebGLRenderbuffer.cpp
     WebGL/WebGLRenderingContext.cpp
+    WebGL/WebGLRenderingContextBase.cpp
     WebGL/WebGLRenderingContextImpl.cpp
     WebGL/WebGLSampler.cpp
     WebGL/WebGLShader.cpp
