@@ -29,6 +29,12 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, FlyString const& property, String css_text);
     static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, FlyString const& property, String css_text);
 
+    enum class ParseMultiple : u8 {
+        No,
+        Yes,
+    };
+    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, FlyString property, String css_text, ParseMultiple);
+
     virtual WebIDL::ExceptionOr<String> to_string() const;
 
 protected:
@@ -37,12 +43,6 @@ protected:
 
 private:
     explicit CSSStyleValue(JS::Realm&, FlyString associated_property, NonnullRefPtr<StyleValue const> source_value);
-
-    enum class ParseMultiple : u8 {
-        No,
-        Yes,
-    };
-    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, FlyString property, String css_text, ParseMultiple);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<FlyString> m_associated_property;
