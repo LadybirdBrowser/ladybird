@@ -27,6 +27,8 @@ describe("correct behavior", () => {
 
         expect(o.foo).toBe("bar");
         expect(o["foo"]).toBe("bar");
+        // prettier-ignore
+        // Ignored so the expressions arent wrapped in parens
         expect(o.qux).toBe(10), expect(o.hello).toBe("friends");
         expect(o["hello"]).toBe("friends");
     });
