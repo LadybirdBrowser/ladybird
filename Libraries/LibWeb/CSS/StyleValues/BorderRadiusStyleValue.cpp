@@ -14,14 +14,14 @@ namespace Web::CSS {
 String BorderRadiusStyleValue::to_string(SerializationMode mode) const
 {
     if (m_properties.horizontal_radius == m_properties.vertical_radius)
-        return m_properties.horizontal_radius.to_string(mode);
-    return MUST(String::formatted("{} {}", m_properties.horizontal_radius.to_string(mode), m_properties.vertical_radius.to_string(mode)));
+        return m_properties.horizontal_radius->to_string(mode);
+    return MUST(String::formatted("{} {}", m_properties.horizontal_radius->to_string(mode), m_properties.vertical_radius->to_string(mode)));
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto absolutized_horizontal_radius = m_properties.horizontal_radius.absolutized(computation_context);
-    auto absolutized_vertical_radius = m_properties.vertical_radius.absolutized(computation_context);
+    auto absolutized_horizontal_radius = m_properties.horizontal_radius->absolutized(computation_context);
+    auto absolutized_vertical_radius = m_properties.vertical_radius->absolutized(computation_context);
 
     if (absolutized_vertical_radius == m_properties.vertical_radius && absolutized_horizontal_radius == m_properties.horizontal_radius)
         return *this;
