@@ -52,7 +52,7 @@ constexpr u32 TRACK_UID_ID = 0x73C5;
 constexpr u32 TRACK_TYPE_ID = 0x83;
 constexpr u32 TRACK_LANGUAGE_ID = 0x22B59C;
 constexpr u32 TRACK_CODEC_ID = 0x86;
-constexpr u32 TRACK_CODEC_PRIVATE = 0x63A2;
+constexpr u32 TRACK_CODEC_PRIVATE_ID = 0x63A2;
 constexpr u32 TRACK_TIMESTAMP_SCALE_ID = 0x23314F;
 constexpr u32 TRACK_OFFSET_ID = 0x537F;
 constexpr u32 TRACK_VIDEO_ID = 0xE0;
@@ -483,7 +483,7 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
             track_entry->set_codec_id(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
             break;
-        case TRACK_CODEC_PRIVATE: {
+        case TRACK_CODEC_PRIVATE_ID: {
             auto codec_private_data = TRY_READ(streamer.read_raw_octets(TRY_READ(streamer.read_variable_size_integer())));
             DECODER_TRY_ALLOC(track_entry->set_codec_private_data(codec_private_data));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
