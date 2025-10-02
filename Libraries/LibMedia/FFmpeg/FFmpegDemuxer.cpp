@@ -141,11 +141,8 @@ DecoderErrorOr<Optional<Track>> FFmpegDemuxer::get_preferred_track_for_type(Trac
     return get_track_for_stream_index(best_stream_index);
 }
 
-DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
+DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions)
 {
-    // FIXME: What do we do with this here?
-    (void)earliest_available_sample;
-
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
     auto time_base = av_q2d(stream->time_base);
