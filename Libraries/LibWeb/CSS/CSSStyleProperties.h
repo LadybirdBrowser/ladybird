@@ -55,6 +55,7 @@ public:
 
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const override;
     RefPtr<StyleValue const> get_property_style_value(PropertyID) const;
+    virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) override;
 
     String css_float() const;
     WebIDL::ExceptionOr<void> set_css_float(StringView);
