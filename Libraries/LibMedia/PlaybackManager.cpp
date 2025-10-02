@@ -228,6 +228,11 @@ bool PlaybackManager::is_playing()
     return m_handler->is_playing();
 }
 
+PlaybackState PlaybackManager::state()
+{
+    return m_handler->state();
+}
+
 void PlaybackManager::set_volume(double volume)
 {
     if (m_audio_sink)
