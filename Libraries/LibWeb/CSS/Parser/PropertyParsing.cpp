@@ -446,6 +446,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         //       values, only the CSS-wide keywords - this is handled above, and thus, if we have gotten to here, there
         //       is an invalid value which is a syntax error.
         return ParseError::SyntaxError;
+    case PropertyID::AnchorName:
+        if (auto parsed_value = parse_anchor_name_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::AspectRatio:
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -1190,6 +1194,21 @@ RefPtr<StyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValue>&
         return *cursors.first();
 
     return StyleValueList::create(move(cursors), StyleValueList::Separator::Comma);
+}
+
+// https://drafts.csswg.org/css-anchor-position/#name
+RefPtr<StyleValue const> Parser::parse_anchor_name_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | <dashed-ident>#
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    return parse_comma_separated_value_list(tokens, [this](TokenStream<ComponentValue>& inner_tokens) -> RefPtr<StyleValue const> {
+        auto dashed_ident = parse_dashed_ident(inner_tokens);
+        if (!dashed_ident.has_value())
+            return nullptr;
+        return CustomIdentStyleValue::create(*dashed_ident);
+    });
 }
 
 // https://www.w3.org/TR/css-sizing-4/#aspect-ratio

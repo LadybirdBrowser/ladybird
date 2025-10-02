@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Tests basics of the 'anchor-name' property</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+<script src="../../css/support/interpolation-testcommon.js"></script>
+
+<div id="container">
+  <div id="target"></div>
+</div>
+
+<script>
+// anchor-name: none | <dashed-ident>#
+test_valid_value('anchor-name', 'none');
+test_valid_value('anchor-name', '--foo');
+test_valid_value('anchor-name', '--foo, --bar')
+test_invalid_value('anchor-name', 'foo-bar');
+test_invalid_value('anchor-name', '--foo --bar')
+test_invalid_value('anchor-name', '100px');
+test_invalid_value('anchor-name', '100%');
+
+// Computed value: as specified
+test_computed_value('anchor-name', 'none');
+test_computed_value('anchor-name', '--foo');
+test_computed_value('anchor-name', '--foo, --bar');
+
+// Initial: none
+// Inherited: no
+assert_not_inherited('anchor-name', 'none', '--foo');
+
+// Animation type: discrete
+test_no_interpolation({
+  property: 'anchor-name',
+  from: '--foo',
+  to: 'none',
+});
+</script>

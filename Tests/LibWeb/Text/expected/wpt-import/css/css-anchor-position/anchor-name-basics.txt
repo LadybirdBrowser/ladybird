@@ -1,0 +1,59 @@
+Harness status: OK
+
+Found 54 tests
+
+54 Pass
+Pass	e.style['anchor-name'] = "none" should set the property value
+Pass	e.style['anchor-name'] = "--foo" should set the property value
+Pass	e.style['anchor-name'] = "--foo, --bar" should set the property value
+Pass	e.style['anchor-name'] = "foo-bar" should not set the property value
+Pass	e.style['anchor-name'] = "--foo --bar" should not set the property value
+Pass	e.style['anchor-name'] = "100px" should not set the property value
+Pass	e.style['anchor-name'] = "100%" should not set the property value
+Pass	Property anchor-name value 'none'
+Pass	Property anchor-name value '--foo'
+Pass	Property anchor-name value '--foo, --bar'
+Pass	Property anchor-name has initial value none
+Pass	Property anchor-name does not inherit
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (-0.3) should be [--foo]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (0) should be [--foo]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (0.3) should be [--foo]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (0.5) should be [none]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (0.6) should be [none]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (1) should be [none]
+Pass	CSS Transitions with transition-behavior:allow-discrete: property <anchor-name> from [--foo] to [none] at (1.5) should be [none]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (-0.3) should be [--foo]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (0) should be [--foo]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (0.3) should be [--foo]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (0.5) should be [none]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (0.6) should be [none]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (1) should be [none]
+Pass	CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <anchor-name> from [--foo] to [none] at (1.5) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (-0.3) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (0) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (0.3) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (0.5) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (0.6) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (1) should be [none]
+Pass	CSS Transitions: property <anchor-name> from [--foo] to [none] at (1.5) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (-0.3) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (0) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (0.3) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (0.5) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (0.6) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (1) should be [none]
+Pass	CSS Transitions with transition: all: property <anchor-name> from [--foo] to [none] at (1.5) should be [none]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (-0.3) should be [--foo]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (0) should be [--foo]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (0.3) should be [--foo]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (0.5) should be [none]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (0.6) should be [none]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (1) should be [none]
+Pass	CSS Animations: property <anchor-name> from [--foo] to [none] at (1.5) should be [none]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (-0.3) should be [--foo]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (0) should be [--foo]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (0.3) should be [--foo]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (0.5) should be [none]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (0.6) should be [none]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (1) should be [none]
+Pass	Web Animations: property <anchor-name> from [--foo] to [none] at (1.5) should be [none]
