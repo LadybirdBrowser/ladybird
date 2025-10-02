@@ -153,6 +153,8 @@ static CodecID get_codec_id_for_string(String const& codec_id)
         return CodecID::Vorbis;
     if (codec_id == "A_OPUS")
         return CodecID::Opus;
+    if (codec_id == "A_FLAC")
+        return CodecID::FLAC;
     return CodecID::Unknown;
 }
 
