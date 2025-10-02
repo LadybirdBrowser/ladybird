@@ -63,16 +63,16 @@ describe("basic usage", () => {
                 [Symbol.dispose]() {
                     expect(this.value).toBe(value);
                     disposable.push(value);
-                }
+                },
             };
         }
 
-        for (using a of [createDisposable('a'), createDisposable('b'), createDisposable('c')]) {
+        for (using a of [createDisposable("a"), createDisposable("b"), createDisposable("c")]) {
             expect(disposable).toEqual(values);
             values.push(a.value);
         }
 
-        expect(disposable).toEqual(['a', 'b', 'c']);
+        expect(disposable).toEqual(["a", "b", "c"]);
     });
 
     test.xfail("using in for of loop with expression body", () => {
@@ -82,11 +82,12 @@ describe("basic usage", () => {
         const obj = {
             [Symbol.dispose]() {
                 disposableCalls++;
-            }
+            },
         };
 
-        for (using a of [obj, obj, obj])
+        for (using a of [obj, obj, obj]) {
             expect(disposableCalls).toBe(i++);
+        }
 
         expect(disposableCalls).toBe(3);
     });
@@ -96,12 +97,13 @@ describe("basic usage", () => {
         const a = {
             [Symbol.dispose]() {
                 disposed++;
-            }
-        }
+            },
+        };
 
         expect(disposed).toBe(0);
-        for (using b = a, c = a; false;)
+        for (using b = a, c = a; false; ) {
             expect().fail();
+        }
 
         expect(disposed).toBe(2);
     });
@@ -126,7 +128,7 @@ describe("basic usage", () => {
     test.xfail("can have using in block in for-in loop", () => {
         const disposed = [];
         const values = [];
-        for (const i in ['a', 'b', 'c']) {
+        for (const i in ["a", "b", "c"]) {
             using a = {
                 val: i,
                 [Symbol.dispose]() {
@@ -145,14 +147,15 @@ describe("basic usage", () => {
 
         const obj = {
             [Symbol.dispose]() {
-                expect()
+                expect();
                 disposableCalls++;
-            }
+            },
         };
 
         try {
-            for (using a of [obj])
+            for (using a of [obj]) {
                 throw new ExpectationError("Expected in for-of");
+            }
 
             expect().fail("Should have thrown");
         } catch (e) {
