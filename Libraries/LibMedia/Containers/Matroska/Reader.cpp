@@ -53,6 +53,7 @@ constexpr u32 TRACK_TYPE_ID = 0x83;
 constexpr u32 TRACK_LANGUAGE_ID = 0x22B59C;
 constexpr u32 TRACK_CODEC_ID = 0x86;
 constexpr u32 TRACK_CODEC_PRIVATE_ID = 0x63A2;
+constexpr u32 TRACK_CODEC_DELAY_ID = 0x56AA;
 constexpr u32 TRACK_TIMESTAMP_SCALE_ID = 0x23314F;
 constexpr u32 TRACK_OFFSET_ID = 0x537F;
 constexpr u32 TRACK_VIDEO_ID = 0xE0;
@@ -489,6 +490,10 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
             break;
         }
+        case TRACK_CODEC_DELAY_ID:
+            track_entry->set_codec_delay(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecDelay attribute: {}", track_entry->codec_delay());
+            break;
         case TRACK_TIMESTAMP_SCALE_ID:
             track_entry->set_timestamp_scale(TRY_READ(streamer.read_float()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackTimestampScale attribute: {}", track_entry->timestamp_scale());
