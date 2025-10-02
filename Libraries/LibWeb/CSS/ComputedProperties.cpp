@@ -179,16 +179,7 @@ Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id
         return NormalGap {};
     }
 
-    if (value.is_calculated())
-        return LengthPercentage { value.as_calculated() };
-
-    if (value.is_percentage())
-        return LengthPercentage { value.as_percentage().percentage() };
-
-    if (value.is_length())
-        return LengthPercentage { value.as_length().length() };
-
-    VERIFY_NOT_REACHED();
+    return LengthPercentage::from_style_value(value);
 }
 
 Size ComputedProperties::size_value(PropertyID id) const
@@ -674,17 +665,6 @@ Optional<Transformation> ComputedProperties::scale() const
     return value.as_transformation().to_transformation();
 }
 
-static Optional<LengthPercentage> length_percentage_for_style_value(StyleValue const& value)
-{
-    if (value.is_length())
-        return value.as_length().length();
-    if (value.is_percentage())
-        return value.as_percentage().percentage();
-    if (value.is_calculated())
-        return LengthPercentage { value.as_calculated() };
-    return {};
-}
-
 TransformBox ComputedProperties::transform_box() const
 {
     auto const& value = property(PropertyID::TransformBox);
@@ -693,7 +673,7 @@ TransformBox ComputedProperties::transform_box() const
 
 TransformOrigin ComputedProperties::transform_origin() const
 {
-    auto length_percentage_with_keywords_resolved = [](StyleValue const& value) -> Optional<LengthPercentage> {
+    auto length_percentage_with_keywords_resolved = [](StyleValue const& value) -> LengthPercentage {
         if (value.is_keyword()) {
             auto keyword = value.to_keyword();
             if (keyword == Keyword::Left || keyword == Keyword::Top)
@@ -705,7 +685,7 @@ TransformOrigin ComputedProperties::transform_origin() const
 
             VERIFY_NOT_REACHED();
         }
-        return length_percentage_for_style_value(value);
+        return LengthPercentage::from_style_value(value);
     };
 
     auto const& value = property(PropertyID::TransformOrigin);
@@ -715,10 +695,8 @@ TransformOrigin ComputedProperties::transform_origin() const
 
     auto x_value = length_percentage_with_keywords_resolved(list.values()[0]);
     auto y_value = length_percentage_with_keywords_resolved(list.values()[1]);
-    auto z_value = length_percentage_for_style_value(list.values()[2]);
-    if (!x_value.has_value() || !y_value.has_value() || !z_value.has_value())
-        return {};
-    return { x_value.value(), y_value.value(), z_value.value() };
+    auto z_value = LengthPercentage::from_style_value(list.values()[2]);
+    return { x_value, y_value, z_value };
 }
 
 Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const
@@ -1222,13 +1200,8 @@ TextDecorationThickness ComputedProperties::text_decoration_thickness() const
             VERIFY_NOT_REACHED();
         }
     }
-    if (value.is_length())
-        return TextDecorationThickness { LengthPercentage { value.as_length().length() } };
-    if (value.is_percentage())
-        return TextDecorationThickness { LengthPercentage { value.as_percentage().percentage() } };
-    if (value.is_calculated())
-        return TextDecorationThickness { LengthPercentage { value.as_calculated() } };
-    VERIFY_NOT_REACHED();
+
+    return TextDecorationThickness { LengthPercentage::from_style_value(value) };
 }
 
 TextTransform ComputedProperties::text_transform() const
@@ -1356,16 +1329,7 @@ Variant<VerticalAlign, LengthPercentage> ComputedProperties::vertical_align() co
     if (value.is_keyword())
         return keyword_to_vertical_align(value.to_keyword()).release_value();
 
-    if (value.is_length())
-        return LengthPercentage(value.as_length().length());
-
-    if (value.is_percentage())
-        return LengthPercentage(value.as_percentage().percentage());
-
-    if (value.is_calculated())
-        return LengthPercentage { value.as_calculated() };
-
-    VERIFY_NOT_REACHED();
+    return LengthPercentage::from_style_value(value);
 }
 
 FontKerning ComputedProperties::font_kerning() const

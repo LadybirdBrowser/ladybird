@@ -14,6 +14,8 @@
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -208,6 +210,18 @@ class LengthPercentage : public PercentageOr<Length, LengthPercentage> {
 public:
     using PercentageOr<Length, LengthPercentage>::PercentageOr;
 
+    static LengthPercentage from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+    {
+        if (style_value->is_percentage())
+            return LengthPercentage { style_value->as_percentage().percentage() };
+        if (style_value->is_length())
+            return LengthPercentage { style_value->as_length().length() };
+        if (style_value->is_calculated())
+            return LengthPercentage { style_value->as_calculated() };
+
+        VERIFY_NOT_REACHED();
+    }
+
     bool is_length() const { return is_t(); }
     Length const& length() const { return get_t(); }
 };
@@ -232,6 +246,14 @@ public:
     static LengthPercentageOrAuto make_auto()
     {
         return LengthPercentageOrAuto();
+    }
+
+    static LengthPercentageOrAuto from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+    {
+        if (style_value->has_auto())
+            return LengthPercentageOrAuto::make_auto();
+
+        return LengthPercentage::from_style_value(style_value);
     }
 
     bool is_auto() const { return !m_length_percentage.has_value(); }
