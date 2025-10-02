@@ -7,7 +7,11 @@
 #include "CSSKeywordValue.h"
 #include <LibWeb/Bindings/CSSKeywordValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -61,6 +65,39 @@ WebIDL::ExceptionOr<String> CSSKeywordValue::to_string() const
     // 1. Return this’s value internal slot.
     // AD-HOC: Serialize it as an identifier. Spec issue: https://github.com/w3c/csswg-drafts/issues/12545
     return serialize_an_identifier(m_value);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_internal_representation(PropertyNameAndID const& property) const
+{
+    // If value is a CSSStyleValue subclass,
+    //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
+    bool const matches_grammar = [&] {
+        // https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue-match-a-grammar
+        // A CSSKeywordValue matches an <ident> specified in a grammar if its value internal slot matches the
+        // identifier.
+        // If case-folding rules are in effect normally for that <ident> (such as Auto matching the keyword auto
+        // specified in the grammar for width), they apply to this comparison as well.
+        if (property.is_custom_property()) {
+            // FIXME: If this is a registered custom property, check if that allows the keyword.
+            return true;
+        }
+        auto keyword = keyword_from_string(m_value);
+        return keyword.has_value() && property_accepts_keyword(property.id(), keyword.value());
+    }();
+    if (!matches_grammar) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Property '{}' does not accept the keyword '{}'", property.name(), m_value)) };
+    }
+
+    //     If any component of property’s CSS grammar has a limited numeric range, and the corresponding part of value
+    //     is a CSSUnitValue that is outside of that range, replace that value with the result of wrapping it in a
+    //     fresh CSSMathSum whose values internal slot contains only that part of value.
+    // NB: Non-applicable.
+
+    //     Return the value.
+    if (auto keyword = keyword_from_string(m_value); keyword.has_value())
+        return KeywordStyleValue::create(*keyword);
+    return CustomIdentStyleValue::create(m_value);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-keywordish-value
