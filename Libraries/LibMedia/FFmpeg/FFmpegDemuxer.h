@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,16 +29,16 @@ public:
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
     virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
 
-    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
+    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
 
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
+    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const& track) override;
 
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) override;
+    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const& track) override;
 
-    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) override;
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const& track) override;
 
 private:
     DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);
