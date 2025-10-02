@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibMedia/Forward.h>
+#include <LibMedia/PlaybackStates/PlaybackState.h>
 
 namespace Media {
 
@@ -25,6 +26,7 @@ public:
     virtual void pause() = 0;
 
     virtual bool is_playing() = 0;
+    virtual PlaybackState state() = 0;
 
 protected:
     PlaybackManager& manager() const { return m_manager; }

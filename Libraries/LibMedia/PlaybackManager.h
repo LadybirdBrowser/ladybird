@@ -17,6 +17,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/PlaybackStates/Forward.h>
+#include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Mutex.h>
@@ -71,6 +72,7 @@ public:
     void pause();
 
     bool is_playing();
+    PlaybackState state();
 
     void set_volume(double);
 
