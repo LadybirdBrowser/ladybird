@@ -216,6 +216,8 @@ namespace JS {
     P(getMinutes)                            \
     P(getMonth)                              \
     P(getNumberingSystems)                   \
+    P(getOrInsert)                           \
+    P(getOrInsertComputed)                   \
     P(getOwnPropertyDescriptor)              \
     P(getOwnPropertyDescriptors)             \
     P(getOwnPropertyNames)                   \
