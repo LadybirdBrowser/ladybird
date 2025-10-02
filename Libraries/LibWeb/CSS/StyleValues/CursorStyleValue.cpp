@@ -8,6 +8,8 @@
 #include <LibGfx/Painter.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
@@ -20,8 +22,8 @@ String CursorStyleValue::to_string(SerializationMode mode) const
 
     builder.append(m_properties.image->to_string(mode));
 
-    if (m_properties.x.has_value()) {
-        VERIFY(m_properties.y.has_value());
+    if (m_properties.x) {
+        VERIFY(m_properties.y);
         builder.appendff(" {} {}", m_properties.x->to_string(mode), m_properties.y->to_string(mode));
     }
 
@@ -30,15 +32,21 @@ String CursorStyleValue::to_string(SerializationMode mode) const
 
 ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    return CursorStyleValue::create(
-        m_properties.image->absolutized(computation_context)->as_abstract_image(),
-        m_properties.x.map([&](NumberOrCalculated const& value) { return value.absolutized(computation_context); }),
-        m_properties.y.map([&](NumberOrCalculated const& value) { return value.absolutized(computation_context); }));
+    RefPtr<StyleValue const> absolutized_x;
+    RefPtr<StyleValue const> absolutized_y;
+
+    if (m_properties.x)
+        absolutized_x = m_properties.x->absolutized(computation_context);
+
+    if (m_properties.y)
+        absolutized_y = m_properties.y->absolutized(computation_context);
+
+    return CursorStyleValue::create(m_properties.image->absolutized(computation_context)->as_abstract_image(), absolutized_x, absolutized_y);
 }
 
 Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const
 {
-    auto const& image = *this->image();
+    auto const& image = *m_properties.image;
     if (!image.is_paintable()) {
         const_cast<AbstractImageStyleValue&>(image).load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
         return {};
@@ -113,16 +121,20 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
     // value of "0 0" were specified."
     // FIXME: Make use of embedded hotspots.
     Gfx::IntPoint hotspot = { 0, 0 };
-    if (x().has_value() && y().has_value()) {
+    if (m_properties.x && m_properties.y) {
         VERIFY(document.window());
-        CalculationResolutionContext const calculation_resolution_context {
-            .length_resolution_context = m_cache_key->length_resolution_context
+
+        auto resolved_value = [](StyleValue const& value) {
+            if (value.is_number())
+                return value.as_number().number();
+
+            if (value.is_calculated() && value.as_calculated().resolves_to_number())
+                return value.as_calculated().resolve_number({}).value();
+
+            VERIFY_NOT_REACHED();
         };
-        auto resolved_x = x()->resolved(calculation_resolution_context);
-        auto resolved_y = y()->resolved(calculation_resolution_context);
-        if (resolved_x.has_value() && resolved_y.has_value()) {
-            hotspot = { resolved_x.release_value(), resolved_y.release_value() };
-        }
+
+        hotspot = { resolved_value(*m_properties.x), resolved_value(*m_properties.y) };
     }
 
     return Gfx::ImageCursor {
