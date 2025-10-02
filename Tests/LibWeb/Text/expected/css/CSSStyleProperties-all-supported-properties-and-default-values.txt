@@ -156,6 +156,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'alignSelf': 'auto'
 'align-self': 'auto'
 'all': ''
+'anchorName': 'none'
+'anchor-name': 'none'
 'animation': 'none'
 'animationComposition': 'replace'
 'animation-composition': 'replace'

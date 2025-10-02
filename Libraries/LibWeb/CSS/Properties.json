@@ -194,6 +194,17 @@
     "longhands": [],
     "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
   },
+  "anchor-name": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "custom-ident ![none]"
+    ]
+  },
   "animation": {
     "affects-layout": false,
     "inherited": false,

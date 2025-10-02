@@ -422,6 +422,7 @@ private:
     RefPtr<StyleValue const> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);
 
+    RefPtr<StyleValue const> parse_anchor_name_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_animation_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_background_value(TokenStream<ComponentValue>&);
