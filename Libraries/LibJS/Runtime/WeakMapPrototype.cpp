@@ -26,6 +26,8 @@ void WeakMapPrototype::initialize(Realm& realm)
 
     define_native_function(realm, vm.names.delete_, delete_, 1, attr);
     define_native_function(realm, vm.names.get, get, 1, attr);
+    define_native_function(realm, vm.names.getOrInsert, get_or_insert, 2, attr);
+    define_native_function(realm, vm.names.getOrInsertComputed, get_or_insert_computed, 2, attr);
     define_native_function(realm, vm.names.has, has, 1, attr);
     define_native_function(realm, vm.names.set, set, 2, attr);
 
@@ -77,6 +79,79 @@ JS_DEFINE_NATIVE_FUNCTION(WeakMapPrototype::get)
 
     // 5. Return undefined.
     return js_undefined();
+}
+
+// 3 WeakMap.prototype.getOrInsert ( key, value ), https://tc39.es/proposal-upsert/#sec-weakmap.prototype.getOrInsert
+JS_DEFINE_NATIVE_FUNCTION(WeakMapPrototype::get_or_insert)
+{
+    auto key = vm.argument(0);
+    auto value = vm.argument(1);
+
+    // 1. Let M be the this value.
+    // 2. Perform ? RequireInternalSlot(M, [[WeakMapData]]).
+    auto weak_map = TRY(typed_this_object(vm));
+
+    // 3. If CanBeHeldWeakly(key) is false, throw a TypeError exception.
+    if (!can_be_held_weakly(key))
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, key);
+
+    auto& values = weak_map->values();
+
+    // 4. For each Record { [[Key]], [[Value]] } p of M.[[WeakMapData]], do
+    if (auto result = values.find(&key.as_cell()); result != values.end()) {
+        // a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, return p.[[Value]].
+        return result->value;
+    }
+
+    // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
+    // 6. Append p to M.[[WeakMapData]].
+    values.set(&key.as_cell(), value);
+
+    // 7. Return value.
+    return value;
+}
+
+// 4 WeakMap.prototype.getOrInsertComputed ( key, callback ), https://tc39.es/proposal-upsert/#sec-weakmap.prototype.getOrInsertComputed
+JS_DEFINE_NATIVE_FUNCTION(WeakMapPrototype::get_or_insert_computed)
+{
+    auto key = vm.argument(0);
+    auto callback = vm.argument(1);
+
+    // 1. Let M be the this value.
+    // 2. Perform ? RequireInternalSlot(M, [[WeakMapData]]).
+    auto weak_map = TRY(typed_this_object(vm));
+
+    // 3. If CanBeHeldWeakly(key) is false, throw a TypeError exception.
+    if (!can_be_held_weakly(key))
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, key);
+
+    // 4. If IsCallable(callback) is false, throw a TypeError exception.
+    if (!callback.is_function())
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback);
+
+    auto& values = weak_map->values();
+
+    // 5. For each Record { [[Key]], [[Value]] } p of M.[[WeakMapData]], do
+    if (auto result = values.find(&key.as_cell()); result != values.end()) {
+        // a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, return p.[[Value]].
+        return result->value;
+    }
+
+    // 6. Let value be ? Call(callback, undefined, « key »).
+    auto value = TRY(call(vm, callback.as_function(), js_undefined(), key));
+
+    // 7. NOTE: The WeakMap may have been modified during execution of callback.
+
+    // 8. For each Record { [[Key]], [[Value]] } p of M.[[WeakMapData]], do
+    //     a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, then
+    //         i. Set p.[[Value]] to value.
+    //         ii. Return value.
+    // 9. Let p be the Record { [[Key]]: key, [[Value]]: value }.
+    // 10. Append p to M.[[WeakMapData]].
+    values.set(&key.as_cell(), value);
+
+    // 11. Return value.
+    return value;
 }
 
 // 24.3.3.4 WeakMap.prototype.has ( key ), https://tc39.es/ecma262/#sec-weakmap.prototype.has

@@ -24,6 +24,8 @@ private:
 
     JS_DECLARE_NATIVE_FUNCTION(delete_);
     JS_DECLARE_NATIVE_FUNCTION(get);
+    JS_DECLARE_NATIVE_FUNCTION(get_or_insert);
+    JS_DECLARE_NATIVE_FUNCTION(get_or_insert_computed);
     JS_DECLARE_NATIVE_FUNCTION(has);
     JS_DECLARE_NATIVE_FUNCTION(set);
 };
