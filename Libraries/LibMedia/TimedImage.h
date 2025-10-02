@@ -42,6 +42,11 @@ public:
         m_timestamp = AK::Duration::zero();
         return m_image.release_nonnull();
     }
+    void clear()
+    {
+        m_timestamp = AK::Duration::zero();
+        m_image = nullptr;
+    }
 
 private:
     AK::Duration m_timestamp { AK::Duration::zero() };

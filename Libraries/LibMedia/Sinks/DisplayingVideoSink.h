@@ -41,6 +41,9 @@ public:
     DisplayingVideoSinkUpdateResult update();
     RefPtr<Gfx::Bitmap> current_frame();
 
+    void pause_updates();
+    void resume_updates();
+
 private:
     static constexpr size_t DEFAULT_QUEUE_SIZE = 8;
 
@@ -53,6 +56,8 @@ private:
     Threading::Mutex m_mutex;
     TimedImage m_next_frame;
     RefPtr<Gfx::Bitmap> m_current_frame;
+    bool m_pause_updates { false };
+    bool m_cleared_current_frame { false };
 };
 
 }

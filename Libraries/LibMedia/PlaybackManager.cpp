@@ -173,7 +173,7 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
     if (track_data.display == nullptr) {
         track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
         track_data.display->set_provider(track, track_data.provider);
-        track_data.provider->seek(m_time_provider->current_time());
+        track_data.provider->seek(m_time_provider->current_time(), SeekMode::Accurate);
     }
 
     VERIFY(track_data.display->provider(track) == track_data.provider);
@@ -221,6 +221,12 @@ void PlaybackManager::play()
 void PlaybackManager::pause()
 {
     m_handler->pause();
+}
+
+void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
+{
+    m_handler->seek(timestamp, mode);
+    m_is_in_error_state = false;
 }
 
 bool PlaybackManager::is_playing()
