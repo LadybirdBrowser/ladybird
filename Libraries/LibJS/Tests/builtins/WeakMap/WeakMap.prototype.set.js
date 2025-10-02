@@ -14,10 +14,12 @@ test("basic functionality", () => {
 
 test("invalid values", () => {
     const weakMap = new WeakMap();
-    [-100, Infinity, NaN, "hello", 152n].forEach(value => {
+    [-100, Infinity, NaN, "hello", 152n].forEach(key => {
+        const suffix = typeof key === "bigint" ? "n" : "";
+
         expect(() => {
-            weakMap.set(value, value);
-        }).toThrowWithMessage(TypeError, "cannot be held weakly");
+            weakMap.set(key, 1);
+        }).toThrowWithMessage(TypeError, `${key}${suffix} cannot be held weakly`);
     });
 });
 
