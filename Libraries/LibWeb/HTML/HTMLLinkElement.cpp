@@ -381,6 +381,8 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
     if (!linked_resource_fetch_setup_steps(*request))
         return;
 
+    auto added_to_script_blocking_set = contributes_a_script_blocking_style_sheet();
+
     // 6. Set request's initiator type to "css" if el's rel attribute contains the keyword stylesheet; "link" otherwise.
     if (m_relationship & Relationship::Stylesheet) {
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
@@ -390,7 +392,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 
     // 7. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response_consume_body = [this, hr = options](auto response, auto body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [this, hr = options, added_to_script_blocking_set](auto response, auto body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
@@ -409,16 +411,19 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, body_bytes);
+        process_linked_resource(success, response, body_bytes, added_to_script_blocking_set);
     };
 
-    if (m_fetch_controller)
+    if (m_fetch_controller) {
         m_fetch_controller->abort(realm(), {});
+        if (document().script_blocking_style_sheet_set().contains(*this))
+            document().script_blocking_style_sheet_set().remove(*this);
+    }
     m_fetch_controller = MUST(Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes, bool added_to_script_blocking_set)
 {
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
@@ -514,12 +519,15 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     }
 
     // 6. If el contributes a script-blocking style sheet, then:
-    if (contributes_a_script_blocking_style_sheet()) {
+    if (added_to_script_blocking_set) {
         // 1. Assert: el's node document's script-blocking style sheet set contains el.
         if (document().script_blocking_style_sheet_set().contains(*this)) {
+            VERIFY(document().script_blocking_style_sheet_set().contains(*this));
             // 2. Remove el from its node document's script-blocking style sheet set.
             document().script_blocking_style_sheet_set().remove(*this);
         }
+    } else if (document().script_blocking_style_sheet_set().contains(*this)) {
+        document().script_blocking_style_sheet_set().remove(*this);
     }
 
     // 7. Unblock rendering on el.
@@ -529,10 +537,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes, bool added_to_script_blocking_set)
 {
     if (m_relationship & Relationship::Stylesheet)
-        process_stylesheet_resource(success, response, body_bytes);
+        process_stylesheet_resource(success, response, body_bytes, added_to_script_blocking_set);
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#linked-resource-fetch-setup-steps

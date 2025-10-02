@@ -1,0 +1,23 @@
+<!doctype html>
+<link id="l" rel="stylesheet" href="initial.css">
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    const l = document.getElementById('l');
+
+    println('Starting parser-created element test...');
+
+    // This is the most realistic crash scenario:
+    // Element was created by parser, so contributes_a_script_blocking_style_sheet() = true
+    // Initial fetch is in progress, then we rapidly change href
+
+    for (let i = 0; i < 10; i++) {
+        l.setAttribute('href', `change-${i}.css`);
+    }
+
+    setTimeout(() => {
+        println('Survived parser-created element stress test');
+        done();
+    }, 200);
+});
+</script>
