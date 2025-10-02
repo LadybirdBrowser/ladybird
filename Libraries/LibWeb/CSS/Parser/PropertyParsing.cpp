@@ -1934,20 +1934,20 @@ RefPtr<StyleValue const> Parser::parse_border_radius_value(TokenStream<Component
 {
     if (tokens.remaining_token_count() == 2) {
         auto transaction = tokens.begin_transaction();
-        auto horizontal = parse_length_percentage(tokens);
-        auto vertical = parse_length_percentage(tokens);
-        if (horizontal.has_value() && vertical.has_value()) {
+        auto horizontal = parse_length_percentage_value(tokens);
+        auto vertical = parse_length_percentage_value(tokens);
+        if (horizontal && vertical) {
             transaction.commit();
-            return BorderRadiusStyleValue::create(horizontal.release_value(), vertical.release_value());
+            return BorderRadiusStyleValue::create(horizontal.release_nonnull(), vertical.release_nonnull());
         }
     }
 
     if (tokens.remaining_token_count() == 1) {
         auto transaction = tokens.begin_transaction();
-        auto radius = parse_length_percentage(tokens);
-        if (radius.has_value()) {
+        auto radius = parse_length_percentage_value(tokens);
+        if (radius) {
             transaction.commit();
-            return BorderRadiusStyleValue::create(radius.value(), radius.value());
+            return BorderRadiusStyleValue::create(*radius, *radius);
         }
     }
 
@@ -1956,8 +1956,8 @@ RefPtr<StyleValue const> Parser::parse_border_radius_value(TokenStream<Component
 
 RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
-    auto top_left = [&](Vector<LengthPercentage>& radii) { return radii[0]; };
-    auto top_right = [&](Vector<LengthPercentage>& radii) {
+    auto top_left = [&](StyleValueVector& radii) { return radii[0]; };
+    auto top_right = [&](StyleValueVector& radii) {
         switch (radii.size()) {
         case 4:
         case 3:
@@ -1969,7 +1969,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
             VERIFY_NOT_REACHED();
         }
     };
-    auto bottom_right = [&](Vector<LengthPercentage>& radii) {
+    auto bottom_right = [&](StyleValueVector& radii) {
         switch (radii.size()) {
         case 4:
         case 3:
@@ -1981,7 +1981,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
             VERIFY_NOT_REACHED();
         }
     };
-    auto bottom_left = [&](Vector<LengthPercentage>& radii) {
+    auto bottom_left = [&](StyleValueVector& radii) {
         switch (radii.size()) {
         case 4:
             return radii[3];
@@ -1995,8 +1995,8 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
         }
     };
 
-    Vector<LengthPercentage> horizontal_radii;
-    Vector<LengthPercentage> vertical_radii;
+    StyleValueVector horizontal_radii;
+    StyleValueVector vertical_radii;
     bool reading_vertical = false;
     auto transaction = tokens.begin_transaction();
 
@@ -2010,17 +2010,17 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
             continue;
         }
 
-        auto maybe_dimension = parse_length_percentage(tokens);
-        if (!maybe_dimension.has_value())
+        auto maybe_dimension = parse_length_percentage_value(tokens);
+        if (!maybe_dimension)
             return nullptr;
-        if (maybe_dimension->is_length() && !property_accepts_length(PropertyID::BorderRadius, maybe_dimension->length()))
+        if (maybe_dimension->is_length() && !property_accepts_length(PropertyID::BorderRadius, maybe_dimension->as_length().length()))
             return nullptr;
-        if (maybe_dimension->is_percentage() && !property_accepts_percentage(PropertyID::BorderRadius, maybe_dimension->percentage()))
+        if (maybe_dimension->is_percentage() && !property_accepts_percentage(PropertyID::BorderRadius, maybe_dimension->as_percentage().percentage()))
             return nullptr;
         if (reading_vertical) {
-            vertical_radii.append(maybe_dimension.release_value());
+            vertical_radii.append(maybe_dimension.release_nonnull());
         } else {
-            horizontal_radii.append(maybe_dimension.release_value());
+            horizontal_radii.append(maybe_dimension.release_nonnull());
         }
     }
 

@@ -374,7 +374,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         auto horizontal_radius = [&](auto& style_value) -> String {
             if (style_value->is_border_radius())
-                return style_value->as_border_radius().horizontal_radius().to_string(mode);
+                return style_value->as_border_radius().horizontal_radius()->to_string(mode);
             return style_value->to_string(mode);
         };
 
@@ -385,7 +385,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         auto vertical_radius = [&](auto& style_value) -> String {
             if (style_value->is_border_radius())
-                return style_value->as_border_radius().vertical_radius().to_string(mode);
+                return style_value->as_border_radius().vertical_radius()->to_string(mode);
             return style_value->to_string(mode);
         };
 
