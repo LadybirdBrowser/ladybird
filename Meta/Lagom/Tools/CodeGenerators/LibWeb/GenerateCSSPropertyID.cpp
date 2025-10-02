@@ -172,7 +172,6 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 namespace Web::CSS {
 
 enum class PropertyID : @property_id_underlying_type@ {
-    Invalid,
     Custom,
 )~~~");
 
@@ -237,8 +236,6 @@ enum class PropertyID : @property_id_underlying_type@ {
 
     generator.append(R"~~~(
 };
-
-using PropertyIDOrCustomPropertyName = Variant<PropertyID, FlyString>;
 
 enum class AnimationType {
     Discrete,

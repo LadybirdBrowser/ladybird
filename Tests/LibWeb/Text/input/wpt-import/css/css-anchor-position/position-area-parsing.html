@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-area">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<body>
+<script>
+  function test_valid_single_position_area_values(valid_keywords) {
+    for (const keyword of valid_keywords) {
+      test_valid_value("position-area", keyword);
+    }
+  };
+
+  function test_valid_position_area_value_pairs(valid_keywords1,
+                                             valid_keywords2,
+                                             flip_order) {
+    for (const keyword1 of valid_keywords1) {
+      for (const keyword2 of valid_keywords2) {
+        if (keyword1 === keyword2) {
+          test_valid_value("position-area", keyword1 + " " + keyword2, keyword1);
+        } else {
+          test_valid_value("position-area", keyword1 + " " + keyword2,
+                           flip_order ? keyword2 + " " + keyword1 : keyword1 + " " + keyword2);
+        }
+      }
+    }
+  };
+
+  function test_valid_position_area_value_pairs_with_span_all_center(
+      valid_keywords, flip_order) {
+    for (const keyword of valid_keywords) {
+      test_valid_value("position-area", keyword + " center",
+                       flip_order ? "center " + keyword : keyword + " center");
+      test_valid_value("position-area", "center " + keyword,
+                       flip_order ? "center " + keyword : keyword + " center");
+      test_valid_value("position-area", keyword + " span-all", keyword);
+      test_valid_value("position-area", "span-all " + keyword, keyword);
+    }
+  };
+
+  function test_valid_position_area_value_start_end_pairs_with_span_all_center(
+      valid_keywords) {
+    for (const keyword of valid_keywords) {
+      test_valid_value("position-area", keyword + " center");
+      test_valid_value("position-area", "center " + keyword);
+      test_valid_value("position-area", keyword + " span-all");
+      test_valid_value("position-area", "span-all " + keyword);
+    }
+  }
+
+  function test_invalid_position_area_value_pairs(valid_keywords1,
+                                               valid_keywords2) {
+    for (const keyword1 of valid_keywords1) {
+      for (const keyword2 of valid_keywords2) {
+        test_invalid_value("position-area", keyword1 + " " + keyword2);
+        test_invalid_value("position-area", keyword2 + " " + keyword1);
+      }
+    }
+  };
+
+  function test_invalid_position_area_value_equal_pairs(valid_keywords) {
+    for (const keyword of valid_keywords) {
+      test_invalid_value("position-area", keyword + " " + keyword);
+    }
+  };
+
+  const horizontal = [ "left", "right", "span-left", "span-right", "x-start",
+                       "x-end", "span-x-start", "span-x-end", "x-self-start",
+                       "x-self-end", "span-x-self-start", "span-x-self-end" ];
+  const vertical = [ "top", "bottom", "span-top", "span-bottom", "y-start",
+                     "y-end", "span-y-start", "span-y-end", "y-self-start",
+                     "y-self-end", "span-y-self-start", "span-y-self-end" ];
+  const inline = [ "inline-start", "inline-end", "span-inline-start",
+                   "span-inline-end" ];
+  const block = [ "block-start", "block-end", "span-block-start",
+                  "span-block-end" ];
+  const self_inline = [ "self-inline-start", "self-inline-end",
+                        "span-self-inline-start", "span-self-inline-end" ];
+  const self_block = [ "self-block-start", "self-block-end",
+                       "span-self-block-start", "span-self-block-end" ];
+  const start_end = [ "start", "end", "span-start", "span-end" ];
+  const self_start_end = [ "self-start", "self-end", "span-self-start",
+                           "span-self-end" ];
+
+  // Test initial value 'none'
+  test_valid_value("position-area", "none");
+  test_invalid_value("position-area", "none none");
+  test_invalid_value("position-area", "start none");
+  test_invalid_value("position-area", "none start");
+  test_invalid_value("position-area", "top left top");
+
+  // Test keywords allowed in all axes
+  test_valid_value("position-area", "center");
+  test_valid_value("position-area", "center center", "center")
+  test_valid_value("position-area", "span-all");
+  test_valid_value("position-area", "span-all span-all", "span-all");
+  test_valid_value("position-area", "center span-all");
+  test_valid_value("position-area", "span-all center");
+
+  test_valid_single_position_area_values(horizontal);
+  test_valid_single_position_area_values(vertical);
+  test_valid_single_position_area_values(inline);
+  test_valid_single_position_area_values(block);
+  test_valid_single_position_area_values(self_inline);
+  test_valid_single_position_area_values(self_block);
+  test_valid_single_position_area_values(start_end);
+  test_valid_single_position_area_values(self_start_end);
+
+  // Used if the sets of valid keywords are serialized in a different order than
+  // the argument order
+  const flip_order = true;
+
+  // Test all valid combinations in both orders
+  test_valid_position_area_value_pairs(horizontal, vertical);
+  test_valid_position_area_value_pairs(vertical, horizontal, flip_order);
+  test_valid_position_area_value_pairs(block, inline);
+  test_valid_position_area_value_pairs(inline, block, flip_order);
+  test_valid_position_area_value_pairs(self_block, self_inline);
+  test_valid_position_area_value_pairs(self_inline, self_block, flip_order);
+  test_valid_position_area_value_pairs(start_end, start_end);
+  test_valid_position_area_value_pairs(self_start_end, self_start_end);
+
+  // Test all valid combinations with 'span-all' and 'center' in both orders
+  test_valid_position_area_value_pairs_with_span_all_center(horizontal);
+  test_valid_position_area_value_pairs_with_span_all_center(vertical, flip_order);
+  test_valid_position_area_value_pairs_with_span_all_center(block);
+  test_valid_position_area_value_pairs_with_span_all_center(inline, flip_order);
+  test_valid_position_area_value_pairs_with_span_all_center(self_block);
+  test_valid_position_area_value_pairs_with_span_all_center(self_inline, flip_order);
+  test_valid_position_area_value_start_end_pairs_with_span_all_center(start_end);
+  test_valid_position_area_value_start_end_pairs_with_span_all_center(self_start_end);
+
+  // Test all invalid combinations with incompatible axes in both orders
+  test_invalid_position_area_value_pairs(horizontal, inline);
+  test_invalid_position_area_value_pairs(horizontal, block);
+  test_invalid_position_area_value_pairs(horizontal, self_inline);
+  test_invalid_position_area_value_pairs(horizontal, self_block);
+  test_invalid_position_area_value_pairs(horizontal, start_end);
+  test_invalid_position_area_value_pairs(horizontal, self_start_end);
+  test_invalid_position_area_value_pairs(vertical, inline);
+  test_invalid_position_area_value_pairs(vertical, block);
+  test_invalid_position_area_value_pairs(vertical, self_inline);
+  test_invalid_position_area_value_pairs(vertical, self_block);
+  test_invalid_position_area_value_pairs(vertical, start_end);
+  test_invalid_position_area_value_pairs(vertical, self_start_end);
+  test_invalid_position_area_value_pairs(inline, self_inline);
+  test_invalid_position_area_value_pairs(inline, self_block);
+  test_invalid_position_area_value_pairs(inline, start_end);
+  test_invalid_position_area_value_pairs(inline, self_start_end);
+  test_invalid_position_area_value_pairs(block, self_inline);
+  test_invalid_position_area_value_pairs(block, self_block);
+  test_invalid_position_area_value_pairs(block, start_end);
+  test_invalid_position_area_value_pairs(block, self_start_end);
+  test_invalid_position_area_value_pairs(start_end, self_start_end);
+
+  // Test all invalid combinations of same axis
+  test_invalid_position_area_value_equal_pairs(horizontal);
+  test_invalid_position_area_value_equal_pairs(vertical);
+  test_invalid_position_area_value_equal_pairs(inline);
+  test_invalid_position_area_value_equal_pairs(block);
+  test_invalid_position_area_value_equal_pairs(self_inline);
+  test_invalid_position_area_value_equal_pairs(self_block);
+
+  // Test one invalid keyword
+  test_invalid_value("position-area", "foobar");
+  test_invalid_value("position-area", "visible");
+  test_invalid_value("position-area", "hidden");
+
+  // Test one valid and one invalid keyword
+  test_invalid_value("position-area", "start foobar");
+  test_invalid_value("position-area", "end visible");
+  test_invalid_value("position-area", "block-start hidden");
+  test_invalid_value("position-area", "hidden inline-end");
+
+  // Test two invalid keywords
+  test_invalid_value("position-area", "foo bar");
+  test_invalid_value("position-area", "visible hidden");
+  test_invalid_value("position-area", "hidden visible");
+</script>

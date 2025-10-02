@@ -131,11 +131,13 @@ private:
     [[nodiscard]] CSSPixels inner_cross_size(FlexItem const& item) const { return inner_cross_size(item.used_values); }
     bool has_main_min_size(Box const&) const;
     bool has_cross_min_size(Box const&) const;
-    CSSPixels specified_main_max_size(Box const&) const;
-    CSSPixels specified_cross_max_size(Box const&) const;
+    CSSPixels specified_main_max_size(FlexItem const&) const;
+    CSSPixels specified_cross_max_size(FlexItem const&) const;
     bool is_cross_auto(Box const&) const;
-    CSSPixels specified_main_min_size(Box const&) const;
-    CSSPixels specified_cross_min_size(Box const&) const;
+    CSSPixels specified_main_min_size(FlexItem const&) const;
+    CSSPixels specified_cross_min_size(FlexItem const&) const;
+    CSSPixels calculate_inner_flex_container_cross_min_size() const;
+    CSSPixels calculate_inner_flex_container_cross_max_size() const;
     bool has_main_max_size(Box const&) const;
     bool has_cross_max_size(Box const&) const;
     CSSPixels automatic_minimum_size(FlexItem const&) const;
@@ -150,8 +152,8 @@ private:
     CSS::Size const& computed_cross_min_size(Box const&) const;
     CSS::Size const& computed_cross_max_size(Box const&) const;
 
-    CSSPixels get_pixel_width(Box const&, CSS::Size const&) const;
-    CSSPixels get_pixel_height(Box const&, CSS::Size const&) const;
+    CSSPixels get_pixel_width(FlexItem const&, CSS::Size const&) const;
+    CSSPixels get_pixel_height(FlexItem const&, CSS::Size const&) const;
 
     bool flex_item_is_stretched(FlexItem const&) const;
 

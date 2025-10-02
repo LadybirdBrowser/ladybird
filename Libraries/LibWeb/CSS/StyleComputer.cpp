@@ -42,8 +42,10 @@
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
@@ -790,7 +792,7 @@ void StyleComputer::cascade_declarations(
             auto property_value = property.value;
 
             if (property_value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, property.property_id, property_value->as_unresolved());
+                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
 
             if (property_value->is_guaranteed_invalid()) {
                 // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
@@ -864,19 +866,32 @@ static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vec
 
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
+    OrderedHashMap<FlyString, StyleProperty> important_custom_properties;
     for (auto const& matching_rule : matching_rules) {
         for (auto const& it : matching_rule->declaration().custom_properties()) {
             auto style_value = it.value.value;
             if (style_value->is_revert_layer())
                 continue;
+
+            if (it.value.important == Important::Yes) {
+                important_custom_properties.set(it.key, it.value);
+            }
             custom_properties.set(it.key, it.value);
         }
     }
 
     if (!abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style())
-            custom_properties.update(inline_style->custom_properties());
+        if (auto const inline_style = abstract_element.element().inline_style()) {
+            for (auto const& it : inline_style->custom_properties()) {
+                if (it.value.important == Important::Yes) {
+                    important_custom_properties.set(it.key, it.value);
+                }
+                custom_properties.set(it.key, it.value);
+            }
+        }
     }
+
+    custom_properties.update(important_custom_properties);
 }
 
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
@@ -1015,7 +1030,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 continue;
 
             if (style_value->is_unresolved())
-                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, property_id, style_value->as_unresolved());
+                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
 
             for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
@@ -2154,6 +2169,8 @@ void StyleComputer::compute_property_values(ComputedProperties& style) const
 
         style.set_property(property_id, absolutized_value, is_inherited);
     });
+
+    style.set_display_before_box_type_transformation(style.display());
 }
 
 void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style) const
@@ -2413,7 +2430,6 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     auto old_custom_properties = abstract_element.custom_properties();
 
     // Resolve all the CSS custom properties ("variables") for this element:
-    // FIXME: Also resolve !important custom properties, in a second cascade.
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
         OrderedHashMap<FlyString, StyleProperty> custom_properties;
         for (auto& layer : matching_rule_set.author_rules) {
@@ -3122,7 +3138,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         return value.release_nonnull();
 
     auto& unresolved = value->as_unresolved();
-    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element, name, unresolved, guarded_contexts);
+    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
 }
 
 void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::AbstractElement abstract_element) const
@@ -3225,6 +3241,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:
         return compute_opacity(specified_value, computation_context);
+    case PropertyID::PositionArea:
+        return compute_position_area(specified_value);
     case PropertyID::TextUnderlineOffset:
         return compute_text_underline_offset(specified_value, computation_context);
     default:
@@ -3565,6 +3583,105 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<Sty
         return NumberStyleValue::create(specified_value->as_calculated().resolve_percentage({ .length_resolution_context = computation_context.length_resolution_context })->as_fraction());
 
     VERIFY_NOT_REACHED();
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-area-computed
+NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefPtr<StyleValue const> const& specified_value)
+{
+    // The computed value of a <position-area> value is the two keywords indicating the selected tracks in each axis,
+    // with the long (block-start) and short (start) logical keywords treated as equivalent. It serializes in the order
+    // given in the grammar (above), with the logical keywords serialized in their short forms (e.g. start start
+    // instead of block-start inline-start).
+    if (specified_value->is_keyword())
+        return specified_value;
+
+    auto to_short_keyword = [](NonnullRefPtr<KeywordStyleValue const> const& keyword_value) -> NonnullRefPtr<KeywordStyleValue const> {
+        switch (keyword_value->keyword()) {
+        case Keyword::BlockStart:
+        case Keyword::InlineStart:
+            return KeywordStyleValue::create(Keyword::Start);
+        case Keyword::BlockEnd:
+        case Keyword::InlineEnd:
+            return KeywordStyleValue::create(Keyword::End);
+        case Keyword::SelfBlockStart:
+        case Keyword::SelfInlineStart:
+            return KeywordStyleValue::create(Keyword::SelfStart);
+        case Keyword::SelfBlockEnd:
+        case Keyword::SelfInlineEnd:
+            return KeywordStyleValue::create(Keyword::SelfEnd);
+        case Keyword::SpanBlockStart:
+        case Keyword::SpanInlineStart:
+            return KeywordStyleValue::create(Keyword::SpanStart);
+        case Keyword::SpanBlockEnd:
+        case Keyword::SpanInlineEnd:
+            return KeywordStyleValue::create(Keyword::SpanEnd);
+        case Keyword::SpanSelfBlockStart:
+        case Keyword::SpanSelfInlineStart:
+            return KeywordStyleValue::create(Keyword::SpanSelfStart);
+        case Keyword::SpanSelfBlockEnd:
+        case Keyword::SpanSelfInlineEnd:
+            return KeywordStyleValue::create(Keyword::SpanSelfEnd);
+        default:
+            break;
+        }
+        return keyword_value;
+    };
+
+    auto const& value_list = specified_value->as_value_list();
+    VERIFY(value_list.size() == 2);
+
+    auto const& block_value = value_list.values().at(0);
+    auto const& inline_value = value_list.values().at(1);
+    if (block_value->as_keyword().keyword() == Keyword::SpanAll) {
+        switch (inline_value->as_keyword().keyword()) {
+        case Keyword::Start:
+            return KeywordStyleValue::create(Keyword::InlineStart);
+        case Keyword::End:
+            return KeywordStyleValue::create(Keyword::InlineEnd);
+        case Keyword::SelfStart:
+            return KeywordStyleValue::create(Keyword::SelfInlineStart);
+        case Keyword::SelfEnd:
+            return KeywordStyleValue::create(Keyword::SelfInlineEnd);
+        case Keyword::SpanStart:
+            return KeywordStyleValue::create(Keyword::SpanInlineStart);
+        case Keyword::SpanEnd:
+            return KeywordStyleValue::create(Keyword::SpanInlineEnd);
+        case Keyword::SpanSelfStart:
+            return KeywordStyleValue::create(Keyword::SpanSelfInlineStart);
+        case Keyword::SpanSelfEnd:
+            return KeywordStyleValue::create(Keyword::SpanSelfInlineEnd);
+        default:
+            return specified_value;
+        }
+    }
+    if (inline_value->as_keyword().keyword() == Keyword::SpanAll) {
+        switch (block_value->as_keyword().keyword()) {
+        case Keyword::Start:
+            return KeywordStyleValue::create(Keyword::BlockStart);
+        case Keyword::End:
+            return KeywordStyleValue::create(Keyword::BlockEnd);
+        case Keyword::SelfStart:
+            return KeywordStyleValue::create(Keyword::SelfBlockStart);
+        case Keyword::SelfEnd:
+            return KeywordStyleValue::create(Keyword::SelfBlockEnd);
+        case Keyword::SpanStart:
+            return KeywordStyleValue::create(Keyword::SpanBlockStart);
+        case Keyword::SpanEnd:
+            return KeywordStyleValue::create(Keyword::SpanBlockEnd);
+        case Keyword::SpanSelfStart:
+            return KeywordStyleValue::create(Keyword::SpanSelfBlockStart);
+        case Keyword::SpanSelfEnd:
+            return KeywordStyleValue::create(Keyword::SpanSelfBlockEnd);
+        default:
+            return specified_value;
+        }
+    }
+    auto short_block_value = to_short_keyword(block_value->as_keyword());
+    auto short_inline_value = to_short_keyword(inline_value->as_keyword());
+    if (*block_value != short_block_value || *inline_value != short_inline_value)
+        return StyleValueList::create({ short_block_value, short_inline_value }, StyleValueList::Separator::Space);
+
+    return specified_value;
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_text_underline_offset(NonnullRefPtr<StyleValue const> const& specified_value, PropertyValueComputationContext const& computation_context)

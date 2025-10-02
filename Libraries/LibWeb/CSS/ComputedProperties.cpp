@@ -132,6 +132,16 @@ void ComputedProperties::revert_property(PropertyID id, ComputedProperties const
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
+Display ComputedProperties::display_before_box_type_transformation() const
+{
+    return m_display_before_box_type_transformation;
+}
+
+void ComputedProperties::set_display_before_box_type_transformation(Display value)
+{
+    m_display_before_box_type_transformation = value;
+}
+
 void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited)
 {
     m_animated_property_values.set(id, move(value));
@@ -1875,6 +1885,38 @@ Containment ComputedProperties::contain() const
     }
 
     return containment;
+}
+
+ContainerType ComputedProperties::container_type() const
+{
+    ContainerType container_type {};
+
+    auto const& value = property(PropertyID::Contain);
+
+    if (value.to_keyword() == Keyword::Normal)
+        return container_type;
+
+    if (value.is_value_list()) {
+        auto& values = value.as_value_list().values();
+        for (auto const& item : values) {
+            switch (item->to_keyword()) {
+            case Keyword::Size:
+                container_type.is_size_container = true;
+                break;
+            case Keyword::InlineSize:
+                container_type.is_inline_size_container = true;
+                break;
+            case Keyword::ScrollState:
+                container_type.is_scroll_state_container = true;
+                break;
+            default:
+                dbgln("`{}` is not supported in `container-type` (yet?)", item->to_string(SerializationMode::Normal));
+                break;
+            }
+        }
+    }
+
+    return container_type;
 }
 
 MixBlendMode ComputedProperties::mix_blend_mode() const

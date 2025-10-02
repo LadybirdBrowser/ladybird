@@ -396,10 +396,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    // FIXME: Stop removing whitespace here. It's less helpful than it seems.
     Vector<ComponentValue> component_values;
     SubstitutionFunctionsPresence substitution_presence;
-    bool const property_accepts_custom_ident = property_accepts_type(property_id, ValueType::CustomIdent);
 
     while (unprocessed_tokens.has_next_token()) {
         auto const& token = unprocessed_tokens.consume_a_token();
@@ -409,13 +407,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return ParseError::SyntaxError;
         }
 
-        if (property_id != PropertyID::Custom) {
-            if (token.is(Token::Type::Whitespace))
-                continue;
-
-            if (!property_accepts_custom_ident && token.is(Token::Type::Ident) && has_ignored_vendor_prefix(token.token().ident()))
-                return ParseError::IncludesIgnoredVendorPrefix;
-        }
+        // FIXME: Stop removing whitespace here. It's less helpful than it seems.
+        if (property_id != PropertyID::Custom && token.is(Token::Type::Whitespace))
+            continue;
 
         if (token.is_function())
             token.function().contains_arbitrary_substitution_function(substitution_presence);
@@ -535,6 +529,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     case PropertyID::Columns:
         if (auto parsed_value = parse_columns_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::Contain:
+        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::ContainerType:
+        if (auto parsed_value = parse_container_type_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Content:
@@ -734,6 +736,11 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_place_self_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::PositionArea:
+        if (auto parsed_value = parse_position_area_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+
     case PropertyID::Quotes:
         if (auto parsed_value = parse_quotes_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -808,10 +815,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     case PropertyID::Scale:
         if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::Contain:
-        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::WhiteSpace:
@@ -1671,15 +1674,13 @@ RefPtr<StyleValue const> Parser::parse_border_value(PropertyID property_id, Toke
     RefPtr<StyleValue const> border_color;
     RefPtr<StyleValue const> border_style;
 
-    auto color_property = PropertyID::Invalid;
-    auto style_property = PropertyID::Invalid;
-    auto width_property = PropertyID::Invalid;
+    auto color_property = PropertyID::BorderColor;
+    auto style_property = PropertyID::BorderStyle;
+    auto width_property = PropertyID::BorderWidth;
 
     switch (property_id) {
     case PropertyID::Border:
-        color_property = PropertyID::BorderColor;
-        style_property = PropertyID::BorderStyle;
-        width_property = PropertyID::BorderWidth;
+        // Already set above.
         break;
     case PropertyID::BorderBlock:
         color_property = PropertyID::BorderBlockColor;
@@ -4157,6 +4158,255 @@ RefPtr<StyleValue const> Parser::parse_place_self_value(TokenStream<ComponentVal
         { *maybe_align_self_value, *maybe_justify_self_value });
 }
 
+// https://drafts.csswg.org/css-anchor-position/#position-area
+RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | <position-area>
+
+    // none
+    if (auto none_keyword_value = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none_keyword_value;
+
+    // <position-area>
+    // https://drafts.csswg.org/css-anchor-position/#position-area-syntax
+    // <position-area> = [
+    //    [ left | center | right | span-left | span-right
+    //    | x-start | x-end | span-x-start | span-x-end
+    //    | x-self-start | x-self-end | span-x-self-start | span-x-self-end
+    //    | span-all ]
+    //    ||
+    //    [ top | center | bottom | span-top | span-bottom
+    //    | y-start | y-end | span-y-start | span-y-end
+    //    | y-self-start | y-self-end | span-y-self-start | span-y-self-end
+    //    | span-all ]
+    //  |
+    //    [ block-start | center | block-end | span-block-start | span-block-end | span-all ]
+    //    ||
+    //    [ inline-start | center | inline-end | span-inline-start | span-inline-end
+    //    | span-all ]
+    //  |
+    //    [ self-block-start | center | self-block-end | span-self-block-start
+    //    | span-self-block-end | span-all ]
+    //    ||
+    //    [ self-inline-start | center | self-inline-end | span-self-inline-start
+    //    | span-self-inline-end | span-all ]
+    //  |
+    //    [ start | center | end | span-start | span-end | span-all ]{1,2}
+    //    |
+    //      [ self-start | center | self-end | span-self-start | span-self-end | span-all ]{1,2}
+    //    ]
+    auto is_x_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::Left:
+        case Keyword::Center:
+        case Keyword::Right:
+        case Keyword::SpanLeft:
+        case Keyword::SpanRight:
+        case Keyword::XStart:
+        case Keyword::XEnd:
+        case Keyword::SpanXStart:
+        case Keyword::SpanXEnd:
+        case Keyword::XSelfStart:
+        case Keyword::XSelfEnd:
+        case Keyword::SpanXSelfStart:
+        case Keyword::SpanXSelfEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_y_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::Top:
+        case Keyword::Center:
+        case Keyword::Bottom:
+        case Keyword::SpanTop:
+        case Keyword::SpanBottom:
+        case Keyword::YStart:
+        case Keyword::YEnd:
+        case Keyword::SpanYStart:
+        case Keyword::SpanYEnd:
+        case Keyword::YSelfStart:
+        case Keyword::YSelfEnd:
+        case Keyword::SpanYSelfStart:
+        case Keyword::SpanYSelfEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_block_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::BlockStart:
+        case Keyword::Center:
+        case Keyword::BlockEnd:
+        case Keyword::SpanBlockStart:
+        case Keyword::SpanBlockEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_inline_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::InlineStart:
+        case Keyword::Center:
+        case Keyword::InlineEnd:
+        case Keyword::SpanInlineStart:
+        case Keyword::SpanInlineEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_self_block_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::SelfBlockStart:
+        case Keyword::Center:
+        case Keyword::SelfBlockEnd:
+        case Keyword::SpanSelfBlockStart:
+        case Keyword::SpanSelfBlockEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_self_inline_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::SelfInlineStart:
+        case Keyword::Center:
+        case Keyword::SelfInlineEnd:
+        case Keyword::SpanSelfInlineStart:
+        case Keyword::SpanSelfInlineEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_start_end_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::Start:
+        case Keyword::Center:
+        case Keyword::End:
+        case Keyword::SpanStart:
+        case Keyword::SpanEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_self_start_end_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::SelfStart:
+        case Keyword::Center:
+        case Keyword::SelfEnd:
+        case Keyword::SpanSelfStart:
+        case Keyword::SpanSelfEnd:
+        case Keyword::SpanAll:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto is_axis_ambiguous = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::Center:
+        case Keyword::SpanAll:
+        case Keyword::Start:
+        case Keyword::End:
+        case Keyword::SelfStart:
+        case Keyword::SelfEnd:
+        case Keyword::SpanStart:
+        case Keyword::SpanEnd:
+        case Keyword::SpanSelfStart:
+        case Keyword::SpanSelfEnd:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    };
+
+    auto transaction = tokens.begin_transaction();
+    auto create_keyword_list = [&](StyleValue const& first, StyleValue const& second) -> NonnullRefPtr<StyleValue const> {
+        transaction.commit();
+
+        // If only a single keyword is given, it behaves as if the second keyword is span-all if the given keyword is
+        // unambigous about its axis.
+        // These conditions ensure the span-all keyword is omitted when it would be implied.
+        if (!is_axis_ambiguous(first.as_keyword().keyword()) && second.as_keyword().keyword() == Keyword::SpanAll)
+            return first;
+        if (!is_axis_ambiguous(second.as_keyword().keyword()) && first.as_keyword().keyword() == Keyword::SpanAll)
+            return second;
+
+        return StyleValueList::create({ first, second }, StyleValueList::Separator::Space);
+    };
+
+    auto first_keyword_value = parse_keyword_value(tokens);
+    if (!first_keyword_value)
+        return nullptr;
+
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token()) {
+        auto first_position_area_keyword = keyword_to_position_area(first_keyword_value->as_keyword().keyword());
+        if (!first_position_area_keyword.has_value())
+            return nullptr;
+        transaction.commit();
+        return first_keyword_value;
+    }
+    auto second_keyword_value = parse_keyword_value(tokens);
+    if (!second_keyword_value)
+        return nullptr;
+
+    auto first_keyword = first_keyword_value->as_keyword().keyword();
+    auto second_keyword = second_keyword_value->as_keyword().keyword();
+
+    if (is_x_keyword(first_keyword) && is_y_keyword(second_keyword))
+        return create_keyword_list(*first_keyword_value, *second_keyword_value);
+    if (is_y_keyword(first_keyword) && is_x_keyword(second_keyword))
+        return create_keyword_list(*second_keyword_value, *first_keyword_value);
+
+    if (is_block_keyword(first_keyword) && is_inline_keyword(second_keyword))
+        return create_keyword_list(*first_keyword_value, *second_keyword_value);
+    if (is_inline_keyword(first_keyword) && is_block_keyword(second_keyword))
+        return create_keyword_list(*second_keyword_value, *first_keyword_value);
+
+    if (is_self_block_keyword(first_keyword) && is_self_inline_keyword(second_keyword))
+        return create_keyword_list(*first_keyword_value, *second_keyword_value);
+    if (is_self_inline_keyword(first_keyword) && is_self_block_keyword(second_keyword))
+        return create_keyword_list(*second_keyword_value, *first_keyword_value);
+
+    if (is_start_end_keyword(first_keyword) && is_start_end_keyword(second_keyword))
+        return create_keyword_list(*first_keyword_value, *second_keyword_value);
+    if (is_self_start_end_keyword(first_keyword) && is_self_start_end_keyword(second_keyword))
+        return create_keyword_list(*first_keyword_value, *second_keyword_value);
+
+    return nullptr;
+}
+
 RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>& tokens)
 {
     // https://www.w3.org/TR/css-content-3/#quotes-property
@@ -5815,6 +6065,59 @@ RefPtr<StyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>
         containment_values.append(style_value.release_nonnull());
     if (paint_value)
         containment_values.append(paint_value.release_nonnull());
+
+    transaction.commit();
+
+    return StyleValueList::create(move(containment_values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-conditional-5/#propdef-container-type
+RefPtr<StyleValue const> Parser::parse_container_type_value(TokenStream<ComponentValue>& tokens)
+{
+    // normal | [ [ size | inline-size ] || scroll-state ]
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // normal
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
+        transaction.commit();
+        return none;
+    }
+
+    // [ [ size | inline-size ] || scroll-state ]
+    if (!tokens.has_next_token())
+        return {};
+
+    RefPtr<StyleValue const> size_value;
+    RefPtr<StyleValue const> scroll_state_value;
+
+    while (tokens.has_next_token()) {
+        auto keyword_value = parse_keyword_value(tokens);
+        if (!keyword_value)
+            return {};
+        switch (keyword_value->to_keyword()) {
+        case Keyword::Size:
+        case Keyword::InlineSize:
+            if (size_value)
+                return {};
+            size_value = move(keyword_value);
+            break;
+        case Keyword::ScrollState:
+            if (scroll_state_value)
+                return {};
+            scroll_state_value = move(keyword_value);
+            break;
+        default:
+            return {};
+        }
+        tokens.discard_whitespace();
+    }
+
+    StyleValueVector containment_values;
+    if (size_value)
+        containment_values.append(size_value.release_nonnull());
+    if (scroll_state_value)
+        containment_values.append(scroll_state_value.release_nonnull());
 
     transaction.commit();
 

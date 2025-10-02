@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text: getComputedStyle().overflowWrap</title>
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#propdef-overflow-wrap">
+<meta name="assert" content="overflow-wrap computed value is specified keyword.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("overflow-wrap", "normal");
+test_computed_value("overflow-wrap", "break-word");
+test_computed_value("overflow-wrap", "anywhere");
+</script>
+</body>
+</html>

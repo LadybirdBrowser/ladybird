@@ -8,7 +8,6 @@
 
 #include <AK/Vector.h>
 #include <LibCore/Socket.h>
-#include <LibCore/Timer.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
@@ -20,8 +19,6 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> t
     , m_transport(move(transport))
     , m_local_endpoint_magic(local_endpoint_magic)
 {
-    m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
-
     m_transport->set_up_read_hook([this] {
         NonnullRefPtr protect = *this;
         // FIXME: Do something about errors.
@@ -51,7 +48,6 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
 
     MUST(buffer.transfer_message(*m_transport));
 
-    m_responsiveness_timer->start();
     return {};
 }
 
@@ -107,8 +103,6 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
     });
 
     if (!m_unprocessed_messages.is_empty()) {
-        m_responsiveness_timer->stop();
-        did_become_responsive();
         deferred_invoke([this] {
             handle_messages();
         });

@@ -1343,6 +1343,18 @@
       "contain"
     ]
   },
+  "container-type": {
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-identifiers": [
+      "normal",
+      "size",
+      "inline-size",
+      "scroll-state"
+    ]
+  },
   "content": {
     "animation-type": "discrete",
     "inherited": false,
@@ -2805,6 +2817,16 @@
       "mapping": "inline-xy"
     }
   },
+  "overflow-wrap": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-identifiers": [
+      "anywhere",
+      "break-word",
+      "normal"
+    ]
+  },
   "overflow-x": {
     "animation-type": "discrete",
     "inherited": false,
@@ -3008,6 +3030,18 @@
     "initial": "static",
     "valid-types": [
       "positioning"
+    ]
+  },
+  "position-area": {
+    "animation-type": "discrete",
+    "__comment": "Animation type is currently listed as TBD in the specification",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "position-area"
+    ],
+    "valid-identifiers": [
+      "none"
     ]
   },
   "quotes": {
@@ -3732,14 +3766,7 @@
     ]
   },
   "word-wrap": {
-    "animation-type": "discrete",
-    "inherited": true,
-    "initial": "normal",
-    "valid-identifiers": [
-      "anywhere",
-      "break-word",
-      "normal"
-    ]
+    "legacy-alias-for": "overflow-wrap"
   },
   "writing-mode": {
     "animation-type": "none",

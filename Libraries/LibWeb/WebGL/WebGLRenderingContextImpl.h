@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024-2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -38,17 +38,17 @@ public:
     void tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Variant<GC::Root<ImageBitmap>, GC::Root<ImageData>, GC::Root<HTMLImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<HTMLVideoElement>, GC::Root<OffscreenCanvas>> source);
     void tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels);
     void tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Variant<GC::Root<ImageBitmap>, GC::Root<ImageData>, GC::Root<HTMLImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<HTMLVideoElement>, GC::Root<OffscreenCanvas>> source);
-    void uniform1fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v);
-    void uniform2fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v);
-    void uniform3fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v);
-    void uniform4fv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> v);
-    void uniform1iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform2iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform3iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform4iv(GC::Root<WebGLUniformLocation> location, Variant<GC::Root<WebIDL::BufferSource>, Vector<WebIDL::Long>> v);
-    void uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> value);
-    void uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> value);
-    void uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> value);
+    void uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List v);
+    void uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v);
+    void uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v);
+    void uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v);
+    void uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v);
+    void uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
+    void uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
+    void uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
     void active_texture(WebIDL::UnsignedLong texture);
     void attach_shader(GC::Root<WebGLProgram> program, GC::Root<WebGLShader> shader);
     void bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String name);
@@ -150,10 +150,10 @@ public:
     void vertex_attrib2f(WebIDL::UnsignedLong index, float x, float y);
     void vertex_attrib3f(WebIDL::UnsignedLong index, float x, float y, float z);
     void vertex_attrib4f(WebIDL::UnsignedLong index, float x, float y, float z, float w);
-    void vertex_attrib1fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values);
-    void vertex_attrib2fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values);
-    void vertex_attrib3fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values);
-    void vertex_attrib4fv(WebIDL::UnsignedLong index, Variant<GC::Root<WebIDL::BufferSource>, Vector<float>> values);
+    void vertex_attrib1fv(WebIDL::UnsignedLong index, Float32List values);
+    void vertex_attrib2fv(WebIDL::UnsignedLong index, Float32List values);
+    void vertex_attrib3fv(WebIDL::UnsignedLong index, Float32List values);
+    void vertex_attrib4fv(WebIDL::UnsignedLong index, Float32List values);
     void vertex_attrib_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, bool normalized, WebIDL::Long stride, WebIDL::LongLong offset);
     void viewport(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
 

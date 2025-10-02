@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Property container-type value 'initial'
+Pass	Property container-type value 'unset'
+Pass	Property container-type value 'inline-size'
+Pass	Property container-type value 'size'
+Pass	Property container-type value 'normal'

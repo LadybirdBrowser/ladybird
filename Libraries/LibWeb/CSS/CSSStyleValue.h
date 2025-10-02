@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::CSS {
@@ -16,14 +17,14 @@ class CSSStyleValue : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CSSStyleValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, String associated_property, String constructed_from_string);
+    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, FlyString associated_property, String constructed_from_string);
 
     virtual ~CSSStyleValue() override = default;
 
     virtual void initialize(JS::Realm&) override;
 
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, String property, String css_text);
-    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, String property, String css_text);
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, FlyString const& property, String css_text);
+    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, FlyString const& property, String css_text);
 
     virtual WebIDL::ExceptionOr<String> to_string() const;
 
@@ -31,16 +32,16 @@ protected:
     explicit CSSStyleValue(JS::Realm&);
 
 private:
-    explicit CSSStyleValue(JS::Realm&, String associated_property, String constructed_from_string);
+    explicit CSSStyleValue(JS::Realm&, FlyString associated_property, String constructed_from_string);
 
     enum class ParseMultiple : u8 {
         No,
         Yes,
     };
-    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, String property, String css_text, ParseMultiple);
+    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, FlyString property, String css_text, ParseMultiple);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
-    Optional<String> m_associated_property;
+    Optional<FlyString> m_associated_property;
 
     Optional<String> m_constructed_from_string;
 };

@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -18,9 +19,34 @@ using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::Image
 //        We should make WebGL code generator to produce implementation for this interface.
 class WebGLRenderingContextBase {
 public:
+    using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;
+    using Int32List = Variant<GC::Root<JS::Int32Array>, Vector<WebIDL::Long>>;
+    using Uint32List = Variant<GC::Root<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
+
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
     virtual OpenGLContext& context() = 0;
+
+    static Span<float> span_from_float32_list(Float32List& float32_list)
+    {
+        if (float32_list.has<Vector<float>>())
+            return float32_list.get<Vector<float>>();
+        return float32_list.get<GC::Root<JS::Float32Array>>()->data();
+    }
+
+    static Span<int> span_from_int32_list(Int32List& int32_list)
+    {
+        if (int32_list.has<Vector<int>>())
+            return int32_list.get<Vector<int>>();
+        return int32_list.get<GC::Root<JS::Int32Array>>()->data();
+    }
+
+    static Span<u32> span_from_uint32_list(Uint32List& int32_list)
+    {
+        if (int32_list.has<Vector<u32>>())
+            return int32_list.get<Vector<u32>>();
+        return int32_list.get<GC::Root<JS::Uint32Array>>()->data();
+    }
 };
 
 }

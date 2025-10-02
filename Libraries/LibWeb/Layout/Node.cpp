@@ -571,6 +571,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                 border_top_right_radius.as_border_radius().vertical_radius() });
     }
     computed_values.set_display(computed_style.display());
+    computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
     computed_values.set_flex_direction(computed_style.flex_direction());
     computed_values.set_flex_wrap(computed_style.flex_wrap());
@@ -897,6 +898,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
     computed_values.set_contain(computed_style.contain());
+    computed_values.set_container_type(computed_style.container_type());
     computed_values.set_shape_rendering(computed_values.shape_rendering());
     computed_values.set_will_change(computed_style.will_change());
 
@@ -966,6 +968,15 @@ CSS::Display Node::display() const
     }
 
     return computed_values().display();
+}
+
+CSS::Display Node::display_before_box_type_transformation() const
+{
+    if (!has_style()) {
+        return CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
+    }
+
+    return computed_values().display_before_box_type_transformation();
 }
 
 bool Node::is_inline() const
@@ -1216,6 +1227,9 @@ bool Node::has_size_containment() const
     if (computed_values().contain().size_containment)
         return true;
 
+    if (computed_values().container_type().is_size_container)
+        return true;
+
     return false;
 }
 // https://drafts.csswg.org/css-contain-2/#containment-inline-size
@@ -1238,6 +1252,9 @@ bool Node::has_inline_size_containment() const
     // FIXME: Implement this.
 
     if (computed_values().contain().inline_size_containment)
+        return true;
+
+    if (computed_values().container_type().is_inline_size_container)
         return true;
 
     return false;
@@ -1277,6 +1294,9 @@ bool Node::has_style_containment() const
     // Note: This is the principal box
 
     if (computed_values().contain().style_containment)
+        return true;
+
+    if (computed_values().container_type().is_size_container || computed_values().container_type().is_inline_size_container)
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto

@@ -12,7 +12,7 @@
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/PropertyName.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -26,21 +26,16 @@ WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier)
 }
 
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
-bool supports(JS::VM&, StringView property, StringView value)
+bool supports(JS::VM&, FlyString const& property_name, StringView value)
 {
-    // 1. If property is an ASCII case-insensitive match for any defined CSS property that the UA supports,
-    //    and value successfully parses according to that property’s grammar, return true.
-    if (auto property_id = property_id_from_string(property); property_id.has_value()) {
-        if (parse_css_value(Parser::ParsingParams {}, value, property_id.value()))
+    // 1. If property is an ASCII case-insensitive match for any defined CSS property that the UA supports, or is a
+    //    custom property name string, and value successfully parses according to that property’s grammar, return true.
+    if (auto property = PropertyNameAndID::from_name(property_name); property.has_value()) {
+        if (parse_css_value(Parser::ParsingParams {}, value, property->id()))
             return true;
     }
 
-    // 2. Otherwise, if property is a custom property name string, return true.
-    else if (is_a_custom_property_name_string(property)) {
-        return true;
-    }
-
-    // 3. Otherwise, return false.
+    // 2. Otherwise, return false.
     return false;
 }
 

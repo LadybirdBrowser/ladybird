@@ -22,7 +22,6 @@ TEST_CASE(is_inherited_property_test)
     EXPECT(!CSS::is_inherited_property(CSS::PropertyID::Border));
 
     // Edge cases
-    EXPECT(!CSS::is_inherited_property(CSS::PropertyID::Invalid));
     EXPECT(!CSS::is_inherited_property(CSS::PropertyID::All));
 }
 

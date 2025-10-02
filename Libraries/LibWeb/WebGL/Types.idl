@@ -14,5 +14,4 @@ typedef unrestricted float GLclampf;
 typedef long long GLint64;
 typedef unsigned long long GLuint64;
 
-// FIXME: BufferSource should be a Float32Array
-typedef (BufferSource or sequence<GLfloat>) Float32List;
+typedef (Float32Array or sequence<GLfloat>) Float32List;

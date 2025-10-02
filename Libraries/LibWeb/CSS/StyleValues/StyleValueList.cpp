@@ -98,7 +98,7 @@ static GC::Ref<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValu
     return CSSTransformValue::create(realm, static_cast<Vector<GC::Ref<CSSTransformComponent>>>(move(transform_components)));
 }
 
-GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, String const& associated_property) const
+GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, FlyString const& associated_property) const
 {
     // NB: <transform-list> is a StyleValueList that contains TransformStyleValues. If that's what we are, follow the
     //     steps for reifying that.
