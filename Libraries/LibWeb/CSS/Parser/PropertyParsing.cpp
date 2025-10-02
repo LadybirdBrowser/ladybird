@@ -1161,14 +1161,14 @@ RefPtr<StyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValue>&
 
             if (part_tokens.has_next_token()) {
                 // <number>{2}, which are the x and y coordinates of the hotspot
-                auto x = parse_number(part_tokens);
+                auto x = parse_number_value(part_tokens);
                 part_tokens.discard_whitespace();
-                auto y = parse_number(part_tokens);
+                auto y = parse_number_value(part_tokens);
                 part_tokens.discard_whitespace();
-                if (!x.has_value() || !y.has_value() || part_tokens.has_next_token())
+                if (!x || !y || part_tokens.has_next_token())
                     return nullptr;
 
-                cursors.append(CursorStyleValue::create(image_value.release_nonnull(), x.release_value(), y.release_value()));
+                cursors.append(CursorStyleValue::create(image_value.release_nonnull(), x, y));
                 continue;
             }
 
