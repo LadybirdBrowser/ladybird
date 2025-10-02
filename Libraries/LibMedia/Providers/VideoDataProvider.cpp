@@ -71,7 +71,7 @@ TimedImage VideoDataProvider::retrieve_frame()
     auto locker = m_thread_data->take_lock();
     if (m_thread_data->queue().is_empty())
         return TimedImage();
-    auto result = m_thread_data->queue().dequeue();
+    auto result = m_thread_data->take_frame();
     m_thread_data->wake();
     return result;
 }
@@ -110,6 +110,11 @@ VideoDataProvider::ImageQueue& VideoDataProvider::ThreadData::queue()
     return m_queue;
 }
 
+TimedImage VideoDataProvider::ThreadData::take_frame()
+{
+    return m_queue.dequeue();
+}
+
 void VideoDataProvider::ThreadData::seek(AK::Duration timestamp)
 {
     auto seek_result = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp);
@@ -125,6 +130,37 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp)
 bool VideoDataProvider::ThreadData::should_thread_exit() const
 {
     return m_exit;
+}
+
+void VideoDataProvider::ThreadData::set_cicp_values(VideoFrame& frame, CodedFrame const& coded_frame)
+{
+    // Convert the frame for display.
+    auto& cicp = frame.cicp();
+    auto container_cicp = coded_frame.auxiliary_data().get<CodedVideoFrameData>().container_cicp();
+    cicp.adopt_specified_values(container_cicp);
+    cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
+
+    // BT.470 M, B/G, BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
+    // (Chromium, VLC) forgo transfer characteristics conversion. We will emulate that behavior by
+    // handling those as sRGB instead, which causes no transfer function change in the output,
+    // unless display color management is later implemented.
+    switch (cicp.transfer_characteristics()) {
+    case TransferCharacteristics::BT470BG:
+    case TransferCharacteristics::BT470M:
+    case TransferCharacteristics::BT601:
+    case TransferCharacteristics::BT709:
+    case TransferCharacteristics::BT2020BitDepth10:
+    case TransferCharacteristics::BT2020BitDepth12:
+        cicp.set_transfer_characteristics(TransferCharacteristics::SRGB);
+        break;
+    default:
+        break;
+    }
+}
+
+void VideoDataProvider::ThreadData::queue_frame(TimedImage&& frame)
+{
+    m_queue.enqueue(move(frame));
 }
 
 void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
@@ -170,30 +206,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
 
         auto frame = frame_result.release_value();
-
-        // Convert the frame for display.
-        auto& cicp = frame->cicp();
-        auto container_cicp = coded_frame.auxiliary_data().get<CodedVideoFrameData>().container_cicp();
-        cicp.adopt_specified_values(container_cicp);
-        cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
-
-        // BT.470 M, B/G, BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
-        // (Chromium, VLC) forgo transfer characteristics conversion. We will emulate that behavior by
-        // handling those as sRGB instead, which causes no transfer function change in the output,
-        // unless display color management is later implemented.
-        switch (cicp.transfer_characteristics()) {
-        case TransferCharacteristics::BT470BG:
-        case TransferCharacteristics::BT470M:
-        case TransferCharacteristics::BT601:
-        case TransferCharacteristics::BT709:
-        case TransferCharacteristics::BT2020BitDepth10:
-        case TransferCharacteristics::BT2020BitDepth12:
-            cicp.set_transfer_characteristics(TransferCharacteristics::SRGB);
-            break;
-        default:
-            break;
-        }
-
+        set_cicp_values(*frame, coded_frame);
         auto bitmap_result = frame->to_bitmap();
 
         if (bitmap_result.is_error()) {
@@ -208,7 +221,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
                 if (should_thread_exit())
                     return;
             }
-            m_queue.enqueue(TimedImage(frame->timestamp(), bitmap_result.release_value()));
+            queue_frame(TimedImage(frame->timestamp(), bitmap_result.release_value()));
         }
     }
 }

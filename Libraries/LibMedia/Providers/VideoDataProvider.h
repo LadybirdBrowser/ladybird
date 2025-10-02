@@ -58,10 +58,13 @@ private:
         void exit();
 
         ImageQueue& queue();
+        TimedImage take_frame();
 
         void seek(AK::Duration timestamp);
 
         bool should_thread_exit() const;
+        static void set_cicp_values(VideoFrame&, CodedFrame const&);
+        void queue_frame(TimedImage&&);
         void push_data_and_decode_some_frames();
 
         [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
