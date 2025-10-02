@@ -70,6 +70,7 @@ public:
 
     void play();
     void pause();
+    void seek(AK::Duration timestamp, SeekMode);
 
     bool is_playing();
     PlaybackState state();
