@@ -8,6 +8,7 @@
 #include "BasicShapeStyleValue.h"
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::CSS {
@@ -29,32 +30,32 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
     // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
     // to proportionally reduce the inset effect to 100%.
 
-    auto top = inset_box.top().to_px_or_zero(node, reference_box.height()).to_float();
-    auto right = reference_box.width().to_float() - inset_box.right().to_px_or_zero(node, reference_box.width()).to_float();
-    auto bottom = reference_box.height().to_float() - inset_box.bottom().to_px_or_zero(node, reference_box.height()).to_float();
-    auto left = inset_box.left().to_px_or_zero(node, reference_box.width()).to_float();
+    auto resolved_top = LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(node, reference_box.height()).to_float();
+    auto resolved_right = reference_box.width().to_float() - LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
+    auto resolved_bottom = reference_box.height().to_float() - LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
+    auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
 
-    return path_from_resolved_rect(top, right, bottom, left);
+    return path_from_resolved_rect(resolved_top, resolved_right, resolved_bottom, resolved_left);
 }
 
-String Inset::to_string(SerializationMode) const
+String Inset::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("inset({} {} {} {})", inset_box.top(), inset_box.right(), inset_box.bottom(), inset_box.left()));
+    return MUST(String::formatted("inset({} {} {} {})", top->to_string(mode), right->to_string(mode), bottom->to_string(mode), left->to_string(mode)));
 }
 
 Gfx::Path Xywh::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
-    auto top = y.to_px(node, reference_box.height()).to_float();
-    auto bottom = top + max(0.0f, height.to_px(node, reference_box.height()).to_float());
-    auto left = x.to_px(node, reference_box.width()).to_float();
-    auto right = left + max(0.0f, width.to_px(node, reference_box.width()).to_float());
+    auto top = LengthPercentage::from_style_value(y).to_px(node, reference_box.height()).to_float();
+    auto bottom = top + max(0.0f, LengthPercentage::from_style_value(height).to_px(node, reference_box.height()).to_float());
+    auto left = LengthPercentage::from_style_value(x).to_px(node, reference_box.width()).to_float();
+    auto right = left + max(0.0f, LengthPercentage::from_style_value(width).to_px(node, reference_box.width()).to_float());
 
     return path_from_resolved_rect(top, right, bottom, left);
 }
 
-String Xywh::to_string(SerializationMode) const
+String Xywh::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("xywh({} {} {} {})", x, y, width, height));
+    return MUST(String::formatted("xywh({} {} {} {})", x->to_string(mode), y->to_string(mode), width->to_string(mode), height->to_string(mode)));
 }
 
 Gfx::Path Rect::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -62,33 +63,18 @@ Gfx::Path Rect::to_path(CSSPixelRect reference_box, Layout::Node const& node) co
     // An auto value makes the edge of the box coincide with the corresponding edge of the reference box:
     // it’s equivalent to 0% as the first (top) or fourth (left) value, and equivalent to 100% as the second (right) or third (bottom) value.
 
-    auto top = box.top().is_auto() ? 0 : box.top().to_px_or_zero(node, reference_box.height()).to_float();
-    auto right = box.right().is_auto() ? reference_box.width().to_float() : box.right().to_px_or_zero(node, reference_box.width()).to_float();
-    auto bottom = box.bottom().is_auto() ? reference_box.height().to_float() : box.bottom().to_px_or_zero(node, reference_box.height()).to_float();
-    auto left = box.left().is_auto() ? 0 : box.left().to_px_or_zero(node, reference_box.width()).to_float();
+    auto resolved_top = top->has_auto() ? 0 : LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(node, reference_box.height()).to_float();
+    auto resolved_right = right->has_auto() ? reference_box.width().to_float() : LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
+    auto resolved_bottom = bottom->has_auto() ? reference_box.height().to_float() : LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
+    auto resolved_left = left->has_auto() ? 0 : LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
 
     // The second (right) and third (bottom) values are floored by the fourth (left) and second (top) values, respectively.
-    return path_from_resolved_rect(top, max(right, left), max(bottom, top), left);
+    return path_from_resolved_rect(resolved_top, max(resolved_right, resolved_left), max(resolved_bottom, resolved_top), resolved_left);
 }
 
-String Rect::to_string(SerializationMode) const
+String Rect::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("rect({} {} {} {})", box.top(), box.right(), box.bottom(), box.left()));
-}
-
-static String radius_to_string(ShapeRadius radius, SerializationMode mode)
-{
-    return radius.visit(
-        [&mode](LengthPercentage const& length_percentage) { return length_percentage.to_string(mode); },
-        [](FitSide const& side) {
-            switch (side) {
-            case FitSide::ClosestSide:
-                return "closest-side"_string;
-            case FitSide::FarthestSide:
-                return "farthest-side"_string;
-            }
-            VERIFY_NOT_REACHED();
-        });
+    return MUST(String::formatted("rect({} {} {} {})", top->to_string(mode), right->to_string(mode), bottom->to_string(mode), left->to_string(mode)));
 }
 
 Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -96,13 +82,9 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
     auto center = position->resolved(node, reference_box.translated(-reference_box.x(), -reference_box.y()));
 
-    float radius_px = radius.visit(
-        [&](LengthPercentage const& length_percentage) {
-            auto radius_ref = sqrt(pow(reference_box.width().to_float(), 2) + pow(reference_box.height().to_float(), 2)) / AK::Sqrt2<float>;
-            return max(0.0f, length_percentage.to_px(node, CSSPixels(radius_ref)).to_float());
-        },
-        [&](FitSide const& side) {
-            switch (side) {
+    auto radius_px = [&]() {
+        if (radius->is_keyword()) {
+            switch (*keyword_to_fit_side(radius->to_keyword())) {
             case FitSide::ClosestSide:
                 float closest;
                 closest = min(abs(center.x()), abs(center.y())).to_float();
@@ -117,7 +99,11 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
                 return farthest;
             }
             VERIFY_NOT_REACHED();
-        });
+        }
+
+        auto radius_ref = sqrt(pow(reference_box.width().to_float(), 2) + pow(reference_box.height().to_float(), 2)) / AK::Sqrt2<float>;
+        return max(0.0f, LengthPercentage::from_style_value(radius).to_px(node, CSSPixels(radius_ref)).to_float());
+    }();
 
     Gfx::Path path;
     path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_px });
@@ -128,7 +114,7 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
 
 String Circle::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("circle({} at {})", radius_to_string(radius, mode), position->to_string(mode)));
+    return MUST(String::formatted("circle({} at {})", radius->to_string(mode), position->to_string(mode)));
 }
 
 Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -136,33 +122,31 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
     auto center = position->resolved(node, reference_box.translated(-reference_box.x(), -reference_box.y()));
 
-    float radius_x_px = radius_x.visit(
-        [&](LengthPercentage const& length_percentage) {
-            return max(0.0f, length_percentage.to_px(node, reference_box.width()).to_float());
-        },
-        [&](FitSide const& side) {
-            switch (side) {
+    auto radius_x_px = [&]() {
+        if (radius_x->is_keyword()) {
+            switch (*keyword_to_fit_side(radius_x->to_keyword())) {
             case FitSide::ClosestSide:
                 return min(abs(center.x()), abs(reference_box.width() - center.x())).to_float();
             case FitSide::FarthestSide:
                 return max(abs(center.x()), abs(reference_box.width() - center.x())).to_float();
             }
             VERIFY_NOT_REACHED();
-        });
+        }
+        return max(0.0f, LengthPercentage::from_style_value(radius_x).to_px(node, reference_box.width()).to_float());
+    }();
 
-    float radius_y_px = radius_y.visit(
-        [&](LengthPercentage const& length_percentage) {
-            return max(0.0f, length_percentage.to_px(node, reference_box.height()).to_float());
-        },
-        [&](FitSide const& side) {
-            switch (side) {
+    auto radius_y_px = [&]() {
+        if (radius_y->is_keyword()) {
+            switch (*keyword_to_fit_side(radius_y->to_keyword())) {
             case FitSide::ClosestSide:
                 return min(abs(center.y()), abs(reference_box.height() - center.y())).to_float();
             case FitSide::FarthestSide:
                 return max(abs(center.y()), abs(reference_box.height() - center.y())).to_float();
             }
             VERIFY_NOT_REACHED();
-        });
+        }
+        return max(0.0f, LengthPercentage::from_style_value(radius_y).to_px(node, reference_box.height()).to_float());
+    }();
 
     Gfx::Path path;
     path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_y_px });
@@ -173,7 +157,7 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 
 String Ellipse::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("ellipse({} {} at {})", radius_to_string(radius_x, mode), radius_to_string(radius_y, mode), position->to_string(mode)));
+    return MUST(String::formatted("ellipse({} {} at {})", radius_x->to_string(mode), radius_y->to_string(mode), position->to_string(mode)));
 }
 
 Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -183,8 +167,8 @@ Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node)
     bool first = true;
     for (auto const& point : points) {
         Gfx::FloatPoint resolved_point {
-            point.x.to_px(node, reference_box.width()).to_float(),
-            point.y.to_px(node, reference_box.height()).to_float()
+            LengthPercentage::from_style_value(point.x).to_px(node, reference_box.width()).to_float(),
+            LengthPercentage::from_style_value(point.y).to_px(node, reference_box.height()).to_float()
         };
         if (first)
             path.move_to(resolved_point);
@@ -196,7 +180,7 @@ Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node)
     return path;
 }
 
-String Polygon::to_string(SerializationMode) const
+String Polygon::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append("polygon("sv);
@@ -208,7 +192,7 @@ String Polygon::to_string(SerializationMode) const
         builder.append("evenodd"sv);
     }
     for (auto const& point : points) {
-        builder.appendff(", {} {}", point.x, point.y);
+        builder.appendff(", {} {}", point.x->to_string(mode), point.y->to_string(mode));
     }
     builder.append(')');
     return MUST(builder.to_string());
