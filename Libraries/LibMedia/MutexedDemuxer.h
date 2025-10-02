@@ -62,10 +62,10 @@ public:
         });
     }
 
-    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = {}) override
+    virtual DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions seek_options = DemuxerSeekOptions::None) override
     {
         return m_demuxer.with_locked([&](auto& demuxer) {
-            return demuxer->seek_to_most_recent_keyframe(track, timestamp, earliest_available_sample);
+            return demuxer->seek_to_most_recent_keyframe(track, timestamp, seek_options);
         });
     }
 
