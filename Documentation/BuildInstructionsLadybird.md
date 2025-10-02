@@ -200,6 +200,8 @@ Then Install pkg-config using chocolatey.
 ```
 choco install pkgconfiglite -y
 ```
+> [!NOTE]
+> The Android build is experimental and more often than not won't build. See [Issue #2774](https://github.com/LadybirdBrowser/ladybird/issues/2774) for more information.
 
 ### Android:
 
