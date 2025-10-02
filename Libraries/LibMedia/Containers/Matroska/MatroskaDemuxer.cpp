@@ -207,6 +207,8 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
         status.block = TRY(status.iterator.next_block());
         status.frame_index = 0;
     }
+
+    auto flags = status.block->only_keyframes() ? FrameFlags::Keyframe : FrameFlags::None;
     auto aux_data = [&] -> CodedFrame::AuxiliaryData {
         if (track.type() == TrackType::Video) {
             auto cicp = MUST(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
@@ -218,7 +220,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
         VERIFY_NOT_REACHED();
     }();
     auto sample_data = DECODER_TRY_ALLOC(ByteBuffer::copy(status.block->frame(status.frame_index++)));
-    return CodedFrame(status.block->timestamp(), move(sample_data), aux_data);
+    return CodedFrame(status.block->timestamp(), flags, move(sample_data), aux_data);
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
