@@ -664,11 +664,14 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     Vector<TestCompletion> non_passing_tests;
 
-    for (auto& view : views) {
+    auto digits_for_view_id = static_cast<size_t>(log10(views.size()) + 1);
+    auto digits_for_test_id = static_cast<size_t>(log10(tests.size()) + 1);
+
+    for (auto [view_id, view] : enumerate(views)) {
         set_ui_callbacks_for_tests(*view);
         view->clear_content_filters();
 
-        auto run_next_test = [&]() {
+        auto run_next_test = [&, view_id]() {
             auto index = current_test++;
             if (index >= tests.size())
                 return;
@@ -681,7 +684,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 out("\33[2K\r{}/{}: {}", test.index, tests.size(), test.relative_path);
                 (void)fflush(stdout);
             } else {
-                outln("{}/{}:  Start {}", test.index, tests.size(), test.relative_path);
+                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index, digits_for_test_id, tests.size(), test.relative_path);
             }
 
             Core::deferred_invoke([&]() mutable {
@@ -692,13 +695,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             });
         };
 
-        view->test_promise().when_resolved([&, run_next_test](auto result) {
+        view->test_promise().when_resolved([&, run_next_test, view_id](auto result) {
             result.test.end_time = UnixDateTime::now();
             s_test_by_view.remove(view);
 
             if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                 auto duration = result.test.end_time - result.test.start_time;
-                outln("{}/{}: Finish {}: {}ms", result.test.index, tests.size(), result.test.relative_path, duration.to_milliseconds());
+                outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_id, digits_for_view_id, result.test.index, digits_for_test_id, tests.size(), result.test.relative_path, duration.to_milliseconds());
             }
 
             switch (result.result) {
