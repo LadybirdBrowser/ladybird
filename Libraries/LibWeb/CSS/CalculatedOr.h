@@ -79,20 +79,6 @@ public:
             });
     }
 
-    Self absolutized(ComputationContext const& computation_context) const
-    {
-        return m_value.visit(
-            [&](T const& value) {
-                if constexpr (IsSame<T, Length>)
-                    return Self { value.absolutized(computation_context.length_resolution_context.viewport_rect, computation_context.length_resolution_context.font_metrics, computation_context.length_resolution_context.root_font_metrics) };
-                else
-                    return *static_cast<Self const*>(this);
-            },
-            [&](NonnullRefPtr<CalculatedStyleValue const> const& value) {
-                return Self { value->absolutized(computation_context)->as_calculated() };
-            });
-    }
-
     bool operator==(CalculatedOr<Self, T> const& other) const
     {
         if (is_calculated() || other.is_calculated())
