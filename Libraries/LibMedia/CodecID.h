@@ -30,6 +30,7 @@ enum class CodecID : u32 {
     Theora,
     Vorbis,
     Opus,
+    FLAC,
 };
 
 }
@@ -86,6 +87,9 @@ struct Formatter<Media::CodecID> : Formatter<StringView> {
             break;
         case Media::CodecID::Opus:
             codec = "Opus"sv;
+            break;
+        case Media::CodecID::FLAC:
+            codec = "FLAC"sv;
             break;
         }
         return builder.put_string(codec);

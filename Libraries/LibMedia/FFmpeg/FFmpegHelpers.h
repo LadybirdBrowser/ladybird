@@ -45,6 +45,8 @@ static inline AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
         return AV_CODEC_ID_VORBIS;
     case CodecID::Opus:
         return AV_CODEC_ID_OPUS;
+    case CodecID::FLAC:
+        return AV_CODEC_ID_FLAC;
     case CodecID::Unknown:
         return AV_CODEC_ID_NONE;
     }
@@ -81,6 +83,8 @@ static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
         return CodecID::Vorbis;
     case AV_CODEC_ID_OPUS:
         return CodecID::Opus;
+    case AV_CODEC_ID_FLAC:
+        return CodecID::FLAC;
     default:
         return CodecID::Unknown;
     }
