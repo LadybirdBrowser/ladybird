@@ -396,10 +396,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    // FIXME: Stop removing whitespace here. It's less helpful than it seems.
     Vector<ComponentValue> component_values;
     SubstitutionFunctionsPresence substitution_presence;
-    bool const property_accepts_custom_ident = property_accepts_type(property_id, ValueType::CustomIdent);
 
     while (unprocessed_tokens.has_next_token()) {
         auto const& token = unprocessed_tokens.consume_a_token();
@@ -409,13 +407,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return ParseError::SyntaxError;
         }
 
-        if (property_id != PropertyID::Custom) {
-            if (token.is(Token::Type::Whitespace))
-                continue;
-
-            if (!property_accepts_custom_ident && token.is(Token::Type::Ident) && has_ignored_vendor_prefix(token.token().ident()))
-                return ParseError::IncludesIgnoredVendorPrefix;
-        }
+        // FIXME: Stop removing whitespace here. It's less helpful than it seems.
+        if (property_id != PropertyID::Custom && token.is(Token::Type::Whitespace))
+            continue;
 
         if (token.is_function())
             token.function().contains_arbitrary_substitution_function(substitution_presence);
