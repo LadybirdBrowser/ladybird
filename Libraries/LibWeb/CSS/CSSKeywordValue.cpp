@@ -78,6 +78,8 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
         // identifier.
         // If case-folding rules are in effect normally for that <ident> (such as Auto matching the keyword auto
         // specified in the grammar for width), they apply to this comparison as well.
+        if (is_css_wide_keyword(m_value))
+            return true;
         if (property.is_custom_property()) {
             // FIXME: If this is a registered custom property, check if that allows the keyword.
             return true;
