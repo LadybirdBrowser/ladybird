@@ -1170,10 +1170,13 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
 
-    // FIXME: It might not be the best idea to send time updates at 60Hz, but this is a convenient place for this
-    //        for now.
+    // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
+    // before the seek when the user lets go of the left mouse button.
+    if (seeking())
+        return;
+
     auto new_position = m_playback_manager->current_time().to_seconds_f64();
-    if (new_position != m_official_playback_position) {
+    if (new_position != m_current_playback_position) {
         set_current_playback_position(new_position);
         needs_display = true;
     }
@@ -1207,6 +1210,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
     //       Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
 
     m_playback_manager = playback_manager_result.release_value();
+
+    m_playback_manager->on_playback_state_change = [weak_self = make_weak_ptr<HTMLMediaElement>()] {
+        if (weak_self)
+            weak_self->on_playback_manager_state_change();
+    };
 
     // -> If the media resource is found to have an audio track
     auto preferred_audio_track = m_playback_manager->preferred_audio_track();
@@ -1560,6 +1568,14 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 }
 
+void HTMLMediaElement::on_playback_manager_state_change()
+{
+    if (!m_playback_manager)
+        return;
+    if (seeking() && m_playback_manager->state() != Media::PlaybackState::Seeking)
+        finish_seeking_element();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#internal-play-steps
 WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
 {
@@ -1667,17 +1683,19 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     if (m_ready_state == ReadyState::HaveNothing)
         return;
 
-    // FIXME: 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
-    //           Abort that other instance of the algorithm without waiting for the step that it is running to complete.
-    if (m_seeking) {
-    }
+    // 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
+    //    Abort that other instance of the algorithm without waiting for the step that it is running to complete.
+    // NOTE: PlaybackManager will restart any ongoing seek, and only exit the seeking state once, so we don't need to
+    //       check the seeking attribute here.
 
     // 4. Set the seeking IDL attribute to true.
     set_seeking(true);
 
-    // FIXME: 5. If the seek was in response to a DOM method call or setting of an IDL attribute, then continue the script. The
-    //           remainder of these steps must be run in parallel. With the exception of the steps marked with ⌛, they could be
-    //           aborted at any time by another instance of this algorithm being invoked.
+    // 5. If the seek was in response to a DOM method call or setting of an IDL attribute, then continue the script. The
+    //    remainder of these steps must be run in parallel. With the exception of the steps marked with ⌛, they could be
+    //    aborted at any time by another instance of this algorithm being invoked.
+    // NOTE: We implement the async nature of seeking through PlaybackManager, and the steps here are implemented as options
+    //       that define how PlaybackManager's seeking behaves.
 
     // 6. If the new playback position is later than the end of the media resource, then let it be the end of the media resource instead.
     playback_position = min(playback_position, m_duration);
@@ -1726,11 +1744,21 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         }
     }
 
+    // AD-HOC: Ensure that currentTime returns the new playback position on the timeline immediately, as other
+    //         browsers do.
+    m_official_playback_position = playback_position;
+
     // 9. If the approximate-for-speed flag is set, adjust the new playback position to a value that will allow for playback to resume
     //    promptly. If new playback position before this step is before current playback position, then the adjusted new playback position
     //    must also be before the current playback position. Similarly, if the new playback position before this step is after current
     //    playback position, then the adjusted new playback position must also be after the current playback position.
-    // NOTE: LibVideo handles approximation for speed internally.
+    auto manager_seek_mode = Media::SeekMode::Accurate;
+    if (seek_mode == MediaSeekMode::ApproximateForSpeed) {
+        if (playback_position <= current_playback_position())
+            manager_seek_mode = Media::SeekMode::FastBefore;
+        else
+            manager_seek_mode = Media::SeekMode::FastAfter;
+    }
 
     // 10. Queue a media element task given the media element to fire an event named seeking at the element.
     queue_a_media_element_task([this]() {
@@ -1738,19 +1766,33 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     });
 
     // 11. Set the current playback position to the new playback position.
-    set_current_playback_position(playback_position);
+    // NOTE: We set the playback position in finish_seeking_element(), once we've established the new playback position using
+    //       the seek mode we've been provided.
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
-    // FIXME: Implement seeking in PlaybackManager.
-    (void)seek_mode;
+    if (m_playback_manager)
+        m_playback_manager->seek(AK::Duration::from_seconds_f64(playback_position), manager_seek_mode);
 
-    // FIXME: 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
-    //            synchronous section are marked with ⌛.)
-    //        The following steps should be executed within the success callback of a seek promise from PlaybackManager.
+    // 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
+    //     synchronous section are marked with ⌛.)
+    if (m_playback_manager) {
+        // NOTE: The final steps are triggered by our playback manager exiting the seeking state its playing/paused state.
+    } else {
+        finish_seeking_element();
+    }
+}
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
+void HTMLMediaElement::finish_seeking_element()
+{
     // 14. ⌛ Set the seeking IDL attribute to false.
     set_seeking(false);
+
+    // NOTE: We deferred setting the current playback position until the async steps have completed.
+    //       This fulfills step 11. This will also update the displayed frame to ensure that the user immediately
+    //       sees the frame that we've seeked to.
+    update_video_frame_and_timeline();
 
     // 15. ⌛ Run the time marches on steps.
     time_marches_on(TimeMarchesOnReason::Other);
@@ -2167,15 +2209,15 @@ WebIDL::ExceptionOr<bool> HTMLMediaElement::handle_keydown(Badge<Web::EventHandl
 
 void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, Optional<double> display_time)
 {
-    if (display_time.has_value() && !m_display_time.has_value()) {
-        if (potentially_playing()) {
+    if (display_time.has_value()) {
+        if (potentially_playing() && !m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = true;
-            // FIXME: Pause the PlaybackManager.
+            m_playback_manager->pause();
         }
-    } else if (!display_time.has_value() && m_display_time.has_value()) {
+    } else if (!display_time.has_value()) {
         if (m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = false;
-            // FIXME: Resume the PlaybackManager.
+            m_playback_manager->play();
         }
     }
 
