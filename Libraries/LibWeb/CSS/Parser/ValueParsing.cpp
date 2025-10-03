@@ -4663,10 +4663,6 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
 
 NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::AbstractElement abstract_element, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
-    // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
-    // to produce a different StyleValue from it.
-    VERIFY(unresolved.contains_arbitrary_substitution_function());
-
     auto parser = Parser::create(context, ""sv);
     if (existing_guarded_contexts.has_value())
         return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), property, unresolved);
