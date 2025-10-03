@@ -45,13 +45,19 @@ WebIDL::ExceptionOr<Vector<ModuleImportDescriptor>> Module::imports(JS::VM&, GC:
     auto& imports = module_object->m_compiled_module->module->import_section().imports();
     import_objects.ensure_capacity(imports.size());
     for (auto& import : imports) {
+        if (import.description().has<Wasm::TagType>()) {
+            dbgln("Not yet implemented: importing tags");
+            continue;
+        }
+
         // 3.1. Let kind be the string value of the extern type type.
         auto const kind = import.description().visit(
             [](Wasm::TypeIndex) { return Bindings::ImportExportKind::Function; },
             [](Wasm::TableType) { return Bindings::ImportExportKind::Table; },
             [](Wasm::MemoryType) { return Bindings::ImportExportKind::Memory; },
             [](Wasm::GlobalType) { return Bindings::ImportExportKind::Global; },
-            [](Wasm::FunctionType) { return Bindings::ImportExportKind::Function; });
+            [](Wasm::FunctionType) { return Bindings::ImportExportKind::Function; },
+            [](Wasm::TagType) -> Bindings::ImportExportKind { TODO(); });
 
         // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
         ModuleImportDescriptor descriptor {
@@ -78,12 +84,18 @@ WebIDL::ExceptionOr<Vector<ModuleExportDescriptor>> Module::exports(JS::VM&, GC:
     auto& exports = module_object->m_compiled_module->module->export_section().entries();
     export_objects.ensure_capacity(exports.size());
     for (auto& entry : exports) {
+        if (entry.description().has<Wasm::TagIndex>()) {
+            dbgln("Not yet implemented: exporting tags");
+            continue;
+        }
+
         // 3.1. Let kind be the string value of the extern type type.
         auto const kind = entry.description().visit(
             [](Wasm::FunctionIndex) { return Bindings::ImportExportKind::Function; },
             [](Wasm::TableIndex) { return Bindings::ImportExportKind::Table; },
             [](Wasm::MemoryIndex) { return Bindings::ImportExportKind::Memory; },
-            [](Wasm::GlobalIndex) { return Bindings::ImportExportKind::Global; });
+            [](Wasm::GlobalIndex) { return Bindings::ImportExportKind::Global; },
+            [](Wasm::TagIndex) -> Bindings::ImportExportKind { TODO(); });
         // 3.2. Let obj be «[ "name" → name, "kind" → kind ]».
         ModuleExportDescriptor descriptor {
             .name = String::from_utf8_with_replacement_character(entry.name()),

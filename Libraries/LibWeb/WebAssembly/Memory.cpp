@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Me
     if (shared && !descriptor.maximum.has_value())
         return vm.throw_completion<JS::TypeError>("Maximum has to be specified for shared memory."sv);
 
-    Wasm::Limits limits { descriptor.initial, move(descriptor.maximum) };
+    Wasm::Limits limits { Wasm::AddressType::I32, descriptor.initial, descriptor.maximum.map([](auto x) -> u64 { return x; }) };
     Wasm::MemoryType memory_type { move(limits) };
 
     auto& cache = Detail::get_cache(realm);
