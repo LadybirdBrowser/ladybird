@@ -179,18 +179,15 @@ DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyf
 
     auto& track_status = *TRY(get_track_status(track));
     auto seeked_iterator = TRY(m_reader.seek_to_random_access_point(track_status.iterator, timestamp));
-    VERIFY(seeked_iterator.last_timestamp().has_value());
 
     auto last_sample = earliest_available_sample;
-    if (!last_sample.has_value()) {
+    if (!last_sample.has_value())
         last_sample = track_status.iterator.last_timestamp();
-    }
-    if (last_sample.has_value()) {
+    if (last_sample.has_value() && seeked_iterator.last_timestamp().has_value()) {
         bool skip_seek = seeked_iterator.last_timestamp().value() <= last_sample.value() && last_sample.value() <= timestamp;
         dbgln_if(MATROSKA_DEBUG, "The last available sample at {}ms is {}closer to target timestamp {}ms than the keyframe at {}ms, {}", last_sample->to_milliseconds(), skip_seek ? ""sv : "not "sv, timestamp.to_milliseconds(), seeked_iterator.last_timestamp()->to_milliseconds(), skip_seek ? "skipping seek"sv : "seeking"sv);
-        if (skip_seek) {
+        if (skip_seek)
             return OptionalNone();
-        }
     }
 
     track_status.iterator = move(seeked_iterator);
