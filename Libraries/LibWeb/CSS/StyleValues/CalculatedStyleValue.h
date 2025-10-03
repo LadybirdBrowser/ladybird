@@ -127,6 +127,10 @@ private:
         double value;
         Optional<NumericType> type;
     };
+    // FIXME: Calculations should be simplified apart from percentages by the absolutized method prior to this method
+    //        being called so we can take just the percentage_basis rather than a full CalculationResolutionContext.
+    //        There are still some CalculatedStyleValues which we don't call absolutized for (i.e. sub-values of other
+    //        StyleValue classes which lack their own absolutized method) which will need to be fixed beforehand.
     Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&) const;
 
     Optional<ValueType> percentage_resolved_type() const;

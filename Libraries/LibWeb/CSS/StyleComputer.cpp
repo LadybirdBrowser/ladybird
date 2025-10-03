@@ -3381,29 +3381,31 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     // https://drafts.csswg.org/css-fonts/#font-size-prop
     // an absolute length
 
+    auto const& absolutized_value = specified_value->absolutized(computation_context);
+
     // <absolute-size>
-    if (auto absolute_size = keyword_to_absolute_size(specified_value->to_keyword()); absolute_size.has_value())
+    if (auto absolute_size = keyword_to_absolute_size(absolutized_value->to_keyword()); absolute_size.has_value())
         return LengthStyleValue::create(Length::make_px(absolute_size_mapping(absolute_size.value(), default_user_font_size())));
 
     // <relative-size>
-    if (auto relative_size = keyword_to_relative_size(specified_value->to_keyword()); relative_size.has_value())
+    if (auto relative_size = keyword_to_relative_size(absolutized_value->to_keyword()); relative_size.has_value())
         return LengthStyleValue::create(Length::make_px(relative_size_mapping(relative_size.value(), inherited_font_size)));
 
     // <length-percentage [0,∞]>
     // A length value specifies an absolute font size (independent of the user agent’s font table). Negative lengths are invalid.
-    if (specified_value->is_length())
-        return LengthStyleValue::create(Length::make_px(max(CSSPixels { 0 }, specified_value->as_length().length().to_px(computation_context.length_resolution_context))));
+    if (absolutized_value->is_length())
+        return absolutized_value;
 
     // A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid.
-    if (specified_value->is_percentage())
-        return LengthStyleValue::create(Length::make_px(inherited_font_size * specified_value->as_percentage().percentage().as_fraction()));
+    if (absolutized_value->is_percentage())
+        return LengthStyleValue::create(Length::make_px(inherited_font_size * absolutized_value->as_percentage().percentage().as_fraction()));
 
-    if (specified_value->is_calculated())
-        return LengthStyleValue::create(specified_value->as_calculated().resolve_length(CalculationResolutionContext::from_computation_context(computation_context, Length(1, LengthUnit::Em))).value());
+    if (absolutized_value->is_calculated())
+        return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(inherited_font_size) }).value());
 
     // math
     // Special mathematical scaling rules must be applied when determining the computed value of the font-size property.
-    if (specified_value->to_keyword() == Keyword::Math) {
+    if (absolutized_value->to_keyword() == Keyword::Math) {
         auto math_scaling_factor = [&]() {
             // https://w3c.github.io/mathml-core/#the-math-script-level-property
             // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
@@ -3439,7 +3441,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
             return 1.0 / scale;
         }();
 
-        return LengthStyleValue::create(Length::make_px(inherited_font_size.scale_by(math_scaling_factor)));
+        return LengthStyleValue::create(Length::make_px(inherited_font_size.scaled(math_scaling_factor)));
     }
 
     VERIFY_NOT_REACHED();
@@ -3473,22 +3475,24 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
     // https://drafts.csswg.org/css-fonts-4/#font-weight-prop
     // a number, see below
 
+    auto const& absolutized_value = specified_value->absolutized(computation_context);
+
     // <number [1,1000]>
-    if (specified_value->is_number())
-        return specified_value;
+    if (absolutized_value->is_number())
+        return absolutized_value;
 
     // AD-HOC: Anywhere we support a numbers we should also support calcs
-    if (specified_value->is_calculated())
-        return NumberStyleValue::create(specified_value->as_calculated().resolve_number(CalculationResolutionContext::from_computation_context(computation_context)).value());
+    if (absolutized_value->is_calculated())
+        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
 
     // normal
     // Same as 400.
-    if (specified_value->to_keyword() == Keyword::Normal)
+    if (absolutized_value->to_keyword() == Keyword::Normal)
         return NumberStyleValue::create(400);
 
     // bold
     // Same as 700.
-    if (specified_value->to_keyword() == Keyword::Bold)
+    if (absolutized_value->to_keyword() == Keyword::Bold)
         return NumberStyleValue::create(700);
 
     // Specified values of bolder and lighter indicate weights relative to the weight of the parent element. The
@@ -3504,7 +3508,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
 
     // bolder
     // Specifies a bolder weight than the inherited value. See § 2.2.1 Relative Weights.
-    if (specified_value->to_keyword() == Keyword::Bolder) {
+    if (absolutized_value->to_keyword() == Keyword::Bolder) {
         if (inherited_font_weight < 350)
             return NumberStyleValue::create(400);
 
@@ -3519,7 +3523,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
 
     // lighter
     // Specifies a lighter weight than the inherited value. See § 2.2.1 Relative Weights.
-    if (specified_value->to_keyword() == Keyword::Lighter) {
+    if (absolutized_value->to_keyword() == Keyword::Lighter) {
         if (inherited_font_weight < 100)
             return NumberStyleValue::create(inherited_font_weight);
 
@@ -3540,15 +3544,17 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
     // https://drafts.csswg.org/css-fonts-4/#font-width-prop
     // a percentage, see below
 
+    auto absolutized_value = specified_value->absolutized(computation_context);
+
     // <percentage [0,∞]>
-    if (specified_value->is_percentage())
-        return specified_value;
+    if (absolutized_value->is_percentage())
+        return absolutized_value;
 
     // AD-HOC: We support calculated percentages as well
-    if (specified_value->is_calculated())
-        return PercentageStyleValue::create(specified_value->as_calculated().resolve_percentage(CalculationResolutionContext::from_computation_context(computation_context)).value());
+    if (absolutized_value->is_calculated())
+        return PercentageStyleValue::create(absolutized_value->as_calculated().resolve_percentage({}).value());
 
-    switch (specified_value->to_keyword()) {
+    switch (absolutized_value->to_keyword()) {
     // ultra-condensed 50%
     case Keyword::UltraCondensed:
         return PercentageStyleValue::create(Percentage(50));
@@ -3584,29 +3590,26 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
 NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
 {
     // https://drafts.csswg.org/css-inline-3/#line-height-property
-    // normal
-    if (specified_value->to_keyword() == Keyword::Normal)
-        return specified_value;
 
+    auto absolutized_value = specified_value->absolutized(computation_context);
+
+    // normal
     // <length [0,∞]>
-    if (specified_value->is_length())
-        return specified_value->absolutized(computation_context);
+    // <number [0,∞]>
+    if (absolutized_value->to_keyword() == Keyword::Normal || absolutized_value->is_length() || absolutized_value->is_number())
+        return absolutized_value;
 
     // NOTE: We also support calc()'d lengths (percentages resolve to lengths so we don't have to handle them separately)
-    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_length_percentage())
-        return LengthStyleValue::create(specified_value->as_calculated().resolve_length(CalculationResolutionContext::from_computation_context(computation_context, Length(1, LengthUnit::Em))).value());
-
-    // <number [0,∞]>
-    if (specified_value->is_number())
-        return specified_value;
+    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_length_percentage())
+        return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(computation_context.length_resolution_context.font_metrics.font_size) }).value());
 
     // NOTE: We also support calc()'d numbers
-    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_number())
-        return NumberStyleValue::create(specified_value->as_calculated().resolve_number(CalculationResolutionContext::from_computation_context(computation_context, Length(1, LengthUnit::Em))).value());
+    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
+        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({ .percentage_basis = Length::make_px(computation_context.length_resolution_context.font_metrics.font_size) }).value());
 
     // <percentage [0,∞]>
-    if (specified_value->is_percentage())
-        return LengthStyleValue::create(Length::make_px(computation_context.length_resolution_context.font_metrics.font_size * specified_value->as_percentage().percentage().as_fraction()));
+    if (absolutized_value->is_percentage())
+        return LengthStyleValue::create(Length::make_px(computation_context.length_resolution_context.font_metrics.font_size * absolutized_value->as_percentage().percentage().as_fraction()));
 
     VERIFY_NOT_REACHED();
 }
