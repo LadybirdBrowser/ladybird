@@ -202,9 +202,11 @@ private:
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
+    void on_playback_manager_state_change();
     WebIDL::ExceptionOr<void> play_element();
     WebIDL::ExceptionOr<void> pause_element();
     void seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
+    void finish_seeking_element();
     void notify_about_playing();
     void set_show_poster(bool);
     void set_paused(bool);
