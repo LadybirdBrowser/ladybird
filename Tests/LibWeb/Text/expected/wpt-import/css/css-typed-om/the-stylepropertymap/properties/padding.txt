@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 124 tests
 
-92 Pass
-32 Fail
-Fail	Can set 'padding-top' to CSS-wide keywords: initial
-Fail	Can set 'padding-top' to CSS-wide keywords: inherit
-Fail	Can set 'padding-top' to CSS-wide keywords: unset
-Fail	Can set 'padding-top' to CSS-wide keywords: revert
+108 Pass
+16 Fail
+Pass	Can set 'padding-top' to CSS-wide keywords: initial
+Pass	Can set 'padding-top' to CSS-wide keywords: inherit
+Pass	Can set 'padding-top' to CSS-wide keywords: unset
+Pass	Can set 'padding-top' to CSS-wide keywords: revert
 Fail	Can set 'padding-top' to var() references:  var(--A)
 Pass	Can set 'padding-top' to a percent: 0%
 Fail	Can set 'padding-top' to a percent: -3.14%
@@ -35,10 +35,10 @@ Pass	Setting 'padding-top' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'padding-top' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'padding-top' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'padding-top' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'padding-left' to CSS-wide keywords: initial
-Fail	Can set 'padding-left' to CSS-wide keywords: inherit
-Fail	Can set 'padding-left' to CSS-wide keywords: unset
-Fail	Can set 'padding-left' to CSS-wide keywords: revert
+Pass	Can set 'padding-left' to CSS-wide keywords: initial
+Pass	Can set 'padding-left' to CSS-wide keywords: inherit
+Pass	Can set 'padding-left' to CSS-wide keywords: unset
+Pass	Can set 'padding-left' to CSS-wide keywords: revert
 Fail	Can set 'padding-left' to var() references:  var(--A)
 Pass	Can set 'padding-left' to a percent: 0%
 Fail	Can set 'padding-left' to a percent: -3.14%
@@ -66,10 +66,10 @@ Pass	Setting 'padding-left' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'padding-left' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'padding-left' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'padding-left' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'padding-right' to CSS-wide keywords: initial
-Fail	Can set 'padding-right' to CSS-wide keywords: inherit
-Fail	Can set 'padding-right' to CSS-wide keywords: unset
-Fail	Can set 'padding-right' to CSS-wide keywords: revert
+Pass	Can set 'padding-right' to CSS-wide keywords: initial
+Pass	Can set 'padding-right' to CSS-wide keywords: inherit
+Pass	Can set 'padding-right' to CSS-wide keywords: unset
+Pass	Can set 'padding-right' to CSS-wide keywords: revert
 Fail	Can set 'padding-right' to var() references:  var(--A)
 Pass	Can set 'padding-right' to a percent: 0%
 Fail	Can set 'padding-right' to a percent: -3.14%
@@ -97,10 +97,10 @@ Pass	Setting 'padding-right' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'padding-right' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'padding-right' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'padding-right' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	Can set 'padding-bottom' to CSS-wide keywords: initial
-Fail	Can set 'padding-bottom' to CSS-wide keywords: inherit
-Fail	Can set 'padding-bottom' to CSS-wide keywords: unset
-Fail	Can set 'padding-bottom' to CSS-wide keywords: revert
+Pass	Can set 'padding-bottom' to CSS-wide keywords: initial
+Pass	Can set 'padding-bottom' to CSS-wide keywords: inherit
+Pass	Can set 'padding-bottom' to CSS-wide keywords: unset
+Pass	Can set 'padding-bottom' to CSS-wide keywords: revert
 Fail	Can set 'padding-bottom' to var() references:  var(--A)
 Pass	Can set 'padding-bottom' to a percent: 0%
 Fail	Can set 'padding-bottom' to a percent: -3.14%

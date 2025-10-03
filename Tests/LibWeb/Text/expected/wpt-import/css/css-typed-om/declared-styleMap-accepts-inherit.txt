@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Declared styleMap objects accept 'inherit' as a value
+1 Pass
+Pass	Declared styleMap objects accept 'inherit' as a value

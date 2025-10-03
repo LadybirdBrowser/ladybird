@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 33 tests
 
-23 Pass
-10 Fail
-Fail	Can set 'transform' to CSS-wide keywords: initial
-Fail	Can set 'transform' to CSS-wide keywords: inherit
-Fail	Can set 'transform' to CSS-wide keywords: unset
-Fail	Can set 'transform' to CSS-wide keywords: revert
+27 Pass
+6 Fail
+Pass	Can set 'transform' to CSS-wide keywords: initial
+Pass	Can set 'transform' to CSS-wide keywords: inherit
+Pass	Can set 'transform' to CSS-wide keywords: unset
+Pass	Can set 'transform' to CSS-wide keywords: revert
 Fail	Can set 'transform' to var() references:  var(--A)
 Fail	Can set 'transform' to the 'none' keyword: none
 Fail	Can set 'transform' to a transform: translate(50%, 50%)
