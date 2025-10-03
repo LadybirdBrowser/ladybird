@@ -57,32 +57,4 @@ Layout::AudioBox const* HTMLAudioElement::layout_node() const
     return static_cast<Layout::AudioBox const*>(Node::layout_node());
 }
 
-void HTMLAudioElement::on_playing()
-{
-    audio_tracks()->for_each_enabled_track([](auto& audio_track) {
-        audio_track.play();
-    });
-}
-
-void HTMLAudioElement::on_paused()
-{
-    audio_tracks()->for_each_enabled_track([](auto& audio_track) {
-        audio_track.pause();
-    });
-}
-
-void HTMLAudioElement::on_seek(double position, MediaSeekMode seek_mode)
-{
-    audio_tracks()->for_each_enabled_track([&](auto& audio_track) {
-        audio_track.seek(position, seek_mode);
-    });
-}
-
-void HTMLAudioElement::on_volume_change()
-{
-    audio_tracks()->for_each_enabled_track([&](auto& audio_track) {
-        audio_track.update_volume();
-    });
-}
-
 }
