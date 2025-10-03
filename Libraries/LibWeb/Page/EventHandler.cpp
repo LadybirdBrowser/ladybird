@@ -408,7 +408,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
         paintable = result->paintable;
 
     if (paintable) {
-        auto* containing_block = paintable->containing_block();
+        Painting::Paintable* containing_block = paintable;
         while (containing_block) {
             auto handled_scroll_event = containing_block->handle_mousewheel({}, viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y);
             if (handled_scroll_event)
