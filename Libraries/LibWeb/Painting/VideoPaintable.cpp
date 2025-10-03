@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
@@ -58,7 +59,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& video_element = as<HTML::HTMLVideoElement>(*dom_node());
     auto mouse_position = MediaPaintable::mouse_position(context, video_element);
 
-    auto const& current_frame = video_element.current_frame();
+    auto const& current_frame = video_element.selected_video_track_sink() != nullptr ? video_element.selected_video_track_sink()->current_frame() : nullptr;
     auto const& poster_frame = video_element.poster_frame();
 
     auto current_playback_position = video_element.current_playback_position();
@@ -148,8 +149,8 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     switch (representation) {
     case Representation::VideoFrame:
-        if (current_frame.frame)
-            paint_frame(current_frame.frame);
+        if (current_frame)
+            paint_frame(current_frame);
         if (paint_user_agent_controls)
             paint_loaded_video_controls();
         break;

@@ -30,6 +30,16 @@ public:
     GC::Ptr<VideoTrack> get_track_by_id(StringView id) const;
     i32 selected_index() const;
 
+    template<typename Callback>
+    void for_each_track(Callback&& callback)
+    {
+        for (auto& video_track : m_video_tracks) {
+            auto iteration_decision = callback(*video_track);
+            if (iteration_decision == IterationDecision::Break)
+                break;
+        }
+    }
+
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
 

@@ -502,6 +502,13 @@ void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID 
     });
 }
 
+void Page::update_all_media_element_video_sinks()
+{
+    for_each_media_element([](auto& media_element) {
+        media_element.update_video_frame_and_timeline();
+    });
+}
+
 void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)
 {
     m_media_context_menu_element_id = media_id;
