@@ -56,15 +56,6 @@ static bool any_have_non_matching_associated_property(FlyString const& property,
     });
 }
 
-static bool any_are_unparsed_or_variable_reference(Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
-{
-    return any_of(values, [](Variant<GC::Root<CSSStyleValue>, String> const& value) {
-        auto* style_value = value.get_pointer<GC::Root<CSSStyleValue>>();
-        return style_value
-            && (is<CSSUnparsedValue>(style_value->ptr()) || is<CSSVariableReferenceValue>(style_value->ptr()));
-    });
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
 static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Root<CSSStyleValue>, String> const& value)
 {
@@ -111,8 +102,8 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
     //       a var() function in the string-based OM disables all syntax parsing, including splitting into individual
     //       iterations (because there might be more commas inside of the var() value, so you can’t tell how many items
     //       are actually going to show up). This step’s restriction preserves the same semantics in the Typed OM.
-    if (values.size() >= 2 && any_are_unparsed_or_variable_reference(values))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide multiple values if one is an CSSUnparsedValue or CSSVariableReferenceValue"_string };
+    // FIXME: This is done as part of step 9, because we need to detect if a string value would be an CSSUnparsedValue
+    //        or CSSVariableReferenceValue. Spec issue: https://github.com/w3c/css-houdini-drafts/issues/1157
 
     // 6. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = declarations();
@@ -126,7 +117,13 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
 
     // 9. For each value in values, create an internal representation for property and value, and append the result to values to set.
     for (auto const& value : values) {
-        values_to_set.append(TRY(create_an_internal_representation(vm(), property.value(), value)));
+        // AD-HOC: Step 5 is done here, see above.
+        auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
+
+        if (values.size() >= 2 && internal_representation->is_unresolved())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide multiple values if one is an CSSUnparsedValue or CSSVariableReferenceValue"_string };
+
+        values_to_set.append(move(internal_representation));
     }
 
     // 10. Set props[property] to values to set.
