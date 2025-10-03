@@ -191,6 +191,7 @@ float measure_text_width(Utf16View const& string, Font const& font, ShapeFeature
     for (size_t i = 0; i < glyph_count; ++i)
         point_x += positions[i].x_advance;
 
+    hb_buffer_destroy(buffer);
     return point_x / text_shaping_resolution;
 }
 
