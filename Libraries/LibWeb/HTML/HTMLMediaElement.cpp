@@ -7,6 +7,7 @@
 
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/SeekMode.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
@@ -1169,6 +1170,11 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
 
+    // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
+    // before the seek when the user lets go of the left mouse button.
+    if (seeking())
+        return;
+
     // FIXME: It might not be the best idea to send time updates at 60Hz, but this is a convenient place for this
     //        for now.
     auto new_position = m_playback_manager->current_time().to_seconds_f64();
@@ -1206,6 +1212,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
     //       Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
 
     m_playback_manager = playback_manager_result.release_value();
+
+    m_playback_manager->on_playback_state_change = [weak_self = make_weak_ptr<HTMLMediaElement>()] {
+        if (weak_self)
+            weak_self->on_playback_manager_state_change();
+    };
 
     // -> If the media resource is found to have an audio track
     auto preferred_audio_track = m_playback_manager->preferred_audio_track();
@@ -1559,6 +1570,14 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 }
 
+void HTMLMediaElement::on_playback_manager_state_change()
+{
+    if (!m_playback_manager)
+        return;
+    if (seeking() && m_playback_manager->state() != Media::PlaybackState::Seeking)
+        finish_seeking_element();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#internal-play-steps
 WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
 {
@@ -1666,10 +1685,10 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     if (m_ready_state == ReadyState::HaveNothing)
         return;
 
-    // FIXME: 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
-    //           Abort that other instance of the algorithm without waiting for the step that it is running to complete.
-    if (m_seeking) {
-    }
+    // 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
+    //    Abort that other instance of the algorithm without waiting for the step that it is running to complete.
+    // NOTE: PlaybackManager will restart any ongoing seek, and only exit the seeking state once, so we don't need to
+    //       check the seeking attribute here.
 
     // 4. Set the seeking IDL attribute to true.
     set_seeking(true);
@@ -1729,7 +1748,26 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //    promptly. If new playback position before this step is before current playback position, then the adjusted new playback position
     //    must also be before the current playback position. Similarly, if the new playback position before this step is after current
     //    playback position, then the adjusted new playback position must also be after the current playback position.
-    // NOTE: LibVideo handles approximation for speed internally.
+
+    // FIXME: We don't have a nice way to synchronously adjust the playback position based on the container's random
+    //        access points according to the steps above, since we have to drop coded video frames until we reach the
+    //        next keyframe in order to satisfy the requirement to choose a random access point after the current
+    //        playback position in some cases.
+    //
+    //        For now, instead complete this step asynchronously, and set the playback position to the accurate
+    //        position, so that seeking results in text cues updating instantly. When doing a fast seek, this will
+    //        result in the text cues at the exact seek position appearing briefly, before being instantly replaced
+    //        by the ones at the adjusted position when the seek completes.
+    //
+    //        This appears to match the behavior in Firefox, where it reports the accurate seek target until the seek
+    //        has completed. Spec bug?
+    auto manager_seek_mode = Media::SeekMode::Accurate;
+    if (seek_mode == MediaSeekMode::ApproximateForSpeed) {
+        if (playback_position <= current_playback_position())
+            manager_seek_mode = Media::SeekMode::FastBefore;
+        else
+            manager_seek_mode = Media::SeekMode::FastAfter;
+    }
 
     // 10. Queue a media element task given the media element to fire an event named seeking at the element.
     queue_a_media_element_task([this]() {
@@ -1741,15 +1779,27 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
-    // FIXME: Implement seeking in PlaybackManager.
-    (void)seek_mode;
+    if (m_playback_manager)
+        m_playback_manager->seek(AK::Duration::from_seconds_f64(playback_position), manager_seek_mode);
 
-    // FIXME: 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
-    //            synchronous section are marked with ⌛.)
-    //        The following steps should be executed within the success callback of a seek promise from PlaybackManager.
+    // 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
+    //     synchronous section are marked with ⌛.)
+    // NOTE: If the playback manager is present, the final steps are riggered by our playback manager completing the
+    //       seek and resuming a playing/paused state.
+    if (!m_playback_manager)
+        finish_seeking_element();
+}
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
+void HTMLMediaElement::finish_seeking_element()
+{
     // 14. ⌛ Set the seeking IDL attribute to false.
     set_seeking(false);
+
+    // AD-HOC: Due to the FIXME in seek_element for fast seeking, we need to set the current playback position again
+    //         here to make sure that the time during the 'seeking' event is correct. We also need to make sure the
+    //         displayed frame is immediately updated, or the user may see a blank frame.
+    update_video_frame_and_timeline();
 
     // 15. ⌛ Run the time marches on steps.
     time_marches_on(TimeMarchesOnReason::Other);
@@ -2166,15 +2216,15 @@ WebIDL::ExceptionOr<bool> HTMLMediaElement::handle_keydown(Badge<Web::EventHandl
 
 void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, Optional<double> display_time)
 {
-    if (display_time.has_value() && !m_display_time.has_value()) {
-        if (potentially_playing()) {
+    if (display_time.has_value()) {
+        if (potentially_playing() && !m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = true;
-            // FIXME: Pause the PlaybackManager.
+            m_playback_manager->pause();
         }
-    } else if (!display_time.has_value() && m_display_time.has_value()) {
+    } else if (!display_time.has_value()) {
         if (m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = false;
-            // FIXME: Resume the PlaybackManager.
+            m_playback_manager->play();
         }
     }
 

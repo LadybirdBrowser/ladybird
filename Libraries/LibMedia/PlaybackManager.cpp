@@ -226,6 +226,7 @@ void PlaybackManager::pause()
 void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
 {
     m_handler->seek(timestamp, mode);
+    m_is_in_error_state = false;
 }
 
 bool PlaybackManager::is_playing()
