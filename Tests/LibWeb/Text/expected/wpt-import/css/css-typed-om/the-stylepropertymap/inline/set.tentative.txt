@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 14 tests
 
-10 Pass
-4 Fail
+11 Pass
+3 Fail
 Pass	Setting a StylePropertyMap with an unsupported property name throws TypeError
 Pass	Setting a StylePropertyMap with an null property name throws TypeError
 Pass	Setting a StylePropertyMap with a descriptor throws TypeError
@@ -16,5 +16,5 @@ Pass	Setting a list-valued property with a var ref() and other values throws Typ
 Pass	Setting a property with CSSStyleValue or String updates its value
 Fail	Setting a list-valued property with CSSStyleValue or String updates its values
 Fail	Setting a list-valued property with a list-valued string updates its value
-Fail	Setting a custom property with CSSStyleValue or String updates its value
+Pass	Setting a custom property with CSSStyleValue or String updates its value
 Fail	StylePropertyMap.set is case-insensitive
