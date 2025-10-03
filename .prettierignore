@@ -2,9 +2,6 @@ Libraries/LibJS/Tests/invalid-lhs-in-assignment.js
 Libraries/LibJS/Tests/unicode-identifier-escape.js
 Libraries/LibJS/Tests/modules/failing.mjs
 
-# FIXME: Remove once prettier is updated to support using declarations.
-Libraries/LibJS/Tests/using-declaration.js
-
 Tests/LibWeb/Crash/wpt-import/
 Tests/LibWeb/Ref/input/wpt-import
 Tests/LibWeb/Text/input/wpt-import

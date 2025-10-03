@@ -307,9 +307,14 @@ describe("works in a bunch of scopes", () => {
         }
 
         switch (2) {
-            case 3:
-                using notDisposed = { [Symbol.dispose]() { expect().fail("not-disposed 1"); } };
-            case 2:
+            case 3: {
+                using notDisposed = {
+                    [Symbol.dispose]() {
+                        expect().fail("not-disposed 1");
+                    },
+                };
+            }
+            case 2: {
                 expect(disposeFull).toEqual([]);
                 using a = pusher("a");
                 expect(disposeFull).toEqual([]);
@@ -319,21 +324,34 @@ describe("works in a bunch of scopes", () => {
                 expect(b.val).toBe("b");
 
                 expect(disposeInner).toBeFalse();
-                // fallthrough
-            case 1: {
-                expect(disposeFull).toEqual([]);
-                expect(disposeInner).toBeFalse();
-
-                using inner = { [Symbol.dispose]() { disposeInner = true; } }
-
-                expect(disposeInner).toBeFalse();
             }
+            // fallthrough
+            case 1:
+                {
+                    expect(disposeFull).toEqual([]);
+                    expect(disposeInner).toBeFalse();
+
+                    using inner = {
+                        [Symbol.dispose]() {
+                            disposeInner = true;
+                        },
+                    };
+
+                    expect(disposeInner).toBeFalse();
+                }
                 expect(disposeInner).toBeTrue();
-                using c = pusher("c");
-                expect(c.val).toBe("c");
+                {
+                    using c = pusher("c");
+                    expect(c.val).toBe("c");
+                }
                 break;
-            case 0:
-                using notDisposed2 = { [Symbol.dispose]() { expect().fail("not-disposed 2"); } };
+            case 0: {
+                using notDisposed2 = {
+                    [Symbol.dispose]() {
+                        expect().fail("not-disposed 2");
+                    },
+                };
+            }
         }
 
         expect(disposeInner).toBeTrue();
