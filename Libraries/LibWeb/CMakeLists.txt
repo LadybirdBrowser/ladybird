@@ -12,6 +12,16 @@ else()
     set(ANGLE_TARGETS PkgConfig::angle)
 endif()
 
+option(USE_PASCAL_CSS_TOKENIZER "Use FreePascal-based CSS Tokenizer (PoC)" ON)
+if (USE_PASCAL_CSS_TOKENIZER)
+    find_program(FPC_EXECUTABLE NAMES fpc)
+    if (NOT FPC_EXECUTABLE)
+        message(FATAL_ERROR "USE_PASCAL_CSS_TOKENIZER is ON, but FreePascal compiler (fpc) was not found. Please install FPC or set USE_PASCAL_CSS_TOKENIZER=OFF.")
+    else()
+        message(STATUS "FreePascal found: ${FPC_EXECUTABLE}")
+    endif()
+endif()
+
 set(SOURCES
     Animations/Animatable.cpp
     Animations/Animation.cpp
@@ -1115,6 +1125,14 @@ set(GENERATED_SOURCES
     HTML/Parser/NamedCharacterReferences.cpp
 )
 
+if (USE_PASCAL_CSS_TOKENIZER)
+    # Use Pascal-backed tokenizer instead of the C++ tokenizer.
+    # Remove the C++ tokenizer translation unit entirely to avoid building it.
+    list(REMOVE_ITEM SOURCES CSS/Parser/Tokenizer.cpp)
+    # Build the Pascal-backed entry and minimal RTTI aliases.
+    list(APPEND SOURCES CSS/Parser/TokenizerPascal.cpp CSS/Parser/pascal_rtti_stubs.c)
+endif()
+
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
 find_package(LibXml2 REQUIRED)
@@ -1125,6 +1143,25 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
 
 generate_js_bindings(LibWeb)
+
+# Pascal CSS Tokenizer integration (optional)
+if (USE_PASCAL_CSS_TOKENIZER)
+    set(PASCAL_TOKENIZER_OBJ ${CMAKE_CURRENT_BINARY_DIR}/css_tokenizer.o)
+    add_custom_command(
+        OUTPUT ${PASCAL_TOKENIZER_OBJ}
+        COMMAND ${CMAKE_COMMAND} -E env FPCDIR=$ENV{FPCDIR} ${FPC_EXECUTABLE} -O2 -MObjFPC ${CMAKE_SOURCE_DIR}/Pascal/css_tokenizer.pas
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/Pascal/css_tokenizer.o ${PASCAL_TOKENIZER_OBJ}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS ${CMAKE_SOURCE_DIR}/Pascal/css_tokenizer.pas
+        VERBATIM
+        COMMENT "Building Pascal CSS tokenizer object"
+    )
+    add_custom_target(libweb_pascal_tokenizer ALL DEPENDS ${PASCAL_TOKENIZER_OBJ})
+    add_dependencies(LibWeb libweb_pascal_tokenizer)
+    # Link the generated Pascal object file into LibWeb.
+    target_sources(LibWeb PRIVATE ${PASCAL_TOKENIZER_OBJ})
+    target_compile_definitions(LibWeb PRIVATE USE_PASCAL_CSS_TOKENIZER)
+endif()
 
 if (ENABLE_SWIFT)
     include(collections)
