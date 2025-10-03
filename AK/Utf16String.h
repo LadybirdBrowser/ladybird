@@ -96,8 +96,11 @@ public:
         return builder.to_utf16_string();
     }
 
-    template<Arithmetic T>
-    ALWAYS_INLINE static Utf16String number(T value)
+    template<Integral T>
+    [[nodiscard]] static Utf16String number(T);
+
+    template<FloatingPoint T>
+    [[nodiscard]] static Utf16String number(T value)
     {
         return formatted("{}", value);
     }

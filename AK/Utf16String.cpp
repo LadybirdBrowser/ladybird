@@ -5,6 +5,7 @@
  */
 
 #include <AK/Stream.h>
+#include <AK/StringNumber.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf32View.h>
 
@@ -165,5 +166,23 @@ ErrorOr<void> Formatter<Utf16String>::format(FormatBuilder& builder, Utf16String
         return builder.builder().try_append(utf16_string.utf16_view());
     return builder.put_string(utf16_string.ascii_view());
 }
+
+template<Integral T>
+Utf16String Utf16String::number(T value)
+{
+    return create_string_from_number<Utf16String, T>(value);
+}
+
+template Utf16String Utf16String::number(char);
+template Utf16String Utf16String::number(signed char);
+template Utf16String Utf16String::number(unsigned char);
+template Utf16String Utf16String::number(signed short);
+template Utf16String Utf16String::number(unsigned short);
+template Utf16String Utf16String::number(int);
+template Utf16String Utf16String::number(unsigned int);
+template Utf16String Utf16String::number(long);
+template Utf16String Utf16String::number(unsigned long);
+template Utf16String Utf16String::number(long long);
+template Utf16String Utf16String::number(unsigned long long);
 
 }
