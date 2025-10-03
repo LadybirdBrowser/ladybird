@@ -18,7 +18,7 @@ struct CalculationResolutionContext {
     using PercentageBasis = Variant<Empty, Angle, Frequency, Length, Time>;
 
     PercentageBasis percentage_basis {};
-    Optional<Length::ResolutionContext> length_resolution_context;
+    Optional<Length::ResolutionContext> length_resolution_context {};
 
     static CalculationResolutionContext from_computation_context(ComputationContext const& computation_context, PercentageBasis percentage_basis = {})
     {

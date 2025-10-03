@@ -112,6 +112,8 @@ public:
                 // NOTE: The initial value here is non-standard as the default font is "10px sans-serif"
                 auto inherited_font_size = CSSPixels { 10 };
                 auto inherited_font_weight = CSS::InitialValues::font_weight();
+                // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
+                //        a font-size of 10px) for OffscreenCanvas
                 auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
 
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
