@@ -1214,12 +1214,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (computed_values().visibility() != CSS::Visibility::Visible)
         return TraversalDecision::Continue;
 
-    auto const inverse_transform = Gfx::extract_2d_affine_transform(transform()).inverse().value_or({});
-    // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    auto const offset_position = position.translated(-transform_origin()).to_type<float>();
-    auto const transformed_position = inverse_transform.map(offset_position).to_type<CSSPixels>() + transform_origin();
-
-    if (hit_test_scrollbars(transformed_position, callback) == TraversalDecision::Break)
+    if (hit_test_scrollbars(position, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
     if (is_viewport()) {
@@ -1227,21 +1222,21 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
         viewport_paintable.build_stacking_context_tree_if_needed();
         viewport_paintable.document().update_paint_and_hit_testing_properties_if_needed();
         viewport_paintable.refresh_scroll_state();
-        return stacking_context()->hit_test(transformed_position, type, callback);
+        return stacking_context()->hit_test(position, type, callback);
     }
 
     if (stacking_context())
         return TraversalDecision::Continue;
 
-    if (hit_test_children(transformed_position, type, callback) == TraversalDecision::Break)
+    if (hit_test_children(position, type, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
     if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    auto const offset_position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position).translated(-transform_origin()).to_type<float>();
-    auto const transformed_position_adjusted_by_scroll_offset = inverse_transform.map(offset_position_adjusted_by_scroll_offset).to_type<CSSPixels>() + transform_origin();
-    if (!absolute_border_box_rect().contains(transformed_position_adjusted_by_scroll_offset))
+    auto const offset_position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
+
+    if (!absolute_border_box_rect().contains(offset_position_adjusted_by_scroll_offset))
         return TraversalDecision::Continue;
 
     if (hit_test_continuation(callback) == TraversalDecision::Break)
@@ -1290,6 +1285,8 @@ TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTes
     for (auto const* child = last_child(); child; child = child->previous_sibling()) {
         if (child->layout_node().is_positioned() && child->computed_values().z_index().value_or(0) == 0)
             continue;
+        if (child->has_stacking_context())
+            continue;
         if (child->hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
@@ -1323,32 +1320,25 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!layout_node().children_are_inline())
         return PaintableBox::hit_test(position, type, callback);
 
-    auto const inverse_transform = Gfx::extract_2d_affine_transform(transform()).inverse().value_or({});
-    // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    auto const offset_position = position.translated(-transform_origin()).to_type<float>();
-    auto const transformed_position = inverse_transform.map(offset_position).to_type<CSSPixels>() + transform_origin();
-
-    if (hit_test_scrollbars(transformed_position, callback) == TraversalDecision::Break)
+    if (hit_test_scrollbars(position, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    if (hit_test_children(transformed_position, type, callback) == TraversalDecision::Break)
+    if (hit_test_children(position, type, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
     if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    auto const offset_position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position).translated(-transform_origin()).to_type<float>();
-    auto const transformed_position_adjusted_by_scroll_offset = inverse_transform.map(offset_position_adjusted_by_scroll_offset).to_type<CSSPixels>() + transform_origin();
+    auto const offset_position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
 
     for (auto const& fragment : fragments()) {
         if (fragment.paintable().has_stacking_context() || !fragment.paintable().visible_for_hit_testing())
             continue;
         auto fragment_absolute_rect = fragment.absolute_rect();
-        if (fragment_absolute_rect.contains(transformed_position_adjusted_by_scroll_offset)) {
-            if (fragment.paintable().hit_test(transformed_position, type, callback) == TraversalDecision::Break)
+        if (fragment_absolute_rect.contains(offset_position_adjusted_by_scroll_offset)) {
+            if (fragment.paintable().hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
-            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(transformed_position_adjusted_by_scroll_offset), 0, 0 };
+            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(offset_position_adjusted_by_scroll_offset), 0, 0 };
             if (callback(hit_test_result) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         } else if (type == HitTestType::TextCursor) {
@@ -1371,30 +1361,30 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
                 // the place to place the cursor. To determine the best place, we first find the closest fragment horizontally to
                 // the cursor. If we could not find one, then find for the closest vertically above the cursor.
                 // If we knew the direction of selection, we would look above if selecting upward.
-                if (fragment_absolute_rect.bottom() - 1 <= transformed_position_adjusted_by_scroll_offset.y()) { // fully below the fragment
+                if (fragment_absolute_rect.bottom() - 1 <= offset_position_adjusted_by_scroll_offset.y()) { // fully below the fragment
                     HitTestResult hit_test_result {
                         .paintable = const_cast<Paintable&>(fragment.paintable()),
                         .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
-                        .vertical_distance = transformed_position_adjusted_by_scroll_offset.y() - fragment_absolute_rect.bottom(),
+                        .vertical_distance = offset_position_adjusted_by_scroll_offset.y() - fragment_absolute_rect.bottom(),
                     };
                     if (callback(hit_test_result) == TraversalDecision::Break)
                         return TraversalDecision::Break;
-                } else if (fragment_absolute_rect.top() <= transformed_position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
-                    if (transformed_position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {
+                } else if (fragment_absolute_rect.top() <= offset_position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
+                    if (offset_position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
                             .index_in_node = fragment.start_offset(),
                             .vertical_distance = 0,
-                            .horizontal_distance = fragment_absolute_rect.left() - transformed_position_adjusted_by_scroll_offset.x(),
+                            .horizontal_distance = fragment_absolute_rect.left() - offset_position_adjusted_by_scroll_offset.x(),
                         };
                         if (callback(hit_test_result) == TraversalDecision::Break)
                             return TraversalDecision::Break;
-                    } else if (transformed_position_adjusted_by_scroll_offset.x() > fragment_absolute_rect.right()) {
+                    } else if (offset_position_adjusted_by_scroll_offset.x() > fragment_absolute_rect.right()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
                             .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
                             .vertical_distance = 0,
-                            .horizontal_distance = transformed_position_adjusted_by_scroll_offset.x() - fragment_absolute_rect.right(),
+                            .horizontal_distance = offset_position_adjusted_by_scroll_offset.x() - fragment_absolute_rect.right(),
                         };
                         if (callback(hit_test_result) == TraversalDecision::Break)
                             return TraversalDecision::Break;
@@ -1405,7 +1395,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     }
 
     if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || layout_node().is_positioned())
-        && absolute_border_box_rect().contains(transformed_position_adjusted_by_scroll_offset)) {
+        && absolute_border_box_rect().contains(offset_position_adjusted_by_scroll_offset)) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
