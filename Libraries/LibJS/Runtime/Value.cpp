@@ -423,7 +423,7 @@ ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 {
     if (is_string())
         return as_string();
-    auto string = TRY(to_string(vm));
+    auto string = TRY(to_utf16_string(vm));
     return PrimitiveString::create(vm, move(string));
 }
 
@@ -478,13 +478,49 @@ ThrowCompletionOr<ByteString> Value::to_byte_string(VM& vm) const
     return TRY(to_string(vm)).to_byte_string();
 }
 
+// 7.1.17 ToString ( argument ), https://tc39.es/ecma262/#sec-tostring
 ThrowCompletionOr<Utf16String> Value::to_utf16_string(VM& vm) const
 {
-    if (is_string())
-        return as_string().utf16_string();
+    if (is_double())
+        return number_to_utf16_string(m_value.as_double);
 
-    auto utf8_string = TRY(to_string(vm));
-    return Utf16String::from_utf8(utf8_string);
+    switch (m_value.tag) {
+        // 1. If argument is a String, return argument.
+    case STRING_TAG:
+        return as_string().utf16_string();
+        // 2. If argument is a Symbol, throw a TypeError exception.
+    case SYMBOL_TAG:
+        return vm.throw_completion<TypeError>(ErrorType::Convert, "symbol", "string");
+        // 3. If argument is undefined, return "undefined".
+    case UNDEFINED_TAG:
+        return "undefined"_utf16;
+        // 4. If argument is null, return "null".
+    case NULL_TAG:
+        return "null"_utf16;
+        // 5. If argument is true, return "true".
+        // 6. If argument is false, return "false".
+    case BOOLEAN_TAG:
+        return as_bool() ? "true"_utf16 : "false"_utf16;
+        // 7. If argument is a Number, return Number::toString(argument, 10).
+    case INT32_TAG:
+        return Utf16String::number(as_i32());
+        // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
+    case BIGINT_TAG:
+        return Utf16String::from_utf8(MUST(as_bigint().big_integer().to_base(10)));
+        // 9. Assert: argument is an Object.
+    case OBJECT_TAG: {
+        // 10. Let primValue be ? ToPrimitive(argument, string).
+        auto primitive_value = TRY(to_primitive(vm, PreferredType::String));
+
+        // 11. Assert: primValue is not an Object.
+        VERIFY(!primitive_value.is_object());
+
+        // 12. Return ? ToString(primValue).
+        return primitive_value.to_utf16_string(vm);
+    }
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 // 7.1.2 ToBoolean ( argument ), https://tc39.es/ecma262/#sec-toboolean
