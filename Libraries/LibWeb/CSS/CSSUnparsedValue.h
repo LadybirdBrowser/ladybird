@@ -38,6 +38,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
+    bool contains_unparsed_value(CSSUnparsedValue const&) const;
+
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-tokens-slot
     // They have a [[tokens]] internal slot, which is a list of USVStrings and CSSVariableReferenceValue objects.
     // This list is the object’s values to iterate over.

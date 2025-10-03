@@ -115,9 +115,31 @@ WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_new_indexed_property(u3
     return {};
 }
 
+bool CSSUnparsedValue::contains_unparsed_value(CSSUnparsedValue const& needle) const
+{
+    for (auto const& unparsed_segment : m_tokens) {
+        if (auto const* variable_reference = unparsed_segment.get_pointer<GC::Ref<CSSVariableReferenceValue>>()) {
+            auto fallback = (*variable_reference)->fallback();
+            if (!fallback)
+                continue;
+            if (fallback.ptr() == &needle)
+                return true;
+            if (fallback->contains_unparsed_value(needle))
+                return true;
+        }
+    }
+    return false;
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssunparsedvalue
 WebIDL::ExceptionOr<String> CSSUnparsedValue::to_string() const
 {
+    // AD-HOC: It's possible for one of the m_tokens to contain this in its fallback slot, or a similar situation with
+    //         more levels of nesting. To avoid crashing, do a scan for that first and return the empty string.
+    // Spec issue: https://github.com/w3c/css-houdini-drafts/issues/1158
+    if (contains_unparsed_value(*this))
+        return ""_string;
+
     // To serialize a CSSUnparsedValue this:
     // 1. Let s initially be the empty string.
     StringBuilder s;
