@@ -182,6 +182,8 @@ public:
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
 
+    void update_all_media_element_video_sinks();
+
     struct MediaContextMenu {
         URL::URL media_url;
         bool is_video { false };
