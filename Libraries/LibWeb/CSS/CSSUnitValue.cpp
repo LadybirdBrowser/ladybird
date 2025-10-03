@@ -7,7 +7,19 @@
 #include "CSSUnitValue.h"
 #include <LibWeb/Bindings/CSSUnitValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/CSS/Units.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -283,6 +295,129 @@ Optional<SumValue> CSSUnitValue::create_a_sum_value() const
 
     // 4. Otherwise, return «(value, «[unit → 1]»)».
     return SumValue { SumValueItem { value, { { unit, 1 } } } };
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_internal_representation(PropertyNameAndID const& property) const
+{
+    // If value is a CSSStyleValue subclass,
+    //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
+    //
+    //     If any component of property’s CSS grammar has a limited numeric range, and the corresponding part of value
+    //     is a CSSUnitValue that is outside of that range, replace that value with the result of wrapping it in a
+    //     fresh CSSMathSum whose values internal slot contains only that part of value.
+    //
+    //     Return the value.
+
+    // NB: We store all custom properties as UnresolvedStyleValue, so we always need to create one here.
+    if (property.is_custom_property()) {
+        auto token = [this]() {
+            if (m_unit == "number"_fly_string)
+                return Parser::Token::create_number(Number { Number::Type::Number, m_value });
+            if (m_unit == "percent"_fly_string)
+                return Parser::Token::create_percentage(Number { Number::Type::Number, m_value });
+            return Parser::Token::create_dimension(m_value, m_unit);
+        }();
+        return UnresolvedStyleValue::create({ Parser::ComponentValue { move(token) } }, Parser::SubstitutionFunctionsPresence {});
+    }
+
+    auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {
+        CalculationContext context {
+            .percentages_resolve_as = property_resolves_percentages_relative_to(property.id()),
+            .resolve_numbers_as_integers = property_accepts_type(property.id(), ValueType::Integer),
+            .accepted_type_ranges = property_accepted_type_ranges(property.id()),
+        };
+        auto numeric_node = NumericCalculationNode::create(value, context);
+        auto math_sum_node = SumCalculationNode::create({ move(numeric_node) });
+        return CalculatedStyleValue::create(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);
+    };
+
+    if (m_unit == "number"_fly_string) {
+        // NB: Number before Integer, because a custom property accepts either and we want to avoid rounding in that case.
+        if (property_accepts_type(property.id(), ValueType::Number)) {
+            if (property_accepts_number(property.id(), m_value))
+                return NumberStyleValue::create(m_value);
+            return wrap_in_math_sum(Number { Number::Type::Number, m_value });
+        }
+
+        if (property_accepts_type(property.id(), ValueType::Integer)) {
+            // NB: Same rounding as CalculatedStyleValue::resolve_integer(). Maybe this should go somewhere central?
+            auto integer = llround(m_value);
+            if (property_accepts_integer(property.id(), integer))
+                return IntegerStyleValue::create(integer);
+            return wrap_in_math_sum(Number { Number::Type::Number, m_value });
+        }
+
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+    }
+
+    if (m_unit == "percent"_fly_string) {
+        if (property_accepts_type(property.id(), ValueType::Percentage)) {
+            Percentage percentage { m_value };
+            if (property_accepts_percentage(property.id(), percentage))
+                return PercentageStyleValue::create(percentage);
+            return wrap_in_math_sum(percentage);
+        }
+
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+    }
+
+    auto dimension_type = dimension_for_unit(m_unit);
+    if (!dimension_type.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unrecognized unit '{}'.", m_unit)) };
+
+    switch (*dimension_type) {
+    case DimensionType::Angle:
+        if (property_accepts_type(property.id(), ValueType::Angle)) {
+            Angle value { m_value, string_to_angle_unit(m_unit).release_value() };
+            if (property_accepts_angle(property.id(), value))
+                return AngleStyleValue::create(value);
+            return wrap_in_math_sum(value);
+        }
+        break;
+    case DimensionType::Flex:
+        if (property_accepts_type(property.id(), ValueType::Flex)) {
+            Flex value { m_value, string_to_flex_unit(m_unit).release_value() };
+            if (property_accepts_flex(property.id(), value))
+                return FlexStyleValue::create(value);
+            return wrap_in_math_sum(value);
+        }
+        break;
+    case DimensionType::Frequency:
+        if (property_accepts_type(property.id(), ValueType::Frequency)) {
+            Frequency value { m_value, string_to_frequency_unit(m_unit).release_value() };
+            if (property_accepts_frequency(property.id(), value))
+                return FrequencyStyleValue::create(value);
+            return wrap_in_math_sum(value);
+        }
+        break;
+    case DimensionType::Length:
+        if (property_accepts_type(property.id(), ValueType::Length)) {
+            Length value { m_value, string_to_length_unit(m_unit).release_value() };
+            if (property_accepts_length(property.id(), value))
+                return LengthStyleValue::create(value);
+            return wrap_in_math_sum(value);
+        }
+        break;
+    case DimensionType::Resolution:
+        if (property_accepts_type(property.id(), ValueType::Resolution)) {
+            Resolution value { m_value, string_to_resolution_unit(m_unit).release_value() };
+            if (property_accepts_resolution(property.id(), value))
+                return ResolutionStyleValue::create(value);
+            return wrap_in_math_sum(value);
+        }
+        break;
+    case DimensionType::Time:
+        if (property_accepts_type(property.id(), ValueType::Time)) {
+            Time value { m_value, string_to_time_unit(m_unit).release_value() };
+            if (property_accepts_time(property.id(), value))
+                return TimeStyleValue::create(value);
+            return wrap_in_math_sum(value);
+        }
+        break;
+    }
+
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
 }
 
 }
