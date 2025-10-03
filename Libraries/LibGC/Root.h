@@ -93,11 +93,13 @@ public:
 
     T* operator->() const
     {
+        ASSERT(cell());
         return cell();
     }
 
     [[nodiscard]] T& operator*() const
     {
+        ASSERT(cell());
         return *cell();
     }
 

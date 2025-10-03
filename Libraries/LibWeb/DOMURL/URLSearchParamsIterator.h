@@ -20,7 +20,7 @@ public:
 
     virtual ~URLSearchParamsIterator() override;
 
-    JS::Object* next();
+    GC::Ref<JS::Object> next();
 
 private:
     URLSearchParamsIterator(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);

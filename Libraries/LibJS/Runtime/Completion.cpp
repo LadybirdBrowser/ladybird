@@ -40,7 +40,7 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     // NOTE: This is not needed, as we don't suspend anything.
 
     // 2. Let promise be ? PromiseResolve(%Promise%, value).
-    auto* promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
+    auto promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
 
     IGNORE_USE_IN_ESCAPING_LAMBDA Optional<bool> success;
     IGNORE_USE_IN_ESCAPING_LAMBDA Value result;
@@ -94,8 +94,8 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    auto promise = as<Promise>(promise_object);
-    promise->perform_then(on_fulfilled, on_rejected, {});
+    auto& promise = as<Promise>(*promise_object);
+    promise.perform_then(on_fulfilled, on_rejected, {});
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve
     //        by synchronously running all queued promise jobs.

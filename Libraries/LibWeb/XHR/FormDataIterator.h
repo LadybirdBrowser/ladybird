@@ -20,7 +20,7 @@ public:
 
     virtual ~FormDataIterator() override;
 
-    JS::Object* next();
+    GC::Ref<JS::Object> next();
 
 private:
     FormDataIterator(FormData const&, JS::Object::PropertyKind iterator_kind);

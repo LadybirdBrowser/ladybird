@@ -231,22 +231,22 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
     auto new_length = max(final - first, 0.0);
 
     // 15. Let ctor be ? SpeciesConstructor(O, %ArrayBuffer%).
-    auto* constructor = TRY(species_constructor(vm, array_buffer_object, realm.intrinsics().array_buffer_constructor()));
+    auto constructor = TRY(species_constructor(vm, array_buffer_object, realm.intrinsics().array_buffer_constructor()));
 
     // 16. Let new be ? Construct(ctor, « 𝔽(newLen) »).
-    auto new_array_buffer = TRY(construct(vm, *constructor, Value(new_length)));
+    auto new_array_buffer = TRY(construct(vm, constructor, Value(new_length)));
 
     // 17. Perform ? RequireInternalSlot(new, [[ArrayBufferData]]).
-    if (!is<ArrayBuffer>(new_array_buffer.ptr()))
+    if (!is<ArrayBuffer>(*new_array_buffer))
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorDidNotCreate, "an ArrayBuffer");
-    auto* new_array_buffer_object = static_cast<ArrayBuffer*>(new_array_buffer.ptr());
+    auto& new_array_buffer_object = static_cast<ArrayBuffer&>(*new_array_buffer);
 
     // 18. If IsSharedArrayBuffer(new) is true, throw a TypeError exception.
-    if (new_array_buffer_object->is_shared_array_buffer())
+    if (new_array_buffer_object.is_shared_array_buffer())
         return vm.throw_completion<TypeError>(ErrorType::SharedArrayBuffer);
 
     // 19. If IsDetachedBuffer(new) is true, throw a TypeError exception.
-    if (new_array_buffer_object->is_detached())
+    if (new_array_buffer_object.is_detached())
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "a detached ArrayBuffer");
 
     // 20. If SameValue(new, O) is true, throw a TypeError exception.
@@ -254,7 +254,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "same ArrayBuffer instance");
 
     // 21. If new.[[ArrayBufferByteLength]] < newLen, throw a TypeError exception.
-    if (new_array_buffer_object->byte_length() < new_length)
+    if (new_array_buffer_object.byte_length() < new_length)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "an ArrayBuffer smaller than requested");
 
     // 22. NOTE: Side-effects of the above steps may have detached or resized O.
@@ -267,7 +267,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
     auto& from_buf = array_buffer_object->buffer();
 
     // 25. Let toBuf be new.[[ArrayBufferData]].
-    auto& to_buf = new_array_buffer_object->buffer();
+    auto& to_buf = new_array_buffer_object.buffer();
 
     // 26. Let currentLen be O.[[ArrayBufferByteLength]].
     auto current_length = array_buffer_object->byte_length();

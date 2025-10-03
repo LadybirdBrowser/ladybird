@@ -116,7 +116,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         // then set evaluationPromise to a promise rejected with a new "QuotaExceededError" DOMException.
         if (elevation_promise_or_error.is_error()) {
             auto promise = JS::Promise::create(realm);
-            promise->reject(WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16).ptr());
+            promise->reject(WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16));
 
             evaluation_promise = promise;
         } else {

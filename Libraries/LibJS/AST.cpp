@@ -154,21 +154,21 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
 {
     auto property_key_or_private_name = TRY(class_key_to_property_name(vm, *m_key, property_key));
 
-    auto& method_function = *ECMAScriptFunctionObject::create_from_function_node(
+    auto method_function = ECMAScriptFunctionObject::create_from_function_node(
         *m_function,
         m_function->name(),
         *vm.current_realm(),
         vm.lexical_environment(),
         vm.running_execution_context().private_environment);
 
-    auto method_value = Value(&method_function);
-    method_function.make_method(target);
+    auto method_value = Value(method_function);
+    method_function->make_method(target);
 
     auto set_function_name = [&](StringView prefix = {}) {
         auto name = property_key_or_private_name.visit(
             [&](PropertyKey const& property_key) {
                 if (property_key.is_symbol()) {
-                    auto description = property_key.as_symbol()->description();
+                    auto description = property_key.as_symbol().description();
                     if (!description.has_value() || description->is_empty())
                         return Utf16String {};
                     return Utf16String::formatted("[{}]", *description);
@@ -193,13 +193,13 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
         }
         case ClassMethod::Kind::Getter: {
             set_function_name("get"sv);
-            PropertyDescriptor descriptor { .get = &method_function, .enumerable = false, .configurable = true };
+            PropertyDescriptor descriptor { .get = method_function, .enumerable = false, .configurable = true };
             TRY(target.define_property_or_throw(property_key, descriptor));
             break;
         }
         case ClassMethod::Kind::Setter: {
             set_function_name("set"sv);
-            PropertyDescriptor descriptor { .set = &method_function, .enumerable = false, .configurable = true };
+            PropertyDescriptor descriptor { .set = method_function, .enumerable = false, .configurable = true };
             TRY(target.define_property_or_throw(property_key, descriptor));
             break;
         }
@@ -216,10 +216,10 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
             return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Method, method_value } };
         case Kind::Getter:
             set_function_name("get"sv);
-            return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, &method_function, nullptr)) } };
+            return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, method_function, nullptr)) } };
         case Kind::Setter:
             set_function_name("set"sv);
-            return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, nullptr, &method_function)) } };
+            return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, nullptr, method_function)) } };
         default:
             VERIFY_NOT_REACHED();
         }
@@ -321,7 +321,7 @@ ThrowCompletionOr<ClassElement::ClassValue> StaticInitializer::class_element_eva
     return ClassValue { normal_completion(body_function) };
 }
 
-ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_constructor(VM& vm, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name, Utf16FlyString const& class_name) const
+ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> ClassExpression::create_class_constructor(VM& vm, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name, Utf16FlyString const& class_name) const
 {
     auto& realm = *vm.current_realm();
 

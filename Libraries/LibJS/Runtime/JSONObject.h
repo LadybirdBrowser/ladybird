@@ -38,15 +38,15 @@ private:
     };
 
     // Stringify helpers
-    static ThrowCompletionOr<Optional<String>> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
+    static ThrowCompletionOr<Optional<String>> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object& holder);
     static ThrowCompletionOr<String> serialize_json_object(VM&, StringifyState&, Object&);
     static ThrowCompletionOr<String> serialize_json_array(VM&, StringifyState&, Object&);
     static String quote_json_string(Utf16View const&);
 
     // Parse helpers
-    static Object* parse_json_object(VM&, JsonObject const&);
-    static Array* parse_json_array(VM&, JsonArray const&);
-    static ThrowCompletionOr<Value> internalize_json_property(VM&, Object* holder, PropertyKey const& name, FunctionObject& reviver);
+    static GC::Ref<Object> parse_json_object(VM&, JsonObject const&);
+    static GC::Ref<Array> parse_json_array(VM&, JsonArray const&);
+    static ThrowCompletionOr<Value> internalize_json_property(VM&, Object& holder, PropertyKey const& name, FunctionObject& reviver);
 
     JS_DECLARE_NATIVE_FUNCTION(stringify);
     JS_DECLARE_NATIVE_FUNCTION(parse);

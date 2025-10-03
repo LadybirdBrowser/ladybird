@@ -39,7 +39,7 @@ Optional<JS::Value> FileList::item_value(size_t index) const
     if (index >= m_files.size())
         return {};
 
-    return m_files[index].ptr();
+    return m_files[index];
 }
 
 void FileList::visit_edges(Cell::Visitor& visitor)

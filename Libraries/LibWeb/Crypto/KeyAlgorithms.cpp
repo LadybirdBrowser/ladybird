@@ -173,7 +173,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
             return object;
         },
         [&](GC::Root<JS::Object> const& hash) -> JS::Value {
-            return hash;
+            return *hash;
         });
 }
 
@@ -202,13 +202,14 @@ JS_DEFINE_NATIVE_FUNCTION(AesKeyAlgorithm::length_getter)
     return length;
 }
 
-GC::Ref<HmacKeyAlgorithm> HmacKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<HmacKeyAlgorithm> HmacKeyAlgorithm::create(JS::Realm& realm, GC::Ref<KeyAlgorithm> hash)
 {
-    return realm.create<HmacKeyAlgorithm>(realm);
+    return realm.create<HmacKeyAlgorithm>(realm, hash);
 }
 
-HmacKeyAlgorithm::HmacKeyAlgorithm(JS::Realm& realm)
+HmacKeyAlgorithm::HmacKeyAlgorithm(JS::Realm& realm, GC::Ref<KeyAlgorithm> hash)
     : KeyAlgorithm(realm)
+    , m_hash(hash)
 {
 }
 

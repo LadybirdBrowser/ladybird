@@ -308,7 +308,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     queue_global_task(Task::Source::BitmapTask, *image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
                         auto& realm = relevant_realm(*image_bitmap);
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, image_bitmap);
+                        WebIDL::resolve_promise(realm, *p, *image_bitmap);
                     }));
                     return {};
                 };
@@ -518,7 +518,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         bool continue_ = handler.visit(
             // 5. If handler is a Function, then invoke handler given arguments and "report", and with callback this value set to thisArg.
             [&](GC::Root<WebIDL::CallbackType> const& callback) {
-                (void)WebIDL::invoke_callback(*callback, &this_impl(), WebIDL::ExceptionBehavior::Report, arguments);
+                (void)WebIDL::invoke_callback(*callback, this_impl(), WebIDL::ExceptionBehavior::Report, arguments);
                 return true;
             },
             // 6. Otherwise:

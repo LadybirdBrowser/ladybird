@@ -247,7 +247,7 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
         auto& proxy_target = proxy->target();
 
         // c. Return ? IsArray(proxyTarget).
-        return Value(&proxy_target).is_array(vm);
+        return Value(proxy_target).is_array(vm);
     }
 
     // 4. Return false.
@@ -781,7 +781,7 @@ ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
     }
 }
 
-static Optional<BigInt*> string_to_bigint(VM& vm, StringView string);
+static GC::Ptr<BigInt> string_to_bigint(VM& vm, StringView string);
 
 // 7.1.13 ToBigInt ( argument ), https://tc39.es/ecma262/#sec-tobigint
 ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
@@ -821,11 +821,11 @@ ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
         auto bigint = string_to_bigint(vm, primitive.as_string().utf8_string_view());
 
         // 2. If n is undefined, throw a SyntaxError exception.
-        if (!bigint.has_value())
+        if (!bigint)
             return vm.throw_completion<SyntaxError>(ErrorType::BigIntInvalidValue, primitive);
 
         // 3. Return n.
-        return *bigint.release_value();
+        return *bigint;
     }
     // Symbol
     case SYMBOL_TAG:
@@ -882,7 +882,7 @@ static Optional<BigIntParseResult> parse_bigint_text(StringView text)
 }
 
 // 7.1.14 StringToBigInt ( str ), https://tc39.es/ecma262/#sec-stringtobigint
-static Optional<BigInt*> string_to_bigint(VM& vm, StringView string)
+static GC::Ptr<BigInt> string_to_bigint(VM& vm, StringView string)
 {
     // 1. Let text be StringToCodePoints(str).
     auto text = Utf8View(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
@@ -892,7 +892,7 @@ static Optional<BigInt*> string_to_bigint(VM& vm, StringView string)
 
     // 3. If literal is a List of errors, return undefined.
     if (!result.has_value())
-        return {};
+        return nullptr;
 
     // 4. Let mv be the MV of literal.
     // 5. Assert: mv is an integer.
@@ -2170,7 +2170,7 @@ ThrowCompletionOr<Value> ordinary_has_instance(VM& vm, Value lhs, Value rhs)
 
         // a. Let BC be C.[[BoundTargetFunction]].
         // b. Return ? InstanceofOperator(O, BC).
-        return instance_of(vm, lhs, Value(&bound_target.bound_target_function()));
+        return instance_of(vm, lhs, Value(bound_target.bound_target_function()));
     }
 
     // 3. If O is not an Object, return false.
@@ -2196,7 +2196,7 @@ ThrowCompletionOr<Value> ordinary_has_instance(VM& vm, Value lhs, Value rhs)
             return Value(false);
 
         // c. If SameValue(P, O) is true, return true.
-        if (same_value(rhs_prototype, lhs_object))
+        if (same_value(rhs_prototype, *lhs_object))
             return Value(true);
     }
 }
@@ -2353,7 +2353,7 @@ ThrowCompletionOr<bool> is_loosely_equal(VM& vm, Value lhs, Value rhs)
         auto bigint = string_to_bigint(vm, rhs.as_string().utf8_string_view());
 
         // b. If n is undefined, return false.
-        if (!bigint.has_value())
+        if (!bigint)
             return false;
 
         // c. Return ! IsLooselyEqual(x, n).
@@ -2452,11 +2452,11 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
         auto y_bigint = string_to_bigint(vm, y_primitive.as_string().utf8_string_view());
 
         // ii. If ny is undefined, return undefined.
-        if (!y_bigint.has_value())
+        if (!y_bigint)
             return TriState::Unknown;
 
         // iii. Return BigInt::lessThan(px, ny).
-        if (x_primitive.as_bigint().big_integer() < (*y_bigint)->big_integer())
+        if (x_primitive.as_bigint().big_integer() < y_bigint->big_integer())
             return TriState::True;
         return TriState::False;
     }
@@ -2467,11 +2467,11 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
         auto x_bigint = string_to_bigint(vm, x_primitive.as_string().utf8_string_view());
 
         // ii. If nx is undefined, return undefined.
-        if (!x_bigint.has_value())
+        if (!x_bigint)
             return TriState::Unknown;
 
         // iii. Return BigInt::lessThan(nx, py).
-        if ((*x_bigint)->big_integer() < y_primitive.as_bigint().big_integer())
+        if (x_bigint->big_integer() < y_primitive.as_bigint().big_integer())
             return TriState::True;
         return TriState::False;
     }

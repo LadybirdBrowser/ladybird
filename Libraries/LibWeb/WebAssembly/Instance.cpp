@@ -54,7 +54,7 @@ void Instance::initialize(JS::Realm& realm)
 
         export_.value().visit(
             [&](Wasm::FunctionAddress const& address) {
-                Optional<GC::Ptr<JS::FunctionObject>> object = m_function_instances.get(address);
+                Optional<GC::Ref<JS::FunctionObject>> object = m_function_instances.get(address);
                 if (!object.has_value()) {
                     object = Detail::create_native_function(vm, address, name, this);
                     m_function_instances.set(address, *object);
@@ -63,7 +63,7 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
             },
             [&](Wasm::GlobalAddress const& address) {
-                Optional<GC::Ptr<Global>> object = cache.get_global_instance(address);
+                Optional<GC::Ref<Global>> object = cache.get_global_instance(address);
                 if (!object.has_value()) {
                     object = realm.create<Global>(realm, address);
                 }
@@ -71,7 +71,7 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
             },
             [&](Wasm::MemoryAddress const& address) {
-                Optional<GC::Ptr<Memory>> object = cache.get_memory_instance(address);
+                Optional<GC::Ref<Memory>> object = cache.get_memory_instance(address);
                 if (!object.has_value()) {
                     // FIXME: Once LibWasm implements the threads/atomics proposal, the shared-ness should be
                     //        obtained from the Wasm::MemoryInstance's type.
@@ -81,7 +81,7 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
             },
             [&](Wasm::TableAddress const& address) {
-                Optional<GC::Ptr<Table>> object = m_table_instances.get(address);
+                Optional<GC::Ref<Table>> object = m_table_instances.get(address);
                 if (!object.has_value()) {
                     object = realm.create<Table>(realm, address);
                     m_table_instances.set(address, *object);

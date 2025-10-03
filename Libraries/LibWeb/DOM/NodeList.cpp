@@ -30,7 +30,7 @@ Optional<JS::Value> NodeList::item_value(size_t index) const
     auto* node = item(index);
     if (!node)
         return {};
-    return const_cast<Node*>(node);
+    return *node;
 }
 
 }

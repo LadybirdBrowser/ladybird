@@ -2382,8 +2382,8 @@ void Document::adopt_node(Node& node)
                 auto& vm = this->vm();
 
                 GC::RootVector<JS::Value> arguments { vm.heap() };
-                arguments.append(&old_document);
-                arguments.append(this);
+                arguments.append(old_document);
+                arguments.append(*this);
 
                 element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::adoptedCallback, move(arguments));
             }
@@ -4706,7 +4706,7 @@ void Document::queue_intersection_observer_task()
             for (size_t i = 0; i < queue.size(); ++i) {
                 auto& record = queue.at(i);
                 auto property_index = JS::PropertyKey { i };
-                MUST(wrapped_queue->create_data_property(property_index, record.ptr()));
+                MUST(wrapped_queue->create_data_property(property_index, *record));
             }
 
             // 4. Let callback be the value of observer’s internal [[callback]] slot.
@@ -4714,7 +4714,7 @@ void Document::queue_intersection_observer_task()
 
             // 5. Invoke callback with queue as the first argument, observer as the second argument, and observer as the callback this value. If this throws an exception, report the exception.
             // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
-            (void)WebIDL::invoke_callback(callback, observer.ptr(), WebIDL::ExceptionBehavior::Report, { { wrapped_queue, observer.ptr() } });
+            (void)WebIDL::invoke_callback(callback, observer, WebIDL::ExceptionBehavior::Report, { { wrapped_queue, observer } });
         }
     }));
 }
@@ -5822,8 +5822,9 @@ JS::Value Document::named_item_value(FlyString const& name) const
     //    then return the active WindowProxy of the element's content navigable.
     if (elements.size() == 1 && is<HTML::HTMLIFrameElement>(*elements.first())) {
         auto& iframe_element = static_cast<HTML::HTMLIFrameElement&>(*elements.first());
-        if (iframe_element.content_navigable() != nullptr)
-            return iframe_element.content_navigable()->active_window_proxy();
+        if (iframe_element.content_navigable() != nullptr) {
+            return iframe_element.content_navigable()->active_window_proxy().as_nonnull();
+        }
     }
 
     // 3. Otherwise, if elements has only one element, return that element.

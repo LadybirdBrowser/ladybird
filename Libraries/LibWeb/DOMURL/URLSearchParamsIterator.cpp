@@ -51,7 +51,7 @@ void URLSearchParamsIterator::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_url_search_params);
 }
 
-JS::Object* URLSearchParamsIterator::next()
+GC::Ref<JS::Object> URLSearchParamsIterator::next()
 {
     if (m_index >= m_url_search_params->m_list.size())
         return create_iterator_result_object(vm(), JS::js_undefined(), true);

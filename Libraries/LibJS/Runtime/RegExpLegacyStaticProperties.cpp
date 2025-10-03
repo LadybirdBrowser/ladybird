@@ -38,7 +38,7 @@ ThrowCompletionOr<Value> get_legacy_regexp_static_property(VM& vm, RegExpConstru
     // 1. Assert C is an object that has an internal slot named internalSlotName.
 
     // 2. If SameValue(C, thisValue) is false, throw a TypeError exception.
-    if (!same_value(&constructor, this_value))
+    if (!same_value(constructor, this_value))
         return vm.throw_completion<TypeError>(ErrorType::GetLegacyRegExpStaticPropertyThisValueMismatch);
 
     // 3. Let val be the value of the internal slot of C named internalSlotName.
@@ -58,7 +58,7 @@ ThrowCompletionOr<void> set_legacy_regexp_static_property(VM& vm, RegExpConstruc
     // 1. Assert C is an object that has an internal slot named internalSlotName.
 
     // 2. If SameValue(C, thisValue) is false, throw a TypeError exception.
-    if (!same_value(&constructor, this_value))
+    if (!same_value(constructor, this_value))
         return vm.throw_completion<TypeError>(ErrorType::SetLegacyRegExpStaticPropertyThisValueMismatch);
 
     // 3. Let strVal be ? ToString(val).

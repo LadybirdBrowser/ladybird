@@ -29,7 +29,7 @@ void ImageConstructor::initialize(JS::Realm& realm)
 
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "Image"_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLImageElementPrototype>(realm, "HTMLImageElement"_fly_string), 0);
+    define_direct_property(vm.names.prototype, ensure_web_prototype<Bindings::HTMLImageElementPrototype>(realm, "HTMLImageElement"_fly_string), 0);
 }
 
 JS::ThrowCompletionOr<JS::Value> ImageConstructor::call()

@@ -370,7 +370,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     // 32. Perform ! CreateDataPropertyOrThrow(A, "groups", groups).
     // NOTE: This step must be performed after the above loop in order for groups to be populated.
-    Value groups = has_groups ? groups_object : js_undefined();
+    Value groups = has_groups ? *groups_object : js_undefined();
     MUST(array->create_data_property_or_throw(vm.names.groups, groups));
 
     // 34. If hasIndices is true, then
@@ -398,7 +398,7 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<Prim
     // 2. If IsCallable(exec) is true, then
     if (exec.is_function()) {
         // a. Let result be ? Call(exec, R, « S »).
-        auto result = TRY(call(vm, exec.as_function(), &regexp_object, string));
+        auto result = TRY(call(vm, exec.as_function(), regexp_object, string));
 
         // b. If Type(result) is neither Object nor Null, throw a TypeError exception.
         if (!result.is_object() && !result.is_null())
@@ -605,7 +605,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
-    auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
+    auto constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(R, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
@@ -622,7 +622,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     bool full_unicode = flags.contains('u') || flags.contains('v');
 
     // 6. Let matcher be ? Construct(C, « R, flags »).
-    auto matcher = TRY(construct(vm, *constructor, regexp_object, PrimitiveString::create(vm, move(flags))));
+    auto matcher = TRY(construct(vm, constructor, regexp_object, PrimitiveString::create(vm, move(flags))));
 
     // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
     auto last_index_value = TRY(regexp_object->get(vm.names.lastIndex));
@@ -900,7 +900,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let C be ? SpeciesConstructor(rx, %RegExp%).
-    auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
+    auto constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(rx, "flags")).
     auto flags_value = TRY(regexp_object->get(vm.names.flags));
@@ -915,7 +915,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     auto new_flags = flags.bytes_as_string_view().find('y').has_value() ? move(flags) : MUST(String::formatted("{}y", flags));
 
     // 10. Let splitter be ? Construct(C, « rx, newFlags »).
-    auto splitter = TRY(construct(vm, *constructor, regexp_object, PrimitiveString::create(vm, move(new_flags))));
+    auto splitter = TRY(construct(vm, constructor, regexp_object, PrimitiveString::create(vm, move(new_flags))));
 
     // 11. Let A be ! ArrayCreate(0).
     auto array = MUST(Array::create(realm, 0));

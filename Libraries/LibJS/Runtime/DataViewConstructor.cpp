@@ -101,7 +101,7 @@ ThrowCompletionOr<GC::Ref<Object>> DataViewConstructor::construct(FunctionObject
     }
 
     // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%DataView.prototype%", « [[DataView]], [[ViewedArrayBuffer]], [[ByteLength]], [[ByteOffset]] »).
-    auto data_view = TRY(ordinary_create_from_constructor<DataView>(vm, new_target, &Intrinsics::data_view_prototype, &array_buffer, move(view_byte_length), offset));
+    auto data_view = TRY(ordinary_create_from_constructor<DataView>(vm, new_target, &Intrinsics::data_view_prototype, array_buffer, move(view_byte_length), offset));
 
     // 11. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (array_buffer.is_detached())

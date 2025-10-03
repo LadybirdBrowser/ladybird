@@ -25,7 +25,7 @@ void GlobalObject::initialize(Realm& realm)
     // https://github.com/tc39/test262/blob/master/INTERPRETING.md#host-defined-functions
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, "print"_utf16_fly_string, print, 1, attr);
-    define_direct_property("$262"_utf16_fly_string, m_$262, attr);
+    define_direct_property("$262"_utf16_fly_string, *m_$262, attr);
 }
 
 void GlobalObject::visit_edges(Cell::Visitor& visitor)

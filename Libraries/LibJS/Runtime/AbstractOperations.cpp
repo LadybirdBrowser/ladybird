@@ -170,14 +170,14 @@ ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM& vm, Val
 }
 
 // 7.3.23 SpeciesConstructor ( O, defaultConstructor ), https://tc39.es/ecma262/#sec-speciesconstructor
-ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& object, FunctionObject& default_constructor)
+ThrowCompletionOr<GC::Ref<FunctionObject>> species_constructor(VM& vm, Object const& object, FunctionObject& default_constructor)
 {
     // 1. Let C be ? Get(O, "constructor").
     auto constructor = TRY(object.get(vm.names.constructor));
 
     // 2. If C is undefined, return defaultConstructor.
     if (constructor.is_undefined())
-        return &default_constructor;
+        return default_constructor;
 
     // 3. If Type(C) is not Object, throw a TypeError exception.
     if (!constructor.is_object())
@@ -188,11 +188,11 @@ ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& obj
 
     // 5. If S is either undefined or null, return defaultConstructor.
     if (species.is_nullish())
-        return &default_constructor;
+        return default_constructor;
 
     // 6. If IsConstructor(S) is true, return S.
     if (species.is_constructor())
-        return &species.as_function();
+        return species.as_function();
 
     // 7. Throw a TypeError exception.
     return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, species.to_string_without_side_effects());
@@ -468,7 +468,7 @@ GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& 
         env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Uninitialized);
 
     // 5. Set env.[[NewTarget]] to newTarget.
-    env->set_new_target(new_target ?: js_undefined());
+    env->set_new_target(new_target ? *new_target : js_undefined());
 
     // 6. Set env.[[OuterEnv]] to F.[[Environment]].
     // 7. Set env.[[DisposeCapability]] to NewDisposeCapability().
@@ -1222,7 +1222,7 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Nonnull
     object->put_direct(realm.intrinsics().mapped_arguments_object_well_known_symbol_iterator_offset(), array_prototype_values);
 
     // 21. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-    object->put_direct(realm.intrinsics().mapped_arguments_object_callee_offset(), Value(&function));
+    object->put_direct(realm.intrinsics().mapped_arguments_object_callee_offset(), Value(function));
 
     // 22. Return obj.
     return object;
@@ -1606,7 +1606,7 @@ ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM& vm, Value valu
 
                     // c. Let result be Completion(Call(method, O)).
                     // d. IfAbruptRejectPromise(result, promiseCapability).
-                    TRY_OR_REJECT(vm, promise_capability, call(vm, method, object));
+                    TRY_OR_REJECT(vm, promise_capability, call(vm, *method, object));
 
                     // e. Perform ? Call(promiseCapability.[[Resolve]], undefined, « undefined »).
                     TRY(call(vm, *promise_capability->resolve(), js_undefined(), js_undefined()));
@@ -1690,7 +1690,7 @@ Completion dispose_resources(VM& vm, DisposeCapability& dispose_capability, Comp
         // e. If method is not undefined, then
         if (method) {
             // i. Let result be Completion(Call(method, value)).
-            auto result = call(vm, *method, value);
+            auto result = call(vm, *method, value ? *value : js_undefined());
 
             // ii. If result is a normal completion and hint is async-dispose, then
             if (!result.is_throw_completion() && hint == Environment::InitializeBindingHint::AsyncDispose) {

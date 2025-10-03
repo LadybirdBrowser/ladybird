@@ -116,7 +116,8 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatPrototype::format)
     }
 
     // 5. Return nf.[[BoundFormat]].
-    return number_format->bound_format();
+    VERIFY(number_format->bound_format());
+    return *number_format->bound_format();
 }
 
 // 16.3.4 Intl.NumberFormat.prototype.formatRange ( start, end ), https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrange

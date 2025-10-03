@@ -152,18 +152,17 @@ struct HmacKeyAlgorithm : public KeyAlgorithm {
     GC_DECLARE_ALLOCATOR(HmacKeyAlgorithm);
 
 public:
-    static GC::Ref<HmacKeyAlgorithm> create(JS::Realm&);
+    static GC::Ref<HmacKeyAlgorithm> create(JS::Realm&, GC::Ref<KeyAlgorithm>);
 
     virtual ~HmacKeyAlgorithm() override = default;
 
-    GC::Ptr<KeyAlgorithm> hash() const { return m_hash; }
-    void set_hash(GC::Ptr<KeyAlgorithm> hash) { m_hash = hash; }
+    GC::Ref<KeyAlgorithm> hash() const { return m_hash; }
 
     WebIDL::UnsignedLong length() const { return m_length; }
     void set_length(WebIDL::UnsignedLong length) { m_length = length; }
 
 protected:
-    HmacKeyAlgorithm(JS::Realm&);
+    HmacKeyAlgorithm(JS::Realm&, GC::Ref<KeyAlgorithm>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
@@ -172,7 +171,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(hash_getter);
     JS_DECLARE_NATIVE_FUNCTION(length_getter);
 
-    GC::Ptr<KeyAlgorithm> m_hash;
+    GC::Ref<KeyAlgorithm> m_hash;
     WebIDL::UnsignedLong m_length;
 };
 

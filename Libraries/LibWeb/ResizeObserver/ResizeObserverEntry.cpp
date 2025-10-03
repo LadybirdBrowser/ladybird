@@ -78,7 +78,7 @@ static GC::Ref<JS::Object> to_js_array(JS::Realm& realm, Vector<GC::Ref<ResizeOb
 {
     GC::RootVector<JS::Value> vector(realm.heap());
     for (auto const& size : sizes)
-        vector.append(JS::Value(size.ptr()));
+        vector.append(JS::Value(size));
 
     auto array = JS::Array::create_from(realm, vector);
     MUST(array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));

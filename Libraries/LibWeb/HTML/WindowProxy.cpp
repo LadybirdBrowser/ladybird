@@ -86,7 +86,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
             // NOTE: children are coming sorted in required order from document_tree_child_navigables()
 
             // 2. Set value to children[index]'s active WindowProxy.
-            value = children[index]->active_window_proxy();
+            value = children[index]->active_window_proxy().as_nonnull();
         }
 
         // 5. If value is undefined, then:
@@ -109,7 +109,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
         return m_window->internal_get_own_property(property_key);
 
     // 4. Let property be CrossOriginGetOwnPropertyHelper(W, P).
-    auto property = cross_origin_get_own_property_helper(const_cast<Window*>(m_window.ptr()), property_key);
+    auto property = cross_origin_get_own_property_helper({ const_cast<Window&>(*m_window) }, property_key);
 
     // 5. If property is not undefined, then return property.
     if (property.has_value())
@@ -121,7 +121,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
 
     if (auto navigable = navigable_property_set.get(property_key_string); navigable.has_value()) {
         // 1. Let value be the active WindowProxy of the named object of W with the name P.
-        auto value = navigable.value()->active_window_proxy();
+        auto value = navigable.value()->active_window_proxy().as_nonnull();
 
         // 2. Return PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
         // NOTE: The reason the property descriptors are non-enumerable, despite this mismatching the same-origin behavior, is for compatibility with existing web content. See issue #3183 for details.
@@ -257,7 +257,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_prope
     }
 
     // 7. Return the concatenation of keys and ! CrossOriginOwnPropertyKeys(W).
-    keys.extend(cross_origin_own_property_keys(m_window.ptr()));
+    keys.extend(cross_origin_own_property_keys({ m_window.as_nonnull() }));
     return keys;
 }
 

@@ -324,7 +324,7 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
                     return;
                 }
 
-                GC::Ptr<FileAPI::Blob> blob_result = FileAPI::Blob::create(realm(), file_result->buffer, type.release_value());
+                auto blob_result = FileAPI::Blob::create(realm(), file_result->buffer, type.release_value());
                 WebIDL::resolve_promise(realm(), result_promise, blob_result);
             }
         };

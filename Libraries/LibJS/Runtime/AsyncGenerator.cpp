@@ -78,7 +78,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
     auto& async_context = vm.running_execution_context();
 
     // 2. Let promise be ? PromiseResolve(%Promise%, value).
-    auto* promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
+    auto promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
 
     // 3. Let fulfilledClosure be a new Abstract Closure with parameters (v) that captures asyncContext and performs the
     //    following steps when called:
@@ -135,7 +135,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    m_current_promise = as<Promise>(promise_object);
+    m_current_promise = as<Promise>(*promise_object);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the
@@ -367,7 +367,7 @@ void AsyncGenerator::await_return()
     VERIFY(!promise_completion.is_throw_completion());
 
     // 9. Let promise be promiseCompletion.[[Value]].
-    auto* promise = promise_completion.release_value();
+    auto promise = promise_completion.release_value();
 
     // 10. Let fulfilledClosure be a new Abstract Closure with parameters (value) that captures generator and performs
     //    the following steps when called:
@@ -416,7 +416,7 @@ void AsyncGenerator::await_return()
     // 14. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
     // NOTE: await_return should only be called when the generator is in SuspendedStart or Completed state,
     //       so an await shouldn't be running currently, so it should be safe to overwrite m_current_promise.
-    m_current_promise = as<Promise>(promise);
+    m_current_promise = as<Promise>(*promise);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
     // 15. Return unused.
@@ -473,10 +473,8 @@ void AsyncGenerator::complete_step(Completion completion, bool done, Realm* real
             iterator_result = create_iterator_result_object(vm, value, done);
         }
 
-        VERIFY(iterator_result);
-
         // d. Perform ! Call(promiseCapability.[[Resolve]], undefined, « iteratorResult »).
-        MUST(call(vm, *promise_capability->resolve(), js_undefined(), iterator_result));
+        MUST(call(vm, *promise_capability->resolve(), js_undefined(), iterator_result.as_nonnull()));
     }
 
     // 8. Return unused.

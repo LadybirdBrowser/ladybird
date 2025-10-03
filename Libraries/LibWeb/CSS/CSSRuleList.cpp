@@ -283,7 +283,7 @@ bool CSSRuleList::evaluate_media_queries(HTML::Window const& window)
 Optional<JS::Value> CSSRuleList::item_value(size_t index) const
 {
     if (auto value = item(index))
-        return value;
+        return *value;
     return {};
 }
 

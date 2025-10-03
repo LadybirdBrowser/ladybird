@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
     auto writable_stream = realm.create<WritableStream>(realm);
 
     // 1. If underlyingSink is missing, set it to null.
-    auto underlying_sink = underlying_sink_object.has_value() ? JS::Value(underlying_sink_object.value()) : JS::js_null();
+    auto underlying_sink = underlying_sink_object.has_value() ? JS::Value(*underlying_sink_object.value()) : JS::js_null();
 
     // 2. Let underlyingSinkDict be underlyingSink, converted to an IDL value of type UnderlyingSink.
     auto underlying_sink_dict = TRY(UnderlyingSink::from_value(vm, underlying_sink));

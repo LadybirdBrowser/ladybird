@@ -2720,11 +2720,11 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
 
             // 1. If disconnectedCallback is not null, then call disconnectedCallback with no arguments.
             if (disconnected_callback)
-                (void)WebIDL::invoke_callback(*disconnected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
+                (void)WebIDL::invoke_callback(*disconnected_callback, *this, WebIDL::ExceptionBehavior::Report, no_arguments);
 
             // 2. If connectedCallback is not null, then call connectedCallback with no arguments.
             if (connected_callback)
-                (void)WebIDL::invoke_callback(*connected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
+                (void)WebIDL::invoke_callback(*connected_callback, *this, WebIDL::ExceptionBehavior::Report, no_arguments);
 
             return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm());
         callback = realm().heap().allocate<WebIDL::CallbackType>(steps, realm());
@@ -2812,7 +2812,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         auto construct_result = TRY(WebIDL::construct(constructor, {}));
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
-        if (!JS::same_value(construct_result, this))
+        if (!JS::same_value(construct_result, *this))
             return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
 
         return {};

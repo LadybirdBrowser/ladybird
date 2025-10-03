@@ -239,7 +239,7 @@ ThrowCompletionOr<double> compare_array_elements(VM& vm, Value x, Value y, Funct
     // 4. If comparefn is not undefined, then
     if (comparefn != nullptr) {
         // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
-        auto value = TRY(call(vm, comparefn, js_undefined(), x, y));
+        auto value = TRY(call(vm, *comparefn, js_undefined(), x, y));
         auto value_number = TRY(value.to_number(vm));
 
         // b. If v is NaN, return +0𝔽.

@@ -10,12 +10,12 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(DataView);
 
-GC::Ref<DataView> DataView::create(Realm& realm, ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset)
+GC::Ref<DataView> DataView::create(Realm& realm, GC::Ref<ArrayBuffer> viewed_buffer, ByteLength byte_length, size_t byte_offset)
 {
     return realm.create<DataView>(viewed_buffer, move(byte_length), byte_offset, realm.intrinsics().data_view_prototype());
 }
 
-DataView::DataView(ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset, Object& prototype)
+DataView::DataView(GC::Ref<ArrayBuffer> viewed_buffer, ByteLength byte_length, size_t byte_offset, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_viewed_array_buffer(viewed_buffer)
     , m_byte_length(move(byte_length))
@@ -33,7 +33,7 @@ void DataView::visit_edges(Visitor& visitor)
 DataViewWithBufferWitness make_data_view_with_buffer_witness_record(DataView const& data_view, ArrayBuffer::Order order)
 {
     // 1. Let buffer be obj.[[ViewedArrayBuffer]].
-    auto* buffer = data_view.viewed_array_buffer();
+    auto buffer = data_view.viewed_array_buffer();
 
     ByteLength byte_length { 0 };
 

@@ -451,15 +451,15 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
 
     if (!is_arrow_function() && kind() == FunctionKind::Normal) {
         put_direct(realm.intrinsics().normal_function_length_offset(), Value(function_length()));
-        put_direct(realm.intrinsics().normal_function_name_offset(), m_name_string);
+        put_direct(realm.intrinsics().normal_function_name_offset(), *m_name_string);
 
         auto prototype = Object::create_with_premade_shape(realm.intrinsics().normal_function_prototype_shape());
-        prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
+        prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), *this);
         put_direct(realm.intrinsics().normal_function_prototype_offset(), prototype);
     } else {
         PropertyDescriptor length_descriptor { .value = Value(function_length()), .writable = false, .enumerable = false, .configurable = true };
         MUST(define_property_or_throw(vm.names.length, length_descriptor));
-        PropertyDescriptor name_descriptor { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true };
+        PropertyDescriptor name_descriptor { .value = *m_name_string, .writable = false, .enumerable = false, .configurable = true };
         MUST(define_property_or_throw(vm.names.name, name_descriptor));
 
         if (!is_arrow_function()) {
@@ -480,8 +480,10 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
             }
             // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances
             // AsyncFunction instances do not have a prototype property as they are not constructible.
-            if (kind() != FunctionKind::Async)
-                define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
+            if (kind() != FunctionKind::Async) {
+                VERIFY(prototype);
+                define_direct_property(vm.names.prototype, *prototype, Attribute::Writable);
+            }
         }
     }
 }
@@ -577,9 +579,11 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
 
     // 6. If kind is base, then
     if (kind == ConstructorKind::Base) {
+        VERIFY(this_argument);
+
         // a. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
         if (uses_this())
-            ordinary_call_bind_this(vm, callee_context, this_argument);
+            ordinary_call_bind_this(vm, callee_context, *this_argument);
 
         // b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
         auto initialize_result = this_argument->initialize_instance_elements(*this);
@@ -757,7 +761,7 @@ void ECMAScriptFunctionObject::ordinary_call_bind_this(VM& vm, ExecutionContext&
             auto& global_env = callee_realm->global_environment();
 
             // iii. Let thisValue be globalEnv.[[GlobalThisValue]].
-            this_value = &global_env.global_this_value();
+            this_value = global_env.global_this_value();
         }
         // b. Else,
         else {
@@ -917,7 +921,7 @@ void ECMAScriptFunctionObject::set_name(Utf16FlyString const& name)
     auto& vm = this->vm();
     const_cast<SharedFunctionInstanceData&>(shared_data()).m_name = name;
     m_name_string = PrimitiveString::create(vm, name);
-    PropertyDescriptor descriptor { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true };
+    PropertyDescriptor descriptor { .value = *m_name_string, .writable = false, .enumerable = false, .configurable = true };
     MUST(define_property_or_throw(vm.names.name, descriptor));
 }
 

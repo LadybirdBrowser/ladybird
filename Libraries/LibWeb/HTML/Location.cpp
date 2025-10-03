@@ -634,7 +634,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
     }
 
     // 2. Let property be CrossOriginGetOwnPropertyHelper(this, P).
-    auto property = HTML::cross_origin_get_own_property_helper(const_cast<Location*>(this), property_key);
+    auto property = HTML::cross_origin_get_own_property_helper({ const_cast<Location&>(*this) }, property_key);
 
     // 3. If property is not undefined, then return property.
     if (property.has_value())
@@ -703,7 +703,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> Location::internal_own_property
         return JS::Object::internal_own_property_keys();
 
     // 2. Return CrossOriginOwnPropertyKeys(this).
-    return HTML::cross_origin_own_property_keys(this);
+    return HTML::cross_origin_own_property_keys({ *this });
 }
 
 }

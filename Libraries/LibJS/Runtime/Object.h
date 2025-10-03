@@ -176,7 +176,7 @@ public:
 
     // 20.1 Object Objects, https://tc39.es/ecma262/#sec-object-objects
 
-    ThrowCompletionOr<Object*> define_properties(Value properties);
+    ThrowCompletionOr<GC::Ref<Object>> define_properties(Value properties);
 
     // 14.7.5 The for-in, for-of, and for-await-of Statements
 

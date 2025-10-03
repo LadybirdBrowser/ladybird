@@ -114,7 +114,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
         response_object = Response::create(relevant_realm, response, Headers::Guard::Immutable);
 
         // 5. Resolve p with responseObject.
-        WebIDL::resolve_promise(relevant_realm, promise_capability, response_object);
+        WebIDL::resolve_promise(relevant_realm, promise_capability, response_object.as_nonnull());
     };
     controller_holder->set_controller(MUST(Fetching::fetch(
         realm,

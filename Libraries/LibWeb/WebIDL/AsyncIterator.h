@@ -26,7 +26,7 @@ public:
 
     // https://webidl.spec.whatwg.org/#ref-for-dfn-asynchronous-iterator-prototype-object%E2%91%A2
     template<typename AsyncIteratorInterface>
-    static JS::ThrowCompletionOr<GC::Ptr<JS::Object>> next(JS::Realm& realm, StringView interface_name)
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> next(JS::Realm& realm, StringView interface_name)
     {
         auto validation_result = validate_this<AsyncIteratorInterface>(realm, interface_name);
 
@@ -34,14 +34,14 @@ public:
             [](GC::Ref<AsyncIteratorInterface> iterator) {
                 return iterator->iterator_next_impl();
             },
-            [](JS::ThrowCompletionOr<GC::Ptr<JS::Object>> result) {
+            [](JS::ThrowCompletionOr<GC::Ref<JS::Object>> result) {
                 return result;
             });
     }
 
     // https://webidl.spec.whatwg.org/#ref-for-asynchronous-iterator-return
     template<typename AsyncIteratorInterface>
-    static JS::ThrowCompletionOr<GC::Ptr<JS::Object>> return_(JS::Realm& realm, StringView interface_name, JS::Value value)
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> return_(JS::Realm& realm, StringView interface_name, JS::Value value)
     {
         auto return_promise_capability = WebIDL::create_promise(realm);
         auto validation_result = validate_this<AsyncIteratorInterface>(realm, interface_name, return_promise_capability);
@@ -50,7 +50,7 @@ public:
             [&](GC::Ref<AsyncIteratorInterface> iterator) {
                 return iterator->iterator_return_impl(return_promise_capability, value);
             },
-            [](JS::ThrowCompletionOr<GC::Ptr<JS::Object>> result) {
+            [](JS::ThrowCompletionOr<GC::Ref<JS::Object>> result) {
                 return result;
             });
     }
@@ -107,8 +107,8 @@ private:
         return GC::Ref { *iterator };
     }
 
-    JS::ThrowCompletionOr<GC::Ptr<JS::Object>> iterator_next_impl();
-    JS::ThrowCompletionOr<GC::Ptr<JS::Object>> iterator_return_impl(GC::Ref<WebIDL::Promise> return_promise_capability, JS::Value);
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> iterator_next_impl();
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> iterator_return_impl(GC::Ref<WebIDL::Promise> return_promise_capability, JS::Value);
 
     JS::Object::PropertyKind m_kind { JS::Object::PropertyKind::Value };
     GC::Ptr<JS::Promise> m_ongoing_promise;

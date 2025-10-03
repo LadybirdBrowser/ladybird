@@ -86,7 +86,8 @@ JS_DEFINE_NATIVE_FUNCTION(CollatorPrototype::compare_getter)
     }
 
     // 4. Return collator.[[BoundCompare]].
-    return collator->bound_compare();
+    VERIFY(collator->bound_compare());
+    return *collator->bound_compare();
 }
 
 }

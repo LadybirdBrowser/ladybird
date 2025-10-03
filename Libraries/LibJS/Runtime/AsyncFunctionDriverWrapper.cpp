@@ -47,7 +47,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
         m_suspended_execution_context = vm.running_execution_context().copy();
 
     // 2. Let promise be ? PromiseResolve(%Promise%, value).
-    auto* promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
+    auto promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
 
     // 3. Let fulfilledClosure be a new Abstract Closure with parameters (v) that captures asyncContext and performs the
     //    following steps when called:
@@ -108,8 +108,10 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
         m_on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    m_current_promise = as<Promise>(promise_object);
-    m_current_promise->perform_then(m_on_fulfilled, m_on_rejected, {});
+    m_current_promise = as<Promise>(*promise_object);
+    VERIFY(m_on_fulfilled);
+    VERIFY(m_on_rejected);
+    m_current_promise->perform_then(*m_on_fulfilled, *m_on_rejected, {});
 
     // NOTE: None of these are necessary. 8-12 are handled by step d of the above lambdas.
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the

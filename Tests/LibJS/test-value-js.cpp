@@ -10,36 +10,6 @@
 
 using namespace JS;
 
-template<typename Type>
-static void test_nullptr_input()
-{
-    Type* ptr = nullptr;
-    JS::Value val { ptr };
-    EXPECT(val.is_null());
-    EXPECT(!val.is_object());
-    EXPECT(!val.is_string());
-    EXPECT(!val.is_bigint());
-    EXPECT(!val.is_symbol());
-    EXPECT(!val.is_accessor());
-    EXPECT(!val.is_cell());
-    EXPECT(!val.is_number());
-    EXPECT(!val.is_undefined());
-}
-
-#define TEST_NULLPTR_INPUT(type)          \
-    TEST_CASE(value_nullptr_input_##type) \
-    {                                     \
-        test_nullptr_input<type>();       \
-    }
-
-TEST_NULLPTR_INPUT(Object);
-TEST_NULLPTR_INPUT(PrimitiveString);
-TEST_NULLPTR_INPUT(Symbol);
-TEST_NULLPTR_INPUT(BigInt);
-TEST_NULLPTR_INPUT(Accessor);
-
-#undef TEST_NULLPTR_INPUT
-
 TEST_CASE(valid_pointer_in_gives_same_pointer_out)
 {
     if (sizeof(void*) < sizeof(double))
@@ -47,7 +17,7 @@ TEST_CASE(valid_pointer_in_gives_same_pointer_out)
 
 #define EXPECT_POINTER_TO_SURVIVE(input)                                           \
     {                                                                              \
-        JS::Value value(reinterpret_cast<Object*>(static_cast<u64>(input)));       \
+        JS::Value value(*reinterpret_cast<Object*>(static_cast<u64>(input)));      \
         EXPECT(value.is_object());                                                 \
         EXPECT(!value.is_null());                                                  \
         auto extracted_pointer = JS::Value::extract_pointer_bits(value.encoded()); \

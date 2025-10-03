@@ -182,7 +182,7 @@ inline void TestRunnerGlobalObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
-    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
+    define_direct_property("global"_utf16_fly_string, *this, JS::Attribute::Enumerable);
     for (auto& entry : s_exposed_global_functions) {
         define_native_function(
             realm,

@@ -36,7 +36,7 @@ GC::Ref<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<GC::Ro
 
     // The FontFaceSet constructor, when called, must iterate its initialFaces argument and add each value to its set entries.
     for (auto const& face : initial_faces)
-        set_entries->set_add(face);
+        set_entries->set_add(*face);
 
     return realm.create<FontFaceSet>(realm, ready_promise, set_entries);
 }
@@ -75,7 +75,7 @@ WebIDL::ExceptionOr<GC::Ref<FontFaceSet>>
 FontFaceSet::add(GC::Root<FontFace> face)
 {
     // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
-    if (m_set_entries->set_has(face))
+    if (m_set_entries->set_has(*face))
         return GC::Ref<FontFaceSet>(*this);
 
     // 2. If font is CSS-connected, throw an InvalidModificationError exception and exit this algorithm immediately.
@@ -84,7 +84,7 @@ FontFaceSet::add(GC::Root<FontFace> face)
     }
 
     // 3. Add the font argument to the FontFaceSet’s set entries.
-    m_set_entries->set_add(face);
+    m_set_entries->set_add(*face);
 
     // 4. If font’s status attribute is "loading"
     if (face->status() == Bindings::FontFaceLoadStatus::Loading) {
@@ -111,7 +111,7 @@ bool FontFaceSet::delete_(GC::Root<FontFace> face)
     }
 
     // 2. Let deleted be the result of removing font from the FontFaceSet’s set entries.
-    bool deleted = m_set_entries->set_remove(face);
+    bool deleted = m_set_entries->set_remove(*face);
 
     // 3. If font is present in the FontFaceSet’s [[LoadedFonts]], or [[FailedFonts]] lists, remove it.
     m_loaded_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });

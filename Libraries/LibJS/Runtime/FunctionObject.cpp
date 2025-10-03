@@ -33,7 +33,7 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
     // 2. If Type(name) is Symbol, then
     if (auto const* property_key = name_arg.get_pointer<PropertyKey>(); property_key && property_key->is_symbol()) {
         // a. Let description be name's [[Description]] value.
-        auto const& description = property_key->as_symbol()->description();
+        auto const& description = property_key->as_symbol().description();
 
         // b. If description is undefined, set name to the empty String.
         if (!description.has_value())

@@ -7944,19 +7944,19 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     auto key = CryptoKey::create(m_realm, move(key_data));
 
     // 6. Let algorithm be a new HmacKeyAlgorithm.
-    auto algorithm = HmacKeyAlgorithm::create(m_realm);
+
+    // NOTE: Steps 8 and 10 are done out of order so that HmacKeyAlgorithm can hold hash as a Ref.
+    // 8. Let hash be a new KeyAlgorithm.
+    auto hash = KeyAlgorithm::create(m_realm);
+
+    // 10. Set the hash attribute of algorithm to hash.
+    auto algorithm = HmacKeyAlgorithm::create(m_realm, hash);
 
     // 7. Set the name attribute of algorithm to "HMAC".
     algorithm->set_name("HMAC"_string);
 
-    // 8. Let hash be a new KeyAlgorithm.
-    auto hash = KeyAlgorithm::create(m_realm);
-
     // 9. Set the name attribute of hash to equal the name member of the hash member of normalizedAlgorithm.
     hash->set_name(TRY(normalized_algorithm.hash.name(m_realm->vm())));
-
-    // 10. Set the hash attribute of algorithm to hash.
-    algorithm->set_hash(hash);
 
     // 11. Set the length attribute of algorithm to length.
     algorithm->set_length(length);
@@ -8120,16 +8120,15 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
     key->set_type(Bindings::KeyType::Secret);
 
     // 10. Let algorithm be a new HmacKeyAlgorithm.
-    auto algorithm = HmacKeyAlgorithm::create(m_realm);
+    // NOTE: This step is performed out of order so that HmacKeyAlgorithm can hold hash as a Ref.
+    // 13. Set the hash attribute of algorithm to hash.
+    auto algorithm = HmacKeyAlgorithm::create(m_realm, hash);
 
     // 11. Set the name attribute of algorithm to "HMAC".
     algorithm->set_name("HMAC"_string);
 
     // 12. Set the length attribute of algorithm to length.
     algorithm->set_length(length);
-
-    // 13. Set the hash attribute of algorithm to hash.
-    algorithm->set_hash(hash);
 
     // 14. Set the [[algorithm]] internal slot of key to algorithm.
     key->set_algorithm(algorithm);

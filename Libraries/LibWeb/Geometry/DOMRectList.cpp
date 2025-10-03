@@ -66,7 +66,7 @@ Optional<JS::Value> DOMRectList::item_value(size_t index) const
     if (index >= m_rects.size())
         return {};
 
-    return m_rects[index].ptr();
+    return m_rects[index];
 }
 
 }

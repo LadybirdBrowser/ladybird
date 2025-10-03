@@ -30,7 +30,7 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
                 auto const& exception = static_cast<WebIDL::DOMException const&>(object);
                 dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}: {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", exception.name(), exception.message());
             } else {
-                dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Value(&object));
+                dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Value(object));
             }
         } else {
             dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m [{}] {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", name, message);

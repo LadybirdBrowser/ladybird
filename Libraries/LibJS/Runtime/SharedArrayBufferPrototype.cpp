@@ -99,18 +99,18 @@ JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::slice)
     auto new_length = max(final - first, 0.0);
 
     // 14. Let ctor be ? SpeciesConstructor(O, %SharedArrayBuffer%).
-    auto* constructor = TRY(species_constructor(vm, array_buffer_object, realm.intrinsics().shared_array_buffer_constructor()));
+    auto constructor = TRY(species_constructor(vm, array_buffer_object, realm.intrinsics().shared_array_buffer_constructor()));
 
     // 15. Let new be ? Construct(ctor, « 𝔽(newLen) »).
-    auto new_array_buffer = TRY(construct(vm, *constructor, Value(new_length)));
+    auto new_array_buffer = TRY(construct(vm, constructor, Value(new_length)));
 
     // 16. Perform ? RequireInternalSlot(new, [[ArrayBufferData]]).
-    if (!is<ArrayBuffer>(new_array_buffer.ptr()))
+    if (!is<ArrayBuffer>(*new_array_buffer))
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorDidNotCreate, "an ArrayBuffer");
-    auto* new_array_buffer_object = static_cast<ArrayBuffer*>(new_array_buffer.ptr());
+    auto& new_array_buffer_object = static_cast<ArrayBuffer&>(*new_array_buffer);
 
     // 17. If IsSharedArrayBuffer(new) is true, throw a TypeError exception.
-    if (!new_array_buffer_object->is_shared_array_buffer())
+    if (!new_array_buffer_object.is_shared_array_buffer())
         return vm.throw_completion<TypeError>(ErrorType::NotASharedArrayBuffer);
 
     // 18. If new.[[ArrayBufferData]] is O.[[ArrayBufferData]], throw a TypeError exception.
@@ -118,14 +118,14 @@ JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::slice)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "same ArrayBuffer instance");
 
     // 19. If new.[[ArrayBufferByteLength]] < newLen, throw a TypeError exception.
-    if (new_array_buffer_object->byte_length() < new_length)
+    if (new_array_buffer_object.byte_length() < new_length)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "an ArrayBuffer smaller than requested");
 
     // 20. Let fromBuf be O.[[ArrayBufferData]].
     auto& from_buf = array_buffer_object->buffer();
 
     // 21. Let toBuf be new.[[ArrayBufferData]].
-    auto& to_buf = new_array_buffer_object->buffer();
+    auto& to_buf = new_array_buffer_object.buffer();
 
     // 22. Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, newLen).
     copy_data_block_bytes(to_buf, 0, from_buf, first, new_length);

@@ -1018,22 +1018,23 @@ GC::Ptr<WindowProxy const> Window::top() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-opener
-GC::Ptr<WindowProxy const> Window::opener() const
+JS::Value Window::opener() const
 {
     // 1. Let current be this's browsing context.
     auto const* current = browsing_context();
 
     // 2. If current is null, then return null.
     if (!current)
-        return {};
+        return JS::js_null();
 
     // 3. If current's opener browsing context is null, then return null.
     auto opener_browsing_context = current->opener_browsing_context();
     if (!opener_browsing_context)
-        return {};
+        return JS::js_null();
 
     // 4. Return current's opener browsing context's WindowProxy object.
-    return opener_browsing_context->window_proxy();
+    auto const* window_proxy = opener_browsing_context->window_proxy();
+    return window_proxy ? *window_proxy : JS::js_null();
 }
 
 WebIDL::ExceptionOr<void> Window::set_opener(JS::Value value)
@@ -1866,7 +1867,8 @@ JS::Value Window::named_item_value(FlyString const& name) const
         });
         // 2. Return container's content navigable's active WindowProxy.
         VERIFY(container);
-        return container->content_navigable()->active_window_proxy();
+        VERIFY(container->content_navigable());
+        return container->content_navigable()->active_window_proxy().as_nonnull();
     }
 
     // 3. Otherwise, if objects has only one element, return that element.

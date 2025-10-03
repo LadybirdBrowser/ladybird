@@ -64,7 +64,7 @@ void AbortSignal::signal_abort(JS::Value reason)
     if (!reason.is_undefined())
         m_abort_reason = reason;
     else
-        m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_utf16).ptr();
+        m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_utf16);
 
     // 3. Let dependentSignalsToAbort be a new list.
     Vector<GC::Root<AbortSignal>> dependent_signals_to_abort;
@@ -141,7 +141,7 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::VM& vm, JS::Val
 
     // 2. Set signal’s abort reason to reason if it is given; otherwise to a new "AbortError" DOMException.
     if (reason.is_undefined())
-        reason = WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_utf16).ptr();
+        reason = WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_utf16);
 
     signal->set_reason(reason);
 

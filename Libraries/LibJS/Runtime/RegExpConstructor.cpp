@@ -79,7 +79,7 @@ ThrowCompletionOr<Value> RegExpConstructor::call()
         auto pattern_constructor = TRY(pattern.as_object().get(vm.names.constructor));
 
         // ii. If SameValue(newTarget, patternConstructor) is true, return pattern.
-        if (same_value(&new_target, pattern_constructor))
+        if (same_value(new_target, pattern_constructor))
             return pattern;
     }
 

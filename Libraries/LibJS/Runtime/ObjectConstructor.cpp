@@ -371,7 +371,8 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::get_prototype_of)
     auto object = TRY(vm.argument(0).to_object(vm));
 
     // 2. Return ? obj.[[GetPrototypeOf]]().
-    return TRY(object->internal_get_prototype_of());
+    auto* prototype = TRY(object->internal_get_prototype_of());
+    return prototype ? *prototype : js_null();
 }
 
 // 20.1.2.13 Object.groupBy ( items, callbackfn ), https://tc39.es/ecma262/#sec-object.groupby

@@ -727,16 +727,16 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
         surrounding_agent.mutation_observer_microtask_queued = false;
 
         // 2. Let notifySet be a clone of the surrounding agent’s mutation observers.
-        GC::RootVector<DOM::MutationObserver*> notify_set(heap);
+        GC::RootVector<GC::Ref<DOM::MutationObserver>> notify_set(heap);
         for (auto& observer : surrounding_agent.mutation_observers)
-            notify_set.append(&observer);
+            notify_set.append(observer);
 
         // 3. Let signalSet be a clone of the surrounding agent’s signal slots.
         // 4. Empty the surrounding agent’s signal slots.
         auto signal_set = move(surrounding_agent.signal_slots);
 
         // 5. For each mo of notifySet:
-        for (auto& mutation_observer : notify_set) {
+        for (auto mutation_observer : notify_set) {
             // 1. Let records be a clone of mo’s record queue.
             // 2. Empty mo’s record queue.
             auto records = mutation_observer->take_records();
@@ -763,7 +763,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                 for (size_t i = 0; i < records.size(); ++i) {
                     auto& record = records.at(i);
                     auto property_index = JS::PropertyKey { i };
-                    MUST(wrapped_records->create_data_property(property_index, record.ptr()));
+                    MUST(wrapped_records->create_data_property(property_index, *record));
                 }
 
                 (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, mutation_observer } });
@@ -840,7 +840,7 @@ void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_que
                 [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
                     // -> callback reaction
                     //      Invoke reaction's callback function with reaction's arguments and "report", and callback this value set to element.
-                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
+                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, *element, WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
                 });
         }
     }

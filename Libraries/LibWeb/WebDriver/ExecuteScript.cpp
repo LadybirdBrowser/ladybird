@@ -38,10 +38,10 @@ static GC::Ref<WebIDL::Promise> promise_call(JS::Realm& realm, JS::ThrowCompleti
 static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, StringView body, ReadonlySpan<JS::Value> parameters)
 {
     // 1. Let window be the associated window of the current browsing context’s active document.
-    auto window = browsing_context.active_document()->window();
+    auto window = browsing_context.active_document()->window().as_nonnull();
 
     // 2. Let environment settings be the environment settings object for window.
-    auto& environment_settings = Web::HTML::relevant_settings_object(*window);
+    auto& environment_settings = Web::HTML::relevant_settings_object(window);
 
     // 3. Let global scope be environment settings realm’s global environment.
     auto& realm = environment_settings.realm();

@@ -179,7 +179,7 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
                     // 1. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « cachedPosition » and "report".
                     HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, cached_position] {
-                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { cached_position } });
+                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { *cached_position } });
                     }));
 
                     // 2. Terminate this algorithm.
@@ -239,7 +239,7 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
             // 8. Queue a task on the geolocation task source with a step that invokes successCallback with « position »
             //    and "report".
             HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
-                (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { position } });
+                (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { position.as_nonnull() } });
             }));
         }
     }

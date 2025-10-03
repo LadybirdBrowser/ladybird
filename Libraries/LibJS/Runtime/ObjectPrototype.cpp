@@ -94,7 +94,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::is_prototype_of)
             return Value(false);
 
         // c. If SameValue(O, V) is true, return true.
-        if (same_value(this_object, object))
+        if (same_value(this_object, *object))
             return Value(true);
     }
 }
@@ -197,7 +197,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
 
     // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
     if (tag == "Object"sv)
-        return vm.cached_strings.object_Object;
+        return *vm.cached_strings.object_Object;
     return PrimitiveString::create(vm, MUST(String::formatted("[object {}]", tag)));
 }
 
@@ -215,7 +215,8 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::proto_getter)
     auto object = TRY(vm.this_value().to_object(vm));
 
     // 2. Return ? O.[[GetPrototypeOf]]().
-    return TRY(object->internal_get_prototype_of());
+    auto* prototype = TRY(object->internal_get_prototype_of());
+    return prototype ? *prototype : js_null();
 }
 
 // 20.1.3.8.2 set Object.prototype.__proto__, https://tc39.es/ecma262/#sec-set-object.prototype.__proto__
@@ -319,7 +320,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::lookup_getter)
         if (desc.has_value()) {
             // i. If IsAccessorDescriptor(desc) is true, return desc.[[Get]].
             if (desc->is_accessor_descriptor())
-                return *desc->get ?: js_undefined();
+                return *desc->get ? **desc->get : js_undefined();
 
             // ii. Return undefined.
             return js_undefined();
@@ -353,7 +354,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::lookup_setter)
         if (desc.has_value()) {
             // i. If IsAccessorDescriptor(desc) is true, return desc.[[Set]].
             if (desc->is_accessor_descriptor())
-                return *desc->set ?: js_undefined();
+                return *desc->set ? **desc->set : js_undefined();
 
             // ii. Return undefined.
             return js_undefined();

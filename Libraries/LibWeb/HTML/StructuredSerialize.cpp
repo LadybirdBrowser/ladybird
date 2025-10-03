@@ -734,7 +734,7 @@ public:
             auto byte_offset = m_serialized.decode<u32>();
 
             if (constructor_name == "DataView"sv) {
-                value = JS::DataView::create(realm, &array_buffer, byte_length, byte_offset);
+                value = JS::DataView::create(realm, array_buffer, byte_length, byte_offset);
             } else {
                 auto array_length = m_serialized.decode<u32>();
 
@@ -750,7 +750,7 @@ public:
 
                 typed_array->set_byte_length(byte_length);
                 typed_array->set_byte_offset(byte_offset);
-                value = typed_array;
+                value = *typed_array;
             }
             break;
         }
@@ -820,7 +820,7 @@ public:
             if (message.has_value())
                 error->set_message(message.release_value());
 
-            value = error;
+            value = *error;
             break;
         }
 
@@ -1017,7 +1017,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         if (as_array_buffer && as_array_buffer->is_shared_array_buffer())
             return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer shared array buffer"_utf16);
 
-        JS::Value transferable_value { transferable };
+        JS::Value transferable_value { *transferable };
 
         // 3. If memory[transferable] exists, then throw a "DataCloneError" DOMException.
         if (memory.contains(transferable_value))

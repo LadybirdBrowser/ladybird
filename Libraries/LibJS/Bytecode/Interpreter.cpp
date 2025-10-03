@@ -179,7 +179,7 @@ ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuat
     // FIXME: If we get a pointer, which is not accurately representable as a double
     //        will cause this to explode
     auto continuation_value = continuation.has_value() ? Value(continuation->address()) : js_null();
-    return vm().heap().allocate<GeneratorResult>(value, continuation_value, false).ptr();
+    return vm().heap().allocate<GeneratorResult>(value, continuation_value, false);
 }
 
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
@@ -988,15 +988,21 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
             }();
             if (can_use_cache) {
                 auto value = cache_entry.prototype->get_direct(cache_entry.property_offset.value());
-                if (value.is_accessor())
-                    return TRY(call(vm, value.as_accessor().getter(), this_value));
+                if (value.is_accessor()) {
+                    auto* getter = value.as_accessor().getter();
+                    VERIFY(getter);
+                    return TRY(call(vm, *getter, this_value));
+                }
                 return value;
             }
         } else if (&shape == cache_entry.shape) {
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
             auto value = base_obj->get_direct(cache_entry.property_offset.value());
-            if (value.is_accessor())
-                return TRY(call(vm, value.as_accessor().getter(), this_value));
+            if (value.is_accessor()) {
+                auto* getter = value.as_accessor().getter();
+                VERIFY(getter);
+                return TRY(call(vm, *getter, this_value));
+            }
             return value;
         }
     }
@@ -1125,8 +1131,11 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         //               we can use the cached property offset.
         if (&shape == cache.entries[0].shape) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
-            if (value.is_accessor())
-                return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
+            if (value.is_accessor()) {
+                auto* getter = value.as_accessor().getter();
+                VERIFY(getter);
+                return TRY(call(vm, *getter, js_undefined()));
+            }
             return value;
         }
 
@@ -1237,7 +1246,9 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     if (can_use_cache) {
                         auto value_in_prototype = cache.prototype->get_direct(cache.property_offset.value());
                         if (value_in_prototype.is_accessor()) {
-                            TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
+                            auto* setter = value_in_prototype.as_accessor().setter();
+                            VERIFY(setter);
+                            TRY(call(vm, *setter, this_value, value));
                             return {};
                         }
                     }
@@ -1248,7 +1259,9 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                         break;
                     auto value_in_object = object->get_direct(cache.property_offset.value());
                     if (value_in_object.is_accessor()) {
-                        TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                        auto* setter = value_in_object.as_accessor().setter();
+                        VERIFY(setter);
+                        TRY(call(vm, *setter, this_value, value));
                     } else {
                         object->put_direct(*cache.property_offset, value);
                     }
@@ -1544,7 +1557,7 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Byt
             callee = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
             this_value = js_undefined();
             if (auto base_object = environment->with_base_object())
-                this_value = base_object;
+                this_value = *base_object;
             return CalleeAndThis {
                 .callee = callee,
                 .this_value = this_value,
@@ -1564,7 +1577,7 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Byt
     } else {
         if (reference.is_environment_reference()) {
             if (auto base_object = reference.base_environment().with_base_object(); base_object != nullptr)
-                this_value = base_object;
+                this_value = *base_object;
         }
     }
 
@@ -1619,7 +1632,7 @@ inline ThrowCompletionOr<void> create_variable(VM& vm, Utf16FlyString const& nam
     return as<GlobalEnvironment>(vm.variable_environment())->create_global_var_binding(name, false);
 }
 
-inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value super_class, ClassExpression const& class_expression, Optional<IdentifierTableIndex> const& lhs_name, ReadonlySpan<Value> element_keys)
+inline ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> new_class(VM& vm, Value super_class, ClassExpression const& class_expression, Optional<IdentifierTableIndex> const& lhs_name, ReadonlySpan<Value> element_keys)
 {
     auto& interpreter = vm.bytecode_interpreter();
 
@@ -2356,10 +2369,13 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
         //               we can use the cached property offset.
         if (&shape == cache.entries[0].shape) {
             auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
-            if (value.is_accessor())
-                TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
-            else
+            if (value.is_accessor()) {
+                auto* setter = value.as_accessor().setter();
+                VERIFY(setter);
+                TRY(call(vm, *setter, binding_object, src));
+            } else {
                 binding_object.put_direct(cache.entries[0].property_offset.value(), src);
+            }
             return {};
         }
 
@@ -2407,7 +2423,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
 
     if (TRY(binding_object.has_property(identifier))) {
         CacheableSetPropertyMetadata cacheable_metadata;
-        auto success = TRY(binding_object.internal_set(identifier, src, &binding_object, &cacheable_metadata));
+        auto success = TRY(binding_object.internal_set(identifier, src, binding_object, &cacheable_metadata));
         if (!success && vm.in_strict_mode()) {
             // Note: Nothing like this in the spec, this is here to produce nicer errors instead of the generic one thrown by Object::set().
 
@@ -2516,15 +2532,17 @@ void CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
     auto const& environment = interpreter.running_execution_context().lexical_environment;
 
     auto passed_arguments = ReadonlySpan<Value> { arguments.data(), interpreter.running_execution_context().passed_argument_count };
-    Object* arguments_object;
+    Object* arguments_object = nullptr;
     if (m_kind == Kind::Mapped) {
         arguments_object = create_mapped_arguments_object(interpreter.vm(), *function, function->formal_parameters(), passed_arguments, *environment);
     } else {
         arguments_object = create_unmapped_arguments_object(interpreter.vm(), passed_arguments);
     }
 
+    VERIFY(arguments_object);
+
     if (m_dst.has_value()) {
-        interpreter.set(*m_dst, arguments_object);
+        interpreter.set(*m_dst, *arguments_object);
         return;
     }
 
@@ -2533,7 +2551,7 @@ void CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
     } else {
         MUST(environment->create_mutable_binding(interpreter.vm(), interpreter.vm().names.arguments.as_string(), false));
     }
-    MUST(environment->initialize_binding(interpreter.vm(), interpreter.vm().names.arguments.as_string(), arguments_object, Environment::InitializeBindingHint::Normal));
+    MUST(environment->initialize_binding(interpreter.vm(), interpreter.vm().names.arguments.as_string(), *arguments_object, Environment::InitializeBindingHint::Normal));
 }
 
 template<EnvironmentMode environment_mode, BindingInitializationMode initialization_mode>
@@ -2961,10 +2979,11 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
     // 3. Let func be GetSuperConstructor().
     auto* func = get_super_constructor(vm);
+    VERIFY(func);
 
     // NON-STANDARD: We're doing this step earlier to streamline control flow.
     // 5. If IsConstructor(func) is false, throw a TypeError exception.
-    if (!Value(func).is_constructor())
+    if (!Value(*func).is_constructor())
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, "Super constructor");
 
     auto& function = static_cast<FunctionObject&>(*func);
@@ -3251,7 +3270,7 @@ ThrowCompletionOr<void> GetIterator::execute_impl(Bytecode::Interpreter& interpr
 void GetObjectFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
-    interpreter.set(m_object, iterator_record.iterator);
+    interpreter.set(m_object, *iterator_record.iterator);
 }
 
 void GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3265,7 +3284,7 @@ ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpret
     auto& vm = interpreter.vm();
     auto identifier = interpreter.current_executable().get_identifier(m_property);
     auto method = TRY(interpreter.get(m_object).get_method(vm, identifier));
-    interpreter.set(dst(), method ?: js_undefined());
+    interpreter.set(dst(), method ? *method : js_undefined());
     return {};
 }
 

@@ -102,7 +102,8 @@ ThrowCompletionOr<Object*> ProxyObject::internal_get_prototype_of() const
         return handler_proto.is_null() ? nullptr : &handler_proto.as_object();
 
     // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
-    auto* target_proto = TRY(m_target->internal_get_prototype_of());
+    auto* target_proto_ptr = TRY(m_target->internal_get_prototype_of());
+    Value target_proto = target_proto_ptr ? *target_proto_ptr : js_null();
 
     // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError exception.
     if (!same_value(handler_proto, target_proto))
@@ -135,8 +136,10 @@ ThrowCompletionOr<bool> ProxyObject::internal_set_prototype_of(Object* prototype
         return m_target->internal_set_prototype_of(prototype);
     }
 
+    Value prototype_as_value = prototype ? *prototype : js_null();
+
     // 7. Let booleanTrapResult be ToBoolean(? Call(trap, handler, « target, V »)).
-    auto trap_result = TRY(call(vm, *trap, m_handler, m_target, prototype)).to_boolean();
+    auto trap_result = TRY(call(vm, *trap, m_handler, m_target, prototype_as_value)).to_boolean();
 
     // 8. If booleanTrapResult is false, return false.
     if (!trap_result)
@@ -150,10 +153,11 @@ ThrowCompletionOr<bool> ProxyObject::internal_set_prototype_of(Object* prototype
         return true;
 
     // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
-    auto* target_proto = TRY(m_target->internal_get_prototype_of());
+    auto* target_proto_ptr = TRY(m_target->internal_get_prototype_of());
+    Value target_proto = target_proto_ptr ? *target_proto_ptr : js_null();
 
     // 12. If SameValue(V, targetProto) is false, throw a TypeError exception.
-    if (!same_value(prototype, target_proto))
+    if (!same_value(prototype_as_value, target_proto))
         return vm.throw_completion<TypeError>(ErrorType::ProxySetPrototypeOfNonExtensible);
 
     // 13. Return true.
@@ -813,7 +817,7 @@ ThrowCompletionOr<Value> ProxyObject::internal_call(ExecutionContext& callee_con
     auto arguments_array = Array::create_from(realm, callee_context.arguments);
 
     // 8. Return ? Call(trap, handler, « target, thisArgument, argArray »).
-    return call(vm, trap, m_handler, m_target, this_argument, arguments_array);
+    return call(vm, *trap, m_handler, m_target, this_argument, arguments_array);
 }
 
 bool ProxyObject::has_constructor() const
@@ -857,7 +861,7 @@ ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ExecutionCont
     auto arguments_array = Array::create_from(realm, callee_context.arguments);
 
     // 9. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
-    auto new_object = TRY(call(vm, trap, m_handler, m_target, arguments_array, &new_target));
+    auto new_object = TRY(call(vm, *trap, m_handler, m_target, arguments_array, new_target));
 
     // 10. If Type(newObj) is not Object, throw a TypeError exception.
     if (!new_object.is_object())

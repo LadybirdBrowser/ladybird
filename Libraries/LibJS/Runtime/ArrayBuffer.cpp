@@ -146,7 +146,7 @@ void copy_data_block_bytes(ByteBuffer& to_block, u64 to_index, ByteBuffer const&
 }
 
 // 25.1.3.1 AllocateArrayBuffer ( constructor, byteLength [ , maxByteLength ] ), https://tc39.es/ecma262/#sec-allocatearraybuffer
-ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM& vm, FunctionObject& constructor, size_t byte_length, Optional<size_t> const& max_byte_length)
+ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_array_buffer(VM& vm, FunctionObject& constructor, size_t byte_length, Optional<size_t> const& max_byte_length)
 {
     // 1. Let slots be « [[ArrayBufferData]], [[ArrayBufferByteLength]], [[ArrayBufferDetachKey]] ».
 
@@ -185,11 +185,11 @@ ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM& vm, FunctionObject& co
     }
 
     // 9. Return obj.
-    return obj.ptr();
+    return { obj };
 }
 
 // 25.1.3.3 ArrayBufferCopyAndDetach ( arrayBuffer, newLength, preserveResizability ), https://tc39.es/ecma262/#sec-arraybuffercopyanddetach
-ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability)
+ThrowCompletionOr<GC::Ref<ArrayBuffer>> array_buffer_copy_and_detach(VM& vm, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability)
 {
     auto& realm = *vm.current_realm();
 
@@ -226,7 +226,7 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer
         return vm.throw_completion<TypeError>(ErrorType::DetachKeyMismatch, array_buffer.detach_key(), js_undefined());
 
     // 9. Let newBuffer be ? AllocateArrayBuffer(%ArrayBuffer%, newByteLength, newMaxByteLength).
-    auto* new_buffer = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), new_byte_length, new_max_byte_length));
+    auto new_buffer = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), new_byte_length, new_max_byte_length));
 
     // 10. Let copyLength be min(newByteLength, arrayBuffer.[[ArrayBufferByteLength]]).
     auto copy_length = min(new_byte_length, array_buffer.byte_length());
@@ -267,7 +267,7 @@ ThrowCompletionOr<void> detach_array_buffer(VM& vm, ArrayBuffer& array_buffer, O
 }
 
 // 25.1.3.6 CloneArrayBuffer ( srcBuffer, srcByteOffset, srcLength, cloneConstructor ), https://tc39.es/ecma262/#sec-clonearraybuffer
-ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM& vm, ArrayBuffer& source_buffer, size_t source_byte_offset, size_t source_length)
+ThrowCompletionOr<GC::Ref<ArrayBuffer>> clone_array_buffer(VM& vm, ArrayBuffer& source_buffer, size_t source_byte_offset, size_t source_length)
 {
     auto& realm = *vm.current_realm();
 
@@ -275,7 +275,7 @@ ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM& vm, ArrayBuffer& source_b
     VERIFY(!source_buffer.is_detached());
 
     // 2. Let targetBuffer be ? AllocateArrayBuffer(%ArrayBuffer%, srcLength).
-    auto* target_buffer = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), source_length));
+    auto target_buffer = TRY(allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(), source_length));
 
     // 3. Let srcBlock be srcBuffer.[[ArrayBufferData]].
     auto& source_block = source_buffer.buffer();

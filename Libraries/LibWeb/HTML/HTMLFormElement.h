@@ -139,7 +139,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/forms.html#past-names-map
     struct PastNameEntry {
-        GC::Ptr<DOM::Node const> node;
+        GC::Ref<DOM::Node const> node;
         MonotonicTime insertion_time;
     };
     HashMap<FlyString, PastNameEntry> mutable m_past_names_map;

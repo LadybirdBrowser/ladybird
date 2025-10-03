@@ -49,7 +49,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromisePrototype::then)
     auto promise = TRY(typed_this_object(vm));
 
     // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-    auto* constructor = TRY(species_constructor(vm, promise, realm.intrinsics().promise_constructor()));
+    auto constructor = TRY(species_constructor(vm, promise, realm.intrinsics().promise_constructor()));
 
     // 4. Let resultCapability be ? NewPromiseCapability(C).
     auto result_capability = TRY(new_promise_capability(vm, constructor));
@@ -85,10 +85,10 @@ JS_DEFINE_NATIVE_FUNCTION(PromisePrototype::finally)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, promise.to_string_without_side_effects());
 
     // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-    auto* constructor = TRY(species_constructor(vm, promise.as_object(), realm.intrinsics().promise_constructor()));
+    auto constructor = TRY(species_constructor(vm, promise.as_object(), realm.intrinsics().promise_constructor()));
 
     // 4. Assert: IsConstructor(C) is true.
-    VERIFY(constructor);
+    VERIFY(constructor->has_constructor());
 
     Value then_finally;
     Value catch_finally;
@@ -112,7 +112,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromisePrototype::finally)
             auto result = TRY(call(vm, on_finally, js_undefined()));
 
             // ii. Let promise be ? PromiseResolve(C, result).
-            auto promise = TRY(promise_resolve(vm, *constructor, result));
+            auto promise = TRY(promise_resolve(vm, constructor, result));
 
             // iii. Let returnValue be a new Abstract Closure with no parameters that captures value and performs the following steps when called:
             auto return_value = [value](auto&) -> ThrowCompletionOr<Value> {
@@ -139,7 +139,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromisePrototype::finally)
             auto result = TRY(call(vm, on_finally, js_undefined()));
 
             // ii. Let promise be ? PromiseResolve(C, result).
-            auto promise = TRY(promise_resolve(vm, *constructor, result));
+            auto promise = TRY(promise_resolve(vm, constructor, result));
 
             // iii. Let throwReason be a new Abstract Closure with no parameters that captures reason and performs the following steps when called:
             auto throw_reason = [reason](auto&) -> ThrowCompletionOr<Value> {

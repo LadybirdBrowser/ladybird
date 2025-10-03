@@ -186,7 +186,7 @@ public:
     GC::Ref<WindowProxy> frames() const;
     u32 length();
     GC::Ptr<WindowProxy const> top() const;
-    GC::Ptr<WindowProxy const> opener() const;
+    JS::Value opener() const;
     WebIDL::ExceptionOr<void> set_opener(JS::Value);
     GC::Ptr<WindowProxy const> parent() const;
     GC::Ptr<DOM::Element const> frame_element() const;

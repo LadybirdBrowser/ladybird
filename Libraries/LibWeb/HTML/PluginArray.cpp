@@ -103,7 +103,7 @@ Optional<JS::Value> PluginArray::item_value(size_t index) const
     auto return_value = item(index);
     if (!return_value)
         return {};
-    return return_value.ptr();
+    return *return_value;
 }
 
 JS::Value PluginArray::named_item_value(FlyString const& name) const
@@ -111,7 +111,7 @@ JS::Value PluginArray::named_item_value(FlyString const& name) const
     auto return_value = named_item(name);
     if (!return_value)
         return JS::js_null();
-    return return_value.ptr();
+    return *return_value;
 }
 
 }

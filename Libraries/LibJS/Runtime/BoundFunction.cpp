@@ -75,7 +75,7 @@ ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ExecutionCo
     auto& target = *m_bound_target_function;
 
     // 2. Assert: IsConstructor(target) is true.
-    VERIFY(Value(&target).is_constructor());
+    VERIFY(Value(target).is_constructor());
 
     // 3. Let boundArgs be F.[[BoundArguments]].
     auto& bound_args = m_bound_arguments;

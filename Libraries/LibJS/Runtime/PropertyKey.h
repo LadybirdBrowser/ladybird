@@ -136,10 +136,10 @@ public:
         return m_string;
     }
 
-    Symbol const* as_symbol() const
+    Symbol const& as_symbol() const
     {
         VERIFY(is_symbol());
-        return reinterpret_cast<Symbol const*>(m_bits & ~3ULL);
+        return *reinterpret_cast<Symbol const*>(m_bits & ~3ULL);
     }
 
     Value to_value(VM& vm) const
@@ -156,14 +156,14 @@ public:
         if (is_string())
             return as_string().to_utf16_string();
         if (is_symbol())
-            return as_symbol()->descriptive_string();
+            return as_symbol().descriptive_string();
         return Utf16String::number(as_number());
     }
 
     void visit_edges(Cell::Visitor& visitor) const
     {
         if (is_symbol())
-            visitor.visit(const_cast<Symbol*>(as_symbol()));
+            visitor.visit(const_cast<Symbol&>(as_symbol()));
     }
 
     bool operator==(PropertyKey const& other) const
@@ -171,7 +171,7 @@ public:
         if (is_string())
             return other.is_string() && m_string == other.m_string;
         if (is_symbol())
-            return other.is_symbol() && as_symbol() == other.as_symbol();
+            return other.is_symbol() && &as_symbol() == &other.as_symbol();
         if (other.is_number())
             return as_number() == other.as_number();
         return false;
@@ -201,7 +201,7 @@ struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
         if (name.is_string())
             return name.as_string().hash();
         if (name.is_symbol())
-            return ptr_hash(name.as_symbol());
+            return ptr_hash(&name.as_symbol());
         if (name.is_number())
             return int_hash(name.as_number());
         VERIFY_NOT_REACHED();
@@ -212,7 +212,7 @@ struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
         if (a.is_string())
             return b.is_string() && a.as_string() == b.as_string();
         if (a.is_symbol())
-            return b.is_symbol() && a.as_symbol() == b.as_symbol();
+            return b.is_symbol() && &a.as_symbol() == &b.as_symbol();
         if (a.is_number())
             return b.is_number() && a.as_number() == b.as_number();
         VERIFY_NOT_REACHED();

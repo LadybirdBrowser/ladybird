@@ -330,7 +330,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
 
     // 3. Let method be the result of GetMethod(object, @@iterator).
     // 4. Check the completion record of method.
-    auto method = TRY(JS::Value(object).get_method(vm, vm.well_known_symbol_iterator()));
+    auto method = TRY(JS::Value(*object).get_method(vm, vm.well_known_symbol_iterator()));
 
     // 5. Perform the steps corresponding to the first matching condition from below,
 
@@ -338,7 +338,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
     if (method) {
         // 1. Let iter be GetIterator(object, method).
         // 2. Check the completion record of iter.
-        auto iter = TRY(JS::get_iterator_from_method(vm, object, *method));
+        auto iter = TRY(JS::get_iterator_from_method(vm, *object, *method));
 
         // 3. Repeat:
         while (true) {
@@ -367,7 +367,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
     else {
         // 1. Let property-indexed keyframe be the result of running the procedure to process a keyframe-like object
         //    passing object as the keyframe input and with the allow lists flag set to true.
-        auto property_indexed_keyframe = TRY(process_a_keyframe_like_object<AllowLists::Yes>(realm, object));
+        auto property_indexed_keyframe = TRY(process_a_keyframe_like_object<AllowLists::Yes>(realm, *object));
 
         // 2. For each member, m, in property-indexed keyframe, perform the following steps:
         for (auto const& [property_name, property_values] : property_indexed_keyframe.properties) {

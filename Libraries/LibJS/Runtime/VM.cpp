@@ -117,7 +117,7 @@ VM::VM(ErrorMessages error_messages)
         return {};
     };
 
-    host_finalize_import_meta = [&](Object*, SourceTextModule const&) {
+    host_finalize_import_meta = [&](Object&, SourceTextModule const&) {
     };
 
     host_get_supported_import_attributes = [&] {
@@ -365,7 +365,7 @@ Value VM::get_new_target()
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
 // ImportMeta branch only
-Object* VM::get_import_meta()
+Object& VM::get_import_meta()
 {
     // 1. Let module be GetActiveScriptOrModule().
     auto script_or_module = get_active_script_or_module();
@@ -391,13 +391,13 @@ Object* VM::get_import_meta()
         }
 
         // d. Perform HostFinalizeImportMeta(importMeta, module).
-        host_finalize_import_meta(import_meta, module);
+        host_finalize_import_meta(*import_meta, module);
 
         // e. Set module.[[ImportMeta]] to importMeta.
         module.set_import_meta({}, import_meta);
 
         // f. Return importMeta.
-        return import_meta;
+        return *import_meta;
     }
     // 5. Else,
     else {
@@ -405,7 +405,7 @@ Object* VM::get_import_meta()
         // Note: This is always true by the type.
 
         // b. Return importMeta.
-        return import_meta;
+        return *import_meta;
     }
 }
 
