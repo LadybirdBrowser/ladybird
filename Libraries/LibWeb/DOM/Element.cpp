@@ -92,6 +92,7 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/XML/XMLFragmentParser.h>
 
 namespace Web::DOM {
 
@@ -2042,13 +2043,13 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
     // 1. Let algorithm be the HTML fragment parsing algorithm.
     auto algorithm = HTML::HTMLParser::parse_html_fragment;
 
-    // FIXME: 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
+    // 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
     if (document().is_xml_document()) {
-        dbgln("FIXME: Handle fragment parsing of XML documents");
+        algorithm = XMLFragmentParser::parse_xml_fragment;
     }
 
     // 3. Let newChildren be the result of invoking algorithm given context and markup.
-    auto new_children = algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No);
+    auto new_children = TRY(algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No));
 
     // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
     auto fragment = realm().create<DOM::DocumentFragment>(document());

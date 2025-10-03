@@ -1066,6 +1066,7 @@ set(SOURCES
     XHR/XMLHttpRequestUpload.cpp
     XLink/AttributeNames.cpp
     XML/XMLDocumentBuilder.cpp
+    XML/XMLFragmentParser.cpp
 )
 
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
