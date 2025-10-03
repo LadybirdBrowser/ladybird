@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <AK/Variant.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
+#include <LibMedia/Forward.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -128,6 +130,10 @@ public:
     GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
     GC::Ref<TextTrackList> text_tracks() const { return *m_text_tracks; }
 
+    void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
+
+    void update_video_frame_and_timeline();
+
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
     WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
@@ -163,6 +169,8 @@ public:
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
+    RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
+
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
 
@@ -173,17 +181,6 @@ protected:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
     virtual void children_changed(ChildrenChangedMetadata const* metadata) override;
-
-    // Override in subclasses to handle implementation-specific behavior when the element state changes
-    // to playing or paused, e.g. to start/stop play timers.
-    virtual void on_playing() { }
-    virtual void on_paused() { }
-
-    // Override in subclasses to handle implementation-specific seeking behavior. When seeking is complete,
-    // subclasses must invoke set_current_playback_position() to unblock the user agent.
-    virtual void on_seek(double, MediaSeekMode) { m_seek_in_progress = false; }
-
-    virtual void on_volume_change() { }
 
 private:
     friend SourceElementSelector;
@@ -321,7 +318,9 @@ private:
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
-    bool m_seek_in_progress = false;
+    RefPtr<Media::PlaybackManager> m_playback_manager;
+    GC::Ptr<VideoTrack> m_selected_video_track;
+    RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
 
     // Cached state for layout.
     Optional<MediaComponent> m_mouse_tracking_component;
