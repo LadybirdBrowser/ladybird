@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Tabl
     if (descriptor.maximum.has_value() && descriptor.maximum.value() < descriptor.initial)
         return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"sv);
 
-    Wasm::Limits limits { descriptor.initial, move(descriptor.maximum) };
+    Wasm::Limits limits { Wasm::AddressType::I32, descriptor.initial, descriptor.maximum.map([](auto x) -> u64 { return x; }) };
     Wasm::TableType table_type { reference_type, move(limits) };
 
     auto& cache = Detail::get_cache(realm);
