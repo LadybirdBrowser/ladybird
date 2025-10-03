@@ -21,8 +21,11 @@ FFmpegDemuxer::FFmpegDemuxer(NonnullOwnPtr<SeekableStream> stream, NonnullOwnPtr
 
 FFmpegDemuxer::~FFmpegDemuxer()
 {
-    if (m_packet != nullptr)
+    if (m_packet != nullptr) {
+        if (m_peeked_packet_already)
+            av_packet_unref(m_packet);
         av_packet_free(&m_packet);
+    }
     if (m_codec_context != nullptr)
         avcodec_free_context(&m_codec_context);
     if (m_format_context != nullptr)
@@ -167,7 +170,20 @@ DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyfra
     if (av_seek_frame(m_format_context, stream->index, target_pts, AVSEEK_FLAG_BACKWARD) < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to seek");
 
-    return timestamp;
+    do {
+        if (m_peeked_packet_already) {
+            av_packet_unref(m_packet);
+            m_peeked_packet_already = false;
+        }
+
+        auto read_frame_error = av_read_frame(m_format_context, m_packet);
+        if (read_frame_error < 0)
+            return DecoderError::format(DecoderErrorCategory::Corrupted, "Failed to read keyframe after seek");
+        m_peeked_packet_already = true;
+    } while (m_packet->stream_index != stream->index);
+
+    auto keyframe_timestamp = time_units_to_duration(m_packet->pts, stream->time_base);
+    return keyframe_timestamp;
 }
 
 DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track const& track)
@@ -190,13 +206,18 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
     auto* stream = m_format_context->streams[track.identifier()];
 
     for (;;) {
-        auto read_frame_error = av_read_frame(m_format_context, m_packet);
-        if (read_frame_error < 0) {
-            if (read_frame_error == AVERROR_EOF)
-                return DecoderError::format(DecoderErrorCategory::EndOfStream, "End of stream");
+        if (!m_peeked_packet_already) {
+            auto read_frame_error = av_read_frame(m_format_context, m_packet);
+            if (read_frame_error < 0) {
+                if (read_frame_error == AVERROR_EOF)
+                    return DecoderError::format(DecoderErrorCategory::EndOfStream, "End of stream");
 
-            return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to read frame");
+                return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to read frame");
+            }
+        } else {
+            m_peeked_packet_already = false;
         }
+
         if (m_packet->stream_index != stream->index) {
             av_packet_unref(m_packet);
             continue;

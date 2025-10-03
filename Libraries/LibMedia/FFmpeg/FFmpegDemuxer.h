@@ -48,6 +48,7 @@ private:
     AVFormatContext* m_format_context { nullptr };
     NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext> m_io_context;
     AVPacket* m_packet { nullptr };
+    bool m_peeked_packet_already { false };
 };
 
 }
