@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>margin properties</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+for (const suffix of ['top', 'left', 'right', 'bottom']) {
+  runPropertyTests('margin-' + suffix, [
+    {
+      syntax: 'auto',
+      // Depending on which CSS spec is implemented, the computed value
+      // can be 'auto' or a browser specific value.
+      // FIXME: Figure out how to test this.
+      computed: () => {}
+    },
+    { syntax: '<percentage>' },
+    { syntax: '<length>' },
+  ]);
+}
+
+runPropertyTests('margin', []);
+runUnsupportedPropertyTests('margin',
+  ['1px', '1px 2px 3px 4px']
+);
+
+</script>

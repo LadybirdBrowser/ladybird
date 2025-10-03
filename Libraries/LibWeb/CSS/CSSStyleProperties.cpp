@@ -419,13 +419,25 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         return {};
     }
 
-    m_properties.remove_first_matching([&property](StyleProperty const& style_property) {
-        return style_property.property_id == property.id();
-    });
-    m_properties.append(StyleProperty {
-        .important = Important::No,
-        .property_id = property.id(),
-        .value = move(style_value),
+    // FIXME: This should have been rejected earlier, but property_accepts_type() is too basic for what we need.
+    if (property_is_positional_value_list_shorthand(property.id())
+        && !style_value->is_shorthand()
+        && !style_value->is_unresolved()
+        && !style_value->is_pending_substitution()
+        && !style_value->is_guaranteed_invalid()
+        && !style_value->is_css_wide_keyword()) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Setting {} to '{}' is not allowed.", property.name(), style_value->to_string(SerializationMode::Normal))) };
+    }
+
+    StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
+        m_properties.remove_first_matching([longhand_id](StyleProperty const& style_property) {
+            return style_property.property_id == longhand_id;
+        });
+        m_properties.append(StyleProperty {
+            .important = Important::No,
+            .property_id = longhand_id,
+            .value = longhand_value,
+        });
     });
 
     return {};
