@@ -419,13 +419,15 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         return {};
     }
 
-    m_properties.remove_first_matching([&property](StyleProperty const& style_property) {
-        return style_property.property_id == property.id();
-    });
-    m_properties.append(StyleProperty {
-        .important = Important::No,
-        .property_id = property.id(),
-        .value = move(style_value),
+    StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
+        m_properties.remove_first_matching([longhand_id](StyleProperty const& style_property) {
+            return style_property.property_id == longhand_id;
+        });
+        m_properties.append(StyleProperty {
+            .important = Important::No,
+            .property_id = longhand_id,
+            .value = longhand_value,
+        });
     });
 
     return {};
