@@ -53,6 +53,10 @@
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/XHR/FormData.h>
 
+#if defined(AK_OS_WINDOWS)
+#    include <LibGfx/Direct3DContext.h>
+#endif
+
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Navigable);
@@ -119,6 +123,14 @@ static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
 #ifdef AK_OS_MACOS
         auto metal_context = Gfx::get_metal_context();
         g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
+#elif defined(AK_OS_WINDOWS)
+        auto maybe_direct3d_context = Gfx::Direct3DContext::try_create();
+        if (maybe_direct3d_context.is_error()) {
+            dbgln("Direct3D context creation failed: {}", maybe_direct3d_context.error());
+            return {};
+        }
+        auto direct3d_context = maybe_direct3d_context.release_value();
+        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_direct3d_context(move(direct3d_context));
 #elif USE_VULKAN
         auto maybe_vulkan_context = Gfx::create_vulkan_context();
         if (maybe_vulkan_context.is_error()) {
