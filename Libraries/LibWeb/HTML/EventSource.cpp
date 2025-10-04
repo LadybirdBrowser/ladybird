@@ -158,7 +158,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     };
 
     event_source->m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input));
-    event_source->m_fetch_controller = TRY(Fetch::Fetching::fetch(realm, request, *event_source->m_fetch_algorithms));
+    event_source->m_fetch_controller = Fetch::Fetching::fetch(realm, request, *event_source->m_fetch_algorithms);
 
     // 16. Return ev.
     return event_source;
@@ -328,7 +328,7 @@ void EventSource::reestablish_the_connection()
         }
 
         // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
-        m_fetch_controller = Fetch::Fetching::fetch(realm(), request, *m_fetch_algorithms).release_value_but_fixme_should_propagate_errors();
+        m_fetch_controller = Fetch::Fetching::fetch(realm(), request, *m_fetch_algorithms);
     }));
 }
 
