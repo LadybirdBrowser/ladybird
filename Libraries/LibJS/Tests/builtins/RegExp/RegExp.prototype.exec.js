@@ -226,3 +226,105 @@ test("cached UTF-16 code point length", () => {
 
     expect(match.codePointAt(0)).toBe(0x1f600);
 });
+
+test("named groups source order", () => {
+    // Test that named groups appear in source order, not match order
+    let re = /(?<y>a)(?<x>a)|(?<x>b)(?<y>b)/;
+
+    let result1 = re.exec("aa");
+    expect(Object.keys(result1.groups)).toEqual(["y", "x"]);
+    expect(result1.groups.y).toBe("a");
+    expect(result1.groups.x).toBe("a");
+
+    let result2 = re.exec("bb");
+    expect(Object.keys(result2.groups)).toEqual(["y", "x"]);
+    expect(result2.groups.y).toBe("b");
+    expect(result2.groups.x).toBe("b");
+});
+
+test("named groups all present in groups object", () => {
+    // Test that all named groups appear in groups object, even unmatched ones
+    let re = /(?<fst>.)|(?<snd>.)/u;
+
+    let result = re.exec("abcd");
+    expect(Object.getOwnPropertyNames(result.groups)).toEqual(["fst", "snd"]);
+    expect(result.groups.fst).toBe("a");
+    expect(result.groups.snd).toBe(undefined);
+});
+
+test("named groups with hasIndices flag", () => {
+    // Test that indices.groups also contains all named groups in source order
+    let re = /(?<fst>.)|(?<snd>.)/du;
+
+    let result = re.exec("abcd");
+    expect(Object.getOwnPropertyNames(result.indices.groups)).toEqual(["fst", "snd"]);
+    expect(result.indices.groups.fst).toEqual([0, 1]);
+    expect(result.indices.groups.snd).toBe(undefined);
+});
+
+test("complex named groups ordering", () => {
+    // Test multiple groups in different order
+    let re = /(?<third>c)|(?<first>a)|(?<second>b)/;
+
+    let result1 = re.exec("a");
+    expect(Object.keys(result1.groups)).toEqual(["third", "first", "second"]);
+    expect(result1.groups.third).toBe(undefined);
+    expect(result1.groups.first).toBe("a");
+    expect(result1.groups.second).toBe(undefined);
+
+    let result2 = re.exec("b");
+    expect(Object.keys(result2.groups)).toEqual(["third", "first", "second"]);
+    expect(result2.groups.third).toBe(undefined);
+    expect(result2.groups.first).toBe(undefined);
+    expect(result2.groups.second).toBe("b");
+
+    let result3 = re.exec("c");
+    expect(Object.keys(result3.groups)).toEqual(["third", "first", "second"]);
+    expect(result3.groups.third).toBe("c");
+    expect(result3.groups.first).toBe(undefined);
+    expect(result3.groups.second).toBe(undefined);
+});
+
+test("forward references to named groups", () => {
+    // Self-reference inside group
+    let result1 = /(?<a>\k<a>\w)../.exec("bab");
+    expect(result1).not.toBe(null);
+    expect(result1[0]).toBe("bab");
+    expect(result1[1]).toBe("b");
+    expect(result1.groups.a).toBe("b");
+
+    // Reference before group definition
+    let result2 = /\k<a>(?<a>b)\w\k<a>/.exec("bab");
+    expect(result2).not.toBe(null);
+    expect(result2[0]).toBe("bab");
+    expect(result2[1]).toBe("b");
+    expect(result2.groups.a).toBe("b");
+
+    let result3 = /(?<b>b)\k<a>(?<a>a)\k<b>/.exec("bab");
+    expect(result3).not.toBe(null);
+    expect(result3[0]).toBe("bab");
+    expect(result3[1]).toBe("b");
+    expect(result3[2]).toBe("a");
+    expect(result3.groups.a).toBe("a");
+    expect(result3.groups.b).toBe("b");
+
+    // Backward reference
+    let result4 = /(?<a>a)(?<b>b)\k<a>/.exec("aba");
+    expect(result4).not.toBe(null);
+    expect(result4[0]).toBe("aba");
+    expect(result4.groups.a).toBe("a");
+    expect(result4.groups.b).toBe("b");
+
+    // Mixed forward/backward with alternation
+    let result5 = /(?<a>a)(?<b>b)\k<a>|(?<c>c)/.exec("aba");
+    expect(result5).not.toBe(null);
+    expect(result5.groups.a).toBe("a");
+    expect(result5.groups.b).toBe("b");
+    expect(result5.groups.c).toBe(undefined);
+});
+
+test("invalid named group references", () => {
+    expect(() => {
+        new RegExp("(?<a>x)\\k<nonexistent>");
+    }).toThrow();
+});
