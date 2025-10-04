@@ -79,20 +79,6 @@ public:
             });
     }
 
-    Self absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
-    {
-        return m_value.visit(
-            [&](T const& value) {
-                if constexpr (IsSame<T, Length>)
-                    return Self { value.absolutized(viewport_rect, font_metrics, root_font_metrics) };
-                else
-                    return *static_cast<Self const*>(this);
-            },
-            [&](NonnullRefPtr<CalculatedStyleValue const> const& value) {
-                return Self { value->absolutized(viewport_rect, font_metrics, root_font_metrics)->as_calculated() };
-            });
-    }
-
     bool operator==(CalculatedOr<Self, T> const& other) const
     {
         if (is_calculated() || other.is_calculated())

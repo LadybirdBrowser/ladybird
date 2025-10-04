@@ -147,7 +147,7 @@ public:
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
 
-    RefPtr<StyleValue const> parse_calculated_value(ComponentValue const&);
+    RefPtr<CalculatedStyleValue const> parse_calculated_value(ComponentValue const&);
 
 private:
     Parser(ParsingParams const&, Vector<Token>);

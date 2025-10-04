@@ -18,26 +18,26 @@ namespace Web::CSS {
 // NOTE: This is not used for identifier sizes, like `cover` and `contain`.
 class BackgroundSizeStyleValue final : public StyleValueWithDefaultOperators<BackgroundSizeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<BackgroundSizeStyleValue const> create(LengthPercentageOrAuto size_x, LengthPercentageOrAuto size_y)
+    static ValueComparingNonnullRefPtr<BackgroundSizeStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y)
     {
-        return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(size_x, size_y));
+        return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(move(size_x), move(size_y)));
     }
     virtual ~BackgroundSizeStyleValue() override;
 
-    LengthPercentageOrAuto size_x() const { return m_properties.size_x; }
-    LengthPercentageOrAuto size_y() const { return m_properties.size_y; }
+    ValueComparingNonnullRefPtr<StyleValue const> size_x() const { return m_properties.size_x; }
+    ValueComparingNonnullRefPtr<StyleValue const> size_y() const { return m_properties.size_y; }
 
     virtual String to_string(SerializationMode) const override;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    BackgroundSizeStyleValue(LengthPercentageOrAuto size_x, LengthPercentageOrAuto size_y);
+    BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y);
 
     struct Properties {
-        LengthPercentageOrAuto size_x;
-        LengthPercentageOrAuto size_y;
+        ValueComparingNonnullRefPtr<StyleValue const> size_x;
+        ValueComparingNonnullRefPtr<StyleValue const> size_y;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

@@ -31,6 +31,7 @@ public:
 
     auto const& counter_definitions() const { return m_counter_definitions; }
     virtual String to_string(SerializationMode) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(CounterDefinitionsStyleValue const& other) const;
 

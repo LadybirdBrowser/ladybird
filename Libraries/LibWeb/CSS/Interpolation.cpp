@@ -1330,13 +1330,7 @@ Optional<LengthPercentage> interpolate_length_percentage(CalculationContext cons
     auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
     if (!interpolated_style_value)
         return {};
-    if (interpolated_style_value->is_length())
-        return interpolated_style_value->as_length().length();
-    if (interpolated_style_value->is_percentage())
-        return interpolated_style_value->as_percentage().percentage();
-    if (interpolated_style_value->is_calculated())
-        return LengthPercentage { interpolated_style_value->as_calculated() };
-    VERIFY_NOT_REACHED();
+    return LengthPercentage::from_style_value(*interpolated_style_value);
 }
 
 Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta)
@@ -1353,15 +1347,7 @@ Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(Calculati
     auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
     if (!interpolated_style_value)
         return {};
-    if (interpolated_style_value->to_keyword() == Keyword::Auto)
-        return LengthPercentageOrAuto::make_auto();
-    if (interpolated_style_value->is_length())
-        return interpolated_style_value->as_length().length();
-    if (interpolated_style_value->is_percentage())
-        return interpolated_style_value->as_percentage().percentage();
-    if (interpolated_style_value->is_calculated())
-        return LengthPercentage { interpolated_style_value->as_calculated() };
-    VERIFY_NOT_REACHED();
+    return LengthPercentageOrAuto::from_style_value(*interpolated_style_value);
 }
 
 static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
@@ -1378,9 +1364,9 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return AngleStyleValue::create(Angle::make_degrees(interpolated_value));
     }
     case StyleValue::Type::BackgroundSize: {
-        auto interpolated_x = interpolate_length_percentage_or_auto(calculation_context, from.as_background_size().size_x(), to.as_background_size().size_x(), delta);
-        auto interpolated_y = interpolate_length_percentage_or_auto(calculation_context, from.as_background_size().size_y(), to.as_background_size().size_y(), delta);
-        if (!interpolated_x.has_value() || !interpolated_y.has_value())
+        auto interpolated_x = interpolate_value(element, calculation_context, from.as_background_size().size_x(), to.as_background_size().size_x(), delta, allow_discrete);
+        auto interpolated_y = interpolate_value(element, calculation_context, from.as_background_size().size_y(), to.as_background_size().size_y(), delta, allow_discrete);
+        if (!interpolated_x || !interpolated_y)
             return {};
 
         return BackgroundSizeStyleValue::create(*interpolated_x, *interpolated_y);
@@ -1515,13 +1501,11 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& to_horizontal_radius = to.as_border_radius().horizontal_radius();
         auto const& from_vertical_radius = from.as_border_radius().vertical_radius();
         auto const& to_vertical_radius = to.as_border_radius().vertical_radius();
-        auto const interpolated_horizontal_radius = interpolate_length_percentage(calculation_context, from_horizontal_radius, to_horizontal_radius, delta);
-        auto const interpolated_vertical_radius = interpolate_length_percentage(calculation_context, from_vertical_radius, to_vertical_radius, delta);
-        if (!interpolated_horizontal_radius.has_value() || !interpolated_vertical_radius.has_value())
+        auto interpolated_horizontal_radius = interpolate_value_impl(element, calculation_context, from_horizontal_radius, to_horizontal_radius, delta, allow_discrete);
+        auto interpolated_vertical_radius = interpolate_value_impl(element, calculation_context, from_vertical_radius, to_vertical_radius, delta, allow_discrete);
+        if (!interpolated_horizontal_radius || !interpolated_vertical_radius)
             return {};
-        return BorderRadiusStyleValue::create(
-            interpolated_horizontal_radius.value(),
-            interpolated_vertical_radius.value());
+        return BorderRadiusStyleValue::create(interpolated_horizontal_radius.release_nonnull(), interpolated_vertical_radius.release_nonnull());
     }
     case StyleValue::Type::Color: {
         ColorResolutionContext color_resolution_context {};
@@ -1744,18 +1728,6 @@ static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
 
 RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
 {
-    auto composite_length_percentage = [](auto const& underlying_length_percentage, auto const& animated_length_percentage) -> Optional<LengthPercentage> {
-        if (underlying_length_percentage.is_length() && animated_length_percentage.is_length()) {
-            auto result = composite_raw_values(underlying_length_percentage.length().raw_value(), animated_length_percentage.length().raw_value());
-            return Length { result, underlying_length_percentage.length().unit() };
-        }
-        if (underlying_length_percentage.is_percentage() && animated_length_percentage.is_percentage()) {
-            auto result = composite_raw_values(underlying_length_percentage.percentage().value(), animated_length_percentage.percentage().value());
-            return Percentage { result };
-        }
-        return {};
-    };
-
     auto composite_dimension_value = [](StyleValue const& underlying_value, StyleValue const& animated_value) -> Optional<double> {
         auto const& underlying_dimension = as<DimensionStyleValue>(underlying_value);
         auto const& animated_dimension = as<DimensionStyleValue>(animated_value);
@@ -1791,11 +1763,11 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         return BorderImageSliceStyleValue::create(composited_top.release_nonnull(), composited_right.release_nonnull(), composited_bottom.release_nonnull(), composited_left.release_nonnull(), underlying_border_image_slice_value.fill());
     }
     case StyleValue::Type::BorderRadius: {
-        auto composited_horizontal_radius = composite_length_percentage(underlying_value.as_border_radius().horizontal_radius(), animated_value.as_border_radius().horizontal_radius());
-        auto composited_vertical_radius = composite_length_percentage(underlying_value.as_border_radius().vertical_radius(), animated_value.as_border_radius().vertical_radius());
-        if (!composited_horizontal_radius.has_value() || !composited_vertical_radius.has_value())
+        auto composited_horizontal_radius = composite_value(underlying_value.as_border_radius().horizontal_radius(), animated_value.as_border_radius().horizontal_radius(), composite_operation);
+        auto composited_vertical_radius = composite_value(underlying_value.as_border_radius().vertical_radius(), animated_value.as_border_radius().vertical_radius(), composite_operation);
+        if (!composited_horizontal_radius || !composited_vertical_radius)
             return {};
-        return BorderRadiusStyleValue::create(*composited_horizontal_radius, *composited_vertical_radius);
+        return BorderRadiusStyleValue::create(composited_horizontal_radius.release_nonnull(), composited_vertical_radius.release_nonnull());
     }
     case StyleValue::Type::Integer: {
         auto result = composite_raw_values(underlying_value.as_integer().integer(), animated_value.as_integer().integer());

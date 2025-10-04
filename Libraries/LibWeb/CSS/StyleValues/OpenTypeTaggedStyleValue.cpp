@@ -9,6 +9,16 @@
 
 namespace Web::CSS {
 
+ValueComparingNonnullRefPtr<StyleValue const> OpenTypeTaggedStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    auto const& absolutized_value = m_value->absolutized(computation_context);
+
+    if (absolutized_value == m_value)
+        return *this;
+
+    return OpenTypeTaggedStyleValue::create(m_mode, m_tag, absolutized_value);
+}
+
 String OpenTypeTaggedStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;

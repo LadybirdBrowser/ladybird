@@ -70,7 +70,7 @@ public:
     }
 
     virtual String to_string(SerializationMode) const override;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
 
     NonnullRefPtr<CalculationNode const> calculation() const { return m_calculation; }
@@ -268,8 +268,6 @@ public:
     virtual bool contains_percentage() const override;
     bool is_in_canonical_unit() const;
     virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
-
-    RefPtr<StyleValue const> to_style_value(CalculationContext const&) const;
 
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
