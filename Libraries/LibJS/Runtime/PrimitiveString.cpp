@@ -24,7 +24,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(PrimitiveString);
 GC_DEFINE_ALLOCATOR(RopeString);
 
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& string)
 {
     if (string.is_empty())
         return vm.empty_string();
@@ -53,7 +53,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16FlyString const& s
     return create(vm, string.to_utf16_string());
 }
 
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String const& string)
 {
     if (string.is_empty())
         return vm.empty_string();
