@@ -1581,6 +1581,7 @@ HANDLE_INSTRUCTION(memory_fill)
         auto instance = configuration.store().get(address);
         // bounds checked by verifier.
         auto count = configuration.take_source(0, addresses.sources).to<u32>();
+        u8 value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
         auto destination_offset = configuration.take_source(2, addresses.sources).to<u32>();
 
         Checked<u32> checked_end = destination_offset;
@@ -1591,7 +1592,6 @@ HANDLE_INSTRUCTION(memory_fill)
             TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
         Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
-        u8 value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
         for (u32 i = 0; i < count; ++i) {
             if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
                 return Outcome::Return;
