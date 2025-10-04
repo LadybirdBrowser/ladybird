@@ -4206,10 +4206,10 @@ RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<Component
         case Keyword::XEnd:
         case Keyword::SpanXStart:
         case Keyword::SpanXEnd:
-        case Keyword::XSelfStart:
-        case Keyword::XSelfEnd:
-        case Keyword::SpanXSelfStart:
-        case Keyword::SpanXSelfEnd:
+        case Keyword::SelfXStart:
+        case Keyword::SelfXEnd:
+        case Keyword::SpanSelfXStart:
+        case Keyword::SpanSelfXEnd:
         case Keyword::SpanAll:
             return true;
         default:
@@ -4229,10 +4229,10 @@ RefPtr<StyleValue const> Parser::parse_position_area_value(TokenStream<Component
         case Keyword::YEnd:
         case Keyword::SpanYStart:
         case Keyword::SpanYEnd:
-        case Keyword::YSelfStart:
-        case Keyword::YSelfEnd:
-        case Keyword::SpanYSelfStart:
-        case Keyword::SpanYSelfEnd:
+        case Keyword::SelfYStart:
+        case Keyword::SelfYEnd:
+        case Keyword::SpanSelfYStart:
+        case Keyword::SpanSelfYEnd:
         case Keyword::SpanAll:
             return true;
         default:
