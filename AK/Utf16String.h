@@ -64,6 +64,7 @@ public:
     }
 
     static Utf16String from_utf8_without_validation(StringView);
+    static Utf16String from_ascii_without_validation(ReadonlyBytes);
 
     static Utf16String from_utf16(Utf16View const& utf16_string);
 

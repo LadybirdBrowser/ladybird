@@ -46,7 +46,7 @@ StringType create_string_from_number(T value)
     }
 
     size_t size = buffer + max_digits - ptr;
-    return StringType::from_utf8_without_validation(ReadonlyBytes { ptr, size });
+    return StringType::from_ascii_without_validation(ReadonlyBytes { ptr, size });
 }
 
 }

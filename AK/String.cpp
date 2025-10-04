@@ -55,6 +55,11 @@ String String::from_utf8_without_validation(ReadonlyBytes bytes)
     return result;
 }
 
+String String::from_ascii_without_validation(ReadonlyBytes bytes)
+{
+    return from_utf8_without_validation(bytes);
+}
+
 ErrorOr<String> String::from_utf8(StringView view)
 {
     if (!Utf8View { view }.validate())
