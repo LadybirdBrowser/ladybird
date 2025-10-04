@@ -9,7 +9,7 @@ interface Event {
     readonly attribute DOMString type;
     readonly attribute EventTarget? target;
     readonly attribute EventTarget? srcElement; // legacy
-    readonly attribute EventTarget? currentTarget;
+    readonly attribute Object? currentTarget;
     sequence<EventTarget> composedPath();
 
     const unsigned short NONE = 0;

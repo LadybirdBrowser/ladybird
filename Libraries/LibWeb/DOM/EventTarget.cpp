@@ -670,7 +670,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
 
     // 3. Let special error event handling be true if event is an ErrorEvent object, event's type is error, and event's currentTarget implements the WindowOrWorkerGlobalScope mixin.
     //    Otherwise, let special error event handling be false.
-    bool special_error_event_handling = is<HTML::ErrorEvent>(event) && event.type() == HTML::EventNames::error && is<HTML::WindowOrWorkerGlobalScopeMixin>(event.current_target().ptr());
+    bool special_error_event_handling = is<HTML::ErrorEvent>(event) && event.type() == HTML::EventNames::error && is<HTML::WindowOrWorkerGlobalScopeMixin>(event.current_target_internal().ptr());
 
     // 4. Process the Event object event as follows:
     JS::Completion return_value_or_error;
@@ -691,7 +691,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
         // NOTE: current_target is always non-null here, as the event dispatcher takes care to make sure it's non-null (and uses it as the this value for the callback!)
         // FIXME: This is rewrapping the this value of the callback defined in activate_event_handler. While I don't think this is observable as the event dispatcher
         //        calls directly into the callback without considering things such as proxies, it is a waste. However, if it observable, then we must reuse the this_value that was given to the callback.
-        auto* this_value = error_event.current_target().ptr();
+        auto* this_value = error_event.current_target_internal().ptr();
 
         return_value_or_error = WebIDL::invoke_callback(*callback, this_value, { { wrapped_message, wrapped_filename, wrapped_lineno, wrapped_colno, error_event.error() } });
     } else {
@@ -702,7 +702,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
         auto* wrapped_event = &event;
 
         // FIXME: The comments about this in the special_error_event_handling path also apply here.
-        auto* this_value = event.current_target().ptr();
+        auto* this_value = event.current_target_internal().ptr();
 
         return_value_or_error = WebIDL::invoke_callback(*callback, this_value, { { wrapped_event } });
     }

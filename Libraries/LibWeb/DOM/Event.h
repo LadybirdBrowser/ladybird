@@ -98,8 +98,9 @@ public:
     u16 event_phase() const { return m_phase; }
     void set_phase(Phase phase) { m_phase = phase; }
 
-    GC::Ptr<EventTarget> current_target() const { return m_current_target; }
-    void set_current_target(EventTarget* current_target) { m_current_target = current_target; }
+    GC::Ptr<JS::Object> current_target() const;
+    GC::Ptr<EventTarget> current_target_internal() const { return m_current_target; }
+    void set_current_target_internal(EventTarget* current_target) { m_current_target = current_target; }
 
     bool return_value() const { return !m_cancelled; }
     void set_return_value(bool return_value)

@@ -59,7 +59,7 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
 
         // 5. If listener’s once is true, then remove an event listener given event’s currentTarget attribute value and listener.
         if (listener->once)
-            event.current_target()->remove_an_event_listener(*listener);
+            event.current_target_internal()->remove_an_event_listener(*listener);
 
         // 6. Let global be listener callback’s associated Realm’s global object.
         auto& callback = listener->callback->callback();
@@ -145,11 +145,11 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
         return;
 
     // 5. Initialize event’s currentTarget attribute to struct’s invocation target.
-    event.set_current_target(struct_.invocation_target.ptr());
+    event.set_current_target_internal(struct_.invocation_target.ptr());
 
     // 6. Let listeners be a clone of event’s currentTarget attribute value’s event listener list.
     // NOTE: This avoids event listeners added after this point from being run. Note that removal still has an effect due to the removed field.
-    auto listeners = event.current_target()->event_listener_list();
+    auto listeners = event.current_target_internal()->event_listener_list();
 
     // 7. Let invocationTargetInShadowTree be struct’s invocation-target-in-shadow-tree.
     bool invocation_target_in_shadow_tree = struct_.invocation_target_in_shadow_tree;
@@ -390,7 +390,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     event.set_phase(Event::Phase::None);
 
     // 8. Set event’s currentTarget attribute to null.
-    event.set_current_target(nullptr);
+    event.set_current_target_internal(nullptr);
 
     // 9. Set event’s path to the empty list.
     event.clear_path();

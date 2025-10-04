@@ -30,7 +30,7 @@ public:
     String const& command() const { return m_command; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-source
-    GC::Ptr<DOM::Element> source() const { return as<DOM::Element>(retarget(m_source, current_target())); }
+    GC::Ptr<DOM::Element> source() const { return as<DOM::Element>(retarget(m_source, current_target_internal())); }
 
 private:
     void visit_edges(Visitor&) override;
