@@ -622,8 +622,6 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
 )~~~");
     }
 
-    // FIXME: The Optional<foo> defaults to empty, and can't be explicitly set to `null`.
-    //        So, just skip the assignment.
     if (optional_default_value.has_value()) {
         scoped_generator.append(R"~~~(
     else
@@ -2154,7 +2152,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 //      the generated code to do some metaprogramming to inspect the type of the member in the C++ struct to
                 //      determine whether the type is present or not (e.g through a has_value() on an Optional<T>, or a null
                 //      check on a GC::Ptr<T>). So to save some complexity in the generator, give ourselves a hint of what to do.
-                bool is_optional = !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
+                bool is_optional = !member.required && !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
         Optional<JS::Value> @wrapped_value_name@;
