@@ -986,6 +986,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
     VERIFY(!receiver.is_special_empty_value());
 
     auto& vm = this->vm();
+    bool own_descriptor_was_undefined = !own_descriptor.has_value();
 
     // 1. If ownDesc is undefined, then
     if (!own_descriptor.has_value()) {
@@ -1043,7 +1044,12 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
         auto& receiver_object = receiver.as_object();
 
         // c. Let existingDescriptor be ? Receiver.[[GetOwnProperty]](P).
-        auto existing_descriptor = TRY(receiver_object.internal_get_own_property(property_key));
+        // OPTIMIZATION: If we were called with an ownDescriptor, and receiver == this, don't do [[GetOwnProperty]] again.
+        Optional<PropertyDescriptor> existing_descriptor;
+        if (!own_descriptor_was_undefined && &receiver_object == this)
+            existing_descriptor = own_descriptor;
+        else
+            existing_descriptor = TRY(receiver_object.internal_get_own_property(property_key));
 
         // d. If existingDescriptor is not undefined, then
         if (existing_descriptor.has_value()) {
