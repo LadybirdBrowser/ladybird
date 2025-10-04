@@ -1321,6 +1321,7 @@ static int initialize_console_settings()
 
     // Enable Virtual Terminal Processing to allow ANSI escape codes
     mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    mode |= ENABLE_PROCESSED_OUTPUT;
     if (!SetConsoleMode(console_handle, mode)) {
         dbgln("Unable to set console mode");
         return 0;
