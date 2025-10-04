@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>DataTransfer types attribute test</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#the-datatransfer-interface">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const dt = new DataTransfer();
+  assert_true(Object.isFrozen(dt.types), "types must be a FrozenArray<>");
+  assert_true(Array.isArray(dt.types), "A FrozenArray<> must be an Array");
+  assert_equals(dt.types.length, 0, "types must be originally empty");
+  assert_equals(dt.types, dt.types,
+                "types must return the same object when the data store item list has not changed");
+
+  const dt2 = new DataTransfer();
+  assert_not_equals(dt2.types, dt.types,
+                    "Different DataTransfer objects must return different FrozenArrays");
+}, "type's state on DataTransfer creation");
+
+test(() => {
+  const dt = new DataTransfer();
+  dt.setData("text/plain", "foo");
+
+  let old_types = dt.types;
+  assert_equals(old_types, dt.types);
+
+  // Clearing the data store via DataTransferItemList changes
+  // DataTransfer's data store, so types will return a new FrozenArray.
+  dt.items.clear();
+  assert_not_equals(old_types, dt.types);
+
+  // Clearing an empty list does not change it.
+  old_types = dt.types;
+  dt.items.clear();
+  assert_equals(old_types, dt.types);
+
+  // Removing a non-existent item from the data store does not change it.
+  dt.setData("text/plain", "foo");
+  old_types = dt.types;
+  dt.items.remove(42);
+  assert_equals(old_types, dt.types);
+
+  // Removing a valid item from the data store changes it.
+  dt.items.remove(0);
+  assert_equals(dt.items.length, 0);
+  assert_not_equals(old_types, dt.types);
+
+  // Adding a new item to the list changes it, types will return a new
+  // FrozenArray.
+  old_types = dt.types;
+  dt.items.add("foo", "text/plain");
+  assert_equals(dt.items.length, 1);
+  assert_not_equals(old_types, dt.types);
+
+  // Failing to add a new item via DataTransferItemList does not
+  // change the underlying data store.
+  old_types = dt.types;
+  assert_throws_dom("NotSupportedError", () => {
+    dt.items.add("bar", "text/plain");
+  }, "Adding an item whose type is already present throws an exception");
+  assert_equals(dt.items.length, 1);
+  assert_equals(old_types, dt.types);
+}, "Relationship between types and items");
+
+test(() => {
+  const dt = new DataTransfer();
+  dt.setData("text/plain", "foo");
+
+  let old_types = dt.types;
+  assert_equals(old_types, dt.types);
+
+  // Replacing the text/plain item causes the underlying data store item list
+  // to change, so types will return a new FrozenArray.
+  dt.setData("text/plain", "bar");
+  assert_equals(dt.types.length, 1);
+  assert_not_equals(old_types, dt.types);
+  old_types = dt.types;
+
+  // Adding a new item causes the underlying data store item list to change, so
+  // types will return a new FrozenArray.
+  dt.setData("text/uri-list", "baz quux");
+  assert_equals(dt.types.length, 2);
+  assert_not_equals(old_types, dt.types);
+
+  // Removing the text/uri-list item causes the underlying data store item list
+  // to change, so even though the item list only has a text/plain item, types
+  // will return a new FrozenArray that does not match |old_types|.
+  dt.clearData("text/uri-list");
+  assert_equals(dt.types.length, 1);
+  assert_not_equals(old_types, dt.types);
+  old_types = dt.types;
+
+  // This clearData() call did not change the underlying item list, so types is
+  // still the same as |old_types|.
+  dt.clearData("text/uri-list");
+  assert_equals(dt.types.length, 1);
+  assert_equals(old_types, dt.types);
+
+  dt.clearData();
+  old_types = dt.types;
+
+  // Clearing an already empty list does not change the underlying item list,
+  // so types is stil the same as |old_types|.
+  dt.clearData();
+  assert_equals(old_types, dt.types);
+}, "type's identity");
+
+test(() => {
+  const dt = new DataTransfer();
+  const types = dt.types;
+  dt.types = 42;
+  assert_equals(dt.types, types);
+}, "Verify type is a read-only attribute");
+
+test(() => {
+  const dt = new DataTransfer();
+  assert_array_equals(dt.types, []);
+
+  // The added File is respected
+  dt.items.add(new File(["abc"], "test.txt"));
+  assert_array_equals(dt.types, ["Files"]);
+
+  // "Files" is always last even after setting data
+  dt.setData("text/plain", "test");
+  assert_array_equals(dt.types, ["text/plain", "Files"]);
+
+  // Removing the File changes types
+  dt.items.remove(0);
+  assert_array_equals(dt.types, ["text/plain"]);
+
+  // Adding back a File as the second item works correctly.
+  dt.items.add(new File(["abc"], "test.txt"));
+  assert_array_equals(dt.types, ["text/plain", "Files"]);
+}, "DataTransfer containing files");
+</script>

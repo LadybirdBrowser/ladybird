@@ -56,6 +56,7 @@ public:
     ReadonlySpan<String> types() const;
     DEFINE_CACHED_ATTRIBUTE(types);
     String get_data(String const& format) const;
+    void set_data(String const& format_argument, String const& value);
     void clear_data(Optional<String> maybe_format = {});
     GC::Ref<FileAPI::FileList> files() const;
 
