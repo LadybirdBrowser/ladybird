@@ -4,7 +4,8 @@ interface StorageManager {
     [FIXME] Promise<boolean> persisted();
     [FIXME, Exposed=Window] Promise<boolean> persist();
 
-    [FIXME] Promise<StorageEstimate> estimate();
+    // FIXME: This should also be exposed to Workers
+    [Exposed=Window] Promise<StorageEstimate> estimate();
 };
 
 // https://storage.spec.whatwg.org/#dictdef-storageestimate

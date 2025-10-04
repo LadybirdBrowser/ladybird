@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	estimate() method exists and returns a Promise
+Pass	estimate() resolves to dictionary with members

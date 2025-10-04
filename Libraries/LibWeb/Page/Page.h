@@ -366,6 +366,7 @@ public:
     virtual WebView::StorageOperationError page_did_set_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key, [[maybe_unused]] String const& bottle_key, [[maybe_unused]] String const& value) { return WebView::StorageOperationError::None; }
     virtual void page_did_remove_storage_item([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key, [[maybe_unused]] String const& bottle_key) { }
     virtual Vector<String> page_did_request_storage_keys([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key) { return {}; }
+    virtual u64 page_did_request_storage_usage([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key) { return {}; }
     virtual void page_did_clear_storage([[maybe_unused]] Web::StorageAPI::StorageEndpointType storage_endpoint, [[maybe_unused]] String const& storage_key) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
