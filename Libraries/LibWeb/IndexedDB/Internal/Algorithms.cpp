@@ -2365,7 +2365,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
     Bindings::IDBCursorDirection direction;
 
     // 8. If running is a potentially valid key range with queryOrOptions is true, then:
-    if (is_a_potentially_valid_key_range(realm, query_or_options)) {
+    // AD-HOC: Check if query_or_options is null following https://github.com/w3c/IndexedDB/issues/475
+    if (query_or_options.is_nullish() || is_a_potentially_valid_key_range(realm, query_or_options)) {
         // 1. Set range to the result of converting a value to a key range with queryOrOptions. Rethrow any exceptions.
         range = TRY(convert_a_value_to_a_key_range(realm, query_or_options));
 
