@@ -39,10 +39,10 @@ public:
 private:
     Notifier(int fd, Type type);
 
-    int m_fd { -1 };
-    bool m_is_enabled { false };
     pthread_t m_owner_thread {};
+    int m_fd { -1 };
     Type m_type { Type::None };
+    bool m_is_enabled { false };
 };
 
 }
