@@ -423,6 +423,8 @@ ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 {
     if (is_string())
         return as_string();
+    if (is_int32() && as_i32() >= 0)
+        return PrimitiveString::create_from_unsigned_integer(vm, static_cast<u32>(as_i32()));
     auto string = TRY(to_utf16_string(vm));
     return PrimitiveString::create(vm, move(string));
 }

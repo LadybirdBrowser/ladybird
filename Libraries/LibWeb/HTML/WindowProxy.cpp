@@ -245,7 +245,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_prope
     // 5. Repeat while index < maxProperties,
     for (size_t i = 0; i < max_properties; ++i) {
         // 1. Add ! ToString(index) as the last element of keys.
-        keys.append(JS::PrimitiveString::create(vm, ByteString::number(i)));
+        keys.append(JS::PrimitiveString::create_from_unsigned_integer(vm, i));
 
         // 2. Increment index by 1.
     }

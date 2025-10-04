@@ -414,7 +414,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     if (m_legacy_platform_object_flags->supports_indexed_properties) {
         for (u64 index = 0; index <= NumericLimits<u32>::max(); ++index) {
             if (is_supported_property_index(index))
-                keys.append(JS::PrimitiveString::create(vm, String::number(index)));
+                keys.append(JS::PrimitiveString::create_from_unsigned_integer(vm, index));
             else
                 break;
         }
