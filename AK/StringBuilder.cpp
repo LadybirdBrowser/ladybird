@@ -159,6 +159,32 @@ ErrorOr<void> StringBuilder::try_append(StringView string)
     return {};
 }
 
+void StringBuilder::append_ascii_without_validation(ReadonlyBytes string)
+{
+    MUST(try_append_ascii_without_validation(string));
+}
+
+ErrorOr<void> StringBuilder::try_append_ascii_without_validation(ReadonlyBytes string)
+{
+    if (string.is_empty())
+        return {};
+
+    if (m_mode == Mode::UTF8 || m_utf16_builder_is_ascii) {
+        TRY(m_buffer.try_append(string));
+    } else {
+        if (m_mode == Mode::UTF16) {
+            TRY(ensure_storage_is_utf16());
+            TRY(will_append(string.size() * 2));
+        } else {
+            TRY(will_append(string.size()));
+        }
+        for (auto code_point : Utf8View { string })
+            TRY(try_append_code_point(code_point));
+    }
+
+    return {};
+}
+
 ErrorOr<void> StringBuilder::try_append(char ch)
 {
     if (m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && is_ascii(ch))) {
@@ -428,7 +454,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
     if (utf16_view.is_empty())
         return {};
     if (utf16_view.has_ascii_storage())
-        return try_append(utf16_view.bytes());
+        return try_append_ascii_without_validation(utf16_view.bytes());
 
     auto append_as_utf8 = m_mode == Mode::UTF8 || (m_utf16_builder_is_ascii && utf16_view.is_ascii());
 
