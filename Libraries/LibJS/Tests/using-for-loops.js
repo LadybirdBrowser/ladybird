@@ -85,7 +85,9 @@ describe("basic usage", () => {
             },
         };
 
-        for (using a of [obj, obj, obj]) expect(disposableCalls).toBe(i++);
+        for (using a of [obj, obj, obj]) {
+            expect(disposableCalls).toBe(i++);
+        }
 
         expect(disposableCalls).toBe(3);
     });
@@ -99,7 +101,9 @@ describe("basic usage", () => {
         };
 
         expect(disposed).toBe(0);
-        for (using b = a, c = a; false; ) expect().fail();
+        for (using b = a, c = a; false; ) {
+            expect().fail();
+        }
 
         expect(disposed).toBe(2);
     });
@@ -149,7 +153,9 @@ describe("basic usage", () => {
         };
 
         try {
-            for (using a of [obj]) throw new ExpectationError("Expected in for-of");
+            for (using a of [obj]) {
+                throw new ExpectationError("Expected in for-of");
+            }
 
             expect().fail("Should have thrown");
         } catch (e) {
