@@ -31,12 +31,15 @@ public:
     virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const override;
 
 private:
     explicit CSSUnparsedValue(JS::Realm&, Vector<CSSUnparsedSegment>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
+
+    bool contains_unparsed_value(CSSUnparsedValue const&) const;
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-tokens-slot
     // They have a [[tokens]] internal slot, which is a list of USVStrings and CSSVariableReferenceValue objects.

@@ -13,7 +13,7 @@ namespace Web::CSS {
 GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(JS::Realm& realm, FlyString const&) const
 {
     // AD-HOC: There's no spec description of how to reify as a CSSImageValue.
-    return CSSImageValue::create(realm, to_string(SerializationMode::Normal));
+    return CSSImageValue::create(realm, *this);
 }
 
 }

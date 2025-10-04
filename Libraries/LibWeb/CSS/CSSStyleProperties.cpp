@@ -402,6 +402,37 @@ RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(PropertyID
     return get_property_style_value(PropertyNameAndID::from_id(property_id));
 }
 
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyNameAndID const& property, NonnullRefPtr<StyleValue const> style_value)
+{
+    if (is_computed()) {
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_utf16);
+    }
+
+    if (property.is_custom_property()) {
+        m_custom_properties.remove(property.name());
+        m_custom_properties.set(property.name(),
+            StyleProperty {
+                Important::No,
+                PropertyID::Custom,
+                style_value,
+                property.name() });
+        return {};
+    }
+
+    StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
+        m_properties.remove_first_matching([longhand_id](StyleProperty const& style_property) {
+            return style_property.property_id == longhand_id;
+        });
+        m_properties.append(StyleProperty {
+            .important = Important::No,
+            .property_id = longhand_id,
+            .value = longhand_value,
+        });
+    });
+
+    return {};
+}
+
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAndID const& property) const
 {

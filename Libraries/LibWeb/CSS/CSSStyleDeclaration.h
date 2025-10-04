@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
@@ -59,6 +60,7 @@ public:
 
     virtual bool has_property(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
+    virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) { VERIFY_NOT_REACHED(); }
 
 protected:
     enum class Computed : u8 {
