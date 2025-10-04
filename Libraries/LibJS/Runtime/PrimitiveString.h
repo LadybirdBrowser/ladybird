@@ -25,11 +25,11 @@ class JS_API PrimitiveString : public Cell {
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 
 public:
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16View const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16FlyString const&);
 
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, String);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, String const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, StringView);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
 
