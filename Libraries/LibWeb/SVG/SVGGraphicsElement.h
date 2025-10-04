@@ -17,6 +17,8 @@
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/TagNames.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 
@@ -69,7 +71,7 @@ public:
     GC::Ptr<SVG::SVGMaskElement const> mask() const;
     GC::Ptr<SVG::SVGClipPathElement const> clip_path() const;
 
-    GC::Ref<Geometry::DOMRect> get_b_box(Optional<SVGBoundingBoxOptions>);
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Optional<SVGBoundingBoxOptions>);
     GC::Ref<SVGAnimatedTransformList> transform() const;
 
     GC::Ptr<Geometry::DOMMatrix> get_ctm();
