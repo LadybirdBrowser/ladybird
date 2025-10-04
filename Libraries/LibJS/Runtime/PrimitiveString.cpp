@@ -146,7 +146,8 @@ String PrimitiveString::utf8_string() const
 
 StringView PrimitiveString::utf8_string_view() const
 {
-    (void)utf8_string();
+    if (!has_utf8_string())
+        (void)utf8_string();
     return m_utf8_string->bytes_as_string_view();
 }
 
@@ -164,7 +165,8 @@ Utf16String PrimitiveString::utf16_string() const
 
 Utf16View PrimitiveString::utf16_string_view() const
 {
-    (void)utf16_string();
+    if (!has_utf16_string())
+        (void)utf16_string();
     return *m_utf16_string;
 }
 
