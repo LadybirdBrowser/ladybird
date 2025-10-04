@@ -4,7 +4,11 @@ describe("basic usage", () => {
         let inBlock = false;
         {
             expect(disposed).toBeFalse();
-            using a = { [Symbol.dispose]() { disposed = true; } };
+            using a = {
+                [Symbol.dispose]() {
+                    disposed = true;
+                },
+            };
             inBlock = true;
             expect(disposed).toBeFalse();
         }
@@ -17,29 +21,47 @@ describe("basic usage", () => {
         const disposed = [];
         {
             expect(disposed).toHaveLength(0);
-            using a = { [Symbol.dispose]() { disposed.push('a'); } };
-            using b = { [Symbol.dispose]() { disposed.push('b'); } };
+            using a = {
+                [Symbol.dispose]() {
+                    disposed.push("a");
+                },
+            };
+            using b = {
+                [Symbol.dispose]() {
+                    disposed.push("b");
+                },
+            };
             expect(disposed).toHaveLength(0);
         }
 
-        expect(disposed).toEqual(['b', 'a']);
+        expect(disposed).toEqual(["b", "a"]);
     });
 
     test.xfail("disposes in reverse order after block exit even in same declaration", () => {
         const disposed = [];
         {
             expect(disposed).toHaveLength(0);
-            using a = { [Symbol.dispose]() { disposed.push('a'); } },
-                  b = { [Symbol.dispose]() { disposed.push('b'); } };
+            using a = {
+                    [Symbol.dispose]() {
+                        disposed.push("a");
+                    },
+                },
+                b = {
+                    [Symbol.dispose]() {
+                        disposed.push("b");
+                    },
+                };
             expect(disposed).toHaveLength(0);
         }
 
-        expect(disposed).toEqual(['b', 'a']);
+        expect(disposed).toEqual(["b", "a"]);
     });
 });
 
 describe("behavior with exceptions", () => {
-    function ExpectedError(name) { this.name = name; }
+    function ExpectedError(name) {
+        this.name = name;
+    }
 
     test.xfail("is run even after throw", () => {
         let disposed = false;
@@ -47,7 +69,11 @@ describe("behavior with exceptions", () => {
         let inCatch = false;
         try {
             expect(disposed).toBeFalse();
-            using a = { [Symbol.dispose]() { disposed = true; } };
+            using a = {
+                [Symbol.dispose]() {
+                    disposed = true;
+                },
+            };
             inBlock = true;
             expect(disposed).toBeFalse();
             throw new ExpectedError();
@@ -68,10 +94,12 @@ describe("behavior with exceptions", () => {
         let inCatch = false;
         try {
             expect(disposed).toBeFalse();
-            using a = { [Symbol.dispose]() {
+            using a = {
+                [Symbol.dispose]() {
                     disposed = true;
                     throw new ExpectedError();
-                } };
+                },
+            };
             expect(disposed).toBeFalse();
             endOfTry = true;
         } catch (e) {
@@ -89,19 +117,21 @@ describe("behavior with exceptions", () => {
         let inCatch = false;
         try {
             expect(disposed).toBeFalse();
-            using a = { [Symbol.dispose]() {
+            using a = {
+                [Symbol.dispose]() {
                     disposed = true;
-                    throw new ExpectedError('dispose');
-                } };
+                    throw new ExpectedError("dispose");
+                },
+            };
             expect(disposed).toBeFalse();
-            throw new ExpectedError('throw');
+            throw new ExpectedError("throw");
         } catch (e) {
             expect(disposed).toBeTrue();
             expect(e).toBeInstanceOf(SuppressedError);
             expect(e.error).toBeInstanceOf(ExpectedError);
-            expect(e.error.name).toBe('dispose');
+            expect(e.error.name).toBe("dispose");
             expect(e.suppressed).toBeInstanceOf(ExpectedError);
-            expect(e.suppressed.name).toBe('throw');
+            expect(e.suppressed.name).toBe("throw");
             inCatch = true;
         }
         expect(disposed).toBeTrue();
@@ -112,22 +142,26 @@ describe("behavior with exceptions", () => {
         let inCatch = false;
         try {
             {
-                using a = { [Symbol.dispose]() {
-                    throw new ExpectedError('a');
-                } };
+                using a = {
+                    [Symbol.dispose]() {
+                        throw new ExpectedError("a");
+                    },
+                };
 
-                using b = { [Symbol.dispose]() {
-                    throw new ExpectedError('b');
-                } };
+                using b = {
+                    [Symbol.dispose]() {
+                        throw new ExpectedError("b");
+                    },
+                };
             }
 
             expect().fail();
         } catch (e) {
             expect(e).toBeInstanceOf(SuppressedError);
             expect(e.error).toBeInstanceOf(ExpectedError);
-            expect(e.error.name).toBe('a');
+            expect(e.error.name).toBe("a");
             expect(e.suppressed).toBeInstanceOf(ExpectedError);
-            expect(e.suppressed.name).toBe('b');
+            expect(e.suppressed.name).toBe("b");
             inCatch = true;
         }
         expect(inCatch).toBeTrue();
@@ -137,32 +171,38 @@ describe("behavior with exceptions", () => {
         let inCatch = false;
         try {
             {
-                using a = { [Symbol.dispose]() {
-                    throw new ExpectedError('a');
-                } };
+                using a = {
+                    [Symbol.dispose]() {
+                        throw new ExpectedError("a");
+                    },
+                };
 
-                using b = { [Symbol.dispose]() {
-                    throw new ExpectedError('b');
-                } };
+                using b = {
+                    [Symbol.dispose]() {
+                        throw new ExpectedError("b");
+                    },
+                };
 
-                using c = { [Symbol.dispose]() {
-                    throw new ExpectedError('c');
-                } };
+                using c = {
+                    [Symbol.dispose]() {
+                        throw new ExpectedError("c");
+                    },
+                };
             }
 
             expect().fail();
         } catch (e) {
             expect(e).toBeInstanceOf(SuppressedError);
             expect(e.error).toBeInstanceOf(ExpectedError);
-            expect(e.error.name).toBe('a');
+            expect(e.error.name).toBe("a");
             expect(e.suppressed).toBeInstanceOf(SuppressedError);
 
             const inner = e.suppressed;
 
             expect(inner.error).toBeInstanceOf(ExpectedError);
-            expect(inner.error.name).toBe('b');
+            expect(inner.error.name).toBe("b");
             expect(inner.suppressed).toBeInstanceOf(ExpectedError);
-            expect(inner.suppressed.name).toBe('c');
+            expect(inner.suppressed.name).toBe("c");
             inCatch = true;
         }
         expect(inCatch).toBeTrue();
@@ -171,27 +211,31 @@ describe("behavior with exceptions", () => {
     test.xfail("normal error and multiple disposing errors give chaining suppressed errors", () => {
         let inCatch = false;
         try {
-            using a = { [Symbol.dispose]() {
-                throw new ExpectedError('a');
-            } };
+            using a = {
+                [Symbol.dispose]() {
+                    throw new ExpectedError("a");
+                },
+            };
 
-            using b = { [Symbol.dispose]() {
-                throw new ExpectedError('b');
-            } };
+            using b = {
+                [Symbol.dispose]() {
+                    throw new ExpectedError("b");
+                },
+            };
 
-            throw new ExpectedError('top');
+            throw new ExpectedError("top");
         } catch (e) {
             expect(e).toBeInstanceOf(SuppressedError);
             expect(e.error).toBeInstanceOf(ExpectedError);
-            expect(e.error.name).toBe('a');
+            expect(e.error.name).toBe("a");
             expect(e.suppressed).toBeInstanceOf(SuppressedError);
 
             const inner = e.suppressed;
 
             expect(inner.error).toBeInstanceOf(ExpectedError);
-            expect(inner.error.name).toBe('b');
+            expect(inner.error.name).toBe("b");
             expect(inner.suppressed).toBeInstanceOf(ExpectedError);
-            expect(inner.suppressed.name).toBe('top');
+            expect(inner.suppressed.name).toBe("top");
             inCatch = true;
         }
         expect(inCatch).toBeTrue();
@@ -204,7 +248,11 @@ describe("works in a bunch of scopes", () => {
         expect(dispose).toBeFalse();
         {
             expect(dispose).toBeFalse();
-            using a = { [Symbol.dispose]() { dispose = true; } }
+            using a = {
+                [Symbol.dispose]() {
+                    dispose = true;
+                },
+            };
             expect(dispose).toBeFalse();
         }
         expect(dispose).toBeTrue();
@@ -216,7 +264,11 @@ describe("works in a bunch of scopes", () => {
         class A {
             static {
                 expect(dispose).toBeFalse();
-                using a = { [Symbol.dispose]() { dispose = true; } }
+                using a = {
+                    [Symbol.dispose]() {
+                        dispose = true;
+                    },
+                };
                 expect(dispose).toBeFalse();
             }
         }
@@ -227,7 +279,11 @@ describe("works in a bunch of scopes", () => {
         let dispose = [];
         function f(val) {
             const disposeLength = dispose.length;
-            using a = { [Symbol.dispose]() { dispose.push(val); } }
+            using a = {
+                [Symbol.dispose]() {
+                    dispose.push(val);
+                },
+            };
             expect(dispose.length).toBe(disposeLength);
         }
         expect(dispose).toEqual([]);
@@ -244,48 +300,69 @@ describe("works in a bunch of scopes", () => {
         function pusher(val) {
             return {
                 val,
-                [Symbol.dispose]() { disposeFull.push(val); }
+                [Symbol.dispose]() {
+                    disposeFull.push(val);
+                },
             };
         }
 
         switch (2) {
-            case 3:
-                using notDisposed = { [Symbol.dispose]() { expect().fail("not-disposed 1"); } };
-            case 2:
+            case 3: {
+                using notDisposed = {
+                    [Symbol.dispose]() {
+                        expect().fail("not-disposed 1");
+                    },
+                };
+            }
+            case 2: {
                 expect(disposeFull).toEqual([]);
-                using a = pusher('a');
+                using a = pusher("a");
                 expect(disposeFull).toEqual([]);
 
-                using b = pusher('b');
+                using b = pusher("b");
                 expect(disposeFull).toEqual([]);
-                expect(b.val).toBe('b');
-
-                expect(disposeInner).toBeFalse();
-                // fallthrough
-            case 1: {
-                expect(disposeFull).toEqual([]);
-                expect(disposeInner).toBeFalse();
-
-                using inner = { [Symbol.dispose]() { disposeInner = true; } }
+                expect(b.val).toBe("b");
 
                 expect(disposeInner).toBeFalse();
             }
+            // fallthrough
+            case 1:
+                {
+                    expect(disposeFull).toEqual([]);
+                    expect(disposeInner).toBeFalse();
+
+                    using inner = {
+                        [Symbol.dispose]() {
+                            disposeInner = true;
+                        },
+                    };
+
+                    expect(disposeInner).toBeFalse();
+                }
                 expect(disposeInner).toBeTrue();
-                using c = pusher('c');
-                expect(c.val).toBe('c');
+                {
+                    using c = pusher("c");
+                    expect(c.val).toBe("c");
+                }
                 break;
-            case 0:
-                using notDisposed2 = { [Symbol.dispose]() { expect().fail("not-disposed 2"); } };
+            case 0: {
+                using notDisposed2 = {
+                    [Symbol.dispose]() {
+                        expect().fail("not-disposed 2");
+                    },
+                };
+            }
         }
 
         expect(disposeInner).toBeTrue();
-        expect(disposeFull).toEqual(['c', 'b', 'a']);
+        expect(disposeFull).toEqual(["c", "b", "a"]);
     });
 });
 
 describe("invalid using bindings", () => {
     test.xfail("nullish values do not throw", () => {
-        using a = null, b = undefined;
+        using a = null,
+            b = undefined;
         expect(a).toBeNull();
         expect(b).toBeUndefined();
     });
@@ -340,7 +417,9 @@ describe("using is still a valid variable name", () => {
 
     test("function", () => {
         "use strict";
-        function using() { return 1; }
+        function using() {
+            return 1;
+        }
         expect(using()).toBe(1);
     });
 });
