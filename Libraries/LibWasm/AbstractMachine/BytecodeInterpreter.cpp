@@ -68,7 +68,7 @@ struct ConvertToRaw<double> {
     do {                                                                                       \
         if (trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                               \
             dbgln_if(WASM_TRACE_DEBUG, "Trapped because {} failed, at line {}", #x, __LINE__); \
-            return true;                                                                       \
+            return Outcome::Return;                                                                       \
         }                                                                                      \
     } while (false)
 
@@ -98,11 +98,7 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
     return interpret_impl<false, false, false>(configuration, expression);
 }
 
-enum class Outcome : u64 {
-    // 0..Constants::max_allowed_executed_instructions_per_call -> next IP.
-    Continue = Constants::max_allowed_executed_instructions_per_call + 1,
-    Return,
-};
+constexpr static u32 default_sources_and_destination = (to_underlying(Dispatch::RegisterOrStack::Stack) | (to_underlying(Dispatch::RegisterOrStack::Stack) << 2) | (to_underlying(Dispatch::RegisterOrStack::Stack) << 4));
 
 template<u64 opcode>
 struct InstructionHandler { };
@@ -126,6 +122,16 @@ struct InstructionHandler { };
     };                                                               \
     template<bool HasDynamicInsnLimit, typename Continue>            \
     Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
+#define ALIAS_INSTRUCTION(new_name, existing_name)                                                                              \
+    template<>                                                                                                                  \
+    struct InstructionHandler<Instructions::new_name.value()> {                                                                 \
+        template<bool HasDynamicInsnLimit, typename Continue>                                                                   \
+        static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))                                                             \
+        {                                                                                                                       \
+            TAILCALL return InstructionHandler<Instructions::existing_name.value()>::operator()<HasDynamicInsnLimit, Continue>( \
+                HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));                                                                    \
+        }                                                                                                                       \
+    };
 
 struct Continue {
     static Outcome operator()(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const*, SourcesAndDestination addresses, u64 current_ip_value, Dispatch const* cc)
@@ -1071,7 +1077,7 @@ HANDLE_INSTRUCTION(synthetic_call_00)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1083,7 +1089,7 @@ HANDLE_INSTRUCTION(synthetic_call_01)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1095,7 +1101,7 @@ HANDLE_INSTRUCTION(synthetic_call_10)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1107,7 +1113,7 @@ HANDLE_INSTRUCTION(synthetic_call_11)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1119,7 +1125,7 @@ HANDLE_INSTRUCTION(synthetic_call_20)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1131,7 +1137,7 @@ HANDLE_INSTRUCTION(synthetic_call_21)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1143,7 +1149,7 @@ HANDLE_INSTRUCTION(synthetic_call_30)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1155,7 +1161,7 @@ HANDLE_INSTRUCTION(synthetic_call_31)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1321,9 +1327,29 @@ HANDLE_INSTRUCTION(call)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "call({})", address.value());
-    if (interpreter.call_address(configuration, address))
+    if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(return_call)
+{
+    auto index = instruction->arguments().get<FunctionIndex>();
+    auto address = configuration.frame().module().functions()[index.value()];
+    configuration.label_stack().shrink(configuration.frame().label_index() + 1, true);
+    dbgln_if(WASM_TRACE_DEBUG, "tail call({})", address.value());
+    switch (auto const outcome = interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::DirectTailCall)) {
+    default:
+        // Some IP we have to continue from.
+        current_ip_value = to_underlying(outcome) - 1;
+        addresses = { .sources_and_destination = default_sources_and_destination };
+        cc = configuration.frame().expression().compiled_instructions.dispatches.data();
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    case Outcome::Return:
+        return Outcome::Return;
+    }
 }
 
 HANDLE_INSTRUCTION(call_indirect)
@@ -1346,9 +1372,43 @@ HANDLE_INSTRUCTION(call_indirect)
     TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
 
     dbgln_if(WASM_TRACE_DEBUG, "call_indirect({} -> {})", index, address.value());
-    if (interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::IndirectCall))
+    if (interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(return_call_indirect)
+{
+    auto& args = instruction->arguments().get<Instruction::IndirectCallArgs>();
+    auto table_address = configuration.frame().module().tables()[args.table.value()];
+    auto table_instance = configuration.store().get(table_address);
+    // bounds checked by verifier.
+    auto index = configuration.take_source(0, addresses.sources).to<i32>();
+    TRAP_IN_LOOP_IF_NOT(index >= 0);
+    TRAP_IN_LOOP_IF_NOT(static_cast<size_t>(index) < table_instance->elements().size());
+    auto& element = table_instance->elements()[index];
+    TRAP_IN_LOOP_IF_NOT(element.ref().has<Reference::Func>());
+    auto address = element.ref().get<Reference::Func>().address;
+    auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
+    auto const& type_expected = configuration.frame().module().types()[args.type.value()];
+    TRAP_IN_LOOP_IF_NOT(type_actual.parameters().size() == type_expected.parameters().size());
+    TRAP_IN_LOOP_IF_NOT(type_actual.results().size() == type_expected.results().size());
+    TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
+    TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
+
+    dbgln_if(WASM_TRACE_DEBUG, "tail call_indirect({} -> {})", index, address.value());
+    switch (auto const outcome = interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::IndirectTailCall)) {
+    default:
+        // Some IP we have to continue from.
+        current_ip_value = to_underlying(outcome) - 1;
+        addresses = { .sources_and_destination = default_sources_and_destination };
+        cc = configuration.frame().expression().compiled_instructions.dispatches.data();
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    case Outcome::Return:
+        return Outcome::Return;
+    }
 }
 
 HANDLE_INSTRUCTION(i32_load)
@@ -3623,6 +3683,110 @@ HANDLE_INSTRUCTION(i32x4_extmul_high_i16x8_s)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+ALIAS_INSTRUCTION(i8x16_relaxed_swizzle, i8x16_swizzle)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f32x4_s, i32x4_trunc_sat_f32x4_s)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f32x4_u, i32x4_trunc_sat_f32x4_u)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f64x2_s_zero, i32x4_trunc_sat_f64x2_s_zero)
+ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f64x2_u_zero, i32x4_trunc_sat_f64x2_u_zero)
+
+HANDLE_INSTRUCTION(f32x4_relaxed_madd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplyAdd<4>{}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(f32x4_relaxed_nmadd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplySub<4>{}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(f64x2_relaxed_madd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplyAdd<2>{}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(f64x2_relaxed_nmadd)
+{
+    auto a = configuration.take_source(0, addresses.sources).to<u128>();
+    auto b = configuration.take_source(1, addresses.sources).to<u128>();
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    auto c = c_slot.to<u128>();
+    c_slot = Value { Operators::VectorMultiplySub<2>{}(a, b, c) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+ALIAS_INSTRUCTION(i8x16_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(i16x8_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(i32x4_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(i64x2_relaxed_laneselect, v128_bitselect)
+ALIAS_INSTRUCTION(f32x4_relaxed_min, f32x4_min)
+ALIAS_INSTRUCTION(f32x4_relaxed_max, f32x4_max)
+ALIAS_INSTRUCTION(f64x2_relaxed_min, f64x2_min)
+ALIAS_INSTRUCTION(f64x2_relaxed_max, f64x2_max)
+ALIAS_INSTRUCTION(i16x8_relaxed_q15mulr_s, i16x8_q15mulr_sat_s)
+
+HANDLE_INSTRUCTION(i16x8_relaxed_dot_i8x16_i7x16_s)
+{
+    if (interpreter.binary_numeric_operation<u128, u128, Operators::VectorDotProduct<8>>(configuration, addresses))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(i32x4_relaxed_dot_i8x16_i7x16_add_s)
+{
+    // do i16x8 dot first, then fold back down to i32, then do the final component add.
+    auto rhs = configuration.take_source(0, addresses.sources).to<u128>();
+    auto lhs = configuration.take_source(1, addresses.sources).to<u128>(); // bounds checked by verifier.
+    auto result = Operators::VectorDotProduct<4, Operators::VectorIntegerExtOpPairwise<4, Operators::Add>> {}(lhs, rhs);
+    auto& c_slot = configuration.source_value(2, addresses.sources);
+    c_slot = Value { Operators::VectorIntegerBinaryOp<4, Operators::Add, MakeSigned> {}(result, c_slot.to<u128>()) };
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(throw_ref)
+{
+    interpreter.set_trap("Not Implemented: Proposal 'Exception-handling'"sv);
+    return Outcome::Return;
+}
+
+HANDLE_INSTRUCTION(throw_)
+{
+    {
+        auto tag_address = configuration.frame().module().tags()[instruction->arguments().get<TagIndex>().value()];
+        auto& tag_instance = *configuration.store().get(tag_address);
+        auto& type = tag_instance.type();
+        auto values = Vector<Value>(configuration.value_stack().span().slice_from_end(type.parameters().size()));
+        configuration.value_stack().shrink(configuration.value_stack().size() - type.parameters().size());
+        auto exception_address = configuration.store().allocate(tag_instance, move(values));
+        if (!exception_address.has_value()) {
+            interpreter.set_trap("Out of memory"sv);
+            return Outcome::Return;
+        }
+        configuration.value_stack().append(Value(Reference { Reference::Exception { *exception_address } }));
+    }
+    TAILCALL return InstructionHandler<Instructions::throw_ref.value()>::operator()<HasDynamicInsnLimit, Continue>(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(try_table)
+{
+    interpreter.set_trap("Not Implemented: Proposal 'Exception-handling'"sv);
+    return Outcome::Return;
+}
+
 template<u64 opcode, bool HasDynamicInsnLimit, typename Continue, typename... Args>
 constexpr static auto handle_instruction(Args&&... a)
 {
@@ -3636,10 +3800,9 @@ FLATTEN void BytecodeInterpreter::interpret_impl(Configuration& configuration, E
     auto current_ip_value = configuration.ip();
     u64 executed_instructions = 0;
 
-    constexpr static u32 default_sources_and_destination = (to_underlying(Dispatch::RegisterOrStack::Stack) | (to_underlying(Dispatch::RegisterOrStack::Stack) << 2) | (to_underlying(Dispatch::RegisterOrStack::Stack) << 4));
     SourcesAndDestination addresses { .sources_and_destination = default_sources_and_destination };
 
-    auto const cc = expression.compiled_instructions.dispatches.data();
+    auto cc = expression.compiled_instructions.dispatches.data();
 
     if constexpr (HaveDirectThreadingInfo) {
         static_assert(HasCompiledList, "Direct threading requires a compiled instruction list");
@@ -3681,6 +3844,8 @@ FLATTEN void BytecodeInterpreter::interpret_impl(Configuration& configuration, E
         if (outcome == Outcome::Return)                                                                                                                               \
             return;                                                                                                                                                   \
         current_ip_value = to_underlying(outcome);                                                                                                                    \
+        if constexpr (Instructions::name == Instructions::return_call || Instructions::name == Instructions::return_call_indirect)                                    \
+            cc = configuration.frame().expression().compiled_instructions.dispatches.data();                                                                          \
         RUN_NEXT_INSTRUCTION();                                                                                                                                       \
     }
 
@@ -3872,14 +4037,14 @@ VectorType BytecodeInterpreter::pop_vector(Configuration& configuration, size_t 
     return bit_cast<VectorType>(configuration.take_source(source, addresses.sources).to<u128>());
 }
 
-bool BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address, CallAddressSource source)
+Outcome BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address, CallAddressSource source)
 {
     TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free, "{}: {}", Constants::stack_exhaustion_message);
 
     auto instance = configuration.store().get(address);
     FunctionType const* type { nullptr };
     instance->visit([&](auto const& function) { type = &function.type(); });
-    if (source == CallAddressSource::IndirectCall) {
+    if (source == CallAddressSource::IndirectCall || source == CallAddressSource::IndirectTailCall) {
         TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
     }
     Vector<Value> args;
@@ -3893,16 +4058,34 @@ bool BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
     }
 
     Result result { Trap::from_string("") };
-    if (instance->has<WasmFunction>()) {
-        CallFrameHandle handle { *this, configuration };
-        result = configuration.call(*this, address, move(args));
+    Outcome final_outcome = Outcome::Continue;
+
+    if (source == CallAddressSource::DirectTailCall || source == CallAddressSource::IndirectTailCall) {
+        auto prep_outcome = configuration.prepare_call(address, args, true);
+        if (prep_outcome.is_error()) {
+            m_trap = prep_outcome.release_error();
+            return Outcome::Return;
+        }
+
+        final_outcome = Outcome::Return; // At this point we can only ever return (unless we succeed in tail-calling).
+        if (prep_outcome.value().has_value()) {
+            result = prep_outcome.value()->function()(configuration, args);
+        } else {
+            configuration.ip() = 0;
+            return static_cast<Outcome>(0); // Continue from IP 0 in the new frame.
+        }
     } else {
-        result = configuration.call(*this, address, move(args));
+        if (instance->has<WasmFunction>()) {
+            CallFrameHandle handle { *this, configuration };
+            result = configuration.call(*this, address, move(args));
+        } else {
+            result = configuration.call(*this, address, move(args));
+        }
     }
 
     if (result.is_trap()) {
         m_trap = move(result.trap());
-        return true;
+        return Outcome::Return;
     }
 
     if (!result.values().is_empty()) {
@@ -3911,7 +4094,7 @@ bool BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
             configuration.value_stack().unchecked_append(entry);
     }
 
-    return false;
+    return final_outcome;
 }
 
 template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS, typename... Args>
@@ -3934,10 +4117,10 @@ bool BytecodeInterpreter::binary_numeric_operation(Configuration& configuration,
     return false;
 }
 
-template<typename PopType, typename PushType, typename Operator, typename... Args>
+template<typename PopType, typename PushType, typename Operator, size_t input_arg, typename... Args>
 bool BytecodeInterpreter::unary_operation(Configuration& configuration, SourcesAndDestination const& addresses, Args&&... args)
 {
-    auto& entry = configuration.source_value(0, addresses.sources); // bounds checked by verifier.
+    auto& entry = configuration.source_value(input_arg, addresses.sources); // bounds checked by verifier.
     auto value = entry.to<PopType>();
     auto call_result = Operator { forward<Args>(args)... }(value);
     PushType result;

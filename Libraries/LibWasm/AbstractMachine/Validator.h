@@ -30,6 +30,7 @@ struct Context {
     COWVector<ValueType> elements;
     COWVector<bool> datas;
     COWVector<ValueType> locals;
+    COWVector<TagType> tags;
     Optional<u32> data_count;
     RefPtr<RefRBTree> references { make_ref_counted<RefRBTree>() };
     size_t imported_function_count { 0 };
@@ -68,6 +69,7 @@ public:
     ErrorOr<void, ValidationError> validate(MemorySection const&);
     ErrorOr<void, ValidationError> validate(TableSection const&);
     ErrorOr<void, ValidationError> validate(CodeSection const&);
+    ErrorOr<void, ValidationError> validate(TagSection const&);
     ErrorOr<void, ValidationError> validate(FunctionSection const&) { return {}; }
     ErrorOr<void, ValidationError> validate(DataCountSection const&) { return {}; }
     ErrorOr<void, ValidationError> validate(TypeSection const&) { return {}; }
@@ -87,10 +89,10 @@ public:
         return Errors::invalid("FunctionIndex"sv);
     }
 
-    ErrorOr<void, ValidationError> validate(MemoryIndex index) const
+    ErrorOr<MemoryType, ValidationError> validate(MemoryIndex index) const
     {
         if (index.value() < m_context.memories.size())
-            return {};
+            return m_context.memories[index.value()];
         return Errors::invalid("MemoryIndex"sv);
     }
 
@@ -129,11 +131,18 @@ public:
         return Errors::invalid("LocalIndex"sv);
     }
 
-    ErrorOr<void, ValidationError> validate(TableIndex index) const
+    ErrorOr<TableType, ValidationError> validate(TableIndex index) const
     {
         if (index.value() < m_context.tables.size())
-            return {};
+            return m_context.tables[index.value()];
         return Errors::invalid("TableIndex"sv);
+    }
+
+    ErrorOr<void, ValidationError> validate(TagIndex index) const
+    {
+        if (index.value() < m_context.tags.size())
+            return {};
+        return Errors::invalid("TagIndex"sv);
     }
 
     enum class FrameKind {
@@ -293,6 +302,20 @@ public:
     ErrorOr<void, ValidationError> validate(TableType const&);
     ErrorOr<void, ValidationError> validate(MemoryType const&);
     ErrorOr<void, ValidationError> validate(GlobalType const&) { return {}; }
+    ErrorOr<void, ValidationError> validate(TagType const&);
+
+    // Proposal 'memory64'
+    ErrorOr<void, ValidationError> take_memory_address(Stack& stack, MemoryType const& memory, Instruction::MemoryArgument const& arg)
+    {
+        if (memory.limits().address_type() == AddressType::I64) {
+            TRY((stack.take<ValueType::I64>()));
+        } else {
+            if (arg.offset > NumericLimits<u32>::max())
+                return Errors::out_of_bounds("memory op offset"sv, arg.offset, 0, NumericLimits<u32>::max());
+            TRY((stack.take<ValueType::I32>()));
+        }
+        return {};
+    }
 
 private:
     explicit Validator(Context context)
@@ -301,7 +324,13 @@ private:
     }
 
     struct Errors {
-        static ValidationError invalid(StringView name) { return ByteString::formatted("Invalid {}", name); }
+        static ValidationError invalid(StringView name, SourceLocation location = SourceLocation::current())
+        {
+            if constexpr (WASM_VALIDATOR_DEBUG)
+                return ByteString::formatted("Invalid {} in {}", name, find_instruction_name(location));
+            else
+                return ByteString::formatted("Invalid {}", name);
+        }
 
         template<typename Expected, typename Given>
         static ValidationError invalid(StringView name, Expected expected, Given given, SourceLocation location = SourceLocation::current())
