@@ -1,3 +1,6 @@
+> [!NOTE]
+> The Android build is experimental and more often than not won't build. See [Issue #2774](https://github.com/LadybirdBrowser/ladybird/issues/2774) for more information.
+
 ## Android Studio Project Configuration
 
 The Android port of Ladybird has straightforward integration with the Android Studio IDE.
