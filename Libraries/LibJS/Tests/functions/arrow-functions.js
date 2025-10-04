@@ -90,8 +90,6 @@ test("currying", () => {
 
 test("with comma operator", () => {
     let foo, bar;
-    // prettier-ignore
-    // Ignored so the expressions arent wrapped in parens
     (foo = bar), baz => {};
     expect(foo).toBe(undefined);
     expect(bar).toBe(undefined);
