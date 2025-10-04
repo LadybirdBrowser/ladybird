@@ -56,6 +56,14 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_from_code_point_iterable(
     return string;
 }
 
+NonnullRefPtr<Utf16StringData> Utf16StringData::from_ascii(ReadonlyBytes ascii_string)
+{
+    VERIFY_UTF16_LENGTH(ascii_string.size());
+    auto string = create_uninitialized(StorageType::ASCII, ascii_string.size());
+    TypedTransfer<char>::copy(string->m_ascii_data, reinterpret_cast<char const*>(ascii_string.data()), ascii_string.size());
+    return string;
+}
+
 NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8(StringView utf8_string, AllowASCIIStorage allow_ascii_storage)
 {
     RefPtr<Utf16StringData> string;

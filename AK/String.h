@@ -64,6 +64,7 @@ public:
     static ErrorOr<String> from_utf8(T&&) = delete;
 
     [[nodiscard]] static String from_utf8_without_validation(ReadonlyBytes);
+    [[nodiscard]] static String from_ascii_without_validation(ReadonlyBytes);
 
     static ErrorOr<String> from_string_builder(Badge<StringBuilder>, StringBuilder&);
     [[nodiscard]] static String from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder&);

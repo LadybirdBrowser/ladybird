@@ -37,6 +37,21 @@ Utf16String Utf16String::from_utf8_with_replacement_character(StringView utf8_st
     return builder.to_utf16_string();
 }
 
+Utf16String Utf16String::from_ascii_without_validation(ReadonlyBytes ascii_string)
+{
+    if (ascii_string.size() <= Detail::MAX_SHORT_STRING_BYTE_COUNT) {
+        Utf16String string;
+        string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(ascii_string.size());
+
+        auto result = ascii_string.copy_to(string.m_value.short_ascii_string.storage);
+        VERIFY(result == ascii_string.size());
+
+        return string;
+    }
+
+    return Utf16String { Detail::Utf16StringData::from_ascii(ascii_string) };
+}
+
 Utf16String Utf16String::from_utf8_without_validation(StringView utf8_string)
 {
     if (utf8_string.length() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && utf8_string.is_ascii()) {
