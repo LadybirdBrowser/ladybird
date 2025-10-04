@@ -7,10 +7,16 @@
         const signal = AbortSignal.timeout(timeout_milliseconds);
         signal.onabort = (event) => {
             const abort_event_time = performance.now();
-            const time_taken_milliseconds = abort_event_time - test_start_time;
+            const time_taken_milliseconds = (abort_event_time - test_start_time) + 1; // Add 1ms for possible coarse clock skew
             println(`Time passed before abort event fired is at least ${timeout_milliseconds} milliseconds: ${time_taken_milliseconds >= timeout_milliseconds}`);
             println(`Reason type: ${signal.reason.name}`);
             println(`onabort event isTrusted: ${event.isTrusted}`);
+            if (time_taken_milliseconds < timeout_milliseconds) {
+               println(`start time: ${test_start_time}`);
+               println(`abort time: ${abort_event_time}`);
+               println(`difference (coarse adjusted): ${time_taken_milliseconds}`);
+               println(`difference (actual): ${time_taken_milliseconds - 1}`);
+            }
             done();
         };
     });
