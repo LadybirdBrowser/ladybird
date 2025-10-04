@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Property anchor-scope value 'none'
+Pass	Property anchor-scope value 'initial'
+Pass	Property anchor-scope value 'all'
+Pass	Property anchor-scope value '--a'
+Pass	Property anchor-scope value '--a, --b'
+Pass	Property anchor-scope value '--a, --b, --c'
+Pass	Property anchor-scope value '--foo, --bar'
+Pass	Property anchor-scope value '--bar, --foo'
+Pass	Property anchor-scope has initial value none
+Pass	Property anchor-scope does not inherit

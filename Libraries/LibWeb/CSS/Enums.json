@@ -824,6 +824,17 @@
     "normal",
     "allow-discrete"
   ],
+  "try-order": [
+    "most-width",
+    "most-height",
+    "most-block-size",
+    "most-inline-size"
+  ],
+  "try-tactic": [
+    "flip-block",
+    "flip-inline",
+    "flip-start"
+  ],
   "unicode-bidi": [
     "bidi-override",
     "embed",

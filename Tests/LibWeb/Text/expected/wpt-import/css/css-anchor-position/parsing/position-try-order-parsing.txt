@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['position-try-order'] = "initial" should set the property value
+Pass	e.style['position-try-order'] = "inherit" should set the property value
+Pass	e.style['position-try-order'] = "unset" should set the property value
+Pass	e.style['position-try-order'] = "revert" should set the property value
+Pass	e.style['position-try-order'] = "normal" should set the property value
+Pass	e.style['position-try-order'] = "most-width" should set the property value
+Pass	e.style['position-try-order'] = "most-height" should set the property value
+Pass	e.style['position-try-order'] = "most-block-size" should set the property value
+Pass	e.style['position-try-order'] = "most-inline-size" should set the property value
+Pass	e.style['position-try-order'] = "normal most-inline-size" should not set the property value
+Pass	e.style['position-try-order'] = "most-block-size most-inline-size" should not set the property value
+Pass	e.style['position-try-order'] = "most-block-size, most-inline-size" should not set the property value

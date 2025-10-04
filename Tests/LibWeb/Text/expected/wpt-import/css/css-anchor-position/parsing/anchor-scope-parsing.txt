@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	e.style['anchor-scope'] = "initial" should set the property value
+Pass	e.style['anchor-scope'] = "inherit" should set the property value
+Pass	e.style['anchor-scope'] = "unset" should set the property value
+Pass	e.style['anchor-scope'] = "revert" should set the property value
+Pass	e.style['anchor-scope'] = "none" should set the property value
+Pass	e.style['anchor-scope'] = "all" should set the property value
+Pass	e.style['anchor-scope'] = "--a" should set the property value
+Pass	e.style['anchor-scope'] = "--a, --b" should set the property value
+Pass	e.style['anchor-scope'] = "--a, --b, --c" should set the property value
+Pass	e.style['anchor-scope'] = "--foo, --bar" should set the property value
+Pass	e.style['anchor-scope'] = "--bar, --foo" should set the property value
+Pass	e.style['anchor-scope'] = "--a none" should not set the property value
+Pass	e.style['anchor-scope'] = "none --a" should not set the property value
+Pass	e.style['anchor-scope'] = "none all" should not set the property value
+Pass	e.style['anchor-scope'] = "--a --b" should not set the property value
+Pass	e.style['anchor-scope'] = "a, b, c" should not set the property value
+Pass	e.style['anchor-scope'] = "" should not set the property value

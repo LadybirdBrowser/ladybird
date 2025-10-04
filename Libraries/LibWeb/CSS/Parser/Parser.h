@@ -422,6 +422,8 @@ private:
     RefPtr<StyleValue const> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);
 
+    RefPtr<StyleValue const> parse_anchor_name_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_anchor_scope_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_animation_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_background_value(TokenStream<ComponentValue>&);
@@ -463,7 +465,12 @@ private:
     RefPtr<StyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_self_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_position_anchor_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_position_area(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_position_area_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_single_position_try_fallbacks_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_position_try_fallbacks_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_position_visibility_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_quotes_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_single_repeat_style_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_scrollbar_color_value(TokenStream<ComponentValue>&);
@@ -481,6 +488,7 @@ private:
     RefPtr<StyleValue const> parse_transition_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_transition_property_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_translate_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_try_tactic_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_scale_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_grid_track_size_list(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_grid_auto_track_sizes(TokenStream<ComponentValue>&);

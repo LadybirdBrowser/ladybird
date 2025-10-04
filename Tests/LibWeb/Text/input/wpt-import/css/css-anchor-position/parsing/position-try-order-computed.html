@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Computed position-try-order</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-order-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/inheritance-testcommon.js"></script>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  test_computed_value("position-try-order", "normal");
+  test_computed_value("position-try-order", "most-width");
+  test_computed_value("position-try-order", "most-height");
+  test_computed_value("position-try-order", "most-block-size");
+  test_computed_value("position-try-order", "most-inline-size");
+
+  assert_not_inherited("position-try-order", "normal", "most-inline-size");
+</script>

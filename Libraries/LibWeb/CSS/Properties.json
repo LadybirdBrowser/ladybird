@@ -194,6 +194,27 @@
     "longhands": [],
     "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
   },
+  "anchor-name": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "custom-ident ![none]"
+    ]
+  },
+  "anchor-scope": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none",
+      "all"
+    ]
+  },
   "animation": {
     "affects-layout": false,
     "inherited": false,
@@ -3081,6 +3102,17 @@
       "positioning"
     ]
   },
+  "position-anchor": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "custom-ident ![auto]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ]
+  },
   "position-area": {
     "animation-type": "discrete",
     "__comment": "Animation type is currently listed as TBD in the specification",
@@ -3091,6 +3123,40 @@
     ],
     "valid-identifiers": [
       "none"
+    ]
+  },
+  "position-try-fallbacks": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident ![none]",
+      "try-tactic"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "position-try-order": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "try-order"
+    ],
+    "valid-identifiers": [
+      "normal"
+    ]
+  },
+  "position-visibility": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "anchors-visible",
+    "valid-identifiers": [
+      "always",
+      "anchors-valid",
+      "anchors-visible",
+      "no-overflow"
     ]
   },
   "quotes": {
