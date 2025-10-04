@@ -9,7 +9,7 @@ set(TEST_SOURCES
 )
 
 # FIXME: Change these tests to use a portable tempfile directory
-if(NOT WIN32)
+if (LINUX)
     list(APPEND TEST_SOURCES
         TestLibCoreFileWatcher.cpp
     )
