@@ -35,12 +35,9 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& stri
     }
 
     auto& string_cache = vm.utf16_string_cache();
-    if (auto it = string_cache.find(string); it != string_cache.end())
-        return *it->value;
-
-    auto new_string = vm.heap().allocate<PrimitiveString>(string);
-    string_cache.set(move(string), new_string);
-    return *new_string;
+    return *string_cache.ensure(string, [&] {
+        return vm.heap().allocate<PrimitiveString>(string);
+    });
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16View const& string)
@@ -67,9 +64,9 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String const& string)
     if (auto it = string_cache.find(string); it != string_cache.end())
         return *it->value;
 
-    auto new_string = vm.heap().allocate<PrimitiveString>(string);
-    string_cache.set(move(string), new_string);
-    return *new_string;
+    return string_cache.ensure(string, [&] {
+        return vm.heap().allocate<PrimitiveString>(string);
+    });
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
