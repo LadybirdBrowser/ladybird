@@ -250,10 +250,10 @@ void RopeString::resolve(EncodingPreference preference) const
         StringBuilder builder(StringBuilder::Mode::UTF16);
 
         for (auto const* current : pieces) {
-            if (current->has_utf8_string())
-                builder.append(current->utf8_string_view());
-            else
+            if (current->has_utf16_string())
                 builder.append(current->utf16_string_view());
+            else
+                builder.append(current->utf8_string_view());
         }
 
         m_utf16_string = builder.to_utf16_string();
