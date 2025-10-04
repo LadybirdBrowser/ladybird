@@ -1358,7 +1358,7 @@ ScopedOperand Generator::add_constant(Value value)
         });
     }
     if (value.is_string()) {
-        auto as_string = value.as_string().utf8_string();
+        auto as_string = value.as_string().utf16_string();
         return m_string_constants.ensure(as_string, [&] {
             return append_new_constant();
         });
