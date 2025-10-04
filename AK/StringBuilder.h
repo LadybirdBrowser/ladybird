@@ -119,6 +119,8 @@ public:
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::Utf16StringData>) { return leak_buffer_for_string_construction(); }
 
 private:
+    void initialize_buffer(Mode, size_t capacity);
+
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction();
 
     ErrorOr<void> will_append(size_t);
