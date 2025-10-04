@@ -510,7 +510,7 @@ ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2],
     if (path.is_null())
         return Error::from_errno(EFAULT);
 
-    auto builder = TRY(StringBuilder::create());
+    StringBuilder builder;
     TRY(builder.try_append(path));
     TRY(builder.try_append('\0'));
 

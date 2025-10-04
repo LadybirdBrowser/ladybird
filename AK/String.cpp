@@ -323,7 +323,7 @@ ErrorOr<String> String::reverse() const
     for (auto code_point : this->code_points())
         code_points.unchecked_append(code_point);
 
-    auto builder = TRY(StringBuilder::create(code_point_length * sizeof(u32)));
+    StringBuilder builder(code_point_length * sizeof(u32));
     while (!code_points.is_empty())
         TRY(builder.try_append_code_point(code_points.take_last()));
 
