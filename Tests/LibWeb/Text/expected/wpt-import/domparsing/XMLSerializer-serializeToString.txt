@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 27 tests
 
-10 Pass
-17 Fail
+11 Pass
+16 Fail
 Pass	check XMLSerializer.serializeToString method could parsing xmldoc to string
 Pass	check XMLSerializer.serializeToString method could parsing document to string
 Pass	Check if the default namespace is correctly reset.
@@ -29,5 +29,5 @@ Fail	Check if "ns1" is generated even if the element already has xmlns:ns1.
 Fail	Check if no special handling for XLink namespace unlike HTML serializer.
 Pass	Check if document fragment serializes.
 Pass	Check children were included for void elements
-Fail	Check if a prefix bound to an empty namespace URI ("no namespace") serialize
+Pass	Check if a prefix bound to an empty namespace URI ("no namespace") serialize
 Pass	Attribute nodes are serialized as the empty string
