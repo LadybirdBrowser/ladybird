@@ -39,6 +39,7 @@ GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM& vm, FetchTimingInfo c
 
 void FetchTimingInfo::update_final_timings(Requests::RequestTimingInfo const& final_timings, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability)
 {
+
     bool has_cross_origin_isolated_capability = cross_origin_isolated_capability == HTML::CanUseCrossOriginIsolatedAPIs::Yes;
 
     auto domain_lookup_start_time_milliseconds = m_start_time + (static_cast<HighResolutionTime::DOMHighResTimeStamp>(final_timings.domain_lookup_start_microseconds) / 1000.0);
