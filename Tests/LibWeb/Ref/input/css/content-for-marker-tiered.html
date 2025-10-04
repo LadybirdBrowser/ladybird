@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html id="html">
+<!doctype html>
+<link rel="match" href="../../expected/css/content-for-marker-tiered-ref.html" />
+<head id="head">
+<style id="style">
+
+ol, ul { counter-reset: item; }
+li { counter-increment: item; }
+
+/* WARNING: This will not work for list items that are descendents but not children */
+ul>li::marker { content: '• '; }
+ol>li::marker { content: counters(item, '.') ': '; }
+
+</style>
+</head>
+<body id="body">
+<ol>
+    <li>One</li>
+    <ul>
+        <li>One-One (bullet)</li>
+        <li>One-Two (bullet)</li>
+            <ul>
+                <li>One-Two-One(bullet)</li>
+                    <ol>
+                        <li>One-Two-One-One</li>
+                        <li>One-Two-One-Two</li>
+                    </ol>
+                <li>One-Two-Two(bullet)</li>
+            </ul>
+        <li>One-Three(bullet)</li>
+    </ul>
+    <li>Two</li>
+</ol>
+</body>
+</html>
