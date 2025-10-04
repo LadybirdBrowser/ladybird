@@ -61,39 +61,37 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
 
     // 5. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, storage_key, name, version, request] {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
         // 1. Let result be the result of opening a database connection, with storageKey, name, version if given and undefined otherwise, and request.
-        auto result = open_a_database_connection(realm, storage_key.value(), name, version, request);
+        open_a_database_connection(realm, storage_key.value(), name, version, request, GC::create_function(realm.heap(), [&realm, request](WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> result) {
+            // 2. Set request’s processed flag to true.
+            request->set_processed(true);
 
-        // 2. Set request’s processed flag to true.
-        request->set_processed(true);
+            // 3. Queue a database task to run these steps:
+            queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
+                // 1. If result is an error, then:
+                if (result.is_error()) {
+                    // 1. Set request’s result to undefined.
+                    request->set_result(JS::js_undefined());
 
-        // 3. Queue a database task to run these steps:
-        queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
-            // 1. If result is an error, then:
-            if (result.is_error()) {
-                // 1. Set request’s result to undefined.
-                request->set_result(JS::js_undefined());
+                    // 2. Set request’s error to result.
+                    request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
 
-                // 2. Set request’s error to result.
-                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
+                    // 3. Set request’s done flag to true.
+                    request->set_done(true);
 
-                // 3. Set request’s done flag to true.
-                request->set_done(true);
+                    // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
+                    request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+                } else {
+                    // 1. Set request’s result to result.
+                    request->set_result(result.release_value());
 
-                // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
-                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
-            } else {
-                // 1. Set request’s result to result.
-                request->set_result(result.release_value());
+                    // 2. Set request’s done flag to true.
+                    request->set_done(true);
 
-                // 2. Set request’s done flag to true.
-                request->set_done(true);
-
-                // 3. Fire an event named success at request.
-                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::success));
-            }
+                    // 3. Fire an event named success at request.
+                    request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::success));
+                }
+            }));
         }));
     }));
 
@@ -141,35 +139,33 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
 
     // 4. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, storage_key, name, request] {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
         // 1. Let result be the result of deleting a database, with storageKey, name, and request.
-        auto result = delete_a_database(realm, storage_key.value(), name, request);
+        delete_a_database(realm, storage_key.value(), name, request, GC::create_function(realm.heap(), [&realm, request](WebIDL::ExceptionOr<u64> result) {
+            // 2. Set request’s processed flag to true.
+            request->set_processed(true);
 
-        // 2. Set request’s processed flag to true.
-        request->set_processed(true);
-
-        // 3. Queue a database task to run these steps:
-        queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
-            // 1.  If result is an error,
-            if (result.is_error()) {
-                // set request’s error to result,
-                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
-                // set request’s done flag to true,
-                request->set_done(true);
-                // and fire an event named error at request with its bubbles and cancelable attributes initialized to true.
-                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error, { .bubbles = true, .cancelable = true }));
-            }
-            // 2. Otherwise,
-            else {
-                // set request’s result to undefined,
-                request->set_result(JS::js_undefined());
-                // set request’s done flag to true,
-                request->set_done(true);
-                // and fire a version change event named success at request with result and null.
-                auto value = result.release_value();
-                fire_a_version_change_event(realm, HTML::EventNames::success, request, value, {});
-            }
+            // 3. Queue a database task to run these steps:
+            queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
+                // 1.  If result is an error,
+                if (result.is_error()) {
+                    // set request’s error to result,
+                    request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
+                    // set request’s done flag to true,
+                    request->set_done(true);
+                    // and fire an event named error at request with its bubbles and cancelable attributes initialized to true.
+                    request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error, { .bubbles = true, .cancelable = true }));
+                }
+                // 2. Otherwise,
+                else {
+                    // set request’s result to undefined,
+                    request->set_result(JS::js_undefined());
+                    // set request’s done flag to true,
+                    request->set_done(true);
+                    // and fire a version change event named success at request with result and null.
+                    auto value = result.release_value();
+                    fire_a_version_change_event(realm, HTML::EventNames::success, request, value, {});
+                }
+            }));
         }));
     }));
 

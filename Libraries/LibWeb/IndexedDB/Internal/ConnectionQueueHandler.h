@@ -17,7 +17,7 @@ using ConnectionMap = HashMap<StorageAPI::StorageKey, HashMap<String, RequestLis
 // https://w3c.github.io/IndexedDB/#connection-queues
 class ConnectionQueueHandler {
 public:
-    static RequestList& for_key_and_name(StorageAPI::StorageKey& key, String& name);
+    static RequestList& for_key_and_name(StorageAPI::StorageKey const& key, String const& name);
     static ConnectionQueueHandler& the()
     {
         static ConnectionQueueHandler s_instance;

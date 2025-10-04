@@ -29,16 +29,8 @@ public:
     [[nodiscard]] GC::Ptr<IDBTransaction> upgrade_transaction() { return m_upgrade_transaction; }
 
     void associate(GC::Ref<IDBDatabase> connection) { m_associated_connections.append(connection); }
-    ReadonlySpan<GC::Ref<IDBDatabase>> associated_connections() { return m_associated_connections; }
-    Vector<GC::Root<IDBDatabase>> associated_connections_except(IDBDatabase& connection)
-    {
-        Vector<GC::Root<IDBDatabase>> connections;
-        for (auto& associated_connection : m_associated_connections) {
-            if (associated_connection != &connection)
-                connections.append(associated_connection);
-        }
-        return connections;
-    }
+    Vector<GC::Root<IDBDatabase>> associated_connections();
+    Vector<GC::Root<IDBDatabase>> associated_connections_except(IDBDatabase& connection);
 
     ReadonlySpan<GC::Ref<ObjectStore>> object_stores() { return m_object_stores; }
     GC::Ptr<ObjectStore> object_store_with_name(String const& name) const;
@@ -49,14 +41,16 @@ public:
     }
 
     [[nodiscard]] static Vector<GC::Root<Database>> for_key(StorageAPI::StorageKey const&);
-    [[nodiscard]] static Optional<GC::Root<Database> const&> for_key_and_name(StorageAPI::StorageKey&, String&);
-    [[nodiscard]] static ErrorOr<GC::Root<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey&, String&);
-    [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey&, String&);
+    [[nodiscard]] static Optional<GC::Root<Database> const&> for_key_and_name(StorageAPI::StorageKey const&, String const&);
+    [[nodiscard]] static ErrorOr<GC::Root<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey const&, String const&);
+    [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey const&, String const&);
 
     static void for_each_database(AK::Function<void(GC::Root<Database> const&)> const& visitor);
 
     [[nodiscard]] static GC::Ref<Database> create(JS::Realm&, String const&);
     virtual ~Database();
+
+    void wait_for_connections_to_close(ReadonlySpan<GC::Root<IDBDatabase>> connections, GC::Ref<GC::Function<void()>> after_all);
 
 protected:
     explicit Database(IDBDatabase& database);
@@ -70,7 +64,20 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
+    struct ConnectionCloseState final : public GC::Cell {
+        GC_CELL(ConnectionCloseState, GC::Cell);
+        GC_DECLARE_ALLOCATOR(ConnectionCloseState);
+
+        virtual void visit_edges(Visitor& visitor) override;
+
+        void add_connection_to_observe(GC::Ref<IDBDatabase> database);
+
+        Vector<GC::Ref<IDBDatabaseObserver>> database_observers;
+        GC::Ptr<GC::Function<void()>> after_all;
+    };
+
     Vector<GC::Ref<IDBDatabase>> m_associated_connections;
+    Vector<GC::Ref<ConnectionCloseState>> m_pending_connection_close_queue;
 
     // A database has a name which identifies it within a specific storage key.
     String m_name;
