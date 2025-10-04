@@ -1,0 +1,21 @@
+<!doctype html>
+<link id="l" rel="stylesheet" href="a.css">
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    const l = document.getElementById('l');
+    
+    println('Starting rapid href changes...');
+    
+    // Trigger overlapping stylesheet fetch lifecycles:
+    l.removeAttribute('href');
+    l.setAttribute('href', '  page.html  ');
+    l.setAttribute('href', 'ht!tp://example.com');
+    
+    // Give time for any fetch responses to complete
+    setTimeout(() => {
+        println('Test completed without crash');
+        done();
+    }, 100);
+});
+</script>
