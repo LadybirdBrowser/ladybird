@@ -376,6 +376,7 @@ SVGDescElement
 SVGElement
 SVGEllipseElement
 SVGFEBlendElement
+SVGFEColorMatrixElement
 SVGFECompositeElement
 SVGFEFloodElement
 SVGFEGaussianBlurElement
