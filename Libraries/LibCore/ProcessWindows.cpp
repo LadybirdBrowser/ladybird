@@ -54,8 +54,6 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     builder.append('\0');
     ByteBuffer command_line = TRY(builder.to_byte_buffer());
 
-    auto curdir = options.working_directory.has_value() ? options.working_directory->characters() : 0;
-
     STARTUPINFO startup_info = {};
     PROCESS_INFORMATION process_info = {};
 
@@ -67,7 +65,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         TRUE, // handles are inherited
         0,    // creation flags
         NULL, // use parent's environment
-        curdir,
+        NULL, // working directory
         &startup_info,
         &process_info);
 
@@ -79,16 +77,15 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process(process_info.hProcess);
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory, KeepAsChild)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments)
 {
     return spawn({
         .executable = path,
         .arguments = Vector<ByteString> { arguments },
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : working_directory,
     });
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory, KeepAsChild)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());
@@ -98,7 +95,6 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
     return spawn({
         .executable = path,
         .arguments = backing_strings,
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : working_directory,
     });
 }
 
@@ -112,12 +108,6 @@ ErrorOr<String> Process::get_name()
         return Error::from_windows_error();
 
     return MUST(Utf16View { reinterpret_cast<char16_t const*>(path), length }.to_utf8());
-}
-
-ErrorOr<void> Process::set_name(StringView, SetThreadName)
-{
-    // Process::set_name() probably cannot be implemented on Windows.
-    return {};
 }
 
 ErrorOr<bool> Process::is_being_debugged()
@@ -147,7 +137,7 @@ pid_t Process::pid() const
     return GetProcessId(m_handle);
 }
 
-ErrorOr<int> Process::wait_for_termination()
+ErrorOr<int> Process::wait_for_termination() const
 {
     auto result = WaitForSingleObject(m_handle, INFINITE);
     if (result == WAIT_FAILED)
