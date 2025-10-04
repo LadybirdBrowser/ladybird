@@ -8,6 +8,7 @@
 #include <AK/QuickSort.h>
 #include <LibWeb/Bindings/CanvasGradientPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -64,14 +65,17 @@ WebIDL::ExceptionOr<void> CanvasGradient::add_color_stop(double offset, StringVi
         return WebIDL::IndexSizeError::create(realm(), "CanvasGradient color stop offset out of bounds"_utf16);
 
     // 2. Let parsed color be the result of parsing color.
-    auto parsed_color = Color::from_string(color);
+    // https://drafts.csswg.org/css-color/#parse-a-css-color-value
+    auto const maybe_color = parse_css_value(CSS::Parser::ParsingParams(), color, CSS::PropertyID::Color);
 
     // 3. If parsed color is failure, throw a "SyntaxError" DOMException.
-    if (!parsed_color.has_value())
+    if (maybe_color.is_null() || !maybe_color->has_color())
         return WebIDL::SyntaxError::create(realm(), "Could not parse color for CanvasGradient"_utf16);
 
+    auto const parsed_color = maybe_color->to_color({}).value();
+
     // 4. Place a new stop on the gradient, at offset offset relative to the whole gradient, and with the color parsed color.
-    TRY_OR_THROW_OOM(realm().vm(), m_gradient->add_color_stop(offset, parsed_color.value()));
+    TRY_OR_THROW_OOM(realm().vm(), m_gradient->add_color_stop(offset, parsed_color));
 
     // FIXME: If multiple stops are added at the same offset on a gradient, then they must be placed in the order added,
     //        with the first one closest to the start of the gradient, and each subsequent one infinitesimally further along
