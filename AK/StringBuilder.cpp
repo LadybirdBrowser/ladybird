@@ -34,16 +34,12 @@ static constexpr size_t string_builder_prefix_size(StringBuilder::Mode mode)
     VERIFY_NOT_REACHED();
 }
 
-static ErrorOr<StringBuilder::Buffer> create_buffer(StringBuilder::Mode mode, size_t capacity)
+void StringBuilder::initialize_buffer(Mode mode, size_t capacity)
 {
-    StringBuilder::Buffer buffer;
     auto prefix_size = string_builder_prefix_size(mode);
-
     if (capacity > StringBuilder::inline_capacity)
-        TRY(buffer.try_ensure_capacity(prefix_size + capacity));
-
-    TRY(buffer.try_resize(prefix_size));
-    return buffer;
+        m_buffer.ensure_capacity(prefix_size + capacity);
+    m_buffer.resize(prefix_size);
 }
 
 StringBuilder::StringBuilder()
@@ -51,24 +47,24 @@ StringBuilder::StringBuilder()
     static constexpr auto prefix_size = string_builder_prefix_size(DEFAULT_MODE);
     static_assert(inline_capacity > prefix_size);
 
-    m_buffer.resize(prefix_size);
+    initialize_buffer(m_mode, inline_capacity);
 }
 
 StringBuilder::StringBuilder(size_t initial_capacity)
-    : m_buffer(MUST(create_buffer(DEFAULT_MODE, initial_capacity)))
 {
+    initialize_buffer(m_mode, initial_capacity);
 }
 
 StringBuilder::StringBuilder(Mode mode)
-    : m_buffer(MUST(create_buffer(mode, inline_capacity)))
-    , m_mode(mode)
+    : m_mode(mode)
 {
+    initialize_buffer(m_mode, inline_capacity);
 }
 
 StringBuilder::StringBuilder(Mode mode, size_t initial_capacity_in_code_units)
-    : m_buffer(MUST(create_buffer(mode, initial_capacity_in_code_units * (mode == Mode::UTF8 ? 1 : 2))))
-    , m_mode(mode)
+    : m_mode(mode)
 {
+    initialize_buffer(mode, initial_capacity_in_code_units * (mode == Mode::UTF8 ? 1 : 2));
 }
 
 inline ErrorOr<void> StringBuilder::will_append(size_t size_in_bytes)
