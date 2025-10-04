@@ -276,14 +276,9 @@ public:
     }
 
     template<typename Callback>
-    V& ensure(K const& key, Callback initialization_callback)
+    V& ensure(K const& key, Callback initialization_callback, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Keep)
     {
-        auto it = find(key);
-        if (it != end())
-            return it->value;
-        auto result = set(key, initialization_callback());
-        VERIFY(result == HashSetResult::InsertedNewEntry);
-        return find(key)->value;
+        return m_table.ensure(KeyTraits::hash(key), [&](auto& entry) { return KeyTraits::equals(entry.key, key); }, [&] -> Entry { return { key, initialization_callback() }; }, existing_entry_behavior).value;
     }
 
     template<typename Callback>
