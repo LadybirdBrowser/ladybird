@@ -46,12 +46,6 @@ static ErrorOr<StringBuilder::Buffer> create_buffer(StringBuilder::Mode mode, si
     return buffer;
 }
 
-ErrorOr<StringBuilder> StringBuilder::create(size_t initial_capacity)
-{
-    auto buffer = TRY(create_buffer(DEFAULT_MODE, initial_capacity));
-    return StringBuilder { move(buffer), DEFAULT_MODE };
-}
-
 StringBuilder::StringBuilder()
 {
     static constexpr auto prefix_size = string_builder_prefix_size(DEFAULT_MODE);
@@ -73,12 +67,6 @@ StringBuilder::StringBuilder(Mode mode)
 
 StringBuilder::StringBuilder(Mode mode, size_t initial_capacity_in_code_units)
     : m_buffer(MUST(create_buffer(mode, initial_capacity_in_code_units * (mode == Mode::UTF8 ? 1 : 2))))
-    , m_mode(mode)
-{
-}
-
-StringBuilder::StringBuilder(Buffer buffer, Mode mode)
-    : m_buffer(move(buffer))
     , m_mode(mode)
 {
 }

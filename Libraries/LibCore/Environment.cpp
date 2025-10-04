@@ -115,7 +115,7 @@ Optional<StringView> get(StringView name, [[maybe_unused]] SecureOnly secure)
 
 ErrorOr<void> set(StringView name, StringView value, Overwrite overwrite)
 {
-    auto builder = TRY(StringBuilder::create());
+    StringBuilder builder;
     TRY(builder.try_append(name));
     TRY(builder.try_append('\0'));
     TRY(builder.try_append(value));
@@ -137,7 +137,7 @@ ErrorOr<void> set(StringView name, StringView value, Overwrite overwrite)
 
 ErrorOr<void> unset(StringView name)
 {
-    auto builder = TRY(StringBuilder::create());
+    StringBuilder builder;
     TRY(builder.try_append(name));
     TRY(builder.try_append('\0'));
     // Note the explicit null terminator above.

@@ -26,8 +26,6 @@ public:
 
     using Buffer = Detail::ByteBuffer<inline_capacity>;
 
-    static ErrorOr<StringBuilder> create(size_t initial_capacity = inline_capacity);
-
     StringBuilder();
     explicit StringBuilder(size_t initial_capacity);
 
@@ -121,8 +119,6 @@ public:
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::Utf16StringData>) { return leak_buffer_for_string_construction(); }
 
 private:
-    StringBuilder(Buffer, Mode);
-
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction();
 
     ErrorOr<void> will_append(size_t);
