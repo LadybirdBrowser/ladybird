@@ -62,7 +62,7 @@ public:
     TrustedTypes::TrustedScriptOrString text() const { return child_text_content(); }
     WebIDL::ExceptionOr<void> set_text(TrustedTypes::TrustedScriptOrString);
 
-    TrustedTypes::TrustedScriptURLOrString src() const { return Utf16String::from_utf8(get_attribute_value(AttributeNames::src)); }
+    TrustedTypes::TrustedScriptURLOrString src() const;
     WebIDL::ExceptionOr<void> set_src(TrustedTypes::TrustedScriptURLOrString);
 
     Variant<GC::Root<TrustedTypes::TrustedScript>, Utf16String, Empty> text_content() const;
