@@ -1,5 +1,7 @@
---- a/src/gpu/ganesh/d3d/GrD3DUtil.h	2024-01-23 22:09:34
-+++ b/src/gpu/ganesh/d3d/GrD3DUtil.h	2024-02-01 18:09:20
+diff --git a/src/gpu/ganesh/d3d/GrD3DUtil.h b/src/gpu/ganesh/d3d/GrD3DUtil.h
+index 7a1078b629..bd5605ae91 100644
+--- a/src/gpu/ganesh/d3d/GrD3DUtil.h
++++ b/src/gpu/ganesh/d3d/GrD3DUtil.h
 @@ -8,6 +8,8 @@
  #ifndef GrD3DUtil_DEFINED
  #define GrD3DUtil_DEFINED
@@ -7,5 +9,5 @@
 +#include <string>
 +
  #include "include/core/SkImage.h"
- #include "include/gpu/GrTypes.h"
- #include "include/gpu/d3d/GrD3DTypes.h"
+ #include "include/gpu/ganesh/GrTypes.h"
+ #include "include/gpu/ganesh/d3d/GrD3DTypes.h"

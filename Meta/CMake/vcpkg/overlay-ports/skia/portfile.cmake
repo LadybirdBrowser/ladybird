@@ -3,18 +3,18 @@ include("${CMAKE_CURRENT_LIST_DIR}/skia-functions.cmake")
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO google/skia
-    REF "501e9efaa2fc929ec67c44da6dbaf9335264b559"
-    SHA512 978af9894d23d7b97d95d402bbf6c0c1401d63990361aae80166b620b0aa06d9dc2c75537850ff4c2df539735b4a12713cb29840613a15cbbff68590c48c4fac
+    REF "66a9fa68df253ee59200364436267a46545aee9e"
+    SHA512 5248b09ca2025caba48f1419277d104e332f1fb6d570fb530b9bb803133cdb79795cccbbe42981397be0c268edb113f26ffd9766ccea0ffab8275633966f6c96
     PATCHES
-        disable-msvc-env-setup.patch
         # disable-dev-test.patch
         skia-include-string.patch
         bentleyottmann-build.patch
         graphite.patch
         vulkan-headers.patch
         pdfsubsetfont-uwp.diff
-        skparagraph-gni.diff
-	    fix-freebsd.patch
+        skparagraph-dllexport.patch
+        fix-freebsd.patch
+        dawn.patch
 )
 
 # De-vendor
@@ -23,8 +23,8 @@ file(REMOVE_RECURSE "${SOURCE_PATH}/include/third_party/vulkan")
 # these following aren't available in vcpkg
 # to update, visit the DEPS file in Skia's root directory
 declare_external_from_git(abseil-cpp
-    URL "https://github.com/abseil/abseil-cpp.git"
-    REF "65a55c2ba891f6d2492477707f4a2e327a0b40dc"
+    URL "https://chromium.googlesource.com/chromium/src/third_party/abseil-cpp.git"
+    REF "cae4b6a3990e1431caa09c7b2ed1c76d0dfeab17"
     LICENSE_FILE LICENSE
 )
 declare_external_from_git(d3d12allocator
@@ -32,14 +32,9 @@ declare_external_from_git(d3d12allocator
     REF "169895d529dfce00390a20e69c2f516066fe7a3b"
     LICENSE_FILE LICENSE.txt
 )
-declare_external_from_git(dawn
-    URL "https://dawn.googlesource.com/dawn.git"
-    REF "db1fa936ad0a58846f179c81cdf60f55267099b9"
-    LICENSE_FILE LICENSE
-)
 declare_external_from_git(dng_sdk
     URL "https://android.googlesource.com/platform/external/dng_sdk.git"
-    REF "679499cc9b92cfb0ae1dccbfd7e97ce719d23576"
+    REF "dbe0a676450d9b8c71bf00688bb306409b779e90"
     LICENSE_FILE LICENSE
 )
 declare_external_from_git(jinja2
@@ -50,6 +45,11 @@ declare_external_from_git(jinja2
 declare_external_from_git(markupsafe
     URL "https://chromium.googlesource.com/chromium/src/third_party/markupsafe"
     REF "0bad08bb207bbfc1d6f3bbc82b9242b0c50e5794"
+    LICENSE_FILE LICENSE
+)
+declare_external_from_git(partition_alloc
+    URL "https://chromium.googlesource.com/chromium/src/base/allocator/partition_allocator.git"
+    REF "ce13777cb731e0a60c606d1741091fd11a0574d7"
     LICENSE_FILE LICENSE
 )
 declare_external_from_git(piex
@@ -64,12 +64,12 @@ declare_external_from_git(spirv-cross
 )
 declare_external_from_git(spirv-headers
     URL "https://github.com/KhronosGroup/SPIRV-Headers.git"
-    REF "1b75a4ae0b4289014b4c369301dc925c366f78a6"
+    REF "97e96f9e9defeb4bba3cfbd034dec516671dd7a3"
     LICENSE_FILE LICENSE
 )
 declare_external_from_git(spirv-tools
     URL "https://github.com/KhronosGroup/SPIRV-Tools.git"
-    REF "87fcbaf1bc8346469e178711eff27cfd20aa1960"
+    REF "3aeaaa088d37b86cff036eee1a9bf452abad7d9d"
     LICENSE_FILE LICENSE
 )
 declare_external_from_git(wuffs
@@ -212,49 +212,12 @@ if("graphite" IN_LIST FEATURES)
 endif()
 
 if("dawn" IN_LIST FEATURES)
-    if (VCPKG_TARGET_IS_LINUX)
-        message(WARNING
-[[
-dawn support requires the following libraries from the system package manager:
-
-    libx11-xcb-dev mesa-common-dev
-
-They can be installed on Debian based systems via
-
-    apt-get install libx11-xcb-dev mesa-common-dev
-]]
-        )
-    endif()
-
-    list(APPEND required_externals
-        spirv-cross
-        spirv-headers
-        spirv-tools
-        jinja2
-        markupsafe
-        vulkan_headers
-## Remove
-        abseil-cpp
-## REMOVE ^
-        dawn
-    )
-    file(REMOVE_RECURSE "${SOURCE_PATH}/third_party/externals/opengl-registry")
-    file(INSTALL "${CURRENT_INSTALLED_DIR}/share/opengl/" DESTINATION "${SOURCE_PATH}/third_party/externals/opengl-registry/xml")
-    # cf. external dawn/src/dawn/native/BUILD.gn
-    string(APPEND OPTIONS " skia_use_dawn=true dawn_use_swiftshader=false")
-    if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
-        string(APPEND OPTIONS " dawn_complete_static_libs=true")
-    endif()
+    string(APPEND OPTIONS " skia_use_dawn=true")
+    declare_external_from_pkgconfig(dawn PATH "third_party/dawn" MODULES unofficial_webgpu_dawn)
+    list(APPEND required_externals dawn)
 endif()
 
 get_externals(${required_externals})
-if(EXISTS "${SOURCE_PATH}/third_party/externals/dawn")
-    vcpkg_find_acquire_program(GIT)
-    vcpkg_replace_string("${SOURCE_PATH}/third_party/externals/dawn/generator/dawn_version_generator.py"
-        "get_git(),"
-        "\"${GIT}\","
-    )
-endif()
 if("icu" IN_LIST FEATURES)
     vcpkg_replace_string("${SOURCE_PATH}/third_party/icu/BUILD.gn"
         [[config("vcpkg_icu") {]]
@@ -308,6 +271,8 @@ if(VCPKG_TARGET_IS_UWP)
     string_to_gn_list(SKIA_LD_FLAGS "-APPCONTAINER WindowsApp.lib")
     string(APPEND OPTIONS " extra_ldflags=${SKIA_LD_FLAGS}")
 endif()
+
+string(APPEND OPTIONS " skia_use_cpp20=true")
 
 vcpkg_gn_configure(
     SOURCE_PATH "${SOURCE_PATH}"
