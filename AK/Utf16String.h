@@ -74,6 +74,13 @@ public:
 
     static Utf16String from_utf32(Utf32View const&);
 
+    ALWAYS_INLINE static constexpr Utf16String from_ascii_character(u8 character)
+    {
+        auto short_string = Detail::ShortString::create_with_byte_count(1);
+        short_string.storage[0] = character;
+        return Utf16String { short_string };
+    }
+
     ALWAYS_INLINE static Utf16String from_code_point(u32 code_point)
     {
         Array<char16_t, 2> code_units;
