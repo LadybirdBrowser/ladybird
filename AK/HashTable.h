@@ -392,6 +392,34 @@ public:
         return MUST(try_set(forward<U>(value), existing_entry_behavior));
     }
 
+    template<typename U = T>
+    T& ensure(U&& value, HashSetExistingEntryBehavior existing_entry_behavior = HashSetExistingEntryBehavior::Replace)
+    {
+        return MUST(try_set(forward<U>(value), existing_entry_behavior));
+    }
+
+    template<typename TUnaryPredicate, typename InitializationCallback>
+    [[nodiscard]] T& ensure(unsigned hash, TUnaryPredicate predicate, InitializationCallback initialization_callback, HashSetExistingEntryBehavior existing_entry_behavior)
+    {
+        if (should_grow())
+            rehash(m_capacity * (100 + grow_capacity_increase_percent) / 100);
+
+        auto [result, bucket] = lookup_for_writing<T>(hash, move(predicate), existing_entry_behavior);
+        switch (result) {
+        case HashSetResult::InsertedNewEntry:
+            new (bucket.slot()) T(initialization_callback());
+            break;
+        case HashSetResult::ReplacedExistingEntry:
+            (*bucket.slot()) = T(initialization_callback());
+            break;
+        case HashSetResult::KeptExistingEntry:
+            break;
+        default:
+            __builtin_unreachable();
+        }
+        return *bucket.slot();
+    }
+
     template<typename TUnaryPredicate>
     [[nodiscard]] Iterator find(unsigned hash, TUnaryPredicate predicate)
     {
@@ -642,8 +670,13 @@ private:
         return static_cast<BucketState>(probe_length + 1);
     }
 
-    template<typename U = T>
-    HashSetResult write_value(U&& value, HashSetExistingEntryBehavior existing_entry_behavior)
+    struct LookupForWritingResult {
+        HashSetResult result;
+        BucketType& bucket;
+    };
+
+    template<typename U, typename TUnaryPredicate>
+    LookupForWritingResult lookup_for_writing(u32 const hash, TUnaryPredicate predicate, HashSetExistingEntryBehavior existing_entry_behavior)
     {
         auto update_collection_for_new_bucket = [&](BucketType& bucket) {
             if constexpr (IsOrdered) {
@@ -685,7 +718,6 @@ private:
             }
         };
 
-        u32 const hash = TraitsForT::hash(value);
         auto bucket_index = hash % m_capacity;
         size_t probe_length = 0;
         for (;;) {
@@ -693,22 +725,19 @@ private:
 
             // We found a free bucket, write to it and stop
             if (bucket->state == BucketState::Free) {
-                new (bucket->slot()) T(forward<U>(value));
                 bucket->state = bucket_state_for_probe_length(probe_length);
                 bucket->hash.set(hash);
                 update_collection_for_new_bucket(*bucket);
                 ++m_size;
-                return HashSetResult::InsertedNewEntry;
+                return { HashSetResult::InsertedNewEntry, *bucket };
             }
 
             // The bucket is already used, does it have an identical value?
-            if (bucket->hash.check(hash)
-                && TraitsForT::equals(*bucket->slot(), static_cast<T const&>(value))) {
+            if (bucket->hash.check(hash) && predicate(*bucket->slot())) {
                 if (existing_entry_behavior == HashSetExistingEntryBehavior::Replace) {
-                    (*bucket->slot()) = forward<U>(value);
-                    return HashSetResult::ReplacedExistingEntry;
+                    return { HashSetResult::ReplacedExistingEntry, *bucket };
                 }
-                return HashSetResult::KeptExistingEntry;
+                return { HashSetResult::KeptExistingEntry, *bucket };
             }
 
             // Robin hood: if our probe length is larger (poor) than this bucket's (rich), steal its position!
@@ -720,7 +749,7 @@ private:
                 update_collection_for_swapped_buckets(bucket, &bucket_to_move);
 
                 // Write new bucket
-                new (bucket->slot()) T(forward<U>(value));
+                BucketType* inserted_bucket = bucket;
                 bucket->state = bucket_state_for_probe_length(probe_length);
                 bucket->hash.set(hash);
                 probe_length = target_probe_length;
@@ -752,7 +781,7 @@ private:
                     }
                 }
 
-                return HashSetResult::InsertedNewEntry;
+                return { HashSetResult::InsertedNewEntry, *inserted_bucket };
             }
 
             // Try next bucket
@@ -760,6 +789,26 @@ private:
                 bucket_index = 0;
             ++probe_length;
         }
+    }
+
+    template<typename U = T>
+    HashSetResult write_value(U&& value, HashSetExistingEntryBehavior existing_entry_behavior)
+    {
+        u32 const hash = TraitsForT::hash(value);
+        auto [result, bucket] = lookup_for_writing<U>(hash, [&](auto& candidate) { return TraitsForT::equals(candidate, static_cast<T const&>(value)); }, existing_entry_behavior);
+        switch (result) {
+        case HashSetResult::ReplacedExistingEntry:
+            (*bucket.slot()) = forward<U>(value);
+            break;
+        case HashSetResult::InsertedNewEntry:
+            new (bucket.slot()) T(forward<U>(value));
+            break;
+        case HashSetResult::KeptExistingEntry:
+            break;
+        default:
+            __builtin_unreachable();
+        }
+        return result;
     }
 
     void delete_bucket(auto& bucket)
