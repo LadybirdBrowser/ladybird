@@ -148,7 +148,7 @@ public:
             return Value { PrimitiveString::create(vm, as_string()) };
         if (is_symbol())
             return Value { as_symbol() };
-        return Value { PrimitiveString::create(vm, String::number(as_number())) };
+        return Value { PrimitiveString::create_from_unsigned_integer(vm, as_number()) };
     }
 
     Utf16String to_string() const

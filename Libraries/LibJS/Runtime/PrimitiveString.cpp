@@ -82,6 +82,19 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string
     return create(vm, string.to_string());
 }
 
+GC::Ref<PrimitiveString> PrimitiveString::create_from_unsigned_integer(VM& vm, u64 number)
+{
+    if (number < vm.numeric_string_cache().size()) {
+        auto& cache_slot = vm.numeric_string_cache()[number];
+        if (!cache_slot) {
+            auto string = Utf16String::number(number);
+            cache_slot = create(vm, string);
+        }
+        return *cache_slot;
+    }
+    return create(vm, Utf16String::number(number));
+}
+
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
 {
     // We're here to concatenate two strings into a new rope string. However, if any of them are empty, no rope is required.

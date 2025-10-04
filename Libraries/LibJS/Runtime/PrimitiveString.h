@@ -35,6 +35,8 @@ public:
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
 
+    [[nodiscard]] static GC::Ref<PrimitiveString> create_from_unsigned_integer(VM&, u64);
+
     virtual ~PrimitiveString();
 
     PrimitiveString(PrimitiveString const&) = delete;
