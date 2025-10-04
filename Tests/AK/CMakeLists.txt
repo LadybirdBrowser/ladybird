@@ -44,6 +44,7 @@ set(AK_TEST_SOURCES
     TestIntrusiveRedBlackTree.cpp
     TestJSON.cpp
     TestLEB128.cpp
+    TestExactRepresentation.cpp
     TestMemory.cpp
     TestMemoryStream.cpp
     TestNeverDestroyed.cpp
