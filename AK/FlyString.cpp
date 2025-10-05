@@ -61,15 +61,16 @@ FlyString::FlyString(String const& string)
         return;
     }
 
-    auto it = all_fly_strings().find(string.m_impl.data);
-    if (it == all_fly_strings().end()) {
-        m_data = string;
-        all_fly_strings().set(string.m_impl.data);
-        string.m_impl.data->set_fly_string(true);
-    } else {
-        m_data.m_impl.data = *it;
-        m_data.m_impl.data->ref();
-    }
+    auto const* shared_data = all_fly_strings().ensure(
+        string.hash(),
+        [&](auto& candidate) { return *candidate == *string.m_impl.data; },
+        [&] {
+            string.m_impl.data->set_fly_string(true);
+            return string.m_impl.data;
+        },
+        HashSetExistingEntryBehavior::Keep);
+    shared_data->ref();
+    m_data.m_impl.data = shared_data;
 }
 
 FlyString& FlyString::operator=(String const& string)

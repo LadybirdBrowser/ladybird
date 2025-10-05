@@ -85,14 +85,16 @@ Utf16FlyString::Utf16FlyString(Utf16String const& string)
         return;
     }
 
-    if (auto it = all_utf16_fly_strings().find(data); it == all_utf16_fly_strings().end()) {
-        m_data = string;
+    auto const* shared_data = all_utf16_fly_strings().ensure(
+        data->hash(),
+        [&](auto& candidate) { return *data == *candidate; },
+        [&] {
+            data->mark_as_fly_string({});
+            return data;
+        },
+        HashSetExistingEntryBehavior::Keep);
 
-        all_utf16_fly_strings().set(data);
-        data->mark_as_fly_string({});
-    } else {
-        m_data.set_data({}, *it);
-    }
+    m_data.set_data({}, shared_data);
 }
 
 size_t Utf16FlyString::number_of_utf16_fly_strings()
