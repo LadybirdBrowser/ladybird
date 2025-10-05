@@ -1580,20 +1580,19 @@ HANDLE_INSTRUCTION(memory_fill)
         auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
         auto instance = configuration.store().get(address);
         // bounds checked by verifier.
-        auto count = configuration.take_source(0, addresses.sources).to<u32>();
-        u8 value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
-        auto destination_offset = configuration.take_source(2, addresses.sources).to<u32>();
+        auto const count = configuration.take_source(0, addresses.sources).to<u32>();
+        auto const value = static_cast<u8>(configuration.take_source(1, addresses.sources).to<u32>());
+        auto const destination_offset = configuration.take_source(2, addresses.sources).to<u32>();
 
-        Checked<u32> checked_end = destination_offset;
+        Checked<u64> checked_end = destination_offset;
         checked_end += count;
         TRAP_IN_LOOP_IF_NOT(!checked_end.has_overflow() && static_cast<size_t>(checked_end.value()) <= instance->data().size());
 
         if (count == 0)
             TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
-        Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
-        for (u32 i = 0; i < count; ++i) {
-            if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
+        for (u64 i = 0; i < count; ++i) {
+            if (interpreter.store_to_memory(*instance, destination_offset + i, value))
                 return Outcome::Return;
         }
     }
@@ -1624,17 +1623,16 @@ HANDLE_INSTRUCTION(memory_copy)
     if (count == 0)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
-    Instruction::MemoryArgument memarg { 0, 0, args.dst_index };
     if (destination_offset <= source_offset) {
         for (auto i = 0; i < count; ++i) {
             auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
+            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
                 return Outcome::Return;
         }
     } else {
         for (auto i = count - 1; i >= 0; --i) {
             auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
+            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
                 return Outcome::Return;
         }
     }
@@ -1664,10 +1662,9 @@ HANDLE_INSTRUCTION(memory_init)
     if (count == 0)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
-    Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
     for (size_t i = 0; i < (size_t)count; ++i) {
         auto value = data.data()[source_offset + i];
-        if (interpreter.store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i))
+        if (interpreter.store_to_memory(*memory, destination_offset + i, value))
             return Outcome::Return;
     }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -3984,18 +3981,34 @@ bool BytecodeInterpreter::pop_and_store_lane_n(Configuration& configuration, Ins
 
 bool BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction::MemoryArgument const& arg, ReadonlyBytes data, u32 base)
 {
-    auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
+    auto const& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
     auto memory = configuration.store().get(address);
     u64 instance_address = static_cast<u64>(base) + arg.offset;
-    Checked addition { instance_address };
-    addition += data.size();
-    if (addition.has_overflow() || addition.value() > memory->size()) [[unlikely]] {
+    return store_to_memory(*memory, instance_address, data);
+}
+
+template<typename T>
+bool BytecodeInterpreter::store_to_memory(MemoryInstance& memory, u64 address, T value)
+{
+    Checked addition { address };
+    size_t data_size;
+    if constexpr (IsSame<ReadonlyBytes, T>)
+        data_size = value.size();
+    else
+        data_size = sizeof(T);
+
+    addition += data_size;
+    if (addition.has_overflow() || addition.value() > memory.size()) [[unlikely]] {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", instance_address, instance_address + data.size(), memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", address, address + data_size, memory.size());
         return true;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "temporary({}b) -> store({})", data.size(), instance_address);
-    (void)data.copy_to(memory->data().bytes().slice(instance_address, data.size()));
+
+    dbgln_if(WASM_TRACE_DEBUG, "temporary({}b) -> store({})", data_size, address);
+    if constexpr (IsSame<ReadonlyBytes, T>)
+        (void)value.copy_to(memory.data().bytes().slice(address, data_size));
+    else
+        memcpy(memory.data().bytes().offset_pointer(address), &value, data_size);
     return false;
 }
 

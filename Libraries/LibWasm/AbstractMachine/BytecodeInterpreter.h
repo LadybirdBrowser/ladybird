@@ -90,6 +90,9 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     bool store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
     bool call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
 
+    template<typename T>
+    bool store_to_memory(MemoryInstance&, u64 address, T value);
+
     template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
     bool binary_numeric_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
