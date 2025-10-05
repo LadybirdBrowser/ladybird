@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	 Dispatch additional events inside an event listener 
+1 Pass
+Pass	 Dispatch additional events inside an event listener 

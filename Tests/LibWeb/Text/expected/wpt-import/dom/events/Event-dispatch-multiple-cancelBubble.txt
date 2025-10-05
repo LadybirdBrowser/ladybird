@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Multiple dispatchEvent() and cancelBubble
+1 Pass
+Pass	Multiple dispatchEvent() and cancelBubble
