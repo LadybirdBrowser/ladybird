@@ -5,6 +5,7 @@
  */
 
 #include <AK/OwnPtr.h>
+#include <AK/StringView.h>
 #include <LibGfx/MetalContext.h>
 
 #import <Metal/Metal.h>
@@ -74,6 +75,9 @@ RefPtr<MetalContext> get_metal_context()
         dbgln("Failed to create Metal device");
         return {};
     }
+
+    auto device_name = [device.name UTF8String];
+    dbgln("Selected Metal graphical device: {}", StringView(device_name, strlen(device_name)));
 
     auto queue = [device newCommandQueue];
     if (!queue) {

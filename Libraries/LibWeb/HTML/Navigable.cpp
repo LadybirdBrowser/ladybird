@@ -151,8 +151,11 @@ Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
     if (!m_is_svg_page) {
         OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
         if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
+            if (!m_skia_backend_context)
+                dbgln("Falling back to CPU Backend painter");
             skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
         } else {
+            dbgln("Falling back to CPU Backend painter");
             skia_player = make<Painting::DisplayListPlayerSkia>();
         }
         m_rendering_thread.set_skia_player(move(skia_player));
