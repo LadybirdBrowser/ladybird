@@ -14,72 +14,39 @@ bool font_format_is_supported(FontFormat const format)
 {
     // FIXME: Determine these automatically.
     switch (format) {
-    case FontFormat::EmbeddedOpenType:
-        return false;
     case FontFormat::OpenType:
-        return true;
-    case FontFormat::SVG:
-        return false;
     case FontFormat::TrueType:
-        return true;
     case FontFormat::TrueTypeCollection:
-        return true;
     case FontFormat::WOFF:
-        return true;
     case FontFormat::WOFF2:
         return true;
+    default:
+        return false;
     }
-
-    return false;
 }
 
 bool font_tech_is_supported(FontTech const font_tech)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-tech-definitions
-    // FIXME: Determine these automatically.
-    switch (font_tech) {
-    case FontTech::FeaturesOpentype:
-        // GSUB and GPOS, supported by HarfBuzz
-        return true;
-    case FontTech::FeaturesAat:
-        // morx and kerx, supported by HarfBuzz
-        return true;
-    case FontTech::FeaturesGraphite:
-        // Silf, Glat , Gloc , Feat and Sill. HarfBuzz may or may not be built with support for it.
-#if HB_HAS_GRAPHITE
-        return true;
-#else
-        return false;
-#endif
-    case FontTech::Variations:
-        // avar, cvar, fvar, gvar, HVAR, MVAR, STAT, and VVAR, supported by HarfBuzz
-        // FIXME: This does not actually seem to work and causes issues with the font weight on https://ladybird.org
-        return false;
-    case FontTech::ColorColrv0:
-    case FontTech::ColorColrv1:
-        // COLR, supported by HarfBuzz
-        return true;
-    case FontTech::ColorSvg:
-        // SVG, supported by HarfBuzz
-        return true;
-    case FontTech::ColorSbix:
-        // sbix, supported by HarfBuzz
-        return true;
-    case FontTech::ColorCbdt:
-        // CBDT, supported by HarfBuzz
-        return true;
-    case FontTech::Palettes:
-        // CPAL, supported by HarfBuzz
-        return true;
-    case FontTech::Incremental:
-        // Incremental Font Transfer: https://w3c.github.io/IFT/Overview.html
-        return false;
     // https://drafts.csswg.org/css-fonts-5/#font-tech-definitions
-    case FontTech::Avar2:
-        // avar version 2, supported by HarfBuzz
+
+    // FIXME: Determine these automatically.
+    // FIXME: FontTech::Variations does not actually seem to work and causes issues with the font weight on https://ladybird.org
+
+    switch (font_tech) {
+    case FontTech::FeaturesOpentype: // GSUB and GPOS, supported by HarfBuzz
+    case FontTech::FeaturesAat: // morx and kerx, supported by HarfBuzz
+    case FontTech::ColorColrv0:
+    case FontTech::ColorColrv1: // COLR, supported by HarfBuzz
+    case FontTech::ColorSvg: // SVG, supported by HarfBuzz
+    case FontTech::ColorSbix: // sbix, supported by HarfBuzz
+    case FontTech::ColorCbdt: // CBDT, supported by HarfBuzz
+    case FontTech::Avar2: // avar version 2, supported by HarfBuzz
+    case FontTech::Palettes: // CPAL, supported by HarfBuzz
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 }
