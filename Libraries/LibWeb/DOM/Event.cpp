@@ -12,6 +12,8 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::DOM {
@@ -261,6 +263,15 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
 
     // 17. Return composedPath.
     return composed_path;
+}
+
+// AD-HOC: Needed to return a WindowProxy when the current target is a Window,
+// ensuring that JavaScript sees the correct global object instead of the internal Window.
+GC::Ptr<EventTarget> Event::current_target_for_bindings() const
+{
+    if (auto* window = as_if<HTML::Window>(m_current_target.ptr()))
+        return window->window();
+    return m_current_target;
 }
 
 }
