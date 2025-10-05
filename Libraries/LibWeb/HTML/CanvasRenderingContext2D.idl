@@ -41,6 +41,7 @@ enum CanvasLineJoin { "round", "bevel", "miter" };
 // FIXME: This should be in CanvasTextDrawingStyles.idl but then it is not exported
 enum CanvasTextAlign { "start", "end", "left", "right", "center" };
 enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic", "bottom" };
+enum CanvasDirection { "ltr", "rtl", "inherit" };
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d
 [Exposed=Window]
