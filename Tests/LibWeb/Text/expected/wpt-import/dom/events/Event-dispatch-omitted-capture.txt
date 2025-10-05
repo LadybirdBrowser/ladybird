@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	EventTarget.addEventListener with the capture argument omitted
+1 Pass
+Pass	EventTarget.addEventListener with the capture argument omitted
