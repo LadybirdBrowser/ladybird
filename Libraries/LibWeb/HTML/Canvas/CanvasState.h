@@ -103,6 +103,7 @@ public:
         RefPtr<Gfx::FontCascadeList const> current_font_cascade_list { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
         Bindings::CanvasTextBaseline text_baseline { Bindings::CanvasTextBaseline::Alphabetic };
+        Bindings::CanvasDirection direction { Bindings::CanvasDirection::Inherit };
     };
     DrawingState& drawing_state() { return m_drawing_state; }
     DrawingState const& drawing_state() const { return m_drawing_state; }

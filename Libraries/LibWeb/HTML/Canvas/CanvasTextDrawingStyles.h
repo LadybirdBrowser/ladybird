@@ -155,6 +155,9 @@ public:
     Bindings::CanvasTextBaseline text_baseline() const { return my_drawing_state().text_baseline; }
     void set_text_baseline(Bindings::CanvasTextBaseline text_baseline) { my_drawing_state().text_baseline = text_baseline; }
 
+    Bindings::CanvasDirection direction() const { return my_drawing_state().direction; }
+    void set_direction(Bindings::CanvasDirection direction) { my_drawing_state().direction = direction; }
+
 protected:
     CanvasTextDrawingStyles() = default;
 
