@@ -81,10 +81,10 @@ class BooleanExpression {
 public:
     virtual ~BooleanExpression() = default;
 
-    bool evaluate_to_boolean(HTML::Window const*) const;
+    bool evaluate_to_boolean(DOM::Document const*) const;
     static void indent(StringBuilder& builder, int levels);
 
-    virtual MatchResult evaluate(HTML::Window const*) const = 0;
+    virtual MatchResult evaluate(DOM::Document const*) const = 0;
     virtual String to_string() const = 0;
     virtual void dump(StringBuilder&, int indent_levels = 0) const = 0;
 };
@@ -98,7 +98,7 @@ public:
     }
     virtual ~GeneralEnclosed() override = default;
 
-    virtual MatchResult evaluate(HTML::Window const*) const override { return m_matches; }
+    virtual MatchResult evaluate(DOM::Document const*) const override { return m_matches; }
     virtual String to_string() const override { return m_serialized_contents; }
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -121,7 +121,7 @@ public:
     }
     virtual ~BooleanNotExpression() override = default;
 
-    virtual MatchResult evaluate(HTML::Window const*) const override;
+    virtual MatchResult evaluate(DOM::Document const*) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -142,7 +142,7 @@ public:
     }
     virtual ~BooleanExpressionInParens() override = default;
 
-    virtual MatchResult evaluate(HTML::Window const*) const override;
+    virtual MatchResult evaluate(DOM::Document const*) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -163,7 +163,7 @@ public:
     }
     virtual ~BooleanAndExpression() override = default;
 
-    virtual MatchResult evaluate(HTML::Window const*) const override;
+    virtual MatchResult evaluate(DOM::Document const*) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -184,7 +184,7 @@ public:
     }
     virtual ~BooleanOrExpression() override = default;
 
-    virtual MatchResult evaluate(HTML::Window const*) const override;
+    virtual MatchResult evaluate(DOM::Document const*) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 

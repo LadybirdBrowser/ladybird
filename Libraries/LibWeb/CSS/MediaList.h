@@ -33,7 +33,7 @@ public:
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
-    bool evaluate(HTML::Window const&);
+    bool evaluate(DOM::Document const&);
     bool matches() const;
 
     void set_associated_style_sheet(GC::Ref<StyleSheet> style_sheet) { m_associated_style_sheet = style_sheet; }

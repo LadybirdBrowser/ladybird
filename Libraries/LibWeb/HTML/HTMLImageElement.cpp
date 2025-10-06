@@ -1188,7 +1188,7 @@ static void update_the_source_set(DOM::Element& element)
         if (child->has_attribute(HTML::AttributeNames::media)) {
             auto media_query = parse_media_query(CSS::Parser::ParsingParams { element.document() },
                 child->get_attribute_value(HTML::AttributeNames::media));
-            if (!media_query || !element.document().window() || !media_query->evaluate(*element.document().window())) {
+            if (!media_query || !media_query->evaluate(element.document())) {
                 continue;
             }
         }

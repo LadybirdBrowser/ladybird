@@ -109,7 +109,7 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
     // NOTE: We evaluate media queries immediately when adding a new sheet.
     //       This coalesces the full document style invalidations.
     //       If we don't do this, we invalidate now, and then again when Document updates media rules.
-    sheet.evaluate_media_queries(as<HTML::Window>(HTML::relevant_global_object(*this)));
+    sheet.evaluate_media_queries(document());
 
     if (sheet.rules().length() == 0) {
         // NOTE: If the added sheet has no rules, we don't have to invalidate anything.

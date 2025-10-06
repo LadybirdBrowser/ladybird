@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	@media(width:100vw) applies
+Pass	@media(width:100vi) applies
+Pass	@media(width:100vmax) applies
+Pass	@media(width:100svw) applies
+Pass	@media(width:100svi) applies
+Pass	@media(width:100svmax) applies
+Pass	@media(width:100lvw) applies
+Pass	@media(width:100lvi) applies
+Pass	@media(width:100lvmax) applies
+Pass	@media(width:100dvw) applies
+Pass	@media(width:100dvi) applies
+Pass	@media(width:100dvmax) applies
+Pass	@media(height:100vh) applies
+Pass	@media(height:100vb) applies
+Pass	@media(height:100vmin) applies
+Pass	@media(height:100svh) applies
+Pass	@media(height:100svb) applies
+Pass	@media(height:100svmin) applies
+Pass	@media(height:100lvh) applies
+Pass	@media(height:100lvb) applies
+Pass	@media(height:100lvmin) applies
+Pass	@media(height:100dvh) applies
+Pass	@media(height:100dvb) applies
+Pass	@media(height:100dvmin) applies
+Pass	@media(width:90vw) does not apply
+Pass	@media(height:90vh) does not apply

@@ -96,16 +96,17 @@ String MediaFeature::to_string() const
     VERIFY_NOT_REACHED();
 }
 
-MatchResult MediaFeature::evaluate(HTML::Window const* window) const
+MatchResult MediaFeature::evaluate(DOM::Document const* document) const
 {
-    VERIFY(window);
-    auto maybe_queried_value = window->query_media_feature(m_id);
+    VERIFY(document);
+    VERIFY(document->window());
+    auto maybe_queried_value = document->window()->query_media_feature(m_id);
     if (!maybe_queried_value.has_value())
         return MatchResult::False;
     auto queried_value = maybe_queried_value.release_value();
 
     CalculationResolutionContext calculation_context {
-        .length_resolution_context = Length::ResolutionContext::for_window(*window),
+        .length_resolution_context = Length::ResolutionContext::for_document(*document),
     };
     switch (m_type) {
     case Type::IsTrue:
@@ -128,23 +129,23 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
         return MatchResult::False;
 
     case Type::ExactValue:
-        return compare(*window, value(), Comparison::Equal, queried_value);
+        return compare(*document, value(), Comparison::Equal, queried_value);
 
     case Type::MinValue:
-        return compare(*window, queried_value, Comparison::GreaterThanOrEqual, value());
+        return compare(*document, queried_value, Comparison::GreaterThanOrEqual, value());
 
     case Type::MaxValue:
-        return compare(*window, queried_value, Comparison::LessThanOrEqual, value());
+        return compare(*document, queried_value, Comparison::LessThanOrEqual, value());
 
     case Type::Range: {
         auto const& range = this->range();
         if (range.left_comparison.has_value()) {
-            if (auto const left_result = compare(*window, *range.left_value, *range.left_comparison, queried_value); left_result != MatchResult::True)
+            if (auto const left_result = compare(*document, *range.left_value, *range.left_comparison, queried_value); left_result != MatchResult::True)
                 return left_result;
         }
 
         if (range.right_comparison.has_value()) {
-            if (auto const right_result = compare(*window, queried_value, *range.right_comparison, *range.right_value); right_result != MatchResult::True)
+            if (auto const right_result = compare(*document, queried_value, *range.right_comparison, *range.right_value); right_result != MatchResult::True)
                 return right_result;
         }
 
@@ -155,7 +156,7 @@ MatchResult MediaFeature::evaluate(HTML::Window const* window) const
     VERIFY_NOT_REACHED();
 }
 
-MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right)
+MatchResult MediaFeature::compare(DOM::Document const& document, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right)
 {
     if (left.is_unknown() || right.is_unknown())
         return MatchResult::Unknown;
@@ -169,7 +170,7 @@ MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue 
         return MatchResult::False;
     }
 
-    auto length_resolution_context = Length::ResolutionContext::for_window(window);
+    auto length_resolution_context = Length::ResolutionContext::for_document(document);
 
     CalculationResolutionContext calculation_context {
         .length_resolution_context = length_resolution_context,
@@ -282,7 +283,7 @@ String MediaQuery::to_string() const
     return MUST(builder.to_string());
 }
 
-bool MediaQuery::evaluate(HTML::Window const& window)
+bool MediaQuery::evaluate(DOM::Document const& document)
 {
     auto matches_media = [](MediaType const& media) -> MatchResult {
         if (!media.known_type.has_value())
@@ -303,7 +304,7 @@ bool MediaQuery::evaluate(HTML::Window const& window)
     MatchResult result = matches_media(m_media_type);
 
     if ((result != MatchResult::False) && m_media_condition)
-        result = result && m_media_condition->evaluate(&window);
+        result = result && m_media_condition->evaluate(&document);
 
     if (m_negated)
         result = negate(result);

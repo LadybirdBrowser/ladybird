@@ -137,6 +137,18 @@ Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window con
     };
 }
 
+Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document const& document)
+{
+    auto const& initial_font = document.style_computer().initial_font();
+    Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
+    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height() };
+    return Length::ResolutionContext {
+        .viewport_rect = document.navigable()->viewport_rect(),
+        .font_metrics = font_metrics,
+        .root_font_metrics = font_metrics,
+    };
+}
+
 Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Node const& node)
 {
     Layout::Node const* root_layout_node;

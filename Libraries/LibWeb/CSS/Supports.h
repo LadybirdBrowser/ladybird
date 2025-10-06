@@ -26,7 +26,7 @@ public:
         }
         virtual ~Declaration() override = default;
 
-        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual MatchResult evaluate(DOM::Document const*) const override;
         virtual String to_string() const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -48,7 +48,7 @@ public:
         }
         virtual ~Selector() override = default;
 
-        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual MatchResult evaluate(DOM::Document const*) const override;
         virtual String to_string() const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -70,7 +70,7 @@ public:
         }
         virtual ~FontTech() override = default;
 
-        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual MatchResult evaluate(DOM::Document const*) const override;
         virtual String to_string() const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -92,7 +92,7 @@ public:
         }
         virtual ~FontFormat() override = default;
 
-        virtual MatchResult evaluate(HTML::Window const*) const override;
+        virtual MatchResult evaluate(DOM::Document const*) const override;
         virtual String to_string() const override;
         virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 

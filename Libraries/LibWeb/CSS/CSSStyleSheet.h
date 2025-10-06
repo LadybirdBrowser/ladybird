@@ -63,7 +63,7 @@ public:
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     void for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
-    bool evaluate_media_queries(HTML::Window const&);
+    bool evaluate_media_queries(DOM::Document const&);
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
 
     void add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);

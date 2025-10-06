@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 12 tests
 
-2 Pass
-10 Fail
+11 Pass
+1 Fail
 Pass	box should be orange if the calc between px-em in @media was correct
-Fail	box should be orange if the calc between vh+em in @media was correct
-Fail	box should be orange if the calc between vw-em in @media was correct
-Fail	box should be orange if the calc between vw+vh in @media was correct
-Fail	box should be orange if the calc between vh+px in @media was correct
-Fail	box should be orange if the calc between vw+px in @media was correct
+Pass	box should be orange if the calc between vh+em in @media was correct
+Pass	box should be orange if the calc between vw-em in @media was correct
+Pass	box should be orange if the calc between vw+vh in @media was correct
+Pass	box should be orange if the calc between vh+px in @media was correct
+Pass	box should be orange if the calc between vw+px in @media was correct
 Pass	box should be orange if the calc between px/em*em in @media was correct
-Fail	box should be orange if the calc between vh*em in @media was correct
+Pass	box should be orange if the calc between vh*em in @media was correct
 Fail	box should be orange if the calc between vh*vw/em*px/vh in @media was correct
-Fail	box should be orange if the calc between vw/px*vh in @media was correct
-Fail	box should be orange if the calc between vh*vw/em*px in @media was correct
-Fail	box should be orange if the calc between vw*vh*px*em/px/px/px in @media was correct
+Pass	box should be orange if the calc between vw/px*vh in @media was correct
+Pass	box should be orange if the calc between vh*vw/em*px in @media was correct
+Pass	box should be orange if the calc between vw*vh*px*em/px/px/px in @media was correct
