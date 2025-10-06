@@ -72,14 +72,25 @@ jobs:
           cd wasm-repl
           tar -xvzf ladybird-wasm-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
 
-      - name: 'Run the JS and Wasm benchmarks'
+      - name: 'Run the benchmarks'
         shell: bash
         run: |
           cd js-benchmarks
           python3 -m venv .venv
           source .venv/bin/activate
           python3 -m pip install -r requirements.txt
-          ./run.py --executable=${{ github.workspace }}/js-repl/bin/js --wasm-executable=${{ github.workspace }}/wasm-repl/bin/wasm --iterations=5
+
+          run_options="--iterations=5"
+
+          if [ "${{ github.event.workflow_run.event }}" = "workflow_dispatch" ]; then
+              # Upstream was run manually; we might run into failing benchmarks as a result of older builds.
+              run_options="${run_options} --continue-on-failure"
+          fi
+
+          ./run.py \
+              --executable=${{ github.workspace }}/js-repl/bin/js \
+              --wasm-executable=${{ github.workspace }}/wasm-repl/bin/wasm \
+              ${run_options}
 
       - name: 'Save results as an artifact'
         uses: actions/upload-artifact@v4
