@@ -75,12 +75,12 @@ public:
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 
-    HashMap<String, GC::Ref<PrimitiveString>>& string_cache()
+    HashMap<String, GC::Ptr<PrimitiveString>>& string_cache()
     {
         return m_string_cache;
     }
 
-    HashMap<Utf16String, GC::Ref<PrimitiveString>>& utf16_string_cache()
+    HashMap<Utf16String, GC::Ptr<PrimitiveString>>& utf16_string_cache()
     {
         return m_utf16_string_cache;
     }
@@ -323,8 +323,8 @@ private:
 
     void run_queued_promise_jobs_impl();
 
-    HashMap<String, GC::Ref<PrimitiveString>> m_string_cache;
-    HashMap<Utf16String, GC::Ref<PrimitiveString>> m_utf16_string_cache;
+    HashMap<String, GC::Ptr<PrimitiveString>> m_string_cache;
+    HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
 
     static constexpr size_t numeric_string_cache_size = 1000;
     AK::Array<GC::Ptr<PrimitiveString>, numeric_string_cache_size> m_numeric_string_cache;
