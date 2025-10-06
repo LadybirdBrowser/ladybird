@@ -10,6 +10,8 @@
 #include <LibWeb/Bindings/ServiceWorkerRegistrationPrototype.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -34,7 +36,7 @@ public:
     [[nodiscard]] static GC::Ref<ServiceWorkerContainer> create(JS::Realm& realm);
     virtual ~ServiceWorkerContainer() override;
 
-    GC::Ref<WebIDL::Promise> register_(String script_url, RegistrationOptions const& options);
+    GC::Ref<WebIDL::Promise> register_(TrustedTypes::TrustedScriptURLOrString script_url, RegistrationOptions const& options);
 
     GC::Ref<WebIDL::Promise> get_registration(String const& client_url);
 
