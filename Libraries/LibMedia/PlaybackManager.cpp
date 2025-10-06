@@ -26,7 +26,7 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
         auto matroska_result = Matroska::MatroskaDemuxer::from_data(data);
         if (!matroska_result.is_error())
             return matroska_result.release_value();
-        return DECODER_TRY_ALLOC(FFmpeg::FFmpegDemuxer::create(make<FixedMemoryStream>(data)));
+        return TRY(FFmpeg::FFmpegDemuxer::from_data(data));
     }());
     auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
 
