@@ -69,6 +69,23 @@ static inline AK::Duration time_units_to_duration(i64 time_units, AVRational con
     return time_units_to_duration(time_units, time_base.num, time_base.den);
 }
 
+static inline i64 duration_to_time_units(AK::Duration duration, int numerator, int denominator)
+{
+    VERIFY(numerator != 0);
+    VERIFY(denominator != 0);
+    auto seconds = duration.to_truncated_seconds();
+    auto nanoseconds = (duration - AK::Duration::from_seconds(seconds)).to_nanoseconds();
+
+    auto time_units = seconds * denominator / numerator;
+    time_units += nanoseconds * denominator / numerator / 1'000'000'000;
+    return time_units;
+}
+
+static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
+{
+    return duration_to_time_units(duration, time_base.num, time_base.den);
+}
+
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
 {
     if (m_format_context->duration < 0) {
@@ -145,11 +162,9 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
-    auto time_base = av_q2d(stream->time_base);
-    auto time_in_seconds = static_cast<double>(timestamp.to_milliseconds()) / 1000.0 / time_base;
-    auto sample_timestamp = AK::round_to<int64_t>(time_in_seconds);
+    auto target_pts = duration_to_time_units(timestamp, stream->time_base);
 
-    if (av_seek_frame(m_format_context, stream->index, sample_timestamp, AVSEEK_FLAG_BACKWARD) < 0)
+    if (av_seek_frame(m_format_context, stream->index, target_pts, AVSEEK_FLAG_BACKWARD) < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to seek");
 
     return DemuxerSeekResult::MovedPosition;
