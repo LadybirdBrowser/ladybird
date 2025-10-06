@@ -12,6 +12,8 @@
 
 namespace Web::TrustedTypes {
 
+using TrustedHTMLOrString = Variant<GC::Root<TrustedHTML>, Utf16String>;
+
 class TrustedHTML final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TrustedHTML, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TrustedHTML);

@@ -27,6 +27,8 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::DOM {
 
@@ -1240,9 +1242,16 @@ GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
-WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(String const& string)
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& string)
 {
-    // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        string,
+        TrustedTypes::InjectionSink::RangecreateContextualFragment,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let node be this's start node.
     GC::Ref<Node> node = *start_container();
@@ -1268,8 +1277,8 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
         element = TRY(DOM::create_element(node->document(), HTML::TagNames::body, Namespace::HTML));
     }
 
-    // 7. Let fragment node be the result of invoking the fragment parsing algorithm steps with element and compliantString. FIXME: Use compliantString.
-    auto fragment_node = TRY(element->parse_fragment(string));
+    // 7. Let fragment node be the result of invoking the fragment parsing algorithm steps with element and compliantString.
+    auto fragment_node = TRY(element->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 8. For each script of fragment node's script element descendants:
     fragment_node->for_each_in_subtree_of_type<HTML::HTMLScriptElement>([&](HTML::HTMLScriptElement& script_element) {
