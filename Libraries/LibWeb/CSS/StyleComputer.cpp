@@ -3592,7 +3592,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr
         return specified_value->absolutized(computation_context);
 
     // NOTE: We also support calc()'d lengths (percentages resolve to lengths so we don't have to handle them separately)
-    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_length())
+    if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_length_percentage())
         return LengthStyleValue::create(specified_value->as_calculated().resolve_length(CalculationResolutionContext::from_computation_context(computation_context, Length(1, LengthUnit::Em))).value());
 
     // <number [0,∞]>
