@@ -169,8 +169,10 @@ MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue 
         return MatchResult::False;
     }
 
+    auto length_resolution_context = Length::ResolutionContext::for_window(window);
+
     CalculationResolutionContext calculation_context {
-        .length_resolution_context = Length::ResolutionContext::for_window(window),
+        .length_resolution_context = length_resolution_context,
     };
 
     if (left.is_integer()) {
@@ -190,24 +192,8 @@ MatchResult MediaFeature::compare(HTML::Window const& window, MediaFeatureValue 
     }
 
     if (left.is_length()) {
-        CSSPixels left_px;
-        CSSPixels right_px;
-        auto left_length = left.length().resolved(calculation_context).value_or(Length::make_px(0));
-        auto right_length = right.length().resolved(calculation_context).value_or(Length::make_px(0));
-        // Save ourselves some work if neither side is a relative length.
-        if (left_length.is_absolute() && right_length.is_absolute()) {
-            left_px = left_length.absolute_length_to_px();
-            right_px = right_length.absolute_length_to_px();
-        } else {
-            auto viewport_rect = window.page().web_exposed_screen_area();
-
-            auto const& initial_font = window.associated_document().style_computer().initial_font();
-            Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
-            Length::FontMetrics font_metrics { CSSPixels { initial_font.point_size() }, initial_font_metrics, InitialValues::line_height() };
-
-            left_px = left_length.to_px(viewport_rect, font_metrics, font_metrics);
-            right_px = right_length.to_px(viewport_rect, font_metrics, font_metrics);
-        }
+        auto left_px = left.length().resolved(calculation_context).value_or(Length::make_px(0)).to_px(length_resolution_context);
+        auto right_px = right.length().resolved(calculation_context).value_or(Length::make_px(0)).to_px(length_resolution_context);
 
         switch (comparison) {
         case Comparison::Equal:
