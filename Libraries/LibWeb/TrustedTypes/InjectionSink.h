@@ -28,6 +28,7 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementtextContent, "HTMLScriptElement textContent")   \
     __ENUMERATE_INJECTION_SINKS(Locationhref, "Location href")                                   \
     __ENUMERATE_INJECTION_SINKS(RangecreateContextualFragment, "Range createContextualFragment") \
+    __ENUMERATE_INJECTION_SINKS(SharedWorkerconstructor, "SharedWorker constructor")             \
     __ENUMERATE_INJECTION_SINKS(SVGScriptElementhref, "SVGScriptElement href")                   \
     ENUMERATE_GLOBAL_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)                              \
     ENUMERATE_WINDOW_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)

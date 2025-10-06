@@ -17,17 +17,24 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/Worker.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SharedWorker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, String const& script_url, Variant<String, WorkerOptions>& options_value)
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions>& options_value)
 {
-    // FIXME: 1. Let compliantScriptURL be the result of invoking the Get Trusted Type compliant string algorithm with
-    //           TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
-    auto const& compliant_script_url = script_url;
+    // 1. Let compliantScriptURL be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
+    auto const compliant_script_url = TRY(get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScriptURL,
+        realm.global_object(),
+        script_url,
+        TrustedTypes::InjectionSink::SharedWorkerconstructor,
+        TrustedTypes::Script.to_string()));
 
     // 2. If options is a DOMString, set options to a new WorkerOptions dictionary whose name member is set to the value
     //    of options and whose other members are set to their default values.
@@ -43,7 +50,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
     auto& outside_settings = current_principal_settings_object();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given compliantScriptURL, relative to outside settings.
-    auto url = outside_settings.encoding_parse_url(compliant_script_url);
+    auto url = outside_settings.encoding_parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());
 
     // 5. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!url.has_value())

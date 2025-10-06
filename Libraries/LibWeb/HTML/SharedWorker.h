@@ -10,6 +10,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
@@ -22,7 +23,7 @@ class SharedWorker final
     GC_DECLARE_ALLOCATOR(SharedWorker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> construct_impl(JS::Realm&, String const& script_url, Variant<String, WorkerOptions>& options);
+    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> construct_impl(JS::Realm&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions>& options);
 
     virtual ~SharedWorker();
 
