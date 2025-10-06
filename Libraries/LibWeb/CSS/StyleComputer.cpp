@@ -3411,22 +3411,13 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
     // https://drafts.csswg.org/css-fonts-4/#font-style-prop
     // the keyword specified, plus angle in degrees if specified
 
+    auto absolutized_value = specified_value->absolutized(computation_context);
+
     // NB: We always parse as a FontStyleStyleValue, but StylePropertyMap is able to set a KeywordStyleValue directly.
     if (specified_value->is_keyword())
         return FontStyleStyleValue::create(*keyword_to_font_style(specified_value->to_keyword()));
 
-    auto const& angle_value = specified_value->as_font_style().angle();
-
-    if (!angle_value)
-        return specified_value;
-
-    if (angle_value->is_angle())
-        return FontStyleStyleValue::create(specified_value->as_font_style().font_style(), AngleStyleValue::create(Angle::make_degrees(angle_value->as_angle().angle().to_degrees())));
-
-    if (angle_value->is_calculated())
-        return FontStyleStyleValue::create(specified_value->as_font_style().font_style(), AngleStyleValue::create(angle_value->as_calculated().resolve_angle(CalculationResolutionContext::from_computation_context(computation_context)).value()));
-
-    VERIFY_NOT_REACHED();
+    return absolutized_value;
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, ComputationContext const& computation_context)
