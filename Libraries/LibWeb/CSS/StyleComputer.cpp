@@ -3456,18 +3456,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
     if (specified_value->is_keyword())
         return FontStyleStyleValue::create(*keyword_to_font_style(specified_value->to_keyword()));
 
-    auto const& angle_value = specified_value->as_font_style().angle();
-
-    if (!angle_value)
-        return specified_value;
-
-    if (angle_value->is_angle())
-        return FontStyleStyleValue::create(specified_value->as_font_style().font_style(), AngleStyleValue::create(Angle::make_degrees(angle_value->as_angle().angle().to_degrees())));
-
-    if (angle_value->is_calculated())
-        return FontStyleStyleValue::create(specified_value->as_font_style().font_style(), AngleStyleValue::create(angle_value->as_calculated().resolve_angle(CalculationResolutionContext::from_computation_context(computation_context)).value()));
-
-    VERIFY_NOT_REACHED();
+    return specified_value->absolutized(computation_context);
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, ComputationContext const& computation_context)
