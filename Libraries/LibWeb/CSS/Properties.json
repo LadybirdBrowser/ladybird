@@ -3268,7 +3268,8 @@
     "animation-type": "custom",
     "inherited": true,
     "initial": "none",
-    "affects-layout": false
+    "affects-layout": false,
+    "percentages-resolve-to": "length"
   },
   "stroke-dashoffset": {
     "affects-layout": false,
