@@ -22,8 +22,10 @@ String TreeCountingFunctionStyleValue::to_string(SerializationMode) const
     VERIFY_NOT_REACHED();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
+    property_computation_dependencies.tree_counting_function = true;
+
     size_t value;
 
     switch (m_function) {

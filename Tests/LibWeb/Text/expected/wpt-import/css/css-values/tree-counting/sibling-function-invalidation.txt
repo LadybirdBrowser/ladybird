@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+4 Pass
 Pass	Initially 6th sibling
-Fail	5th sibling after removal
+Pass	5th sibling after removal
 Pass	Initially 6 siblings
-Fail	5 siblings after removal
+Pass	5 siblings after removal

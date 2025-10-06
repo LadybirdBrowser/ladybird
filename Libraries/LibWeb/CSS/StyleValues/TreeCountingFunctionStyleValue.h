@@ -31,7 +31,7 @@ public:
     virtual String to_string(SerializationMode) const override;
     // FIXME: Do we need to reify this?
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
 
     bool properties_equal(TreeCountingFunctionStyleValue const& other) const { return m_function == other.m_function && m_computed_type == other.m_computed_type; }
 
