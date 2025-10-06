@@ -579,7 +579,7 @@ static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type 
 }
 
 template<typename ParameterType>
-static void generate_to_integral(SourceGenerator& scoped_generator, ParameterType const& parameter, bool optional, Optional<ByteString> const& optional_default_value)
+static void generate_to_integral(SourceGenerator& scoped_generator, ParameterType const& parameter, bool optional, Optional<ByteString> optional_default_value)
 {
     struct TypeMap {
         StringView idl_type;
@@ -606,7 +606,10 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
     scoped_generator.set("enforce_range", parameter.extended_attributes.contains("EnforceRange") ? "Yes" : "No");
     scoped_generator.set("clamp", parameter.extended_attributes.contains("Clamp") ? "Yes" : "No");
 
-    if ((!optional && !parameter.type->is_nullable()) || (optional_default_value.has_value() && optional_default_value != "null"sv)) {
+    if (optional_default_value.has_value() && optional_default_value.value() == "null"sv)
+        optional_default_value = {};
+
+    if ((!optional && !parameter.type->is_nullable()) || optional_default_value.has_value()) {
         scoped_generator.append(R"~~~(
     @cpp_type@ @cpp_name@;
 )~~~");
@@ -636,9 +639,7 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
 )~~~");
     }
 
-    // FIXME: The Optional<foo> defaults to empty, and can't be explicitly set to `null`.
-    //        So, just skip the assignment.
-    if (optional_default_value.has_value() && optional_default_value != "null"sv) {
+    if (optional_default_value.has_value()) {
         scoped_generator.append(R"~~~(
     else
         @cpp_name@ = static_cast<@cpp_type@>(@parameter.optional_default_value@);
@@ -2215,7 +2216,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 //      the generated code to do some metaprogramming to inspect the type of the member in the C++ struct to
                 //      determine whether the type is present or not (e.g through a has_value() on an Optional<T>, or a null
                 //      check on a GC::Ptr<T>). So to save some complexity in the generator, give ourselves a hint of what to do.
-                bool is_optional = !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
+                bool is_optional = !member.required && !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
         Optional<JS::Value> @wrapped_value_name@;
