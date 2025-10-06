@@ -353,14 +353,14 @@ GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
     return nullptr;
 }
 
-bool CSSStyleSheet::evaluate_media_queries(HTML::Window const& window)
+bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
 {
     bool any_media_queries_changed_match_state = false;
 
-    bool now_matches = m_media->evaluate(window);
+    bool now_matches = m_media->evaluate(document);
     if (!m_did_match.has_value() || m_did_match.value() != now_matches)
         any_media_queries_changed_match_state = true;
-    if (now_matches && m_rules->evaluate_media_queries(window))
+    if (now_matches && m_rules->evaluate_media_queries(document))
         any_media_queries_changed_match_state = true;
 
     m_did_match = now_matches;

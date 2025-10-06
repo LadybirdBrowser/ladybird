@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<title>Viewport units in @media</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#viewport-relative-lengths">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  iframe {
+    width: 200px;
+    height: 100px;
+  }
+</style>
+
+<iframe id=iframe></iframe>
+
+<script>
+
+const doc = iframe.contentDocument;
+const win = iframe.contentWindow;
+
+function test_media_query(feature, result, description) {
+  test((t) => {
+    t.add_cleanup(() => { doc.body.innerHTML = ''; })
+    doc.body.innerHTML = `
+      <style>
+        body {
+          color: red;
+        }
+        @media (${feature}) {
+          body {
+            color: green;
+          }
+        }
+      </style>
+      `;
+    assert_equals(win.getComputedStyle(doc.body).color, result);
+  }, description);
+}
+
+function test_media_query_applies(feature) {
+  test_media_query(feature, 'rgb(0, 128, 0)', `@media(${feature}) applies`);
+}
+
+function test_media_query_does_not_apply(feature) {
+  test_media_query(feature, 'rgb(255, 0, 0)', `@media(${feature}) does not apply`);
+}
+
+test_media_query_applies('width:100vw');
+test_media_query_applies('width:100vi');
+test_media_query_applies('width:100vmax');
+test_media_query_applies('width:100svw');
+test_media_query_applies('width:100svi');
+test_media_query_applies('width:100svmax');
+test_media_query_applies('width:100lvw');
+test_media_query_applies('width:100lvi');
+test_media_query_applies('width:100lvmax');
+test_media_query_applies('width:100dvw');
+test_media_query_applies('width:100dvi');
+test_media_query_applies('width:100dvmax');
+
+test_media_query_applies('height:100vh');
+test_media_query_applies('height:100vb');
+test_media_query_applies('height:100vmin');
+test_media_query_applies('height:100svh');
+test_media_query_applies('height:100svb');
+test_media_query_applies('height:100svmin');
+test_media_query_applies('height:100lvh');
+test_media_query_applies('height:100lvb');
+test_media_query_applies('height:100lvmin');
+test_media_query_applies('height:100dvh');
+test_media_query_applies('height:100dvb');
+test_media_query_applies('height:100dvmin');
+
+test_media_query_does_not_apply('width:90vw');
+test_media_query_does_not_apply('height:90vh');
+
+</script>

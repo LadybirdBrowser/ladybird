@@ -1675,7 +1675,7 @@ void Document::obtain_theme_color()
             auto media = element.attribute(HTML::AttributeNames::media);
             if (media.has_value()) {
                 auto query = parse_media_query(context, media.value());
-                if (query.is_null() || !window() || !query->evaluate(*window()))
+                if (query.is_null() || !query->evaluate(*this))
                     return TraversalDecision::Continue;
             }
 
@@ -3467,13 +3467,9 @@ void Document::evaluate_media_queries_and_report_changes()
 
 void Document::evaluate_media_rules()
 {
-    auto window = this->window();
-    if (!window)
-        return;
-
     bool any_media_queries_changed_match_state = false;
     for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet, auto) {
-        if (style_sheet.evaluate_media_queries(*window))
+        if (style_sheet.evaluate_media_queries(*this))
             any_media_queries_changed_match_state = true;
     });
 

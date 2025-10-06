@@ -224,7 +224,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
     }
 }
 
-bool CSSRuleList::evaluate_media_queries(HTML::Window const& window)
+bool CSSRuleList::evaluate_media_queries(DOM::Document const& document)
 {
     bool any_media_queries_changed_match_state = false;
 
@@ -232,35 +232,35 @@ bool CSSRuleList::evaluate_media_queries(HTML::Window const& window)
         switch (rule->type()) {
         case CSSRule::Type::Import: {
             auto& import_rule = as<CSSImportRule>(*rule);
-            if (import_rule.loaded_style_sheet() && import_rule.loaded_style_sheet()->evaluate_media_queries(window))
+            if (import_rule.loaded_style_sheet() && import_rule.loaded_style_sheet()->evaluate_media_queries(document))
                 any_media_queries_changed_match_state = true;
             break;
         }
         case CSSRule::Type::LayerBlock: {
             auto& layer_rule = as<CSSLayerBlockRule>(*rule);
-            if (layer_rule.css_rules().evaluate_media_queries(window))
+            if (layer_rule.css_rules().evaluate_media_queries(document))
                 any_media_queries_changed_match_state = true;
             break;
         }
         case CSSRule::Type::Media: {
             auto& media_rule = as<CSSMediaRule>(*rule);
             bool did_match = media_rule.condition_matches();
-            bool now_matches = media_rule.evaluate(window);
+            bool now_matches = media_rule.evaluate(document);
             if (did_match != now_matches)
                 any_media_queries_changed_match_state = true;
-            if (now_matches && media_rule.css_rules().evaluate_media_queries(window))
+            if (now_matches && media_rule.css_rules().evaluate_media_queries(document))
                 any_media_queries_changed_match_state = true;
             break;
         }
         case CSSRule::Type::Supports: {
             auto& supports_rule = as<CSSSupportsRule>(*rule);
-            if (supports_rule.condition_matches() && supports_rule.css_rules().evaluate_media_queries(window))
+            if (supports_rule.condition_matches() && supports_rule.css_rules().evaluate_media_queries(document))
                 any_media_queries_changed_match_state = true;
             break;
         }
         case CSSRule::Type::Style: {
             auto& style_rule = as<CSSStyleRule>(*rule);
-            if (style_rule.css_rules().evaluate_media_queries(window))
+            if (style_rule.css_rules().evaluate_media_queries(document))
                 any_media_queries_changed_match_state = true;
             break;
         }

@@ -161,7 +161,7 @@ public:
             }));
     }
 
-    virtual MatchResult evaluate(HTML::Window const*) const override;
+    virtual MatchResult evaluate(DOM::Document const*) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -188,7 +188,7 @@ private:
     {
     }
 
-    static MatchResult compare(HTML::Window const& window, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right);
+    static MatchResult compare(DOM::Document const& document, MediaFeatureValue const& left, Comparison comparison, MediaFeatureValue const& right);
     MediaFeatureValue const& value() const { return m_value.get<MediaFeatureValue>(); }
     Range const& range() const { return m_value.get<Range>(); }
 
@@ -218,7 +218,7 @@ public:
     static NonnullRefPtr<MediaQuery> create() { return adopt_ref(*new MediaQuery); }
 
     bool matches() const { return m_matches; }
-    bool evaluate(HTML::Window const&);
+    bool evaluate(DOM::Document const&);
     String to_string() const;
 
 private:

@@ -30,7 +30,7 @@ public:
 
     MediaList* media() const { return m_media; }
 
-    bool evaluate(HTML::Window const& window) { return m_media->evaluate(window); }
+    bool evaluate(DOM::Document const& document) { return m_media->evaluate(document); }
 
 private:
     CSSMediaRule(JS::Realm&, MediaList&, CSSRuleList&);

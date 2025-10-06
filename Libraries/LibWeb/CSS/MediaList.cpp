@@ -109,10 +109,10 @@ void MediaList::delete_medium(StringView medium)
     // FIXME: If nothing was removed, then throw a NotFoundError exception.
 }
 
-bool MediaList::evaluate(HTML::Window const& window)
+bool MediaList::evaluate(DOM::Document const& document)
 {
     for (auto& media : m_media)
-        media->evaluate(window);
+        media->evaluate(document);
 
     return matches();
 }
