@@ -50,9 +50,9 @@ String SuperellipseStyleValue::to_string(SerializationMode mode) const
     return MUST(String::formatted("superellipse({})", stringified_parameter));
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> SuperellipseStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> SuperellipseStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
-    auto const& absolutized_parameter = m_parameter->absolutized(computation_context);
+    auto const& absolutized_parameter = m_parameter->absolutized(computation_context, property_computation_dependencies);
 
     if (absolutized_parameter == m_parameter)
         return *this;
