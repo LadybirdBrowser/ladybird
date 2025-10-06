@@ -30,7 +30,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
 
     bool properties_equal(CursorStyleValue const& other) const { return m_properties == other.m_properties; }
 

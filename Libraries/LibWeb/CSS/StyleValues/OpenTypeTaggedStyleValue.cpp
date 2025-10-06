@@ -9,9 +9,9 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<StyleValue const> OpenTypeTaggedStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> OpenTypeTaggedStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
-    auto const& absolutized_value = m_value->absolutized(computation_context);
+    auto const& absolutized_value = m_value->absolutized(computation_context, property_computation_dependencies);
 
     if (absolutized_value == m_value)
         return *this;

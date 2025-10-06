@@ -25,7 +25,7 @@ public:
     virtual FlyString unit_name() const override { return m_length.unit_name(); }
 
     virtual String to_string(SerializationMode serialization_mode) const override { return m_length.to_string(serialization_mode); }
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
 
     bool equals(StyleValue const& other) const override;
 

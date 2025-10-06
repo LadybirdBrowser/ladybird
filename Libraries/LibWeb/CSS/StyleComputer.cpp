@@ -895,6 +895,16 @@ static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vec
     custom_properties.update(important_custom_properties);
 }
 
+// TODO: This could be useful for marking which properties need recomputation when inherited style changes
+ALWAYS_INLINE static void mark_property_computation_dependencies(Optional<DOM::AbstractElement> abstract_element, PropertyComputationDependencies const& property_computation_dependencies)
+{
+    if (!abstract_element.has_value())
+        return;
+
+    if (property_computation_dependencies.tree_counting_function)
+        abstract_element->element().set_style_uses_tree_counting_function();
+}
+
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
 {
     auto animation = effect->associated_animation();
@@ -1082,32 +1092,44 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             auto inherited_font_size = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_size() : InitialValues::font_size();
             auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
 
+            PropertyComputationDependencies property_computation_dependencies;
             auto const& font_size_in_computed_form = compute_font_size(
                 *font_size_specified_value.value(),
                 computed_math_depth,
                 inherited_font_size,
                 inherited_math_depth,
-                font_computation_context);
+                font_computation_context,
+                property_computation_dependencies);
 
             result.set(PropertyID::FontSize, font_size_in_computed_form);
+            mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
         }
 
         if (auto const& font_weight_specified_value = specified_values.get(PropertyID::FontWeight); font_weight_specified_value.has_value()) {
             auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
 
+            PropertyComputationDependencies property_computation_dependencies;
             auto const& font_weight_in_computed_form = compute_font_weight(
                 *font_weight_specified_value.value(),
                 inherited_font_weight,
-                font_computation_context);
+                font_computation_context,
+                property_computation_dependencies);
 
             result.set(PropertyID::FontWeight, font_weight_in_computed_form);
+            mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
         }
 
-        if (auto const& font_width_specified_value = specified_values.get(PropertyID::FontWidth); font_width_specified_value.has_value())
-            result.set(PropertyID::FontWidth, compute_font_width(*font_width_specified_value.value(), font_computation_context));
+        if (auto const& font_width_specified_value = specified_values.get(PropertyID::FontWidth); font_width_specified_value.has_value()) {
+            PropertyComputationDependencies property_computation_dependencies;
+            result.set(PropertyID::FontWidth, compute_font_width(*font_width_specified_value.value(), font_computation_context, property_computation_dependencies));
+            mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
+        }
 
-        if (auto const& font_style_specified_value = specified_values.get(PropertyID::FontStyle); font_style_specified_value.has_value())
-            result.set(PropertyID::FontStyle, compute_font_style(*font_style_specified_value.value(), font_computation_context));
+        if (auto const& font_style_specified_value = specified_values.get(PropertyID::FontStyle); font_style_specified_value.has_value()) {
+            PropertyComputationDependencies property_computation_dependencies;
+            result.set(PropertyID::FontStyle, compute_font_style(*font_style_specified_value.value(), font_computation_context, property_computation_dependencies));
+            mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
+        }
 
         if (auto const& line_height_specified_value = specified_values.get(PropertyID::LineHeight); line_height_specified_value.has_value()) {
             ComputationContext line_height_computation_context {
@@ -1121,7 +1143,9 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 .tree_counting_function_resolution_context = tree_counting_function_resolution_context
             };
 
-            result.set(PropertyID::LineHeight, compute_line_height(*line_height_specified_value.value(), line_height_computation_context));
+            PropertyComputationDependencies property_computation_dependencies;
+            result.set(PropertyID::LineHeight, compute_line_height(*line_height_specified_value.value(), line_height_computation_context, property_computation_dependencies));
+            mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
         }
 
         ComputationContext computation_context {
@@ -1148,7 +1172,9 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontStyle, PropertyID::LineHeight))
                 continue;
 
-            result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
+            PropertyComputationDependencies property_computation_dependencies;
+            result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel(), property_computation_dependencies));
+            mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
         }
 
         return result;
@@ -2045,33 +2071,41 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& font_size_specified_value = style.property(PropertyID::FontSize, ComputedProperties::WithAnimationsApplied::No);
 
+    PropertyComputationDependencies font_size_property_computation_dependencies;
     style.set_property(
         PropertyID::FontSize,
-        compute_font_size(font_size_specified_value, style.math_depth(), inherited_font_size, inherited_math_depth, font_computation_context),
+        compute_font_size(font_size_specified_value, style.math_depth(), inherited_font_size, inherited_math_depth, font_computation_context, font_size_property_computation_dependencies),
         style.is_property_inherited(PropertyID::FontSize) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+    mark_property_computation_dependencies(abstract_element, font_size_property_computation_dependencies);
 
     auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
 
     auto const& font_weight_specified_value = style.property(PropertyID::FontWeight, ComputedProperties::WithAnimationsApplied::No);
 
+    PropertyComputationDependencies font_weight_property_computation_dependencies;
     style.set_property(
         PropertyID::FontWeight,
-        compute_font_weight(font_weight_specified_value, inherited_font_weight, font_computation_context),
+        compute_font_weight(font_weight_specified_value, inherited_font_weight, font_computation_context, font_weight_property_computation_dependencies),
         style.is_property_inherited(PropertyID::FontWeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+    mark_property_computation_dependencies(abstract_element, font_weight_property_computation_dependencies);
 
     auto const& font_width_specified_value = style.property(PropertyID::FontWidth, ComputedProperties::WithAnimationsApplied::No);
 
+    PropertyComputationDependencies font_width_property_computation_dependencies;
     style.set_property(
         PropertyID::FontWidth,
-        compute_font_width(font_width_specified_value, font_computation_context),
+        compute_font_width(font_width_specified_value, font_computation_context, font_width_property_computation_dependencies),
         style.is_property_inherited(PropertyID::FontWidth) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+    mark_property_computation_dependencies(abstract_element, font_width_property_computation_dependencies);
 
     auto const& font_style_specified_value = style.property(PropertyID::FontStyle, ComputedProperties::WithAnimationsApplied::No);
 
+    PropertyComputationDependencies font_style_property_computation_dependencies;
     style.set_property(
         PropertyID::FontStyle,
-        compute_font_style(font_style_specified_value, font_computation_context),
+        compute_font_style(font_style_specified_value, font_computation_context, font_style_property_computation_dependencies),
         style.is_property_inherited(PropertyID::FontStyle) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+    mark_property_computation_dependencies(abstract_element, font_style_property_computation_dependencies);
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
@@ -2100,10 +2134,12 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& line_height_specified_value = style.property(CSS::PropertyID::LineHeight, ComputedProperties::WithAnimationsApplied::No);
 
+    PropertyComputationDependencies line_height_property_computation_dependencies;
     style.set_property(
         PropertyID::LineHeight,
-        compute_line_height(line_height_specified_value, line_height_computation_context),
+        compute_line_height(line_height_specified_value, line_height_computation_context, line_height_property_computation_dependencies),
         style.is_property_inherited(PropertyID::LineHeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+    mark_property_computation_dependencies(abstract_element, line_height_property_computation_dependencies);
 
     if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element())) {
         const_cast<StyleComputer&>(*this).m_root_element_font_metrics = calculate_root_element_font_metrics(style);
@@ -2180,7 +2216,9 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
     };
 
     style.for_each_property([&](PropertyID property_id, auto& specified_value) {
-        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel());
+        PropertyComputationDependencies property_computation_dependencies;
+        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel(), property_computation_dependencies);
+        mark_property_computation_dependencies(abstract_element, property_computation_dependencies);
 
         auto const& is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
 
@@ -3230,9 +3268,15 @@ static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<St
     return compute_entry(style_value);
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(PropertyID property_id, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, ComputationContext const& computation_context, double device_pixels_per_css_pixel)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
+    PropertyID property_id,
+    NonnullRefPtr<StyleValue const> const& specified_value,
+    Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value,
+    ComputationContext const& computation_context,
+    double device_pixels_per_css_pixel,
+    PropertyComputationDependencies& property_computation_dependencies)
 {
-    auto const& absolutized_value = specified_value->absolutized(computation_context);
+    auto const& absolutized_value = specified_value->absolutized(computation_context, property_computation_dependencies);
 
     switch (property_id) {
     case PropertyID::AnimationName:
@@ -3386,12 +3430,12 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies)
 {
     // https://drafts.csswg.org/css-fonts/#font-size-prop
     // an absolute length
 
-    auto const& absolutized_value = specified_value->absolutized(computation_context);
+    auto const& absolutized_value = specified_value->absolutized(computation_context, property_computation_dependencies);
 
     // <absolute-size>
     if (auto absolute_size = keyword_to_absolute_size(absolutized_value->to_keyword()); absolute_size.has_value())
@@ -3457,7 +3501,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-style-prop
     // the keyword specified, plus angle in degrees if specified
@@ -3466,15 +3510,15 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
     if (specified_value->is_keyword())
         return FontStyleStyleValue::create(*keyword_to_font_style(specified_value->to_keyword()));
 
-    return specified_value->absolutized(computation_context);
+    return specified_value->absolutized(computation_context, property_computation_dependencies);
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& specified_value, double inherited_font_weight, ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-weight-prop
     // a number, see below
 
-    auto const& absolutized_value = specified_value->absolutized(computation_context);
+    auto const& absolutized_value = specified_value->absolutized(computation_context, property_computation_dependencies);
 
     // <number [1,1000]>
     if (absolutized_value->is_number())
@@ -3538,12 +3582,12 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-width-prop
     // a percentage, see below
 
-    auto absolutized_value = specified_value->absolutized(computation_context);
+    auto absolutized_value = specified_value->absolutized(computation_context, property_computation_dependencies);
 
     // <percentage [0,∞]>
     if (absolutized_value->is_percentage())
@@ -3586,11 +3630,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
     }
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies)
 {
     // https://drafts.csswg.org/css-inline-3/#line-height-property
 
-    auto absolutized_value = specified_value->absolutized(computation_context);
+    auto absolutized_value = specified_value->absolutized(computation_context, property_computation_dependencies);
 
     // normal
     // <length [0,∞]>
