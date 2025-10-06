@@ -3,6 +3,12 @@ name: Package the js repl as a binary artifact
 on:
   push:
     branches: [master]
+  workflow_dispatch:
+    inputs:
+      reference_to_build:
+        description: 'Branch, tag or commit hash to build'
+        required: true
+        type: string
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
@@ -40,6 +46,8 @@ jobs:
     steps:
       - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.reference_to_build }}
 
       - name: "Set up environment"
         uses: ./.github/actions/setup
