@@ -30,10 +30,10 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    size_t resolve(TreeCountingFunctionResolutionContext const&) const;
+    size_t resolve(TreeCountingFunctionResolutionContext const&, PropertyComputationDependencies&) const;
 
-    virtual RefPtr<CalculationNode const> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual RefPtr<CalculationNode const> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&, PropertyComputationDependencies*) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
 
     virtual bool equals(StyleValue const& other) const override;
 

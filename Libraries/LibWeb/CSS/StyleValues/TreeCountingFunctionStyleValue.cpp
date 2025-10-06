@@ -23,8 +23,10 @@ String TreeCountingFunctionStyleValue::to_string(SerializationMode) const
     VERIFY_NOT_REACHED();
 }
 
-size_t TreeCountingFunctionStyleValue::resolve(TreeCountingFunctionResolutionContext const& tree_counting_function_resolution_context) const
+size_t TreeCountingFunctionStyleValue::resolve(TreeCountingFunctionResolutionContext const& tree_counting_function_resolution_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
+    property_computation_dependencies.tree_counting_function = true;
+
     switch (m_function) {
     case TreeCountingFunction::SiblingCount:
         return tree_counting_function_resolution_context.sibling_count;
@@ -35,20 +37,22 @@ size_t TreeCountingFunctionStyleValue::resolve(TreeCountingFunctionResolutionCon
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<CalculationNode const> TreeCountingFunctionStyleValue::resolve_to_calculation_node(CalculationContext const& calculation_context, CalculationResolutionContext const& calculation_resolution_context) const
+RefPtr<CalculationNode const> TreeCountingFunctionStyleValue::resolve_to_calculation_node(CalculationContext const& calculation_context, CalculationResolutionContext const& calculation_resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
     if (!calculation_resolution_context.tree_counting_function_resolution_context.has_value())
         return nullptr;
 
-    return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.tree_counting_function_resolution_context.value())) }, calculation_context);
+    VERIFY(property_computation_dependencies);
+
+    return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.tree_counting_function_resolution_context.value(), *property_computation_dependencies)) }, calculation_context);
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
     // FIXME: We should clamp this value in case it falls outside the valid range for the context it is in
     VERIFY(computation_context.tree_counting_function_resolution_context.has_value());
 
-    size_t value = resolve(computation_context.tree_counting_function_resolution_context.value());
+    size_t value = resolve(computation_context.tree_counting_function_resolution_context.value(), property_computation_dependencies);
 
     switch (m_computed_type) {
     case ComputedType::Integer:

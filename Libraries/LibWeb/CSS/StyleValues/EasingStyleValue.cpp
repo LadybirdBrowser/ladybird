@@ -84,7 +84,7 @@ String EasingStyleValue::Function::to_string(SerializationMode mode) const
         });
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
     auto const& absolutized_function = m_function.visit(
         [&](Linear const& linear) -> Function {
@@ -94,24 +94,24 @@ ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(Comp
                 RefPtr<StyleValue const> absolutized_input;
 
                 if (stop.input)
-                    absolutized_input = stop.input->absolutized(computation_context);
+                    absolutized_input = stop.input->absolutized(computation_context, property_computation_dependencies);
 
-                absolutized_stops.append({ stop.output->absolutized(computation_context), absolutized_input });
+                absolutized_stops.append({ stop.output->absolutized(computation_context, property_computation_dependencies), absolutized_input });
             }
 
             return Linear { absolutized_stops };
         },
         [&](CubicBezier const& cubic_bezier) -> Function {
             return CubicBezier {
-                cubic_bezier.x1->absolutized(computation_context),
-                cubic_bezier.y1->absolutized(computation_context),
-                cubic_bezier.x2->absolutized(computation_context),
-                cubic_bezier.y2->absolutized(computation_context)
+                cubic_bezier.x1->absolutized(computation_context, property_computation_dependencies),
+                cubic_bezier.y1->absolutized(computation_context, property_computation_dependencies),
+                cubic_bezier.x2->absolutized(computation_context, property_computation_dependencies),
+                cubic_bezier.y2->absolutized(computation_context, property_computation_dependencies)
             };
         },
         [&](Steps const& steps) -> Function {
             return Steps {
-                steps.number_of_intervals->absolutized(computation_context),
+                steps.number_of_intervals->absolutized(computation_context, property_computation_dependencies),
                 steps.position
             };
         });

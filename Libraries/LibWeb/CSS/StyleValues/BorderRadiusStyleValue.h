@@ -38,7 +38,7 @@ private:
     {
     }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
     struct Properties {
         bool is_elliptical;
         ValueComparingNonnullRefPtr<StyleValue const> horizontal_radius;

@@ -375,14 +375,14 @@ GC::Ref<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     VERIFY_NOT_REACHED();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
     StyleValueVector absolutized_values;
 
     bool absolutized_values_different = false;
 
     for (auto const& value : m_properties.values) {
-        auto const& absolutized_value = value->absolutized(computation_context);
+        auto const& absolutized_value = value->absolutized(computation_context, property_computation_dependencies);
 
         if (absolutized_value != value)
             absolutized_values_different = true;
