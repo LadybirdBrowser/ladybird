@@ -36,7 +36,6 @@ jobs:
         with:
           repository: LadybirdBrowser/js-benchmarks
           path: js-benchmarks
-          ref: d151be80c96e4f8acb364d3f199c25481b56f287
 
       - name: 'Install dependencies'
         if: ${{ matrix.os_name == 'Linux' }}
