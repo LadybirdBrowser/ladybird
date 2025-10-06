@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1345 tests
 
-1272 Pass
-73 Fail
+1276 Pass
+69 Fail
 Pass	query_should_be_parseable: (orientation)
 Pass	query_should_be_parseable: not (orientation)
 Pass	expression_should_be_known: (orientation)
@@ -879,9 +879,9 @@ Pass	should_apply: all and (min-device-width: ${value - 1}px)
 Pass	should_apply: all and (max-device-width: ${value}px)
 Pass	should_apply: all and (max-device-width: ${value + 1}px)
 Pass	should_not_apply: all and (max-device-width: ${value - 1}px)
-Fail	should_not_apply: all and (min-device-width: ${Math.ceil(value/em_size) + 1}em)
+Pass	should_not_apply: all and (min-device-width: ${Math.ceil(value/em_size) + 1}em)
 Pass	should_apply: all and (min-device-width: ${Math.floor(value/em_size) - 1}em)
-Fail	should_apply: all and (max-device-width: ${Math.ceil(value/em_size) + 1}em)
+Pass	should_apply: all and (max-device-width: ${Math.ceil(value/em_size) + 1}em)
 Pass	should_not_apply: all and (max-device-width: ${Math.floor(value/em_size) - 1}em)
 Pass	should_apply: (device-width <= ${value}px)
 Pass	should_apply: (device-width >= ${value}px)
@@ -923,9 +923,9 @@ Pass	should_apply: all and (min-device-height: ${value - 1}px)
 Pass	should_apply: all and (max-device-height: ${value}px)
 Pass	should_apply: all and (max-device-height: ${value + 1}px)
 Pass	should_not_apply: all and (max-device-height: ${value - 1}px)
-Fail	should_not_apply: all and (min-device-height: ${Math.ceil(value/em_size) + 1}em)
+Pass	should_not_apply: all and (min-device-height: ${Math.ceil(value/em_size) + 1}em)
 Pass	should_apply: all and (min-device-height: ${Math.floor(value/em_size) - 1}em)
-Fail	should_apply: all and (max-device-height: ${Math.ceil(value/em_size) + 1}em)
+Pass	should_apply: all and (max-device-height: ${Math.ceil(value/em_size) + 1}em)
 Pass	should_not_apply: all and (max-device-height: ${Math.floor(value/em_size) - 1}em)
 Pass	should_apply: (device-height <= ${value}px)
 Pass	should_apply: (device-height >= ${value}px)
