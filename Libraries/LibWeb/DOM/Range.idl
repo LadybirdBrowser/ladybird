@@ -1,6 +1,7 @@
 #import <DOM/Node.idl>
 #import <DOM/AbstractRange.idl>
 #import <Geometry/DOMRect.idl>
+#import <TrustedTypes/TrustedHTML.idl>
 
 // https://dom.spec.whatwg.org/#interface-range
 [Exposed=Window]
@@ -46,6 +47,5 @@ interface Range : AbstractRange {
     stringifier;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
-    // FIXME: [CEReactions, NewObject] DocumentFragment createContextualFragment((TrustedHTML or DOMString) string);
-    [CEReactions, NewObject] DocumentFragment createContextualFragment(DOMString string);
+    [CEReactions, NewObject] DocumentFragment createContextualFragment((TrustedHTML or Utf16DOMString) string);
 };
