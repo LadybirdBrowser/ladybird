@@ -3,12 +3,12 @@
 #import <HTML/AbstractWorker.idl>
 #import <HTML/MessagePort.idl>
 #import <Fetch/Request.idl>
+#import <TrustedTypes/TrustedScriptURL.idl>
 
 // https://html.spec.whatwg.org/multipage/workers.html#worker
 [Exposed=(Window,DedicatedWorker,SharedWorker)]
 interface Worker : EventTarget {
-    // FIXME: "DOMString scriptURL" should be "(TrustedScriptURL or USVString) scriptURL".
-    constructor(DOMString scriptURL, optional WorkerOptions options = {});
+    constructor((TrustedScriptURL or Utf16USVString) scriptURL, optional WorkerOptions options = {});
 
     undefined terminate();
     undefined postMessage(any message, sequence<object> transfer);

@@ -12,6 +12,8 @@
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedWorker.h>
 #include <LibWeb/HTML/Worker.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::HTML {
 
@@ -42,7 +44,7 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
 // https://whatpr.org/html/9893/workers.html#dom-worker
-WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, WorkerOptions const& options, DOM::Document& document)
+WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options, DOM::Document& document)
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with script_url = {}", script_url);
 
@@ -53,26 +55,31 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, Wo
     // JavaScript modules (specify type: "module"), and if that is specified, can also be used
     // to specify how scriptURL is fetched through the credentials option.
 
-    // FIXME: 1. The user agent may throw a "SecurityError" DOMException if the request violates
-    // a policy decision (e.g. if the user agent is configured to not allow the page to start dedicated workers).
-    // Technically not a fixme if our policy is not to throw errors :^)
+    // 1. Let compliantScriptURL be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedScriptURL, this's relevant global object, scriptURL, "Worker constructor", and "script".
+    auto const compliant_script_url = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScriptURL,
+        HTML::relevant_global_object(document),
+        script_url,
+        TrustedTypes::InjectionSink::Workerconstructor,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let outside settings be the current principal settings object.
     auto& outside_settings = current_principal_settings_object();
 
     // 3. Parse the scriptURL argument relative to outside settings.
-    auto url = outside_settings.parse_url(script_url);
+    auto url = outside_settings.parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());
 
     // 4. If this fails, throw a "SyntaxError" DOMException.
     if (!url.has_value()) {
-        dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", script_url);
+        dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", compliant_script_url);
         return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_utf16);
     }
 
     // 5. Let worker URL be the resulting URL record.
 
     // 6. Let worker be a new Worker object.
-    auto worker = document.realm().create<Worker>(script_url, options, document);
+    auto worker = document.realm().create<Worker>(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), options, document);
 
     // 7. Let outside port be a new MessagePort in outside settings's Realm.
     auto outside_port = MessagePort::create(outside_settings.realm());
