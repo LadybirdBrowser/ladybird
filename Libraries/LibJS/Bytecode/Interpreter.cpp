@@ -1949,6 +1949,9 @@ ThrowCompletionOr<void> Add::execute_impl(Bytecode::Interpreter& interpreter) co
                 interpreter.set(m_dst, Value(lhs.as_i32() + rhs.as_i32()));
                 return {};
             }
+            auto result = static_cast<i64>(lhs.as_i32()) + static_cast<i64>(rhs.as_i32());
+            interpreter.set(m_dst, Value(result, Value::CannotFitInInt32::Indeed));
+            return {};
         }
         interpreter.set(m_dst, Value(lhs.as_double() + rhs.as_double()));
         return {};
@@ -1970,6 +1973,9 @@ ThrowCompletionOr<void> Mul::execute_impl(Bytecode::Interpreter& interpreter) co
                 interpreter.set(m_dst, Value(lhs.as_i32() * rhs.as_i32()));
                 return {};
             }
+            auto result = static_cast<i64>(lhs.as_i32()) * static_cast<i64>(rhs.as_i32());
+            interpreter.set(m_dst, Value(result, Value::CannotFitInInt32::Indeed));
+            return {};
         }
         interpreter.set(m_dst, Value(lhs.as_double() * rhs.as_double()));
         return {};
@@ -1991,6 +1997,9 @@ ThrowCompletionOr<void> Sub::execute_impl(Bytecode::Interpreter& interpreter) co
                 interpreter.set(m_dst, Value(lhs.as_i32() - rhs.as_i32()));
                 return {};
             }
+            auto result = static_cast<i64>(lhs.as_i32()) - static_cast<i64>(rhs.as_i32());
+            interpreter.set(m_dst, Value(result, Value::CannotFitInInt32::Indeed));
+            return {};
         }
         interpreter.set(m_dst, Value(lhs.as_double() - rhs.as_double()));
         return {};
