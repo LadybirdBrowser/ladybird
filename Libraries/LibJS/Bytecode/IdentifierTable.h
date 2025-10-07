@@ -30,6 +30,8 @@ public:
     void dump() const;
     bool is_empty() const { return m_identifiers.is_empty(); }
 
+    ReadonlySpan<Utf16FlyString const> identifiers() const { return m_identifiers; }
+
 private:
     Vector<Utf16FlyString> m_identifiers;
 };
