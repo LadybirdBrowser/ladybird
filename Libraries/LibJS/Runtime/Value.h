@@ -165,6 +165,13 @@ public:
     {
     }
 
+    enum class CannotFitInInt32 { Indeed };
+    Value(i64 value, CannotFitInInt32)
+    {
+        ASSERT(value < static_cast<i64>(NumericLimits<i32>::min()) || value > static_cast<i64>(NumericLimits<i32>::max()));
+        m_value.as_double = static_cast<double>(value);
+    }
+
     explicit Value(double value)
     {
         bool is_negative_zero = bit_cast<u64>(value) == NEGATIVE_ZERO_BITS;
