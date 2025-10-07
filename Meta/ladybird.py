@@ -136,10 +136,10 @@ def main():
         sys.exit(1)
 
     if "target" in args:
-        if args.target == "ladybird":
+        if platform.host_system != HostSystem.Windows and args.target == "ladybird":
             args.target = "Ladybird"
         if not args.target and args.command not in ("build", "rebuild"):
-            args.target = "Ladybird"
+            args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
 
     if args.command == "build":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
