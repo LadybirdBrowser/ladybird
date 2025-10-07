@@ -7,6 +7,10 @@
 #include <AK/Stream.h>
 #include <LibMedia/FFmpeg/FFmpegIOContext.h>
 
+extern "C" {
+#include <libavformat/avformat.h>
+}
+
 namespace Media::FFmpeg {
 
 FFmpegIOContext::FFmpegIOContext(AVIOContext* avio_context)
