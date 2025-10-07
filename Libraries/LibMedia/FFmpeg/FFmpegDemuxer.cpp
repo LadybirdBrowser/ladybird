@@ -12,6 +12,10 @@
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 
+extern "C" {
+#include <libavformat/avformat.h>
+}
+
 namespace Media::FFmpeg {
 
 FFmpegDemuxer::FFmpegDemuxer(ReadonlyBytes data, NonnullOwnPtr<SeekableStream>&& stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
