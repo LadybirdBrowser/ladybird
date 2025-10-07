@@ -80,6 +80,14 @@ public:
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
 
+    [[nodiscard]] Utf16FlyString const& get_identifier(IdentifierTableIndex) const;
+    [[nodiscard]] Optional<Utf16FlyString const&> get_identifier(Optional<IdentifierTableIndex> index) const
+    {
+        if (!index.has_value())
+            return {};
+        return get_identifier(*index);
+    }
+
 private:
     void run_bytecode(size_t entry_point);
 
@@ -97,6 +105,7 @@ private:
     GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment { nullptr };
     Span<Value> m_registers_and_constants_and_locals_arguments;
     ExecutionContext* m_running_execution_context { nullptr };
+    ReadonlySpan<Utf16FlyString> m_identifier_table;
 };
 
 JS_API extern bool g_dump_bytecode;

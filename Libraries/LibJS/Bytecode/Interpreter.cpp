@@ -693,6 +693,11 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
     }
 }
 
+Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) const
+{
+    return m_identifier_table.data()[index.value];
+}
+
 Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {:p}", &executable);
@@ -702,6 +707,7 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     TemporaryChange restore_realm { m_realm, GC::Ptr { vm().current_realm() } };
     TemporaryChange restore_global_object { m_global_object, GC::Ptr { m_realm->global_object() } };
     TemporaryChange restore_global_declarative_environment { m_global_declarative_environment, GC::Ptr { m_realm->global_environment().declarative_record() } };
+    TemporaryChange restore_identifier_table { m_identifier_table, executable.identifier_table->identifiers() };
 
     auto& running_execution_context = vm().running_execution_context();
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
@@ -1143,7 +1149,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
     cache.environment_serial_number = declarative_record.environment_serial_number();
 
-    auto& identifier = interpreter.current_executable().get_identifier(identifier_index);
+    auto& identifier = interpreter.get_identifier(identifier_index);
 
     if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
@@ -1630,7 +1636,7 @@ inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value supe
     Optional<Utf16FlyString> binding_name;
     Utf16FlyString class_name;
     if (!class_expression.has_name() && lhs_name.has_value()) {
-        class_name = interpreter.current_executable().get_identifier(lhs_name.value());
+        class_name = interpreter.get_identifier(lhs_name.value());
     } else {
         class_name = class_expression.name();
         binding_name = class_name;
@@ -1717,7 +1723,7 @@ inline ThrowCompletionOr<Value> delete_by_id(Bytecode::Interpreter& interpreter,
 {
     auto& vm = interpreter.vm();
 
-    auto const& identifier = interpreter.current_executable().get_identifier(property);
+    auto const& identifier = interpreter.get_identifier(property);
     bool strict = vm.in_strict_mode();
     auto reference = Reference { base, identifier, {}, strict };
 
@@ -2203,7 +2209,7 @@ void NewPrimitiveArray::execute_impl(Bytecode::Interpreter& interpreter) const
 
 void AddPrivateName::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto const& name = interpreter.current_executable().get_identifier(m_name);
+    auto const& name = interpreter.get_identifier(m_name);
     interpreter.vm().running_execution_context().private_environment->add_private_name(name);
 }
 
@@ -2337,7 +2343,7 @@ ThrowCompletionOr<void> GetCalleeAndThisFromEnvironment::execute_impl(Bytecode::
 {
     auto callee_and_this = TRY(get_callee_and_this_from_environment(
         interpreter,
-        interpreter.current_executable().get_identifier(m_identifier),
+        interpreter.get_identifier(m_identifier),
         m_cache));
     interpreter.set(m_callee, callee_and_this.callee);
     interpreter.set(m_this_value, callee_and_this.this_value);
@@ -2387,7 +2393,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
 
     cache.environment_serial_number = declarative_record.environment_serial_number();
 
-    auto& identifier = interpreter.current_executable().get_identifier(m_identifier);
+    auto& identifier = interpreter.get_identifier(m_identifier);
 
     if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
@@ -2445,7 +2451,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
 ThrowCompletionOr<void> DeleteVariable::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto const& string = interpreter.current_executable().get_identifier(m_identifier);
+    auto const& string = interpreter.get_identifier(m_identifier);
     auto reference = TRY(vm.resolve_binding(string));
     interpreter.set(dst(), Value(TRY(reference.delete_(vm))));
     return {};
@@ -2504,7 +2510,7 @@ void RestoreScheduledJump::execute_impl(Bytecode::Interpreter& interpreter) cons
 
 ThrowCompletionOr<void> CreateVariable::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto const& name = interpreter.current_executable().get_identifier(m_identifier);
+    auto const& name = interpreter.get_identifier(m_identifier);
     return create_variable(interpreter.vm(), name, m_mode, m_is_global, m_is_immutable, m_is_strict);
 }
 
@@ -2568,7 +2574,7 @@ static ThrowCompletionOr<void> initialize_or_set_binding(Interpreter& interprete
         cache = {};
     }
 
-    auto reference = TRY(vm.resolve_binding(interpreter.current_executable().get_identifier(identifier_index), environment));
+    auto reference = TRY(vm.resolve_binding(interpreter.get_identifier(identifier_index), environment));
     if (reference.environment_coordinate().has_value())
         cache = reference.environment_coordinate().value();
     if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
@@ -2640,7 +2646,7 @@ ThrowCompletionOr<void> GetLengthWithThis::execute_impl(Bytecode::Interpreter& i
 ThrowCompletionOr<void> GetPrivateById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto const& name = interpreter.current_executable().get_identifier(m_property);
+    auto const& name = interpreter.get_identifier(m_property);
     auto base_value = interpreter.get(m_base);
     auto private_reference = make_private_reference(vm, base_value, name);
     interpreter.set(dst(), TRY(private_reference.get_value(vm)));
@@ -2657,7 +2663,7 @@ ThrowCompletionOr<void> HasPrivateId::execute_impl(Bytecode::Interpreter& interp
 
     auto private_environment = interpreter.running_execution_context().private_environment;
     VERIFY(private_environment);
-    auto private_name = private_environment->resolve_private_identifier(interpreter.current_executable().get_identifier(m_property));
+    auto private_name = private_environment->resolve_private_identifier(interpreter.get_identifier(m_property));
     interpreter.set(dst(), Value(base.as_object().private_element_find(private_name) != nullptr));
     return {};
 }
@@ -2681,8 +2687,8 @@ ThrowCompletionOr<void> PutById::execute_impl(Bytecode::Interpreter& interpreter
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
-    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
-    PropertyKey name { interpreter.current_executable().get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
+    auto base_identifier = interpreter.get_identifier(m_base_identifier);
+    PropertyKey name { interpreter.get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
     TRY(put_by_property_key(vm, base, base, value, base_identifier, name, m_kind, &cache));
     return {};
@@ -2693,7 +2699,7 @@ ThrowCompletionOr<void> PutByNumericId::execute_impl(Bytecode::Interpreter& inte
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
-    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
+    auto base_identifier = interpreter.get_identifier(m_base_identifier);
     PropertyKey name { m_property_index };
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
     TRY(put_by_property_key(vm, base, base, value, base_identifier, name, m_kind, &cache));
@@ -2705,7 +2711,7 @@ ThrowCompletionOr<void> PutByIdWithThis::execute_impl(Bytecode::Interpreter& int
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
-    PropertyKey name { interpreter.current_executable().get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
+    PropertyKey name { interpreter.get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
     TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, name, m_kind, &cache));
     return {};
@@ -2716,7 +2722,7 @@ ThrowCompletionOr<void> PutPrivateById::execute_impl(Bytecode::Interpreter& inte
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto object = TRY(interpreter.get(m_base).to_object(vm));
-    auto name = interpreter.current_executable().get_identifier(m_property);
+    auto name = interpreter.get_identifier(m_property);
     auto private_reference = make_private_reference(vm, object, name);
     TRY(private_reference.put_value(vm, value));
     return {};
@@ -2733,7 +2739,7 @@ ThrowCompletionOr<void> DeleteByIdWithThis::execute_impl(Bytecode::Interpreter& 
 {
     auto& vm = interpreter.vm();
     auto base_value = interpreter.get(m_base);
-    auto const& identifier = interpreter.current_executable().get_identifier(m_property);
+    auto const& identifier = interpreter.get_identifier(m_property);
     bool strict = vm.in_strict_mode();
     auto reference = Reference { base_value, identifier, interpreter.get(m_this_value), strict };
     interpreter.set(dst(), Value(TRY(reference.delete_(vm))));
@@ -3216,7 +3222,7 @@ ThrowCompletionOr<void> PutByValue::execute_impl(Bytecode::Interpreter& interpre
 {
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
-    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
+    auto base_identifier = interpreter.get_identifier(m_base_identifier);
     TRY(put_by_value(vm, interpreter.get(m_base), base_identifier, interpreter.get(m_property), value, m_kind));
     return {};
 }
@@ -3272,7 +3278,7 @@ void GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interp
 ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto identifier = interpreter.current_executable().get_identifier(m_property);
+    auto identifier = interpreter.get_identifier(m_property);
     auto method = TRY(interpreter.get(m_object).get_method(vm, identifier));
     interpreter.set(dst(), method ?: js_undefined());
     return {};
@@ -3362,7 +3368,7 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
     }
 
     // 1. Let val be the result of evaluating UnaryExpression.
-    auto reference = TRY(vm.resolve_binding(interpreter.current_executable().get_identifier(m_identifier)));
+    auto reference = TRY(vm.resolve_binding(interpreter.get_identifier(m_identifier)));
 
     // 2. If val is a Reference Record, then
     //    a. If IsUnresolvableReference(val) is true, return "undefined".
