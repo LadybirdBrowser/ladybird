@@ -7,7 +7,6 @@ set(SOURCES
     BrowserProcess.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
-    Database.cpp
     DOMNodeProperties.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp
@@ -70,16 +69,13 @@ set(GENERATED_SOURCES
 )
 
 ladybird_lib(LibWebView webview EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibWebView PRIVATE LibCore LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
+target_link_libraries(LibWebView PRIVATE LibCore LibDatabase LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
 
 if (APPLE)
     target_link_libraries(LibWebView PRIVATE LibThreading)
 endif()
 
 # Third-party
-find_package(SQLite3 REQUIRED)
-target_link_libraries(LibWebView PRIVATE SQLite::SQLite3)
-
 if (HAS_FONTCONFIG)
     target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
 endif()

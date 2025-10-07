@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -13,19 +13,18 @@
 #include <AK/RefCounted.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-#include <LibWebView/Forward.h>
+#include <LibDatabase/Forward.h>
 
 struct sqlite3;
 struct sqlite3_stmt;
 
-namespace WebView {
+namespace Database {
 
-class WEBVIEW_API Database : public RefCounted<Database> {
+class DATABASE_API Database : public RefCounted<Database> {
 public:
-    static ErrorOr<NonnullRefPtr<Database>> create();
+    static ErrorOr<NonnullRefPtr<Database>> create(ByteString const& directory, StringView name);
     ~Database();
 
-    using StatementID = size_t;
     using OnResult = Function<void(StatementID)>;
 
     ErrorOr<StatementID> prepare_statement(StringView statement);

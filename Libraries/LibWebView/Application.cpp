@@ -10,6 +10,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
+#include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
@@ -17,7 +18,6 @@
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/Database.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
@@ -347,9 +347,12 @@ ErrorOr<void> Application::launch_services()
     };
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
-        m_database = Database::create().release_value_but_fixme_should_propagate_errors();
-        m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
-        m_storage_jar = StorageJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
+        // FIXME: Move this to a generic "Ladybird data directory" helper.
+        auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
+
+        m_database = TRY(Database::Database::create(database_path, "Ladybird"sv));
+        m_cookie_jar = TRY(CookieJar::create(*m_database));
+        m_storage_jar = TRY(StorageJar::create(*m_database));
     } else {
         m_cookie_jar = CookieJar::create();
         m_storage_jar = StorageJar::create();
