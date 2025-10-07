@@ -111,11 +111,11 @@ CSSPixelPoint PaintableBox::scroll_offset() const
     return static_cast<DOM::Element const*>(dom_node())->scroll_offset({});
 }
 
-void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
+PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset)
 {
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
     if (!scrollable_overflow_rect.has_value())
-        return;
+        return ScrollHandled::No;
 
     document().set_needs_to_refresh_scroll_state(true);
 
@@ -128,7 +128,7 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
 
     // FIXME: If there is horizontal and vertical scroll ignore only part of the new offset
     if (offset.y() < 0 || scroll_offset() == offset)
-        return;
+        return ScrollHandled::No;
 
     auto& node = layout_node();
     if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
@@ -136,7 +136,7 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     } else if (auto* element = as_if<DOM::Element>(dom_node())) {
         element->set_scroll_offset({}, offset);
     } else {
-        return;
+        return ScrollHandled::No;
     }
 
     // https://drafts.csswg.org/cssom-view-1/#scrolling-events
@@ -154,17 +154,18 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
 
     // 3. If the element is already in doc’s pending scroll event targets, abort these steps.
     if (document.pending_scroll_event_targets().contains_slow(event_target))
-        return;
+        return ScrollHandled::Yes;
 
     // 4. Append the element to doc’s pending scroll event targets.
     document.pending_scroll_event_targets().append(*layout_node_with_style_and_box_metrics().dom_node());
 
     set_needs_display(InvalidateDisplayList::No);
+    return ScrollHandled::Yes;
 }
 
-void PaintableBox::scroll_by(int delta_x, int delta_y)
+PaintableBox::ScrollHandled PaintableBox::scroll_by(int delta_x, int delta_y)
 {
-    set_scroll_offset(scroll_offset().translated(delta_x, delta_y));
+    return set_scroll_offset(scroll_offset().translated(delta_x, delta_y));
 }
 
 void PaintableBox::set_offset(CSSPixelPoint offset)
@@ -1163,7 +1164,7 @@ void PaintableBox::scroll_to_mouse_position(CSSPixelPoint position)
     if (is_viewport())
         document().navigable()->perform_scroll_of_viewport(new_scroll_offset);
     else
-        set_scroll_offset(new_scroll_offset);
+        (void)set_scroll_offset(new_scroll_offset);
 }
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
@@ -1173,8 +1174,8 @@ bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigne
         return false;
     }
 
-    scroll_by(wheel_delta_x, wheel_delta_y);
-    return true;
+    auto scroll_handled = scroll_by(wheel_delta_x, wheel_delta_y);
+    return scroll_handled == ScrollHandled::Yes;
 }
 
 TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const
