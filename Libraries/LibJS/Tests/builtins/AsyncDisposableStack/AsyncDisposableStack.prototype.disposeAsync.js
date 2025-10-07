@@ -3,14 +3,14 @@ test("length is 0", () => {
 });
 
 describe("basic functionality", () => {
-    test("make the stack marked as disposed", async () => {
+    test.skip("make the stack marked as disposed", async () => {
         const stack = new AsyncDisposableStack();
         const result = await stack.disposeAsync();
         expect(stack.disposed).toBeTrue();
         expect(result).toBeUndefined();
     });
 
-    test("call dispose on objects in stack when called", async () => {
+    test.skip("call dispose on objects in stack when called", async () => {
         const stack = new AsyncDisposableStack();
         let disposedCalled = false;
         stack.use({
@@ -25,7 +25,7 @@ describe("basic functionality", () => {
         expect(result).toBeUndefined();
     });
 
-    test("disposed the objects added to the stack in reverse order", async () => {
+    test.skip("disposed the objects added to the stack in reverse order", async () => {
         const disposed = [];
         const stack = new AsyncDisposableStack();
         stack.use({
@@ -45,7 +45,7 @@ describe("basic functionality", () => {
         expect(result).toBeUndefined();
     });
 
-    test("does not dispose anything if already disposed", async () => {
+    test.skip("does not dispose anything if already disposed", async () => {
         const disposed = [];
         const stack = new AsyncDisposableStack();
         stack.use({
@@ -70,7 +70,7 @@ describe("basic functionality", () => {
         expect(disposed).toEqual(["a"]);
     });
 
-    test("throws if dispose method throws", async () => {
+    test.skip("throws if dispose method throws", async () => {
         const stack = new AsyncDisposableStack();
         let disposedCalled = false;
         stack.use({

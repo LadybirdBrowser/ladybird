@@ -11,11 +11,6 @@
 
 namespace Web::HTML {
 
-void Agent::spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition)
-{
-    Platform::EventLoopPlugin::the().spin_until(move(goal_condition));
-}
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent
 Agent& relevant_agent(JS::Object const& object)
 {

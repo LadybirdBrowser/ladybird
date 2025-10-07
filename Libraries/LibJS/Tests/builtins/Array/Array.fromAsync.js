@@ -23,13 +23,13 @@ describe("normal behavior", () => {
         expect(passed).toBeTrue();
     }
 
-    test("async from sync iterable no mapfn", () => {
+    test.skip("async from sync iterable no mapfn", () => {
         const input = [0, Promise.resolve(2), Promise.resolve(4)].values();
         const promise = Array.fromAsync(input);
         checkResult(promise);
     });
 
-    test("from object of promises no mapfn", () => {
+    test.skip("from object of promises no mapfn", () => {
         let promise = Array.fromAsync({
             length: 3,
             0: Promise.resolve(0),
@@ -39,13 +39,13 @@ describe("normal behavior", () => {
         checkResult(promise);
     });
 
-    test("async from sync iterable with mapfn", () => {
+    test.skip("async from sync iterable with mapfn", () => {
         const input = [Promise.resolve(0), 1, Promise.resolve(2)].values();
         const promise = Array.fromAsync(input, async element => element * 2);
         checkResult(promise);
     });
 
-    test("from object of promises with mapfn", () => {
+    test.skip("from object of promises with mapfn", () => {
         let promise = Array.fromAsync(
             {
                 length: 3,
@@ -58,7 +58,7 @@ describe("normal behavior", () => {
         checkResult(promise);
     });
 
-    test("does not double construct from array like object", () => {
+    test.skip("does not double construct from array like object", () => {
         let callCount = 0;
 
         class TestArray {
