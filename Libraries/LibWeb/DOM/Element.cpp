@@ -3780,7 +3780,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
 
     auto value_or_empty = value.value_or(String {});
 
-    if (local_name == HTML::AttributeNames::id) {
+    if (local_name == HTML::AttributeNames::id && !namespace_.has_value()) {
         if (value_or_empty.is_empty())
             m_id = {};
         else
@@ -3792,7 +3792,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
                 old_value_fly_string = *old_value;
             document().element_id_changed({}, *this, old_value_fly_string);
         }
-    } else if (local_name == HTML::AttributeNames::name) {
+    } else if (local_name == HTML::AttributeNames::name && !namespace_.has_value()) {
         if (value_or_empty.is_empty())
             m_name = {};
         else
@@ -3800,7 +3800,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
 
         if (is_connected())
             document().element_name_changed({}, *this);
-    } else if (local_name == HTML::AttributeNames::class_) {
+    } else if (local_name == HTML::AttributeNames::class_ && !namespace_.has_value()) {
         if (value_or_empty.is_empty()) {
             m_classes.clear();
         } else {
@@ -3813,7 +3813,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         }
         if (m_class_list)
             m_class_list->associated_attribute_changed(value_or_empty);
-    } else if (local_name == HTML::AttributeNames::style) {
+    } else if (local_name == HTML::AttributeNames::style && !namespace_.has_value()) {
         // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
         if (m_inline_style && m_inline_style->is_updating())
             return;
@@ -3821,7 +3821,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
         m_inline_style->set_declarations_from_text(value.value_or(""_string));
         set_needs_style_update(true);
-    } else if (local_name == HTML::AttributeNames::dir) {
+    } else if (local_name == HTML::AttributeNames::dir && !namespace_.has_value()) {
         // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
         if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
             m_dir = Dir::Ltr;
