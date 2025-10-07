@@ -95,6 +95,7 @@ private:
 
     AK::Duration m_last_stream_time;
     AK::Duration m_last_media_time;
+    Optional<AK::Duration> m_temporary_time;
 };
 
 }
