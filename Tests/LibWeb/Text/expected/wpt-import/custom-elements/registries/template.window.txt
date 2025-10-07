@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 3 tests
 
-3 Pass
+2 Pass
+1 Fail
 Pass	shadowRootCustomElementRegistry reflects as string
-Pass	Serializing a ShadowRoot with a null registry
+Fail	Serializing a ShadowRoot with a null registry
 Pass	Serializing a ShadowRoot with a registry that differs from its host

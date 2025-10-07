@@ -16,9 +16,9 @@ test_with_window((w, doc) => {
   assert_equals(original.customElementRegistry, customElements);
 
   let imported = doc.importNode(original);
-  assert_true(imported instanceof MyElement);
-  assert_false(imported instanceof MyElement2);
-  assert_equals(imported.customElementRegistry, customElements);
+  assert_true(imported instanceof MyElement2);
+  assert_false(imported instanceof MyElement);
+  assert_equals(imported.customElementRegistry, w.customElements);
 }, 'autonomous: document.importNode() should import custom elements successfully');
 
 test_with_window((w, doc) => {
@@ -30,7 +30,7 @@ test_with_window((w, doc) => {
   assert_equals(original.customElementRegistry, customElements);
 
   let imported = doc.importNode(original);
-  assert_equals(imported.customElementRegistry, customElements);
+  assert_equals(imported.customElementRegistry, w.customElements);
 }, 'autonomous: document.importNode() should import "undefined" custom elements successfully');
 </script>
 </body>

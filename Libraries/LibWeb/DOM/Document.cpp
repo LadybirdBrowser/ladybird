@@ -2340,20 +2340,27 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Var
     // 3. Let registry be null.
     GC::Ptr<HTML::CustomElementRegistry> registry;
 
-    options.visit(
+    TRY(options.visit(
         // 4. If options is a boolean, then set subtree to options.
-        [&subtree](bool const& value) {
+        [&subtree](bool const& value) -> WebIDL::ExceptionOr<void> {
             subtree = value;
+            return {};
         },
         // 5. Otherwise:
-        [&subtree, &registry](ImportNodeOptions const& options) {
+        [&subtree, &registry, this](ImportNodeOptions const& options) -> WebIDL::ExceptionOr<void> {
             // 1. Set subtree to the negation of options["selfOnly"].
             subtree = !options.self_only;
 
             // 2. If options["customElementRegistry"] exists, then set registry to it.
             if (options.custom_element_registry)
                 registry = options.custom_element_registry;
-        });
+
+            // 3. If registry’s is scoped is false and registry is not this’s custom element registry, then throw a
+            //    "NotSupportedError" DOMException.
+            if (registry && !registry->is_scoped() && registry != custom_element_registry())
+                return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ImportNodeOptions must either be scoped or the document's custom element registry."_utf16);
+            return {};
+        }));
 
     // 6. If registry is null, then set registry to the result of looking up a custom element registry given this.
     if (!registry)
@@ -2380,8 +2387,23 @@ void Document::adopt_node(Node& node)
             // 1. Set inclusiveDescendant’s node document to document.
             inclusive_descendant.set_document(Badge<Document> {}, *this);
 
-            // FIXME: 2. If inclusiveDescendant is an element, then set the node document of each attribute in inclusiveDescendant’s
-            //           attribute list to document.
+            // 2. If inclusiveDescendant is a shadow root and inclusiveDescendant’s custom element registry is a global
+            //    custom element registry, then set inclusiveDescendant’s custom element registry to document’s
+            //    effective global custom element registry.
+            if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant);
+                shadow_root && HTML::is_a_global_custom_element_registry(shadow_root->custom_element_registry())) {
+                shadow_root->set_custom_element_registry(document().effective_global_custom_element_registry());
+            }
+            // 3. Otherwise, if inclusiveDescendant is an element:
+            else if (auto* element = as_if<Element>(inclusive_descendant)) {
+                // FIXME: 1. Set the node document of each attribute in inclusiveDescendant’s attribute list to document.
+
+                // 2. If inclusiveDescendant’s custom element registry is a global custom element registry, then set
+                //    inclusiveDescendant’s custom element registry to document’s effective global custom element registry.
+                if (is_a_global_custom_element_registry(element->custom_element_registry()))
+                    element->set_custom_element_registry(document().effective_global_custom_element_registry());
+            }
+
             return TraversalDecision::Continue;
         });
 
@@ -6623,11 +6645,16 @@ WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_
         if (dictionary->custom_element_registry)
             registry = dictionary->custom_element_registry;
 
-        // 2. If options["is"] exists, then set is to it.
+        // 2. If registry’s is scoped is false and registry is not document’s custom element registry, then throw a
+        //    "NotSupportedError" DOMException.
+        if (registry && !registry->is_scoped() && registry != document().custom_element_registry())
+            return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ElementCreationOptions must either be scoped or the document's custom element registry."_utf16);
+
+        // 3. If options["is"] exists, then set is to it.
         if (dictionary->is.has_value())
             is = dictionary->is.value();
 
-        // 3. If registry is non-null and is is non-null, then throw a "NotSupportedError" DOMException.
+        // 4. If registry is non-null and is is non-null, then throw a "NotSupportedError" DOMException.
         if (registry && is.has_value())
             return WebIDL::NotSupportedError::create(realm(), "Cannot provide both 'is' and 'customElementRegistry' in ElementCreationOptions."_utf16);
     }
@@ -6760,6 +6787,20 @@ GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
 
     // 2. Assert: this is a ShadowRoot node.
     // 3. Return this’s custom element registry.
+}
+
+// https://dom.spec.whatwg.org/#effective-global-custom-element-registry
+GC::Ptr<HTML::CustomElementRegistry> Document::effective_global_custom_element_registry() const
+{
+    // A document document’s effective global custom element registry is:
+
+    // 1. If document’s custom element registry is a global custom element registry, then return document’s custom
+    //    element registry.
+    if (HTML::is_a_global_custom_element_registry(custom_element_registry()))
+        return custom_element_registry();
+
+    // 2. Return null.
+    return nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-particular-elements-within-a-document

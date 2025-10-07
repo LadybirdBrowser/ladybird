@@ -32,7 +32,7 @@ public:
     Optional<String> get_name(GC::Root<WebIDL::CallbackType> const& constructor) const;
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> when_defined(String const& name);
     void upgrade(GC::Ref<DOM::Node> root) const;
-    void initialize_for_bindings(GC::Ref<DOM::Node> root);
+    WebIDL::ExceptionOr<void> initialize_for_bindings(GC::Ref<DOM::Node> root);
 
     bool is_scoped() const { return m_is_scoped; }
     void append_scoped_document(GC::Ref<DOM::Document>);
@@ -72,5 +72,7 @@ private:
 
 GC::Ptr<CustomElementRegistry> look_up_a_custom_element_registry(DOM::Node const&);
 GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<CustomElementRegistry> registry, Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is);
+
+bool is_a_global_custom_element_registry(GC::Ptr<CustomElementRegistry>);
 
 }

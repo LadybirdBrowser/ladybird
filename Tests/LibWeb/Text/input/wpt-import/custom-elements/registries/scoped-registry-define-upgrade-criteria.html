@@ -169,16 +169,18 @@ test(t => {
 test(t => {
   const name = nextCustomElementName();
 
+  const registry = new CustomElementRegistry;
+
   const newWindow = window.open('about:blank');
   t.add_cleanup(() => newWindow.close());
 
   const host = newWindow.document.createElement('div');
-  const shadow = host.attachShadow({mode: 'open', customElementRegistry: window.customElements});
+  const shadow = host.attachShadow({mode: 'open', customElementRegistry: registry});
   const node = shadow.appendChild(newWindow.document.createElement(name));
   newWindow.document.body.appendChild(host);
 
   class TestElement extends HTMLElement {};
-  window.customElements.define(name, TestElement);
+  registry.define(name, TestElement);
 
   assert_true(node instanceof TestElement);
 }, 'Adding definition to scoped registry affects associated shadow roots in other frame trees');

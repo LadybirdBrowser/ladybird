@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	built-in: document.importNode() should import custom elements successfully
-Fail	built-in: document.importNode() should import "undefined" custom elements successfully
+2 Pass
+Pass	built-in: document.importNode() should import custom elements successfully
+Pass	built-in: document.importNode() should import "undefined" custom elements successfully

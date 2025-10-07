@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	Document: customElementRegistry of an upgrade candidate created with a document without a browsing context uses null regsitry by default
+Pass	Document: customElementRegistry of an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	Document: customElementRegistry of an upgrade candidate created with an explicit customElementRegistry argument should return the registry
+Pass	Document: customElementRegistry of an unknown element created with a document without a browsing context uses null regsitry by default
+Pass	Document: customElementRegistry of an unknown element after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	Document: customElementRegistry of an unknown element created with an explicit customElementRegistry argument should return the registry
+Pass	Document: customElementRegistry of an upgrade candidate connected to a document without a browsing context uses null regsitry by default
+Pass	Document: customElementRegistry of document and an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	Document: customElementRegistry of an element created after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	HTMLDocument: customElementRegistry of an upgrade candidate created with a document without a browsing context uses null regsitry by default
+Pass	HTMLDocument: customElementRegistry of an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	HTMLDocument: customElementRegistry of an upgrade candidate created with an explicit customElementRegistry argument should return the registry
+Pass	HTMLDocument: customElementRegistry of an unknown element created with a document without a browsing context uses null regsitry by default
+Pass	HTMLDocument: customElementRegistry of an unknown element after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	HTMLDocument: customElementRegistry of an unknown element created with an explicit customElementRegistry argument should return the registry
+Pass	HTMLDocument: customElementRegistry of an upgrade candidate connected to a document without a browsing context uses null regsitry by default
+Pass	HTMLDocument: customElementRegistry of document and an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	HTMLDocument: customElementRegistry of an element created after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	XHTMLDocument: customElementRegistry of an upgrade candidate created with a document without a browsing context uses null regsitry by default
+Pass	XHTMLDocument: customElementRegistry of an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	XHTMLDocument: customElementRegistry of an upgrade candidate created with an explicit customElementRegistry argument should return the registry
+Pass	XHTMLDocument: customElementRegistry of an unknown element created with a document without a browsing context uses null regsitry by default
+Pass	XHTMLDocument: customElementRegistry of an unknown element after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	XHTMLDocument: customElementRegistry of an unknown element created with an explicit customElementRegistry argument should return the registry
+Pass	XHTMLDocument: customElementRegistry of an upgrade candidate connected to a document without a browsing context uses null regsitry by default
+Pass	XHTMLDocument: customElementRegistry of document and an upgrade candidate after calling CustomElementRegistry.prototype.initialize should return the registry
+Pass	XHTMLDocument: customElementRegistry of an element created after calling CustomElementRegistry.prototype.initialize should return the registry

@@ -23,8 +23,8 @@ test_with_window(function (contentWindow, contentDocument) {
     const newDoc = contentDocument.implementation.createHTMLDocument();
     newDoc.importNode(instance);
 
-    assert_array_equals(element.takeLog().types(), ['constructed']);
-}, 'importNode on Document must construct a new custom element when importing a custom element into a window-less document');
+    assert_array_equals(element.takeLog().types(), []);
+}, 'importNode on Document must not construct a new custom element when importing a custom element into a window-less document');
 
 test_with_window(function (contentWindow, contentDocument) {
     const element = define_custom_element_in_window(contentWindow, 'custom-element', []);

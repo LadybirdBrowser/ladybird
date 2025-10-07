@@ -962,9 +962,16 @@ WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootInit i
     // 1. Let registry be this’s node document’s custom element registry.
     auto registry = document().custom_element_registry();
 
-    // 2. If init["customElementRegistry"] is non-null, then set registry to it.
-    if (init.custom_element_registry)
+    // 2. If init["customElementRegistry"] is non-null:
+    if (init.custom_element_registry) {
+        // 1. Set registry to init["customElementRegistry"].
         registry = init.custom_element_registry;
+
+        // 2. If registry’s is scoped is false and registry is not this’s node document’s custom element registry,
+        //    then throw a "NotSupportedError" DOMException.
+        if (!registry->is_scoped() && registry != document().custom_element_registry())
+            return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ShadowRootInit must either be scoped or the document's custom element registry."_utf16);
+    }
 
     // 3. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"], init["delegatesFocus"], init["slotAssignment"], and registry.
     TRY(attach_a_shadow_root(init.mode, init.clonable, init.serializable, init.delegates_focus, init.slot_assignment, registry));

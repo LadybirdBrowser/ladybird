@@ -1194,14 +1194,20 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
             // 2. Let shadowRootRegistry be node’s shadow root’s custom element registry.
             auto shadow_root_registry = node_element.shadow_root()->custom_element_registry();
 
-            // 3. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
+            // 3. If shadowRootRegistry is a global custom element registry, then set shadowRootRegistry to document’s
+            //    effective global custom element registry.
+            if (is_a_global_custom_element_registry(shadow_root_registry)) {
+                shadow_root_registry = document->effective_global_custom_element_registry();
+            }
+
+            // 4. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
             //    node’s shadow root’s delegates focus, node’s shadow root’s slot assignment, and shadowRootRegistry.
             TRY(copy_element.attach_a_shadow_root(node_element.shadow_root()->mode(), true, node_element.shadow_root()->serializable(), node_element.shadow_root()->delegates_focus(), node_element.shadow_root()->slot_assignment(), shadow_root_registry));
 
-            // 4. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
+            // 5. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
             copy_element.shadow_root()->set_declarative(node_element.shadow_root()->declarative());
 
-            // 5. For each child of node’s shadow root’s children, in tree order:
+            // 6. For each child of node’s shadow root’s children, in tree order:
             //    clone a node given child with document set to document, subtree set to subtree, and parent set to copy’s shadow root.
             for (auto child = node_element.shadow_root()->first_child(); child; child = child->next_sibling()) {
                 TRY(child->clone_node(document, subtree, copy_element.shadow_root()));
@@ -1414,6 +1420,12 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
         if (!registry)
             registry = fallback_registry;
 
+        // 3. If registry is a global custom element registry, then set registry to document’s effective global custom
+        //    element registry.
+        if (is_a_global_custom_element_registry(registry)) {
+            registry = document.effective_global_custom_element_registry();
+        }
+
         // 3. Set copy to the result of creating an element, given document, node’s local name, node’s namespace, node’s namespace prefix, node’s is value, false, and registry.
         auto element_copy = TRY(DOM::create_element(document, element->local_name(), element->namespace_uri(), element->prefix(), element->is_value(), false, registry));
 
@@ -1455,7 +1467,8 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
                 }
             }();
 
-            // Set copy’s encoding, content type, URL, origin, type, mode, allow declarative shadow roots, and custom element registry to those of node.
+            // 1. Set copy’s encoding, content type, URL, origin, type, mode, and allow declarative shadow roots to
+            //    those of node.
             document_copy->set_encoding(document_.encoding());
             document_copy->set_content_type(document_.content_type());
             document_copy->set_url(document_.url());
@@ -1463,7 +1476,12 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             document_copy->set_document_type(document_.document_type());
             document_copy->set_quirks_mode(document_.mode());
             document_copy->set_allow_declarative_shadow_roots(document_.allow_declarative_shadow_roots());
-            document_copy->set_custom_element_registry(document_.custom_element_registry().ptr());
+
+            // 2. If node’s custom element registry’s is scoped is true, then set copy’s custom element registry to
+            //    node’s custom element registry.
+            if (auto registry = document_.custom_element_registry(); registry && registry->is_scoped())
+                document_copy->set_custom_element_registry(registry);
+
             copy = move(document_copy);
         } else if (is_document_type()) {
             // -> DocumentType

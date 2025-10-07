@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	initialize() of global registry should throw for nodes from another document
+Pass	createElement() should throw with global registry from another document
+Pass	createElementNS() should throw with global registry from another document
+Pass	attachShadow() should throw with global registry from another document
+Pass	importNode() should throw with global registry from another document

@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 10 tests
 
-10 Pass
+9 Pass
+1 Fail
 Pass	deleteContents on Range must enqueue a disconnected reaction
 Pass	extractContents on Range must enqueue a disconnected reaction
 Pass	cloneContents on Range must enqueue an attributeChanged reaction when cloning an element with an observed attribute
@@ -12,4 +13,4 @@ Pass	insertNode on Range must enqueue a connected reaction
 Pass	insertNode on Range must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
 Pass	surroundContents on Range must enqueue a connected reaction
 Pass	surroundContents on Range must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
-Pass	createContextualFragment on Range must construct a custom element
+Fail	createContextualFragment on Range must construct a custom element

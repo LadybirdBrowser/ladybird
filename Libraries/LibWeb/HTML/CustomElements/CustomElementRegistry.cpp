@@ -414,18 +414,23 @@ void CustomElementRegistry::upgrade(GC::Ref<DOM::Node> root) const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize
-void CustomElementRegistry::initialize_for_bindings(GC::Ref<DOM::Node> root)
+WebIDL::ExceptionOr<void> CustomElementRegistry::initialize_for_bindings(GC::Ref<DOM::Node> root)
 {
-    // 1. If root is a Document node whose custom element registry is null, then set root's custom element registry to this.
+    // 1. If this's is scoped is false and either root is a Document node or root's node document's custom element
+    //    registry is not this, then throw a "NotSupportedError" DOMException.
+    if (!is_scoped() && (root->is_document() || root->document().custom_element_registry() != this))
+        return WebIDL::NotSupportedError::create(realm(), "CustomElementRegistry must either be scoped or the document's custom element registry."_utf16);
+
+    // 2. If root is a Document node whose custom element registry is null, then set root's custom element registry to this.
     if (auto* document = as_if<DOM::Document>(*root); document && !document->custom_element_registry())
         document->set_custom_element_registry(this);
 
-    // 2. Otherwise, if root is a ShadowRoot node whose custom element registry is null, then set root's custom element
+    // 3. Otherwise, if root is a ShadowRoot node whose custom element registry is null, then set root's custom element
     //    registry to this.
     else if (auto* shadow_root = as_if<DOM::ShadowRoot>(*root); shadow_root && !shadow_root->custom_element_registry())
         shadow_root->set_custom_element_registry(this);
 
-    // 3. For each inclusive descendant inclusiveDescendant of root:
+    // 4. For each inclusive descendant inclusiveDescendant of root:
     //    if inclusiveDescendant is an Element node whose custom element registry is null:
     root->for_each_in_inclusive_subtree([this](auto& inclusive_descendant) {
         if (auto* element = as_if<DOM::Element>(inclusive_descendant); element && element->custom_element_registry() == nullptr) {
@@ -439,6 +444,8 @@ void CustomElementRegistry::initialize_for_bindings(GC::Ref<DOM::Node> root)
         }
         return TraversalDecision::Continue;
     });
+
+    return {};
 }
 
 void CustomElementRegistry::append_scoped_document(GC::Ref<DOM::Document> document)
@@ -508,6 +515,14 @@ GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<Cus
         return nullptr;
 
     return registry->get_definition_with_name_and_local_name(is.value(), converted_local_name);
+}
+
+// https://dom.spec.whatwg.org/#is-a-global-custom-element-registry
+bool is_a_global_custom_element_registry(GC::Ptr<CustomElementRegistry> registry)
+{
+    // Null or a CustomElementRegistry object registry is a global custom element registry if registry is non-null and
+    // registry’s is scoped is false.
+    return registry && !registry->is_scoped();
 }
 
 }

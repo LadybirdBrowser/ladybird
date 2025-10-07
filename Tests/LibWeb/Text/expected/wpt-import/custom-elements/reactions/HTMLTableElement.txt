@@ -2,14 +2,15 @@ Harness status: OK
 
 Found 10 tests
 
-10 Pass
-Pass	caption on HTMLTableElement must enqueue connectedCallback when inserting a custom element
+7 Pass
+3 Fail
+Fail	caption on HTMLTableElement must enqueue connectedCallback when inserting a custom element
 Pass	caption on HTMLTableElement must enqueue disconnectedCallback when removing a custom element
 Pass	deleteCaption() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element
-Pass	tHead on HTMLTableElement must enqueue connectedCallback when inserting a custom element
+Fail	tHead on HTMLTableElement must enqueue connectedCallback when inserting a custom element
 Pass	tHead on HTMLTableElement must enqueue disconnectedCallback when removing a custom element
 Pass	deleteTHead() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element
-Pass	tFoot on HTMLTableElement must enqueue connectedCallback when inserting a custom element
+Fail	tFoot on HTMLTableElement must enqueue connectedCallback when inserting a custom element
 Pass	tFoot on HTMLTableElement must enqueue disconnectedCallback when removing a custom element
 Pass	deleteTFoot() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element
 Pass	deleteRow() on HTMLTableElement must enqueue disconnectedCallback when removing a custom element

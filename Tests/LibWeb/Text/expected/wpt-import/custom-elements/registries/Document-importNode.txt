@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 19 tests
 
-16 Pass
-3 Fail
+19 Pass
 Pass	importNode should clone using the global regsitry by default
 Pass	importNode should clone using target's registry if non-null
 Pass	importNode should clone using the specified registry if target's registry is null
@@ -11,9 +10,9 @@ Pass	importNode should preserve null-ness of custom element registry
 Pass	importNode should clone a shadow host with a declarative shadow DOM using the global registry by default
 Pass	importNode should clone a shadow host with a declarative shadow DOM using a specified scoped registry
 Pass	importNode should clone using target's registry if non-null, including when it's not the global registry
-Fail	importNode should clone a template content using the global registry by default
-Fail	importNode should clone a template content using a specified scoped registry
-Fail	importNode should clone a template content with a nested template element using a scoped registry
+Pass	importNode should clone a template content using the global registry by default
+Pass	importNode should clone a template content using a specified scoped registry
+Pass	importNode should clone a template content with a nested template element using a scoped registry
 Pass	importNode: don't pass options argument
 Pass	importNode: pass options argument with value false
 Pass	importNode: pass options argument with value true
