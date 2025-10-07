@@ -11,16 +11,13 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/Export.h>
+#include <LibMedia/FFmpeg/FFmpegForward.h>
 #include <LibMedia/FFmpeg/FFmpegIOContext.h>
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-}
 
 namespace Media::FFmpeg {
 
-class FFmpegDemuxer : public Demuxer {
+class MEDIA_API FFmpegDemuxer : public Demuxer {
 public:
     static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_data(ReadonlyBytes data);
     virtual ~FFmpegDemuxer() override;
