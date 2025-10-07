@@ -47,8 +47,8 @@ public:
     static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
     ~PlaybackManager();
 
-    AK::Duration current_time() const { return m_time_provider->current_time(); }
     AK::Duration duration() const;
+    AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
 
     VideoTracks const& video_tracks() const { return m_video_tracks; }
     Optional<Track> preferred_video_track();
