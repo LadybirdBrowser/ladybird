@@ -52,6 +52,8 @@ void VideoTrackList::add_track(Badge<HTMLMediaElement>, GC::Ref<VideoTrack> vide
 
 void VideoTrackList::remove_all_tracks(Badge<HTMLMediaElement>)
 {
+    for (auto& video_track : m_video_tracks)
+        video_track->set_selected(false);
     m_video_tracks.clear();
 }
 
