@@ -1536,11 +1536,11 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Byt
     Value callee = js_undefined();
     Value this_value = js_undefined();
 
-    if (cache.is_valid()) {
+    if (cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
         for (size_t i = 0; i < cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             callee = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
             this_value = js_undefined();
             if (auto base_object = environment->with_base_object())
@@ -2297,13 +2297,12 @@ template<BindingIsKnownToBeInitialized binding_is_known_to_be_initialized>
 static ThrowCompletionOr<void> get_binding(Interpreter& interpreter, Operand dst, IdentifierTableIndex identifier, EnvironmentCoordinate& cache)
 {
     auto& vm = interpreter.vm();
-    auto& executable = interpreter.current_executable();
 
-    if (cache.is_valid()) {
+    if (cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
         for (size_t i = 0; i < cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             Value value;
             if constexpr (binding_is_known_to_be_initialized == BindingIsKnownToBeInitialized::No) {
                 value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
@@ -2316,6 +2315,7 @@ static ThrowCompletionOr<void> get_binding(Interpreter& interpreter, Operand dst
         cache = {};
     }
 
+    auto& executable = interpreter.current_executable();
     auto reference = TRY(vm.resolve_binding(executable.get_identifier(identifier)));
     if (reference.environment_coordinate().has_value())
         cache = reference.environment_coordinate().value();
@@ -2554,10 +2554,10 @@ static ThrowCompletionOr<void> initialize_or_set_binding(Interpreter& interprete
         ? interpreter.running_execution_context().lexical_environment.ptr()
         : interpreter.running_execution_context().variable_environment.ptr();
 
-    if (cache.is_valid()) {
+    if (cache.is_valid()) [[likely]] {
         for (size_t i = 0; i < cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
                 TRY(static_cast<DeclarativeEnvironment&>(*environment).initialize_binding_direct(vm, cache.index, value, Environment::InitializeBindingHint::Normal));
             } else {
@@ -3349,11 +3349,11 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
 {
     auto& vm = interpreter.vm();
 
-    if (m_cache.is_valid()) {
+    if (m_cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
         for (size_t i = 0; i < m_cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index));
             interpreter.set(dst(), value.typeof_(vm));
             return {};
