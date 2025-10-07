@@ -218,6 +218,8 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
 
 AK::Duration AudioMixingSink::current_time() const
 {
+    if (m_temporary_time.has_value())
+        return m_temporary_time.value();
     if (!m_playback_stream)
         return m_last_media_time;
 
@@ -279,18 +281,7 @@ void AudioMixingSink::pause()
 
 void AudioMixingSink::set_time(AK::Duration time)
 {
-    if (!m_playing || !m_playback_stream) {
-        Threading::MutexLocker mixing_locker { m_mutex };
-        m_last_media_time = time;
-        m_next_sample_to_write = duration_to_sample(time, m_playback_stream_sample_rate);
-
-        for (auto& [track, track_data] : m_track_mixing_datas) {
-            track_data.current_block.clear();
-            track_data.current_block_first_sample_offset = 0;
-        }
-        return;
-    }
-
+    m_temporary_time = time;
     m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream, time]() {
             auto self = weak_self->take_strong();
@@ -303,10 +294,14 @@ void AudioMixingSink::set_time(AK::Duration time)
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time, time]() {
                 {
-                    Threading::MutexLocker mixing_locker { self->m_mutex };
                     self->m_last_stream_time = new_stream_time;
                     self->m_last_media_time = time;
-                    self->m_next_sample_to_write = duration_to_sample(time, self->m_playback_stream_sample_rate);
+                    self->m_temporary_time = {};
+
+                    {
+                        Threading::MutexLocker mixing_locker { self->m_mutex };
+                        self->m_next_sample_to_write = duration_to_sample(time, self->m_playback_stream_sample_rate);
+                    }
 
                     for (auto& [track, track_data] : self->m_track_mixing_datas) {
                         track_data.current_block.clear();
@@ -314,7 +309,8 @@ void AudioMixingSink::set_time(AK::Duration time)
                     }
                 }
 
-                self->resume();
+                if (self->m_playing)
+                    self->resume();
             });
         })
         .when_rejected([](auto&& error) {
