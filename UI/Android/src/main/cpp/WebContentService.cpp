@@ -22,7 +22,6 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
-#include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Plugins/FontPlugin.h>
@@ -54,10 +53,6 @@ ErrorOr<int> service_main(int ipc_socket)
 
     auto image_decoder_client = TRY(bind_image_decoder_service());
     Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(image_decoder_client)));
-
-    Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
-        return Web::Platform::AudioCodecPluginAgnostic::create(move(loader));
-    });
 
     Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::SimilarOriginWindow);
 
