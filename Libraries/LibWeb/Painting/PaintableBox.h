@@ -63,9 +63,14 @@ public:
     // Offset from the top left of the containing block's content edge.
     [[nodiscard]] CSSPixelPoint offset() const;
 
+    enum class ScrollHandled {
+        No,
+        Yes,
+    };
+
     CSSPixelPoint scroll_offset() const;
-    void set_scroll_offset(CSSPixelPoint);
-    void scroll_by(int delta_x, int delta_y);
+    [[nodiscard]] ScrollHandled set_scroll_offset(CSSPixelPoint);
+    [[nodiscard]] ScrollHandled scroll_by(int delta_x, int delta_y);
 
     void set_offset(CSSPixelPoint);
     void set_offset(float x, float y) { set_offset({ x, y }); }
