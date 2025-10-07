@@ -423,12 +423,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
         auto node = dom_node_for_event_dispatch(*paintable);
 
         if (node) {
-            // FIXME: Support wheel events in nested browsing contexts.
-            if (is<HTML::HTMLIFrameElement>(*node)) {
-                auto& iframe = static_cast<HTML::HTMLIFrameElement&>(*node);
-                auto position_in_iframe = viewport_position.translated(compute_mouse_event_offset({}, *paintable));
-                iframe.content_navigable()->event_handler().handle_mousewheel(position_in_iframe, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
-                return EventResult::Dropped;
+            if (auto* navigable_container = as_if<HTML::NavigableContainer>(*node)) {
+                auto position_in_navigable_container = viewport_position.translated(compute_mouse_event_offset({}, *paintable));
+                auto result = navigable_container->content_navigable()->event_handler().handle_mousewheel(position_in_navigable_container, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
+                if (result == EventResult::Handled)
+                    return EventResult::Handled;
             }
 
             // Search for the first parent of the hit target that's an element.
