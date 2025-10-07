@@ -38,6 +38,13 @@ jobs:
           path: js-benchmarks
           ref: master
 
+      - name: 'Determine js-benchmarks commit hash'
+        id: js-benchmarks-commit
+        shell: bash
+        run: |
+          cd js-benchmarks
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
       - name: 'Install dependencies'
         if: ${{ matrix.os_name == 'Linux' }}
         shell: bash
@@ -105,6 +112,7 @@ jobs:
         run: |
           echo '{
               "commit": "${{ github.event.workflow_run.head_sha }}",
+              "benchmarks_commit": "${{ steps.js-benchmarks-commit.outputs.sha }}",
               "os": "${{ matrix.os_name }}",
               "arch": "${{ matrix.arch }}",
               "artifact": "js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}",
