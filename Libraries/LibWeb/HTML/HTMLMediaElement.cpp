@@ -1159,8 +1159,6 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
 
 void HTMLMediaElement::update_video_frame_and_timeline()
 {
-    if (!paintable())
-        return;
     if (!m_playback_manager)
         return;
 
@@ -1181,7 +1179,7 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         needs_display = true;
     }
 
-    if (needs_display)
+    if (needs_display && paintable())
         paintable()->set_needs_display();
 }
 
