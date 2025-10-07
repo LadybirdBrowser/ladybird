@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Dynamic evaluation of media queries works fine in presence of empty media rule
+1 Pass
+Pass	Dynamic evaluation of media queries works fine in presence of empty media rule
