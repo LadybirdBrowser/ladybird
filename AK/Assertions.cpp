@@ -152,7 +152,6 @@ static AssertionHandlerFunc get_custom_assertion_handler()
 #    pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
         auto handler = reinterpret_cast<AssertionHandlerFunc>(GetProcAddress(module, "ak_assertion_handler"));
 #    pragma clang diagnostic pop
-        FreeLibrary(module);
         return handler;
     }
     return nullptr;
