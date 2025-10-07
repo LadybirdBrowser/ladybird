@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,12 +8,11 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibCore/Directory.h>
-#include <LibCore/StandardPaths.h>
-#include <LibWebView/Database.h>
+#include <LibDatabase/Database.h>
 
 #include <sqlite3.h>
 
-namespace WebView {
+namespace Database {
 
 static constexpr StringView sql_error(int error_code)
 {
@@ -39,13 +38,10 @@ static constexpr StringView sql_error(int error_code)
         }                                                                                                          \
     })
 
-ErrorOr<NonnullRefPtr<Database>> Database::create()
+ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, StringView name)
 {
-    // FIXME: Move this to a generic "Ladybird data directory" helper.
-    auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
-    TRY(Core::Directory::create(database_path, Core::Directory::CreateDirectories::Yes));
-
-    auto database_file = ByteString::formatted("{}/Ladybird.db", database_path);
+    TRY(Core::Directory::create(directory, Core::Directory::CreateDirectories::Yes));
+    auto database_file = ByteString::formatted("{}/{}.db", directory, name);
 
     sqlite3* m_database { nullptr };
     SQL_TRY(sqlite3_open(database_file.characters(), &m_database));
@@ -67,7 +63,7 @@ Database::~Database()
     sqlite3_close(m_database);
 }
 
-ErrorOr<Database::StatementID> Database::prepare_statement(StringView statement)
+ErrorOr<StatementID> Database::prepare_statement(StringView statement)
 {
     sqlite3_stmt* prepared_statement { nullptr };
     SQL_TRY(sqlite3_prepare_v2(m_database, statement.characters_without_null_termination(), static_cast<int>(statement.length()), &prepared_statement, nullptr));
@@ -119,10 +115,10 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
     }
 }
 
-template void Database::apply_placeholder(StatementID, int, String const&);
-template void Database::apply_placeholder(StatementID, int, UnixDateTime const&);
-template void Database::apply_placeholder(StatementID, int, int const&);
-template void Database::apply_placeholder(StatementID, int, bool const&);
+template DATABASE_API void Database::apply_placeholder(StatementID, int, String const&);
+template DATABASE_API void Database::apply_placeholder(StatementID, int, UnixDateTime const&);
+template DATABASE_API void Database::apply_placeholder(StatementID, int, int const&);
+template DATABASE_API void Database::apply_placeholder(StatementID, int, bool const&);
 
 template<typename ValueType>
 ValueType Database::result_column(StatementID statement_id, int column)
@@ -144,9 +140,9 @@ ValueType Database::result_column(StatementID statement_id, int column)
     VERIFY_NOT_REACHED();
 }
 
-template String Database::result_column(StatementID, int);
-template UnixDateTime Database::result_column(StatementID, int);
-template int Database::result_column(StatementID, int);
-template bool Database::result_column(StatementID, int);
+template DATABASE_API String Database::result_column(StatementID, int);
+template DATABASE_API UnixDateTime Database::result_column(StatementID, int);
+template DATABASE_API int Database::result_column(StatementID, int);
+template DATABASE_API bool Database::result_column(StatementID, int);
 
 }

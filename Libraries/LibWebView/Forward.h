@@ -16,7 +16,6 @@ class Action;
 class Application;
 class Autocomplete;
 class CookieJar;
-class Database;
 class Menu;
 class OutOfProcessWebView;
 class ProcessManager;
