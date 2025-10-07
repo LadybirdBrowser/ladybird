@@ -1988,8 +1988,14 @@ bool HTMLMediaElement::has_ended_playback() const
 // https://html.spec.whatwg.org/multipage/media.html#reaches-the-end
 void HTMLMediaElement::reached_end_of_media_playback()
 {
-    // 1. If the media element has a loop attribute specified, then seek to the earliest possible position of the media resource and return.
-    // FIXME: Implement this within PlaybackManager and its related classes.
+    // 1. If the media element has a loop attribute specified,
+    if (has_attribute(HTML::AttributeNames::loop)) {
+        // then seek to the earliest possible position of the media resource and return.
+        seek_element(0);
+        // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
+        //        and remove any delay in displaying the first frame again.
+        return;
+    }
 
     // 2. As defined above, the ended IDL attribute starts returning true once the event loop returns to step 1.
 
