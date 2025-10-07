@@ -154,10 +154,6 @@
       ]
     },
     {
-      "name": "qtmultimedia",
-      "platform": "windows | freebsd"
-    },
-    {
       "name": "pthread",
       "platform": "windows"
     },
@@ -282,10 +278,6 @@
     {
       "name": "qtbase",
       "version": "6.8.3#2"
-    },
-    {
-      "name": "qtmultimedia",
-      "version": "6.8.3#0"
     },
     {
       "name": "sdl3",
