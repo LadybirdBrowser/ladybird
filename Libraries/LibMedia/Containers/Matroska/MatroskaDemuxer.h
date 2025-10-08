@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2022-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -54,7 +54,6 @@ private:
     };
 
     DecoderErrorOr<TrackStatus*> get_track_status(Track track);
-    static CodecID get_codec_id_for_string(FlyString const& codec_id);
 
     Reader m_reader;
 
