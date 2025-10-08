@@ -44,6 +44,7 @@ endpoint WebContentServer
     key_event(u64 page_id, Web::KeyEvent event) =|
     mouse_event(u64 page_id, Web::MouseEvent event) =|
     drag_event(u64 page_id, Web::DragEvent event) =|
+    pinch_event(u64 page_id, Web::PinchEvent event) =|
 
     debug_request(u64 page_id, ByteString request, ByteString argument) =|
     get_source(u64 page_id) =|

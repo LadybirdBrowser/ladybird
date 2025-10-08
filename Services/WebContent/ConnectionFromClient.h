@@ -75,6 +75,7 @@ private:
     virtual void key_event(u64 page_id, Web::KeyEvent) override;
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
     virtual void drag_event(u64 page_id, Web::DragEvent) override;
+    virtual void pinch_event(u64 page_id, Web::PinchEvent) override;
     virtual void ready_to_paint(u64 page_id) override;
     virtual void debug_request(u64 page_id, ByteString, ByteString) override;
     virtual void get_source(u64 page_id) override;

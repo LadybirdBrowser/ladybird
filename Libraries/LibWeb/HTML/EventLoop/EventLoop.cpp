@@ -290,6 +290,9 @@ void EventLoop::process_input_events() const
                 },
                 [&](Web::DragEvent& drag_event) {
                     return page.handle_drag_and_drop_event(drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
+                },
+                [&](Web::PinchEvent&) {
+                    return EventResult::Dropped;
                 });
 
             for (size_t i = 0; i < event.coalesced_event_count; ++i)

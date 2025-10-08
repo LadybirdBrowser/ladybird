@@ -214,6 +214,9 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             cloned_event.files = move(event.files);
 
             client().async_drag_event(m_client_state.page_index, cloned_event);
+        },
+        [this](Web::PinchEvent const& event) {
+            client().async_pinch_event(m_client_state.page_index, event);
         });
 }
 

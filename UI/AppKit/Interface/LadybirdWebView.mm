@@ -55,6 +55,7 @@ struct HideCursor {
 @property (nonatomic, strong) NSMenu* select_dropdown;
 @property (nonatomic, strong) NSTextField* status_label;
 @property (nonatomic, strong) NSAlert* dialog;
+@property (nonatomic, strong) NSMagnificationGestureRecognizer* pinch_recognizer;
 
 // NSEvent does not provide a way to mark whether it has been handled, nor can we attach user data to the event. So
 // when we dispatch the event for a second time after WebContent has had a chance to handle it, we must track that
@@ -121,6 +122,10 @@ struct HideCursor {
         [self addTrackingArea:area];
 
         [self registerForDraggedTypes:[NSArray arrayWithObjects:NSPasteboardTypeFileURL, nil]];
+
+        self.pinch_recognizer = [[NSMagnificationGestureRecognizer alloc] initWithTarget:self
+                                                                                  action:@selector(onPinch:)];
+        [self addGestureRecognizer:self.pinch_recognizer];
 
         m_modifier_flags = 0;
     }
@@ -1153,6 +1158,33 @@ struct HideCursor {
 - (BOOL)wantsPeriodicDraggingUpdates
 {
     return NO;
+}
+
+- (void)onPinch:(NSMagnificationGestureRecognizer*)recognizer
+{
+    double scale_delta = 0;
+    switch (recognizer.state) {
+    case NSGestureRecognizerStateBegan:
+        m_web_view_bridge->pinch_state() = { .previous_scale = recognizer.magnification };
+        break;
+    case NSGestureRecognizerStateChanged:
+        scale_delta = recognizer.magnification - m_web_view_bridge->pinch_state()->previous_scale;
+        m_web_view_bridge->pinch_state()->previous_scale = recognizer.magnification;
+        break;
+    case NSGestureRecognizerStateEnded:
+    case NSGestureRecognizerStateCancelled:
+        scale_delta = recognizer.magnification - m_web_view_bridge->pinch_state()->previous_scale;
+        m_web_view_bridge->pinch_state() = {};
+        break;
+    default:
+        return;
+    }
+
+    NSPoint point = [recognizer locationInView:self];
+    Web::PinchEvent pinch_event;
+    pinch_event.position = Ladybird::ns_point_to_gfx_point(point).to_type<Web::DevicePixels>() * m_web_view_bridge->device_pixel_ratio();
+    pinch_event.scale_delta = scale_delta;
+    m_web_view_bridge->enqueue_input_event(move(pinch_event));
 }
 
 @end

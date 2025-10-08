@@ -79,6 +79,11 @@ void WebViewBridge::enqueue_input_event(Web::KeyEvent event)
     ViewImplementation::enqueue_input_event(move(event));
 }
 
+void WebViewBridge::enqueue_input_event(Web::PinchEvent event)
+{
+    ViewImplementation::enqueue_input_event(move(event));
+}
+
 Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 {
     Gfx::Bitmap const* bitmap = nullptr;
