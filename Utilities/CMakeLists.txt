@@ -39,9 +39,28 @@ if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
 
+# Determine the Git commit hash (fallback to 'unknown' if not a Git repo)
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if (NOT GIT_COMMIT_HASH)
+    set(GIT_COMMIT_HASH "unknown")
+endif()
+
+# Write it to the build directory
+set(GIT_COMMIT_FILE "${CMAKE_BINARY_DIR}/COMMIT")
+file(WRITE "${GIT_COMMIT_FILE}" "${GIT_COMMIT_HASH}\n")
+
 if (NOT CMAKE_SKIP_INSTALL_RULES)
     install(TARGETS js COMPONENT js)
+    install(FILES "${GIT_COMMIT_FILE}" COMPONENT js DESTINATION .)
+
     install(TARGETS wasm COMPONENT wasm)
+    install(FILES "${GIT_COMMIT_FILE}" COMPONENT wasm DESTINATION .)
 
     set(CPACK_GENERATOR "TGZ")
     set(CPACK_STRIP_FILES TRUE)
