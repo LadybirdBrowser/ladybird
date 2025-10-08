@@ -190,4 +190,6 @@ bool is_socket(int fd);
 ErrorOr<void> sleep_ms(u32 milliseconds);
 ErrorOr<void> set_close_on_exec(int fd, bool enabled);
 
+ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t source_offset, size_t source_length);
+
 }

@@ -870,4 +870,27 @@ ErrorOr<void> set_close_on_exec(int fd, bool enabled)
     return {};
 }
 
+ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t source_offset, size_t source_length)
+{
+#if defined(AK_OS_LINUX)
+    auto sent = ::splice(source_fd, reinterpret_cast<off_t*>(&source_offset), target_fd, nullptr, source_length, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
+    if (sent < 0)
+        return Error::from_syscall("send_file_to_pipe"sv, errno);
+    return sent;
+#else
+    static auto page_size = PAGE_SIZE;
+
+    // mmap requires the offset to be page-aligned, so we must handle that here.
+    auto aligned_source_offset = (source_offset / page_size) * page_size;
+    auto offset_adjustment = source_offset - aligned_source_offset;
+    auto mapped_source_length = source_length + offset_adjustment;
+
+    // FIXME: We could use MappedFile here if we update it to support offsets and not auto-close the source fd.
+    auto* mapped = TRY(mmap(nullptr, mapped_source_length, PROT_READ, MAP_SHARED, source_fd, aligned_source_offset));
+    ScopeGuard guard { [&]() { (void)munmap(mapped, mapped_source_length); } };
+
+    return TRY(write(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length }));
+#endif
+}
+
 }
