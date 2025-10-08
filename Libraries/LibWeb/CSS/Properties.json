@@ -1450,6 +1450,52 @@
       "corner-shape"
     ]
   },
+  "corner-bottom-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-bottom-left-shape",
+      "corner-bottom-right-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-left-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-left-shape",
+      "corner-bottom-left-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-right-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-right-shape",
+      "corner-bottom-right-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-shape": {
+    "initial": "round round round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-left-shape",
+      "corner-top-right-shape",
+      "corner-bottom-right-shape",
+      "corner-bottom-left-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
   "corner-top-left-shape": {
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1462,6 +1508,17 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-top-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-top-left-shape",
+      "corner-top-right-shape"
+    ],
     "valid-types": [
       "corner-shape"
     ]
