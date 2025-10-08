@@ -1214,6 +1214,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
             weak_self->on_playback_manager_state_change();
     };
 
+    update_volume();
+
     // -> If the media resource is found to have an audio track
     auto preferred_audio_track = m_playback_manager->preferred_audio_track();
     auto has_enabled_preferred_audio_track = false;
