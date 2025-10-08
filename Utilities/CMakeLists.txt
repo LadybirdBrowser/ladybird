@@ -60,6 +60,6 @@ if (NOT CMAKE_SKIP_INSTALL_RULES)
 
     set(CPACK_ARCHIVE_JS_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
     set(CPACK_ARCHIVE_WASM_FILE_NAME "ladybird-wasm-${CPACK_SYSTEM_NAME}")
-    set(CPACK_PACKAGE_FILE_NAME "ladybird-js-${CPACK_SYSTEM_NAME}")
+
     include(CPack)
 endif()
