@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Borders and Box Decorations 4 Test: Computed values of 'corner-shape'</title>
+<link rel="author" title="Sebastian Zartner" href="mailto:sebastianzartner@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#corner-shaping">
+<meta name="assert" content="This test checks that the computed value of 'corner-shape' is correct.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+
+<div id="target"></div>
+
+<script>
+test_computed_value("corner-top-left-shape", "round");
+test_computed_value("corner-top-left-shape", "scoop");
+test_computed_value("corner-top-left-shape", "superellipse(5)");
+test_computed_value("corner-top-left-shape", "superellipse(0.2)");
+test_computed_value("corner-top-left-shape", "superellipse(-infinity)", "notch");
+test_computed_value("corner-top-left-shape", "superellipse(infinity)", "square");
+test_computed_value("corner-top-left-shape", "superellipse(1)", "round");
+test_computed_value("corner-top-left-shape", "superellipse(0)", "bevel");
+test_computed_value("corner-top-left-shape", "superellipse(2)", "squircle");
+test_computed_value("corner-top-left-shape", "superellipse( -1)", "scoop");
+test_computed_value("corner-top-right-shape", "round");
+test_computed_value("corner-top-right-shape", "superellipse(5)");
+test_computed_value("corner-bottom-right-shape", "scoop");
+test_computed_value("corner-bottom-left-shape", "superellipse(5)");
+test_computed_value("corner-shape", "superellipse(5) round");
+test_computed_value("corner-shape", "round");
+test_computed_value("corner-shape", "bevel superellipse(0.1) round squircle");
+test_computed_value("corner-shape", "superellipse(-5) superellipse(3) superellipse(7) superellipse(-5.5)");
+test_computed_value("corner-shape", "round round round round", "round");
+test_computed_value("corner-shape", "round scoop");
+test_computed_value("corner-shape", "round scoop round scoop", "round scoop");
+test_computed_value("corner-shape", "bevel superellipse(1)", "bevel round");
+test_computed_value("corner-shape", "superellipse(-1) superellipse(3) square", "scoop superellipse(3) square");
+test_computed_value("corner-shape", "superellipse(-1) superellipse(3) superellipse(0)", "scoop superellipse(3) bevel");
+test_computed_value("corner-shape", "bevel superellipse(1) squircle     round", "bevel round squircle");
+test_computed_value("corner-shape", "superellipse(-1) superellipse(3) superellipse(0) superellipse(infinity)", "scoop superellipse(3) bevel square");
+test_computed_value("corner-left-shape", "round scoop");
+test_computed_value("corner-top-shape", "round scoop");
+test_computed_value("corner-top-shape", "superellipse(4)");
+test_computed_value("corner-right-shape", "superellipse(-1.5) superellipse(3)");
+test_computed_value("corner-right-shape", "superellipse(-1) superellipse(2)", "scoop squircle");
+test_computed_value("corner-bottom-shape", "scoop scoop", "scoop");
+test_computed_value("corner-inline-start-shape", "round scoop");
+test_computed_value("corner-block-start-shape", "round scoop");
+test_computed_value("corner-block-end-shape", "superellipse(4)");
+test_computed_value("corner-inline-end-shape", "superellipse(-1.5) superellipse(3)");
+test_computed_value("corner-inline-start-shape", "superellipse(-1) superellipse(2)", "scoop squircle");
+test_computed_value("corner-block-end-shape", "scoop scoop", "scoop");
+
+</script>
