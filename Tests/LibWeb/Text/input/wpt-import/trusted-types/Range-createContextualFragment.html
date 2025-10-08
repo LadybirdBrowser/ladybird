@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+<body>
+<script>
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+    var range = document.createRange();
+    range.selectNodeContents(document.documentElement);
+    var result = range.createContextualFragment(html);
+    assert_equals(result.textContent, RESULTS.HTML);
+  }, "range.createContextualFragment assigned via policy (successful HTML transformation).");
+</script>
