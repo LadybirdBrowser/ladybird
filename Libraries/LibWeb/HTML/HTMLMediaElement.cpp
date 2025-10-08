@@ -531,7 +531,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
     m_first_data_load_event_since_load_start = true;
 
-    // FIXME: 1. Abort any already-running instance of the resource selection algorithm for this element.
+    // 1. Abort any already-running instance of the resource selection algorithm for this element.
+    //    NOTE: All deferred subroutines of the resource selection algorithm will be queued under the media element task
+    //          source, or run as part of the fetch. Step 2 will remove any subroutine from the queue. Step 6.2 will stop
+    //          any ongoing fetch operation. Therefore, all resource selection algorithms will be cancelled before a new
+    //          one begins.
 
     // 2. Let pending tasks be a list of all tasks from the media element's media element event task source in one of the task queues.
     [[maybe_unused]] auto pending_tasks = HTML::main_thread_event_loop().task_queue().take_tasks_matching([&](auto& task) {
@@ -827,7 +831,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
     // 4. Await a stable state, allowing the task that invoked this algorithm to continue. The synchronous section consists of all the remaining
     // steps of this algorithm until the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
 
-    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, &realm]() {
+    queue_a_media_element_task([this, &realm]() {
         // FIXME: 5. ⌛ If the media element's blocked-on-parser flag is false, then populate the list of pending text tracks.
 
         Optional<SelectMode> mode;
@@ -917,12 +921,12 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
 
             // 5. If urlRecord was obtained successfully, run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one,
             //    then the load failed.
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, url_record = move(url_record), failed_with_attribute = move(failed_with_attribute)]() mutable {
+            queue_a_media_element_task([this, url_record = move(url_record), failed_with_attribute = move(failed_with_attribute)]() mutable {
                 if (url_record.has_value()) {
                     fetch_resource(*url_record, move(failed_with_attribute)).release_value_but_fixme_should_propagate_errors();
                     return;
                 }
-            }));
+            });
 
             // 8. Return. The element won't attempt to load another resource until this algorithm is triggered again.
             return;
@@ -957,7 +961,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
 
             break;
         }
-    }));
+    });
 
     return {};
 }
