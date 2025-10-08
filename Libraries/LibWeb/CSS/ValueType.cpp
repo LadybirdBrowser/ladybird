@@ -81,6 +81,8 @@ StringView value_type_to_string(ValueType value_type)
         return "BasicShape"sv;
     case Web::CSS::ValueType::Color:
         return "Color"sv;
+    case Web::CSS::ValueType::CornerShape:
+        return "CornerShape"sv;
     case Web::CSS::ValueType::Counter:
         return "Counter"sv;
     case Web::CSS::ValueType::CustomIdent:

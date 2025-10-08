@@ -2,21 +2,22 @@ Harness status: OK
 
 Found 38 tests
 
-38 Fail
-Fail	Property corner-top-left-shape value 'round'
-Fail	Property corner-top-left-shape value 'scoop'
-Fail	Property corner-top-left-shape value 'superellipse(5)'
-Fail	Property corner-top-left-shape value 'superellipse(0.2)'
+8 Pass
+30 Fail
+Pass	Property corner-top-left-shape value 'round'
+Pass	Property corner-top-left-shape value 'scoop'
+Pass	Property corner-top-left-shape value 'superellipse(5)'
+Pass	Property corner-top-left-shape value 'superellipse(0.2)'
 Fail	Property corner-top-left-shape value 'superellipse(-infinity)'
 Fail	Property corner-top-left-shape value 'superellipse(infinity)'
 Fail	Property corner-top-left-shape value 'superellipse(1)'
 Fail	Property corner-top-left-shape value 'superellipse(0)'
 Fail	Property corner-top-left-shape value 'superellipse(2)'
 Fail	Property corner-top-left-shape value 'superellipse( -1)'
-Fail	Property corner-top-right-shape value 'round'
-Fail	Property corner-top-right-shape value 'superellipse(5)'
-Fail	Property corner-bottom-right-shape value 'scoop'
-Fail	Property corner-bottom-left-shape value 'superellipse(5)'
+Pass	Property corner-top-right-shape value 'round'
+Pass	Property corner-top-right-shape value 'superellipse(5)'
+Pass	Property corner-bottom-right-shape value 'scoop'
+Pass	Property corner-bottom-left-shape value 'superellipse(5)'
 Fail	Property corner-shape value 'superellipse(5) round'
 Fail	Property corner-shape value 'round'
 Fail	Property corner-shape value 'bevel superellipse(0.1) round squircle'

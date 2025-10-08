@@ -158,6 +158,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
     if (auto parsed = parse_for_type(ValueType::Color); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::CornerShape); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Counter); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())

@@ -1434,6 +1434,38 @@
       "content-visibility"
     ]
   },
+  "corner-bottom-left-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-bottom-right-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-top-left-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-top-right-shape": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "round",
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
   "counter-increment": {
     "animation-type": "by-computed-value",
     "inherited": false,
