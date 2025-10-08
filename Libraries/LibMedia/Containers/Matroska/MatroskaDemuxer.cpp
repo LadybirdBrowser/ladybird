@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2022-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -115,7 +115,7 @@ DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(
     return &m_track_statuses.get(track).release_value();
 }
 
-CodecID MatroskaDemuxer::get_codec_id_for_string(FlyString const& codec_id)
+static CodecID get_codec_id_for_string(String const& codec_id)
 {
     dbgln_if(MATROSKA_DEBUG, "Codec ID: {}", codec_id);
     if (codec_id == "V_VP8")
