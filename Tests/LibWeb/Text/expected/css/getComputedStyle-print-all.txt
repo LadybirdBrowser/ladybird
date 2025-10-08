@@ -154,6 +154,10 @@ content: normal
 content-visibility: visible
 corner-bottom-left-shape: round
 corner-bottom-right-shape: round
+corner-end-end-shape: round
+corner-end-start-shape: round
+corner-start-end-shape: round
+corner-start-start-shape: round
 corner-top-left-shape: round
 corner-top-right-shape: round
 counter-increment: none
@@ -181,7 +185,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2745px
+height: 2805px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

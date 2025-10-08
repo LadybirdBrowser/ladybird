@@ -23,6 +23,12 @@
     "bottom": "border-bottom-width",
     "left": "border-left-width"
   },
+  "corner-shape": {
+    "top-left": "corner-top-left-shape",
+    "bottom-left": "corner-bottom-left-shape",
+    "top-right": "corner-top-right-shape",
+    "bottom-right": "corner-bottom-right-shape"
+  },
   "inset": {
     "top": "top",
     "right": "right",
