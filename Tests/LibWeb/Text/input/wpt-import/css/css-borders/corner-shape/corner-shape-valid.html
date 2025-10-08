@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Borders and Box Decorations 4 Test: Parsing 'corner-shape' with valid values</title>
+<link rel="author" title="Sebastian Zartner" href="mailto:sebastianzartner@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#corner-shaping">
+<meta name="assert" content="This test checks that 'corner-shape' supports the values 'round' and 'angle'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+
+<script>
+    function test_values_for_prop(prop) {
+        test_valid_value(prop, "round");
+        test_valid_value(prop, "scoop");
+        test_valid_value(prop, "notch");
+        test_valid_value(prop, "bevel");
+        test_valid_value(prop, "squircle");
+        test_valid_value(prop, "square");
+        test_valid_value(prop, "superellipse(2)");
+        test_valid_value(prop, "superellipse(.5)", "superellipse(0.5)");
+        test_valid_value(prop, "superellipse(7)");
+        test_valid_value(prop, "superellipse(0.3)");
+        test_valid_value(prop, "superellipse(  0)", "superellipse(0)");
+        test_valid_value(prop, "superellipse(2 )", "superellipse(2)");
+        test_valid_value(prop, "superellipse(infinity)");
+        test_valid_value(prop, "superellipse(-infinity)");
+        test_valid_value(prop, "superellipse(-0.5)");
+        test_valid_value(prop, "superellipse(-4)");
+        test_valid_value(prop, "superellipse(calc(0.5 * 4))", "superellipse(calc(2))");
+    }
+
+    function test_corner_shape_shorthand(shorthand, longhand1, longhand2) {
+        test_shorthand_value(shorthand, "scoop", {[longhand1]: "scoop", [longhand2]: "scoop"});
+        test_shorthand_value(shorthand, "bevel notch", {[longhand1]: "bevel", [longhand2]: "notch"});
+        test_shorthand_value(shorthand, "superellipse(-2) squircle", {[longhand1]: "superellipse(-2)", [longhand2]: "squircle"});
+        test_shorthand_value(shorthand, "superellipse(3)", {[longhand1]: "superellipse(3)", [longhand2]: "superellipse(3)"});
+    }
+
+    for (const v of ["top", "bottom"]) {
+        for (const h of ["left", "right"]) {
+            test_values_for_prop(`corner-${v}-${h}-shape`);
+        }
+    }
+    for (const block of ["start", "end"]) {
+        for (const inline of ["start", "end"]) {
+            test_values_for_prop(`corner-${block}-${inline}-shape`);
+        }
+    }
+    test_valid_value("corner-shape", "round round round round", "round");
+    test_valid_value("corner-shape", "round scoop");
+    test_valid_value("corner-shape", "round scoop round scoop", "round scoop");
+    test_valid_value("corner-shape", "bevel superellipse(2)");
+    test_valid_value("corner-shape", "superellipse(0.5) superellipse(3) square");
+    test_valid_value("corner-shape", "superellipse(-0.5) superellipse(3) square superellipse(-30)");
+    test_valid_value("corner-shape", "superellipse(0.5) superellipse(3) superellipse(1)");
+    test_valid_value("corner-shape", "bevel superellipse(2) squircle     round", "bevel superellipse(2) squircle round");
+    test_valid_value("corner-shape", "superellipse(0.5) superellipse(3) superellipse(1) superellipse(infinity)");
+
+    test_corner_shape_shorthand('corner-top-shape', 'corner-top-left-shape', 'corner-top-right-shape');
+    test_corner_shape_shorthand('corner-right-shape', 'corner-top-right-shape', 'corner-bottom-right-shape');
+    test_corner_shape_shorthand('corner-bottom-shape', 'corner-bottom-left-shape', 'corner-bottom-right-shape');
+    test_corner_shape_shorthand('corner-left-shape', 'corner-top-left-shape', 'corner-bottom-left-shape');
+    test_corner_shape_shorthand('corner-inline-start-shape', 'corner-start-start-shape', 'corner-end-start-shape');
+    test_corner_shape_shorthand('corner-inline-end-shape', 'corner-start-end-shape', 'corner-end-end-shape');
+    test_corner_shape_shorthand('corner-block-start-shape', 'corner-start-start-shape', 'corner-start-end-shape');
+    test_corner_shape_shorthand('corner-block-end-shape', 'corner-end-start-shape', 'corner-end-end-shape');
+</script>

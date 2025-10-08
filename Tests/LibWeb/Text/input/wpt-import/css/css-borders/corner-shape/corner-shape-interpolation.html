@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>corner-shape interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#corner-shape-interpolation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  corner-shape: bevel;
+  padding: 10px;
+}
+
+.target {
+  display: inline-block;
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  corner-shape: bevel superellipse(3) superellipse(-2.5) square;
+}
+
+.expected {
+  background-color: green;
+}
+</style>
+<body>
+<script>
+
+function test_corner_shape_interpolation({from, to}, expected) {
+  for (const corner of ['top-left', 'top-right', 'bottom-right', 'bottom-left']) {
+    test_interpolation({property: `corner-${corner}-shape`, from, to}, expected);
+  }
+}
+
+test_corner_shape_interpolation({
+  from: 'round',
+  to: 'bevel',
+}, [
+  {at: -0.3, expect: 'superellipse(1.4)'},
+  {at: 0, expect: 'round'},
+  {at: 0.6, expect: 'superellipse(0.36)'},
+  {at: 1, expect: 'bevel'},
+  {at: 1.5, expect: 'superellipse(-0.46)'},
+]);
+test_corner_shape_interpolation({
+  from: 'initial',
+  to: 'scoop',
+}, [
+  {at: -0.3, expect: 'superellipse(1.91)'},
+  {at: 0, expect: 'round'},
+  {at: 0.5, expect: 'bevel'},
+  {at: 0.6, expect: 'superellipse(-0.18)'},
+  {at: 1, expect: 'scoop'},
+  {at: 1.5, expect: 'superellipse(-2.95)'},
+]);
+
+test_interpolation({
+  property: 'corner-top-left-shape',
+  from: 'inherit',
+  to: 'squircle',
+}, [
+  {at: -0.3, expect: 'superellipse(-0.45)'},
+  {at: 0, expect: 'bevel'},
+  {at: 0.6, expect: 'superellipse(0.98)'},
+  {at: 1, expect: 'squircle'},
+  {at: 1.5, expect: 'square'},
+]);
+test_interpolation({
+  property: 'corner-top-right-shape',
+  from: 'inherit',
+  to: 'square',
+}, [
+  {at: -0.3, expect: 'superellipse(-0.69)'},
+  {at: 0, expect: 'bevel'},
+  {at: 0.6, expect: 'superellipse(1.64)'},
+  {at: 1, expect: 'square'},
+  {at: 1.5, expect: 'square'},
+]);
+test_interpolation({
+  property: 'corner-bottom-right-shape',
+  from: 'inherit',
+  to: 'scoop',
+}, [
+  {at: -0.3, expect: 'superellipse(0.27)'},
+  {at: 0, expect: 'bevel'},
+  {at: 0.6, expect: 'superellipse(-0.56)'},
+  {at: 1, expect: 'scoop'},
+  {at: 1.5, expect: 'superellipse(-1.72)'},
+]);
+test_interpolation({
+  property: 'corner-bottom-left-shape',
+  from: 'inherit',
+  to: 'notch',
+}, [
+  {at: -0.3, expect: 'superellipse(0.69)'},
+  {at: 0, expect: 'bevel'},
+  {at: 0.6, expect: 'superellipse(-1.64)'},
+  {at: 1, expect: 'notch'},
+  {at: 1.5, expect: 'notch'},
+]);
+
+test_corner_shape_interpolation({
+  from: 'notch',
+  to: 'square',
+}, [
+  {at: -0.3, expect: 'notch'},
+  {at: 0, expect: 'notch'},
+  {at: 0.5, expect: 'bevel'},
+  {at: 0.8, expect: 'superellipse(1.64)'},
+  {at: 1, expect: 'square'},
+  {at: 1.5, expect: 'square'},
+]);
+
+
+test_corner_shape_interpolation({
+  from: 'superellipse(3)',
+  to: 'superellipse(-2)',
+}, [
+  {at: -0.3, expect: 'square'},
+  {at: 0, expect: 'superellipse(3)'},
+  {at: 0.5, expect: 'superellipse(0.16)'},
+  {at: 0.8, expect: 'superellipse(-0.9)'},
+  {at: 1, expect: 'superellipse(-2)'},
+  {at: 1.1, expect: 'superellipse(-2.99)'},
+]);
+
+</script>
+</body>

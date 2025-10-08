@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Borders and Box Decorations 4 Test: Parsing 'corner-shape' with invalid values</title>
+<link rel="author" title="Sebastian Zartner" href="mailto:sebastianzartner@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#corner-shaping">
+<meta name="assert" content="This test checks that 'corner-shape' supports only up to four times the keywords 'round' and 'angle'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+
+<script>
+test_invalid_value("corner-shape", "auto");
+test_invalid_value("corner-shape", "none");
+test_invalid_value("corner-shape", "10px");
+test_invalid_value("corner-shape", "10%");
+test_invalid_value("corner-shape", "round round round round round");
+test_invalid_value("corner-shape", "superellipse(8 8)");
+test_invalid_value("corner-shape", "superellipse(,)");
+test_invalid_value("corner-shape", "superellipse(4,0.1)");
+test_invalid_value("corner-shape", "straight");
+test_invalid_value("corner-shape", "nonsense");
+test_invalid_value("corner-shape", "superellipse(foo)");
+test_invalid_value("corner-shape", "superellipse(1 abc)");
+test_invalid_value("corner-shape", "superellipse(1) / bevel");
+test_invalid_value("corner-shape", "superellipse(1) / superellipse(3)");
+test_invalid_value("corner-shape", "superellipse(1), superellipse(3)");
+
+for (const edge of ["left", "right", "top", "bottom", "inline-start", "inline-end", "block-start", "block-end"]) {
+    const prop = `corner-${edge}-shape`;
+    test_invalid_value(prop, "auto");
+    test_invalid_value(prop, "none");
+    test_invalid_value(prop, "superellipse(1 abc)");
+    test_invalid_value(prop, "superellipse()");
+    test_invalid_value(prop, "auto round");
+    test_invalid_value(prop, "superellipse(--.3) squircle");
+    test_invalid_value(prop, "superellipse(--.3) squircle bc");
+}
+
+</script>
