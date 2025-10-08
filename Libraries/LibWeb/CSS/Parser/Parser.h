@@ -377,6 +377,7 @@ private:
     RefPtr<StyleValue const> parse_light_dark_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_color_scheme_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_corner_shape_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {
         No,

@@ -152,6 +152,10 @@ contain: none
 container-type: normal
 content: normal
 content-visibility: visible
+corner-bottom-left-shape: round
+corner-bottom-right-shape: round
+corner-top-left-shape: round
+corner-top-right-shape: round
 counter-increment: none
 counter-reset: none
 counter-set: none
@@ -177,7 +181,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2685px
+height: 2745px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

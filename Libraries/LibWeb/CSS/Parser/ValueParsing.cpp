@@ -65,6 +65,7 @@
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
@@ -2283,6 +2284,63 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
     }
 
     return {};
+}
+
+// https://drafts.csswg.org/css-borders-4/#typedef-corner-shape-value
+RefPtr<StyleValue const> Parser::parse_corner_shape_value(TokenStream<ComponentValue>& tokens)
+{
+    // <corner-shape-value> = round | scoop | bevel | notch | square | squircle | <superellipse()>
+    auto transaction = tokens.begin_transaction();
+
+    tokens.discard_whitespace();
+
+    auto token = tokens.consume_a_token();
+
+    if (token.is(Token::Type::Ident)) {
+        auto keyword = keyword_from_string(token.token().ident());
+
+        if (!keyword.has_value())
+            return nullptr;
+
+        if (!first_is_one_of(keyword, Keyword::Round, Keyword::Scoop, Keyword::Bevel, Keyword::Notch, Keyword::Square, Keyword::Squircle))
+            return nullptr;
+
+        transaction.commit();
+        return KeywordStyleValue::create(keyword.value());
+    }
+
+    if (token.is_function("superellipse"sv)) {
+        // superellipse() = superellipse(<number [-∞,∞]> | infinity | -infinity)
+        auto const& function = token.function();
+
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
+        TokenStream function_tokens { function.value };
+
+        function_tokens.discard_whitespace();
+
+        if (parse_all_as_single_keyword_value(function_tokens, Keyword::NegativeInfinity)) {
+            transaction.commit();
+            return SuperellipseStyleValue::create(NumberStyleValue::create(-AK::Infinity<double>));
+        }
+
+        if (parse_all_as_single_keyword_value(function_tokens, Keyword::Infinity)) {
+            transaction.commit();
+            return SuperellipseStyleValue::create(NumberStyleValue::create(AK::Infinity<double>));
+        }
+
+        if (auto number_value = parse_number_value(function_tokens); number_value) {
+            function_tokens.discard_whitespace();
+
+            if (function_tokens.has_next_token())
+                return nullptr;
+
+            transaction.commit();
+            return SuperellipseStyleValue::create(number_value.release_nonnull());
+        }
+    }
+
+    return nullptr;
 }
 
 // https://drafts.csswg.org/css-lists-3/#counter-functions
@@ -4665,6 +4723,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_basic_shape_value(tokens);
     case ValueType::Color:
         return parse_color_value(tokens);
+    case ValueType::CornerShape:
+        return parse_corner_shape_value(tokens);
     case ValueType::Counter:
         return parse_counter_value(tokens);
     case ValueType::CustomIdent:

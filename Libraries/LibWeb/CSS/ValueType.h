@@ -19,6 +19,7 @@ enum class ValueType : u8 {
     BackgroundPosition,
     BasicShape,
     Color,
+    CornerShape,
     Counter,
     CustomIdent,
     EasingFunction,

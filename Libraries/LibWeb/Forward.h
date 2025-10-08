@@ -373,6 +373,7 @@ class StyleSheet;
 class StyleSheetList;
 class StyleValue;
 class StyleValueList;
+class SuperellipseStyleValue;
 class Supports;
 class SVGPaint;
 class TextUnderlinePositionStyleValue;
