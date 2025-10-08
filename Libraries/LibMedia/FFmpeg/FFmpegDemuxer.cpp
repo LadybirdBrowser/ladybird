@@ -96,7 +96,15 @@ DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index
 
     auto& stream = *m_format_context->streams[stream_index];
     auto type = track_type_from_ffmpeg_media_type(stream.codecpar->codec_type);
-    Track track(type, stream_index);
+    auto get_string_metadata = [&](char const* key) {
+        auto* name_entry = av_dict_get(stream.metadata, key, nullptr, 0);
+        if (name_entry == nullptr)
+            return Utf16String();
+        return Utf16String::from_utf8(StringView(name_entry->value, strlen(name_entry->value)));
+    };
+    auto name = get_string_metadata("title");
+    auto language = get_string_metadata("language");
+    Track track(type, stream_index, name, language);
 
     if (type == TrackType::Video) {
         track.set_video_data({
