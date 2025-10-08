@@ -105,3 +105,19 @@ ErrorOr<Web::DragEvent> IPC::decode(Decoder& decoder)
 
     return Web::DragEvent { type, position, screen_position, button, buttons, modifiers, move(files), nullptr };
 }
+
+template<>
+WEB_API ErrorOr<void> IPC::encode(Encoder& encoder, Web::PinchEvent const& event)
+{
+    TRY(encoder.encode(event.position));
+    TRY(encoder.encode(event.scale_delta));
+    return {};
+}
+
+template<>
+WEB_API ErrorOr<Web::PinchEvent> IPC::decode(Decoder& decoder)
+{
+    auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto scale_delta = TRY(decoder.decode<double>());
+    return Web::PinchEvent { position, scale_delta };
+}

@@ -245,6 +245,11 @@ void ConnectionFromClient::drag_event(u64 page_id, Web::DragEvent event)
     enqueue_input_event({ page_id, move(event), 0 });
 }
 
+void ConnectionFromClient::pinch_event(u64 page_id, Web::PinchEvent event)
+{
+    enqueue_input_event({ page_id, move(event), 0 });
+}
+
 void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
 {
     m_input_event_queue.enqueue(move(event));

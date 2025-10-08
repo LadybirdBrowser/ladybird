@@ -85,7 +85,12 @@ struct WEB_API DragEvent {
     OwnPtr<BrowserInputData> browser_data;
 };
 
-using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent>;
+struct WEB_API PinchEvent {
+    Web::DevicePixelPoint position;
+    double scale_delta;
+};
+
+using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent, PinchEvent>;
 
 struct QueuedInputEvent {
     u64 page_id { 0 };
@@ -114,5 +119,11 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::DragEvent const&);
 
 template<>
 WEB_API ErrorOr<Web::DragEvent> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::PinchEvent const&);
+
+template<>
+WEB_API ErrorOr<Web::PinchEvent> decode(Decoder&);
 
 }
