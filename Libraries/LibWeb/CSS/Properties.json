@@ -1434,6 +1434,28 @@
       "content-visibility"
     ]
   },
+  "corner-block-end-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-end-start-shape",
+      "corner-end-end-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-block-start-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-start-start-shape",
+      "corner-start-end-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
   "corner-bottom-left-shape": {
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1456,6 +1478,40 @@
     "longhands": [
       "corner-bottom-left-shape",
       "corner-bottom-right-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-end-end-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "end-end"
+    }
+  },
+  "corner-end-start-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "end-start"
+    }
+  },
+  "corner-inline-end-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-start-end-shape",
+      "corner-end-end-shape"
+    ],
+    "valid-types": [
+      "corner-shape"
+    ]
+  },
+  "corner-inline-start-shape": {
+    "initial": "round round",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "corner-start-start-shape",
+      "corner-end-start-shape"
     ],
     "valid-types": [
       "corner-shape"
@@ -1495,6 +1551,18 @@
     "valid-types": [
       "corner-shape"
     ]
+  },
+  "corner-start-end-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "start-end"
+    }
+  },
+  "corner-start-start-shape": {
+    "logical-alias-for": {
+      "group": "corner-shape",
+      "mapping": "start-start"
+    }
   },
   "corner-top-left-shape": {
     "animation-type": "by-computed-value",
