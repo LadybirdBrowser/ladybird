@@ -50,6 +50,7 @@ constexpr u32 TRACK_ENTRY_ID = 0xAE;
 constexpr u32 TRACK_NUMBER_ID = 0xD7;
 constexpr u32 TRACK_UID_ID = 0x73C5;
 constexpr u32 TRACK_TYPE_ID = 0x83;
+constexpr u32 TRACK_NAME_ID = 0x536E;
 constexpr u32 TRACK_LANGUAGE_ID = 0x22B59C;
 constexpr u32 TRACK_CODEC_ID = 0x86;
 constexpr u32 TRACK_CODEC_PRIVATE_ID = 0x63A2;
@@ -475,6 +476,10 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
         case TRACK_TYPE_ID:
             track_entry->set_track_type(static_cast<TrackEntry::TrackType>(TRY_READ(streamer.read_u64())));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry->track_type()));
+            break;
+        case TRACK_NAME_ID:
+            track_entry->set_name(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Name attribute: {}", track_entry->name());
             break;
         case TRACK_LANGUAGE_ID:
             track_entry->set_language(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));

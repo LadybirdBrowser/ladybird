@@ -6,6 +6,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
+#include <AK/Utf16String.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecoderError.h>
 
@@ -66,7 +67,9 @@ static TrackType track_type_from_matroska_track_type(TrackEntry::TrackType type)
 
 static Track track_from_track_entry(TrackEntry const& track_entry)
 {
-    Track track(track_type_from_matroska_track_type(track_entry.track_type()), track_entry.track_number());
+    auto name = Utf16String::from_utf8(track_entry.name());
+    auto language = Utf16String::from_utf8(track_entry.language());
+    Track track(track_type_from_matroska_track_type(track_entry.track_type()), track_entry.track_number(), name, language);
 
     if (track.type() == TrackType::Video) {
         auto video_track = track_entry.video_track();
