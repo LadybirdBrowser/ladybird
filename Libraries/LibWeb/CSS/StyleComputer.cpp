@@ -73,6 +73,7 @@
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
@@ -3236,6 +3237,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
         return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderTopStyle), device_pixels_per_css_pixel);
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::OutlineStyle), device_pixels_per_css_pixel);
+    case PropertyID::CornerBottomLeftShape:
+    case PropertyID::CornerBottomRightShape:
+    case PropertyID::CornerTopLeftShape:
+    case PropertyID::CornerTopRightShape:
+        return compute_corner_shape(absolutized_value);
     case PropertyID::FontVariationSettings:
         return compute_font_variation_settings(absolutized_value);
     case PropertyID::LetterSpacing:
@@ -3333,6 +3339,40 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(N
     }();
 
     return LengthStyleValue::create(Length::make_px(snap_a_length_as_a_border_width(device_pixels_per_css_pixel, absolute_length)));
+}
+
+// https://drafts.csswg.org/css-borders-4/#propdef-corner-top-left-shape
+NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPtr<StyleValue const> const& absolutized_value)
+{
+    // the corresponding superellipse() value
+
+    if (absolutized_value->is_superellipse())
+        return absolutized_value;
+
+    switch (absolutized_value->to_keyword()) {
+    case Keyword::Round:
+        // The corner shape is a quarter of a convex ellipse. Equivalent to superellipse(1).
+        return SuperellipseStyleValue::create(NumberStyleValue::create(1));
+    case Keyword::Squircle:
+        // The corner shape is a quarter of a "squircle", a convex curve between round and square. Equivalent to superellipse(2).
+        return SuperellipseStyleValue::create(NumberStyleValue::create(2));
+    case Keyword::Square:
+        // The corner shape is a convex 90deg angle. Equivalent to superellipse(infinity).
+        return SuperellipseStyleValue::create(NumberStyleValue::create(AK::Infinity<double>));
+    case Keyword::Bevel:
+        // The corner shape is a straight diagonal line, neither convex nor concave. Equivalent to superellipse(0).
+        return SuperellipseStyleValue::create(NumberStyleValue::create(0));
+    case Keyword::Scoop:
+        // The corner shape is a concave quarter-ellipse. Equivalent to superellipse(-1).
+        return SuperellipseStyleValue::create(NumberStyleValue::create(-1));
+    case Keyword::Notch:
+        // The corner shape is a concave 90deg angle. Equivalent to superellipse(-infinity).
+        return SuperellipseStyleValue::create(NumberStyleValue::create(-AK::Infinity<double>));
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, ComputationContext const& computation_context)
