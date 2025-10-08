@@ -66,6 +66,13 @@ jobs:
           cd js-repl
           tar -xvzf ladybird-js-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
 
+      - name: 'Determine JS repl build commit hash'
+        id: js-build-commit
+        shell: bash
+        run: |
+          commit_hash=$(cat js-repl/COMMIT)
+          echo "sha=${commit_hash}" >> "${GITHUB_OUTPUT}"
+
       - name: 'Download Wasm repl artifact'
         id: download-wasm-artifact
         uses: dawidd6/action-download-artifact@v11
@@ -111,7 +118,7 @@ jobs:
         shell: bash
         run: |
           echo '{
-              "commit": "${{ github.event.workflow_run.head_sha }}",
+              "commit": "${{ steps.js-build-commit.outputs.sha }}",
               "benchmarks_commit": "${{ steps.js-benchmarks-commit.outputs.sha }}",
               "os": "${{ matrix.os_name }}",
               "arch": "${{ matrix.arch }}",
