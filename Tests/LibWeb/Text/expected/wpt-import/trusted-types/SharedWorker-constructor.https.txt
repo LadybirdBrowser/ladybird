@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Create SharedWorker via ScriptTestUrl
+Pass	Block SharedWorker creation via string
+Pass	Create SharedWorker via string with default policy.

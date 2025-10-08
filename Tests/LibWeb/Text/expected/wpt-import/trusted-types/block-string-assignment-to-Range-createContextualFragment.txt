@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	range.createContextualFragment assigned via policy (successful HTML transformation).
+Pass	`range.createContextualFragment(string)` throws.
+Pass	`range.createContextualFragment(null)` throws.
+Pass	`range.createContextualFragment(string)` assigned via default policy (successful HTML transformation).
+Pass	`range.createContextualFragment(null)` assigned via default policy does not throw.
