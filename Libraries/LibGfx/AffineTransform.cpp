@@ -248,4 +248,14 @@ float AffineTransform::rotation() const
     return rotation;
 }
 
+Matrix<4, float> AffineTransform::to_matrix() const
+{
+    return {
+        a(), c(), 0.f, e(),
+        b(), d(), 0.f, f(),
+        0.f, 0.f, 1.f, 0.f,
+        0.f, 0.f, 0.f, 1.f
+    };
+}
+
 }

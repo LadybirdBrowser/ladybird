@@ -10,6 +10,7 @@
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/Matrix.h>
 
 namespace Gfx {
 
@@ -82,6 +83,8 @@ public:
 
     float determinant() const;
     Optional<AffineTransform> inverse() const;
+
+    Matrix<4, float> to_matrix() const;
 
 private:
     float m_values[6] { 0 };
