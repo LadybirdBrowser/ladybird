@@ -115,6 +115,8 @@ public:
     void set_track_uid(u64 track_uid) { m_track_uid = track_uid; }
     TrackType track_type() const { return m_track_type; }
     void set_track_type(TrackType track_type) { m_track_type = track_type; }
+    String name() const { return m_name; }
+    void set_name(String const& name) { m_name = name; }
     String language() const { return m_language; }
     void set_language(String const& language) { m_language = language; }
     String codec_id() const { return m_codec_id; }
@@ -150,6 +152,7 @@ private:
     u64 m_track_number { 0 };
     u64 m_track_uid { 0 };
     TrackType m_track_type { Invalid };
+    String m_name;
     String m_language = "eng"_string;
     String m_codec_id;
     FixedArray<u8> m_codec_private_data;
