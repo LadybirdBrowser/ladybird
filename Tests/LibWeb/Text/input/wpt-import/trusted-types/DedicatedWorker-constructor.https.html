@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+const test_url = "support/WorkerGlobalScope-importScripts.https.js"
+const trusted_url = trustedTypes.createPolicy("anythinggoes", {
+  createScriptURL: x => x}).createScriptURL(test_url);
+const default_url = "support/WorkerGlobalScope-importScripts.potato.js"
+
+test(() => {
+  try {
+    new Worker(trusted_url);
+  } catch (e) {
+    assert_unreached("Worker creation failed: " + e);
+  }
+}, "Create Worker via ScriptTestUrl");
+
+test(() => {
+  assert_throws_js(TypeError, () => new Worker(test_url));
+}, "Block Worker creation via string");
+
+// Tests with default policy.
+let seenTrustedTypeName;
+let seenSinkName;
+function resetSeenArguments() {
+  seenTrustedTypeName = undefined;
+  seenSinkName = undefined;
+}
+
+trustedTypes.createPolicy("default", {
+  createScriptURL: (input, trustedTypeName, sinkName) => {
+    seenTrustedTypeName = trustedTypeName;
+    seenSinkName = sinkName;
+    return input.replace("potato", "https");
+  }
+});
+
+test(t => {
+  t.add_cleanup(resetSeenArguments);
+  new Worker(default_url);
+  assert_equals(seenTrustedTypeName, "TrustedScriptURL");
+  assert_equals(seenSinkName, "Worker constructor");
+}, "Create Worker via string with default policy.");
+
+</script>
+</body>
