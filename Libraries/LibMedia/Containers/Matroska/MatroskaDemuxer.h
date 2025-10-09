@@ -30,7 +30,7 @@ public:
     DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
     DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
 
-    DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions) override;
+    DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions) override;
 
     DecoderErrorOr<AK::Duration> duration_of_track(Track const& track) override;
     DecoderErrorOr<AK::Duration> total_duration() override;
