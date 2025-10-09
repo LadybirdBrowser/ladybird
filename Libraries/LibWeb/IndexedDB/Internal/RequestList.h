@@ -13,8 +13,13 @@
 
 namespace Web::IndexedDB {
 
-class RequestList : public AK::Vector<GC::Root<IDBRequest>> {
+class RequestList final : public AK::Vector<GC::Root<IDBRequest>> {
+    AK_MAKE_NONMOVABLE(RequestList);
+    AK_MAKE_NONCOPYABLE(RequestList);
+
 public:
+    RequestList() = default;
+
     void all_requests_processed(GC::Heap&, GC::Ref<GC::Function<void()>> on_complete);
     void all_previous_requests_processed(GC::Heap&, GC::Ref<IDBRequest> const& request, GC::Ref<GC::Function<void()>> on_complete);
 

@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	IDBObjectStore.getKey() - invalid parameters
+Pass	IDBObjectStore.getKey() - basic - key
+Pass	IDBObjectStore.getKey() - basic - range
+Pass	IDBObjectStore.getKey() - basic - key - no match
+Pass	IDBObjectStore.getKey() - basic - range - no match
+Pass	IDBObjectStore.getKey() - key path - key
+Pass	IDBObjectStore.getKey() - key path - range
+Pass	IDBObjectStore.getKey() - key path - key - no match
+Pass	IDBObjectStore.getKey() - key path - range - no match
+Pass	IDBObjectStore.getKey() - key generator - key
+Pass	IDBObjectStore.getKey() - key generator - range
+Pass	IDBObjectStore.getKey() - key generator - key - no match
+Pass	IDBObjectStore.getKey() - key generator - range - no match
+Pass	IDBObjectStore.getKey() - key generator and key path - key
+Pass	IDBObjectStore.getKey() - key generator and key path - range
+Pass	IDBObjectStore.getKey() - key generator and key path - key - no match
+Pass	IDBObjectStore.getKey() - key generator and key path - range - no match

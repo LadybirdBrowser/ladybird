@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+15 Pass
+1 Fail
+Pass	Single item get
+Pass	Single item get (generated key)
+Pass	getAllKeys on empty object store
+Pass	Get all keys
+Pass	Test maxCount
+Pass	Get bound range
+Pass	Get bound range with maxCount
+Pass	Get upper excluded
+Pass	Get lower excluded
+Pass	Get bound range (generated) with maxCount
+Pass	Non existent key
+Pass	zero maxCount
+Pass	Max value count
+Pass	Query with empty range where  first key < upperBound
+Pass	Query with empty range where lowerBound < last key
+Fail	Get all keys with invalid query keys

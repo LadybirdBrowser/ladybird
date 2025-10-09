@@ -12,7 +12,17 @@
 
 namespace Web::IndexedDB {
 
-using ConnectionMap = HashMap<StorageAPI::StorageKey, HashMap<String, RequestList>>;
+struct Connection final : public RefCounted<Connection> {
+    Connection(StorageAPI::StorageKey storage_key, String name)
+        : storage_key(move(storage_key))
+        , name(move(name))
+    {
+    }
+
+    StorageAPI::StorageKey storage_key;
+    String name;
+    RequestList request_list;
+};
 
 // https://w3c.github.io/IndexedDB/#connection-queues
 class ConnectionQueueHandler {
@@ -25,7 +35,7 @@ public:
     }
 
 private:
-    ConnectionMap m_open_requests;
+    Vector<NonnullRefPtr<Connection>> m_open_requests;
 };
 
 }
