@@ -22,8 +22,8 @@ public:
         static Linear identity();
 
         struct Stop {
-            double output;
-            Optional<double> input;
+            ValueComparingNonnullRefPtr<StyleValue const> output;
+            ValueComparingRefPtr<StyleValue const> input;
 
             bool operator==(Stop const&) const = default;
         };
@@ -89,6 +89,8 @@ public:
     Function const& function() const { return m_function; }
 
     virtual String to_string(SerializationMode mode) const override { return m_function.to_string(mode); }
+
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 

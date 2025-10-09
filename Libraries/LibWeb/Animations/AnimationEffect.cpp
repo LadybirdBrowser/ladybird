@@ -607,6 +607,7 @@ Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView va
 {
     if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
         if (style_value->is_easing())
+            // FIXME: We should absolutize style_value to resolve relative lengths within calcs
             return CSS::EasingFunction::from_style_value(*style_value);
     }
 
