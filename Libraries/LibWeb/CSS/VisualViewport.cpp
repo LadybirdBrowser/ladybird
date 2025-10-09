@@ -182,4 +182,11 @@ CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) con
     return inverse.map(position.to_type<int>()).to_type<CSSPixels>();
 }
 
+void VisualViewport::reset()
+{
+    m_scale = 1.0;
+    m_offset = { 0, 0 };
+    m_document->set_needs_display(InvalidateDisplayList::No);
+}
+
 }
