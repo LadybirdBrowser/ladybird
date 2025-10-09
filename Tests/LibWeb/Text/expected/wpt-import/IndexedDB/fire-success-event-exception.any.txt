@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Exception in success event handler on request
+Pass	Exception in success event listener on request
+Pass	Exception in success event listener ("handleEvent" lookup) on request
+Pass	Exception in success event listener (non-callable "handleEvent") on request
+Pass	Exception in second success event listener on request
+Pass	Exception in first success event listener, tx active in second

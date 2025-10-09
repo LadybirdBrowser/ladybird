@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+24 Pass
+3 Fail
+Pass	IDBFactory cmp() static with throwing/invalid keys
+Pass	IDBCursor continue() method with throwing/invalid keys
+Pass	IndexedDB: Exceptions thrown during key conversion
+Fail	IDBCursor update() method with throwing/invalid keys
+Pass	IDBKeyRange only() static with throwing/invalid keys
+Pass	IDBKeyRange lowerBound() static with throwing/invalid keys
+Pass	IDBKeyRange upperBound() static with throwing/invalid keys
+Pass	IDBKeyRange bound() static with throwing/invalid keys
+Fail	IDBObjectStore add() method with throwing/invalid keys
+Fail	IDBObjectStore put() method with throwing/invalid keys
+Pass	IDBObjectStore delete() method with throwing/invalid keys
+Pass	IDBObjectStore get() method with throwing/invalid keys
+Pass	IDBObjectStore getKey() method with throwing/invalid keys
+Pass	IDBObjectStore count() method with throwing/invalid keys
+Pass	IDBObjectStore openCursor() method with throwing/invalid keys
+Pass	IDBObjectStore openKeyCursor() method with throwing/invalid keys
+Pass	IDBIndex get() method with throwing/invalid keys
+Pass	IDBIndex getKey() method with throwing/invalid keys
+Pass	IDBIndex count() method with throwing/invalid keys
+Pass	IDBIndex openCursor() method with throwing/invalid keys
+Pass	IDBIndex openKeyCursor() method with throwing/invalid keys
+Pass	IDBObjectStore getAll() method with throwing/invalid keys
+Pass	IDBObjectStore getAllKeys() method with throwing/invalid keys
+Pass	IDBObjectStore getAllRecords() method with throwing/invalid keys
+Pass	IDBIndex getAll() method with throwing/invalid keys
+Pass	IDBIndex getAllKeys() method with throwing/invalid keys
+Pass	IDBIndex getAllRecords() method with throwing/invalid keys
