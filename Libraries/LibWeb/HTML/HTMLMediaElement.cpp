@@ -2023,10 +2023,10 @@ void HTMLMediaElement::reached_end_of_media_playback()
             auto promises = take_pending_play_promises();
             reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_utf16);
         }
-    });
 
-    // 4. Fire an event named ended at the media element.
-    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::ended));
+        // 3. Fire an event named ended at the media element.
+        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::ended));
+    });
 }
 
 void HTMLMediaElement::dispatch_time_update_event()
