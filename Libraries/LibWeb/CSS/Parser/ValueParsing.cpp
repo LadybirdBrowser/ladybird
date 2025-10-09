@@ -2957,9 +2957,12 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
             return parse_number(argument_tokens);
         };
 
+        m_value_context.append(SpecialContext::CubicBezierFunctionXCoordinate);
         auto x1 = parse_argument(0);
-        auto y1 = parse_argument(1);
         auto x2 = parse_argument(2);
+        m_value_context.take_last();
+
+        auto y1 = parse_argument(1);
         auto y2 = parse_argument(3);
         if (!x1.has_value() || !y1.has_value() || !x2.has_value() || !y2.has_value())
             return nullptr;
@@ -4136,6 +4139,9 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 switch (special_context) {
                 case SpecialContext::AngularColorStopList:
                     return CalculationContext { .percentages_resolve_as = ValueType::Angle };
+                case SpecialContext::CubicBezierFunctionXCoordinate:
+                    // Coordinates on the X axis must be between 0 and 1
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
                 case SpecialContext::ShadowBlurRadius:
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::TranslateZArgument:

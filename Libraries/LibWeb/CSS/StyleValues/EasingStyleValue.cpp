@@ -116,18 +116,7 @@ String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
     } else if (*this == CubicBezier::ease_in_out()) {
         builder.append("ease-in-out"sv);
     } else {
-        auto x1_value = x1;
-        auto y1_value = y1;
-        auto x2_value = x2;
-        auto y2_value = y2;
-        if (mode == SerializationMode::ResolvedValue) {
-            x1_value = clamp(x1_value.resolved({}).value_or(0.0), 0.0, 1.0);
-            x2_value = clamp(x2_value.resolved({}).value_or(0.0), 0.0, 1.0);
-            y1_value = y1_value.resolved({}).value_or(0.0);
-            y2_value = y2_value.resolved({}).value_or(0.0);
-        }
-        builder.appendff("cubic-bezier({}, {}, {}, {})",
-            x1_value.to_string(mode), y1_value.to_string(mode), x2_value.to_string(mode), y2_value.to_string(mode));
+        builder.appendff("cubic-bezier({}, {}, {}, {})", x1.to_string(mode), y1.to_string(mode), x2.to_string(mode), y2.to_string(mode));
     }
     return MUST(builder.to_string());
 }

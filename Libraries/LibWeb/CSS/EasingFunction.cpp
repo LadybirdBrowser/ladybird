@@ -312,9 +312,9 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
                 return LinearEasingFunction { resolved_control_points, linear.to_string(SerializationMode::ResolvedValue) };
             },
             [](EasingStyleValue::CubicBezier const& cubic_bezier) -> EasingFunction {
-                auto resolved_x1 = clamp(cubic_bezier.x1.resolved({}).value_or(0.0), 0.0, 1.0);
+                auto resolved_x1 = cubic_bezier.x1.resolved({}).value_or(0.0);
                 auto resolved_y1 = cubic_bezier.y1.resolved({}).value_or(0.0);
-                auto resolved_x2 = clamp(cubic_bezier.x2.resolved({}).value_or(0.0), 0.0, 1.0);
+                auto resolved_x2 = cubic_bezier.x2.resolved({}).value_or(0.0);
                 auto resolved_y2 = cubic_bezier.y2.resolved({}).value_or(0.0);
 
                 return CubicBezierEasingFunction { resolved_x1, resolved_y1, resolved_x2, resolved_y2, cubic_bezier.to_string(SerializationMode::Normal) };

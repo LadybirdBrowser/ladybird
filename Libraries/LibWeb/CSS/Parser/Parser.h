@@ -565,6 +565,7 @@ private:
     };
     enum SpecialContext : u8 {
         AngularColorStopList,
+        CubicBezierFunctionXCoordinate,
         ShadowBlurRadius,
         TranslateZArgument
     };
