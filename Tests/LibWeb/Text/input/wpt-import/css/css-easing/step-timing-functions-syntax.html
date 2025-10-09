@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name="assert"
+content="This test checks the syntax output of step timing functions" />
+<title>Step timing function syntax tests</title>
+<link rel="help"
+      href="https://drafts.csswg.org/css-easing-1/#step-timing-functions">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="testcommon.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<body>
+<div id="log"></div>
+<script>
+"use strict";
+
+test_valid_value("animation-timing-function", "step-start", "steps(1, start)");
+test_valid_value("animation-timing-function", "step-end", "steps(1)");
+test_valid_value("animation-timing-function", "steps(1, start)");
+test_valid_value("animation-timing-function", "steps(1, end)", "steps(1)");
+test_valid_value("animation-timing-function", "steps(1, jump-start)");
+test_valid_value("animation-timing-function", "steps(1, jump-end)", "steps(1)");
+test_valid_value("animation-timing-function", "steps(1, jump-both)");
+test_valid_value("animation-timing-function", "steps(2, jump-none)");
+
+test_invalid_value("animation-timing-function", "steps(0, start)");
+test_invalid_value("animation-timing-function", "steps(0, end)");
+test_invalid_value("animation-timing-function", "steps(0, jump-start)");
+test_invalid_value("animation-timing-function", "steps(0, jump-end)");
+test_invalid_value("animation-timing-function", "steps(0, jump-both)");
+test_invalid_value("animation-timing-function", "steps(1, jump-none)");
+test_invalid_value("animation-timing-function", "steps(calc(0/0), jump-none)");
+
+</script>
+</body>
