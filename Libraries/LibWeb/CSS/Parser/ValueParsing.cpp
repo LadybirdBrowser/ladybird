@@ -2931,9 +2931,9 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
             if (argument_tokens.has_next_token() || !output.has_value())
                 return nullptr;
 
-            stops.append({ output.value(), first_input, first_input.has_value() });
+            stops.append({ output.value(), first_input });
             if (second_input.has_value())
-                stops.append({ output.value(), second_input, true });
+                stops.append({ output.value(), second_input });
         }
 
         if (stops.is_empty())
