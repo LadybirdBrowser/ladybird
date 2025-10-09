@@ -9,6 +9,7 @@
 #include <AK/Utf16String.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/Demuxer.h>
 
 #include "MatroskaDemuxer.h"
 
@@ -169,12 +170,12 @@ DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for
     return TRY(m_reader.track_for_track_number(track.identifier()))->codec_private_data();
 }
 
-DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions options)
+DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions options)
 {
     // Removing the track status will cause us to start from the beginning.
     if (timestamp.is_zero()) {
         m_track_statuses.remove(track);
-        return timestamp;
+        return DemuxerSeekResult::MovedPosition;
     }
 
     auto& track_status = *TRY(get_track_status(track));
@@ -187,11 +188,11 @@ DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyf
         bool skip_seek = seeked_iterator.last_timestamp().value() <= last_sample.value() && last_sample.value() <= timestamp;
         dbgln_if(MATROSKA_DEBUG, "The last available sample at {}ms is {}closer to target timestamp {}ms than the keyframe at {}ms, {}", last_sample->to_milliseconds(), skip_seek ? ""sv : "not "sv, timestamp.to_milliseconds(), seeked_iterator.last_timestamp()->to_milliseconds(), skip_seek ? "skipping seek"sv : "seeking"sv);
         if (skip_seek)
-            return OptionalNone();
+            return DemuxerSeekResult::KeptCurrentPosition;
     }
 
     track_status.iterator = move(seeked_iterator);
-    return track_status.iterator.last_timestamp();
+    return DemuxerSeekResult::MovedPosition;
 }
 
 DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track const& track)

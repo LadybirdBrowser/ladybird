@@ -141,7 +141,7 @@ DecoderErrorOr<Optional<Track>> FFmpegDemuxer::get_preferred_track_for_type(Trac
     return get_track_for_stream_index(best_stream_index);
 }
 
-DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions)
+DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions)
 {
     VERIFY(track.identifier() < m_format_context->nb_streams);
     auto* stream = m_format_context->streams[track.identifier()];
@@ -152,7 +152,7 @@ DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::seek_to_most_recent_keyfra
     if (av_seek_frame(m_format_context, stream->index, sample_timestamp, AVSEEK_FLAG_BACKWARD) < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to seek");
 
-    return timestamp;
+    return DemuxerSeekResult::MovedPosition;
 }
 
 DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track const& track)
