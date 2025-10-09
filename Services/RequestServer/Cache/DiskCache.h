@@ -26,6 +26,7 @@ public:
 
     Optional<CacheEntryWriter&> create_entry(URL::URL const&, StringView method, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&, UnixDateTime request_time);
     Optional<CacheEntryReader&> open_entry(URL::URL const&, StringView method);
+    void clear_cache();
 
     LexicalPath const& cache_directory() { return m_cache_directory; }
 

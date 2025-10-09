@@ -57,6 +57,8 @@ public:
 
     void remove();
 
+    void mark_for_deletion(Badge<DiskCache>) { m_marked_for_deletion = true; }
+
 protected:
     CacheEntry(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, CacheHeader);
 
@@ -72,6 +74,8 @@ protected:
 
     CacheHeader m_cache_header;
     CacheFooter m_cache_footer;
+
+    bool m_marked_for_deletion { false };
 };
 
 class CacheEntryWriter : public CacheEntry {
@@ -107,6 +111,7 @@ private:
 
     void pipe_without_blocking();
     void pipe_complete();
+    void pipe_error(Error);
 
     ErrorOr<void> read_and_validate_footer();
 

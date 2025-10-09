@@ -824,7 +824,10 @@ void Application::initialize_actions()
     m_debug_menu->add_separator();
 
     m_debug_menu->add_action(Action::create("Collect Garbage"sv, ActionID::CollectGarbage, debug_request("collect-garbage"sv)));
-    m_debug_menu->add_action(Action::create("Clear Cache"sv, ActionID::ClearCache, debug_request("clear-cache"sv)));
+    m_debug_menu->add_action(Action::create("Clear Cache"sv, ActionID::ClearCache, [this, clear_memory_cache = debug_request("clear_cache")]() {
+        m_request_server_client->async_clear_cache();
+        clear_memory_cache();
+    }));
     m_debug_menu->add_action(Action::create("Clear All Cookies"sv, ActionID::ClearCookies, [this]() { m_cookie_jar->clear_all_cookies(); }));
     m_debug_menu->add_separator();
 

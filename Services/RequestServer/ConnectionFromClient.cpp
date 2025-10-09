@@ -861,6 +861,12 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     }
 }
 
+void ConnectionFromClient::clear_cache()
+{
+    if (g_disk_cache.has_value())
+        g_disk_cache->clear_cache();
+}
+
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers)
 {
     auto host = url.serialized_host().to_byte_string();
