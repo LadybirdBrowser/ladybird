@@ -52,11 +52,11 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
     formatter.print(std::cerr, stacktrace);
 }
 #elif defined(AK_HAS_BACKTRACE_HEADER)
-void dump_backtrace(int frames_to_skip)
+void dump_backtrace(unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
 {
     // Grab symbols and dso name for up to 256 frames
     void* trace[256] = {};
-    int const num_frames = backtrace(trace, array_size(trace));
+    unsigned const num_frames = backtrace(trace, array_size(trace));
     char** syms = backtrace_symbols(trace, num_frames);
 
     for (auto i = frames_to_skip; i < num_frames; ++i) {
@@ -98,7 +98,7 @@ void dump_backtrace(int frames_to_skip)
     free(syms);
 }
 #else
-void dump_backtrace([[maybe_unused]] int frames_to_skip)
+void dump_backtrace([[maybe_unused]] unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
 {
     PRINT_ERROR("dump_backtrace() is not supported with the current compilation options.\n");
 }
