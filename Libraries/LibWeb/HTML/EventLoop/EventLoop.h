@@ -48,6 +48,8 @@ public:
 
     Type type() const { return m_type; }
 
+    void run_upon_reaching_step_1(GC::Ref<GC::Function<void()>> task) { m_reached_step_1_tasks.append(task); }
+
     TaskQueue& task_queue() { return *m_task_queue; }
     TaskQueue const& task_queue() const { return *m_task_queue; }
 
@@ -103,6 +105,8 @@ private:
 
     Type m_type { Type::Window };
 
+    Vector<GC::Ref<GC::Function<void()>>> m_reached_step_1_tasks;
+
     GC::Ptr<TaskQueue> m_task_queue;
     GC::Ptr<TaskQueue> m_microtask_queue;
 
@@ -142,6 +146,7 @@ private:
 };
 
 WEB_API EventLoop& main_thread_event_loop();
+WEB_API void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps);
 WEB_API TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<void()>> steps);
 WEB_API TaskID queue_global_task(HTML::Task::Source, JS::Object&, GC::Ref<GC::Function<void()>> steps);
 WEB_API void queue_a_microtask(DOM::Document const*, GC::Ref<GC::Function<void()>> steps);
