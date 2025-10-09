@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,8 +10,6 @@
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
-#include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 
 namespace Web::CSS {
@@ -48,8 +47,7 @@ double VisualViewport::offset_left() const
         return 0;
 
     // 2. Otherwise, return the offset of the left edge of the visual viewport from the left edge of the layout viewport.
-    VERIFY(m_document->navigable());
-    return m_document->viewport_rect().left().to_double();
+    return m_offset.x().to_double();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-visualviewport-offsettop
@@ -60,8 +58,7 @@ double VisualViewport::offset_top() const
         return 0;
 
     // 2. Otherwise, return the offset of the top edge of the visual viewport from the top edge of the layout viewport.
-    VERIFY(m_document->navigable());
-    return m_document->viewport_rect().top().to_double();
+    return m_offset.y().to_double();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-visualviewport-pageleft
@@ -71,9 +68,9 @@ double VisualViewport::page_left() const
     if (!m_document->is_fully_active())
         return 0;
 
-    // FIXME: 2. Otherwise, return the offset of the left edge of the visual viewport
-    //           from the left edge of the initial containing block of the layout viewport’s document.
-    return offset_left();
+    // 2. Otherwise, return the offset of the left edge of the visual viewport from the
+    //    left edge of the initial containing block of the layout viewport’s document.
+    return m_document->viewport_rect().x().to_double() + offset_left();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-visualviewport-pagetop
@@ -83,9 +80,9 @@ double VisualViewport::page_top() const
     if (!m_document->is_fully_active())
         return 0;
 
-    // FIXME: 2. Otherwise, return the offset of the top edge of the visual viewport
-    //           from the top edge of the initial containing block of the layout viewport’s document.
-    return offset_top();
+    // 2. Otherwise, return the offset of the top edge of the visual viewport from the
+    //    top edge of the initial containing block of the layout viewport’s document.
+    return m_document->viewport_rect().y().to_double() + offset_top();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-visualviewport-width
@@ -97,8 +94,7 @@ double VisualViewport::width() const
 
     // 2. Otherwise, return the width of the visual viewport
     //    FIXME: excluding the width of any rendered vertical classic scrollbar that is fixed to the visual viewport.
-    VERIFY(m_document->navigable());
-    return m_document->viewport_rect().width().to_double();
+    return m_document->viewport_rect().size().width() / m_scale;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-visualviewport-height
@@ -110,15 +106,13 @@ double VisualViewport::height() const
 
     // 2. Otherwise, return the height of the visual viewport
     //    FIXME: excluding the height of any rendered vertical classic scrollbar that is fixed to the visual viewport.
-    VERIFY(m_document->navigable());
-    return m_document->viewport_rect().height().to_double();
+    return m_document->viewport_rect().size().height() / m_scale;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-visualviewport-scale
 double VisualViewport::scale() const
 {
-    // FIXME: Implement.
-    return 1;
+    return m_scale;
 }
 
 void VisualViewport::set_onresize(WebIDL::CallbackType* event_handler)

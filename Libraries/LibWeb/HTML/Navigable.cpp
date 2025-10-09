@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/CSS/SystemColor.h>
+#include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -2708,6 +2709,64 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
 RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
 {
     return m_skia_backend_context;
+}
+
+// https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
+void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+{
+    // 1. Let doc be the viewport’s associated Document.
+    auto doc = active_document();
+
+    // 2. Let vv be the VisualViewport whose associated document is doc.
+    auto vv = doc->visual_viewport();
+
+    CSSPixelRect viewport_rect = { m_viewport_scroll_offset, m_viewport_size };
+
+    // 3. Let maxX be the difference between viewport’s scrolling box’s width and the value of vv’s width attribute.
+    auto max_x = viewport_rect.width().to_double() - vv->width();
+
+    // 4. Let maxY be the difference between viewport’s scrolling box’s height and the value of vv’s height attribute.
+    auto max_y = viewport_rect.height().to_double() - vv->height();
+
+    // 5. Let dx be the horizontal component of position - the value vv’s pageLeft attribute
+    // NOTE: Function accepts delta so we use that directly.
+    auto dx = delta.x().to_double();
+
+    // 6. Let dy be the vertical component of position - the value of vv’s pageTop attribute
+    // NOTE: Function accepts delta so we use that directly.
+    auto dy = delta.y().to_double();
+
+    // 7. Let visual x be the value of vv’s offsetLeft attribute.
+    auto visual_x = vv->offset_left();
+
+    // 8. Let visual y be the value of vv’s offsetTop attribute.
+    auto visual_y = vv->offset_top();
+
+    // 9. Let visual dx be min(maxX, max(0, visual x + dx)) - visual x.
+    auto visual_dx = min(max_x, max(0.0, visual_x + dx)) - visual_x;
+
+    // 10. Let visual dy be min(maxY, max(0, visual y + dy)) - visual y.
+    auto visual_dy = min(max_y, max(0.0, visual_y + dy)) - visual_y;
+
+    // 11. Let layout dx be dx - visual dx
+    auto layout_dx = dx - visual_dx;
+
+    // 12. Let layout dy be dy - visual dy
+    auto layout_dy = dy - visual_dy;
+
+    // 13. Let element be doc’s root element if there is one, null otherwise.
+
+    // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy) with element as the associated element, and behavior as the scroll behavior.
+    auto scrolling_area = doc->paintable_box()->scrollable_overflow_rect()->to_type<float>();
+    auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
+    // NOTE: Clamp to the scrolling area.
+    new_viewport_scroll_offset.set_x(max(0.0, min(new_viewport_scroll_offset.x(), scrolling_area.width() - viewport_size().width().to_double())));
+    new_viewport_scroll_offset.set_y(max(0.0, min(new_viewport_scroll_offset.y(), scrolling_area.height() - viewport_size().height().to_double())));
+    perform_scroll_of_viewport(new_viewport_scroll_offset.to_type<CSSPixels>());
+
+    // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element as the associated element, and behavior as the scroll behavior.
+    vv->scroll_by({ visual_dx, visual_dy });
+    doc->set_needs_display(InvalidateDisplayList::No);
 }
 
 }
