@@ -1100,6 +1100,13 @@ private:
 
     // Used by run_the_resize_steps().
     Optional<Gfx::IntSize> m_last_viewport_size;
+    struct VisualViewportState {
+        double scale { 1.0 };
+        CSSPixelSize size;
+
+        bool operator==(VisualViewportState const& other) const = default;
+    };
+    Optional<VisualViewportState> m_last_visual_viewport_state;
 
     HashTable<ViewportClient*> m_viewport_clients;
 
