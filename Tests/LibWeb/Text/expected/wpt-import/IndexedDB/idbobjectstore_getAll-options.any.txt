@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+6 Pass
+18 Fail
+Fail	Single item get
+Fail	Single item get (generated key)
+Fail	getAll on empty object store
+Fail	Get all values
+Fail	Get all with large values
+Fail	Test maxCount
+Fail	Get bound range
+Fail	Get bound range with maxCount
+Fail	Get upper excluded
+Fail	Get lower excluded
+Fail	Get bound range (generated) with maxCount
+Fail	Non existent key
+Fail	zero maxCount
+Fail	Max value count
+Fail	Query with empty range where  first key < upperBound
+Fail	Query with empty range where lowerBound < last key
+Pass	Direction: next
+Pass	Direction: prev
+Pass	Direction: nextunique
+Pass	Direction: prevunique
+Pass	Direction and query
+Pass	Direction, query and count
+Fail	Get all values with both options and count
+Fail	Get all values with invalid query keys

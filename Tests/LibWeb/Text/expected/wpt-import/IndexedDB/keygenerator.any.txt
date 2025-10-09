@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+15 Pass
+6 Fail
+Pass	Keygenerator - starts at one, and increments by one
+Pass	Keygenerator - increments by one from last set key
+Pass	Keygenerator - don't increment when new key is not bigger than current
+Pass	Keygenerator ConstraintError when using same id as already generated
+Fail	Key generator vs. explicit key 53 bits
+Fail	Key generator vs. explicit key greater than 53 bits, less than 64 bits
+Pass	Key generator vs. explicit key greater than 53 bits, less than 64 bits (negative)
+Fail	Key generator vs. explicit key 63 bits
+Pass	Key generator vs. explicit key 63 bits (negative)
+Fail	Key generator vs. explicit key 64 bits
+Pass	Key generator vs. explicit key 64 bits (negative)
+Fail	Key generator vs. explicit key greater than 64 bits, but still finite
+Pass	Key generator vs. explicit key greater than 64 bits, but still finite (negative)
+Fail	Key generator vs. explicit key equal to Infinity
+Pass	Key generator vs. explicit key equal to -Infinity
+Pass	Key is injected into value - single segment path
+Pass	Key is injected into value - multi-segment path
+Pass	Key is injected into value - multi-segment path, partially populated
+Pass	put() throws if key cannot be injected - single segment path
+Pass	put() throws if key cannot be injected - multi-segment path
+Pass	Keygenerator overflow

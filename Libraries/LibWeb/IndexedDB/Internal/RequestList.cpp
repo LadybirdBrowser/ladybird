@@ -29,7 +29,8 @@ void RequestList::all_requests_processed(GC::Heap& heap, GC::Ref<GC::Function<vo
 
     if (pending_request_process) {
         pending_request_process->after_all = GC::create_function(heap, [this, pending_request_process, on_complete] {
-            bool was_removed = m_pending_request_queue.remove_first_matching([pending_request_process](GC::Root<PendingRequestProcess> stored_pending_connection_process) {
+            VERIFY(!m_pending_request_queue.is_empty());
+            bool was_removed = m_pending_request_queue.remove_first_matching([pending_request_process](GC::Root<PendingRequestProcess> const& stored_pending_connection_process) {
                 return stored_pending_connection_process.ptr() == pending_request_process.ptr();
             });
             VERIFY(was_removed);
@@ -60,7 +61,8 @@ void RequestList::all_previous_requests_processed(GC::Heap& heap, GC::Ref<IDBReq
 
     if (pending_request_process) {
         pending_request_process->after_all = GC::create_function(heap, [this, pending_request_process, on_complete] {
-            bool was_removed = m_pending_request_queue.remove_first_matching([pending_request_process](GC::Root<PendingRequestProcess> stored_pending_connection_process) {
+            VERIFY(!m_pending_request_queue.is_empty());
+            bool was_removed = m_pending_request_queue.remove_first_matching([pending_request_process](GC::Root<PendingRequestProcess> const& stored_pending_connection_process) {
                 return stored_pending_connection_process.ptr() == pending_request_process.ptr();
             });
             VERIFY(was_removed);

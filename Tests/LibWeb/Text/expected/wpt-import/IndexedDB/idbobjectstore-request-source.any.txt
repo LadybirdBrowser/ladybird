@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	The source of the request from store => store.put(0) is the object store itself
+Pass	The source of the request from store => store.add(0) is the object store itself
+Pass	The source of the request from store => store.delete(0) is the object store itself
+Pass	The source of the request from store => store.clear() is the object store itself
+Pass	The source of the request from store => store.get(0) is the object store itself
+Pass	The source of the request from store => store.getKey(0) is the object store itself
+Pass	The source of the request from store => store.getAll() is the object store itself
+Pass	The source of the request from store => store.getAllKeys() is the object store itself
+Pass	The source of the request from store => store.count() is the object store itself
+Pass	The source of the request from store => store.openCursor() is the object store itself
+Pass	The source of the request from store => store.openKeyCursor() is the object store itself

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	The last element of keypath is validated
+Pass	Key path evaluation: Exceptions from non-enumerable getters
+Fail	Key path evaluation: Exceptions from enumerable getters
+Pass	Key path evaluation: Exceptions from non-enumerable getters on prototype
+Pass	Key path evaluation: Exceptions from enumerable getters on prototype
+Pass	Array key conversion should not invoke prototype getters

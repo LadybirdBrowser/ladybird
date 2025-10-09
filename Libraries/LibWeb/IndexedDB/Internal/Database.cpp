@@ -65,12 +65,17 @@ Vector<GC::Root<Database>> Database::for_key(StorageAPI::StorageKey const& key)
 
 RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
-    return ConnectionQueueHandler::the().m_open_requests.ensure(key, [] {
-                                                            return HashMap<String, RequestList>();
-                                                        })
-        .ensure(name, [] {
-            return RequestList();
-        });
+    auto& instance = ConnectionQueueHandler::the();
+    auto maybe_connection = instance.m_open_requests.find_if([&key, &name](Connection const& connection) {
+        return connection.storage_key == key && connection.name == name;
+    });
+
+    if (!maybe_connection.is_end())
+        return (*maybe_connection)->request_list;
+
+    auto new_connection = adopt_ref(*new Connection(key, name));
+    instance.m_open_requests.append(new_connection);
+    return new_connection->request_list;
 }
 
 Optional<GC::Root<Database> const&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
