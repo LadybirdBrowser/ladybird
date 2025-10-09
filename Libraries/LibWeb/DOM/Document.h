@@ -701,7 +701,7 @@ public:
 
     void set_salvageable(bool value) { m_salvageable = value; }
 
-    void make_unsalvageable(String reason);
+    void make_unsalvageable(String const& reason);
 
     HTML::ListOfAvailableImages& list_of_available_images();
     HTML::ListOfAvailableImages const& list_of_available_images() const;

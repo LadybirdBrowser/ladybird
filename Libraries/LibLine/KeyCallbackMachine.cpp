@@ -9,7 +9,7 @@
 
 namespace Line {
 
-void KeyCallbackMachine::register_key_input_callback(Vector<Key> keys, Function<bool(Editor&)> callback)
+void KeyCallbackMachine::register_key_input_callback(Vector<Key> const& keys, Function<bool(Editor&)> callback)
 {
     m_key_callbacks.set(keys, make<KeyCallback>(move(callback)));
 }

@@ -76,7 +76,7 @@ void Palette::set_metric(MetricRole role, int value)
     theme.metric[(int)role] = value;
 }
 
-void Palette::set_path(PathRole role, ByteString path)
+void Palette::set_path(PathRole role, ByteString const& path)
 {
     if (m_impl->ref_count() != 1)
         m_impl = m_impl->clone();

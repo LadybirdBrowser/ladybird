@@ -198,7 +198,7 @@ public:
     void set_box_shadow_data(Vector<ShadowData> box_shadow_data) { m_box_shadow_data = move(box_shadow_data); }
     Vector<ShadowData> const& box_shadow_data() const { return m_box_shadow_data; }
 
-    void set_transform(Gfx::FloatMatrix4x4 transform) { m_transform = transform; }
+    void set_transform(Gfx::FloatMatrix4x4 const& transform) { m_transform = transform; }
     Gfx::FloatMatrix4x4 const& transform() const { return m_transform; }
 
     void set_transform_origin(CSSPixelPoint transform_origin) { m_transform_origin = transform_origin; }

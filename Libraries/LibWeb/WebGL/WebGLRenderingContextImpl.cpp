@@ -409,7 +409,7 @@ void WebGLRenderingContextImpl::attach_shader(GC::Root<WebGLProgram> program, GC
     }
 }
 
-void WebGLRenderingContextImpl::bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String name)
+void WebGLRenderingContextImpl::bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String const& name)
 {
     m_context->make_current();
 
@@ -998,7 +998,7 @@ Optional<Vector<GC::Root<WebGLShader>>> WebGLRenderingContextImpl::get_attached_
     return result;
 }
 
-WebIDL::Long WebGLRenderingContextImpl::get_attrib_location(GC::Root<WebGLProgram> program, String name)
+WebIDL::Long WebGLRenderingContextImpl::get_attrib_location(GC::Root<WebGLProgram> program, String const& name)
 {
     m_context->make_current();
 
@@ -1634,7 +1634,7 @@ Optional<String> WebGLRenderingContextImpl::get_shader_info_log(GC::Root<WebGLSh
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 }
 
-GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> program, String name)
+GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> program, String const& name)
 {
     m_context->make_current();
 
@@ -1822,7 +1822,7 @@ void WebGLRenderingContextImpl::scissor(WebIDL::Long x, WebIDL::Long y, WebIDL::
     glScissor(x, y, width, height);
 }
 
-void WebGLRenderingContextImpl::shader_source(GC::Root<WebGLShader> shader, String source)
+void WebGLRenderingContextImpl::shader_source(GC::Root<WebGLShader> shader, String const& source)
 {
     m_context->make_current();
 

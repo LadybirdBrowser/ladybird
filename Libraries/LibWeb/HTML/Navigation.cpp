@@ -220,7 +220,7 @@ Bindings::NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandli
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-navigate
-WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, NavigationNavigateOptions const& options)
+WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String const& url, NavigationNavigateOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -574,7 +574,7 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::maybe_set_the_upcoming_non_trave
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#add-an-upcoming-traverse-api-method-tracker
-GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info)
+GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_method_tracker(String const& destination_key, JS::Value info)
 {
     auto& vm = this->vm();
     auto& realm = relevant_realm(*this);
@@ -1306,7 +1306,7 @@ bool Navigation::fire_a_traverse_navigate_event(GC::Ref<SessionHistoryEntry> des
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-push/replace/reload-navigate-event
 bool Navigation::fire_a_push_replace_reload_navigate_event(
     Bindings::NavigationType navigation_type,
-    URL::URL destination_url,
+    URL::URL const& destination_url,
     bool is_same_document,
     UserNavigationInvolvement user_involvement,
     GC::Ptr<DOM::Element> source_element,
@@ -1356,7 +1356,7 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-download-request-navigate-event
-bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename)
+bool Navigation::fire_a_download_request_navigate_event(URL::URL const& destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename)
 {
     auto& realm = relevant_realm(*this);
     auto& vm = this->vm();

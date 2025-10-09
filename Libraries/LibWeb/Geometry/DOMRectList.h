@@ -19,7 +19,7 @@ class DOMRectList final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(DOMRectList);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMRectList> create(JS::Realm&, Vector<GC::Root<DOMRect>>);
+    [[nodiscard]] static GC::Ref<DOMRectList> create(JS::Realm&, Vector<GC::Root<DOMRect>> const&);
 
     virtual ~DOMRectList() override;
 

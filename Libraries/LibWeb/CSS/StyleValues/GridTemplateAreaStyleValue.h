@@ -26,7 +26,7 @@ public:
 private:
     explicit GridTemplateAreaStyleValue(Vector<Vector<String>> grid_template_area)
         : StyleValueWithDefaultOperators(Type::GridTemplateArea)
-        , m_grid_template_area(grid_template_area)
+        , m_grid_template_area(move(grid_template_area))
     {
     }
 

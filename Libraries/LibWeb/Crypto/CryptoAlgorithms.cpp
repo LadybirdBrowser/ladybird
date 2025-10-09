@@ -94,7 +94,7 @@ static ::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(GC::Ptr<JS:
 }
 
 // https://www.rfc-editor.org/rfc/rfc7518#section-2
-ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
+ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger const& integer)
 {
     // The representation of a positive or zero integer value as the
     // base64url encoding of the value's unsigned big-endian
@@ -1068,7 +1068,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
             [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
-            [](auto) -> ErrorOr<ByteBuffer> {
+            [](auto const&) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
@@ -1094,7 +1094,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
             [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
-            [](auto) -> ErrorOr<ByteBuffer> {
+            [](auto const&) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
@@ -1165,7 +1165,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
                 // FIXME: We don't support more than 2 primes on RSA keys
                 return {};
             },
-            [](auto) -> ErrorOr<void> {
+            [](auto const&) -> ErrorOr<void> {
                 VERIFY_NOT_REACHED();
             });
         TRY_OR_THROW_OOM(vm, maybe_error);
@@ -1650,7 +1650,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
             [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
-            [](auto) -> ErrorOr<ByteBuffer> {
+            [](auto const&) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
@@ -1676,7 +1676,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
             [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
-            [](auto) -> ErrorOr<ByteBuffer> {
+            [](auto const&) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
@@ -1748,7 +1748,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
                 // FIXME: We don't support more than 2 primes on RSA keys
                 return {};
             },
-            [](auto) -> ErrorOr<void> {
+            [](auto const&) -> ErrorOr<void> {
                 VERIFY_NOT_REACHED();
             });
         TRY_OR_THROW_OOM(vm, maybe_error);
@@ -2227,7 +2227,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
             [&](::Crypto::PK::RSAPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
-            [](auto) -> ErrorOr<ByteBuffer> {
+            [](auto const&) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
@@ -2253,7 +2253,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
             [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<ByteBuffer> {
                 return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
-            [](auto) -> ErrorOr<ByteBuffer> {
+            [](auto const&) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
             });
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
@@ -2325,7 +2325,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
                 // FIXME: We don't support more than 2 primes on RSA keys
                 return {};
             },
-            [](auto) -> ErrorOr<void> {
+            [](auto const&) -> ErrorOr<void> {
                 VERIFY_NOT_REACHED();
             });
         TRY_OR_THROW_OOM(vm, maybe_error);
@@ -4478,7 +4478,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
 
                     return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params));
                 },
-                [](auto) -> ErrorOr<ByteBuffer> {
+                [](auto const&) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -4544,7 +4544,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
 
                     return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params));
                 },
-                [](auto) -> ErrorOr<ByteBuffer> {
+                [](auto const&) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -4630,7 +4630,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
 
                     return {};
                 },
-                [](auto) -> ErrorOr<void> {
+                [](auto const&) -> ErrorOr<void> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -4647,7 +4647,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
 
                         return {};
                     },
-                    [](auto) -> ErrorOr<void> {
+                    [](auto const&) -> ErrorOr<void> {
                         VERIFY_NOT_REACHED();
                     });
 
@@ -4692,7 +4692,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
                 [](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                     return public_key.to_uncompressed();
                 },
-                [](auto) -> ErrorOr<ByteBuffer> {
+                [](auto const&) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -5424,7 +5424,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                     return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params));
                 },
-                [](auto) -> ErrorOr<ByteBuffer> {
+                [](auto const&) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -5490,7 +5490,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                     return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params));
                 },
-                [](auto) -> ErrorOr<ByteBuffer> {
+                [](auto const&) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -5576,7 +5576,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                     return {};
                 },
-                [](auto) -> ErrorOr<void> {
+                [](auto const&) -> ErrorOr<void> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -5593,7 +5593,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                         return {};
                     },
-                    [](auto) -> ErrorOr<void> {
+                    [](auto const&) -> ErrorOr<void> {
                         VERIFY_NOT_REACHED();
                     });
 
@@ -5638,7 +5638,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                 [](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<ByteBuffer> {
                     return public_key.to_uncompressed();
                 },
-                [](auto) -> ErrorOr<ByteBuffer> {
+                [](auto const&) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
                 });
 
@@ -7860,7 +7860,7 @@ static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& 
     return hmac.process(message);
 }
 
-static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm& realm, HashAlgorithmIdentifier hash)
+static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm& realm, HashAlgorithmIdentifier const& hash)
 {
     auto hash_name = TRY(hash.name(realm.vm()));
     if (hash_name == "SHA-1")

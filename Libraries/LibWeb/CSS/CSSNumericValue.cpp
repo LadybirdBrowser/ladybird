@@ -55,7 +55,7 @@ void CSSNumericValue::initialize(JS::Realm& realm)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-equals
-bool CSSNumericValue::equals_for_bindings(Vector<CSSNumberish> values) const
+bool CSSNumericValue::equals_for_bindings(Vector<CSSNumberish> const& values) const
 {
     // The equals(...values) method, when called on a CSSNumericValue this, must perform the following steps:
 

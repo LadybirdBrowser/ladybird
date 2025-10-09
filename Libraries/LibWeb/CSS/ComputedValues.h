@@ -1079,7 +1079,7 @@ public:
     void set_outline_offset(Length value) { m_noninherited.outline_offset = move(value); }
     void set_outline_style(OutlineStyle value) { m_noninherited.outline_style = value; }
     void set_outline_width(CSSPixels value) { m_noninherited.outline_width = value; }
-    void set_mask(MaskReference value) { m_noninherited.mask = value; }
+    void set_mask(MaskReference const& value) { m_noninherited.mask = value; }
     void set_mask_type(MaskType value) { m_noninherited.mask_type = value; }
     void set_mask_image(AbstractImageStyleValue const& value) { m_noninherited.mask_image = value; }
     void set_clip_path(ClipPathReference value) { m_noninherited.clip_path = move(value); }

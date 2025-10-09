@@ -55,10 +55,10 @@ bool UnresolvedStyleValue::equals(StyleValue const& other) const
     return values() == other.as_unresolved().values();
 }
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, Vector<Parser::ComponentValue>);
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, Vector<Parser::ComponentValue> const&);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-var
-static GC::Root<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm, Parser::Function function)
+static GC::Root<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm, Parser::Function const& function)
 {
     // NB: A var() might not be representable as a CSSVariableReferenceValue, for example if it has invalid syntax or
     //    it contains an ASF in its variable-name slot. In those cases, we return null here, so it's treated like a
@@ -154,7 +154,7 @@ private:
     Vector<Parser::ComponentValue> m_unserialized_values {};
 };
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& realm, Vector<Parser::ComponentValue> component_values)
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& realm, Vector<Parser::ComponentValue> const& component_values)
 {
     // To reify a list of component values from a list:
     // 1. Replace all var() references in list with CSSVariableReferenceValue objects, as described in §5.4 var() References.

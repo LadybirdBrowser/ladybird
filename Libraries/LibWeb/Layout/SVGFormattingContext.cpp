@@ -323,7 +323,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
     SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, m_current_viewbox_transform);
     auto& nested_viewport_state = m_state.get_mutable(viewport);
-    auto resolve_dimension = [](auto& node, auto size, auto reference_value) {
+    auto resolve_dimension = [](auto& node, auto const& size, auto reference_value) {
         // The value auto for width and height on the ‘svg’ element is treated as 100%.
         // https://svgwg.org/svg2-draft/geometry.html#Sizing
         if (size.is_auto())

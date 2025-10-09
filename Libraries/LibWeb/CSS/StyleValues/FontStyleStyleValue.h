@@ -15,7 +15,7 @@ class FontStyleStyleValue final : public StyleValueWithDefaultOperators<FontStyl
 public:
     static ValueComparingNonnullRefPtr<FontStyleStyleValue const> create(FontStyle font_style, ValueComparingRefPtr<StyleValue const> angle_value = {})
     {
-        return adopt_ref(*new (nothrow) FontStyleStyleValue(font_style, angle_value));
+        return adopt_ref(*new (nothrow) FontStyleStyleValue(font_style, move(angle_value)));
     }
 
     virtual ~FontStyleStyleValue() override;

@@ -175,7 +175,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM&
 
 // 7.3.35 AddValueToKeyedGroup ( groups, key, value ), https://tc39.es/ecma262/#sec-add-value-to-keyed-group
 template<typename GroupsType, typename KeyType>
-void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType key, Value value)
+void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType const& key, Value value)
 {
     // 1. For each Record { [[Key]], [[Elements]] } g of groups, do
     //      a. If SameValue(g.[[Key]], key) is true, then

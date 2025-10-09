@@ -99,7 +99,7 @@ protected:
         , origin(move(origin))
         , policy_container(policy_container)
         , final_sandboxing_flag_set(final_sandboxing_flag_set)
-        , opener_policy(opener_policy)
+        , opener_policy(move(opener_policy))
         , about_base_url(move(about_base_url))
         , user_involvement(user_involvement)
     {
@@ -156,6 +156,6 @@ protected:
     void visit_edges(Visitor& visitor) override;
 };
 
-bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, const URL::Origin& destination_origin);
 
 }

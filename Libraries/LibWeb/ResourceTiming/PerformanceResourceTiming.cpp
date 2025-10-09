@@ -77,7 +77,7 @@ void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructu
     auto entry = realm.create<PerformanceResourceTiming>(realm, requested_url, converted_start_time, converted_end_time - converted_start_time, timing_info);
 
     // Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo, responseStatus, and deliveryType.
-    entry->setup_the_resource_timing_entry(initiator_type, requested_url, timing_info, cache_mode, move(body_info), response_status, delivery_type);
+    entry->setup_the_resource_timing_entry(initiator_type, requested_url, timing_info, cache_mode, move(body_info), response_status, move(delivery_type));
 
     // 3. Queue entry.
     window_or_worker.queue_performance_entry(entry);

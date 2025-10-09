@@ -334,7 +334,7 @@ private:
         }
 
         template<typename Expected, typename Given>
-        static ValidationError invalid(StringView name, Expected expected, Given given, SourceLocation location = SourceLocation::current())
+        static ValidationError invalid(StringView name, Expected const& expected, Given const& given, SourceLocation location = SourceLocation::current())
         {
             if constexpr (WASM_VALIDATOR_DEBUG)
                 return ByteString::formatted("Invalid {} in {}, expected {} but got {}", name, find_instruction_name(location), expected, given);

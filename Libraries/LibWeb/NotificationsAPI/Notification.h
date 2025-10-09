@@ -48,7 +48,7 @@ class WEB_API Notification final : public DOM::EventTarget {
 public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Notification>> construct_impl(
         JS::Realm& realm,
-        String title,
+        String const& title,
         Optional<NotificationOptions> options);
 
 private:

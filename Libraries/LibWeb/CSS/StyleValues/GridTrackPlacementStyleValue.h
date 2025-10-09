@@ -27,7 +27,7 @@ public:
 private:
     explicit GridTrackPlacementStyleValue(GridTrackPlacement grid_track_placement)
         : StyleValueWithDefaultOperators(Type::GridTrackPlacement)
-        , m_grid_track_placement(grid_track_placement)
+        , m_grid_track_placement(move(grid_track_placement))
     {
     }
 

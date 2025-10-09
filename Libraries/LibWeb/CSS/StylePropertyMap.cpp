@@ -76,7 +76,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set
-WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString const& property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> const& values)
 {
     // The set(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -141,7 +141,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-append
-WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> const& values)
 {
     // The append(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 

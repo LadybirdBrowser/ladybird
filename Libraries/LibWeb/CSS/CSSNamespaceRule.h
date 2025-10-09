@@ -15,7 +15,7 @@ class CSSNamespaceRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSNamespaceRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNamespaceRule> create(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
+    [[nodiscard]] static GC::Ref<CSSNamespaceRule> create(JS::Realm&, Optional<FlyString> const& prefix, FlyString namespace_uri);
 
     virtual ~CSSNamespaceRule() = default;
 
@@ -25,7 +25,7 @@ public:
     FlyString const& prefix() const { return m_prefix; }
 
 private:
-    CSSNamespaceRule(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
+    CSSNamespaceRule(JS::Realm&, Optional<FlyString> const& prefix, FlyString namespace_uri);
 
     virtual void initialize(JS::Realm&) override;
 

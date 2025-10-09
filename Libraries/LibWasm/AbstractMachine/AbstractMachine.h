@@ -142,7 +142,7 @@ public:
     {
     }
 
-    explicit Value(Reference ref)
+    explicit Value(Reference const& ref)
     {
         // Reference variant is encoded in the high storage of the u128:
         // 0: funcref

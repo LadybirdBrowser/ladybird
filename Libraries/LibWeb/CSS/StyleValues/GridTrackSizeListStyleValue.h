@@ -31,7 +31,7 @@ public:
 private:
     explicit GridTrackSizeListStyleValue(CSS::GridTrackSizeList grid_track_size_list)
         : StyleValueWithDefaultOperators(Type::GridTrackSizeList)
-        , m_grid_track_size_list(grid_track_size_list)
+        , m_grid_track_size_list(move(grid_track_size_list))
     {
     }
 

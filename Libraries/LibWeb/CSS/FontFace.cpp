@@ -62,7 +62,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vec
 GC_DEFINE_ALLOCATOR(FontFace);
 
 // https://drafts.csswg.org/css-font-loading/#font-face-constructor
-GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
+GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String const& family, FontFaceSource source, FontFaceDescriptors const& descriptors)
 {
     auto& vm = realm.vm();
 
@@ -456,7 +456,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         //     as if it was the value of a @font-face rule’s src descriptor.
 
         // 5. When the load operation completes, successfully or not, queue a task to run the follsowing steps synchronously:
-        auto on_load = [font](RefPtr<Gfx::Typeface const> maybe_typeface) {
+        auto on_load = [font](RefPtr<Gfx::Typeface const> const& maybe_typeface) {
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font), maybe_typeface] {
                 HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name

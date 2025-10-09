@@ -75,7 +75,7 @@ public:
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
-    void set_user_style(String source);
+    void set_user_style(String const& source);
 
     void ready_to_paint();
 

@@ -982,13 +982,13 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
             connection->on_open = [this, websocket_id]() {
                 async_websocket_connected(websocket_id);
             };
-            connection->on_message = [this, websocket_id](auto message) {
+            connection->on_message = [this, websocket_id](auto const& message) {
                 async_websocket_received(websocket_id, message.is_text(), message.data());
             };
             connection->on_error = [this, websocket_id](auto message) {
                 async_websocket_errored(websocket_id, (i32)message);
             };
-            connection->on_close = [this, websocket_id](u16 code, ByteString reason, bool was_clean) {
+            connection->on_close = [this, websocket_id](u16 code, ByteString const& reason, bool was_clean) {
                 async_websocket_closed(websocket_id, code, move(reason), was_clean);
             };
             connection->on_ready_state_change = [this, websocket_id](auto state) {

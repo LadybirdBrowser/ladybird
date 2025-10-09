@@ -30,7 +30,7 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
     return builder.to_string_without_validation();
 }
 
-ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::resolved_value(CalculationContext context) const
+ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::resolved_value(CalculationContext const& context) const
 {
     if (edge() == PositionEdge::Right || edge() == PositionEdge::Bottom) {
         if (offset().is_percentage()) {

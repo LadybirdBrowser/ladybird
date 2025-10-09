@@ -51,7 +51,7 @@ public:
     void uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
     void active_texture(WebIDL::UnsignedLong texture);
     void attach_shader(GC::Root<WebGLProgram> program, GC::Root<WebGLShader> shader);
-    void bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String name);
+    void bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String const& name);
     void bind_buffer(WebIDL::UnsignedLong target, GC::Root<WebGLBuffer> buffer);
     void bind_framebuffer(WebIDL::UnsignedLong target, GC::Root<WebGLFramebuffer> framebuffer);
     void bind_renderbuffer(WebIDL::UnsignedLong target, GC::Root<WebGLRenderbuffer> renderbuffer);
@@ -102,7 +102,7 @@ public:
     GC::Root<WebGLActiveInfo> get_active_attrib(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index);
     GC::Root<WebGLActiveInfo> get_active_uniform(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index);
     Optional<Vector<GC::Root<WebGLShader>>> get_attached_shaders(GC::Root<WebGLProgram> program);
-    WebIDL::Long get_attrib_location(GC::Root<WebGLProgram> program, String name);
+    WebIDL::Long get_attrib_location(GC::Root<WebGLProgram> program, String const& name);
     JS::Value get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     JS::Value get_parameter(WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_error();
@@ -111,7 +111,7 @@ public:
     JS::Value get_shader_parameter(GC::Root<WebGLShader> shader, WebIDL::UnsignedLong pname);
     GC::Root<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
-    GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
+    GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String const& name);
     void hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode);
     bool is_buffer(GC::Root<WebGLBuffer> buffer);
     bool is_enabled(WebIDL::UnsignedLong cap);
@@ -127,7 +127,7 @@ public:
     void renderbuffer_storage(WebIDL::UnsignedLong target, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height);
     void sample_coverage(float value, bool invert);
     void scissor(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
-    void shader_source(GC::Root<WebGLShader> shader, String source);
+    void shader_source(GC::Root<WebGLShader> shader, String const& source);
     void stencil_func(WebIDL::UnsignedLong func, WebIDL::Long ref, WebIDL::UnsignedLong mask);
     void stencil_func_separate(WebIDL::UnsignedLong face, WebIDL::UnsignedLong func, WebIDL::Long ref, WebIDL::UnsignedLong mask);
     void stencil_mask(WebIDL::UnsignedLong mask);

@@ -43,7 +43,7 @@ TEST_CASE(move_assignment)
 
 TEST_CASE(copy_assignment)
 {
-    auto test = [](auto string1, auto string2) {
+    auto test = [](auto string1, auto const& string2) {
         string1 = string2;
         EXPECT_EQ(string1, string2);
     };

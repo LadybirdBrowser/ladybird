@@ -86,7 +86,7 @@ public:
     bool can_go_back() const;
     bool can_go_forward() const;
 
-    WebIDL::ExceptionOr<NavigationResult> navigate(String url, NavigationNavigateOptions const&);
+    WebIDL::ExceptionOr<NavigationResult> navigate(String const& url, NavigationNavigateOptions const&);
     WebIDL::ExceptionOr<NavigationResult> reload(NavigationReloadOptions const&);
 
     WebIDL::ExceptionOr<NavigationResult> traverse_to(String key, NavigationOptions const&);
@@ -113,14 +113,14 @@ public:
     bool fire_a_traverse_navigate_event(GC::Ref<SessionHistoryEntry> destination_she, UserNavigationInvolvement = UserNavigationInvolvement::None);
     bool fire_a_push_replace_reload_navigate_event(
         Bindings::NavigationType,
-        URL::URL destination_url,
+        URL::URL const& destination_url,
         bool is_same_document,
         UserNavigationInvolvement = UserNavigationInvolvement::None,
         GC::Ptr<DOM::Element> source_element = {},
         Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list = {},
         Optional<SerializationRecord> navigation_api_state = {},
         Optional<SerializationRecord> classic_history_api_state = {});
-    bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
+    bool fire_a_download_request_navigate_event(URL::URL const& destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
 
     void initialize_the_navigation_api_entries_for_a_new_document(Vector<GC::Ref<SessionHistoryEntry>> const& new_shes, GC::Ref<SessionHistoryEntry> initial_she);
     void update_the_navigation_api_entries_for_a_same_document_navigation(GC::Ref<SessionHistoryEntry> destination_she, Bindings::NavigationType);
@@ -143,7 +143,7 @@ private:
     NavigationResult early_error_result(AnyException);
 
     GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<SerializationRecord>);
-    GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info);
+    GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String const& destination_key, JS::Value info);
     WebIDL::ExceptionOr<NavigationResult> perform_a_navigation_api_traversal(String key, NavigationOptions const&);
     void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key);
     void resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>);

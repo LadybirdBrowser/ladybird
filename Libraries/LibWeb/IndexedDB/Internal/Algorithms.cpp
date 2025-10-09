@@ -1877,7 +1877,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         // 3. Let position be found record’s key.
         position = found_record.visit(
             [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
-            [](auto val) { return val.key; });
+            [](auto const& val) { return val.key; });
 
         // 4. If source is an index, let object store position be found record’s value.
         if (source.has<GC::Ref<Index>>())
@@ -1897,7 +1897,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     // 12. Set cursor’s key to found record’s key.
     cursor->set_key(found_record.visit(
         [](Empty) -> GC::Ref<Key> { VERIFY_NOT_REACHED(); },
-        [](auto val) { return val.key; }));
+        [](auto const& val) { return val.key; }));
 
     // 13. If cursor’s key only flag is false, then:
     if (!cursor->key_only()) {

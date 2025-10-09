@@ -75,6 +75,6 @@ private:
     HashTable<GC::Ref<TextTrackObserver>> m_observers;
 };
 
-Bindings::TextTrackKind text_track_kind_from_string(String);
+Bindings::TextTrackKind text_track_kind_from_string(String const&);
 
 }

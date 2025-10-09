@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<Vector<ModuleImportDescriptor>> Module::imports(JS::VM&, GC:
             [](Wasm::TableType) { return Bindings::ImportExportKind::Table; },
             [](Wasm::MemoryType) { return Bindings::ImportExportKind::Memory; },
             [](Wasm::GlobalType) { return Bindings::ImportExportKind::Global; },
-            [](Wasm::FunctionType) { return Bindings::ImportExportKind::Function; },
+            [](Wasm::FunctionType const&) { return Bindings::ImportExportKind::Function; },
             [](Wasm::TagType) -> Bindings::ImportExportKind { TODO(); });
 
         // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<Vector<ModuleExportDescriptor>> Module::exports(JS::VM&, GC:
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-customsections
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM& vm, GC::Ref<Module> module_object, String section_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM& vm, GC::Ref<Module> module_object, String const& section_name)
 {
     // 1. Let bytes be moduleObject.[[Bytes]].
     // 2. Let customSections be « ».

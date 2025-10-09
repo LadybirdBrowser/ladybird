@@ -41,6 +41,6 @@ private:
 
 bool does_sink_require_trusted_types(JS::Object&, String, IncludeReportOnlyPolicies);
 
-ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, String sink_group, Utf16String source);
+ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, String sink_group, Utf16String const& source);
 
 }

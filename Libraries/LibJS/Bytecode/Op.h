@@ -64,7 +64,7 @@ public:
 
     CreateArguments(Optional<Operand> dst, Kind kind, bool is_immutable)
         : Instruction(Type::CreateArguments)
-        , m_dst(dst)
+        , m_dst(move(dst))
         , m_kind(kind)
         , m_is_immutable(is_immutable)
     {
@@ -1883,7 +1883,7 @@ public:
         , m_callee(callee)
         , m_this_value(this_value)
         , m_argument_count(arguments.size())
-        , m_expression_string(expression_string)
+        , m_expression_string(move(expression_string))
     {
         for (size_t i = 0; i < arguments.size(); ++i)
             m_arguments[i] = arguments[i];
@@ -1933,7 +1933,7 @@ public:
         , m_this_value(this_value)
         , m_argument_count(arguments.size())
         , m_builtin(builtin)
-        , m_expression_string(expression_string)
+        , m_expression_string(move(expression_string))
     {
         for (size_t i = 0; i < arguments.size(); ++i)
             m_arguments[i] = arguments[i];
@@ -1984,7 +1984,7 @@ public:
         , m_dst(dst)
         , m_callee(callee)
         , m_argument_count(arguments.size())
-        , m_expression_string(expression_string)
+        , m_expression_string(move(expression_string))
     {
         for (size_t i = 0; i < arguments.size(); ++i)
             m_arguments[i] = arguments[i];
@@ -2030,7 +2030,7 @@ public:
         , m_callee(callee)
         , m_this_value(this_value)
         , m_argument_count(arguments.size())
-        , m_expression_string(expression_string)
+        , m_expression_string(move(expression_string))
     {
         for (size_t i = 0; i < arguments.size(); ++i)
             m_arguments[i] = arguments[i];
@@ -2078,7 +2078,7 @@ public:
         , m_callee(callee)
         , m_this_value(this_value)
         , m_arguments(arguments)
-        , m_expression_string(expression_string)
+        , m_expression_string(move(expression_string))
     {
     }
 
@@ -2107,7 +2107,7 @@ protected:
 class CallWithArgumentArray final : public CallWithArgumentArrayBase<CallType::Call> {
 public:
     CallWithArgumentArray(Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
-        : CallWithArgumentArrayBase(Type::CallWithArgumentArray, dst, callee, this_value, arguments, expression_string)
+        : CallWithArgumentArrayBase(Type::CallWithArgumentArray, dst, callee, this_value, arguments, move(expression_string))
     {
     }
 
@@ -2118,7 +2118,7 @@ public:
 class CallDirectEvalWithArgumentArray final : public CallWithArgumentArrayBase<CallType::DirectEval> {
 public:
     CallDirectEvalWithArgumentArray(Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
-        : CallWithArgumentArrayBase(Type::CallDirectEvalWithArgumentArray, dst, callee, this_value, arguments, expression_string)
+        : CallWithArgumentArrayBase(Type::CallDirectEvalWithArgumentArray, dst, callee, this_value, arguments, move(expression_string))
     {
     }
 
@@ -2129,7 +2129,7 @@ public:
 class CallConstructWithArgumentArray final : public CallWithArgumentArrayBase<CallType::Construct> {
 public:
     CallConstructWithArgumentArray(Operand dst, Operand callee, Operand this_value, Operand arguments, Optional<StringTableIndex> expression_string = {})
-        : CallWithArgumentArrayBase(Type::CallConstructWithArgumentArray, dst, callee, this_value, arguments, expression_string)
+        : CallWithArgumentArrayBase(Type::CallConstructWithArgumentArray, dst, callee, this_value, arguments, move(expression_string))
     {
     }
 
@@ -2172,9 +2172,9 @@ public:
     explicit NewClass(Operand dst, Optional<Operand> super_class, ClassExpression const& class_expression, Optional<IdentifierTableIndex> lhs_name, ReadonlySpan<Optional<ScopedOperand>> elements_keys)
         : Instruction(Type::NewClass)
         , m_dst(dst)
-        , m_super_class(super_class)
+        , m_super_class(move(super_class))
         , m_class_expression(class_expression)
-        , m_lhs_name(lhs_name)
+        , m_lhs_name(move(lhs_name))
         , m_element_keys_count(elements_keys.size())
     {
         for (size_t i = 0; i < m_element_keys_count; i++) {
@@ -2222,7 +2222,7 @@ public:
         : Instruction(Type::NewFunction)
         , m_dst(dst)
         , m_function_node(function_node)
-        , m_lhs_name(lhs_name)
+        , m_lhs_name(move(lhs_name))
         , m_home_object(move(home_object))
     {
     }
@@ -2796,7 +2796,7 @@ public:
         : Instruction(Type::IteratorClose)
         , m_iterator_record(iterator_record)
         , m_completion_type(completion_type)
-        , m_completion_value(completion_value)
+        , m_completion_value(move(completion_value))
     {
     }
 
@@ -2823,7 +2823,7 @@ public:
         : Instruction(Type::AsyncIteratorClose)
         , m_iterator_record(iterator_record)
         , m_completion_type(completion_type)
-        , m_completion_value(completion_value)
+        , m_completion_value(move(completion_value))
     {
     }
 
