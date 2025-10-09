@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/DirIterator.h>
 #include <LibCore/StandardPaths.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibURL/URL.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/Cache/Utilities.h>
@@ -88,6 +90,28 @@ Optional<CacheEntryReader&> DiskCache::open_entry(URL::URL const& url, StringVie
     m_open_cache_entries.set(address, cache_entry.release_value());
 
     return static_cast<CacheEntryReader&>(**m_open_cache_entries.get(address));
+}
+
+void DiskCache::clear_cache()
+{
+    for (auto& [_, cache_entry] : m_open_cache_entries)
+        cache_entry->mark_for_deletion({});
+
+    m_index.remove_all_entries();
+
+    Core::DirIterator it { m_cache_directory.string(), Core::DirIterator::SkipDots };
+    size_t cache_entries { 0 };
+
+    while (it.has_next()) {
+        auto entry = it.next_full_path();
+        if (LexicalPath { entry }.title() == INDEX_DATABASE)
+            continue;
+
+        (void)FileSystem::remove(entry, FileSystem::RecursionMode::Disallowed);
+        ++cache_entries;
+    }
+
+    dbgln("Cleared {} disk cache entries", cache_entries);
 }
 
 void DiskCache::cache_entry_closed(Badge<CacheEntry>, CacheEntry const& cache_entry)

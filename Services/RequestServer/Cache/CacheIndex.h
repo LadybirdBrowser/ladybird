@@ -33,6 +33,7 @@ public:
 
     void create_entry(u64 cache_key, String url, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key);
+    void remove_all_entries();
 
     Optional<Entry&> find_entry(u64 cache_key);
 
@@ -42,6 +43,7 @@ private:
     struct Statements {
         Database::StatementID insert_entry { 0 };
         Database::StatementID remove_entry { 0 };
+        Database::StatementID remove_all_entries { 0 };
         Database::StatementID select_entry { 0 };
         Database::StatementID update_last_access_time { 0 };
     };

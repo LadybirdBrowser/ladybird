@@ -25,6 +25,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     Statements statements {};
     statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?);"sv));
     statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ?;"sv));
+    statements.remove_all_entries = TRY(database.prepare_statement("DELETE FROM CacheIndex;"sv));
     statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ?;"sv));
 
@@ -58,6 +59,12 @@ void CacheIndex::remove_entry(u64 cache_key)
 {
     m_database.execute_statement(m_statements.remove_entry, {}, cache_key);
     m_entries.remove(cache_key);
+}
+
+void CacheIndex::remove_all_entries()
+{
+    m_database.execute_statement(m_statements.remove_all_entries, {});
+    m_entries.clear();
 }
 
 void CacheIndex::update_last_access_time(u64 cache_key)

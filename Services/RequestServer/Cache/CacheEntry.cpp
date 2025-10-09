@@ -153,6 +153,11 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 
 ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 {
+    if (m_marked_for_deletion) {
+        close_and_destory_cache_entry();
+        return Error::from_string_literal("Cache entry has been deleted");
+    }
+
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
         dbgln("\033[31;1mUnable to write to cache entry for{}\033[0m {}: {}", m_url, result.error());
 
@@ -173,6 +178,9 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 ErrorOr<void> CacheEntryWriter::flush()
 {
     ScopeGuard guard { [&]() { close_and_destory_cache_entry(); } };
+
+    if (m_marked_for_deletion)
+        return Error::from_string_literal("Cache entry has been deleted");
 
     if (auto result = m_file->write_value(m_cache_footer); result.is_error()) {
         dbgln("\033[31;1mUnable to flush cache entry for{}\033[0m {}: {}", m_url, result.error());
@@ -272,6 +280,11 @@ void CacheEntryReader::pipe_to(int pipe_fd, Function<void(u64)> on_complete, Fun
     m_on_pipe_complete = move(on_complete);
     m_on_pipe_error = move(on_error);
 
+    if (m_marked_for_deletion) {
+        pipe_error(Error::from_string_literal("Cache entry has been deleted"));
+        return;
+    }
+
     m_pipe_write_notifier = Core::Notifier::construct(m_pipe_fd, Core::NotificationType::Write);
     m_pipe_write_notifier->set_enabled(false);
 
@@ -285,19 +298,18 @@ void CacheEntryReader::pipe_to(int pipe_fd, Function<void(u64)> on_complete, Fun
 
 void CacheEntryReader::pipe_without_blocking()
 {
+    if (m_marked_for_deletion) {
+        pipe_error(Error::from_string_literal("Cache entry has been deleted"));
+        return;
+    }
+
     auto result = Core::System::transfer_file_through_pipe(m_fd, m_pipe_fd, m_data_offset + m_bytes_piped, m_data_size - m_bytes_piped);
 
     if (result.is_error()) {
-        if (result.error().code() != EAGAIN && result.error().code() != EWOULDBLOCK) {
-            dbgln("\033[31;1mError transferring cache to pipe for\033[0m {}: {}", m_url, result.error());
-
-            if (m_on_pipe_error)
-                m_on_pipe_error(m_bytes_piped);
-
-            close_and_destory_cache_entry();
-        } else {
+        if (result.error().code() != EAGAIN && result.error().code() != EWOULDBLOCK)
+            pipe_error(result.release_error());
+        else
             m_pipe_write_notifier->set_enabled(true);
-        }
 
         return;
     }
@@ -326,6 +338,16 @@ void CacheEntryReader::pipe_complete()
         if (m_on_pipe_complete)
             m_on_pipe_complete(m_bytes_piped);
     }
+
+    close_and_destory_cache_entry();
+}
+
+void CacheEntryReader::pipe_error(Error error)
+{
+    dbgln("\033[31;1mError transferring cache to pipe for\033[0m {}: {}", m_url, error);
+
+    if (m_on_pipe_error)
+        m_on_pipe_error(m_bytes_piped);
 
     close_and_destory_cache_entry();
 }
