@@ -314,6 +314,8 @@ void HTMLMediaElement::set_current_playback_position(double playback_position)
     //       which these steps should be invoked, which is when we've reached the end of the media playback.
     if (m_current_playback_position == m_duration)
         reached_end_of_media_playback();
+
+    upon_has_ended_playback_possibly_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-duration
@@ -332,8 +334,10 @@ bool HTMLMediaElement::ended() const
 {
     // The ended attribute must return true if, the last time the event loop reached step 1, the media element had ended
     // playback and the direction of playback was forwards, and false otherwise.
-    // FIXME: Add a hook into EventLoop::process() to be notified when step 1 is reached.
-    return has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards;
+    // NOTE: We queue a task to set this at event loop step 1 whenever something happens that may affect the resulting value.
+    //       Currently, that is when the ready state changes, when the current playback position changes, or the duration
+    //       changes.
+    return m_ended;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#durationChange
@@ -353,6 +357,8 @@ void HTMLMediaElement::set_duration(double duration)
     }
 
     m_duration = duration;
+
+    upon_has_ended_playback_possibly_changed();
 
     if (auto* paintable = this->paintable())
         paintable->set_needs_display();
@@ -1456,6 +1462,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 {
     ScopeGuard guard { [&] {
         m_ready_state = ready_state;
+        upon_has_ended_playback_possibly_changed();
         set_needs_style_update(true);
     } };
 
@@ -1619,6 +1626,12 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
         //    notify about playing for the element.
         else {
             notify_about_playing();
+
+            // AD-HOC: If the official playback position is at the end of the media data here, that means that we haven't
+            //         run the reached the end of media playback steps. This can happen if we seeked to the end while paused
+            //         and looping.
+            if (m_official_playback_position == m_duration)
+                reached_end_of_media_playback();
         }
     }
 
@@ -1862,6 +1875,11 @@ void HTMLMediaElement::set_paused(bool paused)
     set_needs_style_update(true);
 }
 
+void HTMLMediaElement::set_ended(bool ended)
+{
+    m_ended = ended;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
 void HTMLMediaElement::set_default_playback_rate(double new_value)
 {
@@ -1983,7 +2001,10 @@ bool HTMLMediaElement::has_ended_playback() const
         direction_of_playback() == PlaybackDirection::Forwards &&
 
         // The media element does not have a loop attribute specified.
-        !has_attribute(HTML::AttributeNames::loop)) {
+        // AD-HOC: Use the value of the loop attribute from the last time we reached end of playback.
+        //         Without this change, the ended attribute changes when enabling the loop attribute after
+        //         playback has ended, and playback will not restart when playing the element.
+        !m_loop_was_specified_when_reaching_end_of_media_resource) {
         return true;
     }
 
@@ -2000,11 +2021,21 @@ bool HTMLMediaElement::has_ended_playback() const
     return false;
 }
 
+void HTMLMediaElement::upon_has_ended_playback_possibly_changed()
+{
+    run_when_event_loop_reaches_step_1(GC::Function<void()>::create(heap(), [&] {
+        // The ended attribute must return true if, the last time the event loop reached step 1, the media element had ended
+        // playback and the direction of playback was forwards, and false otherwise.
+        set_ended(has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards);
+    }));
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#reaches-the-end
 void HTMLMediaElement::reached_end_of_media_playback()
 {
     // 1. If the media element has a loop attribute specified,
-    if (has_attribute(HTML::AttributeNames::loop)) {
+    m_loop_was_specified_when_reaching_end_of_media_resource = has_attribute(HTML::AttributeNames::loop);
+    if (m_loop_was_specified_when_reaching_end_of_media_resource) {
         // then seek to the earliest possible position of the media resource and return.
         seek_element(0);
         // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping

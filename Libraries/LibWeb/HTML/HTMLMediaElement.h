@@ -211,6 +211,7 @@ private:
     void set_show_poster(bool);
     void set_paused(bool);
     void set_duration(double);
+    void set_ended(bool);
 
     void volume_or_muted_attribute_changed();
     void update_volume();
@@ -224,6 +225,7 @@ private:
     PlaybackDirection direction_of_playback() const;
 
     bool has_ended_playback() const;
+    void upon_has_ended_playback_possibly_changed();
     void reached_end_of_media_playback();
 
     void dispatch_time_update_event();
@@ -291,6 +293,9 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-paused
     bool m_paused { true };
 
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-ended
+    bool m_ended { false };
+
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
     double m_default_playback_rate { 1.0 };
 
@@ -333,6 +338,8 @@ private:
     RefPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+
+    bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 
     // Cached state for layout.
     Optional<MediaComponent> m_mouse_tracking_component;
