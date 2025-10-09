@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -17,6 +19,15 @@ public:
         return adopt_ref(*new (nothrow) SuperellipseStyleValue(parameter));
     }
     virtual ~SuperellipseStyleValue() override = default;
+
+    // NOTE: This function can only be called after absolutization
+    double parameter() const
+    {
+        if (m_parameter->is_calculated())
+            return m_parameter->as_calculated().resolve_number({}).value();
+
+        return m_parameter->as_number().number();
+    }
 
     virtual String to_string(SerializationMode serialization_mode) const override;
 

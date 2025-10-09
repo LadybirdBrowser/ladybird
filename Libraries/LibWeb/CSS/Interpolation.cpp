@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/Transformation.h>
@@ -1639,6 +1640,86 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             interpolate_length_or_auto(from_rect.bottom_edge, to_rect.bottom_edge, calculation_context, delta),
             interpolate_length_or_auto(from_rect.left_edge, to_rect.left_edge, calculation_context, delta),
         });
+    }
+    case StyleValue::Type::Superellipse: {
+        // https://drafts.csswg.org/css-borders-4/#corner-shape-interpolation
+
+        // https://drafts.csswg.org/css-borders-4/#normalized-superellipse-half-corner
+        auto normalized_super_ellipse_half_corner = [](double s) -> double {
+            //  To compute the normalized superellipse half corner given a superellipse parameter s, return the first matching statement, switching on s:
+
+            // -∞ Return 0.
+            if (s == -AK::Infinity<double>)
+                return 0;
+
+            // ∞ Return 1.
+            if (s == AK::Infinity<double>)
+                return 1;
+
+            // Otherwise
+            // 1. Let k be 0.5^abs(s).
+            auto k = pow(0.5, abs(s));
+
+            // 2. Let convexHalfCorner be 0.5^k.
+            auto convex_half_corner = pow(0.5, k);
+
+            // 3. If s is less than 0, return 1 - convexHalfCorner.
+            if (s < 0)
+                return 1 - convex_half_corner;
+
+            // 4. Return convexHalfCorner.
+            return convex_half_corner;
+        };
+
+        auto interpolation_value_to_super_ellipse_parameter = [](double interpolation_value) -> double {
+            // To convert a <number [0,1]> interpolationValue back to a superellipse parameter, switch on interpolationValue:
+
+            // 0 Return -∞.
+            if (interpolation_value == 0)
+                return -AK::Infinity<double>;
+
+            // 0.5 Return 0.
+            if (interpolation_value == 0.5)
+                return 0;
+
+            // 1 Return ∞.
+            if (interpolation_value == 1)
+                return AK::Infinity<double>;
+
+            // Otherwise
+            // 1. Let convexHalfCorner be interpolationValue.
+            auto convex_half_corner = interpolation_value;
+
+            // 2. If interpolationValue is less than 0.5, set convexHalfCorner to 1 - interpolationValue.
+            if (interpolation_value < 0.5)
+                convex_half_corner = 1 - interpolation_value;
+
+            // 3. Let k be ln(0.5) / ln(convexHalfCorner).
+            auto k = log(0.5) / log(convex_half_corner);
+
+            // 4. Let s be log2(k).
+            auto s = log2(k);
+
+            // AD-HOC: The logs above can introduce slight inaccuracies, this can interfere with the behaviour of
+            //         serializing superellipse style values as their equivalent keywords as that relies on exact
+            //         equality. To mitigate this we simply round to a whole number if we are sufficiently near
+            if (abs(round(s) - s) < AK::NumericLimits<float>::epsilon())
+                s = round(s);
+
+            // 5. If interpolationValue is less than 0.5, return -s.
+            if (interpolation_value < 0.5)
+                return -s;
+
+            // 6. Return s.
+            return s;
+        };
+
+        auto from_normalized_value = normalized_super_ellipse_half_corner(from.as_superellipse().parameter());
+        auto to_normalized_value = normalized_super_ellipse_half_corner(to.as_superellipse().parameter());
+
+        auto interpolated_value = interpolate_raw(from_normalized_value, to_normalized_value, delta, AcceptedTypeRange { .min = 0, .max = 1 });
+
+        return SuperellipseStyleValue::create(NumberStyleValue::create(interpolation_value_to_super_ellipse_parameter(interpolated_value)));
     }
     case StyleValue::Type::Transformation:
         VERIFY_NOT_REACHED();

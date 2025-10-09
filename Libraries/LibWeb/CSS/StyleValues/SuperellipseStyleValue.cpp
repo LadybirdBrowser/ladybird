@@ -5,7 +5,6 @@
  */
 
 #include "SuperellipseStyleValue.h"
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
