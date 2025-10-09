@@ -4253,7 +4253,7 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             }
 
             if (component_value->is(Token::Type::Number))
-                return NumericCalculationNode::create(component_value->token().number(), context);
+                return NumericCalculationNode::create(Number { Number::Type::Number, component_value->token().number().value() }, context);
 
             if (component_value->is(Token::Type::Dimension)) {
                 auto numeric_value = component_value->token().dimension_value();
