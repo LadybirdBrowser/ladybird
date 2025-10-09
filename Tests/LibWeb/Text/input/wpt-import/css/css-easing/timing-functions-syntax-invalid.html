@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Easing: parsing animation-timing-function with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-easing/#timing-functions">
+<meta name="assert" content="animation-timing-function supports only the grammar '<timing-function> #'.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("animation-timing-function", "auto");
+test_invalid_value("animation-timing-function", "ease-in ease-out");
+test_invalid_value("animation-timing-function", "cubic-bezier(1, 2, 3)");
+test_invalid_value("animation-timing-function", "cubic-bezier(1, 2, 3, infinite)");
+test_invalid_value("animation-timing-function", "cubic-bezier(1, 2, 3, 4, 5)");
+test_invalid_value("animation-timing-function", "cubic-bezier(-0.1, 0.1, 0.5, 0.9)");
+test_invalid_value("animation-timing-function", "cubic-bezier(0.5, 0.1, 1.1, 0.9)");
+test_invalid_value("animation-timing-function", "initial, cubic-bezier(0, -2, 1, 3)");
+test_invalid_value("animation-timing-function", "cubic-bezier(0, -2, 1, 3), initial");
+test_invalid_value("animation-timing-function", "steps(1, jump-none)");
+test_invalid_value("animation-timing-function", "steps(-100, jump-none)");
+test_invalid_value("animation-timing-function", "steps(0, start)");
+test_invalid_value("animation-timing-function", "steps(-100, start)");
+</script>
+</body>
+</html>
