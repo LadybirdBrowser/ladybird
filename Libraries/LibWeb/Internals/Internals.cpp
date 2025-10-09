@@ -224,6 +224,13 @@ void Internals::wheel(double x, double y, double delta_x, double delta_y)
     page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y);
 }
 
+void Internals::pinch(double x, double y, double scale_delta)
+{
+    auto& page = this->page();
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_pinch_event(position, scale_delta);
+}
+
 WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTarget& target, DOM::Event& event)
 {
     event.set_is_trusted(true);

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+    <script src="include.js"></script>
+    <body></body>
+    <script>
+        asyncTest(done => {
+            const vv = window.visualViewport;
+            vv.addEventListener("resize", () => {
+                println(`vv resize: width=${vv.width}, height=${vv.height}, scale=${vv.scale}, offsetLeft=${vv.offsetLeft}, offsetTop=${vv.offsetTop}`);
+                done();
+            });
+
+            requestAnimationFrame(() => {
+                // pinch from rAF to ensure resize event won't be skipped as "initial"
+                internals.pinch(100, 100, 0.5);
+            });
+        });
+    </script>
+</html>
