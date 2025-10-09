@@ -44,6 +44,10 @@ public:
 
     void scroll_by(CSSPixelPoint delta) { m_offset += delta; }
 
+    [[nodiscard]] Gfx::AffineTransform transform() const;
+    void zoom(CSSPixelPoint position, double scale_delta);
+    CSSPixelPoint map_to_layout_viewport(CSSPixelPoint) const;
+
 private:
     explicit VisualViewport(DOM::Document&);
 
