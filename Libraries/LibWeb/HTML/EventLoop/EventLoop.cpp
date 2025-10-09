@@ -49,6 +49,7 @@ EventLoop::~EventLoop() = default;
 void EventLoop::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_reached_step_1_tasks);
     visitor.visit(m_task_queue);
     visitor.visit(m_microtask_queue);
     visitor.visit(m_currently_running_task);
@@ -162,6 +163,12 @@ void EventLoop::process()
     // 1. Let oldestTask and taskStartTime be null.
     GC::Ptr<Task> oldest_task;
     [[maybe_unused]] double task_start_time = 0;
+
+    // Some algorithms request that steps or states only occur once the event loop has reached step 1.
+    // Invoke a set of tasks that these algorithms request us to in order to achieve this.
+    auto reached_step_1_tasks = move(m_reached_step_1_tasks);
+    for (auto& reached_step_1_task : reached_step_1_tasks)
+        reached_step_1_task->function()();
 
     // 2. If the event loop has a task queue with at least one runnable task, then:
     if (m_task_queue->has_runnable_tasks()) {
@@ -507,6 +514,12 @@ void EventLoop::update_the_rendering()
             document->fonts()->resolve_ready_promise();
         }
     }
+}
+
+void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps)
+{
+    auto& event_loop = main_thread_event_loop();
+    event_loop.run_upon_reaching_step_1(steps);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
