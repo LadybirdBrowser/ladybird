@@ -25,10 +25,6 @@ public:
             double output;
             Optional<double> input;
 
-            // "NOTE: Serialization relies on whether or not an input progress value was originally supplied,
-            // so that information should be retained in the internal representation."
-            bool had_explicit_input;
-
             bool operator==(Stop const&) const = default;
         };
 
@@ -37,8 +33,6 @@ public:
         bool operator==(Linear const&) const = default;
 
         String to_string(SerializationMode) const;
-
-        Linear(Vector<Stop> stops);
     };
 
     struct CubicBezier {

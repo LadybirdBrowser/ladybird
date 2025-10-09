@@ -18,7 +18,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-easing-1/#valdef-easing-function-linear
 EasingStyleValue::Linear EasingStyleValue::Linear::identity()
 {
-    static Linear linear { { { 0, {}, false }, { 1, {}, false } } };
+    static Linear linear { { { 0, {} }, { 1, {} } } };
     return linear;
 }
 
@@ -60,60 +60,6 @@ EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
     return steps;
 }
 
-// https://drafts.csswg.org/css-easing/#linear-canonicalization
-EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
-{
-    // To canonicalize a linear() function’s control points, perform the following:
-
-    // 1. If the first control point lacks an input progress value, set its input progress value to 0.
-    if (!stops.first().input.has_value())
-        stops.first().input = 0;
-
-    // 2. If the last control point lacks an input progress value, set its input progress value to 1.
-    if (!stops.last().input.has_value())
-        stops.last().input = 1;
-
-    // 3. If any control point has an input progress value that is less than
-    // the input progress value of any preceding control point,
-    // set its input progress value to the largest input progress value of any preceding control point.
-    double largest_input = 0;
-    for (auto& stop : stops) {
-        if (stop.input.has_value()) {
-            if (stop.input.value() < largest_input) {
-                stop.input = largest_input;
-            } else {
-                largest_input = stop.input.value();
-            }
-        }
-    }
-
-    // 4. If any control point still lacks an input progress value,
-    // then for each contiguous run of such control points,
-    // set their input progress values so that they are evenly spaced
-    // between the preceding and following control points with input progress values.
-    Optional<size_t> run_start_idx;
-    for (size_t idx = 0; idx < stops.size(); idx++) {
-        auto& stop = stops[idx];
-        if (stop.input.has_value() && run_start_idx.has_value()) {
-            // Note: this stop is immediately after a run
-            //       set inputs of [start, idx-1] stops to be evenly spaced between start-1 and idx
-            auto start_input = stops[run_start_idx.value() - 1].input.value();
-            auto end_input = stops[idx].input.value();
-            auto run_stop_count = idx - run_start_idx.value() + 1;
-            auto delta = (end_input - start_input) / run_stop_count;
-            for (size_t run_idx = 0; run_idx < run_stop_count; run_idx++) {
-                stops[run_idx + run_start_idx.value() - 1].input = start_input + delta * run_idx;
-            }
-            run_start_idx = {};
-        } else if (!stop.input.has_value() && !run_start_idx.has_value()) {
-            // Note: this stop is the start of a run
-            run_start_idx = idx;
-        }
-    }
-
-    this->stops = move(stops);
-}
-
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
 String EasingStyleValue::Linear::to_string(SerializationMode) const
 {
@@ -144,7 +90,7 @@ String EasingStyleValue::Linear::to_string(SerializationMode) const
         // 2. If the control point originally lacked an input progress value, return s.
         // 3. Otherwise, append " " (U+0020 SPACE) to s,
         // then serialize the control point’s input progress value as a <percentage> and append it to s.
-        if (stop.had_explicit_input) {
+        if (stop.input.has_value()) {
             builder.appendff(" {}%", stop.input.value() * 100);
         }
 
