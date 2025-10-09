@@ -117,6 +117,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
     bool disable_http_cache = false;
+    bool enable_http_disk_cache = false;
     bool enable_autoplay = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
@@ -164,6 +165,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(disable_http_cache, "Disable HTTP cache", "disable-http-cache");
+    args_parser.add_option(enable_http_disk_cache, "Enable HTTP disk cache", "enable-http-disk-cache");
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
@@ -228,7 +230,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .urls = sanitize_urls(raw_urls, m_settings.new_tab_page_url()),
         .raw_urls = move(raw_urls),
         .headless_mode = headless_mode,
-        .certificates = move(certificates),
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
         .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
@@ -251,6 +252,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
+
+    m_request_server_options = {
+        .certificates = move(certificates),
+        .enable_http_disk_cache = enable_http_disk_cache ? EnableHTTPDiskCache::Yes : EnableHTTPDiskCache::No,
+    };
 
     m_web_content_options = {
         .command_line = MUST(String::join(' ', m_arguments.strings)),
