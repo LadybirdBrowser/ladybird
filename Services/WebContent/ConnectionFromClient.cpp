@@ -1226,6 +1226,12 @@ void ConnectionFromClient::set_system_visibility_state(u64 page_id, Web::HTML::V
         page->page().top_level_traversable()->set_system_visibility_state(visibility_state);
 }
 
+void ConnectionFromClient::reset_zoom(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->reset_zoom();
+}
+
 void ConnectionFromClient::js_console_input(u64 page_id, String js_source)
 {
     auto page = this->page(page_id);

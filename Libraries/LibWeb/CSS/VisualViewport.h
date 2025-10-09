@@ -47,6 +47,7 @@ public:
     [[nodiscard]] Gfx::AffineTransform transform() const;
     void zoom(CSSPixelPoint position, double scale_delta);
     CSSPixelPoint map_to_layout_viewport(CSSPixelPoint) const;
+    void reset();
 
 private:
     explicit VisualViewport(DOM::Document&);

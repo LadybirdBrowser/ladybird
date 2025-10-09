@@ -2769,4 +2769,12 @@ void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
     doc->set_needs_display(InvalidateDisplayList::No);
 }
 
+void Navigable::reset_zoom()
+{
+    auto document = active_document();
+    if (!document)
+        return;
+    document->visual_viewport()->reset();
+}
+
 }

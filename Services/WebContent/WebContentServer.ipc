@@ -106,6 +106,7 @@ endpoint WebContentServer
     set_window_position(u64 page_id, Web::DevicePixelPoint position) =|
     set_window_size(u64 page_id, Web::DevicePixelSize size) =|
     did_update_window_rect(u64 page_id) =|
+    reset_zoom(u64 page_id) =|
 
     handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) =|
 

@@ -193,6 +193,7 @@ void ViewImplementation::reset_zoom()
 {
     m_zoom_level = 1.0f;
     update_zoom();
+    client().async_reset_zoom(m_client_state.page_index);
 }
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)

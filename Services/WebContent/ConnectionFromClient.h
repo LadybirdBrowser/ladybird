@@ -121,6 +121,7 @@ private:
     virtual void did_update_window_rect(u64 page_id) override;
     virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) override;
     virtual void set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState) override;
+    virtual void reset_zoom(u64 page_id) override;
 
     virtual void js_console_input(u64 page_id, String) override;
     virtual void run_javascript(u64 page_id, String) override;
