@@ -12,13 +12,14 @@
 #include <AK/BinarySearch.h>
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-easing-1/#valdef-easing-function-linear
 EasingStyleValue::Linear EasingStyleValue::Linear::identity()
 {
-    static Linear linear { { { 0, {} }, { 1, {} } } };
+    static Linear linear { { { NumberStyleValue::create(0), {} }, { NumberStyleValue::create(1), {} } } };
     return linear;
 }
 
@@ -61,7 +62,7 @@ EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
 }
 
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
-String EasingStyleValue::Linear::to_string(SerializationMode) const
+String EasingStyleValue::Linear::to_string(SerializationMode mode) const
 {
     // The linear keyword is serialized as itself.
     if (*this == identity())
@@ -85,13 +86,13 @@ String EasingStyleValue::Linear::to_string(SerializationMode) const
 
         // To serialize a linear() control point:
         // 1. Let s be the serialization, as a <number>, of the control point’s output progress value.
-        builder.appendff("{}", stop.output);
+        builder.appendff(stop.output->to_string(mode));
 
         // 2. If the control point originally lacked an input progress value, return s.
         // 3. Otherwise, append " " (U+0020 SPACE) to s,
         // then serialize the control point’s input progress value as a <percentage> and append it to s.
-        if (stop.input.has_value()) {
-            builder.appendff(" {}%", stop.input.value() * 100);
+        if (stop.input) {
+            builder.appendff(" {}", stop.input->to_string(mode));
         }
 
         // 4. Return s.
@@ -167,6 +168,33 @@ String EasingStyleValue::Function::to_string(SerializationMode mode) const
         [&](auto const& curve) {
             return curve.to_string(mode);
         });
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    auto const& absolutized_function = m_function.visit(
+        [&](Linear const& linear) -> Function {
+            Vector<Linear::Stop> absolutized_stops;
+
+            for (auto stop : linear.stops) {
+                RefPtr<StyleValue const> absolutized_input;
+
+                if (stop.input)
+                    absolutized_input = stop.input->absolutized(computation_context);
+
+                absolutized_stops.append({ stop.output->absolutized(computation_context), absolutized_input });
+            }
+
+            return Linear { absolutized_stops };
+        },
+        [&](CubicBezier const& cubic_bezier) -> Function {
+            return cubic_bezier;
+        },
+        [&](Steps const& steps) -> Function {
+            return steps;
+        });
+
+    return EasingStyleValue::create(absolutized_function);
 }
 
 }

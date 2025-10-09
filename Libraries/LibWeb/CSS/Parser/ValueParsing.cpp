@@ -2908,32 +2908,32 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
         for (auto const& argument : comma_separated_arguments) {
             TokenStream argument_tokens { argument };
 
-            Optional<double> output;
-            Optional<double> first_input;
-            Optional<double> second_input;
+            RefPtr<StyleValue const> output;
+            RefPtr<StyleValue const> first_input;
+            RefPtr<StyleValue const> second_input;
 
-            if (argument_tokens.next_token().is(Token::Type::Number))
-                output = argument_tokens.consume_a_token().token().number_value();
+            if (auto maybe_output = parse_number_value(argument_tokens))
+                output = maybe_output;
 
-            if (argument_tokens.next_token().is(Token::Type::Percentage)) {
-                first_input = argument_tokens.consume_a_token().token().percentage() / 100;
-                if (argument_tokens.next_token().is(Token::Type::Percentage)) {
-                    second_input = argument_tokens.consume_a_token().token().percentage() / 100;
+            if (auto maybe_first_input = parse_percentage_value(argument_tokens)) {
+                first_input = maybe_first_input;
+                if (auto maybe_second_input = parse_percentage_value(argument_tokens)) {
+                    second_input = maybe_second_input;
                 }
             }
 
-            if (argument_tokens.next_token().is(Token::Type::Number)) {
-                if (output.has_value())
+            if (auto maybe_output = parse_number_value(argument_tokens)) {
+                if (output)
                     return nullptr;
-                output = argument_tokens.consume_a_token().token().number_value();
+                output = maybe_output;
             }
 
-            if (argument_tokens.has_next_token() || !output.has_value())
+            if (argument_tokens.has_next_token() || !output)
                 return nullptr;
 
-            stops.append({ output.value(), first_input });
-            if (second_input.has_value())
-                stops.append({ output.value(), second_input });
+            stops.append({ *output, first_input });
+            if (second_input)
+                stops.append({ *output, second_input });
         }
 
         if (stops.is_empty())

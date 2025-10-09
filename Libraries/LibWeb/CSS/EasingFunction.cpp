@@ -7,6 +7,8 @@
 #include "EasingFunction.h"
 #include <AK/BinarySearch.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 
@@ -267,13 +269,40 @@ static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_fun
 
 EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 {
+    auto const resolve_number = [](StyleValue const& style_value) {
+        if (style_value.is_number())
+            return style_value.as_number().number();
+
+        if (style_value.is_calculated())
+            return style_value.as_calculated().resolve_number({}).value();
+
+        VERIFY_NOT_REACHED();
+    };
+
+    auto const resolve_percentage = [](StyleValue const& style_value) {
+        if (style_value.is_percentage())
+            return style_value.as_percentage().percentage().as_fraction();
+
+        if (style_value.is_calculated())
+            return style_value.as_calculated().resolve_percentage({})->as_fraction();
+
+        VERIFY_NOT_REACHED();
+    };
+
     if (style_value.is_easing()) {
         return style_value.as_easing().function().visit(
-            [](EasingStyleValue::Linear const& linear) -> EasingFunction {
+            [&](EasingStyleValue::Linear const& linear) -> EasingFunction {
                 Vector<LinearEasingFunction::ControlPoint> resolved_control_points;
 
-                for (auto const& control_point : linear.stops)
-                    resolved_control_points.append({ control_point.input, control_point.output });
+                for (auto const& control_point : linear.stops) {
+                    double output = resolve_number(control_point.output);
+
+                    Optional<double> input;
+                    if (control_point.input)
+                        input = resolve_percentage(*control_point.input);
+
+                    resolved_control_points.append({ input, output });
+                }
 
                 // https://drafts.csswg.org/css-easing-2/#funcdef-linear
                 // If an argument lacks a <percentage>, its input progress value is initially empty. This is corrected
