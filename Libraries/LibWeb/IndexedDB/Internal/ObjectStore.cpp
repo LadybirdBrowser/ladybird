@@ -14,7 +14,7 @@ GC_DEFINE_ALLOCATOR(ObjectStore);
 
 ObjectStore::~ObjectStore() = default;
 
-GC::Ref<ObjectStore> ObjectStore::create(JS::Realm& realm, GC::Ref<Database> database, String name, bool auto_increment, Optional<KeyPath> const& key_path)
+GC::Ref<ObjectStore> ObjectStore::create(JS::Realm& realm, GC::Ref<Database> database, String const& name, bool auto_increment, Optional<KeyPath> const& key_path)
 {
     return realm.create<ObjectStore>(database, name, auto_increment, key_path);
 }

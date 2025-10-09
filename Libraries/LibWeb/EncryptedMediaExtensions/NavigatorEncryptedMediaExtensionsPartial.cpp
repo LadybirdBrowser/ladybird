@@ -15,7 +15,7 @@
 namespace Web::EncryptedMediaExtensions {
 
 // https://w3c.github.io/encrypted-media/#dom-navigator-requestmediakeysystemaccess
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsPartial::request_media_key_system_access(Utf16String key_system, Vector<Bindings::MediaKeySystemConfiguration> supported_configurations)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsPartial::request_media_key_system_access(Utf16String const& key_system, Vector<Bindings::MediaKeySystemConfiguration> const& supported_configurations)
 {
     auto& navigator = as<HTML::Navigator>(*this);
     auto& realm = navigator.realm();

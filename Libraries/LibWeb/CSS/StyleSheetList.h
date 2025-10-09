@@ -31,7 +31,7 @@ public:
         No,
         Yes,
     };
-    GC::Ref<CSSStyleSheet> create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String media, String title, Alternate, OriginClean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule);
+    GC::Ref<CSSStyleSheet> create_a_css_style_sheet(String const& css_text, String type, DOM::Element* owner_node, String const& media, String title, Alternate, OriginClean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule);
 
     Vector<GC::Ref<CSSStyleSheet>> const& sheets() const { return m_sheets; }
     Vector<GC::Ref<CSSStyleSheet>>& sheets() { return m_sheets; }

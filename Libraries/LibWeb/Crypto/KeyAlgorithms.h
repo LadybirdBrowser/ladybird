@@ -58,7 +58,7 @@ public:
 
     GC::Ref<JS::Uint8Array> public_exponent() const { return m_public_exponent; }
     void set_public_exponent(GC::Ref<JS::Uint8Array> public_exponent) { m_public_exponent = public_exponent; }
-    WebIDL::ExceptionOr<void> set_public_exponent(::Crypto::UnsignedBigInteger);
+    WebIDL::ExceptionOr<void> set_public_exponent(::Crypto::UnsignedBigInteger const&);
 
 protected:
     RsaKeyAlgorithm(JS::Realm&);
@@ -109,7 +109,7 @@ public:
     virtual ~EcKeyAlgorithm() override = default;
 
     NamedCurve named_curve() const { return m_named_curve; }
-    void set_named_curve(NamedCurve named_curve) { m_named_curve = named_curve; }
+    void set_named_curve(NamedCurve named_curve) { m_named_curve = move(named_curve); }
 
 protected:
     EcKeyAlgorithm(JS::Realm&);

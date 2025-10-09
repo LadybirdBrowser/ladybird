@@ -24,7 +24,7 @@ GC::Ref<CSSTransformValue> CSSTransformValue::create(JS::Realm& realm, Vector<GC
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformvalue-csstransformvalue
-WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_impl(JS::Realm& realm, GC::RootVector<GC::Root<CSSTransformComponent>> transforms)
+WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_impl(JS::Realm& realm, GC::RootVector<GC::Root<CSSTransformComponent>> const& transforms)
 {
     // The CSSTransformValue(transforms) constructor must, when called, perform the following steps:
 

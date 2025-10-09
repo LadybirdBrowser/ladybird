@@ -51,7 +51,7 @@ struct KeyCallback {
 
 class KeyCallbackMachine {
 public:
-    void register_key_input_callback(Vector<Key>, Function<bool(Editor&)> callback);
+    void register_key_input_callback(Vector<Key> const&, Function<bool(Editor&)> callback);
     void key_pressed(Editor&, Key);
     void interrupted(Editor&);
     bool should_process_last_pressed_key() const { return m_should_process_this_key; }

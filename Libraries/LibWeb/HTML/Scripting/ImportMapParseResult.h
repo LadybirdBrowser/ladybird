@@ -25,7 +25,7 @@ class ImportMapParseResult
 public:
     virtual ~ImportMapParseResult() override;
 
-    static GC::Ref<ImportMapParseResult> create(JS::Realm& realm, ByteString const& input, URL::URL base_url);
+    static GC::Ref<ImportMapParseResult> create(JS::Realm& realm, ByteString const& input, URL::URL const& base_url);
 
     [[nodiscard]] Optional<ImportMap> const& import_map() const { return m_import_map; }
     void set_import_map(ImportMap const& value) { m_import_map = value; }

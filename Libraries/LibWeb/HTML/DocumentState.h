@@ -71,7 +71,7 @@ public:
     void set_ever_populated(bool ever_populated) { m_ever_populated = ever_populated; }
 
     [[nodiscard]] String navigable_target_name() const { return m_navigable_target_name; }
-    void set_navigable_target_name(String navigable_target_name) { m_navigable_target_name = navigable_target_name; }
+    void set_navigable_target_name(String navigable_target_name) { m_navigable_target_name = move(navigable_target_name); }
 
 private:
     DocumentState();

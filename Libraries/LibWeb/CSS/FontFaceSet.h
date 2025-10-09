@@ -27,7 +27,7 @@ public:
 
     GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
 
-    WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Root<FontFace>);
+    WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Root<FontFace> const&);
     bool delete_(GC::Root<FontFace>);
     void clear();
 

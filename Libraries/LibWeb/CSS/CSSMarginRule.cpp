@@ -14,12 +14,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMarginRule);
 
-GC::Ref<CSSMarginRule> CSSMarginRule::create(JS::Realm& realm, FlyString name, GC::Ref<CSSStyleProperties> style)
+GC::Ref<CSSMarginRule> CSSMarginRule::create(JS::Realm& realm, FlyString const& name, GC::Ref<CSSStyleProperties> style)
 {
     return realm.create<CSSMarginRule>(realm, move(name), style);
 }
 
-CSSMarginRule::CSSMarginRule(JS::Realm& realm, FlyString name, GC::Ref<CSSStyleProperties> style)
+CSSMarginRule::CSSMarginRule(JS::Realm& realm, FlyString const& name, GC::Ref<CSSStyleProperties> style)
     : CSSRule(realm, Type::Margin)
     , m_name(name.to_ascii_lowercase())
     , m_style(style)

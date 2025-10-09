@@ -78,12 +78,12 @@ ErrorOr<void> BrowserProcess::connect_as_server([[maybe_unused]] ByteString cons
     m_server_connection = TRY(IPC::MultiServer<UIProcessConnectionFromClient>::try_create(move(local_server)));
 
     m_server_connection->on_new_client = [this](auto& client) {
-        client.on_new_tab = [this](auto raw_urls) {
+        client.on_new_tab = [this](auto const& raw_urls) {
             if (this->on_new_tab)
                 this->on_new_tab(raw_urls);
         };
 
-        client.on_new_window = [this](auto raw_urls) {
+        client.on_new_window = [this](auto const& raw_urls) {
             if (this->on_new_window)
                 this->on_new_window(raw_urls);
         };

@@ -42,7 +42,7 @@ ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
     return encoder.finish();
 }
 
-static ErrorOr<ECPublicKey> read_ec_public_key(ReadonlyBytes bytes, Vector<StringView> current_scope)
+static ErrorOr<ECPublicKey> read_ec_public_key(ReadonlyBytes bytes, Vector<StringView> const& current_scope)
 {
     // NOTE: Public keys do not have an ASN1 structure
     if (bytes.size() < 1) {

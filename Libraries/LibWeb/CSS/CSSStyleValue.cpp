@@ -48,29 +48,29 @@ void CSSStyleValue::initialize(JS::Realm& realm)
 CSSStyleValue::~CSSStyleValue() = default;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parse
-WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, FlyString const& property, String css_text)
+WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> CSSStyleValue::parse(JS::VM& vm, FlyString const& property, String const& css_text)
 {
     // The parse(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
     // cssText, and parseMultiple set to false, and return the result.
-    auto result = parse_a_css_style_value(vm, property, css_text, ParseMultiple::No);
+    auto result = parse_a_css_style_value(vm, property, move(css_text), ParseMultiple::No);
     if (result.is_exception())
         return result.release_error();
     return result.value().get<GC::Ref<CSSStyleValue>>();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-parseall
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, FlyString const& property, String css_text)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse_all(JS::VM& vm, FlyString const& property, String const& css_text)
 {
     // The parseAll(property, cssText) method, when invoked, must parse a CSSStyleValue with property property, cssText
     // cssText, and parseMultiple set to true, and return the result.
-    auto result = parse_a_css_style_value(vm, property, css_text, ParseMultiple::Yes);
+    auto result = parse_a_css_style_value(vm, property, move(css_text), ParseMultiple::Yes);
     if (result.is_exception())
         return result.release_error();
     return result.value().get<GC::RootVector<GC::Ref<CSSStyleValue>>>();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue
-WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, FlyString property_name, String css_text, ParseMultiple parse_multiple)
+WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, FlyString const& property_name, String const& css_text, ParseMultiple parse_multiple)
 {
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     // 2. If property is not a valid CSS property, throw a TypeError.

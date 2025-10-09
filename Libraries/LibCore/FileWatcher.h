@@ -46,8 +46,8 @@ class FileWatcherBase {
 public:
     virtual ~FileWatcherBase() = default;
 
-    ErrorOr<bool> add_watch(ByteString path, FileWatcherEvent::Type event_mask);
-    ErrorOr<bool> remove_watch(ByteString path);
+    ErrorOr<bool> add_watch(ByteString const& path, FileWatcherEvent::Type event_mask);
+    ErrorOr<bool> remove_watch(ByteString const& path);
     bool is_watching(ByteString const& path) const { return m_path_to_wd.find(path) != m_path_to_wd.end(); }
 
 protected:

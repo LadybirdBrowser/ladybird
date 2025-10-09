@@ -462,9 +462,9 @@ Web::WebIDL::ExceptionOr<void> PageClient::toggle_media_controls_state()
     return page().toggle_media_controls_state();
 }
 
-void PageClient::set_user_style(String source)
+void PageClient::set_user_style(String const& source)
 {
-    page().set_user_style(source);
+    page().set_user_style(move(source));
 }
 
 void PageClient::page_did_request_accept_dialog()

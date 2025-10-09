@@ -55,7 +55,7 @@ NonnullRefPtr<Gfx::PaintStyle> CanvasState::FillOrStrokeStyle::to_gfx_paint_styl
                 m_color_paint_style = Gfx::SolidColorPaintStyle::create(color).release_value_but_fixme_should_propagate_errors();
             return m_color_paint_style.release_nonnull();
         },
-        [&](auto handle) {
+        [&](auto const& handle) {
             return handle->to_gfx_paint_style();
         });
 }

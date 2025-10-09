@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
     document_state->set_origin(document->origin());
 
     // navigable target name: targetName
-    document_state->set_navigable_target_name(target_name);
+    document_state->set_navigable_target_name(move(target_name));
 
     // about base URL: document's about base URL
     document_state->set_about_base_url(document->about_base_url());
@@ -907,7 +907,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
             IGNORE_USE_IN_ESCAPING_LAMBDA auto events_fired = false;
 
             // 2. Let needsBeforeunload be true if navigablesThatNeedBeforeUnload contains traversable; otherwise false.
-            auto it = navigables_that_need_before_unload.find_if([&traversable](GC::Root<Navigable> navigable) {
+            auto it = navigables_that_need_before_unload.find_if([&traversable](GC::Root<Navigable> const& navigable) {
                 return navigable.ptr() == traversable.ptr();
             });
             auto needs_beforeunload = it != navigables_that_need_before_unload.end();
@@ -1003,7 +1003,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
 
 TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload)
 {
-    return check_if_unloading_is_canceled(navigables_that_need_before_unload, {}, {}, {});
+    return check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {});
 }
 
 Vector<GC::Ref<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable> navigable, int target_step)

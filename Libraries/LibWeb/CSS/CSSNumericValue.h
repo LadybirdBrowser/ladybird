@@ -50,7 +50,7 @@ public:
     };
     virtual ~CSSNumericValue() override = default;
 
-    bool equals_for_bindings(Vector<CSSNumberish>) const;
+    bool equals_for_bindings(Vector<CSSNumberish> const&) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
     WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;

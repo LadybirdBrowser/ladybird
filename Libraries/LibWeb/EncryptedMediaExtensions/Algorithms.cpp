@@ -19,7 +19,7 @@ bool supports_container([[maybe_unused]] Utf16String const& container)
 Optional<Vector<Bindings::MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const& implementation, CapabilitiesType type, Vector<Bindings::MediaKeySystemMediaCapability> requested_capabilities, Bindings::MediaKeySystemConfiguration config, MediaKeyRestrictions restrictions)
 {
     // 1. Let local accumulated configuration be a local copy of accumulated configuration.
-    Bindings::MediaKeySystemConfiguration accumulated_configuration = config;
+    Bindings::MediaKeySystemConfiguration accumulated_configuration = move(config);
 
     // 2. Let supported media capabilities be an empty sequence of MediaKeySystemMediaCapability dictionaries.
     Vector<Bindings::MediaKeySystemMediaCapability> supported_media_capabilities;

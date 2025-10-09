@@ -613,7 +613,7 @@ void FormAssociatedTextControlElement::set_selection_direction(Optional<String> 
     // selection direction to the given direction, unless the direction is "none" and the
     // platform does not support that direction; in that case, update the element's selection
     // direction to "forward".
-    m_selection_direction = string_to_selection_direction(direction);
+    m_selection_direction = string_to_selection_direction(move(direction));
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
@@ -628,7 +628,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
             return WebIDL::InvalidStateError::create(input_element.realm(), "selectionDirection does not apply to element"_utf16);
     }
 
-    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
+    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(move(direction)));
     return {};
 }
 
@@ -775,7 +775,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
         return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionRange does not apply to this input type"_utf16);
 
     // 2. Set the selection range with start, end, and direction.
-    set_the_selection_range(start, end, string_to_selection_direction(direction));
+    set_the_selection_range(start, end, string_to_selection_direction(move(direction)));
     return {};
 }
 

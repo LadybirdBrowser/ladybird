@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> GridTemplateAreaStyleValue::create(Vector<Vector<String>> grid_template_area)
 {
-    return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(grid_template_area));
+    return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(move(grid_template_area)));
 }
 
 String GridTemplateAreaStyleValue::to_string(SerializationMode) const

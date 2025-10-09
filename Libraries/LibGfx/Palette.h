@@ -192,7 +192,7 @@ public:
     void set_alignment(AlignmentRole, Gfx::TextAlignment);
     void set_flag(FlagRole, bool);
     void set_metric(MetricRole, int);
-    void set_path(PathRole, ByteString);
+    void set_path(PathRole, ByteString const&);
 
     SystemTheme const& theme() const { return m_impl->theme(); }
 

@@ -20,8 +20,8 @@ class CSSUnparsedValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSUnparsedValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(JS::Realm&, Vector<GCRootCSSUnparsedSegment>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(JS::Realm&, Vector<GCRootCSSUnparsedSegment>);
+    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(JS::Realm&, Vector<GCRootCSSUnparsedSegment> const&);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(JS::Realm&, Vector<GCRootCSSUnparsedSegment> const&);
 
     virtual ~CSSUnparsedValue() override;
 

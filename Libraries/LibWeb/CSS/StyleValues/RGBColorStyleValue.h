@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 class RGBColorStyleValue final : public ColorStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<RGBColorStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> r, ValueComparingNonnullRefPtr<StyleValue const> g, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
+    static ValueComparingNonnullRefPtr<RGBColorStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> r, ValueComparingNonnullRefPtr<StyleValue const> g, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingRefPtr<StyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> const& name = {})
     {
         // alpha defaults to 1
         if (!alpha)
@@ -37,7 +37,7 @@ public:
 private:
     RGBColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> r, ValueComparingNonnullRefPtr<StyleValue const> g, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
         : ColorStyleValue(ColorType::RGB, color_syntax)
-        , m_properties { .r = move(r), .g = move(g), .b = move(b), .alpha = move(alpha), .name = name }
+        , m_properties { .r = move(r), .g = move(g), .b = move(b), .alpha = move(alpha), .name = move(name) }
     {
     }
 

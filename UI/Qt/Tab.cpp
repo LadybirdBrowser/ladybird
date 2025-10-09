@@ -26,6 +26,7 @@
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QResizeEvent>
+#include <utility>
 
 namespace Ladybird {
 
@@ -35,7 +36,7 @@ static QIcon default_favicon()
     return icon;
 }
 
-Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
+Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> const& parent_client, size_t page_index)
     : QWidget(window)
     , m_window(window)
 {
@@ -316,7 +317,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             create_selected_file(path);
         }
 
-        view().file_picker_closed(std::move(selected_files));
+        view().file_picker_closed(selected_files);
     };
 
     view().on_find_in_page = [this](auto current_match_index, auto const& total_match_count) {

@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSUnparsedValue);
 
-GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, Vector<GCRootCSSUnparsedSegment> value)
+GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, Vector<GCRootCSSUnparsedSegment> const& value)
 {
     // NB: Convert our GC::Roots into GC::Refs.
     Vector<CSSUnparsedSegment> converted_value;
@@ -30,7 +30,7 @@ GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, Vector<GCRo
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-cssunparsedvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> CSSUnparsedValue::construct_impl(JS::Realm& realm, Vector<GCRootCSSUnparsedSegment> value)
+WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> CSSUnparsedValue::construct_impl(JS::Realm& realm, Vector<GCRootCSSUnparsedSegment> const& value)
 {
     // AD-HOC: There is no spec for this, see https://github.com/w3c/css-houdini-drafts/issues/1146
 

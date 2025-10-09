@@ -35,8 +35,8 @@ public:
     ~CountersSet() = default;
 
     Counter& instantiate_a_counter(FlyString name, DOM::AbstractElement const&, bool reversed, Optional<CounterValue>);
-    void set_a_counter(FlyString name, DOM::AbstractElement const&, CounterValue value);
-    void increment_a_counter(FlyString name, DOM::AbstractElement const&, CounterValue amount);
+    void set_a_counter(FlyString const& name, DOM::AbstractElement const&, CounterValue value);
+    void increment_a_counter(FlyString const& name, DOM::AbstractElement const&, CounterValue amount);
     void append_copy(Counter const&);
 
     Optional<Counter&> last_counter_with_name(FlyString const& name);

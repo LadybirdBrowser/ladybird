@@ -79,7 +79,7 @@ public:
 
     void draw_rect(Gfx::IntRect const& rect, Color color, bool rough = false);
 
-    void draw_painting_surface(Gfx::IntRect const& dst_rect, NonnullRefPtr<Gfx::PaintingSurface>, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
+    void draw_painting_surface(Gfx::IntRect const& dst_rect, NonnullRefPtr<Gfx::PaintingSurface> const&, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
     void draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
 
     void draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y);
@@ -98,7 +98,7 @@ public:
     void push_scroll_frame_id(Optional<i32> id);
     void pop_scroll_frame_id();
 
-    void push_clip_frame(RefPtr<ClipFrame const>);
+    void push_clip_frame(RefPtr<ClipFrame const> const&);
     void pop_clip_frame();
 
     void save();
@@ -115,7 +115,7 @@ public:
 
         bool has_effect() const { return opacity != 1.0f || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || isolate || clip_path.has_value() || !transform.is_identity(); }
     };
-    void push_stacking_context(PushStackingContextParams params);
+    void push_stacking_context(PushStackingContextParams const& params);
     void pop_stacking_context();
 
     void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
@@ -137,8 +137,8 @@ public:
 
     void apply_opacity(float opacity);
     void apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
-    void apply_filter(Gfx::Filter filter);
-    void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
+    void apply_filter(Gfx::Filter const& filter);
+    void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const&);
     void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::Bitmap::MaskKind);
 
     DisplayListRecorder(DisplayList&);

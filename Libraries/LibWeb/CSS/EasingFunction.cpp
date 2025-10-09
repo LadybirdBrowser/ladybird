@@ -218,7 +218,7 @@ double StepsEasingFunction::evaluate_at(double input_progress, bool before_flag)
 static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_function_control_points(Vector<LinearEasingFunction::ControlPoint> control_points)
 {
     // To canonicalize a linear() function’s control points, perform the following:
-    Vector<LinearEasingFunction::ControlPoint> canonicalized_control_points = control_points;
+    Vector<LinearEasingFunction::ControlPoint> canonicalized_control_points = move(control_points);
 
     // 1. If the first control point lacks an input progress value, set its input progress value to 0.
     if (!canonicalized_control_points.first().input.has_value())
@@ -306,7 +306,7 @@ EasingFunction EasingFunction::ease()
 
 EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 {
-    auto const resolve_number = [](StyleValue const& style_value) {
+    auto resolve_number = [](StyleValue const& style_value) {
         if (style_value.is_number())
             return style_value.as_number().number();
 
@@ -316,7 +316,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
         VERIFY_NOT_REACHED();
     };
 
-    auto const resolve_percentage = [](StyleValue const& style_value) {
+    auto resolve_percentage = [](StyleValue const& style_value) {
         if (style_value.is_percentage())
             return style_value.as_percentage().percentage().as_fraction();
 
@@ -326,7 +326,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
         VERIFY_NOT_REACHED();
     };
 
-    auto const resolve_integer = [](StyleValue const& style_value) {
+    auto resolve_integer = [](StyleValue const& style_value) {
         if (style_value.is_integer())
             return style_value.as_integer().integer();
 

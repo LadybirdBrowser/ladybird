@@ -73,7 +73,7 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
 WebIDL::ExceptionOr<GC::Ref<FontFaceSet>>
-FontFaceSet::add(GC::Root<FontFace> face)
+FontFaceSet::add(GC::Root<FontFace> const& face)
 {
     // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
     if (m_set_entries->set_has(face))

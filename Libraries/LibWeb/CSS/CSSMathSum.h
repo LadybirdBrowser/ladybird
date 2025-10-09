@@ -17,7 +17,7 @@ class CSSMathSum final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathSum> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> construct_impl(JS::Realm&, Vector<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> construct_impl(JS::Realm&, Vector<CSSNumberish> const&);
 
     virtual ~CSSMathSum() override;
 

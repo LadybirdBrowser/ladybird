@@ -40,7 +40,7 @@ static SupportedAlgorithmsMap& supported_algorithms_internal();
 static SupportedAlgorithmsMap const& supported_algorithms();
 
 template<typename Methods, typename Param = AlgorithmParams>
-static void define_an_algorithm(String op, String algorithm);
+static void define_an_algorithm(String const& op, String const& algorithm);
 
 GC_DEFINE_ALLOCATOR(SubtleCrypto);
 
@@ -63,7 +63,7 @@ void SubtleCrypto::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/webcrypto/#dfn-normalize-an-algorithm
-WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::Realm& realm, AlgorithmIdentifier const& algorithm, String operation)
+WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::Realm& realm, AlgorithmIdentifier const& algorithm, String const& operation)
 {
     auto& vm = realm.vm();
 
@@ -1193,7 +1193,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
 
 // https://w3c.github.io/webcrypto/#concept-define-an-algorithm
 template<typename Methods, typename Param>
-void define_an_algorithm(AK::String op, AK::String algorithm)
+void define_an_algorithm(const AK::String& op, const AK::String& algorithm)
 {
     auto& internal_object = supported_algorithms_internal();
 

@@ -112,7 +112,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-xml
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType const& type)
 {
     // When faced with displaying an XML file inline, provided navigation params navigationParams and a string type, user agents
     // must follow the requirements defined in XML and Namespaces in XML, XML Media Types, DOM, and other relevant specifications
@@ -201,7 +201,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#navigate-text
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType const& type)
 {
     // To load a text document, given a navigation params navigationParams and a string type:
 
@@ -266,7 +266,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#navigate-media
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType type)
+static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::NavigationParams const& navigation_params, MimeSniff::MimeType const& type)
 {
     // To load a media document, given navigationParams and a string type:
 

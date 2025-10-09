@@ -102,7 +102,7 @@ protected:
 
     auto default_async_handler(Message const& message)
     {
-        return async_handler(message, [](auto&, auto, auto) { });
+        return async_handler(message, [](auto&, auto, auto const&) { });
     }
 
 private:

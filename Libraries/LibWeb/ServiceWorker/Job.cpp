@@ -29,7 +29,7 @@ static void run_job(JS::VM&, JobQueue&);
 static void finish_job(JS::VM&, GC::Ref<Job>);
 static void resolve_job_promise(GC::Ref<Job>, Optional<Registration const&>, JS::Value = JS::js_null());
 template<typename Error>
-static void reject_job_promise(GC::Ref<Job>, Utf16String message);
+static void reject_job_promise(GC::Ref<Job>, Utf16String const& message);
 static void register_(JS::VM&, GC::Ref<Job>);
 static void update(JS::VM&, GC::Ref<Job>);
 static void unregister(JS::VM&, GC::Ref<Job>);
@@ -566,7 +566,7 @@ static void resolve_job_promise(GC::Ref<Job> job, Optional<Registration const&>,
 
 // https://w3c.github.io/ServiceWorker/#reject-job-promise-algorithm
 template<typename Error>
-static void reject_job_promise(GC::Ref<Job> job, Utf16String message)
+static void reject_job_promise(GC::Ref<Job> job, Utf16String const& message)
 {
     // 1. If job’s client is not null, queue a task, on job’s client's responsible event loop using the DOM manipulation task source,
     //    to reject job’s job promise with a new exception with errorData and a user agent-defined message, in job’s client's Realm.

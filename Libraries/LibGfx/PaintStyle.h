@@ -91,7 +91,7 @@ public:
 
     static ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> create(RefPtr<ImmutableBitmap> image, Repetition repetition)
     {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(image, repetition));
+        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(move(image), repetition));
     }
 
     RefPtr<ImmutableBitmap> image() const { return m_image; }
@@ -99,7 +99,7 @@ public:
 
 private:
     CanvasPatternPaintStyle(RefPtr<ImmutableBitmap> image, Repetition repetition)
-        : m_image(image)
+        : m_image(move(image))
         , m_repetition(repetition)
     {
     }

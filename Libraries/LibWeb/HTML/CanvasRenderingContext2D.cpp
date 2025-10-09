@@ -782,7 +782,7 @@ void CanvasRenderingContext2D::clip(Path2D& path, StringView fill_rule)
     clip_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
-static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, StringView fill_rule)
+static bool is_point_in_path_internal(Gfx::Path const& path, Gfx::AffineTransform const& transform, double x, double y, StringView fill_rule)
 {
     auto point = Gfx::FloatPoint(x, y);
     if (auto inverse_transform = transform.inverse(); inverse_transform.has_value())

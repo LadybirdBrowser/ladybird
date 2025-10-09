@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DOMStringList);
 
-GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> list)
+GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> const& list)
 {
     return realm.create<DOMStringList>(realm, list);
 }

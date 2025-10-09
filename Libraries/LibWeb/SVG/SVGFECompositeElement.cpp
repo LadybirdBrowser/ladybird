@@ -13,7 +13,7 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGFECompositeElement);
 
 SVGFECompositeElement::SVGFECompositeElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+    : SVGElement(document, move(qualified_name))
 {
 }
 

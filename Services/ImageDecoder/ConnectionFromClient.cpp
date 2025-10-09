@@ -150,7 +150,7 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
         [encoded_buffer = move(encoded_buffer), ideal_size = move(ideal_size), mime_type = move(mime_type)](auto&) -> ErrorOr<DecodeResult> {
             return TRY(decode_image_to_details(encoded_buffer, ideal_size, mime_type));
         },
-        [strong_this = NonnullRefPtr(*this), image_id](DecodeResult result) -> ErrorOr<void> {
+        [strong_this = NonnullRefPtr(*this), image_id](DecodeResult const& result) -> ErrorOr<void> {
             strong_this->async_did_decode_image(image_id, result.is_animated, result.loop_count, move(result.bitmaps), move(result.durations), result.scale, move(result.color_profile));
             strong_this->m_pending_jobs.remove(image_id);
             return {};

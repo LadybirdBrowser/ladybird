@@ -50,7 +50,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
     // 4. For each row of Table 21, except the header row, in table order, do
-    auto create_option = [&]<typename T>(PropertyKey const& property, Optional<PropertyKey const&> display_property, T value) {
+    auto create_option = [&]<typename T>(PropertyKey const& property, Optional<PropertyKey const&> display_property, T const& value) {
         // a. Let p be the Property value of the current row.
         // b. Let v be the value of df's internal slot whose name is the Internal Slot value of the current row.
 

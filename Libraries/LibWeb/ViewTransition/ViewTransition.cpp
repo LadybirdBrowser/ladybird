@@ -25,14 +25,14 @@ GC_DEFINE_ALLOCATOR(ViewTransition);
 
 NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name)
     : m_type(type)
-    , m_view_transition_name(view_transition_name)
+    , m_view_transition_name(move(view_transition_name))
 {
 }
 
 ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name, RefPtr<Gfx::ImmutableBitmap> content = {})
-    : NamedViewTransitionPseudoElement(type, view_transition_name)
+    : NamedViewTransitionPseudoElement(type, move(view_transition_name))
 {
-    m_content = content;
+    m_content = move(content);
 }
 
 GC::Ref<ViewTransition> ViewTransition::create(JS::Realm& realm)

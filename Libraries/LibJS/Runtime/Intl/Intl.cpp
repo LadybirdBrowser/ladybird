@@ -154,7 +154,7 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
 
     // 9. Return CreateArrayFromList( list ).
     return list->visit([&]<typename T>(ReadonlySpan<T> list) {
-        return Array::create_from<T>(realm, list, [&](auto value) {
+        return Array::create_from<T>(realm, list, [&](auto const& value) {
             return PrimitiveString::create(vm, value);
         });
     });

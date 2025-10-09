@@ -41,7 +41,7 @@ GC::Ref<WebGLVertexArrayObjectOES> OESVertexArrayObject::create_vertex_array_oes
     return WebGLVertexArrayObjectOES::create(realm(), m_context, handle);
 }
 
-void OESVertexArrayObject::delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object)
+void OESVertexArrayObject::delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> const& array_object)
 {
     m_context->context().make_current();
 
@@ -58,7 +58,7 @@ void OESVertexArrayObject::delete_vertex_array_oes(GC::Root<WebGLVertexArrayObje
     glDeleteVertexArraysOES(1, &vertex_array_handle);
 }
 
-bool OESVertexArrayObject::is_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object)
+bool OESVertexArrayObject::is_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> const& array_object)
 {
     m_context->context().make_current();
 
@@ -74,7 +74,7 @@ bool OESVertexArrayObject::is_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOE
     return glIsVertexArrayOES(vertex_array_handle) == GL_TRUE;
 }
 
-void OESVertexArrayObject::bind_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object)
+void OESVertexArrayObject::bind_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> const& array_object)
 {
     m_context->context().make_current();
 

@@ -207,8 +207,8 @@ ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind);
 class RSA_EME : public RSA {
 public:
     template<typename... Args>
-    RSA_EME(Hash::HashKind hash_kind, Args... args)
-        : RSA(args...)
+    RSA_EME(Hash::HashKind hash_kind, Args&&... args)
+        : RSA(forward<Args>(args)...)
         , m_hash_kind(hash_kind)
     {
     }
@@ -231,8 +231,8 @@ protected:
 class RSA_EMSA : public RSA {
 public:
     template<typename... Args>
-    RSA_EMSA(Hash::HashKind hash_kind, Args... args)
-        : RSA(args...)
+    RSA_EMSA(Hash::HashKind hash_kind, Args&&... args)
+        : RSA(forward<Args>(args)...)
         , m_hash_kind(hash_kind)
     {
     }
@@ -258,8 +258,8 @@ protected:
 class RSA_PKCS1_EME : public RSA_EME {
 public:
     template<typename... Args>
-    RSA_PKCS1_EME(Args... args)
-        : RSA_EME(Hash::HashKind::None, args...)
+    RSA_PKCS1_EME(Args&&... args)
+        : RSA_EME(Hash::HashKind::None, forward<Args>(args)...)
     {
     }
 
@@ -277,8 +277,8 @@ protected:
 class RSA_PKCS1_EMSA : public RSA_EMSA {
 public:
     template<typename... Args>
-    RSA_PKCS1_EMSA(Hash::HashKind hash_kind, Args... args)
-        : RSA_EMSA(hash_kind, args...)
+    RSA_PKCS1_EMSA(Hash::HashKind hash_kind, Args&&... args)
+        : RSA_EMSA(hash_kind, forward<Args>(args)...)
     {
     }
 
@@ -296,8 +296,8 @@ protected:
 class RSA_OAEP_EME : public RSA_EME {
 public:
     template<typename... Args>
-    RSA_OAEP_EME(Hash::HashKind hash_kind, Args... args)
-        : RSA_EME(hash_kind, args...)
+    RSA_OAEP_EME(Hash::HashKind hash_kind, Args&&... args)
+        : RSA_EME(hash_kind, forward<Args>(args)...)
     {
     }
 
@@ -320,8 +320,8 @@ private:
 class RSA_PSS_EMSA : public RSA_EMSA {
 public:
     template<typename... Args>
-    RSA_PSS_EMSA(Hash::HashKind hash_kind, Args... args)
-        : RSA_EMSA(hash_kind, args...)
+    RSA_PSS_EMSA(Hash::HashKind hash_kind, Args&&... args)
+        : RSA_EMSA(hash_kind, forward<Args>(args)...)
     {
     }
 

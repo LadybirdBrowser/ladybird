@@ -23,7 +23,7 @@ GC::Ref<CSSMathProduct> CSSMathProduct::create(JS::Realm& realm, NumericType typ
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathproduct-cssmathproduct
-WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::Realm& realm, Vector<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::Realm& realm, Vector<CSSNumberish> const& values)
 {
     // The CSSMathProduct(...args) constructor is defined identically to the above, except that in step 3 it multiplies
     // the types instead of adding, and in the last step it returns a CSSMathProduct.

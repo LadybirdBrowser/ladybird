@@ -13,7 +13,7 @@ namespace Web::EntriesAPI {
 
 GC_DEFINE_ALLOCATOR(FileSystemEntry);
 
-GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString name)
+GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString const& name)
 {
     return realm.create<FileSystemEntry>(realm, entry_type, name);
 }
@@ -21,7 +21,7 @@ GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType ent
 FileSystemEntry::FileSystemEntry(JS::Realm& realm, EntryType entry_type, ByteString name)
     : PlatformObject(realm)
     , m_entry_type(entry_type)
-    , m_name(name)
+    , m_name(move(name))
 {
 }
 

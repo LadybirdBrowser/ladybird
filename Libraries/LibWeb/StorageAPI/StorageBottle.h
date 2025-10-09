@@ -24,7 +24,7 @@ class StorageBottle : public GC::Cell {
     GC_CELL(StorageBottle, GC::Cell);
 
 public:
-    static GC::Ref<StorageBottle> create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota);
+    static GC::Ref<StorageBottle> create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey const& key, Optional<u64> quota);
 
     virtual ~StorageBottle() = default;
 
@@ -54,7 +54,7 @@ class LocalStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(LocalStorageBottle);
 
 public:
-    static GC::Ref<LocalStorageBottle> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey key, Optional<u64> quota)
+    static GC::Ref<LocalStorageBottle> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey const& key, Optional<u64> quota)
     {
         return heap.allocate<LocalStorageBottle>(page, key, quota);
     }
@@ -116,7 +116,7 @@ class StorageBucket : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageBucket);
 
 public:
-    static GC::Ref<StorageBucket> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey key, StorageType type) { return heap.allocate<StorageBucket>(page, key, type); }
+    static GC::Ref<StorageBucket> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey const& key, StorageType type) { return heap.allocate<StorageBucket>(page, key, type); }
 
     BottleMap& bottle_map() { return m_bottle_map; }
     BottleMap const& bottle_map() const { return m_bottle_map; }
@@ -124,7 +124,7 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    explicit StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType type);
+    explicit StorageBucket(GC::Ref<Page> page, StorageKey const& key, StorageType type);
 
     // A storage bucket has a bottle map of storage identifiers to storage bottles.
     BottleMap m_bottle_map;

@@ -35,7 +35,7 @@ public:
         : m_base_type(BaseType::Value)
         , m_base_value(base)
         , m_name(move(name))
-        , m_this_value(this_value)
+        , m_this_value(move(this_value))
         , m_strict(strict)
     {
     }

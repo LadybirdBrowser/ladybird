@@ -22,7 +22,7 @@ class BroadcastChannelRepository {
 public:
     void register_channel(GC::Root<BroadcastChannel>);
     void unregister_channel(GC::Ref<BroadcastChannel>);
-    Vector<GC::Root<BroadcastChannel>> const& registered_channels_for_key(StorageAPI::StorageKey) const;
+    Vector<GC::Root<BroadcastChannel>> const& registered_channels_for_key(StorageAPI::StorageKey const&) const;
 
 private:
     HashMap<StorageAPI::StorageKey, Vector<GC::Root<BroadcastChannel>>> m_channels;
@@ -47,10 +47,10 @@ void BroadcastChannelRepository::unregister_channel(GC::Ref<BroadcastChannel> ch
 {
     auto storage_key = Web::StorageAPI::obtain_a_storage_key_for_non_storage_purposes(relevant_settings_object(channel));
     auto& relevant_channels = m_channels.get(storage_key).value();
-    relevant_channels.remove_first_matching([&](auto c) { return c == channel; });
+    relevant_channels.remove_first_matching([&](auto const& c) { return c == channel; });
 }
 
-Vector<GC::Root<BroadcastChannel>> const& BroadcastChannelRepository::registered_channels_for_key(StorageAPI::StorageKey key) const
+Vector<GC::Root<BroadcastChannel>> const& BroadcastChannelRepository::registered_channels_for_key(StorageAPI::StorageKey const& key) const
 {
     auto maybe_channels = m_channels.get(key);
     VERIFY(maybe_channels.has_value());

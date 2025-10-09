@@ -110,7 +110,7 @@ String GridSize::to_string(SerializationMode mode) const
     return m_value.visit([mode](auto const& it) { return it.to_string(mode); });
 }
 
-GridMinMax::GridMinMax(GridSize min_grid_size, GridSize max_grid_size)
+GridMinMax::GridMinMax(GridSize const& min_grid_size, GridSize const& max_grid_size)
     : m_min_grid_size(move(min_grid_size))
     , m_max_grid_size(move(max_grid_size))
 {

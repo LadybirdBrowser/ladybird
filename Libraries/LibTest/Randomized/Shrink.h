@@ -27,7 +27,7 @@ struct ShrinkResult {
     RandomRun run;
 };
 
-inline ShrinkResult no_improvement(RandomRun run)
+inline ShrinkResult no_improvement(RandomRun const& run)
 {
     return ShrinkResult { WasImprovement::No, run };
 }

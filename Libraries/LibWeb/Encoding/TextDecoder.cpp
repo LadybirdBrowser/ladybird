@@ -18,7 +18,7 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextDecoder);
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
-WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, FlyString label, Optional<TextDecoderOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, FlyString const& label, Optional<TextDecoderOptions> const& options)
 {
     auto& vm = realm.vm();
 

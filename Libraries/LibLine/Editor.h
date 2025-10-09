@@ -165,7 +165,7 @@ public:
     bool is_history_dirty() const { return m_history_dirty; }
 
     void register_key_input_callback(KeyBinding const&);
-    void register_key_input_callback(Vector<Key> keys, Function<bool(Editor&)> callback) { m_callback_machine.register_key_input_callback(move(keys), move(callback)); }
+    void register_key_input_callback(Vector<Key> const& keys, Function<bool(Editor&)> callback) { m_callback_machine.register_key_input_callback(move(keys), move(callback)); }
     void register_key_input_callback(Key key, Function<bool(Editor&)> callback) { register_key_input_callback(Vector<Key> { key }, move(callback)); }
 
     static StringMetrics actual_rendered_string_metrics(StringView, RedBlackTree<u32, Optional<Style::Mask>> const& masks = {}, Optional<size_t> maximum_line_width = {});

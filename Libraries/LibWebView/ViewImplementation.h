@@ -127,7 +127,7 @@ public:
     void confirm_closed(bool accepted);
     void prompt_closed(Optional<String> const& response);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
-    void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
+    void file_picker_closed(Vector<Web::HTML::SelectedFile> const& selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
     void paste_text_from_clipboard();

@@ -249,7 +249,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return builder.to_string_without_validation();
         };
 
-        auto get_layer_count = [](auto style_value) -> size_t {
+        auto get_layer_count = [](auto const& style_value) -> size_t {
             return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
         };
 
@@ -283,7 +283,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto x_edges = longhand(PropertyID::BackgroundPositionX);
         auto y_edges = longhand(PropertyID::BackgroundPositionY);
 
-        auto get_layer_count = [](auto style_value) -> size_t {
+        auto get_layer_count = [](auto const& style_value) -> size_t {
             return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
         };
 

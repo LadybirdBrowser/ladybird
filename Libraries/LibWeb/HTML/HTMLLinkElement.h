@@ -47,7 +47,7 @@ public:
     void set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document>);
     void set_was_enabled_when_created_by_parser(Badge<HTMLParser>, bool was_enabled_when_created_by_parser) { m_was_enabled_when_created_by_parser = was_enabled_when_created_by_parser; }
 
-    void set_media(String);
+    void set_media(String const&);
     String media() const;
 
     GC::Ptr<CSS::CSSStyleSheet> sheet() const;

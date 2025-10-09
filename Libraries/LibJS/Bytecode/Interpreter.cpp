@@ -929,7 +929,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Val
         return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
-    return throw_null_or_undefined_property_get(vm, base_value, base_identifier, property_identifier, executable);
+    return throw_null_or_undefined_property_get(vm, base_value, move(base_identifier), property_identifier, executable);
 }
 
 ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
@@ -938,7 +938,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Val
         return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
-    return throw_null_or_undefined_property_get(vm, base_value, base_identifier, property, executable);
+    return throw_null_or_undefined_property_get(vm, base_value, move(base_identifier), property, executable);
 }
 
 inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<IdentifierTableIndex> base_identifier, Value base_value, Value property_key_value, Executable const& executable)
@@ -1097,7 +1097,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 }
 
 template<PutKind kind>
-ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, PropertyLookupCache* caches = nullptr)
+ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey const& name, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish()) [[unlikely]]

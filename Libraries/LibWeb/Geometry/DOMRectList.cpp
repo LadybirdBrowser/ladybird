@@ -15,7 +15,7 @@ namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMRectList);
 
-GC::Ref<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<GC::Root<DOMRect>> rect_handles)
+GC::Ref<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<GC::Root<DOMRect>> const& rect_handles)
 {
     Vector<GC::Ref<DOMRect>> rects;
     for (auto& rect : rect_handles)

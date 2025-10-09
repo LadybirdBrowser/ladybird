@@ -25,7 +25,7 @@ void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
         visitor.visit(entry);
 }
 
-StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType type)
+StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey const& key, StorageType type)
 {
     // 1. Let bucket be null.
     // 2. If type is "local", then set bucket to a new local storage bucket.
@@ -91,10 +91,10 @@ GC::Ptr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSett
     return obtain_a_storage_bottle_map(StorageType::Session, environment, identifier);
 }
 
-GC::Ref<StorageBottle> StorageBottle::create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota)
+GC::Ref<StorageBottle> StorageBottle::create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey const& key, Optional<u64> quota)
 {
     if (type == StorageType::Local)
-        return LocalStorageBottle::create(heap, page, key, quota);
+        return LocalStorageBottle::create(heap, page, move(key), quota);
     return SessionStorageBottle::create(heap, quota);
 }
 

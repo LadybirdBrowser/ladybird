@@ -187,7 +187,7 @@ ShouldExecute should_fetch_directive_execute(Optional<FlyString> effective_direc
 {
     // 1. Let directive fallback list be the result of executing § 6.8.3 Get fetch directive fallback list on effective
     //    directive name.
-    auto const& directive_fallback_list = get_fetch_directive_fallback_list(effective_directive_name);
+    auto const& directive_fallback_list = get_fetch_directive_fallback_list(move(effective_directive_name));
 
     // 2. For each fallback directive of directive fallback list:
     for (auto fallback_directive : directive_fallback_list) {

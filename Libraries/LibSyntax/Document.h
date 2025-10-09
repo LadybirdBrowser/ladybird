@@ -39,7 +39,7 @@ public:
     u32 const* code_points() const { return m_text.data(); }
     size_t length() const { return m_text.size(); }
     bool set_text(Document&, StringView);
-    void set_text(Document&, Vector<u32>);
+    void set_text(Document&, Vector<u32> const&);
     void append(Document&, u32);
     void prepend(Document&, u32);
     void insert(Document&, size_t index, u32);

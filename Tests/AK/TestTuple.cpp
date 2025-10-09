@@ -73,7 +73,7 @@ TEST_CASE(apply)
     // With copy
     {
         bool was_called = false;
-        args.apply_as_args([&](int a, int b, ByteString c) {
+        args.apply_as_args([&](int a, int b, ByteString const& c) {
             was_called = true;
             EXPECT_EQ(a, 1);
             EXPECT_EQ(b, 2);

@@ -110,7 +110,7 @@ public:
     }
 
     static constexpr size_t VISUAL_VIEWPORT_TRANSFORM_INDEX = 1;
-    void set_visual_viewport_transform(Gfx::FloatMatrix4x4 t) { m_commands[VISUAL_VIEWPORT_TRANSFORM_INDEX].command.get<ApplyTransform>().matrix = t; }
+    void set_visual_viewport_transform(Gfx::FloatMatrix4x4 const& t) { m_commands[VISUAL_VIEWPORT_TRANSFORM_INDEX].command.get<ApplyTransform>().matrix = t; }
 
 private:
     DisplayList(double device_pixels_per_css_pixel)

@@ -21,7 +21,7 @@ class WEBVIEW_API Process {
     AK_MAKE_DEFAULT_MOVABLE(Process);
 
 public:
-    Process(ProcessType type, RefPtr<IPC::ConnectionBase> connection, Core::Process process);
+    Process(ProcessType type, RefPtr<IPC::ConnectionBase> const& connection, Core::Process process);
     ~Process();
 
     template<typename ClientType>

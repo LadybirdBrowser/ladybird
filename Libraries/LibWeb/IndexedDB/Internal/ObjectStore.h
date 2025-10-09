@@ -30,7 +30,7 @@ class ObjectStore : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ObjectStore);
 
 public:
-    [[nodiscard]] static GC::Ref<ObjectStore> create(JS::Realm&, GC::Ref<Database>, String, bool, Optional<KeyPath> const&);
+    [[nodiscard]] static GC::Ref<ObjectStore> create(JS::Realm&, GC::Ref<Database>, String const&, bool, Optional<KeyPath> const&);
     virtual ~ObjectStore();
 
     String name() const { return m_name; }

@@ -223,7 +223,7 @@ static bool should_block_request(LoadRequest const& request)
     return false;
 }
 
-void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback, Optional<u32> timeout, GC::Root<TimeoutCallback> timeout_callback)
+void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> const& success_callback, GC::Root<ErrorCallback> const& error_callback, Optional<u32> timeout, GC::Root<TimeoutCallback> const& timeout_callback)
 {
     auto const& url = request.url().value();
 
@@ -235,7 +235,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         return;
     }
 
-    auto respond_directory_page = [](LoadRequest const& request, URL::URL const& url, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback) {
+    auto respond_directory_page = [](LoadRequest const& request, URL::URL const& url, const GC::Root<SuccessCallback>& success_callback, const GC::Root<ErrorCallback>& error_callback) {
         // FIXME: Implement timing info for directory requests.
         Requests::RequestTimingInfo fixme_implement_timing_info {};
 
@@ -485,7 +485,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     }
 }
 
-void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnComplete> on_complete)
+void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersReceived> const& on_headers_received, GC::Root<OnDataReceived> const& on_data_received, GC::Root<OnComplete> const& on_complete)
 {
     auto const& url = request.url().value();
 

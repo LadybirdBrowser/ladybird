@@ -12,7 +12,7 @@
 
 namespace WebView {
 
-Process::Process(ProcessType type, RefPtr<IPC::ConnectionBase> connection, Core::Process process)
+Process::Process(ProcessType type, RefPtr<IPC::ConnectionBase> const& connection, Core::Process process)
     : m_process(move(process))
     , m_type(type)
     , m_connection(move(connection))

@@ -92,7 +92,7 @@ void RsaKeyAlgorithm::visit_edges(Visitor& visitor)
     visitor.visit(m_public_exponent);
 }
 
-WebIDL::ExceptionOr<void> RsaKeyAlgorithm::set_public_exponent(::Crypto::UnsignedBigInteger exponent)
+WebIDL::ExceptionOr<void> RsaKeyAlgorithm::set_public_exponent(::Crypto::UnsignedBigInteger const& exponent)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();

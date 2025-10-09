@@ -136,7 +136,7 @@ private:
         return s_spec_test_namespace;
     }
 
-    static Optional<Wasm::FunctionAddress> alloc_noop_function(Wasm::FunctionType type)
+    static Optional<Wasm::FunctionAddress> alloc_noop_function(Wasm::FunctionType const& type)
     {
         return m_machine.store().allocate(Wasm::HostFunction {
             [](auto&, auto&) -> Wasm::Result {

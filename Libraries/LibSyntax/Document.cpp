@@ -88,7 +88,7 @@ void TextDocumentLine::clear(Document& document)
     document.update_views({});
 }
 
-void TextDocumentLine::set_text(Document& document, Vector<u32> const text)
+void TextDocumentLine::set_text(Document& document, Vector<u32> const& text)
 {
     m_text = move(text);
     document.update_views({});

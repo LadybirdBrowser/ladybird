@@ -27,7 +27,7 @@ namespace WebDriver {
 
 class Session : public RefCounted<Session> {
 public:
-    static ErrorOr<NonnullRefPtr<Session>> create(NonnullRefPtr<Client> client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags);
+    static ErrorOr<NonnullRefPtr<Session>> create(NonnullRefPtr<Client> const& client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags);
     ~Session();
 
     enum class AllowInvalidWindowHandle {
@@ -88,7 +88,7 @@ private:
     ErrorOr<void> start(LaunchBrowserCallback const&);
 
     using ServerPromise = Core::Promise<ErrorOr<void>>;
-    ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> promise);
+    ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> const& promise);
 
     NonnullRefPtr<Client> m_client;
     Web::WebDriver::LadybirdOptions m_options;

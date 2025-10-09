@@ -23,7 +23,7 @@ GC::Ref<CSSMathSum> CSSMathSum::create(JS::Realm& realm, NumericType type, GC::R
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathsum-cssmathsum
-WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(JS::Realm& realm, Vector<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(JS::Realm& realm, Vector<CSSNumberish> const& values)
 {
     // The CSSMathSum(...args) constructor must, when called, perform the following steps:
 

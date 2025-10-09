@@ -230,7 +230,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         auto& websocket = const_cast<WebSocket&>(*weak_this);
         websocket.on_message(move(message.data), message.is_text);
     };
-    m_websocket->on_close = [weak_this = GC::Weak { *this }](auto code, auto reason, bool was_clean) {
+    m_websocket->on_close = [weak_this = GC::Weak { *this }](auto code, auto const& reason, bool was_clean) {
         if (!weak_this)
             return;
         auto& websocket = const_cast<WebSocket&>(*weak_this);

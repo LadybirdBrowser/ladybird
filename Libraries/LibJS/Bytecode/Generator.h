@@ -153,19 +153,19 @@ public:
     };
 
     CodeGenerationErrorOr<ReferenceOperands> emit_load_from_reference(JS::ASTNode const&, Optional<ScopedOperand> preferred_dst = {});
-    CodeGenerationErrorOr<void> emit_store_to_reference(JS::ASTNode const&, ScopedOperand value);
-    CodeGenerationErrorOr<void> emit_store_to_reference(ReferenceOperands const&, ScopedOperand value);
+    CodeGenerationErrorOr<void> emit_store_to_reference(JS::ASTNode const&, ScopedOperand const& value);
+    CodeGenerationErrorOr<void> emit_store_to_reference(ReferenceOperands const&, ScopedOperand const& value);
     CodeGenerationErrorOr<Optional<ScopedOperand>> emit_delete_reference(JS::ASTNode const&);
 
     CodeGenerationErrorOr<ReferenceOperands> emit_super_reference(MemberExpression const&);
 
     void emit_set_variable(JS::Identifier const& identifier, ScopedOperand value, Bytecode::Op::BindingInitializationMode initialization_mode = Bytecode::Op::BindingInitializationMode::Set, Bytecode::Op::EnvironmentMode mode = Bytecode::Op::EnvironmentMode::Lexical);
 
-    void push_home_object(ScopedOperand);
+    void push_home_object(ScopedOperand const&);
     void pop_home_object();
-    void emit_new_function(ScopedOperand dst, JS::FunctionExpression const&, Optional<IdentifierTableIndex> lhs_name);
+    void emit_new_function(ScopedOperand const& dst, JS::FunctionExpression const&, Optional<IdentifierTableIndex> const& lhs_name);
 
-    CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {});
+    CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> const& lhs_name, Optional<ScopedOperand> preferred_dst = {});
 
     void begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set);
     void end_continuable_scope();
@@ -285,7 +285,7 @@ public:
     void generate_continue(FlyString const& continue_label);
 
     template<typename OpType>
-    void emit_return(ScopedOperand value)
+    void emit_return(ScopedOperand const& value)
     requires(IsOneOf<OpType, Op::Return, Op::Yield>)
     {
         perform_needed_unwinds<OpType>();
@@ -322,20 +322,20 @@ public:
 
     [[nodiscard]] ScopedOperand get_this(Optional<ScopedOperand> preferred_dst = {});
 
-    void emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier = {});
+    void emit_get_by_id(ScopedOperand const& dst, ScopedOperand const& base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier = {});
 
-    void emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex, ScopedOperand this_value);
+    void emit_get_by_id_with_this(ScopedOperand const& dst, ScopedOperand const& base, IdentifierTableIndex, ScopedOperand const& this_value);
 
-    void emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedOperand property, Optional<IdentifierTableIndex> base_identifier = {});
-    void emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand base, ScopedOperand property, ScopedOperand this_value);
+    void emit_get_by_value(ScopedOperand const& dst, ScopedOperand const& base, ScopedOperand property, Optional<IdentifierTableIndex> const& base_identifier = {});
+    void emit_get_by_value_with_this(ScopedOperand const& dst, ScopedOperand const& base, ScopedOperand property, ScopedOperand const& this_value);
 
     void emit_put_by_id(Operand base, IdentifierTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {});
 
-    void emit_put_by_value(ScopedOperand base, ScopedOperand property, ScopedOperand src, Bytecode::PutKind, Optional<IdentifierTableIndex> base_identifier);
-    void emit_put_by_value_with_this(ScopedOperand base, ScopedOperand property, ScopedOperand this_value, ScopedOperand src, Bytecode::PutKind);
+    void emit_put_by_value(ScopedOperand const& base, ScopedOperand property, ScopedOperand const& src, Bytecode::PutKind, Optional<IdentifierTableIndex> const& base_identifier);
+    void emit_put_by_value_with_this(ScopedOperand const& base, ScopedOperand property, ScopedOperand const& this_value, ScopedOperand const& src, Bytecode::PutKind);
 
-    void emit_iterator_value(ScopedOperand dst, ScopedOperand result);
-    void emit_iterator_complete(ScopedOperand dst, ScopedOperand result);
+    void emit_iterator_value(ScopedOperand const& dst, ScopedOperand const& result);
+    void emit_iterator_complete(ScopedOperand const& dst, ScopedOperand const& result);
 
     [[nodiscard]] size_t next_global_variable_cache() { return m_next_global_variable_cache++; }
     [[nodiscard]] size_t next_property_lookup_cache() { return m_next_property_lookup_cache++; }

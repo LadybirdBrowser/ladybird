@@ -76,7 +76,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual void finalize() override;
 
-    static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(JS::Realm&, String);
+    static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(JS::Realm&, String const&);
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-callback-slot
     GC::Ptr<WebIDL::CallbackType> m_callback;

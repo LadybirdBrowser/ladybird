@@ -142,7 +142,7 @@ void populate_all_property_longhands(JsonObject& properties)
 
     VERIFY(all_entry.has_value());
 
-    properties.for_each_member([&](auto name, auto value) {
+    properties.for_each_member([&](auto const& name, auto value) {
         if (value.as_object().has_array("longhands"sv) || value.as_object().has_string("legacy-alias-for"sv) || name == "direction" || name == "unicode-bidi")
             return;
 
@@ -1241,7 +1241,7 @@ Vector<PropertyID> const& longhands_for_shorthand(PropertyID property_id)
 
         Vector<String> longhands;
 
-        longhands_json_array.value().for_each([&](auto longhand_value) {
+        longhands_json_array.value().for_each([&](auto const& longhand_value) {
             longhands.append(longhand_value.as_string());
         });
 
@@ -1390,7 +1390,7 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
 
         // https://www.w3.org/TR/cssom/#concept-shorthands-preferred-order
         // NOTE: The steps are performed in a order different to the spec in order to complete this in a single sort.
-        AK::quick_sort(shorthands, [&](String a, String b) {
+        AK::quick_sort(shorthands, [&](String const& a, String const& b) {
             auto shorthand_a_longhands = get_expanded_longhands(a);
             auto shorthand_b_longhands = get_expanded_longhands(b);
 

@@ -18,11 +18,11 @@ void StorageShelf::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://storage.spec.whatwg.org/#create-a-storage-shelf
-StorageShelf::StorageShelf(GC::Ref<Page> page, StorageKey key, StorageType type)
+StorageShelf::StorageShelf(GC::Ref<Page> page, StorageKey const& key, StorageType type)
 {
     // 1. Let shelf be a new storage shelf.
     // 2. Set shelf’s bucket map["default"] to the result of running create a storage bucket with type.
-    m_bucket_map.set("default"_string, StorageBucket::create(heap(), page, key, type));
+    m_bucket_map.set("default"_string, StorageBucket::create(heap(), page, move(key), type));
     // 3. Return shelf.
 }
 

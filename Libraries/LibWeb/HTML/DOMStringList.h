@@ -16,7 +16,7 @@ class DOMStringList final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
-    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<String>);
+    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<String> const&);
 
     u32 length() const;
     Optional<String> item(u32 index) const;

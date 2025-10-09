@@ -47,7 +47,7 @@ namespace Ladybird {
 
 bool is_using_dark_system_theme(QWidget&);
 
-WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index, WebContentViewInitialState initial_state)
+WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> const& parent_client, size_t page_index, WebContentViewInitialState initial_state)
     : QWidget(window)
 {
     m_client_state.client = parent_client;
@@ -132,7 +132,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
             select_dropdown_closed({});
     });
 
-    on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
+    on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> const& items) {
         m_select_dropdown->clear();
         m_select_dropdown->setMinimumWidth(minimum_width);
 

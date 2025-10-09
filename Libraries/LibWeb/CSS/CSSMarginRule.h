@@ -16,7 +16,7 @@ class CSSMarginRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSMarginRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMarginRule> create(JS::Realm&, FlyString name, GC::Ref<CSSStyleProperties>);
+    [[nodiscard]] static GC::Ref<CSSMarginRule> create(JS::Realm&, FlyString const& name, GC::Ref<CSSStyleProperties>);
 
     virtual ~CSSMarginRule() override = default;
 
@@ -25,7 +25,7 @@ public:
     GC::Ref<CSSStyleProperties const> style() const { return m_style; }
 
 private:
-    CSSMarginRule(JS::Realm&, FlyString name, GC::Ref<CSSStyleProperties>);
+    CSSMarginRule(JS::Realm&, FlyString const& name, GC::Ref<CSSStyleProperties>);
 
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;

@@ -22,7 +22,7 @@ MediaKeySystemAccess::MediaKeySystemAccess(JS::Realm& realm, Utf16String const& 
 {
 }
 
-GC::Ref<MediaKeySystemAccess> MediaKeySystemAccess::create(JS::Realm& realm, Utf16String const& key_system, Bindings::MediaKeySystemConfiguration configuration, NonnullOwnPtr<KeySystem> cdm_implementation)
+GC::Ref<MediaKeySystemAccess> MediaKeySystemAccess::create(JS::Realm& realm, Utf16String const& key_system, Bindings::MediaKeySystemConfiguration const& configuration, NonnullOwnPtr<KeySystem> cdm_implementation)
 {
     return realm.create<MediaKeySystemAccess>(realm, key_system, configuration, move(cdm_implementation));
 }

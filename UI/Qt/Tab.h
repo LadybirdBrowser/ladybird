@@ -47,7 +47,7 @@ class Tab final : public QWidget {
     Q_OBJECT
 
 public:
-    Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0);
+    Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> const& parent_client = nullptr, size_t page_index = 0);
     virtual ~Tab() override;
 
     WebContentView& view() { return *m_view; }

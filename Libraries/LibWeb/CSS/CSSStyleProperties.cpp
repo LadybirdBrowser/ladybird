@@ -1273,7 +1273,7 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
             if (property_is_shorthand(longhand_id))
                 longhand_values.append(make_shorthand_value(longhand_id));
             else
-                longhand_values.append(list.first_matching([&](auto declaration) { return declaration.property_id == longhand_id; })->value);
+                longhand_values.append(list.first_matching([&](auto const& declaration) { return declaration.property_id == longhand_id; })->value);
         }
 
         return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
@@ -1321,7 +1321,7 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
     // NOTE: The below algorithm is only suggested rather than required by the spec
     // https://drafts.csswg.org/cssom/#example-a40690cb
     // 1. If property is a case-sensitive match for a property name of a CSS declaration in declarations, follow these substeps:
-    auto maybe_target_index = m_properties.find_first_index_if([&](auto declaration) { return declaration.property_id == property_id; });
+    auto maybe_target_index = m_properties.find_first_index_if([&](auto const& declaration) { return declaration.property_id == property_id; });
 
     if (maybe_target_index.has_value()) {
         // 1. Let target declaration be such CSS declaration.

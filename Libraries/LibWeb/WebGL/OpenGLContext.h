@@ -19,7 +19,7 @@ public:
         WebGL2,
     };
 
-    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, WebGLVersion);
+    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext> const&, WebGLVersion);
 
     void notify_content_will_change();
     void clear_buffer_to_default_values();

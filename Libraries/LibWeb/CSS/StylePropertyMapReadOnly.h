@@ -23,9 +23,9 @@ public:
 
     virtual ~StylePropertyMapReadOnly() override;
 
-    WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> get(String property);
-    WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> get_all(String property);
-    WebIDL::ExceptionOr<bool> has(String property);
+    WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> get(String const& property);
+    WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> get_all(String const& property);
+    WebIDL::ExceptionOr<bool> has(String const& property);
     WebIDL::UnsignedLong size() const;
 
 protected:

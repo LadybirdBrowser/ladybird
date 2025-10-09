@@ -24,12 +24,12 @@ FileWatcher::FileWatcher(int watcher_fd, NonnullRefPtr<Notifier> notifier)
 
 FileWatcher::~FileWatcher() = default;
 
-ErrorOr<bool> FileWatcherBase::add_watch(ByteString, FileWatcherEvent::Type)
+ErrorOr<bool> FileWatcherBase::add_watch(ByteString const&, FileWatcherEvent::Type)
 {
     return Error::from_errno(ENOTSUP);
 }
 
-ErrorOr<bool> FileWatcherBase::remove_watch(ByteString)
+ErrorOr<bool> FileWatcherBase::remove_watch(ByteString const&)
 {
     return Error::from_errno(ENOTSUP);
 }

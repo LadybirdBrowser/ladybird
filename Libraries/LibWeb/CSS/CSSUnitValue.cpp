@@ -27,7 +27,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSUnitValue);
 
-GC::Ref<CSSUnitValue> CSSUnitValue::create(JS::Realm& realm, double value, FlyString unit)
+GC::Ref<CSSUnitValue> CSSUnitValue::create(JS::Realm& realm, double value, FlyString const& unit)
 {
     // The type of a CSSUnitValue is the result of creating a type from its unit internal slot.
     // https://drafts.css-houdini.org/css-typed-om-1/#type-of-a-cssunitvalue
@@ -59,7 +59,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm,
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-cssunitvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Realm& realm, double value, FlyString unit)
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Realm& realm, double value, FlyString const& unit)
 {
     // 1. If creating a type from unit returns failure, throw a TypeError and abort this algorithm.
     auto numeric_type = NumericType::create_from_unit(unit);
@@ -70,7 +70,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Real
     return realm.create<CSSUnitValue>(realm, value, move(unit), numeric_type.release_value());
 }
 
-CSSUnitValue::CSSUnitValue(JS::Realm& realm, double value, FlyString unit, NumericType type)
+CSSUnitValue::CSSUnitValue(JS::Realm& realm, double value, FlyString const& unit, NumericType type)
     : CSSNumericValue(realm, move(type))
     , m_value(value)
     // AD-HOC: WPT expects the unit to be lowercase but this doesn't seem to be specified anywhere.

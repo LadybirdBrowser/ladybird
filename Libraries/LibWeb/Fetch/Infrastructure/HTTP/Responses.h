@@ -103,7 +103,7 @@ public:
     virtual void set_timing_allow_passed(bool timing_allow_passed) { m_timing_allow_passed = timing_allow_passed; }
 
     [[nodiscard]] virtual BodyInfo const& body_info() const { return m_body_info; }
-    virtual void set_body_info(BodyInfo body_info) { m_body_info = body_info; }
+    virtual void set_body_info(BodyInfo body_info) { m_body_info = move(body_info); }
 
     [[nodiscard]] RedirectTaint redirect_taint() const { return m_redirect_taint; }
     void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = move(redirect_taint); }

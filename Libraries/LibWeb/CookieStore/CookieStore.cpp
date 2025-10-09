@@ -618,7 +618,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(CookieInit const& options)
 }
 
 // https://cookiestore.spec.whatwg.org/#delete-a-cookie
-static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name, Optional<String> domain, String path, bool partitioned)
+static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name, Optional<String> const& domain, String path, bool partitioned)
 {
     // 1. Let expires be the earliest representable date represented as a timestamp.
     // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
