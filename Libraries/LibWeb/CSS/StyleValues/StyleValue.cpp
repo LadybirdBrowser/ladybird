@@ -70,6 +70,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TreeCountingFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -127,7 +128,7 @@ DimensionStyleValue const& StyleValue::as_dimension() const
 ENUMERATE_CSS_STYLE_VALUE_TYPES
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
-ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const&) const
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const&, PropertyComputationDependencies&) const
 {
     return *this;
 }

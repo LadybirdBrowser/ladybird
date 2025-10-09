@@ -812,6 +812,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
         auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
         RefPtr old_value = computed_properties->property(property_id);
+        // FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue, StyleValues which contain lengths (e.g. StyleValueList))
         // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
         if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
             auto is_inherited = computed_properties->is_property_inherited(property_id);
@@ -844,8 +845,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     if (invalidation.is_none() && old_values_with_relative_units.is_empty())
         return invalidation;
 
-    document().style_computer().compute_font(*computed_properties, AbstractElement { *this });
-    document().style_computer().compute_property_values(*computed_properties);
+    AbstractElement abstract_element { *this };
+
+    document().style_computer().compute_font(*computed_properties, abstract_element);
+    document().style_computer().compute_property_values(*computed_properties, abstract_element);
 
     for (auto [property_id, old_value] : old_values_with_relative_units) {
         auto const& new_value = computed_properties->property(static_cast<CSS::PropertyID>(property_id));
@@ -1392,6 +1395,14 @@ void Element::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Node::children_changed(metadata);
     set_needs_style_update(true);
+    for_each_child([&](DOM::Node& child) {
+        if (auto* element = as_if<DOM::Element>(child); element && element->style_uses_tree_counting_function()) {
+            element->set_needs_style_update(true);
+            set_child_needs_style_update(true);
+        }
+
+        return IterationDecision::Continue;
+    });
 }
 
 void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)

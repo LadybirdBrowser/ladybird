@@ -845,8 +845,6 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto text_wrap_mode_property = longhand(PropertyID::TextWrapMode);
         auto white_space_trim_property = longhand(PropertyID::WhiteSpaceTrim);
 
-        RefPtr<StyleValue const> value;
-
         if (white_space_trim_property->is_keyword() && white_space_trim_property->as_keyword().keyword() == Keyword::None) {
             auto white_space_collapse_keyword = white_space_collapse_property->as_keyword().keyword();
             auto text_wrap_mode_keyword = text_wrap_mode_property->as_keyword().keyword();

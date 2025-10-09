@@ -18,13 +18,15 @@ struct CalculationResolutionContext {
     using PercentageBasis = Variant<Empty, Angle, Frequency, Length, Time>;
 
     PercentageBasis percentage_basis {};
-    Optional<Length::ResolutionContext> length_resolution_context;
+    Optional<Length::ResolutionContext> length_resolution_context {};
+    Optional<TreeCountingFunctionResolutionContext> tree_counting_function_resolution_context {};
 
     static CalculationResolutionContext from_computation_context(ComputationContext const& computation_context, PercentageBasis percentage_basis = {})
     {
         return {
             .percentage_basis = percentage_basis,
             .length_resolution_context = computation_context.length_resolution_context,
+            .tree_counting_function_resolution_context = computation_context.tree_counting_function_resolution_context
         };
     }
 };

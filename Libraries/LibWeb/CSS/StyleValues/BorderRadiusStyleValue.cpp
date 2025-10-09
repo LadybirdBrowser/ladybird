@@ -18,10 +18,10 @@ String BorderRadiusStyleValue::to_string(SerializationMode mode) const
     return MUST(String::formatted("{} {}", m_properties.horizontal_radius->to_string(mode), m_properties.vertical_radius->to_string(mode)));
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
-    auto absolutized_horizontal_radius = m_properties.horizontal_radius->absolutized(computation_context);
-    auto absolutized_vertical_radius = m_properties.vertical_radius->absolutized(computation_context);
+    auto absolutized_horizontal_radius = m_properties.horizontal_radius->absolutized(computation_context, property_computation_dependencies);
+    auto absolutized_vertical_radius = m_properties.vertical_radius->absolutized(computation_context, property_computation_dependencies);
 
     if (absolutized_vertical_radius == m_properties.vertical_radius && absolutized_horizontal_radius == m_properties.horizontal_radius)
         return *this;

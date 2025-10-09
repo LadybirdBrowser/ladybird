@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 47 tests
 
-44 Pass
-3 Fail
+47 Pass
 Pass	pow(1,1) should be used-value-equivalent to 1
 Pass	sqrt(1) should be used-value-equivalent to 1
 Pass	hypot(1) should be used-value-equivalent to 1
@@ -27,9 +26,9 @@ Pass	hypot(0% + 3px, 0% + 4px) should be used-value-equivalent to 5px
 Pass	hypot(0% + 772.333px) should be used-value-equivalent to calc(0% + 772.333px)
 Pass	hypot(0% + 772.35px) should be used-value-equivalent to calc(0% + 772.35px)
 Pass	hypot(0% + 600px, 0% + 800px) should be used-value-equivalent to 1000px
-Fail	sqrt(sibling-index()) should be used-value-equivalent to 2
-Fail	calc(1px * sqrt(sibling-index())) should be used-value-equivalent to 2px
-Fail	sqrt(pow(sibling-index(), 2)) should be used-value-equivalent to 4
+Pass	sqrt(sibling-index()) should be used-value-equivalent to 2
+Pass	calc(1px * sqrt(sibling-index())) should be used-value-equivalent to 2px
+Pass	sqrt(pow(sibling-index(), 2)) should be used-value-equivalent to 4
 Pass	hypot(1px) should be used-value-equivalent to 1px
 Pass	hypot(1cm) should be used-value-equivalent to 1cm
 Pass	hypot(1mm) should be used-value-equivalent to 1mm

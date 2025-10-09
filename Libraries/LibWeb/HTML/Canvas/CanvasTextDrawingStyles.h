@@ -82,6 +82,7 @@ public:
         // and with system fonts being computed to explicit values.
         // FIXME: with the 'line-height' component forced to 'normal'
         // FIXME: with the 'font-size' component converted to CSS pixels
+        // FIXME: Disallow tree counting functions if this is an offscreen canvas
         auto font_style_value_result = parse_css_value(CSS::Parser::ParsingParams {}, font, CSS::PropertyID::Font);
 
         // If the new value is syntactically incorrect (including using property-independent style sheet syntax like 'inherit' or 'initial'), then it must be ignored, without assigning a new font value.
@@ -112,7 +113,10 @@ public:
                 // NOTE: The initial value here is non-standard as the default font is "10px sans-serif"
                 auto inherited_font_size = CSSPixels { 10 };
                 auto inherited_font_weight = CSS::InitialValues::font_weight();
+                // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
+                //        a font-size of 10px) for OffscreenCanvas
                 auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
+                Optional<CSS::TreeCountingFunctionResolutionContext> tree_counting_function_resolution_context;
 
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
                     // NOTE: The canvas itself is considered the inheritance parent
@@ -122,18 +126,25 @@ public:
                         inherited_math_depth = canvas_element.computed_properties()->math_depth();
                         inherited_font_size = canvas_element.computed_properties()->font_size();
                         inherited_font_weight = canvas_element.computed_properties()->font_weight();
-                        length_resolution_context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
+
+                        DOM::AbstractElement abstract_element { canvas_element };
+
+                        length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element);
+                        tree_counting_function_resolution_context = abstract_element.tree_counting_function_resolution_context();
                     }
                 }
 
                 CSS::ComputationContext computation_context {
-                    .length_resolution_context = length_resolution_context
+                    .length_resolution_context = length_resolution_context,
+                    .tree_counting_function_resolution_context = tree_counting_function_resolution_context
                 };
 
-                auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context);
-                auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, computation_context);
-                auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context);
-                auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, computation_context);
+                // FIXME: Should font be recomputed on canvas element style change?
+                CSS::PropertyComputationDependencies property_computation_dependencies;
+                auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context, property_computation_dependencies);
+                auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, computation_context, property_computation_dependencies);
+                auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context, property_computation_dependencies);
+                auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, computation_context, property_computation_dependencies);
 
                 return document->style_computer().compute_font_for_style_values(
                     font_family,

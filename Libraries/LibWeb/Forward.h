@@ -383,6 +383,7 @@ class TimeStyleValue;
 class Transformation;
 class TransformationStyleValue;
 class TransitionStyleValue;
+class TreeCountingFunctionStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
 class URL;
@@ -398,6 +399,7 @@ struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
 struct GridRepeatParams;
 struct StyleSheetIdentifier;
+struct TreeCountingFunctionResolutionContext;
 
 }
 

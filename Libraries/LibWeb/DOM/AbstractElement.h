@@ -27,6 +27,8 @@ public:
     GC::Ptr<Layout::NodeWithStyle> layout_node();
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const { return const_cast<AbstractElement*>(this)->layout_node(); }
 
+    CSS::TreeCountingFunctionResolutionContext tree_counting_function_resolution_context() const;
+
     GC::Ptr<Element const> parent_element() const;
     Optional<AbstractElement> element_to_inherit_style_from() const;
     Optional<AbstractElement> previous_in_tree_order() { return walk_layout_tree(WalkMethod::Previous); }

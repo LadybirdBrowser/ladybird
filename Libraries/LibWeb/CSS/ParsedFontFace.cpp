@@ -86,11 +86,14 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
         //  - FIXME: For variation axis clamping, clamping does not occur
-        if (value->to_keyword() == Keyword::Auto)
+        if (value->to_keyword() == Keyword::Auto) {
             weight = 400;
-        else
+        } else {
+            // NOTE: We can disregard the dependencies here because they won't change
+            PropertyComputationDependencies property_computation_dependencies;
             // NOTE: The value we pass here for inherited_font_weight is irrelevant as relative keywords (lighter, bolder) should be disallowed at parse time
-            weight = StyleComputer::compute_font_weight(*value, 0, computation_context)->as_number().number();
+            weight = StyleComputer::compute_font_weight(*value, 0, computation_context, property_computation_dependencies)->as_number().number();
+        }
     }
 
     Optional<int> slope;
@@ -99,10 +102,13 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
         //  - FIXME: For variation axis clamping, clamping does not occur
-        if (value->to_keyword() == Keyword::Auto)
+        if (value->to_keyword() == Keyword::Auto) {
             slope = 0;
-        else
-            slope = StyleComputer::compute_font_style(*value, computation_context)->as_font_style().to_font_slope();
+        } else {
+            // NOTE: We can disregard the dependencies here because they won't change
+            PropertyComputationDependencies property_computation_dependencies;
+            slope = StyleComputer::compute_font_style(*value, computation_context, property_computation_dependencies)->as_font_style().to_font_slope();
+        }
     }
 
     Optional<int> width;
@@ -111,10 +117,13 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
         // The auto values for these three descriptors have the following effects:
         //  - For font selection purposes, the font is selected as if the appropriate normal value (normal, normal or normal) is chosen
         //  - FIXME: For variation axis clamping, clamping does not occur
-        if (value->to_keyword() == Keyword::Auto)
+        if (value->to_keyword() == Keyword::Auto) {
             width = 100;
-        else
-            width = StyleComputer::compute_font_width(*value, computation_context)->as_percentage().raw_value();
+        } else {
+            // NOTE: We can disregard the dependencies here because they won't change
+            PropertyComputationDependencies property_computation_dependencies;
+            width = StyleComputer::compute_font_width(*value, computation_context, property_computation_dependencies)->as_percentage().raw_value();
+        }
     }
 
     Vector<Source> sources;
