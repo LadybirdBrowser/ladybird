@@ -109,6 +109,9 @@ public:
         }
     }
 
+    static constexpr size_t VISUAL_VIEWPORT_TRANSFORM_INDEX = 1;
+    void set_visual_viewport_transform(Gfx::FloatMatrix4x4 t) { m_commands[VISUAL_VIEWPORT_TRANSFORM_INDEX].command.get<ApplyTransform>().matrix = t; }
+
 private:
     DisplayList(double device_pixels_per_css_pixel)
         : m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
@@ -117,6 +120,7 @@ private:
 
     AK::SegmentedVector<DisplayListCommandWithScrollAndClip, 512> m_commands;
     double m_device_pixels_per_css_pixel;
+    Optional<Gfx::FloatMatrix4x4> m_visual_viewport_transform;
 };
 
 }

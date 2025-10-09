@@ -24,9 +24,16 @@ StackingContextTransform::StackingContextTransform(Gfx::FloatPoint origin, Gfx::
 DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
     : m_display_list(command_list)
 {
+    save();
+    // Reserve for visual viewport transform
+    VERIFY(m_display_list.commands().size() == DisplayList::VISUAL_VIEWPORT_TRANSFORM_INDEX);
+    apply_transform({}, Gfx::FloatMatrix4x4::identity());
 }
 
-DisplayListRecorder::~DisplayListRecorder() = default;
+DisplayListRecorder::~DisplayListRecorder()
+{
+    restore();
+}
 
 template<typename T>
 consteval static int command_nesting_level_change(T const& command)

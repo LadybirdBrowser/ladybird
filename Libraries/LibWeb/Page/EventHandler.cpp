@@ -9,6 +9,7 @@
 
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
@@ -383,17 +384,20 @@ GC::Ptr<Painting::PaintableBox const> EventHandler::paint_root() const
     return m_navigable->active_document()->paintable_box();
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int wheel_delta_x, int wheel_delta_y)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int wheel_delta_x, int wheel_delta_y)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
 
-    if (!m_navigable->active_document())
+    auto document = m_navigable->active_document();
+    if (!document)
         return EventResult::Dropped;
-    if (!m_navigable->active_document()->is_fully_active())
+    if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
 
     if (!paint_root())
         return EventResult::Dropped;
@@ -448,15 +452,18 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
     return handled_event;
 }
 
-EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
 
-    if (!m_navigable->active_document())
+    auto document = m_navigable->active_document();
+    if (!document)
         return EventResult::Dropped;
-    if (!m_navigable->active_document()->is_fully_active())
+    if (!document->is_fully_active())
         return EventResult::Dropped;
+
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
 
     m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseUp);
 
@@ -594,22 +601,24 @@ after_node_use:
     return handled_event;
 }
 
-EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
 
-    if (!m_navigable->active_document())
+    auto document = m_navigable->active_document();
+    if (!document)
         return EventResult::Dropped;
-    if (!m_navigable->active_document()->is_fully_active())
+    if (!document->is_fully_active())
         return EventResult::Dropped;
+
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
 
     m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
 
     if (!paint_root())
         return EventResult::Dropped;
 
-    GC::Ref<DOM::Document> document = *m_navigable->active_document();
     GC::Ptr<DOM::Node> node;
 
     ScopeGuard update_hovered_node_guard = [&node, &document] {
@@ -723,7 +732,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
+EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -733,12 +742,13 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
+    auto& document = *m_navigable->active_document();
+    auto viewport_position = document.visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+
     m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
 
     if (!paint_root())
         return EventResult::Dropped;
-
-    auto& document = *m_navigable->active_document();
 
     bool hovered_node_changed = false;
     bool is_hovering_link = false;
@@ -912,7 +922,7 @@ EventResult EventHandler::handle_mouseleave()
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -923,6 +933,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
         return EventResult::Dropped;
 
     auto& document = *m_navigable->active_document();
+    auto viewport_position = document.visual_viewport()->map_to_layout_viewport(visual_viewport_position);
 
     document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleDoubleClick);
 
@@ -1004,7 +1015,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, Vector<HTML::SelectedFile> files)
+EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, Vector<HTML::SelectedFile> files)
 {
     if (!m_navigable->active_document())
         return EventResult::Dropped;
@@ -1012,6 +1023,8 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
         return EventResult::Dropped;
 
     auto& document = *m_navigable->active_document();
+    auto viewport_position = document.visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+
     document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleDragAndDrop);
 
     if (!paint_root())
@@ -1048,6 +1061,19 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     }
 
     VERIFY_NOT_REACHED();
+}
+
+EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, double scale_delta)
+{
+    auto document = m_navigable->active_document();
+    if (!document)
+        return EventResult::Dropped;
+    if (!document->is_fully_active())
+        return EventResult::Dropped;
+
+    auto visual_viewport = document->visual_viewport();
+    visual_viewport->zoom(point, scale_delta);
+    return EventResult::Handled;
 }
 
 EventResult EventHandler::focus_next_element()

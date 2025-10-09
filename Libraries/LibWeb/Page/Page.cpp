@@ -234,6 +234,11 @@ EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPo
     return top_level_traversable()->event_handler().handle_drag_and_drop_event(type, device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, move(files));
 }
 
+EventResult Page::handle_pinch_event(DevicePixelPoint position, double scale)
+{
+    return top_level_traversable()->event_handler().handle_pinch_event(device_to_css_point(position), scale);
+}
+
 EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
     return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat);

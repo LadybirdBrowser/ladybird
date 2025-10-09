@@ -145,4 +145,41 @@ WebIDL::CallbackType* VisualViewport::onscrollend()
     return event_handler_attribute(HTML::EventNames::scrollend);
 }
 
+Gfx::AffineTransform VisualViewport::transform() const
+{
+    Gfx::AffineTransform transform;
+    auto offset = m_offset.to_type<double>() * m_scale;
+    transform.translate(-offset.x(), -offset.y());
+    transform.scale({ m_scale, m_scale });
+    return transform;
+}
+
+void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
+{
+    static constexpr double MIN_ALLOWED_SCALE = 1.0;
+    static constexpr double MAX_ALLOWED_SCALE = 5.0;
+    double new_scale = clamp(m_scale * (1 + scale_delta), MIN_ALLOWED_SCALE, MAX_ALLOWED_SCALE);
+    double applied_delta = new_scale / m_scale;
+
+    // For pinch zoom we want focal_point to stay put on screen:
+    // scale_new * (focal_point - offset_new) = scale_old * (focal_point - offset_old)
+    auto new_offset = m_offset.to_type<double>() * m_scale * applied_delta;
+    new_offset += position.to_type<int>().to_type<double>() * (applied_delta - 1.0f);
+
+    auto viewport_float_size = m_document->navigable()->viewport_rect().size().to_type<double>();
+    auto max_x_offset = max(0.0, viewport_float_size.width() * (new_scale - 1.0f));
+    auto max_y_offset = max(0.0, viewport_float_size.height() * (new_scale - 1.0f));
+    new_offset = { clamp(new_offset.x(), 0.0f, max_x_offset), clamp(new_offset.y(), 0.0f, max_y_offset) };
+
+    m_scale = new_scale;
+    m_offset = (new_offset / m_scale).to_type<CSSPixels>();
+    m_document->set_needs_display(InvalidateDisplayList::No);
+}
+
+CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
+{
+    auto inverse = transform().inverse().value_or({});
+    return inverse.map(position.to_type<int>()).to_type<CSSPixels>();
+}
+
 }
