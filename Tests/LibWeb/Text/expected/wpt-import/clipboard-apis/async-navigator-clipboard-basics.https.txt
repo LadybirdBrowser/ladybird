@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+14 Pass
+3 Fail
+Pass	navigator.clipboard exists
+Pass	navigator.clipboard.write([text/plain ClipboardItem]) succeeds
+Fail	navigator.clipboard.write([>1 ClipboardItems]) fails (not implemented)
+Pass	navigator.clipboard.write() fails (expect [ClipboardItem])
+Pass	navigator.clipboard.write(null) fails (expect [ClipboardItem])
+Pass	navigator.clipboard.write(DOMString) fails (expect [ClipboardItem])
+Pass	navigator.clipboard.write(Blob) fails (expect [ClipboardItem])
+Pass	navigator.clipboard.writeText(DOMString) succeeds
+Pass	navigator.clipboard.writeText() fails (expect DOMString)
+Pass	navigator.clipboard.write({string : DOMString}) succeeds
+Pass	navigator.clipboard.write({string : image/png Blob}) succeeds
+Pass	navigator.clipboard.write([text + png] succeeds
+Fail	navigator.clipboard.write(image/png DOMString) fails
+Pass	navigator.clipboard.read() succeeds
+Fail	navigator.clipboard.readText() succeeds
+Pass	navigator.clipboard.write(Promise<Blob>) succeeds
+Pass	navigator.clipboard.write(Promise<Blob>s) succeeds

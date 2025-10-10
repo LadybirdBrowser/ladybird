@@ -76,9 +76,10 @@ public:
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
 
-    virtual Utf16String clipboard_text() const { return {}; }
-    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const { return {}; }
-    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) { }
+    // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
+    virtual Utf16String clipboard_text() const;
+    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
+    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
 
     Action& reload_action() { return *m_reload_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
@@ -220,6 +221,8 @@ private:
     RefPtr<Action> m_block_pop_ups_action;
     StringView m_user_agent_string;
     StringView m_navigator_compatibility_mode;
+
+    Optional<Web::Clipboard::SystemClipboardRepresentation> m_clipboard;
 
 #if defined(AK_OS_MACOS)
     OwnPtr<MachPortServer> m_mach_port_server;
