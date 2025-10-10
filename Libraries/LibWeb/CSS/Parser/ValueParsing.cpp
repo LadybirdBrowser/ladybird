@@ -2997,32 +2997,25 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
             return nullptr;
 
         if (comma_separated_arguments.size() == 2) {
-            TokenStream identifier_stream { comma_separated_arguments[1] };
-            auto keyword_value = parse_keyword_value(identifier_stream);
-            if (!keyword_value)
+            if (comma_separated_arguments[1].size() != 1)
                 return nullptr;
-            switch (keyword_value->to_keyword()) {
-            case Keyword::JumpStart:
-                steps.position = EasingStyleValue::Steps::Position::JumpStart;
-                break;
-            case Keyword::JumpEnd:
-                steps.position = EasingStyleValue::Steps::Position::JumpEnd;
-                break;
-            case Keyword::JumpBoth:
-                steps.position = EasingStyleValue::Steps::Position::JumpBoth;
-                break;
-            case Keyword::JumpNone:
-                steps.position = EasingStyleValue::Steps::Position::JumpNone;
-                break;
-            case Keyword::Start:
-                steps.position = EasingStyleValue::Steps::Position::Start;
-                break;
-            case Keyword::End:
-                steps.position = EasingStyleValue::Steps::Position::End;
-                break;
-            default:
+
+            auto token = comma_separated_arguments[1][0];
+
+            if (!token.is(Token::Type::Ident))
                 return nullptr;
-            }
+
+            auto keyword = keyword_from_string(token.token().ident());
+
+            if (!keyword.has_value())
+                return nullptr;
+
+            auto step_position = keyword_to_step_position(keyword.value());
+
+            if (!step_position.has_value())
+                return nullptr;
+
+            steps.position = step_position.value();
         }
 
         // Perform extra validation
@@ -3030,7 +3023,7 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
         // If the <step-position> is jump-none, the <integer> must be at least 2, or the function is invalid.
         // Otherwise, the <integer> must be at least 1, or the function is invalid.
         if (!intervals->is_calculated()) {
-            if (steps.position == EasingStyleValue::Steps::Position::JumpNone) {
+            if (steps.position == StepPosition::JumpNone) {
                 if (intervals->value() <= 1)
                     return nullptr;
             } else if (intervals->value() <= 0) {

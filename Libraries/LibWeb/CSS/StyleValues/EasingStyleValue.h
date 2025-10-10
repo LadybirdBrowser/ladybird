@@ -71,20 +71,11 @@ public:
     };
 
     struct Steps {
-        enum class Position {
-            JumpStart,
-            JumpEnd,
-            JumpNone,
-            JumpBoth,
-            Start,
-            End,
-        };
-
         static Steps step_start();
         static Steps step_end();
 
         IntegerOrCalculated number_of_intervals { 1 };
-        Position position { Position::End };
+        StepPosition position { StepPosition::End };
 
         bool operator==(Steps const&) const = default;
 
