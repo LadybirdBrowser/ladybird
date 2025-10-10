@@ -26,7 +26,7 @@ inline bool Value::to_boolean() const
 inline ThrowCompletionOr<Value> Value::to_number(VM& vm) const
 {
     // OPTIMIZATION: Fast path for when this value is already a number.
-    if (is_number())
+    if (is_number()) [[likely]]
         return *this;
 
     return to_number_slow_case(vm);
@@ -35,7 +35,7 @@ inline ThrowCompletionOr<Value> Value::to_number(VM& vm) const
 inline ThrowCompletionOr<Value> Value::to_numeric(VM& vm) const
 {
     // OPTIMIZATION: Fast path for when this value is already a number.
-    if (is_number())
+    if (is_number()) [[likely]]
         return *this;
 
     return to_numeric_slow_case(vm);
@@ -43,14 +43,14 @@ inline ThrowCompletionOr<Value> Value::to_numeric(VM& vm) const
 
 inline ThrowCompletionOr<Value> Value::to_primitive(VM& vm, PreferredType preferred_type) const
 {
-    if (!is_object())
+    if (!is_object()) [[likely]]
         return *this;
     return to_primitive_slow_case(vm, preferred_type);
 }
 
 inline ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
 {
-    if (is_object())
+    if (is_object()) [[likely]]
         return const_cast<Object&>(as_object());
     return to_object_slow(vm);
 }
