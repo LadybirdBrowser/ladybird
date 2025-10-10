@@ -709,6 +709,14 @@
     "crispedges",
     "geometricprecision"
   ],
+  "step-position": [
+    "jump-start",
+    "jump-end",
+    "jump-none",
+    "jump-both",
+    "start",
+    "end"
+  ],
   "stroke-linecap": [
     "butt",
     "square",

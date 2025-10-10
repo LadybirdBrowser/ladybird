@@ -50,13 +50,13 @@ EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in_out()
 
 EasingStyleValue::Steps EasingStyleValue::Steps::step_start()
 {
-    static Steps steps { 1, Steps::Position::Start };
+    static Steps steps { 1, StepPosition::Start };
     return steps;
 }
 
 EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
 {
-    static Steps steps { 1, Steps::Position::End };
+    static Steps steps { 1, StepPosition::End };
     return steps;
 }
 
@@ -350,7 +350,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     // https://www.w3.org/TR/css-easing-1/#step-easing-algo
     // 1. Calculate the current step as floor(input progress value × steps).
     auto resolved_number_of_intervals = number_of_intervals.resolved({}).value_or(1);
-    resolved_number_of_intervals = max(resolved_number_of_intervals, position == Steps::Position::JumpNone ? 2 : 1);
+    resolved_number_of_intervals = max(resolved_number_of_intervals, position == StepPosition::JumpNone ? 2 : 1);
 
     auto current_step = floor(input_progress * resolved_number_of_intervals);
 
@@ -358,7 +358,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    - jump-start,
     //    - jump-both,
     //    increment current step by one.
-    if (position == Steps::Position::JumpStart || position == Steps::Position::Start || position == Steps::Position::JumpBoth)
+    if (position == StepPosition::JumpStart || position == StepPosition::Start || position == StepPosition::JumpBoth)
         current_step += 1;
 
     // 3. If both of the following conditions are true:
@@ -379,9 +379,9 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    jump-none -> steps - 1
     //    jump-both -> steps + 1
     auto jumps = resolved_number_of_intervals;
-    if (position == Steps::Position::JumpNone) {
+    if (position == StepPosition::JumpNone) {
         jumps--;
-    } else if (position == Steps::Position::JumpBoth) {
+    } else if (position == StepPosition::JumpBoth) {
         jumps++;
     }
 
@@ -405,23 +405,14 @@ String EasingStyleValue::Steps::to_string(SerializationMode mode) const
         builder.append("steps(1)"sv);
     } else {
         auto position = [&] -> Optional<StringView> {
-            switch (this->position) {
-            case Steps::Position::JumpStart:
-                return "jump-start"sv;
-            case Steps::Position::JumpNone:
-                return "jump-none"sv;
-            case Steps::Position::JumpBoth:
-                return "jump-both"sv;
-            case Steps::Position::Start:
-                return "start"sv;
-            default:
+            if (first_is_one_of(this->position, StepPosition::JumpEnd, StepPosition::End))
                 return {};
-            }
+            return CSS::to_string(this->position);
         }();
         auto intervals = number_of_intervals;
         if (mode == SerializationMode::ResolvedValue) {
             auto resolved_value = number_of_intervals.resolved({}).value_or(1);
-            intervals = max(resolved_value, this->position == Steps::Position::JumpNone ? 2 : 1);
+            intervals = max(resolved_value, this->position == StepPosition::JumpNone ? 2 : 1);
         }
         if (position.has_value()) {
             builder.appendff("steps({}, {})", intervals.to_string(mode), position.value());
