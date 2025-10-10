@@ -1626,6 +1626,13 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
         //    notify about playing for the element.
         else {
             notify_about_playing();
+
+            // AD-HOC: If the official playback position is at the end of the media data here, that means that we haven't
+            //         run the reached the end of media playback steps. This can happen if we seeked to the end while paused
+            //         and looping.
+            //         See https://github.com/whatwg/html/issues/11774
+            if (m_official_playback_position == m_duration)
+                reached_end_of_media_playback();
         }
     }
 
@@ -2033,7 +2040,10 @@ void HTMLMediaElement::reached_end_of_media_playback()
     m_loop_was_specified_when_reaching_end_of_media_resource = has_attribute(HTML::AttributeNames::loop);
     if (m_loop_was_specified_when_reaching_end_of_media_resource) {
         // then seek to the earliest possible position of the media resource and return.
-        seek_element(0);
+        // AD-HOC: We don't want to loop back to the start if we're paused.
+        //         See https://github.com/whatwg/html/issues/11774
+        if (!paused())
+            seek_element(0);
         // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
         //        and remove any delay in displaying the first frame again.
         return;
