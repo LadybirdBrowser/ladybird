@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -144,6 +145,14 @@ Optional<SumValue> CSSMathClamp::create_a_sum_value() const
             value->first().unit_map,
         }
     };
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathClamp::create_calculation_node(CalculationContext const& context) const
+{
+    auto lower = TRY(m_lower->create_calculation_node(context));
+    auto value = TRY(m_value->create_calculation_node(context));
+    auto upper = TRY(m_upper->create_calculation_node(context));
+    return ClampCalculationNode::create(move(lower), move(value), move(upper));
 }
 
 }

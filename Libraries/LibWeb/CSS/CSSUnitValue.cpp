@@ -444,4 +444,13 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     return style_value.release_nonnull();
 }
 
+WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSUnitValue::create_calculation_node(CalculationContext const& context) const
+{
+    auto value = create_numeric_value(m_value, m_unit);
+    if (!value.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create calculation node from `{}{}`.", m_value, m_unit)) };
+
+    return NumericCalculationNode::create(value.release_value(), context);
+}
+
 }

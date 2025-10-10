@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/CSSMathValuePrototype.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -30,6 +31,8 @@ public:
         Without,
     };
     virtual String serialize_math_value(Nested, Parens) const = 0;
+
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const final override;
 
 protected:
     explicit CSSMathValue(JS::Realm&, Bindings::CSSMathOperator, NumericType);
