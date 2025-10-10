@@ -123,12 +123,37 @@
     O(PrepareYield)                    \
     O(PostfixDecrement)                \
     O(PostfixIncrement)                \
-    O(PutById)                         \
-    O(PutByNumericId)                  \
-    O(PutByIdWithThis)                 \
+    O(PutNormalById)                   \
+    O(PutOwnById)                      \
+    O(PutGetterById)                   \
+    O(PutSetterById)                   \
+    O(PutPrototypeById)                \
+    O(PutNormalByNumericId)            \
+    O(PutOwnByNumericId)               \
+    O(PutGetterByNumericId)            \
+    O(PutSetterByNumericId)            \
+    O(PutPrototypeByNumericId)         \
+    O(PutNormalByIdWithThis)           \
+    O(PutOwnByIdWithThis)              \
+    O(PutGetterByIdWithThis)           \
+    O(PutSetterByIdWithThis)           \
+    O(PutPrototypeByIdWithThis)        \
+    O(PutNormalByNumericIdWithThis)    \
+    O(PutOwnByNumericIdWithThis)       \
+    O(PutGetterByNumericIdWithThis)    \
+    O(PutSetterByNumericIdWithThis)    \
+    O(PutPrototypeByNumericIdWithThis) \
     O(PutBySpread)                     \
-    O(PutByValue)                      \
-    O(PutByValueWithThis)              \
+    O(PutNormalByValue)                \
+    O(PutOwnByValue)                   \
+    O(PutGetterByValue)                \
+    O(PutSetterByValue)                \
+    O(PutPrototypeByValue)             \
+    O(PutNormalByValueWithThis)        \
+    O(PutOwnByValueWithThis)           \
+    O(PutGetterByValueWithThis)        \
+    O(PutSetterByValueWithThis)        \
+    O(PutPrototypeByValueWithThis)     \
     O(PutPrivateById)                  \
     O(ResolveSuperBase)                \
     O(ResolveThisBinding)              \

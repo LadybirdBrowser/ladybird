@@ -638,12 +638,22 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(PrepareYield);
             HANDLE_INSTRUCTION(PostfixDecrement);
             HANDLE_INSTRUCTION(PostfixIncrement);
-            HANDLE_INSTRUCTION(PutById);
-            HANDLE_INSTRUCTION(PutByNumericId);
-            HANDLE_INSTRUCTION(PutByIdWithThis);
+
+#define HANDLE_PUT_KIND_BY_ID(kind) HANDLE_INSTRUCTION(Put##kind##ById);
+#define HANDLE_PUT_KIND_BY_NUMERIC_ID(kind) HANDLE_INSTRUCTION(Put##kind##ByNumericId);
+#define HANDLE_PUT_KIND_BY_VALUE(kind) HANDLE_INSTRUCTION(Put##kind##ByValue);
+#define HANDLE_PUT_KIND_BY_VALUE_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByValueWithThis);
+#define HANDLE_PUT_KIND_BY_ID_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByIdWithThis);
+#define HANDLE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByNumericIdWithThis);
+
+            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_ID)
+            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_NUMERIC_ID)
+            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_ID_WITH_THIS)
+            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS)
+            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_VALUE)
+            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_VALUE_WITH_THIS)
+
             HANDLE_INSTRUCTION(PutBySpread);
-            HANDLE_INSTRUCTION(PutByValue);
-            HANDLE_INSTRUCTION(PutByValueWithThis);
             HANDLE_INSTRUCTION(PutPrivateById);
             HANDLE_INSTRUCTION(ResolveSuperBase);
             HANDLE_INSTRUCTION(ResolveThisBinding);
@@ -1188,7 +1198,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
 }
 
-inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, PutKind kind, PropertyLookupCache* caches = nullptr)
+template<PutKind kind>
+ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish())
@@ -1200,7 +1211,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         return throw_null_or_undefined_property_access(vm, base, base_identifier, name);
     auto object = maybe_object.release_value();
 
-    if (kind == PutKind::Getter || kind == PutKind::Setter) {
+    if constexpr (kind == PutKind::Getter || kind == PutKind::Setter) {
         // The generator should only pass us functions for getters and setters.
         VERIFY(value.is_function());
     }
@@ -1243,7 +1254,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     if (can_use_cache) {
                         auto value_in_prototype = cache.prototype->get_direct(cache.property_offset.value());
                         if (value_in_prototype.is_accessor()) {
-                            TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
+                            (void)TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
                             return {};
                         }
                     }
@@ -1254,7 +1265,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                         break;
                     auto value_in_object = object->get_direct(cache.property_offset.value());
                     if (value_in_object.is_accessor()) {
-                        TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                        (void)TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
                     } else {
                         object->put_direct(*cache.property_offset, value);
                     }
@@ -1414,10 +1425,11 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     return value;
 }
 
-inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const& base_identifier, Value property_key_value, Value value, PutKind kind)
+template<PutKind kind>
+inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const& base_identifier, Value property_key_value, Value value)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
-    if ((kind == PutKind::Normal || kind == PutKind::Own)
+    if (kind == PutKind::Normal
         && base.is_object() && property_key_value.is_int32() && property_key_value.as_i32() >= 0) {
         auto& object = base.as_object();
         auto* storage = object.indexed_properties().storage();
@@ -1526,7 +1538,7 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16Fl
     }
 
     auto property_key = TRY(property_key_value.to_property_key(vm));
-    TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, kind));
+    TRY(put_by_property_key<kind>(vm, base, base, value, base_identifier, property_key));
     return {};
 }
 
@@ -2682,40 +2694,93 @@ ThrowCompletionOr<void> PutBySpread::execute_impl(Bytecode::Interpreter& interpr
     return {};
 }
 
-ThrowCompletionOr<void> PutById::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto value = interpreter.get(m_src);
-    auto base = interpreter.get(m_base);
-    auto base_identifier = interpreter.get_identifier(m_base_identifier);
-    PropertyKey name { interpreter.get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
-    TRY(put_by_property_key(vm, base, base, value, base_identifier, name, m_kind, &cache));
-    return {};
-}
+#define DEFINE_PUT_KIND_BY_ID(kind)                                                                      \
+    ThrowCompletionOr<void> Put##kind##ById::execute_impl(Bytecode::Interpreter& interpreter) const      \
+    {                                                                                                    \
+        auto& vm = interpreter.vm();                                                                     \
+        auto value = interpreter.get(m_src);                                                             \
+        auto base = interpreter.get(m_base);                                                             \
+        auto base_identifier = interpreter.get_identifier(m_base_identifier);                            \
+        PropertyKey name { interpreter.get_identifier(m_property), PropertyKey::StringMayBeNumber::No }; \
+        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];            \
+        TRY(put_by_property_key<PutKind::kind>(vm, base, base, value, base_identifier, name, &cache));   \
+        return {};                                                                                       \
+    }                                                                                                    \
+    ByteString Put##kind##ById::to_byte_string_impl(Bytecode::Executable const& executable) const        \
+    {                                                                                                    \
+        return ByteString::formatted("Put" #kind "ById {}, {}, {}",                                      \
+            format_operand("base"sv, m_base, executable),                                                \
+            executable.identifier_table->get(m_property),                                                \
+            format_operand("src"sv, m_src, executable));                                                 \
+    }
 
-ThrowCompletionOr<void> PutByNumericId::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto value = interpreter.get(m_src);
-    auto base = interpreter.get(m_base);
-    auto base_identifier = interpreter.get_identifier(m_base_identifier);
-    PropertyKey name { m_property_index };
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
-    TRY(put_by_property_key(vm, base, base, value, base_identifier, name, m_kind, &cache));
-    return {};
-}
+JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_ID)
 
-ThrowCompletionOr<void> PutByIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto value = interpreter.get(m_src);
-    auto base = interpreter.get(m_base);
-    PropertyKey name { interpreter.get_identifier(m_property), PropertyKey::StringMayBeNumber::No };
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
-    TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, name, m_kind, &cache));
-    return {};
-}
+#define DEFINE_PUT_KIND_BY_NUMERIC_ID(kind)                                                                \
+    ThrowCompletionOr<void> Put##kind##ByNumericId::execute_impl(Bytecode::Interpreter& interpreter) const \
+    {                                                                                                      \
+        auto& vm = interpreter.vm();                                                                       \
+        auto value = interpreter.get(m_src);                                                               \
+        auto base = interpreter.get(m_base);                                                               \
+        auto base_identifier = interpreter.get_identifier(m_base_identifier);                              \
+        PropertyKey name { m_property };                                                                   \
+        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];              \
+        TRY(put_by_property_key<PutKind::kind>(vm, base, base, value, base_identifier, name, &cache));     \
+        return {};                                                                                         \
+    }                                                                                                      \
+    ByteString Put##kind##ByNumericId::to_byte_string_impl(Bytecode::Executable const& executable) const   \
+    {                                                                                                      \
+        return ByteString::formatted("Put" #kind "ByNumericId {}, {}, {}",                                 \
+            format_operand("base"sv, m_base, executable),                                                  \
+            m_property,                                                                                    \
+            format_operand("src"sv, m_src, executable));                                                   \
+    }
+
+JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_NUMERIC_ID)
+
+#define DEFINE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS(kind)                                                              \
+    ThrowCompletionOr<void> Put##kind##ByNumericIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const \
+    {                                                                                                              \
+        auto& vm = interpreter.vm();                                                                               \
+        auto value = interpreter.get(m_src);                                                                       \
+        auto base = interpreter.get(m_base);                                                                       \
+        PropertyKey name { m_property };                                                                           \
+        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];                      \
+        TRY(put_by_property_key<PutKind::kind>(vm, base, interpreter.get(m_this_value), value, {}, name, &cache)); \
+        return {};                                                                                                 \
+    }                                                                                                              \
+    ByteString Put##kind##ByNumericIdWithThis::to_byte_string_impl(Bytecode::Executable const& executable) const   \
+    {                                                                                                              \
+        return ByteString::formatted("Put" #kind "ByNumericIdWithThis {}, {}, {}, {}",                             \
+            format_operand("base"sv, m_base, executable),                                                          \
+            m_property,                                                                                            \
+            format_operand("src"sv, m_src, executable),                                                            \
+            format_operand("this"sv, m_this_value, executable));                                                   \
+    }
+
+JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS)
+
+#define DEFINE_PUT_KIND_BY_ID_WITH_THIS(kind)                                                                      \
+    ThrowCompletionOr<void> Put##kind##ByIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const        \
+    {                                                                                                              \
+        auto& vm = interpreter.vm();                                                                               \
+        auto value = interpreter.get(m_src);                                                                       \
+        auto base = interpreter.get(m_base);                                                                       \
+        PropertyKey name { interpreter.get_identifier(m_property), PropertyKey::StringMayBeNumber::No };           \
+        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];                      \
+        TRY(put_by_property_key<PutKind::kind>(vm, base, interpreter.get(m_this_value), value, {}, name, &cache)); \
+        return {};                                                                                                 \
+    }                                                                                                              \
+    ByteString Put##kind##ByIdWithThis::to_byte_string_impl(Bytecode::Executable const& executable) const          \
+    {                                                                                                              \
+        return ByteString::formatted("Put" #kind "ByIdWithThis {}, {}, {}, {}",                                    \
+            format_operand("base"sv, m_base, executable),                                                          \
+            executable.identifier_table->get(m_property),                                                          \
+            format_operand("src"sv, m_src, executable),                                                            \
+            format_operand("this"sv, m_this_value, executable));                                                   \
+    }
+
+JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_ID_WITH_THIS)
 
 ThrowCompletionOr<void> PutPrivateById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
@@ -3218,24 +3283,48 @@ ThrowCompletionOr<void> GetByValueWithThis::execute_impl(Bytecode::Interpreter& 
     return {};
 }
 
-ThrowCompletionOr<void> PutByValue::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto value = interpreter.get(m_src);
-    auto base_identifier = interpreter.get_identifier(m_base_identifier);
-    TRY(put_by_value(vm, interpreter.get(m_base), base_identifier, interpreter.get(m_property), value, m_kind));
-    return {};
-}
+#define DEFINE_PUT_KIND_BY_VALUE(kind)                                                                 \
+    ThrowCompletionOr<void> Put##kind##ByValue::execute_impl(Bytecode::Interpreter& interpreter) const \
+    {                                                                                                  \
+        auto& vm = interpreter.vm();                                                                   \
+        auto value = interpreter.get(m_src);                                                           \
+        auto base = interpreter.get(m_base);                                                           \
+        auto base_identifier = interpreter.get_identifier(m_base_identifier);                          \
+        auto property = interpreter.get(m_property);                                                   \
+        TRY(put_by_value<PutKind::kind>(vm, base, base_identifier, property, value));                  \
+        return {};                                                                                     \
+    }                                                                                                  \
+    ByteString Put##kind##ByValue::to_byte_string_impl(Bytecode::Executable const& executable) const   \
+    {                                                                                                  \
+        return ByteString::formatted("Put" #kind "ByValue {}, {}, {}",                                 \
+            format_operand("base"sv, m_base, executable),                                              \
+            format_operand("property"sv, m_property, executable),                                      \
+            format_operand("src"sv, m_src, executable));                                               \
+    }
 
-ThrowCompletionOr<void> PutByValueWithThis::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto value = interpreter.get(m_src);
-    auto base = interpreter.get(m_base);
-    auto property_key = TRY(interpreter.get(m_property).to_property_key(vm));
-    TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, property_key, m_kind));
-    return {};
-}
+JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_VALUE)
+
+#define DEFINE_PUT_KIND_BY_VALUE_WITH_THIS(kind)                                                               \
+    ThrowCompletionOr<void> Put##kind##ByValueWithThis::execute_impl(Bytecode::Interpreter& interpreter) const \
+    {                                                                                                          \
+        auto& vm = interpreter.vm();                                                                           \
+        auto value = interpreter.get(m_src);                                                                   \
+        auto base = interpreter.get(m_base);                                                                   \
+        auto this_value = interpreter.get(m_this_value);                                                       \
+        auto property_key = TRY(interpreter.get(m_property).to_property_key(vm));                              \
+        TRY(put_by_property_key<PutKind::kind>(vm, base, this_value, value, {}, property_key));                \
+        return {};                                                                                             \
+    }                                                                                                          \
+    ByteString Put##kind##ByValueWithThis::to_byte_string_impl(Bytecode::Executable const& executable) const   \
+    {                                                                                                          \
+        return ByteString::formatted("Put" #kind "ByValueWithThis {}, {}, {}, {}",                             \
+            format_operand("base"sv, m_base, executable),                                                      \
+            format_operand("property"sv, m_property, executable),                                              \
+            format_operand("src"sv, m_src, executable),                                                        \
+            format_operand("this"sv, m_this_value, executable));                                               \
+    }
+
+JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_VALUE_WITH_THIS)
 
 ThrowCompletionOr<void> DeleteByValue::execute_impl(Bytecode::Interpreter& interpreter) const
 {
@@ -3591,59 +3680,11 @@ ByteString SetVariableBinding::to_byte_string_impl(Bytecode::Executable const& e
         format_operand("src"sv, src(), executable));
 }
 
-static StringView property_kind_to_string(PutKind kind)
-{
-    switch (kind) {
-    case PutKind::Getter:
-        return "getter"sv;
-    case PutKind::Setter:
-        return "setter"sv;
-    case PutKind::Normal:
-        return "key-value"sv;
-    case PutKind::Own:
-        return "direct-key-value"sv;
-    case PutKind::Prototype:
-        return "proto-setter"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 ByteString PutBySpread::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     return ByteString::formatted("PutBySpread {}, {}",
         format_operand("base"sv, m_base, executable),
         format_operand("src"sv, m_src, executable));
-}
-
-ByteString PutById::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    auto kind = property_kind_to_string(m_kind);
-    return ByteString::formatted("PutById {}, {}, {}, kind:{}",
-        format_operand("base"sv, m_base, executable),
-        executable.identifier_table->get(m_property),
-        format_operand("src"sv, m_src, executable),
-        kind);
-}
-
-ByteString PutByNumericId::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    auto kind = property_kind_to_string(m_kind);
-    return ByteString::formatted("PutByNumericId {}, {}, {}, kind:{}",
-        format_operand("base"sv, m_base, executable),
-        m_property_index,
-        format_operand("src"sv, m_src, executable),
-        kind);
-}
-
-ByteString PutByIdWithThis::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    auto kind = property_kind_to_string(m_kind);
-    return ByteString::formatted("PutByIdWithThis {}, {}, {}, {}, kind:{}",
-        format_operand("base"sv, m_base, executable),
-        executable.identifier_table->get(m_property),
-        format_operand("src"sv, m_src, executable),
-        format_operand("this"sv, m_this_value, executable),
-        kind);
 }
 
 ByteString PutPrivateById::to_byte_string_impl(Bytecode::Executable const& executable) const
@@ -4043,27 +4084,6 @@ ByteString GetByValueWithThis::to_byte_string_impl(Bytecode::Executable const& e
         format_operand("dst"sv, m_dst, executable),
         format_operand("base"sv, m_base, executable),
         format_operand("property"sv, m_property, executable));
-}
-
-ByteString PutByValue::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    auto kind = property_kind_to_string(m_kind);
-    return ByteString::formatted("PutByValue {}, {}, {}, kind:{}",
-        format_operand("base"sv, m_base, executable),
-        format_operand("property"sv, m_property, executable),
-        format_operand("src"sv, m_src, executable),
-        kind);
-}
-
-ByteString PutByValueWithThis::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    auto kind = property_kind_to_string(m_kind);
-    return ByteString::formatted("PutByValueWithThis {}, {}, {}, {}, kind:{}",
-        format_operand("base"sv, m_base, executable),
-        format_operand("property"sv, m_property, executable),
-        format_operand("src"sv, m_src, executable),
-        format_operand("this"sv, m_this_value, executable),
-        kind);
 }
 
 ByteString DeleteByValue::to_byte_string_impl(Bytecode::Executable const& executable) const
