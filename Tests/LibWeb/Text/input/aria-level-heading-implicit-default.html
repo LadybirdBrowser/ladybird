@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+test(async () => {
+    const h1 = document.createElement('h1');
+    document.body.appendChild(h1);
+    println(await internals.getComputedAriaLevel(h1));
+
+    const h3 = document.createElement('h3');
+    document.body.appendChild(h3);
+    println(await internals.getComputedAriaLevel(h3));
+
+    const h2 = document.createElement('h2');
+    h2.setAttribute('aria-level', '5');
+    document.body.appendChild(h2);
+    println(await internals.getComputedAriaLevel(h2));
+});
+</script>
+
+

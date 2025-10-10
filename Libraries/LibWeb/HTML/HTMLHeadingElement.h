@@ -26,8 +26,11 @@ public:
 
     virtual Optional<String> aria_level() const override
     {
-        // TODO: aria-level = the number in the element's tag name
-        return get_attribute("aria-level"_fly_string);
+        if (auto const attr = get_attribute(ARIA::AttributeNames::aria_level); attr.has_value())
+            return attr;
+
+        // Implicit defaults to the number in the element's tag name.
+        return MUST(local_name().to_string().substring_from_byte_offset(1));
     }
 
 private:

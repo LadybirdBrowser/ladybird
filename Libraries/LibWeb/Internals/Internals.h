@@ -58,6 +58,7 @@ public:
 
     String get_computed_role(DOM::Element& element);
     String get_computed_label(DOM::Element& element);
+    String get_computed_aria_level(DOM::Element& element);
 
     static u16 get_echo_server_port();
     static void set_echo_server_port(u16 port);

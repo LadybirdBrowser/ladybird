@@ -49,6 +49,7 @@ interface Internals {
 
     DOMString getComputedRole(Element element);
     DOMString getComputedLabel(Element element);
+    DOMString getComputedAriaLevel(Element element);
     unsigned short getEchoServerPort();
 
     undefined setBrowserZoom(double factor);
