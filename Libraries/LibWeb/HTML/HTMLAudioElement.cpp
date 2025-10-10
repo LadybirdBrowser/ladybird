@@ -47,6 +47,11 @@ Layout::AudioBox* HTMLAudioElement::layout_node()
     return static_cast<Layout::AudioBox*>(Node::layout_node());
 }
 
+bool HTMLAudioElement::should_paint() const
+{
+    return has_attribute(HTML::AttributeNames::controls) || is_scripting_disabled();
+}
+
 Layout::AudioBox const* HTMLAudioElement::layout_node() const
 {
     return static_cast<Layout::AudioBox const*>(Node::layout_node());
