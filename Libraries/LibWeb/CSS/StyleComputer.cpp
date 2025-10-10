@@ -1277,9 +1277,9 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
             play_state = *play_state_value;
     }
 
-    CSS::EasingStyleValue::Function timing_function { CSS::EasingStyleValue::CubicBezier::ease() };
+    EasingFunction timing_function = EasingFunction::from_style_value(EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()));
     if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
-        timing_function = timing_property->as_easing().function();
+        timing_function = EasingFunction::from_style_value(timing_property->as_easing());
 
     Bindings::CompositeOperation composite_operation { Bindings::CompositeOperation::Replace };
     if (auto composite_property = cascaded_properties.property(PropertyID::AnimationComposition); composite_property) {

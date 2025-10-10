@@ -114,61 +114,6 @@ EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
     this->stops = move(stops);
 }
 
-// https://drafts.csswg.org/css-easing/#linear-easing-function-output
-double EasingStyleValue::Linear::evaluate_at(double input_progress, bool before_flag) const
-{
-    // To calculate linear easing output progress for a given linear easing function func,
-    // an input progress value inputProgress, and an optional before flag (defaulting to false),
-    // perform the following:
-
-    // 1. Let points be func’s control points.
-    // 2. If points holds only a single item, return the output progress value of that item.
-    if (stops.size() == 1)
-        return stops[0].output;
-
-    // 3. If inputProgress matches the input progress value of the first point in points,
-    // and the before flag is true, return the first point’s output progress value.
-    if (input_progress == stops[0].input.value() && before_flag)
-        return stops[0].output;
-
-    // 4. If inputProgress matches the input progress value of at least one point in points,
-    // return the output progress value of the last such point.
-    auto maybe_match = stops.last_matching([&](auto& stop) { return input_progress == stop.input.value(); });
-    if (maybe_match.has_value())
-        return maybe_match->output;
-
-    // 5. Otherwise, find two control points in points, A and B, which will be used for interpolation:
-    Stop A;
-    Stop B;
-
-    if (input_progress < stops[0].input.value()) {
-        // 1. If inputProgress is smaller than any input progress value in points,
-        // let A and B be the first two items in points.
-        // If A and B have the same input progress value, return A’s output progress value.
-        A = stops[0];
-        B = stops[1];
-        if (A.input == B.input)
-            return A.output;
-    } else if (input_progress > stops.last().input.value()) {
-        // 2. If inputProgress is larger than any input progress value in points,
-        // let A and B be the last two items in points.
-        // If A and B have the same input progress value, return B’s output progress value.
-        A = stops[stops.size() - 2];
-        B = stops[stops.size() - 1];
-        if (A.input == B.input)
-            return B.output;
-    } else {
-        // 3. Otherwise, let A be the last control point whose input progress value is smaller than inputProgress,
-        // and let B be the first control point whose input progress value is larger than inputProgress.
-        A = stops.last_matching([&](auto& stop) { return stop.input.value() < input_progress; }).value();
-        B = stops.first_matching([&](auto& stop) { return stop.input.value() > input_progress; }).value();
-    }
-
-    // 6. Linearly interpolate (or extrapolate) inputProgress along the line defined by A and B, and return the result.
-    auto factor = (input_progress - A.input.value()) / (B.input.value() - A.input.value());
-    return A.output + factor * (B.output - A.output);
-}
-
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
 String EasingStyleValue::Linear::to_string(SerializationMode) const
 {
@@ -211,111 +156,6 @@ String EasingStyleValue::Linear::to_string(SerializationMode) const
     return MUST(builder.to_string());
 }
 
-double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) const
-{
-    constexpr static auto cubic_bezier_at = [](double x1, double x2, double t) {
-        auto a = 1.0 - 3.0 * x2 + 3.0 * x1;
-        auto b = 3.0 * x2 - 6.0 * x1;
-        auto c = 3.0 * x1;
-
-        auto t2 = t * t;
-        auto t3 = t2 * t;
-
-        return (a * t3) + (b * t2) + (c * t);
-    };
-
-    // https://www.w3.org/TR/css-easing-1/#cubic-bezier-algo
-    auto resolved_x1 = clamp(x1.resolved({}).value_or(0.0), 0.0, 1.0);
-    auto resolved_y1 = y1.resolved({}).value_or(0.0);
-    auto resolved_x2 = clamp(x2.resolved({}).value_or(0.0), 0.0, 1.0);
-    auto resolved_y2 = y2.resolved({}).value_or(0.0);
-
-    // For input progress values outside the range [0, 1], the curve is extended infinitely using tangent of the curve
-    // at the closest endpoint as follows:
-
-    // - For input progress values less than zero,
-    if (input_progress < 0.0) {
-        // 1. If the x value of P1 is greater than zero, use a straight line that passes through P1 and P0 as the
-        //    tangent.
-        if (resolved_x1 > 0.0)
-            return resolved_y1 / resolved_x1 * input_progress;
-
-        // 2. Otherwise, if the x value of P2 is greater than zero, use a straight line that passes through P2 and P0 as
-        //    the tangent.
-        if (resolved_x2 > 0.0)
-            return resolved_y2 / resolved_x2 * input_progress;
-
-        // 3. Otherwise, let the output progress value be zero for all input progress values in the range [-∞, 0).
-        return 0.0;
-    }
-
-    // - For input progress values greater than one,
-    if (input_progress > 1.0) {
-        // 1. If the x value of P2 is less than one, use a straight line that passes through P2 and P3 as the tangent.
-        if (resolved_x2 < 1.0)
-            return (1.0 - resolved_y2) / (1.0 - resolved_x2) * (input_progress - 1.0) + 1.0;
-
-        // 2. Otherwise, if the x value of P1 is less than one, use a straight line that passes through P1 and P3 as the
-        //    tangent.
-        if (resolved_x1 < 1.0)
-            return (1.0 - resolved_y1) / (1.0 - resolved_x1) * (input_progress - 1.0) + 1.0;
-
-        // 3. Otherwise, let the output progress value be one for all input progress values in the range (1, ∞].
-        return 1.0;
-    }
-
-    // Note: The spec does not specify the precise algorithm for calculating values in the range [0, 1]:
-    //       "The evaluation of this curve is covered in many sources such as [FUND-COMP-GRAPHICS]."
-
-    auto x = input_progress;
-
-    auto solve = [&](auto t) {
-        auto x = cubic_bezier_at(resolved_x1, resolved_x2, t);
-        auto y = cubic_bezier_at(resolved_y1, resolved_y2, t);
-        return CubicBezier::CachedSample { x, y, t };
-    };
-
-    if (m_cached_x_samples.is_empty())
-        m_cached_x_samples.append(solve(0.));
-
-    size_t nearby_index = 0;
-    if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
-            if (x - sample.x >= NumericLimits<double>::epsilon())
-                return 1;
-            if (x - sample.x <= NumericLimits<double>::epsilon())
-                return -1;
-            return 0;
-        }))
-        return found->y;
-
-    if (nearby_index == m_cached_x_samples.size() || nearby_index + 1 == m_cached_x_samples.size()) {
-        // Produce more samples until we have enough.
-        auto last_t = m_cached_x_samples.last().t;
-        auto last_x = m_cached_x_samples.last().x;
-        while (last_x <= x && last_t < 1.0) {
-            last_t += 1. / 60.;
-            auto solution = solve(last_t);
-            m_cached_x_samples.append(solution);
-            last_x = solution.x;
-        }
-
-        if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
-                if (x - sample.x >= NumericLimits<double>::epsilon())
-                    return 1;
-                if (x - sample.x <= NumericLimits<double>::epsilon())
-                    return -1;
-                return 0;
-            }))
-            return found->y;
-    }
-
-    // We have two samples on either side of the x value we want, so we can linearly interpolate between them.
-    auto& sample1 = m_cached_x_samples[nearby_index];
-    auto& sample2 = m_cached_x_samples[nearby_index + 1];
-    auto factor = (x - sample1.x) / (sample2.x - sample1.x);
-    return sample1.y + factor * (sample2.y - sample1.y);
-}
-
 // https://drafts.csswg.org/css-easing/#bezier-serialization
 String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
 {
@@ -343,54 +183,6 @@ String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
             x1_value.to_string(mode), y1_value.to_string(mode), x2_value.to_string(mode), y2_value.to_string(mode));
     }
     return MUST(builder.to_string());
-}
-
-double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_flag) const
-{
-    // https://www.w3.org/TR/css-easing-1/#step-easing-algo
-    // 1. Calculate the current step as floor(input progress value × steps).
-    auto resolved_number_of_intervals = number_of_intervals.resolved({}).value_or(1);
-    resolved_number_of_intervals = max(resolved_number_of_intervals, position == StepPosition::JumpNone ? 2 : 1);
-
-    auto current_step = floor(input_progress * resolved_number_of_intervals);
-
-    // 2. If the step position property is one of:
-    //    - jump-start,
-    //    - jump-both,
-    //    increment current step by one.
-    if (position == StepPosition::JumpStart || position == StepPosition::Start || position == StepPosition::JumpBoth)
-        current_step += 1;
-
-    // 3. If both of the following conditions are true:
-    //    - the before flag is set, and
-    //    - input progress value × steps mod 1 equals zero (that is, if input progress value × steps is integral), then
-    //    decrement current step by one.
-    auto step_progress = input_progress * resolved_number_of_intervals;
-    if (before_flag && trunc(step_progress) == step_progress)
-        current_step -= 1;
-
-    // 4. If input progress value ≥ 0 and current step < 0, let current step be zero.
-    if (input_progress >= 0.0 && current_step < 0.0)
-        current_step = 0.0;
-
-    // 5. Calculate jumps based on the step position as follows:
-
-    //    jump-start or jump-end -> steps
-    //    jump-none -> steps - 1
-    //    jump-both -> steps + 1
-    auto jumps = resolved_number_of_intervals;
-    if (position == StepPosition::JumpNone) {
-        jumps--;
-    } else if (position == StepPosition::JumpBoth) {
-        jumps++;
-    }
-
-    // 6. If input progress value ≤ 1 and current step > jumps, let current step be jumps.
-    if (input_progress <= 1.0 && current_step > jumps)
-        current_step = jumps;
-
-    // 7. The output progress value is current step / jumps.
-    return current_step / jumps;
 }
 
 // https://drafts.csswg.org/css-easing/#steps-serialization
@@ -421,14 +213,6 @@ String EasingStyleValue::Steps::to_string(SerializationMode mode) const
         }
     }
     return MUST(builder.to_string());
-}
-
-double EasingStyleValue::Function::evaluate_at(double input_progress, bool before_flag) const
-{
-    return visit(
-        [&](auto const& curve) {
-            return curve.evaluate_at(input_progress, before_flag);
-        });
 }
 
 String EasingStyleValue::Function::to_string(SerializationMode mode) const

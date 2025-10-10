@@ -36,7 +36,6 @@ public:
 
         bool operator==(Linear const&) const = default;
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
 
         Linear(Vector<Stop> stops);
@@ -66,7 +65,6 @@ public:
             return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
         }
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
     };
 
@@ -79,14 +77,12 @@ public:
 
         bool operator==(Steps const&) const = default;
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
     };
 
     struct WEB_API Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
     };
 

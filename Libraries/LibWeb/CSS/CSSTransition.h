@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
