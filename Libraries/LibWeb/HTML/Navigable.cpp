@@ -2687,7 +2687,7 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
     scroll_state_snapshot_by_display_list.set(*display_list, move(scroll_state_snapshot));
     // Collect scroll state snapshots for each nested navigable
     document_paintable.for_each_in_inclusive_subtree_of_type<Painting::NavigableContainerViewportPaintable>([&scroll_state_snapshot_by_display_list](auto& navigable_container_paintable) {
-        auto const* hosted_document = navigable_container_paintable.layout_box().dom_node().content_document_without_origin_check();
+        auto const* hosted_document = navigable_container_paintable.navigable_container().content_document_without_origin_check();
         if (!hosted_document || !hosted_document->paintable())
             return TraversalDecision::Continue;
         // We are only interested in collecting scroll state snapshots for visible nested navigables, which is
