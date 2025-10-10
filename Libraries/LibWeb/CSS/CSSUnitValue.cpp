@@ -322,11 +322,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     }
 
     auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {
-        CalculationContext context {
-            .percentages_resolve_as = property_resolves_percentages_relative_to(property.id()),
-            .resolve_numbers_as_integers = property_accepts_type(property.id(), ValueType::Integer),
-            .accepted_type_ranges = property_accepted_type_ranges(property.id()),
-        };
+        auto context = CalculationContext::for_property(property);
         auto numeric_node = NumericCalculationNode::create(value, context);
         auto math_sum_node = SumCalculationNode::create({ move(numeric_node) });
         return CalculatedStyleValue::create(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);

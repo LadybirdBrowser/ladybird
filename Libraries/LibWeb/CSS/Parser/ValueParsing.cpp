@@ -4106,11 +4106,7 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
     for (auto const& value_context : m_value_context.in_reverse()) {
         auto maybe_context = value_context.visit(
             [](PropertyID property_id) -> Optional<CalculationContext> {
-                return CalculationContext {
-                    .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
-                    .resolve_numbers_as_integers = property_accepts_type(property_id, ValueType::Integer),
-                    .accepted_type_ranges = property_accepted_type_ranges(property_id),
-                };
+                return CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
             },
             [](FunctionContext const& function) -> Optional<CalculationContext> {
                 // Gradients resolve percentages as lengths relative to the gradient-box.
