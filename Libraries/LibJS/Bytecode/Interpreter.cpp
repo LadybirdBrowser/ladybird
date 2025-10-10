@@ -1188,7 +1188,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
 }
 
-inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, Op::PropertyKind kind, PropertyLookupCache* caches = nullptr)
+inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, PutKind kind, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (vm.in_strict_mode() && base.is_nullish())
@@ -1200,26 +1200,26 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         return throw_null_or_undefined_property_access(vm, base, base_identifier, name);
     auto object = maybe_object.release_value();
 
-    if (kind == Op::PropertyKind::Getter || kind == Op::PropertyKind::Setter) {
+    if (kind == PutKind::Getter || kind == PutKind::Setter) {
         // The generator should only pass us functions for getters and setters.
         VERIFY(value.is_function());
     }
     switch (kind) {
-    case Op::PropertyKind::Getter: {
+    case PutKind::Getter: {
         auto& function = value.as_function();
         if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
             static_cast<ECMAScriptFunctionObject*>(&function)->set_name(Utf16String::formatted("get {}", name));
         object->define_direct_accessor(name, &function, nullptr, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
-    case Op::PropertyKind::Setter: {
+    case PutKind::Setter: {
         auto& function = value.as_function();
         if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
             static_cast<ECMAScriptFunctionObject*>(&function)->set_name(Utf16String::formatted("set {}", name));
         object->define_direct_accessor(name, nullptr, &function, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
-    case Op::PropertyKind::KeyValue: {
+    case PutKind::Normal: {
         auto this_value_object = MUST(this_value.to_object(vm));
         auto& from_shape = this_value_object->shape();
         if (caches) {
@@ -1338,10 +1338,10 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         }
         break;
     }
-    case Op::PropertyKind::DirectKeyValue:
+    case PutKind::Own:
         object->define_direct_property(name, value, Attribute::Enumerable | Attribute::Writable | Attribute::Configurable);
         break;
-    case Op::PropertyKind::ProtoSetter:
+    case PutKind::Prototype:
         if (value.is_object() || value.is_null())
             MUST(object->internal_set_prototype_of(value.is_object() ? &value.as_object() : nullptr));
         break;
@@ -1414,10 +1414,10 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     return value;
 }
 
-inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const& base_identifier, Value property_key_value, Value value, Op::PropertyKind kind)
+inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const& base_identifier, Value property_key_value, Value value, PutKind kind)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
-    if ((kind == Op::PropertyKind::KeyValue || kind == Op::PropertyKind::DirectKeyValue)
+    if ((kind == PutKind::Normal || kind == PutKind::Own)
         && base.is_object() && property_key_value.is_int32() && property_key_value.as_i32() >= 0) {
         auto& object = base.as_object();
         auto* storage = object.indexed_properties().storage();
@@ -3591,18 +3591,18 @@ ByteString SetVariableBinding::to_byte_string_impl(Bytecode::Executable const& e
         format_operand("src"sv, src(), executable));
 }
 
-static StringView property_kind_to_string(PropertyKind kind)
+static StringView property_kind_to_string(PutKind kind)
 {
     switch (kind) {
-    case PropertyKind::Getter:
+    case PutKind::Getter:
         return "getter"sv;
-    case PropertyKind::Setter:
+    case PutKind::Setter:
         return "setter"sv;
-    case PropertyKind::KeyValue:
+    case PutKind::Normal:
         return "key-value"sv;
-    case PropertyKind::DirectKeyValue:
+    case PutKind::Own:
         return "direct-key-value"sv;
-    case PropertyKind::ProtoSetter:
+    case PutKind::Prototype:
         return "proto-setter"sv;
     }
     VERIFY_NOT_REACHED();

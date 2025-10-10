@@ -1180,14 +1180,6 @@ private:
     IdentifierTableIndex m_property;
 };
 
-enum class PropertyKind {
-    Getter,
-    Setter,
-    KeyValue,
-    DirectKeyValue, // Used for Object expressions. Always sets an own property, never calls a setter.
-    ProtoSetter,
-};
-
 class PutBySpread final : public Instruction {
 public:
     PutBySpread(Operand base, Operand src)
@@ -1215,7 +1207,7 @@ private:
 
 class PutById final : public Instruction {
 public:
-    explicit PutById(Operand base, IdentifierTableIndex property, Operand src, PropertyKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {})
+    explicit PutById(Operand base, IdentifierTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {})
         : Instruction(Type::PutById)
         , m_base(base)
         , m_property(property)
@@ -1237,21 +1229,21 @@ public:
     Operand base() const { return m_base; }
     IdentifierTableIndex property() const { return m_property; }
     Operand src() const { return m_src; }
-    PropertyKind kind() const { return m_kind; }
+    PutKind kind() const { return m_kind; }
     u32 cache_index() const { return m_cache_index; }
 
 private:
     Operand m_base;
     IdentifierTableIndex m_property;
     Operand m_src;
-    PropertyKind m_kind;
+    PutKind m_kind;
     u32 m_cache_index { 0 };
     Optional<IdentifierTableIndex> m_base_identifier {};
 };
 
 class PutByNumericId final : public Instruction {
 public:
-    explicit PutByNumericId(Operand base, u64 property_index, Operand src, PropertyKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {})
+    explicit PutByNumericId(Operand base, u64 property_index, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {})
         : Instruction(Type::PutByNumericId)
         , m_base(base)
         , m_property_index(property_index)
@@ -1274,14 +1266,14 @@ private:
     Operand m_base;
     u64 m_property_index;
     Operand m_src;
-    PropertyKind m_kind;
+    PutKind m_kind;
     u32 m_cache_index { 0 };
     Optional<IdentifierTableIndex> m_base_identifier {};
 };
 
 class PutByIdWithThis final : public Instruction {
 public:
-    PutByIdWithThis(Operand base, Operand this_value, IdentifierTableIndex property, Operand src, PropertyKind kind, u32 cache_index)
+    PutByIdWithThis(Operand base, Operand this_value, IdentifierTableIndex property, Operand src, PutKind kind, u32 cache_index)
         : Instruction(Type::PutByIdWithThis)
         , m_base(base)
         , m_this_value(this_value)
@@ -1305,7 +1297,7 @@ public:
     Operand this_value() const { return m_this_value; }
     IdentifierTableIndex property() const { return m_property; }
     Operand src() const { return m_src; }
-    PropertyKind kind() const { return m_kind; }
+    PutKind kind() const { return m_kind; }
     u32 cache_index() const { return m_cache_index; }
 
 private:
@@ -1313,13 +1305,13 @@ private:
     Operand m_this_value;
     IdentifierTableIndex m_property;
     Operand m_src;
-    PropertyKind m_kind;
+    PutKind m_kind;
     u32 m_cache_index { 0 };
 };
 
 class PutPrivateById final : public Instruction {
 public:
-    explicit PutPrivateById(Operand base, IdentifierTableIndex property, Operand src, PropertyKind kind = PropertyKind::KeyValue)
+    explicit PutPrivateById(Operand base, IdentifierTableIndex property, Operand src, PutKind kind = PutKind::Normal)
         : Instruction(Type::PutPrivateById)
         , m_base(base)
         , m_property(property)
@@ -1344,7 +1336,7 @@ private:
     Operand m_base;
     IdentifierTableIndex m_property;
     Operand m_src;
-    PropertyKind m_kind;
+    PutKind m_kind;
 };
 
 class DeleteById final : public Instruction {
@@ -1473,7 +1465,7 @@ private:
 
 class PutByValue final : public Instruction {
 public:
-    PutByValue(Operand base, Operand property, Operand src, PropertyKind kind = PropertyKind::KeyValue, Optional<IdentifierTableIndex> base_identifier = {})
+    PutByValue(Operand base, Operand property, Operand src, PutKind kind = PutKind::Normal, Optional<IdentifierTableIndex> base_identifier = {})
         : Instruction(Type::PutByValue)
         , m_base(base)
         , m_property(property)
@@ -1495,19 +1487,19 @@ public:
     Operand base() const { return m_base; }
     Operand property() const { return m_property; }
     Operand src() const { return m_src; }
-    PropertyKind kind() const { return m_kind; }
+    PutKind kind() const { return m_kind; }
 
 private:
     Operand m_base;
     Operand m_property;
     Operand m_src;
-    PropertyKind m_kind;
+    PutKind m_kind;
     Optional<IdentifierTableIndex> m_base_identifier;
 };
 
 class PutByValueWithThis final : public Instruction {
 public:
-    PutByValueWithThis(Operand base, Operand property, Operand this_value, Operand src, PropertyKind kind = PropertyKind::KeyValue)
+    PutByValueWithThis(Operand base, Operand property, Operand this_value, Operand src, PutKind kind = PutKind::Normal)
         : Instruction(Type::PutByValueWithThis)
         , m_base(base)
         , m_property(property)
@@ -1531,14 +1523,14 @@ public:
     Operand property() const { return m_property; }
     Operand this_value() const { return m_this_value; }
     Operand src() const { return m_src; }
-    PropertyKind kind() const { return m_kind; }
+    PutKind kind() const { return m_kind; }
 
 private:
     Operand m_base;
     Operand m_property;
     Operand m_this_value;
     Operand m_src;
-    PropertyKind m_kind;
+    PutKind m_kind;
 };
 
 class DeleteByValue final : public Instruction {
