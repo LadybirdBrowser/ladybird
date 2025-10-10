@@ -20,9 +20,6 @@ public:
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    Layout::VideoBox& layout_box();
-    Layout::VideoBox const& layout_box() const;
-
 private:
     VideoPaintable(Layout::VideoBox const&);
 
