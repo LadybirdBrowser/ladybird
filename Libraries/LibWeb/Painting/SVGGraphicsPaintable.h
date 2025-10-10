@@ -50,8 +50,6 @@ public:
 
     static GC::Ref<SVGGraphicsPaintable> create(Layout::SVGGraphicsBox const&);
 
-    Layout::SVGGraphicsBox const& layout_box() const;
-
     virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
     virtual Optional<CSSPixelRect> get_masking_area() const override { return get_masking_area_of_svg(); }
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const override { return get_mask_type_of_svg(); }
