@@ -71,9 +71,7 @@ void RenderingThread::rendering_thread_loop()
         m_skia_player->execute(*task->display_list, move(task->scroll_state_snapshot_by_display_list), task->painting_surface);
         if (m_exit)
             break;
-        m_main_thread_event_loop.deferred_invoke([callback = move(task->callback)] {
-            callback();
-        });
+        task->callback();
     }
 }
 

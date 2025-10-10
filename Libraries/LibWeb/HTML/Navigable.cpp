@@ -2650,6 +2650,9 @@ void Navigable::ready_to_paint()
 
 void Navigable::paint_next_frame()
 {
+    if (!is_top_level_traversable())
+        return;
+
     auto [backing_store_id, painting_surface] = m_backing_store_manager->acquire_store_for_next_frame();
     if (!painting_surface)
         return;
@@ -2657,13 +2660,13 @@ void Navigable::paint_next_frame()
     VERIFY(m_number_of_queued_rasterization_tasks <= 1);
     m_number_of_queued_rasterization_tasks++;
 
-    auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
-    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size().to_type<int>() } };
-    start_display_list_rendering(*painting_surface, paint_config, [this, viewport_rect, backing_store_id] {
-        if (!is_top_level_traversable())
+    auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() } };
+    auto page_client = &page().top_level_traversable()->page().client();
+    start_display_list_rendering(*painting_surface, paint_config, [page_client, viewport_rect, backing_store_id] {
+        if (!page_client)
             return;
-        auto& traversable = *page().top_level_traversable();
-        traversable.page().client().page_did_paint(viewport_rect.to_type<int>(), backing_store_id);
+        page_client->page_did_paint(viewport_rect, backing_store_id);
     });
 }
 
