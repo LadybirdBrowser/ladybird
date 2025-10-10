@@ -51,11 +51,11 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
 {
     if (auto node = paintable.dom_node())
         return node;
-    auto* layout_parent = paintable.layout_node().parent();
-    while (layout_parent) {
-        if (auto* node = layout_parent->dom_node())
+    auto* parent = paintable.parent();
+    while (parent) {
+        if (auto node = parent->dom_node())
             return node;
-        layout_parent = layout_parent->parent();
+        parent = parent->parent();
     }
     return nullptr;
 }
