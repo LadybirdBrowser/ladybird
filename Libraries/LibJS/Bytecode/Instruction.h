@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Span.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Forward.h>
 #include <LibJS/SourceRange.h>
 

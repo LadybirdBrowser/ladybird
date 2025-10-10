@@ -645,15 +645,15 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
 
                     if (expression.is_computed()) {
                         if (!lhs_is_super_expression)
-                            generator.emit_put_by_value(*base, *computed_property, rval, Bytecode::Op::PropertyKind::KeyValue, move(base_identifier));
+                            generator.emit_put_by_value(*base, *computed_property, rval, Bytecode::PutKind::Normal, move(base_identifier));
                         else
-                            generator.emit_put_by_value_with_this(*base, *computed_property, *this_value, rval, Op::PropertyKind::KeyValue);
+                            generator.emit_put_by_value_with_this(*base, *computed_property, *this_value, rval, PutKind::Normal);
                     } else if (expression.property().is_identifier()) {
                         auto identifier_table_ref = generator.intern_identifier(as<Identifier>(expression.property()).string());
                         if (!lhs_is_super_expression)
-                            generator.emit_put_by_id(*base, identifier_table_ref, rval, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache(), move(base_identifier));
+                            generator.emit_put_by_id(*base, identifier_table_ref, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache(), move(base_identifier));
                         else
-                            generator.emit<Bytecode::Op::PutByIdWithThis>(*base, *this_value, identifier_table_ref, rval, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
+                            generator.emit<Bytecode::Op::PutByIdWithThis>(*base, *this_value, identifier_table_ref, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache());
                     } else if (expression.property().is_private_identifier()) {
                         auto identifier_table_ref = generator.intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                         generator.emit<Bytecode::Op::PutPrivateById>(*base, identifier_table_ref, rval);
@@ -1151,19 +1151,19 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
     generator.push_home_object(object);
 
     for (auto& property : m_properties) {
-        Bytecode::Op::PropertyKind property_kind;
+        Bytecode::PutKind property_kind;
         switch (property->type()) {
         case ObjectProperty::Type::KeyValue:
-            property_kind = Bytecode::Op::PropertyKind::DirectKeyValue;
+            property_kind = Bytecode::PutKind::Own;
             break;
         case ObjectProperty::Type::Getter:
-            property_kind = Bytecode::Op::PropertyKind::Getter;
+            property_kind = Bytecode::PutKind::Getter;
             break;
         case ObjectProperty::Type::Setter:
-            property_kind = Bytecode::Op::PropertyKind::Setter;
+            property_kind = Bytecode::PutKind::Setter;
             break;
         case ObjectProperty::Type::ProtoSetter:
-            property_kind = Bytecode::Op::PropertyKind::ProtoSetter;
+            property_kind = Bytecode::PutKind::Prototype;
             break;
         case ObjectProperty::Type::Spread:
             generator.emit<Bytecode::Op::PutBySpread>(object, TRY(property->key().generate_bytecode(generator)).value());
@@ -1175,13 +1175,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             Bytecode::IdentifierTableIndex key_name = generator.intern_identifier(string_literal.value());
 
             Optional<ScopedOperand> value;
-            if (property_kind == Bytecode::Op::PropertyKind::ProtoSetter) {
+            if (property_kind == Bytecode::PutKind::Prototype) {
                 value = TRY(property->value().generate_bytecode(generator)).value();
             } else {
                 auto identifier = string_literal.value();
-                if (property_kind == Bytecode::Op::PropertyKind::Getter)
+                if (property_kind == Bytecode::PutKind::Getter)
                     identifier = Utf16String::formatted("get {}", identifier);
-                else if (property_kind == Bytecode::Op::PropertyKind::Setter)
+                else if (property_kind == Bytecode::PutKind::Setter)
                     identifier = Utf16String::formatted("set {}", identifier);
 
                 auto name = generator.intern_identifier(identifier);
@@ -2540,7 +2540,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(raw_string_regs.size(), raw_strings_array, raw_string_regs);
     }
 
-    generator.emit_put_by_id(strings_array, generator.intern_identifier("raw"_utf16_fly_string), raw_strings_array, Bytecode::Op::PropertyKind::KeyValue, generator.next_property_lookup_cache());
+    generator.emit_put_by_id(strings_array, generator.intern_identifier("raw"_utf16_fly_string), raw_strings_array, Bytecode::PutKind::Normal, generator.next_property_lookup_cache());
 
     auto arguments = generator.allocate_register();
     if (!argument_regs.is_empty())
