@@ -72,10 +72,10 @@ class LinkedResourceFinder(HTMLParser):
         self._match_css_url_ = re.compile(r"url\(['\"]?(?P<url>[^'\")]+)['\"]?\)")
         self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
         self._match_worker_import_path = re.compile(r"Worker\(\"(?P<url>.*)\"\)")
-        self._resources = []
+        self._resources = set()
 
     @property
-    def resources(self):
+    def resources(self) -> set:
         return self._resources
 
     def handle_starttag(self, tag, attrs):
@@ -85,15 +85,15 @@ class LinkedResourceFinder(HTMLParser):
         if tag in ["script", "img", "iframe"]:
             attr_dict = dict(attrs)
             if "src" in attr_dict:
-                self._resources.append(attr_dict["src"])
+                self._resources.add(attr_dict["src"])
         if tag == "link":
             attr_dict = dict(attrs)
             if "rel" in attr_dict and attr_dict["rel"] == "stylesheet":
-                self._resources.append(attr_dict["href"])
+                self._resources.add(attr_dict["href"])
         if tag == "form":
             attr_dict = dict(attrs)
             if "action" in attr_dict:
-                self._resources.append(attr_dict["action"])
+                self._resources.add(attr_dict["action"])
 
     def handle_endtag(self, tag):
         self._tag_stack_.pop()
@@ -103,16 +103,16 @@ class LinkedResourceFinder(HTMLParser):
             # Look for uses of url()
             url_iterator = self._match_css_url_.finditer(data)
             for match in url_iterator:
-                self._resources.append(match.group("url"))
+                self._resources.add(match.group("url"))
             # Look for @imports that use plain strings - we already found the url() ones
             import_iterator = self._match_css_import_string_.finditer(data)
             for match in import_iterator:
-                self._resources.append(match.group("url"))
+                self._resources.add(match.group("url"))
         elif self._tag_stack_ and self._tag_stack_[-1] == "script":
             # Look for uses of Worker()
             filepath_iterator = self._match_worker_import_path.finditer(data)
             for match in filepath_iterator:
-                self._resources.append(match.group("url"))
+                self._resources.add(match.group("url"))
 
 
 class TestTypeIdentifier(HTMLParser):
