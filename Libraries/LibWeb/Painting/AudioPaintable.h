@@ -20,9 +20,6 @@ public:
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    Layout::AudioBox& layout_box();
-    Layout::AudioBox const& layout_box() const;
-
 private:
     explicit AudioPaintable(Layout::AudioBox const&);
 };

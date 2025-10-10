@@ -20,6 +20,8 @@ public:
     Layout::AudioBox* layout_node();
     Layout::AudioBox const* layout_node() const;
 
+    bool should_paint() const;
+
 private:
     HTMLAudioElement(DOM::Document&, DOM::QualifiedName);
 

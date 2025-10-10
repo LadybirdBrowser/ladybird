@@ -29,22 +29,13 @@ AudioPaintable::AudioPaintable(Layout::AudioBox const& layout_box)
 {
 }
 
-Layout::AudioBox& AudioPaintable::layout_box()
-{
-    return static_cast<Layout::AudioBox&>(layout_node());
-}
-
-Layout::AudioBox const& AudioPaintable::layout_box() const
-{
-    return static_cast<Layout::AudioBox const&>(layout_node());
-}
-
 void AudioPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;
 
-    if (!layout_box().should_paint())
+    auto const& audio_element = as<HTML::HTMLAudioElement const>(*dom_node());
+    if (audio_element.should_paint())
         return;
 
     Base::paint(context, phase);
@@ -58,8 +49,6 @@ void AudioPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     context.display_list_recorder().add_clip_rect(audio_rect.to_type<int>());
 
     ScopedCornerRadiusClip corner_clip { context, audio_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
-
-    auto const& audio_element = layout_box().dom_node();
     auto mouse_position = MediaPaintable::mouse_position(context, audio_element);
     paint_media_controls(context, audio_element, audio_rect, mouse_position);
 }

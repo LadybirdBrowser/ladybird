@@ -34,15 +34,9 @@ GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const
     return Painting::AudioPaintable::create(*this);
 }
 
-bool AudioBox::should_paint() const
-{
-    auto const& audio_element = dom_node();
-    return audio_element.has_attribute(HTML::AttributeNames::controls) || audio_element.is_scripting_disabled();
-}
-
 void AudioBox::prepare_for_replaced_layout()
 {
-    if (should_paint()) {
+    if (dom_node().should_paint()) {
         set_natural_width(300);
         set_natural_height(40);
     } else {

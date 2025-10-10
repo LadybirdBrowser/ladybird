@@ -24,8 +24,6 @@ public:
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
-    bool should_paint() const;
-
 private:
     AudioBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);
 };
