@@ -47,6 +47,8 @@ static String os_specific_well_known_format(StringView mime_type_string)
 {
     // NOTE: Here we always takes the Linux case, and defer to the browser process to handle OS specific implementations.
     auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
+    if (!mime_type.has_value())
+        return {};
 
     // 1. Let wellKnownFormat be an empty string.
     String well_known_format {};

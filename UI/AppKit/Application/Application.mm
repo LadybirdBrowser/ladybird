@@ -121,6 +121,8 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
             mime_type = "text/html"_string;
         else if (type == NSPasteboardTypePNG)
             mime_type = "image/png"_string;
+        else
+            continue;
 
         auto data = Ladybird::ns_data_to_string([paste_board dataForType:type]);
         representations.empend(move(data), move(mime_type));
