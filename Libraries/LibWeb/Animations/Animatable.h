@@ -39,7 +39,7 @@ public:
     struct TransitionAttributes {
         double delay;
         double duration;
-        CSS::EasingStyleValue::Function timing_function;
+        CSS::EasingFunction timing_function;
         CSS::TransitionBehavior transition_behavior;
     };
 
