@@ -598,9 +598,9 @@ void HTMLLinkElement::resource_did_load_favicon()
     document().check_favicon_after_loading_link_resource();
 }
 
-static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
+static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document, Optional<ByteString> const& mime_type)
 {
-    if (favicon_url.basename().ends_with(".svg"sv)) {
+    if (mime_type.has_value() && mime_type->equals_ignoring_ascii_case("image/svg+xml"sv)) {
         auto result = SVG::SVGDecodedImageData::create(document->realm(), document->page(), favicon_url, favicon_data);
         auto promise = Core::Promise<bool>::construct();
         if (result.is_error()) {
@@ -647,8 +647,13 @@ bool HTMLLinkElement::load_favicon_and_use_if_window_is_active()
     if (!has_loaded_icon())
         return false;
 
+    Optional<ByteString> mime_type;
+    if (!resource()->mime_type().is_empty())
+        mime_type = resource()->mime_type();
+    else if (m_mime_type.has_value())
+        mime_type = m_mime_type->to_byte_string();
     // FIXME: Refactor the caller(s) to handle the async nature of image loading
-    auto promise = decode_favicon(resource()->encoded_data(), *resource()->url(), document());
+    auto promise = decode_favicon(resource()->encoded_data(), *resource()->url(), document(), mime_type);
     auto result = promise->await();
     return !result.is_error();
 }
@@ -683,8 +688,12 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
         auto& realm = document->realm();
         auto global = GC::Ref { realm.global_object() };
 
-        auto process_body = GC::create_function(realm.heap(), [document, request](ByteBuffer body) {
-            (void)decode_favicon(body, request->url(), document);
+        Optional<ByteString> mime_type;
+        if (auto extracted = response->header_list()->extract_mime_type(); extracted.has_value())
+            mime_type = extracted->essence().to_byte_string();
+
+        auto process_body = GC::create_function(realm.heap(), [document, request, mime_type](ByteBuffer body) {
+            (void)decode_favicon(body, request->url(), document, mime_type);
         });
         auto process_body_error = GC::create_function(realm.heap(), [](JS::Value) {
         });
