@@ -24,11 +24,6 @@ SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)
 {
 }
 
-Layout::SVGSVGBox const& SVGSVGPaintable::layout_box() const
-{
-    return static_cast<Layout::SVGSVGBox const&>(layout_node());
-}
-
 static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 matrix, float scale)
 {
     matrix[0, 3] *= scale;

@@ -18,8 +18,6 @@ class SVGSVGPaintable final : public PaintableBox {
 public:
     static GC::Ref<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
 
-    Layout::SVGSVGBox const& layout_box() const;
-
     static void paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase);
     static void paint_descendants(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase);
 
