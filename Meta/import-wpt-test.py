@@ -71,6 +71,7 @@ class LinkedResourceFinder(HTMLParser):
         self._tag_stack_ = []
         self._match_css_url_ = re.compile(r"url\(['\"]?(?P<url>[^'\")]+)['\"]?\)")
         self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
+        self._match_fetch_import_path = re.compile(r"fetch\((\"|\')(?P<url>.*)(\"|\')\)")
         self._match_worker_import_path = re.compile(r"Worker\(\"(?P<url>.*)\"\)")
         self._resources = set()
 
@@ -109,6 +110,11 @@ class LinkedResourceFinder(HTMLParser):
             for match in import_iterator:
                 self._resources.add(match.group("url"))
         elif self._tag_stack_ and self._tag_stack_[-1] == "script":
+            # Look for uses of fetch()
+            fetch_iterator = self._match_fetch_import_path.finditer(data)
+            for match in fetch_iterator:
+                self._resources.add(match.group("url"))
+
             # Look for uses of Worker()
             filepath_iterator = self._match_worker_import_path.finditer(data)
             for match in filepath_iterator:
