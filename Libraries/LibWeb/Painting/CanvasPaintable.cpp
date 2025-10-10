@@ -21,11 +21,6 @@ CanvasPaintable::CanvasPaintable(Layout::CanvasBox const& layout_box)
 {
 }
 
-Layout::CanvasBox const& CanvasPaintable::layout_box() const
-{
-    return static_cast<Layout::CanvasBox const&>(layout_node());
-}
-
 void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -37,13 +32,12 @@ void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
         auto canvas_rect = context.rounded_device_rect(absolute_rect());
         ScopedCornerRadiusClip corner_clip { context, canvas_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
-        if (layout_box().dom_node().surface()) {
-            auto surface = layout_box().dom_node().surface();
-
+        auto& canvas_element = as<HTML::HTMLCanvasElement>(*dom_node());
+        if (auto surface = canvas_element.surface()) {
             // FIXME: Remove this const_cast.
-            const_cast<HTML::HTMLCanvasElement&>(layout_box().dom_node()).present();
+            const_cast<HTML::HTMLCanvasElement&>(canvas_element).present();
             auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), surface->rect(), canvas_rect.to_type<int>());
-            context.display_list_recorder().draw_painting_surface(canvas_rect.to_type<int>(), *layout_box().dom_node().surface(), surface->rect(), scaling_mode);
+            context.display_list_recorder().draw_painting_surface(canvas_rect.to_type<int>(), *surface, surface->rect(), scaling_mode);
         }
     }
 }
