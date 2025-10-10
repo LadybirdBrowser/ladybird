@@ -988,6 +988,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
         }
     }
 
+    m_last_timestamp.clear();
     m_current_cluster.clear();
     return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of stream"sv);
 }
