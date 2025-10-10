@@ -55,6 +55,18 @@
       ]
     },
     {
+      "name": "fftw3",
+      "platform": "!arm",
+      "features": [
+        "avx2",
+        "sse2"
+      ]
+    },
+    {
+      "name": "fftw3",
+      "platform": "arm"
+    },
+    {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd | osx | windows"
     },

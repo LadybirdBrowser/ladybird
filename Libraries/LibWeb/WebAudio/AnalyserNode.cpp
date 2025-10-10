@@ -15,6 +15,7 @@
 #include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <fftw3.h>
 
 namespace Web::WebAudio {
 
@@ -77,16 +78,58 @@ Vector<f32> AnalyserNode::apply_a_blackman_window(Vector<f32> const& x) const
 }
 
 // https://webaudio.github.io/web-audio-api/#fourier-transform
-static Vector<f32> apply_a_fourier_transform(Vector<f32> const& input)
+static Vector<Array<f32, 2>> apply_a_fourier_transform(Vector<Array<f32, 2>> const& input)
 {
-    dbgln("FIXME: Analyser node: implement apply a fourier transform");
-    auto result = Vector<f32>();
-    result.resize(input.size());
+    auto const size = input.size();
+    auto* fftwf_input = fftwf_alloc_complex(size);
+
+    for (unsigned long i = 0; i < size; i++) {
+        fftwf_input[i][0] = input[i][0];
+        fftwf_input[i][1] = input[i][1];
+    }
+
+    auto* plan = fftwf_plan_dft_1d(size, fftwf_input, fftwf_input, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftwf_execute(plan);
+    fftwf_destroy_plan(plan);
+
+    auto result = Vector<Array<f32, 2>>();
+    result.ensure_capacity(size);
+    for (unsigned long i = 0; i < size; i++) {
+        result.append({ fftwf_input[i][0], fftwf_input[i][1] });
+    }
+    fftwf_free(fftwf_input);
+
+    return result;
+}
+
+// NOTE: Special case for real values only
+// https://webaudio.github.io/web-audio-api/#fourier-transform
+static Vector<Array<f32, 2>> apply_a_fourier_transform(Vector<f32> const& input)
+{
+    auto const size = input.size();
+    auto* fftwf_input = fftwf_alloc_complex(size);
+
+    for (unsigned long i = 0; i < size; i++) {
+        fftwf_input[i][0] = input[i];
+        fftwf_input[i][1] = 0.f;
+    }
+
+    auto* plan = fftwf_plan_dft_1d(size, fftwf_input, fftwf_input, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftwf_execute(plan);
+    fftwf_destroy_plan(plan);
+
+    auto result = Vector<Array<f32, 2>>();
+    result.ensure_capacity(size);
+    for (unsigned long i = 0; i < size; i++) {
+        result.append({ fftwf_input[i][0], fftwf_input[i][1] });
+    }
+    fftwf_free(fftwf_input);
+
     return result;
 }
 
 // https://webaudio.github.io/web-audio-api/#smoothing-over-time
-Vector<f32> AnalyserNode::smoothing_over_time(Vector<f32> const& current_block)
+Vector<f32> AnalyserNode::smoothing_over_time(Vector<Array<f32, 2>> const& current_block)
 {
     auto X = apply_a_fourier_transform(current_block);
 
@@ -94,8 +137,7 @@ Vector<f32> AnalyserNode::smoothing_over_time(Vector<f32> const& current_block)
     Vector<f32> result;
     result.ensure_capacity(m_fft_size);
     for (unsigned long i = 0; i < m_fft_size; i++) {
-        // FIXME: Complex modulus on X[i]
-        result.unchecked_append(m_smoothing_time_constant * m_previous_block[i] + (1.f - m_smoothing_time_constant) * abs(X[i]));
+        result.unchecked_append(m_smoothing_time_constant * m_previous_block[i] + (1.f - m_smoothing_time_constant) * AK::sqrt(X[i][0] * X[i][0] + X[i][1] * X[i][1]));
     }
 
     m_previous_block = result;
