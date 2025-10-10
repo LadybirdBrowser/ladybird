@@ -2037,7 +2037,9 @@ void HTMLMediaElement::reached_end_of_media_playback()
     m_loop_was_specified_when_reaching_end_of_media_resource = has_attribute(HTML::AttributeNames::loop);
     if (m_loop_was_specified_when_reaching_end_of_media_resource) {
         // then seek to the earliest possible position of the media resource and return.
-        seek_element(0);
+        // AD-HOC: We don't want to loop back to the start if we're paused.
+        if (!paused())
+            seek_element(0);
         // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
         //        and remove any delay in displaying the first frame again.
         return;
