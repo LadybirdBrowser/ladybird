@@ -332,7 +332,6 @@ private:
     Vector<ShadowData> m_box_shadow_data;
     Gfx::FloatMatrix4x4 m_transform { Gfx::FloatMatrix4x4::identity() };
     CSSPixelPoint m_transform_origin;
-    Gfx::AffineTransform m_combined_css_transform;
 
     Optional<BordersData> m_outline_data;
     CSSPixels m_outline_offset { 0 };
