@@ -48,6 +48,7 @@ struct NamedPropertyID {
 
 static ReadonlySpan<NamedPropertyID> attribute_style_properties()
 {
+    // https://svgwg.org/svg2-draft/styling.html#PresentationAttributes
     static Array const properties = {
         // FIXME: The `fill` attribute and CSS `fill` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Fill),
@@ -69,6 +70,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::FontFamily),
         NamedPropertyID(CSS::PropertyID::FontSize),
         NamedPropertyID(CSS::PropertyID::FontStyle),
+        NamedPropertyID(CSS::PropertyID::FontVariant),
         NamedPropertyID(CSS::PropertyID::FontWeight),
         NamedPropertyID(CSS::PropertyID::Height, { SVG::TagNames::foreignObject, SVG::TagNames::image, SVG::TagNames::rect, SVG::TagNames::svg, SVG::TagNames::symbol, SVG::TagNames::use }),
         NamedPropertyID(CSS::PropertyID::ImageRendering),
@@ -94,6 +96,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::StrokeOpacity),
         NamedPropertyID(CSS::PropertyID::StrokeWidth),
         NamedPropertyID(CSS::PropertyID::TextAnchor),
+        NamedPropertyID(CSS::PropertyID::TextDecoration),
         NamedPropertyID(CSS::PropertyID::TextRendering),
         NamedPropertyID(CSS::PropertyID::TextOverflow),
         NamedPropertyID(CSS::PropertyID::TransformOrigin),
