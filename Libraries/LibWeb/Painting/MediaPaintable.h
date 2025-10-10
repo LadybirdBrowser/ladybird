@@ -24,6 +24,8 @@ protected:
 
     void paint_media_controls(DisplayListRecordingContext&, HTML::HTMLMediaElement const&, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const;
 
+    auto& media_element() { return as<HTML::HTMLMediaElement>(*dom_node()); }
+
 private:
     struct Components {
         DevicePixelRect control_box_rect;

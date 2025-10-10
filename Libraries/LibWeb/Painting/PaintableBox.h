@@ -48,7 +48,6 @@ public:
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
     virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
-    Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return as<Layout::NodeWithStyleAndBoxModelMetrics>(layout_node()); }
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return as<Layout::NodeWithStyleAndBoxModelMetrics const>(layout_node()); }
 
     auto& box_model() { return m_box_model; }
@@ -135,9 +134,6 @@ public:
     }
 
     void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
-
-    DOM::Node const* dom_node() const { return layout_node_with_style_and_box_metrics().dom_node(); }
-    DOM::Node* dom_node() { return layout_node_with_style_and_box_metrics().dom_node(); }
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
