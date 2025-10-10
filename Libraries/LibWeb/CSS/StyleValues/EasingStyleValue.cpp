@@ -137,15 +137,10 @@ String EasingStyleValue::Steps::to_string(SerializationMode mode) const
                 return {};
             return CSS::to_string(this->position);
         }();
-        auto intervals = number_of_intervals;
-        if (mode == SerializationMode::ResolvedValue) {
-            auto resolved_value = number_of_intervals.resolved({}).value_or(1);
-            intervals = max(resolved_value, this->position == StepPosition::JumpNone ? 2 : 1);
-        }
         if (position.has_value()) {
-            builder.appendff("steps({}, {})", intervals.to_string(mode), position.value());
+            builder.appendff("steps({}, {})", number_of_intervals.to_string(mode), position.value());
         } else {
-            builder.appendff("steps({})", intervals.to_string(mode));
+            builder.appendff("steps({})", number_of_intervals.to_string(mode));
         }
     }
     return MUST(builder.to_string());

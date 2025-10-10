@@ -320,7 +320,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
                 return CubicBezierEasingFunction { resolved_x1, resolved_y1, resolved_x2, resolved_y2, cubic_bezier.to_string(SerializationMode::Normal) };
             },
             [](EasingStyleValue::Steps const& steps) -> EasingFunction {
-                auto resolved_interval_count = max(steps.number_of_intervals.resolved({}).value_or(1), steps.position == StepPosition::JumpNone ? 2 : 1);
+                auto resolved_interval_count = steps.number_of_intervals.resolved({}).value_or(1);
 
                 return StepsEasingFunction { resolved_interval_count, steps.position, steps.to_string(SerializationMode::ResolvedValue) };
             });

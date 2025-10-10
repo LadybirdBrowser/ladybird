@@ -568,6 +568,8 @@ private:
         AngularColorStopList,
         CubicBezierFunctionXCoordinate,
         ShadowBlurRadius,
+        StepsIntervalsJumpNone,
+        StepsIntervalsNormal,
         TranslateZArgument
     };
     // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
