@@ -600,9 +600,10 @@ void HTMLLinkElement::resource_did_load_favicon()
 
 static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
 {
+    auto promise = Core::Promise<bool>::construct();
+
     if (favicon_url.basename().ends_with(".svg"sv)) {
         auto result = SVG::SVGDecodedImageData::create(document->realm(), document->page(), favicon_url, favicon_data);
-        auto promise = Core::Promise<bool>::construct();
         if (result.is_error()) {
             promise->reject(Error::from_string_view("Failed to decode SVG favicon"sv));
             return promise;
@@ -623,11 +624,12 @@ static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_d
         return promise;
     }
 
-    auto on_failed_decode = [favicon_url]([[maybe_unused]] Error& error) {
+    auto on_failed_decode = [favicon_url, promise]([[maybe_unused]] Error& error) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Failed to decode favicon {}: {}", favicon_url, error);
+        promise->reject(move(error));
     };
 
-    auto on_successful_decode = [document = GC::Root(document)](Web::Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+    auto on_successful_decode = [document = GC::Root(document), promise](Web::Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
         auto favicon_bitmap = decoded_image.frames[0].bitmap;
         dbgln_if(IMAGE_DECODER_DEBUG, "Decoded favicon, {}", favicon_bitmap->size());
 
@@ -635,11 +637,13 @@ static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_d
         if (navigable && navigable->is_traversable())
             navigable->traversable_navigable()->page().client().page_did_change_favicon(*favicon_bitmap);
 
+        promise->resolve(true);
         return {};
     };
 
-    auto promise = Platform::ImageCodecPlugin::the().decode_image(favicon_data, move(on_successful_decode), move(on_failed_decode));
-    return promise->map<bool>([](auto const&) { return true; });
+    (void)Platform::ImageCodecPlugin::the().decode_image(favicon_data, move(on_successful_decode), move(on_failed_decode));
+
+    return promise;
 }
 
 bool HTMLLinkElement::load_favicon_and_use_if_window_is_active()
