@@ -1311,12 +1311,11 @@ private:
 
 class PutPrivateById final : public Instruction {
 public:
-    explicit PutPrivateById(Operand base, IdentifierTableIndex property, Operand src, PutKind kind = PutKind::Normal)
+    explicit PutPrivateById(Operand base, IdentifierTableIndex property, Operand src)
         : Instruction(Type::PutPrivateById)
         , m_base(base)
         , m_property(property)
         , m_src(src)
-        , m_kind(kind)
     {
     }
 
@@ -1336,7 +1335,6 @@ private:
     Operand m_base;
     IdentifierTableIndex m_property;
     Operand m_src;
-    PutKind m_kind;
 };
 
 class DeleteById final : public Instruction {

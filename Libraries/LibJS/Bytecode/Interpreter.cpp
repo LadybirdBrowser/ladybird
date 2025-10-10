@@ -3648,13 +3648,11 @@ ByteString PutByIdWithThis::to_byte_string_impl(Bytecode::Executable const& exec
 
 ByteString PutPrivateById::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    auto kind = property_kind_to_string(m_kind);
     return ByteString::formatted(
-        "PutPrivateById {}, {}, {}, kind:{} ",
+        "PutPrivateById {}, {}, {}",
         format_operand("base"sv, m_base, executable),
         executable.identifier_table->get(m_property),
-        format_operand("src"sv, m_src, executable),
-        kind);
+        format_operand("src"sv, m_src, executable));
 }
 
 ByteString GetById::to_byte_string_impl(Bytecode::Executable const& executable) const
