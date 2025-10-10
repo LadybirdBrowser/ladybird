@@ -653,7 +653,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                         if (!lhs_is_super_expression)
                             generator.emit_put_by_id(*base, identifier_table_ref, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache(), move(base_identifier));
                         else
-                            generator.emit<Bytecode::Op::PutByIdWithThis>(*base, *this_value, identifier_table_ref, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache());
+                            generator.emit<Bytecode::Op::PutNormalByIdWithThis>(*base, *this_value, identifier_table_ref, rval, generator.next_property_lookup_cache());
                     } else if (expression.property().is_private_identifier()) {
                         auto identifier_table_ref = generator.intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                         generator.emit<Bytecode::Op::PutPrivateById>(*base, identifier_table_ref, rval);
