@@ -38,16 +38,6 @@ VideoPaintable::VideoPaintable(Layout::VideoBox const& layout_box)
 {
 }
 
-Layout::VideoBox& VideoPaintable::layout_box()
-{
-    return static_cast<Layout::VideoBox&>(layout_node());
-}
-
-Layout::VideoBox const& VideoPaintable::layout_box() const
-{
-    return static_cast<Layout::VideoBox const&>(layout_node());
-}
-
 void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -65,7 +55,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     ScopedCornerRadiusClip corner_clip { context, video_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
-    auto const& video_element = layout_box().dom_node();
+    auto const& video_element = as<HTML::HTMLVideoElement>(*dom_node());
     auto mouse_position = MediaPaintable::mouse_position(context, video_element);
 
     auto const& current_frame = video_element.current_frame();
