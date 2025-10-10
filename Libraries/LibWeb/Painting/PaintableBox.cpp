@@ -105,10 +105,10 @@ CSSPixelPoint PaintableBox::scroll_offset() const
     if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value())
         return node.pseudo_element_generator()->scroll_offset(*pseudo_element);
 
-    if (!(dom_node() && is<DOM::Element>(*dom_node())))
-        return {};
+    if (auto const* element = as_if<DOM::Element>(*dom_node()))
+        return element->scroll_offset({});
 
-    return static_cast<DOM::Element const*>(dom_node())->scroll_offset({});
+    return {};
 }
 
 PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset)
@@ -133,7 +133,7 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
     auto& node = layout_node();
     if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
         node.pseudo_element_generator()->set_scroll_offset(*pseudo_element, offset);
-    } else if (auto* element = as_if<DOM::Element>(dom_node())) {
+    } else if (auto* element = as_if<DOM::Element>(*dom_node())) {
         element->set_scroll_offset({}, offset);
     } else {
         return ScrollHandled::No;
@@ -157,7 +157,7 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
         return ScrollHandled::Yes;
 
     // 4. Append the element to doc’s pending scroll event targets.
-    document.pending_scroll_event_targets().append(*layout_node_with_style_and_box_metrics().dom_node());
+    document.pending_scroll_event_targets().append(*dom_node());
 
     set_needs_display(InvalidateDisplayList::No);
     return ScrollHandled::Yes;
@@ -176,9 +176,8 @@ void PaintableBox::set_offset(CSSPixelPoint offset)
 void PaintableBox::set_content_size(CSSPixelSize size)
 {
     m_content_size = size;
-    if (is<Layout::Box>(Paintable::layout_node())) {
-        static_cast<Layout::Box&>(layout_node_with_style_and_box_metrics()).did_set_content_size();
-    }
+    if (auto layout_box = as_if<Layout::Box>(layout_node()))
+        layout_box->did_set_content_size();
 }
 
 CSSPixelPoint PaintableBox::offset() const
@@ -534,10 +533,7 @@ void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext&
     auto font = Platform::FontPlugin::the().default_font(12);
 
     StringBuilder builder(StringBuilder::Mode::UTF16);
-    if (layout_node_with_style_and_box_metrics().dom_node())
-        builder.append(layout_node_with_style_and_box_metrics().dom_node()->debug_description());
-    else
-        builder.append(layout_node_with_style_and_box_metrics().debug_description());
+    builder.append(debug_description());
     builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
     auto size_text = builder.to_utf16_string();
     auto size_text_rect = border_rect;
