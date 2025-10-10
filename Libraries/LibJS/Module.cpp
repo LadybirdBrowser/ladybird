@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/ModuleNamespaceObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/Promise.h>
+#include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
@@ -44,22 +45,22 @@ ThrowCompletionOr<void> Module::evaluate_module_sync(VM& vm)
 {
     // 1. Assert: module is not a Cyclic Module Record.
     // 2. Let promise be module.Evaluate().
-    auto promise = TRY(evaluate(vm));
+    auto& promise = static_cast<JS::Promise&>(*TRY(evaluate(vm))->promise());
 
     // 3. Assert: promise.[[PromiseState]] is either FULFILLED or REJECTED.
-    VERIFY(first_is_one_of(promise->state(), Promise::State::Fulfilled, Promise::State::Rejected));
+    VERIFY(first_is_one_of(promise.state(), Promise::State::Fulfilled, Promise::State::Rejected));
 
     // 4. If promise.[[PromiseState]] is REJECTED, then
-    if (promise->state() == Promise::State::Rejected) {
+    if (promise.state() == Promise::State::Rejected) {
         // a. If promise.[[PromiseIsHandled]] is false, perform HostPromiseRejectionTracker(promise, "handle").
-        if (!promise->is_handled())
+        if (!promise.is_handled())
             vm.host_promise_rejection_tracker(promise, Promise::RejectionOperation::Handle);
 
         // b. Set promise.[[PromiseIsHandled]] to true.
-        promise->set_is_handled();
+        promise.set_is_handled();
 
         // c. Return ThrowCompletion(promise.[[PromiseResult]]).
-        return throw_completion(promise->result());
+        return throw_completion(promise.result());
     }
 
     // 5. Return UNUSED.
