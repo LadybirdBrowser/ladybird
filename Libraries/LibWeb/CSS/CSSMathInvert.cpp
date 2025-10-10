@@ -7,6 +7,7 @@
 #include "CSSMathInvert.h"
 #include <LibWeb/Bindings/CSSMathInvertPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -129,6 +130,11 @@ Optional<SumValue> CSSMathInvert::create_a_sum_value() const
 
     // 5. Return values.
     return values;
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathInvert::create_calculation_node(CalculationContext const& context) const
+{
+    return InvertCalculationNode::create(TRY(m_value->create_calculation_node(context)));
 }
 
 }

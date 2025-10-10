@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 124 tests
 
-108 Pass
-16 Fail
+116 Pass
+8 Fail
 Pass	Can set 'padding-top' to CSS-wide keywords: initial
 Pass	Can set 'padding-top' to CSS-wide keywords: inherit
 Pass	Can set 'padding-top' to CSS-wide keywords: unset
@@ -12,11 +12,11 @@ Fail	Can set 'padding-top' to var() references:  var(--A)
 Pass	Can set 'padding-top' to a percent: 0%
 Fail	Can set 'padding-top' to a percent: -3.14%
 Pass	Can set 'padding-top' to a percent: 3.14%
-Fail	Can set 'padding-top' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-top' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-top' to a length: 0px
 Pass	Can set 'padding-top' to a length: -3.14em
 Pass	Can set 'padding-top' to a length: 3.14cm
-Fail	Can set 'padding-top' to a length: calc(0px + 0em)
+Pass	Can set 'padding-top' to a length: calc(0px + 0em)
 Pass	Setting 'padding-top' to a time: 0s throws TypeError
 Pass	Setting 'padding-top' to a time: -3.14ms throws TypeError
 Pass	Setting 'padding-top' to a time: 3.14s throws TypeError
@@ -43,11 +43,11 @@ Fail	Can set 'padding-left' to var() references:  var(--A)
 Pass	Can set 'padding-left' to a percent: 0%
 Fail	Can set 'padding-left' to a percent: -3.14%
 Pass	Can set 'padding-left' to a percent: 3.14%
-Fail	Can set 'padding-left' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-left' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-left' to a length: 0px
 Pass	Can set 'padding-left' to a length: -3.14em
 Pass	Can set 'padding-left' to a length: 3.14cm
-Fail	Can set 'padding-left' to a length: calc(0px + 0em)
+Pass	Can set 'padding-left' to a length: calc(0px + 0em)
 Pass	Setting 'padding-left' to a time: 0s throws TypeError
 Pass	Setting 'padding-left' to a time: -3.14ms throws TypeError
 Pass	Setting 'padding-left' to a time: 3.14s throws TypeError
@@ -74,11 +74,11 @@ Fail	Can set 'padding-right' to var() references:  var(--A)
 Pass	Can set 'padding-right' to a percent: 0%
 Fail	Can set 'padding-right' to a percent: -3.14%
 Pass	Can set 'padding-right' to a percent: 3.14%
-Fail	Can set 'padding-right' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-right' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-right' to a length: 0px
 Pass	Can set 'padding-right' to a length: -3.14em
 Pass	Can set 'padding-right' to a length: 3.14cm
-Fail	Can set 'padding-right' to a length: calc(0px + 0em)
+Pass	Can set 'padding-right' to a length: calc(0px + 0em)
 Pass	Setting 'padding-right' to a time: 0s throws TypeError
 Pass	Setting 'padding-right' to a time: -3.14ms throws TypeError
 Pass	Setting 'padding-right' to a time: 3.14s throws TypeError
@@ -105,11 +105,11 @@ Fail	Can set 'padding-bottom' to var() references:  var(--A)
 Pass	Can set 'padding-bottom' to a percent: 0%
 Fail	Can set 'padding-bottom' to a percent: -3.14%
 Pass	Can set 'padding-bottom' to a percent: 3.14%
-Fail	Can set 'padding-bottom' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-bottom' to a percent: calc(0% + 0%)
 Pass	Can set 'padding-bottom' to a length: 0px
 Pass	Can set 'padding-bottom' to a length: -3.14em
 Pass	Can set 'padding-bottom' to a length: 3.14cm
-Fail	Can set 'padding-bottom' to a length: calc(0px + 0em)
+Pass	Can set 'padding-bottom' to a length: calc(0px + 0em)
 Pass	Setting 'padding-bottom' to a time: 0s throws TypeError
 Pass	Setting 'padding-bottom' to a time: -3.14ms throws TypeError
 Pass	Setting 'padding-bottom' to a time: 3.14s throws TypeError

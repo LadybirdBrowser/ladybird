@@ -65,6 +65,8 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
 
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const = 0;
+
 protected:
     explicit CSSNumericValue(JS::Realm&, NumericType);
 
