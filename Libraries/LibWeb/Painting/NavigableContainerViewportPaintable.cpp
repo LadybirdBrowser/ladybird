@@ -28,11 +28,6 @@ NavigableContainerViewportPaintable::NavigableContainerViewportPaintable(Layout:
 {
 }
 
-Layout::NavigableContainerViewport const& NavigableContainerViewportPaintable::layout_box() const
-{
-    return static_cast<Layout::NavigableContainerViewport const&>(layout_node());
-}
-
 void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -45,7 +40,8 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         auto clip_rect = context.rounded_device_rect(absolute_rect);
         ScopedCornerRadiusClip corner_clip { context, clip_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
-        auto const* hosted_document = layout_box().dom_node().content_document_without_origin_check();
+        auto const& navigable_container = this->navigable_container();
+        auto const* hosted_document = navigable_container.content_document_without_origin_check();
         if (!hosted_document)
             return;
         auto const* hosted_paint_tree = hosted_document->paintable();
@@ -65,7 +61,7 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         context.display_list_recorder().restore();
 
         if constexpr (HIGHLIGHT_FOCUSED_FRAME_DEBUG) {
-            if (layout_box().dom_node().content_navigable()->is_focused()) {
+            if (navigable_container.content_navigable()->is_focused()) {
                 context.display_list_recorder().draw_rect(clip_rect.to_type<int>(), Color::Cyan);
             }
         }

@@ -22,7 +22,7 @@ public:
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    Layout::NavigableContainerViewport const& layout_box() const;
+    auto const& navigable_container() const { return as<HTML::NavigableContainer>(*dom_node()); }
 
 private:
     NavigableContainerViewportPaintable(Layout::NavigableContainerViewport const&);
