@@ -9,6 +9,8 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/TimeZone.h>
+#include <LibWeb/ARIA/AriaData.h>
+#include <LibWeb/ARIA/StateAndProperties.h>
 #include <LibWeb/Bindings/InternalsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -306,6 +308,12 @@ String Internals::get_computed_label(DOM::Element& element)
 {
     auto& active_document = window().associated_document();
     return MUST(element.accessible_name(active_document));
+}
+
+String Internals::get_computed_aria_level(DOM::Element& element)
+{
+    auto aria_data = MUST(ARIA::AriaData::build_data(element));
+    return MUST(ARIA::state_or_property_to_string_value(ARIA::StateAndProperties::AriaLevel, *aria_data));
 }
 
 u16 Internals::get_echo_server_port()
