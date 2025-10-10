@@ -1785,8 +1785,14 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
-    if (m_playback_manager)
-        m_playback_manager->seek(AK::Duration::from_seconds_f64(playback_position), manager_seek_mode);
+    if (m_playback_manager) {
+        AK::Duration new_playback_position_as_duration;
+        if (playback_position == m_duration)
+            new_playback_position_as_duration = m_playback_manager->duration();
+        else
+            new_playback_position_as_duration = AK::Duration::from_seconds_f64(playback_position);
+        m_playback_manager->seek(new_playback_position_as_duration, manager_seek_mode);
+    }
 
     // 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
     //     synchronous section are marked with ⌛.)
