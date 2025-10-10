@@ -177,12 +177,18 @@ void Application::display_error_dialog(StringView error_message) const
 
 Utf16String Application::clipboard_text() const
 {
+    if (browser_options().headless_mode.has_value())
+        return WebView::Application::clipboard_text();
+
     auto const* clipboard = QGuiApplication::clipboard();
     return utf16_string_from_qstring(clipboard->text());
 }
 
 Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
 {
+    if (browser_options().headless_mode.has_value())
+        return WebView::Application::clipboard_entries();
+
     Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
     auto const* clipboard = QGuiApplication::clipboard();
 
@@ -202,6 +208,11 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
 
 void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
 {
+    if (browser_options().headless_mode.has_value()) {
+        WebView::Application::insert_clipboard_entry(move(entry));
+        return;
+    }
+
     auto* mime_data = new QMimeData();
     mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
 

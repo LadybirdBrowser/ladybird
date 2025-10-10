@@ -625,6 +625,27 @@ void Application::display_error_dialog(StringView error_message) const
     warnln("{}", error_message);
 }
 
+Utf16String Application::clipboard_text() const
+{
+    if (!m_clipboard.has_value())
+        return {};
+    if (m_clipboard->mime_type != "text/plain"sv)
+        return {};
+    return Utf16String::from_utf8(m_clipboard->data);
+}
+
+Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
+{
+    if (!m_clipboard.has_value())
+        return {};
+    return { *m_clipboard };
+}
+
+void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+{
+    m_clipboard = move(entry);
+}
+
 void Application::initialize_actions()
 {
     auto debug_request = [this](auto request) {
