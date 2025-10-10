@@ -2991,13 +2991,7 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
                 return nullptr;
         }
 
-        EasingStyleValue::Steps steps;
-
-        auto const& intervals_argument = comma_separated_arguments[0][0];
-        auto intervals_token = TokenStream<ComponentValue>::of_single_token(intervals_argument);
-        auto intervals = parse_integer(intervals_token);
-        if (!intervals.has_value())
-            return nullptr;
+        StepPosition position = StepPosition::End;
 
         if (comma_separated_arguments.size() == 2) {
             if (comma_separated_arguments[1].size() != 1)
@@ -3018,15 +3012,23 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
             if (!step_position.has_value())
                 return nullptr;
 
-            steps.position = step_position.value();
+            position = step_position.value();
         }
+
+        auto const& intervals_argument = comma_separated_arguments[0][0];
+        auto intervals_token = TokenStream<ComponentValue>::of_single_token(intervals_argument);
+        m_value_context.append(position == StepPosition::JumpNone ? SpecialContext::StepsIntervalsJumpNone : SpecialContext::StepsIntervalsNormal);
+        auto intervals = parse_integer(intervals_token);
+        m_value_context.take_last();
+        if (!intervals.has_value())
+            return nullptr;
 
         // Perform extra validation
         // https://drafts.csswg.org/css-easing/#step-easing-functions
         // If the <step-position> is jump-none, the <integer> must be at least 2, or the function is invalid.
         // Otherwise, the <integer> must be at least 1, or the function is invalid.
         if (!intervals->is_calculated()) {
-            if (steps.position == StepPosition::JumpNone) {
+            if (position == StepPosition::JumpNone) {
                 if (intervals->value() <= 1)
                     return nullptr;
             } else if (intervals->value() <= 0) {
@@ -3034,9 +3036,8 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
             }
         }
 
-        steps.number_of_intervals = *intervals;
         transaction.commit();
-        return EasingStyleValue::create(steps);
+        return EasingStyleValue::create(EasingStyleValue::Steps { *intervals, position });
     }
 
     return nullptr;
@@ -4142,6 +4143,10 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::CubicBezierFunctionXCoordinate:
                     // Coordinates on the X axis must be between 0 and 1
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                case SpecialContext::StepsIntervalsJumpNone:
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 2, NumericLimits<float>::max() } } } };
+                case SpecialContext::StepsIntervalsNormal:
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 1, NumericLimits<float>::max() } } } };
                 case SpecialContext::ShadowBlurRadius:
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::TranslateZArgument:
