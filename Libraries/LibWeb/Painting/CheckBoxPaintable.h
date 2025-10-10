@@ -18,9 +18,6 @@ class CheckBoxPaintable final : public LabelablePaintable {
 public:
     static GC::Ref<CheckBoxPaintable> create(Layout::CheckBox const&);
 
-    Layout::CheckBox const& layout_box() const;
-    Layout::CheckBox& layout_box();
-
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:

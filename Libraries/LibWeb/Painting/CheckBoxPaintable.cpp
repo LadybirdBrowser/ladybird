@@ -46,16 +46,6 @@ CheckBoxPaintable::CheckBoxPaintable(Layout::CheckBox const& layout_box)
 {
 }
 
-Layout::CheckBox const& CheckBoxPaintable::layout_box() const
-{
-    return static_cast<Layout::CheckBox const&>(layout_node());
-}
-
-Layout::CheckBox& CheckBoxPaintable::layout_box()
-{
-    return static_cast<Layout::CheckBox&>(layout_node());
-}
-
 void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -66,7 +56,7 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     if (phase != PaintPhase::Foreground)
         return;
 
-    auto const& checkbox = static_cast<HTML::HTMLInputElement const&>(layout_box().dom_node());
+    auto const& checkbox = as<HTML::HTMLInputElement const>(*dom_node());
     bool enabled = layout_box().dom_node().enabled();
     auto checkbox_rect = context.enclosing_device_rect(absolute_rect()).to_type<int>();
     auto checkbox_radius = checkbox_rect.width() / 5;
