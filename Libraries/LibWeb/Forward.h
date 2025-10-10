@@ -217,6 +217,7 @@ class BasicShapeStyleValue;
 class BorderImageSliceStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
+class CalculationNode;
 class CascadedProperties;
 class Clip;
 class ColorMixStyleValue;
@@ -395,6 +396,7 @@ enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
 
 struct BackgroundLayerData;
+struct CalculationContext;
 struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
 struct GridRepeatParams;
