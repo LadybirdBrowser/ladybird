@@ -24,9 +24,4 @@ SVGGraphicsPaintable::SVGGraphicsPaintable(Layout::SVGGraphicsBox const& layout_
 {
 }
 
-Layout::SVGGraphicsBox const& SVGGraphicsPaintable::layout_box() const
-{
-    return static_cast<Layout::SVGGraphicsBox const&>(layout_node());
-}
-
 }
