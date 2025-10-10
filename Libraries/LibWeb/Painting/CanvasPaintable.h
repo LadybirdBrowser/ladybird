@@ -20,8 +20,6 @@ public:
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    Layout::CanvasBox const& layout_box() const;
-
 private:
     CanvasPaintable(Layout::CanvasBox const&);
 };
