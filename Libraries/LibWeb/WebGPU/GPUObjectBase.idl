@@ -1,0 +1,9 @@
+// https://www.w3.org/TR/webgpu/#dictdef-gpuobjectdescriptorbase
+dictionary GPUObjectDescriptorBase {
+    USVString label = "";
+};
+
+// https://www.w3.org/TR/webgpu/#gpuobjectbase
+interface mixin GPUObjectBase {
+    attribute USVString label;
+};

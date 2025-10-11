@@ -13,6 +13,7 @@
 #include <core/SkTypeface.h>
 #ifndef AK_OS_ANDROID
 #    include <ports/SkFontMgr_fontconfig.h>
+#    include <ports/SkFontScanner_FreeType.h>
 #else
 #    include <ports/SkFontMgr_android.h>
 #endif
@@ -39,7 +40,7 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
 #endif
 #ifndef AK_OS_ANDROID
         if (!s_font_manager) {
-            s_font_manager = SkFontMgr_New_FontConfig(nullptr);
+            s_font_manager = SkFontMgr_New_FontConfig(nullptr, SkFontScanner_Make_FreeType());
         }
 #else
         s_font_manager = SkFontMgr_New_Android(nullptr);

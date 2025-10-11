@@ -1,0 +1,11 @@
+// https://www.w3.org/TR/webgpu/#gpuadapterinfo
+[Exposed=(Window, Worker), SecureContext]
+interface GPUAdapterInfo {
+    readonly attribute DOMString vendor;
+    readonly attribute DOMString architecture;
+    readonly attribute DOMString device;
+    readonly attribute DOMString description;
+    readonly attribute unsigned long subgroupMinSize;
+    readonly attribute unsigned long subgroupMaxSize;
+    [FIXME] readonly attribute boolean isFallbackAdapter;
+};
