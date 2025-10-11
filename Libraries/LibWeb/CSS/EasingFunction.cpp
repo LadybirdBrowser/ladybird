@@ -7,6 +7,7 @@
 #include "EasingFunction.h"
 #include <AK/BinarySearch.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -289,6 +290,16 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
         VERIFY_NOT_REACHED();
     };
 
+    auto const resolve_integer = [](StyleValue const& style_value) {
+        if (style_value.is_integer())
+            return style_value.as_integer().integer();
+
+        if (style_value.is_calculated())
+            return style_value.as_calculated().resolve_integer({}).value();
+
+        VERIFY_NOT_REACHED();
+    };
+
     if (style_value.is_easing()) {
         return style_value.as_easing().function().visit(
             [&](EasingStyleValue::Linear const& linear) -> EasingFunction {
@@ -311,18 +322,16 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 
                 return LinearEasingFunction { resolved_control_points, linear.to_string(SerializationMode::ResolvedValue) };
             },
-            [](EasingStyleValue::CubicBezier const& cubic_bezier) -> EasingFunction {
-                auto resolved_x1 = cubic_bezier.x1.resolved({}).value_or(0.0);
-                auto resolved_y1 = cubic_bezier.y1.resolved({}).value_or(0.0);
-                auto resolved_x2 = cubic_bezier.x2.resolved({}).value_or(0.0);
-                auto resolved_y2 = cubic_bezier.y2.resolved({}).value_or(0.0);
+            [&](EasingStyleValue::CubicBezier const& cubic_bezier) -> EasingFunction {
+                auto resolved_x1 = resolve_number(cubic_bezier.x1);
+                auto resolved_y1 = resolve_number(cubic_bezier.y1);
+                auto resolved_x2 = resolve_number(cubic_bezier.x2);
+                auto resolved_y2 = resolve_number(cubic_bezier.y2);
 
                 return CubicBezierEasingFunction { resolved_x1, resolved_y1, resolved_x2, resolved_y2, cubic_bezier.to_string(SerializationMode::Normal) };
             },
-            [](EasingStyleValue::Steps const& steps) -> EasingFunction {
-                auto resolved_interval_count = steps.number_of_intervals.resolved({}).value_or(1);
-
-                return StepsEasingFunction { resolved_interval_count, steps.position, steps.to_string(SerializationMode::ResolvedValue) };
+            [&](EasingStyleValue::Steps const& steps) -> EasingFunction {
+                return StepsEasingFunction { resolve_integer(steps.number_of_intervals), steps.position, steps.to_string(SerializationMode::ResolvedValue) };
             });
     }
 

@@ -2954,7 +2954,7 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
 
         auto parse_argument = [this, &comma_separated_arguments](auto index) {
             TokenStream<ComponentValue> argument_tokens { comma_separated_arguments[index] };
-            return parse_number(argument_tokens);
+            return parse_number_value(argument_tokens);
         };
 
         m_value_context.append(SpecialContext::CubicBezierFunctionXCoordinate);
@@ -2964,18 +2964,18 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
 
         auto y1 = parse_argument(1);
         auto y2 = parse_argument(3);
-        if (!x1.has_value() || !y1.has_value() || !x2.has_value() || !y2.has_value())
+        if (!x1 || !y1 || !x2 || !y2)
             return nullptr;
-        if (!x1->is_calculated() && (x1->value() < 0.0 || x1->value() > 1.0))
+        if (x1->is_number() && (x1->as_number().number() < 0.0 || x1->as_number().number() > 1.0))
             return nullptr;
-        if (!x2->is_calculated() && (x2->value() < 0.0 || x2->value() > 1.0))
+        if (x2->is_number() && (x2->as_number().number() < 0.0 || x2->as_number().number() > 1.0))
             return nullptr;
 
         EasingStyleValue::CubicBezier bezier {
-            x1.release_value(),
-            y1.release_value(),
-            x2.release_value(),
-            y2.release_value(),
+            x1.release_nonnull(),
+            y1.release_nonnull(),
+            x2.release_nonnull(),
+            y2.release_nonnull(),
         };
 
         transaction.commit();
@@ -3018,26 +3018,26 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
         auto const& intervals_argument = comma_separated_arguments[0][0];
         auto intervals_token = TokenStream<ComponentValue>::of_single_token(intervals_argument);
         m_value_context.append(position == StepPosition::JumpNone ? SpecialContext::StepsIntervalsJumpNone : SpecialContext::StepsIntervalsNormal);
-        auto intervals = parse_integer(intervals_token);
+        auto intervals = parse_integer_value(intervals_token);
         m_value_context.take_last();
-        if (!intervals.has_value())
+        if (!intervals)
             return nullptr;
 
         // Perform extra validation
         // https://drafts.csswg.org/css-easing/#step-easing-functions
         // If the <step-position> is jump-none, the <integer> must be at least 2, or the function is invalid.
         // Otherwise, the <integer> must be at least 1, or the function is invalid.
-        if (!intervals->is_calculated()) {
+        if (intervals->is_integer()) {
             if (position == StepPosition::JumpNone) {
-                if (intervals->value() <= 1)
+                if (intervals->as_integer().integer() <= 1)
                     return nullptr;
-            } else if (intervals->value() <= 0) {
+            } else if (intervals->as_integer().integer() <= 0) {
                 return nullptr;
             }
         }
 
         transaction.commit();
-        return EasingStyleValue::create(EasingStyleValue::Steps { *intervals, position });
+        return EasingStyleValue::create(EasingStyleValue::Steps { intervals.release_nonnull(), position });
     }
 
     return nullptr;
