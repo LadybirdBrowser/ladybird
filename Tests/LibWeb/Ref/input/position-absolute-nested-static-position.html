@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/position-absolute-fixed-nested-static-position.html" />
+<style>
+div {
+  height: 100px;
+  width: 100px;
+}
+.absolute { position: absolute; }
+.outside { background-color: red; }
+.inside { background-color: orange; }
+.deep { background-color: yellow; }
+.deeper { background-color: green; }
+</style>
+<div class="outside">
+  <div class="absolute inside">
+    <div class="deep">
+      <div class="absolute deeper"></div>
+    </div>
+  </div>
+</div>
