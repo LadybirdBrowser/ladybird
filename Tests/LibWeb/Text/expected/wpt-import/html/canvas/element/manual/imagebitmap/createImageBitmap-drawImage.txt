@@ -1,0 +1,61 @@
+Harness status: OK
+
+Found 55 tests
+
+14 Pass
+41 Fail
+Pass	createImageBitmap from an HTMLCanvasElement, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLCanvasElement scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLCanvasElement scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLCanvasElement resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an HTMLCanvasElement with negative sw/sh, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement resized, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement with negative sw/sh, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL resized, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a bitmap HTMLImageElement, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap HTMLImageElement scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap HTMLImageElement scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap HTMLImageElement resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a bitmap HTMLImageElement with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a vector HTMLImageElement, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector HTMLImageElement scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector HTMLImageElement scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector HTMLImageElement resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a vector HTMLImageElement with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a bitmap SVGImageElement, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap SVGImageElement scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap SVGImageElement scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap SVGImageElement resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a bitmap SVGImageElement with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a vector SVGImageElement, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector SVGImageElement scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector SVGImageElement scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector SVGImageElement resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a vector SVGImageElement with negative sw/sh, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an OffscreenCanvas, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an OffscreenCanvas scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an OffscreenCanvas scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an OffscreenCanvas resized, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an OffscreenCanvas with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageData, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageData scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageData scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageData resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageData with negative sw/sh, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageBitmap, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageBitmap scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageBitmap scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageBitmap resized, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageBitmap with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a Blob, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a Blob scaled down, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a Blob scaled up, and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a Blob resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a Blob with negative sw/sh, and drawImage on the created ImageBitmap
