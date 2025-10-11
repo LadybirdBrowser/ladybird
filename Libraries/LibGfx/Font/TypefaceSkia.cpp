@@ -56,7 +56,7 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
 }
 
-RefPtr<TypefaceSkia> TypefaceSkia::clone_with_variations(Vector<std::pair<SkFourByteTag, float>> const& axes) const
+RefPtr<TypefaceSkia> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
 {
     if (axes.is_empty())
         return const_cast<TypefaceSkia*>(this);
@@ -66,8 +66,8 @@ RefPtr<TypefaceSkia> TypefaceSkia::clone_with_variations(Vector<std::pair<SkFour
     Vector<SkFontArguments::VariationPosition::Coordinate> coords;
     coords.resize(axes.size());
     for (size_t i = 0; i < axes.size(); ++i) {
-        coords[i].axis = axes[i].first;
-        coords[i].value = axes[i].second;
+        coords[i].axis = axes[i].tag;
+        coords[i].value = axes[i].value;
     }
     SkFontArguments::VariationPosition variation_pos;
     variation_pos.coordinates = coords.data();

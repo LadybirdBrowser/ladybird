@@ -59,10 +59,11 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
         return nullptr;
     for (auto const& typeface : it->value) {
         if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope) {
-            Vector<std::pair<Gfx::FourByteTag, float>> axes;
-            axes.append({ Gfx::MakeFourByteTag('w', 'g', 'h', 't'), static_cast<float>(weight) });
+            FontVariationSettings font_variation_settings;
+            font_variation_settings.weight(static_cast<float>(weight));
+            font_variation_settings.width(static_cast<float>(width));
 
-            return typeface->font(point_size, axes);
+            return typeface->font(point_size, font_variation_settings);
         }
     }
     return nullptr;

@@ -6,6 +6,7 @@
 
 #include <harfbuzz/hb.h>
 
+#include "FontVariationSettings.h"
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
@@ -47,9 +48,9 @@ Typeface::~Typeface()
         hb_blob_destroy(m_harfbuzz_blob);
 }
 
-NonnullRefPtr<Font> Typeface::font(float point_size, Vector<std::pair<FourByteTag, float>> const& axes) const
+NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations) const
 {
-    FontCacheKey key { point_size, axes };
+    FontCacheKey key { point_size, variations.to_sorted_list() };
 
     if (auto it = m_fonts.find(key); it != m_fonts.end())
         return *it->value;
@@ -61,14 +62,14 @@ NonnullRefPtr<Font> Typeface::font(float point_size, Vector<std::pair<FourByteTa
         m_fonts.remove(m_fonts.begin());
 
     RefPtr<Typeface> used_typeface = const_cast<Typeface*>(this);
-    if (!axes.is_empty()) {
-        if (auto skia_typeface = dynamic_cast<TypefaceSkia const*>(this))
-            if (auto derived = skia_typeface->clone_with_variations(axes))
+    if (!variations.is_empty()) {
+        if (auto const* skia_typeface = dynamic_cast<TypefaceSkia const*>(this))
+            if (auto derived = skia_typeface->clone_with_variations(variations.to_sorted_list()))
                 used_typeface = move(derived);
     }
 
     auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size));
-    m_fonts.set(move(key), font);
+    m_fonts.set(key, font);
     return font;
 }
 

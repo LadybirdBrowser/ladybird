@@ -7,9 +7,10 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/RefCounted.h>
 #include <AK/QuickSort.h>
+#include <AK/RefCounted.h>
 #include <LibGfx/Font/FontData.h>
+#include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 
 #define POINTS_PER_INCH 72.0f
@@ -20,14 +21,6 @@ struct hb_blob_t;
 struct hb_face_t;
 
 namespace Gfx {
-
-using FourByteTag = uint32_t;
-
-// Pack four chars into a FourByteTag (big-endian like Skia)
-constexpr FourByteTag MakeFourByteTag(char a, char b, char c, char d)
-{
-    return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(c) << 8) | static_cast<uint32_t>(d);
-}
 
 class Font;
 
@@ -45,21 +38,7 @@ struct ScaledFontMetrics {
 
 struct FontCacheKey {
     float point_size;
-    Vector<std::pair<FourByteTag, float>> axes;
-
-    FontCacheKey(float point_size, Vector<std::pair<FourByteTag, float>> const& axes)
-        : point_size(point_size)
-        , axes(axes)
-    {
-        normalize();
-    }
-
-    void normalize()
-    {
-        quick_sort(axes, [](auto const& a, auto const& b) {
-            return a.first < b.first;
-        });
-    }
+    Vector<FontVariationAxis> axes;
 
     bool operator==(FontCacheKey const& other) const
     {
@@ -75,7 +54,7 @@ struct FontCacheKey {
     {
         auto h = pair_int_hash(int_hash(bit_cast<u32>(point_size)), axes.size());
         for (auto const& axis : axes)
-            h = pair_int_hash(h, pair_int_hash(axis.first, int_hash(bit_cast<u32>(axis.second))));
+            h = pair_int_hash(h, pair_int_hash(axis.tag, int_hash(bit_cast<u32>(axis.value))));
         return h;
     }
 };
@@ -97,7 +76,7 @@ public:
     virtual u16 width() const = 0;
     virtual u8 slope() const = 0;
 
-    [[nodiscard]] NonnullRefPtr<Font> font(float point_size, Vector<std::pair<FourByteTag, float>> const& axes = {}) const;
+    [[nodiscard]] NonnullRefPtr<Font> font(float point_size, Gfx::FontVariationSettings const& variations = {}) const;
 
     hb_face_t* harfbuzz_typeface() const;
 
