@@ -403,4 +403,14 @@ ErrorOr<void> kill(pid_t pid, int signal)
     return {};
 }
 
+ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t source_offset, size_t source_length)
+{
+    (void)source_fd;
+    (void)target_fd;
+    (void)source_offset;
+    (void)source_length;
+
+    return Error::from_string_literal("FIXME: Implement System::transfer_file_through_pipe on Windows (for HTTP disk cache)");
+}
+
 }

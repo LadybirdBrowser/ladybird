@@ -74,7 +74,6 @@ struct BrowserOptions {
     Optional<HeadlessMode> headless_mode;
     int window_width { 800 };
     int window_height { 600 };
-    Vector<ByteString> certificates {};
     NewWindow new_window { NewWindow::No };
     ForceNewProcess force_new_process { ForceNewProcess::No };
     AllowPopups allow_popups { AllowPopups::No };
@@ -85,6 +84,16 @@ struct BrowserOptions {
     Optional<ByteString> webdriver_content_ipc_path {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
+};
+
+enum class EnableHTTPDiskCache {
+    No,
+    Yes,
+};
+
+struct RequestServerOptions {
+    Vector<ByteString> certificates;
+    EnableHTTPDiskCache enable_http_disk_cache { EnableHTTPDiskCache::No };
 };
 
 enum class IsLayoutTestMode {

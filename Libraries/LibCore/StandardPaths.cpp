@@ -129,6 +129,27 @@ ByteString StandardPaths::videos_directory()
     return LexicalPath::canonicalized_path(builder.to_byte_string());
 }
 
+ByteString StandardPaths::cache_directory()
+{
+#if defined(AK_OS_WINDOWS) || defined(AK_OS_HAIKU)
+    return user_data_directory();
+#else
+    if (auto cache_directory = get_environment_if_not_empty("XDG_CACHE_HOME"sv); cache_directory.has_value())
+        return LexicalPath::canonicalized_path(*cache_directory);
+
+    StringBuilder builder;
+    builder.append(home_directory());
+
+#    if defined(AK_OS_MACOS)
+    builder.append("/Library/Caches"sv);
+#    else
+    builder.append("/.cache"sv);
+#    endif
+
+    return LexicalPath::canonicalized_path(builder.to_byte_string());
+#endif
+}
+
 ByteString StandardPaths::config_directory()
 {
     StringBuilder builder;

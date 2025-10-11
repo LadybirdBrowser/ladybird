@@ -13,10 +13,10 @@
 #include <AK/StringView.h>
 #include <AK/Traits.h>
 #include <LibCore/Timer.h>
+#include <LibDatabase/Forward.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Forward.h>
-#include <LibWebView/Database.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -76,13 +76,13 @@ class WEBVIEW_API CookieJar {
         void insert_cookie(Web::Cookie::Cookie const& cookie);
         TransientStorage::Cookies select_all_cookies();
 
-        Database& database;
+        Database::Database& database;
         Statements statements;
         RefPtr<Core::Timer> synchronization_timer {};
     };
 
 public:
-    static ErrorOr<NonnullOwnPtr<CookieJar>> create(Database&);
+    static ErrorOr<NonnullOwnPtr<CookieJar>> create(Database::Database&);
     static NonnullOwnPtr<CookieJar> create();
 
     ~CookieJar();

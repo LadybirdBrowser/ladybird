@@ -9,8 +9,8 @@
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Traits.h>
+#include <LibDatabase/Forward.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
-#include <LibWebView/Database.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/StorageOperationError.h>
 
@@ -31,7 +31,7 @@ class WEBVIEW_API StorageJar {
     AK_MAKE_NONMOVABLE(StorageJar);
 
 public:
-    static ErrorOr<NonnullOwnPtr<StorageJar>> create(Database&);
+    static ErrorOr<NonnullOwnPtr<StorageJar>> create(Database::Database&);
     static NonnullOwnPtr<StorageJar> create();
 
     ~StorageJar();
@@ -71,7 +71,7 @@ private:
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
 
-        Database& database;
+        Database::Database& database;
         Statements statements;
     };
 

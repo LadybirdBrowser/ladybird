@@ -6,6 +6,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StdLibExtras.h>
+#include <LibDatabase/Database.h>
 #include <LibWebView/StorageJar.h>
 
 namespace WebView {
@@ -13,7 +14,7 @@ namespace WebView {
 // Quota size is specified in https://storage.spec.whatwg.org/#registered-storage-endpoints
 static constexpr size_t LOCAL_STORAGE_QUOTA = 5 * MiB;
 
-ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database& database)
+ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& database)
 {
     Statements statements {};
 

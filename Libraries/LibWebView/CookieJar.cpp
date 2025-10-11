@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibDatabase/Database.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWebView/CookieJar.h>
@@ -20,7 +21,7 @@ namespace WebView {
 
 static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_seconds(30);
 
-ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database& database)
+ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database::Database& database)
 {
     Statements statements {};
 
@@ -665,7 +666,7 @@ void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cooki
         cookie.persistent);
 }
 
-static Web::Cookie::Cookie parse_cookie(Database& database, Database::StatementID statement_id)
+static Web::Cookie::Cookie parse_cookie(Database::Database& database, Database::StatementID statement_id)
 {
     int column = 0;
     auto convert_text = [&](auto& field) { field = database.result_column<String>(statement_id, column++); };

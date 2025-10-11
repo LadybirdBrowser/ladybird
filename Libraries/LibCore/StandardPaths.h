@@ -22,6 +22,7 @@ public:
     static ByteString pictures_directory();
     static ByteString videos_directory();
     static ByteString tempfile_directory();
+    static ByteString cache_directory();
     static ByteString config_directory();
     static ByteString user_data_directory();
     static Vector<ByteString> system_data_directories();

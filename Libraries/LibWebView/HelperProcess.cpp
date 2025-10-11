@@ -201,10 +201,15 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
 
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
 {
+    auto const& request_server_options = Application::request_server_options();
+
     Vector<ByteString> arguments;
 
-    for (auto const& certificate : WebView::Application::browser_options().certificates)
+    for (auto const& certificate : request_server_options.certificates)
         arguments.append(ByteString::formatted("--certificate={}", certificate));
+
+    if (request_server_options.enable_http_disk_cache == EnableHTTPDiskCache::Yes)
+        arguments.append("--enable-http-disk-cache"sv);
 
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
@@ -212,6 +217,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     }
 
     auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
+
     WebView::Application::settings().dns_settings().visit(
         [](WebView::SystemDNS) {},
         [&](WebView::DNSOverTLS const& dns_over_tls) {

@@ -12,6 +12,7 @@
 #include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
+#include <LibDatabase/Forward.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
 #include <LibImageDecoderClient/Client.h>
@@ -47,6 +48,7 @@ public:
     static Settings& settings() { return the().m_settings; }
 
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
+    static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
@@ -173,6 +175,7 @@ private:
 
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
+    RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
 
     RefPtr<Requests::RequestClient> m_request_server_client;
@@ -181,7 +184,7 @@ private:
     RefPtr<WebContentClient> m_spare_web_content_process;
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
 
-    RefPtr<Database> m_database;
+    RefPtr<Database::Database> m_database;
     OwnPtr<CookieJar> m_cookie_jar;
     OwnPtr<StorageJar> m_storage_jar;
 

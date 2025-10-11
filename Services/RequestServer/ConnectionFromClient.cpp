@@ -20,12 +20,15 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
+#include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/RequestClientEndpoint.h>
+
 #ifdef AK_OS_WINDOWS
 // needed because curl.h includes winsock2.h
 #    include <AK/Windows.h>
 #endif
+
 #include <curl/curl.h>
 
 namespace RequestServer {
@@ -41,6 +44,8 @@ static struct {
     bool use_dns_over_tls = true;
     bool validate_dnssec_locally = false;
 } g_dns_info;
+
+Optional<DiskCache> g_disk_cache;
 
 static WeakPtr<Resolver> s_resolver {};
 static NonnullRefPtr<Resolver> default_resolver()
@@ -116,12 +121,16 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     bool got_all_headers { false };
     bool is_connect_only { false };
     size_t downloaded_so_far { 0 };
-    String url;
+    URL::URL url;
+    ByteString method;
     Optional<String> reason_phrase;
     ByteBuffer body;
     AllocatingMemoryStream send_buffer;
     NonnullRefPtr<Core::Notifier> write_notifier;
     bool done_fetching { false };
+
+    Optional<CacheEntryWriter&> cache_entry;
+    UnixDateTime request_start_time;
 
     ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
         : multi(multi)
@@ -130,6 +139,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         , client(client)
         , writer_fd(writer_fd)
         , write_notifier(Core::Notifier::construct(writer_fd, Core::NotificationType::Write))
+        , request_start_time(UnixDateTime::now())
     {
         write_notifier->set_enabled(false);
         write_notifier->on_activation = [this] {
@@ -163,6 +173,13 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
             return {};
         }
 
+        if (cache_entry.has_value()) {
+            auto bytes_sent = bytes_to_send.span().slice(0, result.value());
+
+            if (cache_entry->write_data(bytes_sent).is_error())
+                cache_entry.clear();
+        }
+
         MUST(send_buffer.discard(result.value()));
         write_notifier->set_enabled(!send_buffer.is_eof());
         if (send_buffer.is_eof() && done_fetching)
@@ -193,6 +210,9 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
 
         for (auto* string_list : curl_string_lists)
             curl_slist_free_all(string_list);
+
+        if (cache_entry.has_value())
+            (void)cache_entry->flush();
     }
 
     void flush_headers_if_needed()
@@ -204,6 +224,9 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
         VERIFY(result == CURLE_OK);
         client->async_headers_became_available(request_id, headers, http_status_code, reason_phrase);
+
+        if (g_disk_cache.has_value())
+            cache_entry = g_disk_cache->create_entry(url, method, http_status_code, reason_phrase, headers, request_start_time);
     }
 };
 
@@ -464,6 +487,33 @@ void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::Header
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
+
+    if (g_disk_cache.has_value()) {
+        if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
+            auto fds = MUST(Core::System::pipe2(O_NONBLOCK));
+            auto writer_fd = fds[1];
+            auto reader_fd = fds[0];
+
+            async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+            async_headers_became_available(request_id, cache_entry->headers(), cache_entry->status_code(), cache_entry->reason_phrase());
+
+            cache_entry->pipe_to(
+                writer_fd,
+                [this, request_id, writer_fd](auto bytes_sent) {
+                    // FIXME: Implement timing info for cache hits.
+                    async_request_finished(request_id, bytes_sent, {}, {});
+                    MUST(Core::System::close(writer_fd));
+                },
+                [this, request_id, writer_fd](auto bytes_sent) {
+                    // FIXME: We should switch to a network request automatically if reading from cache has failed.
+                    async_request_finished(request_id, bytes_sent, {}, Requests::NetworkError::CacheReadFailed);
+                    (void)Core::System::close(writer_fd);
+                });
+
+            return;
+        }
+    }
+
     auto host = url.serialized_host().to_byte_string();
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
@@ -500,7 +550,8 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
 
             auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
-            request->url = url.to_string();
+            request->url = url;
+            request->method = method;
 
             auto set_option = [easy](auto option, auto value) {
                 auto result = curl_easy_setopt(easy, option, value);
@@ -760,8 +811,6 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
-    auto const url_string_value = url.to_string();
-
     if (cache_level == CacheLevel::CreateConnection) {
         auto* easy = curl_easy_init();
         if (!easy) {
@@ -781,11 +830,11 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
         auto connect_only_request_id = get_random<i32>();
 
         auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0);
-        request->url = url_string_value;
+        request->url = url;
         request->is_connect_only = true;
 
         set_option(CURLOPT_PRIVATE, request.ptr());
-        set_option(CURLOPT_URL, url_string_value.to_byte_string().characters());
+        set_option(CURLOPT_URL, url.to_byte_string().characters());
         set_option(CURLOPT_PORT, url.port_or_default());
         set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
         set_option(CURLOPT_CONNECT_ONLY, 1L);
@@ -810,6 +859,12 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
             promise->when_rejected([url](auto const&) { dbgln("ensure_connection::ResolveOnly({}) rejected", url); });
         }
     }
+}
+
+void ConnectionFromClient::clear_cache()
+{
+    if (g_disk_cache.has_value())
+        g_disk_cache->clear_cache();
 }
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers)
