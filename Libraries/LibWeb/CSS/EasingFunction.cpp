@@ -8,6 +8,7 @@
 #include <AK/BinarySearch.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -268,6 +269,41 @@ static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_fun
     return canonicalized_control_points;
 }
 
+// https://drafts.csswg.org/css-easing-2/#linear-easing-function
+EasingFunction EasingFunction::linear()
+{
+    // Equivalent to linear(0, 1)
+    return LinearEasingFunction { { { 0, 0 }, { 1, 1 } }, "linear"_string };
+}
+
+// https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease-in
+EasingFunction EasingFunction::ease_in()
+{
+    // Equivalent to cubic-bezier(0.42, 0, 1, 1).
+    return CubicBezierEasingFunction { 0.42, 0, 1, 1, "ease-in"_string };
+}
+
+// https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease-out
+EasingFunction EasingFunction::ease_out()
+{
+    // Equivalent to cubic-bezier(0, 0, 0.58, 1).
+    return CubicBezierEasingFunction { 0, 0, 0.58, 1, "ease-out"_string };
+}
+
+// https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease-in-out
+EasingFunction EasingFunction::ease_in_out()
+{
+    // Equivalent to cubic-bezier(0.42, 0, 0.58, 1).
+    return CubicBezierEasingFunction { 0.42, 0, 0.58, 1, "ease-in-out"_string };
+}
+
+// https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease
+EasingFunction EasingFunction::ease()
+{
+    // Equivalent to cubic-bezier(0.25, 0.1, 0.25, 1).
+    return CubicBezierEasingFunction { 0.25, 0.1, 0.25, 1, "ease"_string };
+}
+
 EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 {
     auto const resolve_number = [](StyleValue const& style_value) {
@@ -333,6 +369,22 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
             [&](EasingStyleValue::Steps const& steps) -> EasingFunction {
                 return StepsEasingFunction { resolve_integer(steps.number_of_intervals), steps.position, steps.to_string(SerializationMode::ResolvedValue) };
             });
+    }
+
+    switch (style_value.to_keyword()) {
+    case Keyword::Linear:
+        return EasingFunction::linear();
+    case Keyword::EaseIn:
+        return EasingFunction::ease_in();
+    case Keyword::EaseOut:
+        return EasingFunction::ease_out();
+    case Keyword::EaseInOut:
+        return EasingFunction::ease_in_out();
+    case Keyword::Ease:
+        return EasingFunction::ease();
+    default: {
+        VERIFY_NOT_REACHED();
+    }
     }
 
     VERIFY_NOT_REACHED();

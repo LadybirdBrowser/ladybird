@@ -16,58 +16,9 @@
 
 namespace Web::CSS {
 
-// https://drafts.csswg.org/css-easing-1/#valdef-easing-function-linear
-EasingStyleValue::Linear EasingStyleValue::Linear::identity()
-{
-    static Linear linear { { { NumberStyleValue::create(0), {} }, { NumberStyleValue::create(1), {} } } };
-    return linear;
-}
-
-// NOTE: Magic cubic bezier values from https://www.w3.org/TR/css-easing-1/#valdef-cubic-bezier-easing-function-ease
-
-EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease()
-{
-    static CubicBezier bezier { NumberStyleValue::create(0.25), NumberStyleValue::create(0.1), NumberStyleValue::create(0.25), NumberStyleValue::create(1.0) };
-    return bezier;
-}
-
-EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in()
-{
-    static CubicBezier bezier { NumberStyleValue::create(0.42), NumberStyleValue::create(0.0), NumberStyleValue::create(1.0), NumberStyleValue::create(1.0) };
-    return bezier;
-}
-
-EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_out()
-{
-    static CubicBezier bezier { NumberStyleValue::create(0.0), NumberStyleValue::create(0.0), NumberStyleValue::create(0.58), NumberStyleValue::create(1.0) };
-    return bezier;
-}
-
-EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in_out()
-{
-    static CubicBezier bezier { NumberStyleValue::create(0.42), NumberStyleValue::create(0.0), NumberStyleValue::create(0.58), NumberStyleValue::create(1.0) };
-    return bezier;
-}
-
-EasingStyleValue::Steps EasingStyleValue::Steps::step_start()
-{
-    static Steps steps { IntegerStyleValue::create(1), StepPosition::Start };
-    return steps;
-}
-
-EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
-{
-    static Steps steps { IntegerStyleValue::create(1), StepPosition::End };
-    return steps;
-}
-
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
 String EasingStyleValue::Linear::to_string(SerializationMode mode) const
 {
-    // The linear keyword is serialized as itself.
-    if (*this == identity())
-        return "linear"_string;
-
     // To serialize a linear() function:
     // 1. Let s be the string "linear(".
     StringBuilder builder;
@@ -106,44 +57,23 @@ String EasingStyleValue::Linear::to_string(SerializationMode mode) const
 // https://drafts.csswg.org/css-easing/#bezier-serialization
 String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
 {
-    StringBuilder builder;
-    if (*this == CubicBezier::ease()) {
-        builder.append("ease"sv);
-    } else if (*this == CubicBezier::ease_in()) {
-        builder.append("ease-in"sv);
-    } else if (*this == CubicBezier::ease_out()) {
-        builder.append("ease-out"sv);
-    } else if (*this == CubicBezier::ease_in_out()) {
-        builder.append("ease-in-out"sv);
-    } else {
-        builder.appendff("cubic-bezier({}, {}, {}, {})", x1->to_string(mode), y1->to_string(mode), x2->to_string(mode), y2->to_string(mode));
-    }
-    return MUST(builder.to_string());
+    return MUST(String::formatted("cubic-bezier({}, {}, {}, {})", x1->to_string(mode), y1->to_string(mode), x2->to_string(mode), y2->to_string(mode)));
 }
 
 // https://drafts.csswg.org/css-easing/#steps-serialization
 String EasingStyleValue::Steps::to_string(SerializationMode mode) const
 {
-    StringBuilder builder;
-    // Unlike the other easing function keywords, step-start and step-end do not serialize as themselves.
-    // Instead, they serialize as "steps(1, start)" and "steps(1)", respectively.
-    if (*this == Steps::step_start()) {
-        builder.append("steps(1, start)"sv);
-    } else if (*this == Steps::step_end()) {
-        builder.append("steps(1)"sv);
-    } else {
-        auto position = [&] -> Optional<StringView> {
-            if (first_is_one_of(this->position, StepPosition::JumpEnd, StepPosition::End))
-                return {};
-            return CSS::to_string(this->position);
-        }();
-        if (position.has_value()) {
-            builder.appendff("steps({}, {})", number_of_intervals->to_string(mode), position.value());
-        } else {
-            builder.appendff("steps({})", number_of_intervals->to_string(mode));
-        }
+    auto position = [&] -> Optional<StringView> {
+        if (first_is_one_of(this->position, StepPosition::JumpEnd, StepPosition::End))
+            return {};
+        return CSS::to_string(this->position);
+    }();
+
+    if (position.has_value()) {
+        return MUST(String::formatted("steps({}, {})", number_of_intervals->to_string(mode), position.value()));
     }
-    return MUST(builder.to_string());
+
+    return MUST(String::formatted("steps({})", number_of_intervals->to_string(mode)));
 }
 
 String EasingStyleValue::Function::to_string(SerializationMode mode) const

@@ -13,7 +13,6 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 
 namespace Web::Animations {
 
@@ -194,7 +193,7 @@ protected:
     GC::Ptr<Animation> m_associated_animation {};
 
     // https://www.w3.org/TR/web-animations-1/#time-transformations
-    CSS::EasingFunction m_timing_function { CSS::EasingFunction::from_style_value(CSS::EasingStyleValue::create(CSS::EasingStyleValue::Linear::identity())) };
+    CSS::EasingFunction m_timing_function { CSS::EasingFunction::linear() };
 
     // Used for calculating transitions in StyleComputer
     Phase m_previous_phase { Phase::Idle };

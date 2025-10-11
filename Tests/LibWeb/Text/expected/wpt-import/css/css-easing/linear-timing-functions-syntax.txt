@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 35 tests
 
-19 Pass
-16 Fail
+20 Pass
+15 Fail
 Pass	e.style['animation-timing-function'] = "linear(0 0%, 1 100%)" should set the property value
 Pass	e.style['animation-timing-function'] = "linear( 0 0%, 1 100% )" should set the property value
-Fail	e.style['animation-timing-function'] = "linear(0, 1)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(0, 1)" should set the property value
 Pass	e.style['animation-timing-function'] = "linear(-10, -5, 0, 5, 10)" should set the property value
 Pass	e.style['animation-timing-function'] = "linear(-10 -10%, -5 -5%, 0, 5, 10)" should set the property value
 Pass	e.style['animation-timing-function'] = "linear(0 calc(0%), 0 calc(100%))" should set the property value
