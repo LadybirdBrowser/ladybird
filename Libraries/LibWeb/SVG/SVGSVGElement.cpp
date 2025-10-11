@@ -81,42 +81,6 @@ RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute()
     return nullptr;
 }
 
-bool SVGSVGElement::is_presentational_hint(FlyString const& name) const
-{
-    if (Base::is_presentational_hint(name))
-        return true;
-
-    return first_is_one_of(name,
-        SVG::AttributeNames::x,
-        SVG::AttributeNames::y,
-        SVG::AttributeNames::width,
-        SVG::AttributeNames::height,
-        SVG::AttributeNames::viewBox,
-        SVG::AttributeNames::preserveAspectRatio);
-}
-
-void SVGSVGElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
-{
-    Base::apply_presentational_hints(cascaded_properties);
-    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-
-    auto x_attribute = attribute(SVG::AttributeNames::x);
-    if (auto x_value = parse_css_value(parsing_context, x_attribute.value_or(String {}), CSS::PropertyID::X)) {
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::X, x_value.release_nonnull());
-    }
-
-    auto y_attribute = attribute(SVG::AttributeNames::y);
-    if (auto y_value = parse_css_value(parsing_context, y_attribute.value_or(String {}), CSS::PropertyID::Y)) {
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Y, y_value.release_nonnull());
-    }
-
-    if (auto width = width_style_value_from_attribute())
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, width.release_nonnull());
-
-    if (auto height = height_style_value_from_attribute())
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, height.release_nonnull());
-}
-
 void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

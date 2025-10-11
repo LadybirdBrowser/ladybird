@@ -33,22 +33,6 @@ void SVGViewElement::visit_edges(Visitor& visitor)
     SVGFitToViewBox::visit_edges(visitor);
 }
 
-bool SVGViewElement::is_presentational_hint(FlyString const& name) const
-{
-    if (Base::is_presentational_hint(name))
-        return true;
-
-    return first_is_one_of(name,
-        SVG::AttributeNames::viewBox,
-        SVG::AttributeNames::preserveAspectRatio);
-}
-
-void SVGViewElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
-{
-    Base::apply_presentational_hints(cascaded_properties);
-    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-}
-
 void SVGViewElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
