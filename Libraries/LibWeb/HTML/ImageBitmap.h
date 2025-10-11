@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGfx/Bitmap.h>
+#include <LibWeb/Bindings/ImageBitmapPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
@@ -23,6 +24,7 @@ struct ImageBitmapOptions {
     // FIXME: Implement the rest of the fields
     Optional<WebIDL::UnsignedLong> resize_width;
     Optional<WebIDL::UnsignedLong> resize_height;
+    Bindings::ResizeQuality resize_quality = Bindings::ResizeQuality::Low;
 };
 
 class ImageBitmap final : public Bindings::PlatformObject

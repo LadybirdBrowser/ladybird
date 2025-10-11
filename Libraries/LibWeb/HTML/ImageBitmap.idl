@@ -28,5 +28,5 @@ dictionary ImageBitmapOptions {
     // FIXME: ColorSpaceConversion colorSpaceConversion = "default";
     [EnforceRange] unsigned long resizeWidth;
     [EnforceRange] unsigned long resizeHeight;
-    // FIXME: ResizeQuality resizeQuality = "low";
+    ResizeQuality resizeQuality = "low";
 };

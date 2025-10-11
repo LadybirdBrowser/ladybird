@@ -10,6 +10,11 @@
 #include <AK/Checked.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibGfx/SkiaUtils.h>
+
+#include <core/SkBitmap.h>
+#include <core/SkColorSpace.h>
+#include <core/SkImage.h>
 #include <errno.h>
 
 #ifdef AK_OS_MACOS
@@ -182,6 +187,24 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::cropped(Gfx::IntRect crop, Gfx::Colo
         }
     }
     return new_bitmap;
+}
+
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::scaled(int const width, int const height, ScalingMode const scaling_mode) const
+{
+    auto const source_info = SkImageInfo::Make(this->width(), this->height(), to_skia_color_type(format()), to_skia_alpha_type(format(), alpha_type()), nullptr);
+    SkPixmap const source_sk_pixmap(source_info, begin(), pitch());
+    SkBitmap source_sk_bitmap;
+    source_sk_bitmap.installPixels(source_sk_pixmap);
+    source_sk_bitmap.setImmutable();
+
+    auto scaled_bitmap = TRY(Gfx::Bitmap::create(format(), alpha_type(), { width, height }));
+    auto const scaled_info = SkImageInfo::Make(scaled_bitmap->width(), scaled_bitmap->height(), to_skia_color_type(scaled_bitmap->format()), to_skia_alpha_type(scaled_bitmap->format(), scaled_bitmap->alpha_type()), nullptr);
+    SkPixmap const scaled_sk_pixmap(scaled_info, scaled_bitmap->begin(), scaled_bitmap->pitch());
+
+    sk_sp<SkImage> source_sk_image = source_sk_bitmap.asImage();
+    if (!source_sk_image->scalePixels(scaled_sk_pixmap, to_skia_sampling_options(scaling_mode)))
+        return Error::from_string_literal("Unable to scale pixels for bitmap");
+    return scaled_bitmap;
 }
 
 ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::to_bitmap_backed_by_anonymous_buffer() const
