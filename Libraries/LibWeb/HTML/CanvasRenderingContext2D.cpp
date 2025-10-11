@@ -280,15 +280,39 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     }
 
     // Apply text align
-    // FIXME: CanvasTextAlign::Start and CanvasTextAlign::End currently do not nothing for right-to-left languages:
-    //        https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textalign-start
-    // Default alignment of draw_text is left so do nothing by CanvasTextAlign::Start and CanvasTextAlign::Left
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textalign
+    // The direction property affects how "start" and "end" are interpreted:
+    // - "ltr" or "inherit" (default): start=left, end=right
+    // - "rtl": start=right, end=left
+
+    // Determine if we're in RTL mode
+    bool is_rtl = drawing_state.direction == Bindings::CanvasDirection::Rtl;
+
+    // Center alignment is the same regardless of direction
     if (drawing_state.text_align == Bindings::CanvasTextAlign::Center) {
         transform = Gfx::AffineTransform {}.set_translation({ -text_width / 2, 0 }).multiply(transform);
     }
-    if (drawing_state.text_align == Bindings::CanvasTextAlign::End || drawing_state.text_align == Bindings::CanvasTextAlign::Right) {
+    // Handle "start" alignment
+    else if (drawing_state.text_align == Bindings::CanvasTextAlign::Start) {
+        // In RTL, "start" means right-aligned (translate by full width)
+        if (is_rtl) {
+            transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
+        }
+        // In LTR, "start" means left-aligned (no translation needed - default)
+    }
+    // Handle "end" alignment
+    else if (drawing_state.text_align == Bindings::CanvasTextAlign::End) {
+        // In RTL, "end" means left-aligned (no translation needed)
+        if (!is_rtl) {
+            // In LTR, "end" means right-aligned (translate by full width)
+            transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
+        }
+    }
+    // Explicit "left" and "right" alignments ignore direction
+    else if (drawing_state.text_align == Bindings::CanvasTextAlign::Right) {
         transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
     }
+    // Left is the default - no translation needed
 
     // Apply text baseline
     // FIXME: Implement CanvasTextBaseline::Hanging, Bindings::CanvasTextAlign::Alphabetic and Bindings::CanvasTextAlign::Ideographic for real
