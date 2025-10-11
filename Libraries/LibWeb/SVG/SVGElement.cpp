@@ -34,10 +34,14 @@ void SVGElement::initialize(JS::Realm& realm)
 }
 
 struct NamedPropertyID {
-    NamedPropertyID(CSS::PropertyID property_id, Vector<FlyString> supported_elements = {})
+    NamedPropertyID(CSS::PropertyID property_id, FlyString name, Vector<FlyString> supported_elements = {})
         : id(property_id)
-        , name(CSS::string_from_property_id(property_id))
+        , name(move(name))
         , supported_elements(move(supported_elements))
+    {
+    }
+    NamedPropertyID(CSS::PropertyID property_id, Vector<FlyString> supported_elements = {})
+        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id), move(supported_elements))
     {
     }
 
@@ -72,6 +76,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::FontStyle),
         NamedPropertyID(CSS::PropertyID::FontVariant),
         NamedPropertyID(CSS::PropertyID::FontWeight),
+        NamedPropertyID(CSS::PropertyID::FontWidth, "font-stretch"_fly_string),
         NamedPropertyID(CSS::PropertyID::Height, { SVG::TagNames::foreignObject, SVG::TagNames::image, SVG::TagNames::rect, SVG::TagNames::svg, SVG::TagNames::symbol, SVG::TagNames::use }),
         NamedPropertyID(CSS::PropertyID::ImageRendering),
         NamedPropertyID(CSS::PropertyID::LetterSpacing),

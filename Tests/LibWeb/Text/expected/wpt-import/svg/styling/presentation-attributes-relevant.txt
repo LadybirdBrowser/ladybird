@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 58 tests
 
-56 Pass
-2 Fail
+57 Pass
+1 Fail
 Pass	clip-path presentation attribute supported on a relevant element
 Pass	clip-rule presentation attribute supported on a relevant element
 Pass	color presentation attribute supported on a relevant element
@@ -21,7 +21,7 @@ Pass	flood-color presentation attribute supported on a relevant element
 Pass	flood-opacity presentation attribute supported on a relevant element
 Pass	font-family presentation attribute supported on a relevant element
 Pass	font-size presentation attribute supported on a relevant element
-Fail	font-stretch presentation attribute supported on a relevant element
+Pass	font-stretch presentation attribute supported on a relevant element
 Pass	font-style presentation attribute supported on a relevant element
 Pass	font-variant presentation attribute supported on a relevant element
 Pass	font-weight presentation attribute supported on a relevant element
