@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-fecolormatrix-matrix-invert-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-10000">
+<style>
+  html, body { margin: 0; background: white; }
+</style>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="cm_invert">
+      <!-- Invert: R' = 1 - R, etc. -->
+      <feColorMatrix type="matrix"
+        values="-1 0 0 0 1
+                 0 -1 0 0 1
+                 0 0 -1 0 1
+                 0 0 0 1 0"/>
+    </filter>
+  </defs>
+  <g filter="url(#cm_invert)">
+    <rect x="10" y="10" width="180" height="180" fill="#336699"/>
+  </g>
+  <!-- Core: feColorMatrix matrix with bias in normalized 0..1. -->
+</svg>
