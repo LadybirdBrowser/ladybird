@@ -202,6 +202,15 @@ jobs:
           ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
           UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
+      - name: Test Checks
+        if: ${{ always() && contains(inputs.build_preset, 'Sanitizer') }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          if ${{ inputs.os_name == 'Linux' }} ; then
+            ps aux
+            ./dump_backtraces.sh
+          fi
+
       - name: Test
         if: ${{ inputs.build_preset != 'Fuzzers' && !contains(inputs.build_preset, 'Sanitizer') }}
         working-directory: ${{ github.workspace }}
