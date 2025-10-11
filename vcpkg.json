@@ -32,7 +32,7 @@
     {
       "name": "dbus",
       "default-features": false,
-      "platform": "linux"
+      "platform": "linux | freebsd"
     },
     {
       "name": "dirent",
@@ -113,6 +113,7 @@
       "platform": "freebsd",
       "default-features": false,
       "features": [
+        "dbus",
         "doubleconversion",
         "fontconfig",
         "freetype",
