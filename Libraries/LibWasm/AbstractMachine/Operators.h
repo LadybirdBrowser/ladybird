@@ -51,6 +51,10 @@ DEFINE_BINARY_OPERATOR(BitXor, ^);
 
 #undef DEFINE_BINARY_OPERATOR
 
+struct Identity {
+    auto operator()(auto x) const { return x; }
+};
+
 struct Divide {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const
@@ -738,8 +742,35 @@ struct VectorBitmask {
 };
 
 template<size_t VectorSize>
+struct VectorMultiplyAdd {
+    auto operator()(u128 a1, u128 a2, u128 a3) const
+    {
+        using VectorInput = NativeFloatingVectorType<128 / VectorSize, VectorSize, NativeFloatingType<128 / VectorSize>>;
+        auto a = bit_cast<VectorInput>(a1);
+        auto b = bit_cast<VectorInput>(a2);
+        auto c = bit_cast<VectorInput>(a3);
+        // Spec talks about rounding and such, but v8's arm impl just does vmul + vadd with nothing in between.
+        return bit_cast<u128>(a * b + c);
+    }
+};
+
+template<size_t VectorSize>
+struct VectorMultiplySub {
+    auto operator()(u128 a1, u128 a2, u128 a3) const
+    {
+        using VectorInput = NativeFloatingVectorType<128 / VectorSize, VectorSize, NativeFloatingType<128 / VectorSize>>;
+        auto a = bit_cast<VectorInput>(a1);
+        auto b = bit_cast<VectorInput>(a2);
+        auto c = bit_cast<VectorInput>(a3);
+        // Spec talks about rounding and such, but v8's arm impl just does vmul + vsub with nothing in between.
+        return bit_cast<u128>(a * b - c);
+    }
+};
+
+template<size_t VectorSize, typename ContinuationOp = Identity>
 struct VectorDotProduct {
-    auto operator()(u128 lhs, u128 rhs) const
+    template<typename... ContinuationArgs>
+    auto operator()(u128 lhs, u128 rhs, ContinuationArgs&&... args) const
     {
         using VectorInput = NativeVectorType<128 / (VectorSize * 2), VectorSize * 2, MakeSigned>;
         using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, MakeSigned>;
@@ -754,7 +785,7 @@ struct VectorDotProduct {
             result[i] = low + high;
         }
 
-        return bit_cast<u128>(result);
+        return ContinuationOp { forward<ContinuationArgs>(args)... }(bit_cast<u128>(result));
     }
 
     static StringView name() { return "dot"sv; }

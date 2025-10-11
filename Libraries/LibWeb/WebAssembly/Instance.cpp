@@ -88,7 +88,8 @@ void Instance::initialize(JS::Realm& realm)
                 }
 
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
-            });
+            },
+            [&](Wasm::TagAddress const&) { dbgln("Not yet implemented: tags"); });
     }
 
     MUST(m_exports->set_integrity_level(IntegrityLevel::Frozen));

@@ -21,6 +21,12 @@ union SourcesAndDestination {
     u32 sources_and_destination;
 };
 
+enum class Outcome : u64 {
+    // 0..Constants::max_allowed_executed_instructions_per_call -> next IP.
+    Continue = Constants::max_allowed_executed_instructions_per_call + 1,
+    Return,
+};
+
 struct WASM_API BytecodeInterpreter final : public Interpreter {
     explicit BytecodeInterpreter(StackInfo const& stack_info)
         : m_stack_info(stack_info)
@@ -59,6 +65,8 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     enum class CallAddressSource {
         DirectCall,
         IndirectCall,
+        DirectTailCall,
+        IndirectTailCall,
     };
 
     template<bool HasCompiledList, bool HasDynamicInsnLimit, bool HaveDirectThreadingInfo>
@@ -88,7 +96,7 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
     VectorType pop_vector(Configuration&, size_t source, SourcesAndDestination const&);
     bool store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
-    bool call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
+    Outcome call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
 
     template<typename T>
     bool store_to_memory(MemoryInstance&, u64 address, T value);
@@ -96,7 +104,7 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
     bool binary_numeric_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
-    template<typename PopType, typename PushType, typename Operator, typename... Args>
+    template<typename PopType, typename PushType, typename Operator, size_t input_arg = 0, typename... Args>
     bool unary_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
     ALWAYS_INLINE bool set_trap(StringView reason)
