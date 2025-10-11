@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>
+    CSS Reference Case
+  </title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+  <link rel="help" href="https://drafts.csswg.org/css-align/#baseline-export">
+  <style>
+    .container {
+      /* In this reference case, we leave 'overflow' at its initial value. */
+      height: 50px;
+      width: 100px;
+      border-style: solid;
+      border-width: 2px 3px 4px 5px;
+      padding: 4px 5px 7px 8px;
+      margin: 1px 2px 3px 4px;
+    }
+    .inline-block {
+      display: inline-block;
+    }
+    .inline-flex {
+      display: inline-flex;
+    }
+    .inline-grid {
+      display: inline-grid;
+    }
+</style>
+</head>
+<body>
+  Test passes if the a/b text aligns with the bottom margin-edge of the "block"
+  rect and baseline-aligns with the "flex" and "grid" text.
+  <br><br>
+
+  <!-- Note: for this first "inline-block" case, we take the inner text out of
+       flow, to force the inline-block to synthesize its baseline from its
+       margin box.  (This is how the corresponding piece of the testcase is
+       supposed to render). -->
+  a
+  <div class="container inline-block">
+    <div style="position: absolute">block</div>
+  </div>
+  b
+  <br>
+
+  a
+  <div class="container inline-flex">flex</div>
+  b
+  <br>
+
+  a
+  <div class="container inline-grid">grid</div>
+  b
+
+</body>
+</html>

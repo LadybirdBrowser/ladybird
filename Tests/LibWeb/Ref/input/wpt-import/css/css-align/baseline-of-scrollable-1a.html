@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>
+    CSS Test: baseline of scrollable element should be taken from its
+    contents. (Except if the scrollable element is an inline-block, which gets
+    baseline from its margin-box.)
+  </title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+  <link rel="help" href="https://drafts.csswg.org/css-align/#baseline-export">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-align/reference/baseline-of-scrollable-1-ref.html">
+  <style>
+    .container {
+      overflow: hidden;
+      height: 50px;
+      width: 100px;
+      border-style: solid;
+      border-width: 2px 3px 4px 5px;
+      padding: 4px 5px 7px 8px;
+      margin: 1px 2px 3px 4px;
+    }
+    .inline-block {
+      display: inline-block;
+    }
+    .inline-flex {
+      display: inline-flex;
+    }
+    .inline-grid {
+      display: inline-grid;
+    }
+</style>
+</head>
+<body>
+  Test passes if the a/b text aligns with the bottom margin-edge of the "block"
+  rect and baseline-aligns with the "flex" and "grid" text.
+  <br><br>
+
+  <!-- Note: for this first "inline-block" case, the element's baseline is
+       synthesized from its margin box.  For the other cases, the element's
+       baseline is taken from its contents, i.e. the text inside of it. -->
+  a
+  <div class="container inline-block">block</div>
+  b
+  <br>
+
+  a
+  <div class="container inline-flex">flex</div>
+  b
+  <br>
+
+  a
+  <div class="container inline-grid">grid</div>
+  b
+
+</body>
+</html>

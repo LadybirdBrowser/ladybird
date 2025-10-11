@@ -1827,7 +1827,10 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
         }
     }
 
-    if (!box_state.line_boxes.is_empty())
+    auto const& overflow_x = box.computed_values().overflow_x();
+    auto const& overflow_y = box.computed_values().overflow_y();
+
+    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible)
         return box_state.margin_box_top() + box_state.offset.y() + box_state.line_boxes.last().baseline();
     if (auto const* child_box = box_child_to_derive_baseline_from(box)) {
         return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
