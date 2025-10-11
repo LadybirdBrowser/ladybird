@@ -99,7 +99,12 @@ String MediaFeature::to_string() const
 MatchResult MediaFeature::evaluate(DOM::Document const* document) const
 {
     VERIFY(document);
-    VERIFY(document->window());
+
+    // FIXME: In some cases (e.g. when parsing HTML using DOMParser::parse_from_string()) a document may not be associated with a window -
+    //        for now we just return false but perhaps there are some media queries we should still attempt to resolve.
+    if (!document->window())
+        return MatchResult::False;
+
     auto maybe_queried_value = document->window()->query_media_feature(m_id);
     if (!maybe_queried_value.has_value())
         return MatchResult::False;
