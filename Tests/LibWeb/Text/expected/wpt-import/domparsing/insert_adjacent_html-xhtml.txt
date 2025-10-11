@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	beforeBegin content without next sibling
+Pass	Afterbegin content without next sibling
+Pass	BeforeEnd content without next sibling
+Pass	afterend content without next sibling
+Pass	beforeBegin content again, with next sibling
+Pass	Afterbegin content again, with next sibling
+Pass	BeforeEnd content again, with next sibling
+Pass	afterend content again, with next sibling
+Pass	Should throw when inserting with invalid position string
+Pass	When the parent node is null, insertAdjacentHTML should throw for beforebegin and afterend (text)
+Pass	When the parent node is null, insertAdjacentHTML should throw for beforebegin and afterend (comments)
+Pass	When the parent node is null, insertAdjacentHTML should throw for beforebegin and afterend (elements)
+Pass	When the parent node is a document, insertAdjacentHTML should throw for beforebegin and afterend (text)
+Pass	When the parent node is a document, insertAdjacentHTML should throw for beforebegin and afterend (comments)
+Pass	When the parent node is a document, insertAdjacentHTML should throw for beforebegin and afterend (elements)
+Pass	Inserting after being and before end should order things correctly
+Pass	beforeBegin child node not in tree but has parent
+Pass	Afterbegin child node not in tree but has parent
+Pass	BeforeEnd child node not in tree but has parent
+Pass	afterend child node not in tree but has parent
+Pass	Should not run script when appending things which have descendant <script> inserted via insertAdjacentHTML
+Pass	beforeBegin content2 without next sibling
+Pass	Afterbegin content2 without next sibling
+Pass	BeforeEnd content2 without next sibling
+Pass	afterend content2 without next sibling
+Pass	beforeBegin content2 test again, now that there's a next sibling
+Pass	Afterbegin content2 test again, now that there's a next sibling
+Pass	BeforeEnd content2 test again, now that there's a next sibling
+Pass	afterend content2 test again, now that there's a next sibling
+Pass	insertAdjacentHTML in HTML
