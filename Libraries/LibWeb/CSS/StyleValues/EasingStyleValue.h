@@ -41,10 +41,10 @@ public:
         static CubicBezier ease_out();
         static CubicBezier ease_in_out();
 
-        NumberOrCalculated x1 { 0 };
-        NumberOrCalculated y1 { 0 };
-        NumberOrCalculated x2 { 0 };
-        NumberOrCalculated y2 { 0 };
+        ValueComparingNonnullRefPtr<StyleValue const> x1;
+        ValueComparingNonnullRefPtr<StyleValue const> y1;
+        ValueComparingNonnullRefPtr<StyleValue const> x2;
+        ValueComparingNonnullRefPtr<StyleValue const> y2;
 
         struct CachedSample {
             double x;
@@ -66,8 +66,8 @@ public:
         static Steps step_start();
         static Steps step_end();
 
-        IntegerOrCalculated number_of_intervals { 1 };
-        StepPosition position { StepPosition::End };
+        ValueComparingNonnullRefPtr<StyleValue const> number_of_intervals;
+        StepPosition position;
 
         bool operator==(Steps const&) const = default;
 

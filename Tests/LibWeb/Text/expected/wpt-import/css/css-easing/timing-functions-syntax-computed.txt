@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 21 tests
 
-20 Pass
-1 Fail
+21 Pass
 Pass	Property animation-timing-function value 'linear'
 Pass	Property animation-timing-function value 'ease'
 Pass	Property animation-timing-function value 'ease-in'
@@ -24,4 +23,4 @@ Pass	Property animation-timing-function value 'steps(calc(-10), start)'
 Pass	Property animation-timing-function value 'steps(calc(5 / 2), start)'
 Pass	Property animation-timing-function value 'steps(calc(1), jump-none)'
 Pass	Property animation-timing-function value 'linear, ease, linear'
-Fail	Property animation-timing-function value 'steps(calc(2 + sign(100em - 1px)), end)'
+Pass	Property animation-timing-function value 'steps(calc(2 + sign(100em - 1px)), end)'

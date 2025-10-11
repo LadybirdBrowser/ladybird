@@ -27,37 +27,37 @@ EasingStyleValue::Linear EasingStyleValue::Linear::identity()
 
 EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease()
 {
-    static CubicBezier bezier { 0.25, 0.1, 0.25, 1.0 };
+    static CubicBezier bezier { NumberStyleValue::create(0.25), NumberStyleValue::create(0.1), NumberStyleValue::create(0.25), NumberStyleValue::create(1.0) };
     return bezier;
 }
 
 EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in()
 {
-    static CubicBezier bezier { 0.42, 0.0, 1.0, 1.0 };
+    static CubicBezier bezier { NumberStyleValue::create(0.42), NumberStyleValue::create(0.0), NumberStyleValue::create(1.0), NumberStyleValue::create(1.0) };
     return bezier;
 }
 
 EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_out()
 {
-    static CubicBezier bezier { 0.0, 0.0, 0.58, 1.0 };
+    static CubicBezier bezier { NumberStyleValue::create(0.0), NumberStyleValue::create(0.0), NumberStyleValue::create(0.58), NumberStyleValue::create(1.0) };
     return bezier;
 }
 
 EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in_out()
 {
-    static CubicBezier bezier { 0.42, 0.0, 0.58, 1.0 };
+    static CubicBezier bezier { NumberStyleValue::create(0.42), NumberStyleValue::create(0.0), NumberStyleValue::create(0.58), NumberStyleValue::create(1.0) };
     return bezier;
 }
 
 EasingStyleValue::Steps EasingStyleValue::Steps::step_start()
 {
-    static Steps steps { 1, StepPosition::Start };
+    static Steps steps { IntegerStyleValue::create(1), StepPosition::Start };
     return steps;
 }
 
 EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
 {
-    static Steps steps { 1, StepPosition::End };
+    static Steps steps { IntegerStyleValue::create(1), StepPosition::End };
     return steps;
 }
 
@@ -116,7 +116,7 @@ String EasingStyleValue::CubicBezier::to_string(SerializationMode mode) const
     } else if (*this == CubicBezier::ease_in_out()) {
         builder.append("ease-in-out"sv);
     } else {
-        builder.appendff("cubic-bezier({}, {}, {}, {})", x1.to_string(mode), y1.to_string(mode), x2.to_string(mode), y2.to_string(mode));
+        builder.appendff("cubic-bezier({}, {}, {}, {})", x1->to_string(mode), y1->to_string(mode), x2->to_string(mode), y2->to_string(mode));
     }
     return MUST(builder.to_string());
 }
@@ -138,9 +138,9 @@ String EasingStyleValue::Steps::to_string(SerializationMode mode) const
             return CSS::to_string(this->position);
         }();
         if (position.has_value()) {
-            builder.appendff("steps({}, {})", number_of_intervals.to_string(mode), position.value());
+            builder.appendff("steps({}, {})", number_of_intervals->to_string(mode), position.value());
         } else {
-            builder.appendff("steps({})", number_of_intervals.to_string(mode));
+            builder.appendff("steps({})", number_of_intervals->to_string(mode));
         }
     }
     return MUST(builder.to_string());
@@ -172,10 +172,18 @@ ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(Comp
             return Linear { absolutized_stops };
         },
         [&](CubicBezier const& cubic_bezier) -> Function {
-            return cubic_bezier;
+            return CubicBezier {
+                cubic_bezier.x1->absolutized(computation_context),
+                cubic_bezier.y1->absolutized(computation_context),
+                cubic_bezier.x2->absolutized(computation_context),
+                cubic_bezier.y2->absolutized(computation_context)
+            };
         },
         [&](Steps const& steps) -> Function {
-            return steps;
+            return Steps {
+                steps.number_of_intervals->absolutized(computation_context),
+                steps.position
+            };
         });
 
     return EasingStyleValue::create(absolutized_function);
