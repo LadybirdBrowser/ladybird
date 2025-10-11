@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::DOM {
 
@@ -194,31 +195,43 @@ Attr const* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_
     return nullptr;
 }
 
-// https://dom.spec.whatwg.org/#concept-element-attributes-set
+// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
+// https://whatpr.org/dom/1268.html#concept-element-attributes-set
 WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 {
-    // 1. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
+    // 1. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
+    //    with attr’s local name, attr’s namespace, element, and attr’s value
+    auto const verifiedValue = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+        attribute.local_name(),
+        attribute.namespace_uri().has_value() ? Utf16String::from_utf8(attribute.namespace_uri().value()) : Optional<Utf16String>(),
+        associated_element(),
+        Utf16String::from_utf8(attribute.value())));
+
+    // 2. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
         return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_utf16);
 
-    // 2. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
+    // 3. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
     size_t old_attribute_index = 0;
     auto* old_attribute = get_attribute_ns(attribute.namespace_uri(), attribute.local_name(), &old_attribute_index);
 
-    // 3. If oldAttr is attr, return attr.
+    // 4. If oldAttr is attr, return attr.
     if (old_attribute == &attribute)
         return &attribute;
 
-    // 4. If oldAttr is non-null, then replace oldAttr with attr.
+    // 5. Set attr’s value to verifiedValue.
+    TRY(attribute.set_value(verifiedValue.to_utf8_but_should_be_ported_to_utf16()));
+
+    // 6. If oldAttr is non-null, then replace oldAttr with attr.
     if (old_attribute) {
         replace_attribute(*old_attribute, attribute, old_attribute_index);
     }
-    // 5. Otherwise, append attr to element.
+    // 7. Otherwise, append attr to element.
     else {
         append_attribute(attribute);
     }
 
-    // 6. Return oldAttr.
+    // 8. Return oldAttr.
     return old_attribute;
 }
 

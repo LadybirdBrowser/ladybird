@@ -17,8 +17,14 @@ namespace Web::TrustedTypes {
 
 // https://w3c.github.io/trusted-types/dist/spec/#injection-sink
 #define ENUMERATE_INJECTION_SINKS                                                              \
+    __ENUMERATE_INJECTION_SINKS(DocumentparseHTMLUnsafe, "Document parseHTMLUnsafe")           \
     __ENUMERATE_INJECTION_SINKS(Documentwrite, "Document write")                               \
     __ENUMERATE_INJECTION_SINKS(Documentwriteln, "Document writeln")                           \
+    __ENUMERATE_INJECTION_SINKS(DOMParserparseFromString, "DOMParser parseFromString")         \
+    __ENUMERATE_INJECTION_SINKS(ElementinnerHTML, "Element innerHTML")                         \
+    __ENUMERATE_INJECTION_SINKS(ElementinsertAdjacentHTML, "Element insertAdjacentHTML")       \
+    __ENUMERATE_INJECTION_SINKS(ElementouterHTML, "Element outerHTML")                         \
+    __ENUMERATE_INJECTION_SINKS(ElementsetHTMLUnsafe, "Element setHTMLUnsafe")                 \
     __ENUMERATE_INJECTION_SINKS(Function, "Function")                                          \
     __ENUMERATE_INJECTION_SINKS(HTMLIFrameElementsrcdoc, "HTMLIFrameElement srcdoc")           \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementinnerText, "HTMLScriptElement innerText")     \
@@ -26,6 +32,8 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementtext, "HTMLScriptElement text")               \
     __ENUMERATE_INJECTION_SINKS(HTMLScriptElementtextContent, "HTMLScriptElement textContent") \
     __ENUMERATE_INJECTION_SINKS(Locationhref, "Location href")                                 \
+    __ENUMERATE_INJECTION_SINKS(ShadowRootinnerHTML, "ShadowRoot innerHTML")                   \
+    __ENUMERATE_INJECTION_SINKS(ShadowRootsetHTMLUnsafe, "ShadowRoot setHTMLUnsafe")           \
     __ENUMERATE_INJECTION_SINKS(SVGScriptElementhref, "SVGScriptElement href")                 \
     ENUMERATE_GLOBAL_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)                            \
     ENUMERATE_WINDOW_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)

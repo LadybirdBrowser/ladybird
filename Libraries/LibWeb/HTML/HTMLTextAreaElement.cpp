@@ -117,7 +117,7 @@ void HTMLTextAreaElement::reset_algorithm()
     set_raw_value(child_text_content());
 
     if (m_text_node) {
-        m_text_node->set_text_content(m_raw_value);
+        MUST(m_text_node->set_text_content(m_raw_value));
         update_placeholder_visibility();
     }
 }
@@ -350,7 +350,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     m_text_node = realm().create<DOM::Text>(document(), Utf16String {});
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
-    m_text_node->set_text_content(m_raw_value);
+    MUST(m_text_node->set_text_content(m_raw_value));
     handle_maxlength_attribute();
     MUST(m_inner_text_element->append_child(*m_text_node));
 
@@ -403,7 +403,7 @@ void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const* metada
     if (!m_dirty_value) {
         set_raw_value(child_text_content());
         if (m_text_node)
-            m_text_node->set_text_content(m_raw_value);
+            MUST(m_text_node->set_text_content(m_raw_value));
         update_placeholder_visibility();
     }
 }

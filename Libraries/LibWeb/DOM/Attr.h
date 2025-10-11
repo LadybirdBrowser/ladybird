@@ -34,7 +34,7 @@ public:
     FlyString const& lowercase_name() const { return m_lowercase_name; }
 
     String const& value() const { return m_value; }
-    void set_value(String value);
+    WebIDL::ExceptionOr<void> set_value(String value);
     void change_attribute(String value);
 
     Element* owner_element();
