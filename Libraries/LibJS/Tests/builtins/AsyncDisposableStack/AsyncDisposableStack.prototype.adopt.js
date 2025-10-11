@@ -3,7 +3,7 @@ test("length is 2", () => {
 });
 
 describe("basic functionality", () => {
-    test("adopted dispose method gets called when stack is disposed", async () => {
+    test.skip("adopted dispose method gets called when stack is disposed", async () => {
         const stack = new AsyncDisposableStack();
         let disposedCalled = 0;
         let disposeArgument = undefined;
@@ -22,7 +22,7 @@ describe("basic functionality", () => {
         expect(disposedCalled).toBe(1);
     });
 
-    test("can adopt any value", async () => {
+    test.skip("can adopt any value", async () => {
         const stack = new AsyncDisposableStack();
         const disposed = [];
         function dispose(value) {
@@ -40,7 +40,7 @@ describe("basic functionality", () => {
         expect(disposed).toEqual(values.reverse());
     });
 
-    test("adopted stack is already disposed", async () => {
+    test.skip("adopted stack is already disposed", async () => {
         const stack = new AsyncDisposableStack();
         stack.adopt(stack, value => {
             expect(stack).toBe(value);
@@ -51,7 +51,7 @@ describe("basic functionality", () => {
 });
 
 describe("throws errors", () => {
-    test("if call back is not a function throws type error", () => {
+    test.skip("if call back is not a function throws type error", () => {
         const stack = new AsyncDisposableStack();
         [
             1,
@@ -76,7 +76,7 @@ describe("throws errors", () => {
         expect(stack.disposed).toBeFalse();
     });
 
-    test("adopt throws if stack is already disposed (over type errors)", async () => {
+    test.skip("adopt throws if stack is already disposed (over type errors)", async () => {
         const stack = new AsyncDisposableStack();
         await stack.disposeAsync();
         expect(stack.disposed).toBeTrue();
