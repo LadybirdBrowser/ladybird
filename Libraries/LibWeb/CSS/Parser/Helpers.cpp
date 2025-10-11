@@ -4,10 +4,12 @@
  * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
@@ -136,6 +138,77 @@ RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& conte
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const& parsing_params, StringView string)
 {
     return CSS::Parser::Parser::create(parsing_params, string).parse_as_list_of_component_values();
+}
+
+// https://drafts.csswg.org/css-syntax/#css-decode-bytes
+ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ByteBuffer const& encoded_string)
+{
+    // https://drafts.csswg.org/css-syntax/#determine-the-fallback-encoding
+    auto determine_the_fallback_encoding = [&mime_type_charset, &environment_encoding, &encoded_string]() -> StringView {
+        // 1. If HTTP or equivalent protocol provides an encoding label (e.g. via the charset parameter of the Content-Type header) for the stylesheet,
+        //    get an encoding from encoding label. If that does not return failure, return it.
+        if (mime_type_charset.has_value()) {
+            if (auto encoding = TextCodec::get_standardized_encoding(mime_type_charset.value()); encoding.has_value())
+                return encoding.value();
+        }
+        // 2. Otherwise, check stylesheet’s byte stream. If the first 1024 bytes of the stream begin with the hex sequence
+        // 40 63 68 61 72 73 65 74 20 22 XX* 22 3B
+        // where each XX byte is a value between 0x16 and 0x21 inclusive or a value between 0x23 and 0x7F inclusive,
+        // then get an encoding from a string formed out of the sequence of XX bytes, interpreted as ASCII.
+        auto check_stylesheets_byte_stream = [&encoded_string]() -> Optional<StringView> {
+            size_t scan_length = min(encoded_string.size(), 1024);
+            auto pattern_start = "@charset \""sv;
+            auto pattern_end = "\";"sv;
+
+            if (scan_length < pattern_start.length())
+                return {};
+
+            StringView buffer_view = encoded_string.bytes().slice(0, scan_length);
+            if (!buffer_view.starts_with(pattern_start))
+                return {};
+
+            auto encoding_start = pattern_start.length();
+            auto end_index = buffer_view.find(pattern_end, encoding_start);
+            if (!end_index.has_value())
+                return {};
+
+            size_t encoding_length = end_index.value() - encoding_start;
+            auto encoding_view = buffer_view.substring_view(encoding_start, encoding_length);
+
+            for (char c : encoding_view) {
+                u8 byte = static_cast<u8>(c);
+                if ((byte < 0x01 || byte > 0x21) && (byte < 0x23 || byte > 0x7F)) {
+                    return {};
+                }
+            }
+
+            return TextCodec::get_standardized_encoding(encoding_view);
+        };
+        // If the return value was utf-16be or utf-16le, return utf-8; if it was anything else except failure, return it.
+        auto byte_stream_value = check_stylesheets_byte_stream();
+        if (byte_stream_value.has_value() && (byte_stream_value == "UTF-16BE"sv || byte_stream_value == "UTF-16LE"))
+            return "utf-8"sv;
+        if (byte_stream_value.has_value())
+            return byte_stream_value.value();
+
+        // 3. Otherwise, if an environment encoding is provided by the referring document, return it.
+        if (environment_encoding.has_value())
+            return environment_encoding.value();
+
+        // 4. Otherwise, return utf-8.
+        return "utf-8"sv;
+    };
+
+    // 1. Determine the fallback encoding of stylesheet, and let fallback be the result.
+    auto fallback = determine_the_fallback_encoding();
+    auto decoder = TextCodec::decoder_for(fallback);
+    if (!decoder.has_value()) {
+        // If we don't support the encoding yet, let's error out instead of trying to decode it as something it's most likely not.
+        dbgln("FIXME: Style sheet encoding '{}' is not supported yet", fallback);
+        return Error::from_string_literal("No Decoder found");
+    }
+    // 2. Decode stylesheet’s stream of bytes with fallback encoding fallback, and return the result.
+    return TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, encoded_string);
 }
 
 }
