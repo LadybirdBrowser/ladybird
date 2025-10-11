@@ -58,8 +58,13 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
     if (it == m_typeface_by_family.end())
         return nullptr;
     for (auto const& typeface : it->value) {
-        if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope)
-            return typeface->font(point_size);
+        if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope) {
+            FontVariationSettings font_variation_settings;
+            font_variation_settings.weight(static_cast<float>(weight));
+            font_variation_settings.width(static_cast<float>(width));
+
+            return typeface->font(point_size, font_variation_settings);
+        }
     }
     return nullptr;
 }

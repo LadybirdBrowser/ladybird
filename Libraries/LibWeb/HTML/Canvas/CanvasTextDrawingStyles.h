@@ -140,7 +140,8 @@ public:
                     computed_font_size->as_length().length().absolute_length_to_px(),
                     computed_font_style->as_font_style().to_font_slope(),
                     computed_font_weight->as_number().number(),
-                    computed_font_width->as_percentage().percentage());
+                    computed_font_width->as_percentage().percentage(),
+                    {});
             },
             [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
                 // FIXME: implement computing the font for HTML::WorkerGlobalScope
