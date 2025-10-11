@@ -51,6 +51,13 @@ struct StepsEasingFunction {
 
 struct EasingFunction : public Variant<LinearEasingFunction, CubicBezierEasingFunction, StepsEasingFunction> {
     using Variant::Variant;
+
+    static EasingFunction linear();
+    static EasingFunction ease_in();
+    static EasingFunction ease_out();
+    static EasingFunction ease_in_out();
+    static EasingFunction ease();
+
     static EasingFunction from_style_value(StyleValue const&);
 
     double evaluate_at(double input_progress, bool before_flag) const;

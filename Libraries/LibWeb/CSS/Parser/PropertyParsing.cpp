@@ -29,7 +29,6 @@
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
@@ -825,7 +824,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TransitionTimingFunction:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_easing_value(tokens); }))
+        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Translate:
@@ -5117,7 +5116,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
                 continue;
             }
 
-            if (auto easing = parse_easing_value(tokens)) {
+            if (auto easing = parse_css_value_for_property(PropertyID::TransitionTimingFunction, tokens)) {
                 if (transition.easing) {
                     ErrorReporter::the().report(InvalidPropertyError {
                         .property_name = "transition"_fly_string,
@@ -5127,7 +5126,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
                     return {};
                 }
 
-                transition.easing = easing->as_easing();
+                transition.easing = easing;
                 continue;
             }
 
@@ -5183,7 +5182,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
             transition.property_name = KeywordStyleValue::create(Keyword::All);
 
         if (!transition.easing)
-            transition.easing = EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
+            transition.easing = KeywordStyleValue::create(Keyword::Ease);
 
         transitions.append(move(transition));
 

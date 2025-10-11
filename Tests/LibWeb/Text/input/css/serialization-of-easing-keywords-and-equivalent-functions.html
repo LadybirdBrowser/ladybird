@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <style>
+            #linear {
+                animation-timing-function: linear;
+                transition-timing-function: linear(0, 1);
+            }
+
+            #ease-in {
+                animation-timing-function: ease-in;
+                transition-timing-function: cubic-bezier(0.42, 0, 1, 1);
+            }
+
+            #ease-out {
+                animation-timing-function: ease-out;
+                transition-timing-function: cubic-bezier(0, 0, 0.58, 1);
+            }
+
+            #ease-in-out {
+                animation-timing-function: ease-in-out;
+                transition-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+            }
+
+            #ease {
+                animation-timing-function: ease;
+                transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+            }
+
+            #step-start {
+                animation-timing-function: step-start;
+                transition-timing-function: steps(1, start);
+            }
+
+            #step-end {
+                animation-timing-function: step-end;
+                transition-timing-function: steps(1, end);
+            }
+        </style>
+        <div id="linear"></div>
+        <div id="ease-in"></div>
+        <div id="ease-out"></div>
+        <div id="ease-in-out"></div>
+        <div id="ease"></div>
+        <div id="step-start"></div>
+        <div id="step-end"></div>
+        <script src="../include.js"></script>
+        <script>
+            test(() => {
+                const keywords = [
+                    "linear",
+                    "ease-in",
+                    "ease-out",
+                    "ease-in-out",
+                    "ease",
+                    "step-start",
+                    "step-end",
+                ];
+
+                for (let i = 0; i < keywords.length; i++) {
+                    println(`Specified: ${document.styleSheets[0].cssRules[i].cssText}`);
+                    println(
+                        `Keyword computed: ${
+                            getComputedStyle(document.getElementById(keywords[i]))
+                                .animationTimingFunction
+                        }`
+                    );
+                    println(
+                        `Function computed: ${
+                            getComputedStyle(document.getElementById(keywords[i]))
+                                .transitionTimingFunction
+                        }\n`
+                    );
+                }
+            });
+        </script>
+    </body>
+</html>

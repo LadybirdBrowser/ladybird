@@ -19,8 +19,6 @@ namespace Web::CSS {
 class EasingStyleValue final : public StyleValueWithDefaultOperators<EasingStyleValue> {
 public:
     struct Linear {
-        static Linear identity();
-
         struct Stop {
             ValueComparingNonnullRefPtr<StyleValue const> output;
             ValueComparingRefPtr<StyleValue const> input;
@@ -36,11 +34,6 @@ public:
     };
 
     struct CubicBezier {
-        static CubicBezier ease();
-        static CubicBezier ease_in();
-        static CubicBezier ease_out();
-        static CubicBezier ease_in_out();
-
         ValueComparingNonnullRefPtr<StyleValue const> x1;
         ValueComparingNonnullRefPtr<StyleValue const> y1;
         ValueComparingNonnullRefPtr<StyleValue const> x2;
@@ -63,9 +56,6 @@ public:
     };
 
     struct Steps {
-        static Steps step_start();
-        static Steps step_end();
-
         ValueComparingNonnullRefPtr<StyleValue const> number_of_intervals;
         StepPosition position;
 

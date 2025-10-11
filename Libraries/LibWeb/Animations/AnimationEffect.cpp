@@ -13,7 +13,9 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -606,9 +608,11 @@ Optional<double> AnimationEffect::transformed_progress() const
 Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView value)
 {
     if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
-        if (style_value->is_easing())
-            // FIXME: We should absolutize style_value to resolve relative lengths within calcs
-            return CSS::EasingFunction::from_style_value(*style_value);
+        if (style_value->is_unresolved() || style_value->is_value_list() || style_value->is_css_wide_keyword())
+            return {};
+
+        // FIXME: We should absolutize style_value to resolve relative lengths within calcs
+        return CSS::EasingFunction::from_style_value(style_value.release_nonnull());
     }
 
     return {};

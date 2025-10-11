@@ -2865,20 +2865,10 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
     if (part.is(Token::Type::Ident)) {
         auto name = part.token().ident();
         auto maybe_simple_easing = [&] -> RefPtr<EasingStyleValue const> {
-            if (name.equals_ignoring_ascii_case("linear"sv))
-                return EasingStyleValue::create(EasingStyleValue::Linear::identity());
-            if (name.equals_ignoring_ascii_case("ease"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
-            if (name.equals_ignoring_ascii_case("ease-in"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in());
-            if (name.equals_ignoring_ascii_case("ease-out"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_out());
-            if (name.equals_ignoring_ascii_case("ease-in-out"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in_out());
             if (name.equals_ignoring_ascii_case("step-start"sv))
-                return EasingStyleValue::create(EasingStyleValue::Steps::step_start());
+                return EasingStyleValue::create(EasingStyleValue::Steps { IntegerStyleValue::create(1), StepPosition::Start });
             if (name.equals_ignoring_ascii_case("step-end"sv))
-                return EasingStyleValue::create(EasingStyleValue::Steps::step_end());
+                return EasingStyleValue::create(EasingStyleValue::Steps { IntegerStyleValue::create(1), StepPosition::End });
             return {};
         }();
 

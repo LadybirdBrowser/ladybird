@@ -281,6 +281,13 @@
     "inline",
     "run-in"
   ],
+  "easing-keyword": [
+    "linear",
+    "ease",
+    "ease-in",
+    "ease-out",
+    "ease-in-out"
+  ],
   "empty-cells": [
     "show",
     "hide"
