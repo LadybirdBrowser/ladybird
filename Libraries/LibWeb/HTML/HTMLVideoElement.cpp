@@ -44,9 +44,6 @@ void HTMLVideoElement::initialize(JS::Realm& realm)
 void HTMLVideoElement::finalize()
 {
     Base::finalize();
-
-    for (auto video_track : video_tracks()->video_tracks())
-        video_track->stop_video({});
 }
 
 void HTMLVideoElement::visit_edges(Cell::Visitor& visitor)
@@ -109,60 +106,11 @@ u32 HTMLVideoElement::video_height() const
     return m_video_height;
 }
 
-void HTMLVideoElement::set_video_track(GC::Ptr<HTML::VideoTrack> video_track)
-{
-    set_needs_style_update(true);
-    if (auto layout_node = this->layout_node())
-        layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
-
-    if (m_video_track)
-        m_video_track->pause_video({});
-
-    m_video_track = video_track;
-}
-
 void HTMLVideoElement::set_current_frame(Badge<VideoTrack>, RefPtr<Gfx::Bitmap> frame, double position)
 {
     m_current_frame = { move(frame), position };
     if (paintable())
         paintable()->set_needs_display();
-}
-
-void HTMLVideoElement::on_playing()
-{
-    if (m_video_track)
-        m_video_track->play_video({});
-
-    audio_tracks()->for_each_enabled_track([](auto& audio_track) {
-        audio_track.play();
-    });
-}
-
-void HTMLVideoElement::on_paused()
-{
-    if (m_video_track)
-        m_video_track->pause_video({});
-
-    audio_tracks()->for_each_enabled_track([](auto& audio_track) {
-        audio_track.pause();
-    });
-}
-
-void HTMLVideoElement::on_seek(double position, MediaSeekMode seek_mode)
-{
-    if (m_video_track)
-        m_video_track->seek(AK::Duration::from_milliseconds(position * 1000.0), seek_mode);
-
-    audio_tracks()->for_each_enabled_track([&](auto& audio_track) {
-        audio_track.seek(position, seek_mode);
-    });
-}
-
-void HTMLVideoElement::on_volume_change()
-{
-    audio_tracks()->for_each_enabled_track([&](auto& audio_track) {
-        audio_track.update_volume();
-    });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster

@@ -36,8 +36,6 @@ public:
     void set_video_height(u32 video_height) { m_video_height = video_height; }
     u32 video_height() const;
 
-    void set_video_track(GC::Ptr<VideoTrack>);
-
     void set_current_frame(Badge<VideoTrack>, RefPtr<Gfx::Bitmap> frame, double position);
     VideoFrame const& current_frame() const { return m_current_frame; }
     RefPtr<Gfx::Bitmap> const& poster_frame() const { return m_poster_frame; }
@@ -62,11 +60,6 @@ private:
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
-
-    virtual void on_playing() override;
-    virtual void on_paused() override;
-    virtual void on_seek(double, MediaSeekMode) override;
-    virtual void on_volume_change() override;
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<String> const& poster);
 

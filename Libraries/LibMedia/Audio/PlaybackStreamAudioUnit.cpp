@@ -281,7 +281,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::discard_buff
     return promise;
 }
 
-ErrorOr<AK::Duration> PlaybackStreamAudioUnit::total_time_played()
+AK::Duration PlaybackStreamAudioUnit::total_time_played() const
 {
     return m_state->last_sample_time();
 }

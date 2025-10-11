@@ -9,9 +9,6 @@ We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are n
 
 CMake 3.25 or newer must be available in $PATH.
 
-> [!NOTE]
-> In all of the below lists of packages, the Qt6 multimedia package is not needed if your Linux system supports PulseAudio.
-
 ---
 
 ### Debian/Ubuntu:
@@ -67,34 +64,34 @@ sudo apt update && sudo apt install g++-14 libstdc++-14-dev
 
 #### Audio support:
 
-- Recommendation: Install PulseAudio development package:
+- Install PulseAudio development package:
 
 ```bash
 sudo apt install libpulse-dev
 ```
 
-- Alternative: Install Qt6's multimedia package:
-
-```bash
-sudo apt install qt6-multimedia-dev
-```
-
 ### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
+sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-tools qt6-wayland ttf-liberation tar unzip zip
+```
+
+Optionally, install the PulseAudio headers for audio playback support:
+
+```
+sudo pacman -S libpulse
 ```
 
 ### Fedora or derivatives:
 
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel liberation-sans-fonts libglvnd-devel libtool nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib perl-Time-Piece qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel liberation-sans-fonts libglvnd-devel libtool nasm ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib perl-Time-Piece qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
 
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libtool nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libtool nasm ninja qt6-base-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 
 If one or more of the base repository packages are flagged as having an out-of-date version during the build process, you may need add the `devel:tools:building` repository. For example, on Leap 15.6, the `autoconf` package might be version 2.69, whereas the `gperf` package requires 2.70 to build.
@@ -119,11 +116,10 @@ Nothing to do.
 > sudo zypper install autoconf-2.72-80.d_t_b.1.noarch
 ```
 
-It is currently recommended to install the `libpulse-devel` package to avoid runtime dynamic linking issues. If issues persist you may need to remove the `qt6-multimedia-devel` package to avoid linking issues.
+It is necessary to install the `libpulse-devel` package to enable audio playback:
 
 ```
 sudo zypper install libpulse-devel
-sudo zypper remove qt6-multimedia-devel
 ```
 
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install the package `python312` and create a virtual environment (venv) in this case.
@@ -141,7 +137,7 @@ This virtual environment can be created once and reused in future shell sessions
 
 ```
 sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
-sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
+sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-tools-devel qt6-wayland-devel
 ```
 
 ### NixOS or with Nix:
@@ -209,7 +205,7 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 ### FreeBSD
 
 ```
-pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base qt6-multimedia unzip zip
+pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base unzip zip
 ```
 
 ## Build steps

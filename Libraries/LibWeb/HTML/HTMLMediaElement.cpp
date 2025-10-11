@@ -6,8 +6,10 @@
  */
 
 #include <LibJS/Runtime/Promise.h>
-#include <LibMedia/Audio/Loader.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/SeekMode.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -75,6 +77,13 @@ void HTMLMediaElement::initialize(JS::Realm& realm)
 void HTMLMediaElement::finalize()
 {
     Base::finalize();
+
+    if (m_selected_video_track) {
+        VERIFY(m_selected_video_track_sink);
+        m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
+        m_selected_video_track_sink = nullptr;
+    }
+
     document().page().unregister_media_element({}, unique_id());
 }
 
@@ -97,6 +106,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_source_element_selector);
     visitor.visit(m_fetch_controller);
     visitor.visit(m_pending_play_promises);
+    visitor.visit(m_selected_video_track);
 }
 
 void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -300,9 +310,6 @@ void HTMLMediaElement::set_current_playback_position(double playback_position)
 
     time_marches_on();
 
-    // NOTE: This notifies blocked seek_element() invocations that we have finished seeking.
-    m_seek_in_progress = false;
-
     // NOTE: Invoking the following steps is not listed in the spec. Rather, the spec just describes the scenario in
     //       which these steps should be invoked, which is when we've reached the end of the media playback.
     if (m_current_playback_position == m_duration)
@@ -447,12 +454,12 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
     if (auto* paintable = this->paintable())
         paintable->set_needs_display();
 
-    on_volume_change();
+    update_volume();
 }
 
 void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
 {
-    on_volume_change();
+    update_volume();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
@@ -475,6 +482,12 @@ double HTMLMediaElement::effective_media_volume() const
     //    setting, values in between increasing in loudness. The range need not be linear. The loudest setting may be
     //    lower than the system's loudest possible setting; for example the user could have set a maximum volume.
     return volume;
+}
+
+void HTMLMediaElement::update_volume()
+{
+    if (m_playback_manager)
+        m_playback_manager->set_volume(effective_media_volume());
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
@@ -518,7 +531,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
     m_first_data_load_event_since_load_start = true;
 
-    // FIXME: 1. Abort any already-running instance of the resource selection algorithm for this element.
+    // 1. Abort any already-running instance of the resource selection algorithm for this element.
+    //    NOTE: All deferred subroutines of the resource selection algorithm will be queued under the media element task
+    //          source, or run as part of the fetch. Step 2 will remove any subroutine from the queue. Step 6.2 will stop
+    //          any ongoing fetch operation. Therefore, all resource selection algorithms will be cancelled before a new
+    //          one begins.
 
     // 2. Let pending tasks be a list of all tasks from the media element's media element event task source in one of the task queues.
     [[maybe_unused]] auto pending_tasks = HTML::main_thread_event_loop().task_queue().take_tasks_matching([&](auto& task) {
@@ -814,7 +831,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
     // 4. Await a stable state, allowing the task that invoked this algorithm to continue. The synchronous section consists of all the remaining
     // steps of this algorithm until the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
 
-    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, &realm]() {
+    queue_a_media_element_task([this, &realm]() {
         // FIXME: 5. ⌛ If the media element's blocked-on-parser flag is false, then populate the list of pending text tracks.
 
         Optional<SelectMode> mode;
@@ -904,12 +921,12 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
 
             // 5. If urlRecord was obtained successfully, run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one,
             //    then the load failed.
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, url_record = move(url_record), failed_with_attribute = move(failed_with_attribute)]() mutable {
+            queue_a_media_element_task([this, url_record = move(url_record), failed_with_attribute = move(failed_with_attribute)]() mutable {
                 if (url_record.has_value()) {
                     fetch_resource(*url_record, move(failed_with_attribute)).release_value_but_fixme_should_propagate_errors();
                     return;
                 }
-            }));
+            });
 
             // 8. Return. The element won't attempt to load another resource until this algorithm is triggered again.
             return;
@@ -944,7 +961,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
 
             break;
         }
-    }));
+    });
 
     return {};
 }
@@ -1119,52 +1136,138 @@ bool HTMLMediaElement::verify_response(GC::Ref<Fetch::Infrastructure::Response> 
     TODO();
 }
 
+void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool enabled)
+{
+    if (enabled)
+        m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
+    else
+        m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
+}
+
+void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
+{
+    set_needs_style_update(true);
+    if (auto layout_node = this->layout_node())
+        layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementSetVideoTrack);
+
+    if (m_selected_video_track) {
+        VERIFY(m_selected_video_track_sink);
+        m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
+        m_selected_video_track_sink = nullptr;
+    }
+
+    m_selected_video_track = video_track;
+    if (video_track)
+        m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
+}
+
+void HTMLMediaElement::update_video_frame_and_timeline()
+{
+    if (!m_playback_manager)
+        return;
+
+    auto needs_display = false;
+    if (m_selected_video_track_sink) {
+        auto sink_update_result = m_selected_video_track_sink->update();
+        needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+    }
+
+    // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
+    // before the seek when the user lets go of the left mouse button.
+    if (seeking())
+        return;
+
+    // FIXME: It might not be the best idea to send time updates at 60Hz, but this is a convenient place for this
+    //        for now.
+    auto new_position = m_playback_manager->current_time().to_seconds_f64();
+    if (new_position != m_official_playback_position) {
+        set_current_playback_position(new_position);
+        needs_display = true;
+    }
+
+    if (needs_display && paintable())
+        paintable()->set_needs_display();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(String)> failure_callback)
 {
     auto& realm = this->realm();
 
-    auto audio_loader = Audio::Loader::create(m_media_data.bytes());
-    auto playback_manager = Media::PlaybackManager::from_data(m_media_data);
+    auto playback_manager_result = Media::PlaybackManager::try_create(m_media_data.bytes());
 
     // -> If the media data cannot be fetched at all, due to network errors, causing the user agent to give up trying to fetch the resource
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    if (audio_loader.is_error() && playback_manager.is_error()) {
+    if (playback_manager_result.is_error()) {
         // 1. The user agent should cancel the fetching process.
         m_fetch_controller->stop_fetch();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-        failure_callback(MUST(String::from_utf8(playback_manager.error().description())));
-
+        failure_callback(MUST(String::from_utf8(playback_manager_result.error().description())));
         return {};
     }
 
-    GC::Ptr<AudioTrack> audio_track;
-    GC::Ptr<VideoTrack> video_track;
+    // NOTE: The spec is unclear on whether the following media resource track conditions should trigger multiple
+    //       times on one media resource, but it is implied to be possible by the start of the "Media elements"
+    //       section, where it says that a "media resource can have multiple audio and video tracks."
+    //       https://html.spec.whatwg.org/multipage/media.html#media-elements
+    //       Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
+
+    m_playback_manager = playback_manager_result.release_value();
+
+    m_playback_manager->on_playback_state_change = [weak_self = make_weak_ptr<HTMLMediaElement>()] {
+        if (weak_self)
+            weak_self->on_playback_manager_state_change();
+    };
+
+    update_volume();
 
     // -> If the media resource is found to have an audio track
-    if (!audio_loader.is_error()) {
+    auto preferred_audio_track = m_playback_manager->preferred_audio_track();
+    auto has_enabled_preferred_audio_track = false;
+
+    for (auto const& track : m_playback_manager->audio_tracks()) {
         // 1. Create an AudioTrack object to represent the audio track.
-        audio_track = realm.create<AudioTrack>(realm, *this, audio_loader.release_value());
+        auto audio_track = realm.create<AudioTrack>(realm, *this, track);
 
         // 2. Update the media element's audioTracks attribute's AudioTrackList object with the new AudioTrack object.
-        m_audio_tracks->add_track({}, *audio_track);
+        m_audio_tracks->add_track({}, audio_track);
 
         // 3. Let enable be unknown.
         auto enable = TriState::Unknown;
 
-        // FIXME: 4. If either the media resource or the URL of the current media resource indicate a particular set of audio tracks to enable, or if
-        //           the user agent has information that would facilitate the selection of specific audio tracks to improve the user's experience, then:
-        //           if this audio track is one of the ones to enable, then set enable to true, otherwise, set enable to false.
+        // 4. If either the media resource or the URL of the current media resource indicate a particular set of audio tracks to enable, or if
+        //    the user agent has information that would facilitate the selection of specific audio tracks to improve the user's experience, then:
+        //    if this audio track is one of the ones to enable, then set enable to true, otherwise, set enable to false.
+        if (preferred_audio_track.has_value()) {
+            if (track == preferred_audio_track && !has_enabled_preferred_audio_track) {
+                enable = TriState::True;
+                has_enabled_preferred_audio_track = true;
+            } else {
+                enable = TriState::False;
+            }
+        }
 
         // 5. If enable is still unknown, then, if the media element does not yet have an enabled audio track, then set enable to true, otherwise,
         //    set enable to false.
         if (enable == TriState::Unknown)
-            enable = m_audio_tracks->has_enabled_track() ? TriState::False : TriState::True;
+            enable = !m_audio_tracks->has_enabled_track() ? TriState::True : TriState::False;
 
         // 6. If enable is true, then enable this audio track, otherwise, do not enable this audio track.
         if (enable == TriState::True)
             audio_track->set_enabled(true);
+
+        // AD-HOC(ish): According to https://dev.w3.org/html5/html-sourcing-inband-tracks/, kind should be set according to format, and the following criteria within
+        //              the specified formats.
+        // WebM:
+        //     - "main": the FlagDefault element is set on the track
+        //     - "translation": not first audio (video) track
+        // MP4:
+        //     - "main": first audio (video) track
+        //     - "translation": not first audio (video) track
+        // Though the behavior for WebM is not clear if its first track is not marked with FlagDefault, the idea here seems to be that the preferred
+        // track should be marked as "main", and the rest should be marked as "translation".
+        audio_track->set_kind(enable == TriState::True ? "main"_utf16 : "translation"_utf16);
 
         // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
         TrackEventInit event_init {};
@@ -1174,10 +1277,16 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         m_audio_tracks->dispatch_event(event);
     }
 
+    if (preferred_audio_track.has_value())
+        VERIFY(has_enabled_preferred_audio_track);
+
     // -> If the media resource is found to have a video track
-    if (!playback_manager.is_error()) {
+    auto preferred_video_track = m_playback_manager->preferred_video_track();
+    auto has_selected_preferred_video_track = false;
+
+    for (auto const& track : m_playback_manager->video_tracks()) {
         // 1. Create a VideoTrack object to represent the video track.
-        video_track = realm.create<VideoTrack>(realm, *this, playback_manager.release_value());
+        auto video_track = realm.create<VideoTrack>(realm, *this, track);
 
         // 2. Update the media element's videoTracks attribute's VideoTrackList object with the new VideoTrack object.
         m_video_tracks->add_track({}, *video_track);
@@ -1185,9 +1294,17 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         // 3. Let enable be unknown.
         auto enable = TriState::Unknown;
 
-        // FIXME: 4. If either the media resource or the URL of the current media resource indicate a particular set of video tracks to enable, or if
-        //           the user agent has information that would facilitate the selection of specific video tracks to improve the user's experience, then:
-        //           if this video track is the first such video track, then set enable to true, otherwise, set enable to false.
+        // 4. If either the media resource or the URL of the current media resource indicate a particular set of video tracks to enable, or if
+        //    the user agent has information that would facilitate the selection of specific video tracks to improve the user's experience, then:
+        //    if this video track is the first such video track, then set enable to true, otherwise, set enable to false.
+        if (preferred_video_track.has_value()) {
+            if (track == preferred_video_track && !has_selected_preferred_video_track) {
+                enable = TriState::True;
+                has_selected_preferred_video_track = true;
+            } else {
+                enable = TriState::False;
+            }
+        }
 
         // 5. If enable is still unknown, then, if the media element does not yet have a selected video track, then set enable to true, otherwise, set
         //    enable to false.
@@ -1199,6 +1316,9 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         if (enable == TriState::True)
             video_track->set_selected(true);
 
+        // AD-HOC(ish): See the comment regarding AudioTrack.kind above with regard to https://dev.w3.org/html5/html-sourcing-inband-tracks/.
+        video_track->set_kind(enable == TriState::True ? "main"_utf16 : "translation"_utf16);
+
         // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
         TrackEventInit event_init {};
         event_init.track = GC::make_root(video_track);
@@ -1207,80 +1327,83 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         m_video_tracks->dispatch_event(event);
     }
 
+    if (preferred_video_track.has_value())
+        VERIFY(has_selected_preferred_video_track);
+
     // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
-    if (audio_track != nullptr || video_track != nullptr) {
-        // AD-HOC: After selecting a track, we do not need the source element selector anymore.
-        m_source_element_selector = nullptr;
+    // AD-HOC: After selecting a track, we do not need the source element selector anymore.
+    m_source_element_selector = nullptr;
 
-        // FIXME: 1. Establish the media timeline for the purposes of the current playback position and the earliest possible position, based on the media data.
-        // FIXME: 2. Update the timeline offset to the date and time that corresponds to the zero time in the media timeline established in the previous step,
-        //           if any. If no explicit time and date is given by the media resource, the timeline offset must be set to Not-a-Number (NaN).
+    // FIXME: 1. Establish the media timeline for the purposes of the current playback position and the earliest possible position, based on the media data.
+    // FIXME: 2. Update the timeline offset to the date and time that corresponds to the zero time in the media timeline established in the previous step,
+    //           if any. If no explicit time and date is given by the media resource, the timeline offset must be set to Not-a-Number (NaN).
 
-        // 3. Set the current playback position and the official playback position to the earliest possible position.
-        m_current_playback_position = 0;
-        m_official_playback_position = 0;
+    // 3. Set the current playback position and the official playback position to the earliest possible position.
+    m_current_playback_position = 0;
+    m_official_playback_position = 0;
 
-        // 4. Update the duration attribute with the time of the last frame of the resource, if known, on the media timeline established above. If it is
-        //    not known (e.g. a stream that is in principle infinite), update the duration attribute to the value positive Infinity.
-        // FIXME: Handle unbounded media resources.
-        // 5. For video elements, set the videoWidth and videoHeight attributes, and queue a media element task given the media element to fire an event
-        //    named resize at the media element.
-        if (video_track && is<HTMLVideoElement>(*this)) {
-            auto duration = video_track ? video_track->duration() : audio_track->duration();
-            set_duration(duration.to_seconds_f64());
+    // 4. Update the duration attribute with the time of the last frame of the resource, if known, on the media timeline established above. If it is
+    //    not known (e.g. a stream that is in principle infinite), update the duration attribute to the value positive Infinity.
+    // FIXME: Handle unbounded media resources.
+    set_duration(m_playback_manager->duration().to_seconds_f64());
 
-            auto& video_element = as<HTMLVideoElement>(*this);
-            video_element.set_video_width(video_track->pixel_width());
-            video_element.set_video_height(video_track->pixel_height());
+    // 5. For video elements, set the videoWidth and videoHeight attributes, and queue a media element task given the media element to fire an event
+    //    named resize at the media element.
+    auto* video_element = as_if<HTMLVideoElement>(*this);
+    if (m_selected_video_track && video_element) {
+        video_element->set_video_height(m_selected_video_track->track_in_playback_manager().video_data().pixel_height);
+        video_element->set_video_width(m_selected_video_track->track_in_playback_manager().video_data().pixel_width);
 
-            queue_a_media_element_task([this] {
-                dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::resize));
-            });
-        } else {
-            auto duration = audio_track ? audio_track->duration() : video_track->duration();
-            set_duration(duration.to_seconds_f64());
-        }
+        queue_a_media_element_task([this] {
+            dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::resize));
+        });
+    }
 
-        // 6. Set the readyState attribute to HAVE_METADATA.
-        set_ready_state(ReadyState::HaveMetadata);
+    // 6. Set the readyState attribute to HAVE_METADATA.
+    set_ready_state(ReadyState::HaveMetadata);
 
-        // 7. Let jumped be false.
-        [[maybe_unused]] auto jumped = false;
+    // 7. Let jumped be false.
+    [[maybe_unused]] auto jumped = false;
 
-        // 8. If the media element's default playback start position is greater than zero, then seek to that time, and let jumped be true.
-        if (m_default_playback_start_position > 0) {
-            seek_element(m_default_playback_start_position);
-            jumped = true;
-        }
+    // 8. If the media element's default playback start position is greater than zero, then seek to that time, and let jumped be true.
+    if (m_default_playback_start_position > 0) {
+        seek_element(m_default_playback_start_position);
+        jumped = true;
+    }
 
-        // 9. Set the media element's default playback start position to zero.
-        m_default_playback_start_position = 0;
+    // 9. Set the media element's default playback start position to zero.
+    m_default_playback_start_position = 0;
 
-        // FIXME: 10. Let the initial playback position be 0.
-        // FIXME: 11. If either the media resource or the URL of the current media resource indicate a particular start time, then set the initial playback
-        //            position to that time and, if jumped is still false, seek to that time.
+    // FIXME: 10. Let the initial playback position be 0.
+    // FIXME: 11. If either the media resource or the URL of the current media resource indicate a particular start time, then set the initial playback
+    //            position to that time and, if jumped is still false, seek to that time.
 
-        // 12. If there is no enabled audio track, then enable an audio track. This will cause a change event to be fired.
-        if (audio_track && !m_audio_tracks->has_enabled_track())
-            audio_track->set_enabled(true);
+    // 12. If there is no enabled audio track, then enable an audio track. This will cause a change event to be fired.
+    if (!m_audio_tracks->has_enabled_track()) {
+        m_audio_tracks->for_each_track([](auto& track) {
+            track.set_enabled(true);
+            return IterationDecision::Break;
+        });
+    }
 
-        // 13. If there is no selected video track, then select a video track. This will cause a change event to be fired.
-        if (video_track && m_video_tracks->selected_index() == -1)
-            video_track->set_selected(true);
+    // 13. If there is no selected video track, then select a video track. This will cause a change event to be fired.
+    if (m_video_tracks->selected_index() == -1) {
+        m_video_tracks->for_each_track([](auto& track) {
+            track.set_selected(true);
+            return IterationDecision::Break;
+        });
     }
 
     // -> Once the entire media resource has been fetched (but potentially before any of it has been decoded)
-    if (audio_track != nullptr || video_track != nullptr) {
-        // Fire an event named progress at the media element.
-        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::progress));
+    // Fire an event named progress at the media element.
+    dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::progress));
 
-        // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
-        m_network_state = NetworkState::Idle;
-        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::suspend));
+    // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
+    m_network_state = NetworkState::Idle;
+    dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::suspend));
 
-        // If the user agent ever discards any media data and then needs to resume the network activity to obtain it again, then it must queue a media
-        // element task given the media element to set the networkState to NETWORK_LOADING.
-    }
+    // FIXME: If the user agent ever discards any media data and then needs to resume the network activity to obtain it again, then it must queue a media
+    //        element task given the media element to set the networkState to NETWORK_LOADING.
 
     // FIXME: -> If the connection is interrupted after some media data has been received, causing the user agent to give up trying to fetch the resource
     // FIXME: -> If the media data fetching process is aborted by the user
@@ -1451,6 +1574,14 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 }
 
+void HTMLMediaElement::on_playback_manager_state_change()
+{
+    if (!m_playback_manager)
+        return;
+    if (seeking() && m_playback_manager->state() != Media::PlaybackState::Seeking)
+        finish_seeking_element();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#internal-play-steps
 WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
 {
@@ -1558,10 +1689,10 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     if (m_ready_state == ReadyState::HaveNothing)
         return;
 
-    // FIXME: 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
-    //           Abort that other instance of the algorithm without waiting for the step that it is running to complete.
-    if (m_seeking) {
-    }
+    // 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
+    //    Abort that other instance of the algorithm without waiting for the step that it is running to complete.
+    // NOTE: PlaybackManager will restart any ongoing seek, and only exit the seeking state once, so we don't need to
+    //       check the seeking attribute here.
 
     // 4. Set the seeking IDL attribute to true.
     set_seeking(true);
@@ -1571,12 +1702,10 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //           aborted at any time by another instance of this algorithm being invoked.
 
     // 6. If the new playback position is later than the end of the media resource, then let it be the end of the media resource instead.
-    if (playback_position > m_duration)
-        playback_position = m_duration;
+    playback_position = min(playback_position, m_duration);
 
     // 7. If the new playback position is less than the earliest possible position, let it be that position instead.
-    if (playback_position < 0)
-        playback_position = 0;
+    playback_position = max(playback_position, 0);
 
     // 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable attribute,
     auto time_ranges = seekable();
@@ -1623,7 +1752,26 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //    promptly. If new playback position before this step is before current playback position, then the adjusted new playback position
     //    must also be before the current playback position. Similarly, if the new playback position before this step is after current
     //    playback position, then the adjusted new playback position must also be after the current playback position.
-    // NOTE: LibVideo handles approximation for speed internally.
+
+    // FIXME: We don't have a nice way to synchronously adjust the playback position based on the container's random
+    //        access points according to the steps above, since we have to drop coded video frames until we reach the
+    //        next keyframe in order to satisfy the requirement to choose a random access point after the current
+    //        playback position in some cases.
+    //
+    //        For now, instead complete this step asynchronously, and set the playback position to the accurate
+    //        position, so that seeking results in text cues updating instantly. When doing a fast seek, this will
+    //        result in the text cues at the exact seek position appearing briefly, before being instantly replaced
+    //        by the ones at the adjusted position when the seek completes.
+    //
+    //        This appears to match the behavior in Firefox, where it reports the accurate seek target until the seek
+    //        has completed. Spec bug?
+    auto manager_seek_mode = Media::SeekMode::Accurate;
+    if (seek_mode == MediaSeekMode::ApproximateForSpeed) {
+        if (playback_position <= current_playback_position())
+            manager_seek_mode = Media::SeekMode::FastBefore;
+        else
+            manager_seek_mode = Media::SeekMode::FastAfter;
+    }
 
     // 10. Queue a media element task given the media element to fire an event named seeking at the element.
     queue_a_media_element_task([this]() {
@@ -1635,15 +1783,27 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
-    m_seek_in_progress = true;
-    on_seek(playback_position, seek_mode);
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() { return !m_seek_in_progress; }));
+    if (m_playback_manager)
+        m_playback_manager->seek(AK::Duration::from_seconds_f64(playback_position), manager_seek_mode);
 
-    // FIXME: 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
-    //            synchronous section are marked with ⌛.)
+    // 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
+    //     synchronous section are marked with ⌛.)
+    // NOTE: If the playback manager is present, the final steps are riggered by our playback manager completing the
+    //       seek and resuming a playing/paused state.
+    if (!m_playback_manager)
+        finish_seeking_element();
+}
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
+void HTMLMediaElement::finish_seeking_element()
+{
     // 14. ⌛ Set the seeking IDL attribute to false.
     set_seeking(false);
+
+    // AD-HOC: Due to the FIXME in seek_element for fast seeking, we need to set the current playback position again
+    //         here to make sure that the time during the 'seeking' event is correct. We also need to make sure the
+    //         displayed frame is immediately updated, or the user may see a blank frame.
+    update_video_frame_and_timeline();
 
     // 15. ⌛ Run the time marches on steps.
     time_marches_on(TimeMarchesOnReason::Other);
@@ -1674,7 +1834,8 @@ void HTMLMediaElement::notify_about_playing()
         resolve_pending_play_promises(promises);
     });
 
-    on_playing();
+    if (m_playback_manager)
+        m_playback_manager->play();
 
     if (m_audio_tracks->has_enabled_track())
         document().page().client().page_did_change_audio_play_state(AudioPlayState::Playing);
@@ -1699,7 +1860,8 @@ void HTMLMediaElement::set_paused(bool paused)
     m_paused = paused;
 
     if (m_paused) {
-        on_paused();
+        if (m_playback_manager)
+            m_playback_manager->pause();
 
         if (m_audio_tracks->has_enabled_track())
             document().page().client().page_did_change_audio_play_state(AudioPlayState::Paused);
@@ -1839,14 +2001,13 @@ bool HTMLMediaElement::has_ended_playback() const
 // https://html.spec.whatwg.org/multipage/media.html#reaches-the-end
 void HTMLMediaElement::reached_end_of_media_playback()
 {
-    // 1. If the media element has a loop attribute specified, then seek to the earliest possible position of the media resource and return.
+    // 1. If the media element has a loop attribute specified,
     if (has_attribute(HTML::AttributeNames::loop)) {
+        // then seek to the earliest possible position of the media resource and return.
         seek_element(0);
-
-        // AD-HOC: LibVideo internally sets itself to a paused state when it reaches the end of a video. We must resume
-        //         playing manually to actually loop. Note that we don't need to update any HTMLMediaElement state as
-        //         it hasn't left the playing state by this point.
-        on_playing();
+        // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
+        //        and remove any delay in displaying the first frame again.
+        return;
     }
 
     // 2. As defined above, the ended IDL attribute starts returning true once the event loop returns to step 1.
@@ -2065,15 +2226,15 @@ WebIDL::ExceptionOr<bool> HTMLMediaElement::handle_keydown(Badge<Web::EventHandl
 
 void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, Optional<double> display_time)
 {
-    if (display_time.has_value() && !m_display_time.has_value()) {
-        if (potentially_playing()) {
+    if (display_time.has_value()) {
+        if (potentially_playing() && !m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = true;
-            on_paused();
+            m_playback_manager->pause();
         }
-    } else if (!display_time.has_value() && m_display_time.has_value()) {
+    } else if (!display_time.has_value()) {
         if (m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = false;
-            on_playing();
+            m_playback_manager->play();
         }
     }
 

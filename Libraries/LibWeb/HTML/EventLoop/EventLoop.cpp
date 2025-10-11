@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -361,6 +362,11 @@ void EventLoop::update_the_rendering()
 
         return true;
     });
+
+    // AD-HOC: Update all the displayed video frames on HTMLMediaElements in documents' pages.
+    for (auto& document : docs) {
+        document->page().update_all_media_element_video_sinks();
+    }
 
     // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
 
