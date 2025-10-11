@@ -1167,13 +1167,15 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
 {
     auto box_used_values = m_state.get(box);
     CSSPixelRect rect = { { 0, 0 }, box_used_values.content_size() };
-    for (auto const* current = &box; current; current = current->static_position_containing_block()) {
+    VERIFY(box_used_values.offset.is_zero()); // Set as result of this calculation
+    for (auto const* current = box.static_position_containing_block(); current; current = current->containing_block()) {
         if (current == &ancestor_box)
             return rect;
         auto const& current_state = m_state.get(*current);
         rect.translate_by(current_state.offset);
     }
-    // If we get here, ancestor_box was not an ancestor of `box`!
+    // If we get here, `ancestor_box` was not in the containing block chain of the static position containing block of `box`!
+    // Something about the containing block chain is set up incorrectly then.
     VERIFY_NOT_REACHED();
 }
 
