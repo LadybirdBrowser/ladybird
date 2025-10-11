@@ -18,6 +18,9 @@
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRegistration.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::ServiceWorker {
 
@@ -49,7 +52,7 @@ GC::Ref<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Realm& realm)
 }
 
 // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
-GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, RegistrationOptions const& options)
+GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(TrustedTypes::TrustedScriptURLOrString script_url, RegistrationOptions const& options)
 {
     auto& realm = this->realm();
     // Note: The register(scriptURL, options) method creates or updates a service worker registration for the given scope url.
@@ -59,15 +62,21 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, Re
     // 1. Let p be a promise.
     auto p = WebIDL::create_promise(realm);
 
-    // FIXME: 2. Set scriptURL to the result of invoking Get Trusted Type compliant string with TrustedScriptURL,
+    // 2. Set scriptURL to the result of invoking Get Trusted Type compliant string with TrustedScriptURL,
     //    this's relevant global object, scriptURL, "ServiceWorkerContainer register", and "script".
+    auto const compliant_script_url = MUST(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedScriptURL,
+        HTML::relevant_global_object(*this),
+        script_url,
+        TrustedTypes::InjectionSink::ServiceWorkerContainerregister,
+        TrustedTypes::Script.to_string()));
 
     // 3 Let client be this's service worker client.
     auto client = m_service_worker_client;
 
     // 4. Let scriptURL be the result of parsing scriptURL with this's relevant settings object’s API base URL.
     auto base_url = HTML::relevant_settings_object(*this).api_base_url();
-    auto parsed_script_url = DOMURL::parse(script_url, base_url);
+    auto parsed_script_url = DOMURL::parse(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), base_url);
 
     // 5. Let scopeURL be null.
     Optional<URL::URL> scope_url;

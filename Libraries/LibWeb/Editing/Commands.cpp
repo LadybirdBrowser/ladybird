@@ -24,6 +24,8 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::Editing {
 
@@ -1218,9 +1220,14 @@ bool command_insert_horizontal_rule_action(DOM::Document& document, Utf16String 
 // https://w3c.github.io/editing/docs/execCommand/#the-inserthtml-command
 bool command_insert_html_action(DOM::Document& document, Utf16String const& value)
 {
-    // FIXME: 1. Set value to the result of invoking get trusted types compliant string with TrustedHTML, this's relevant
+    // 1. Set value to the result of invoking get trusted types compliant string with TrustedHTML, this's relevant
     //    global object, value, "Document execCommand", and "script".
-    auto resulting_value = value;
+    auto const resulting_value = MUST(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(document),
+        value,
+        TrustedTypes::InjectionSink::DocumentexecCommand,
+        TrustedTypes::Script.to_string()));
 
     // 2. Delete the selection.
     auto& selection = *document.get_selection();
@@ -1232,7 +1239,7 @@ bool command_insert_html_action(DOM::Document& document, Utf16String const& valu
         return true;
 
     // 4. Let frag be the result of calling createContextualFragment(value) on the active range.
-    auto frag = MUST(range->create_contextual_fragment(resulting_value.to_utf8_but_should_be_ported_to_utf16()));
+    auto frag = MUST(range->create_contextual_fragment(resulting_value));
 
     // 5. Let last child be the lastChild of frag.
     GC::Ptr<DOM::Node> last_child = frag->last_child();
