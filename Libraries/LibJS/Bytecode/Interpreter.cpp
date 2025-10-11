@@ -2003,6 +2003,21 @@ ThrowCompletionOr<void> Mul::execute_impl(Bytecode::Interpreter& interpreter) co
     return {};
 }
 
+ThrowCompletionOr<void> Div::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto const lhs = interpreter.get(m_lhs);
+    auto const rhs = interpreter.get(m_rhs);
+
+    if (lhs.is_number() && rhs.is_number()) [[likely]] {
+        interpreter.set(m_dst, Value(lhs.as_double() / rhs.as_double()));
+        return {};
+    }
+
+    interpreter.set(m_dst, TRY(div(vm, lhs, rhs)));
+    return {};
+}
+
 ThrowCompletionOr<void> Sub::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
