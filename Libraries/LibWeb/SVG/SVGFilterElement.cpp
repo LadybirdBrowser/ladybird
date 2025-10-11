@@ -42,36 +42,6 @@ void SVGFilterElement::visit_edges(Cell::Visitor& visitor)
     SVGURIReferenceMixin::visit_edges(visitor);
 }
 
-void SVGFilterElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
-{
-    Base::apply_presentational_hints(cascaded_properties);
-    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-
-    auto x_attribute = attribute(AttributeNames::x);
-    if (auto x_value = parse_css_value(parsing_context, x_attribute.value_or(String {}), CSS::PropertyID::X))
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::X, x_value.release_nonnull());
-
-    auto y_attribute = attribute(AttributeNames::y);
-    if (auto y_value = parse_css_value(parsing_context, y_attribute.value_or(String {}), CSS::PropertyID::Y))
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Y, y_value.release_nonnull());
-
-    auto width_attribute = attribute(AttributeNames::width);
-    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or(String {}), CSS::PropertyID::Width))
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, width_value.release_nonnull());
-
-    auto height_attribute = attribute(AttributeNames::height);
-    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or(String {}), CSS::PropertyID::Height))
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, height_value.release_nonnull());
-}
-
-bool SVGFilterElement::is_presentational_hint(FlyString const& name) const
-{
-    if (Base::is_presentational_hint(name))
-        return true;
-
-    return name.is_one_of(AttributeNames::x, AttributeNames::y, AttributeNames::width, AttributeNames::height);
-}
-
 void SVGFilterElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
