@@ -13,6 +13,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ScalingMode.h>
 
 namespace Gfx {
 
@@ -74,6 +75,8 @@ public:
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> cropped(Gfx::IntRect, Gfx::Color outside_color = Gfx::Color::Black) const;
+    ErrorOr<NonnullRefPtr<Bitmap>> scaled(int width, int height, ScalingMode scaling_mode) const;
+
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap_backed_by_anonymous_buffer() const;
 
     [[nodiscard]] ShareableBitmap to_shareable_bitmap() const;

@@ -12,8 +12,10 @@
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
+#include <LibGfx/ScalingMode.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/ImageBitmapPrototype.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -198,10 +200,49 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     // 6. Let output be the rectangle on the plane denoted by sourceRectangle.
     auto output = TRY(input->cropped(source_rectangle, Gfx::Color::Transparent));
 
-    // FIXME: 7. Scale output to the size specified by outputWidth and outputHeight. The user agent should use the
+    // 7. Scale output to the size specified by outputWidth and outputHeight. The user agent should use the
     //  value of the resizeQuality option to guide the choice of scaling algorithm.
-    (void)output_width;
-    (void)output_height;
+    struct ScalingPass {
+        Gfx::ScalingMode mode { Gfx::ScalingMode::None };
+        int width { 0 };
+        int height { 0 };
+    };
+    Vector<ScalingPass> scaling_passes;
+    switch (options.has_value() ? options->resize_quality : Bindings::ResizeQuality::Low) {
+        // NOTE: The spec mentions Bicubic or Lanczos scaling as higher quality options; however, Skia does not implement the latter, so for now we will use SkCubicResampler::Mitchell() for both medium and high
+    case Bindings::ResizeQuality::High:
+        // The "high" value indicates a preference for a high level of image interpolation quality. High-quality image interpolation may be more computationally expensive than lower settings.
+    case Bindings::ResizeQuality::Medium:
+        // The "medium" value indicates a preference for a medium level of image interpolation quality.
+        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BoxSampling, .width = output_width, .height = output_height });
+        break;
+    case Bindings::ResizeQuality::Low:
+        // The "low" value indicates a preference for a low level of image interpolation quality. Low-quality image interpolation may be more computationally efficient than higher settings.
+        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BilinearBlend, .width = output_width, .height = output_height });
+        break;
+    case Bindings::ResizeQuality::Pixelated: {
+        // The "pixelated" value indicates a preference for scaling the image to preserve the pixelation of the original as much as possible, with minor smoothing as necessary to avoid distorting the image when the target size is not a clean multiple of the original.
+
+        // To implement "pixelated", for each axis independently, first determine the integer multiple of its natural size that puts it closest to the target size and is greater than zero. Scale it to this integer-multiple-size using nearest neighbor,
+        auto determine_closest_multiple = [](int const source_length, int const output_length) {
+            // NOTE: The previous cropping action would've failed if the source bitmap we are scaling had invalid lengths. Given the precondition that are lengths are always > 0, this integer division is safe from divide-by-zero and the quotient truncation is also safe as we will always round down
+            ASSERT(source_length > 0);
+            return output_length / source_length;
+        };
+        auto const source_width = source_rectangle.width();
+        auto const source_height = source_rectangle.height();
+        auto const width_multiple = determine_closest_multiple(source_width, output_width);
+        auto const height_multiple = determine_closest_multiple(source_height, output_height);
+        if (width_multiple > 0 && height_multiple > 0)
+            scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::NearestNeighbor, .width = source_width * width_multiple, .height = source_height * height_multiple });
+
+        // then scale it the rest of the way to the target size using bilinear interpolation.
+        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BilinearBlend, .width = output_width, .height = output_height });
+    } break;
+    }
+    for (ScalingPass& scaling_pass : scaling_passes) {
+        output = TRY(output->scaled(scaling_pass.width, scaling_pass.height, scaling_pass.mode));
+    }
 
     // FIXME: 8. If the value of the imageOrientation member of options is "flipY", output must be flipped vertically,
     //  disregarding any image orientation metadata of the source (such as EXIF metadata), if any. [EXIF]
