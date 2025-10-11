@@ -28,6 +28,9 @@ public:
     BucketMap& bucket_map() { return m_bucket_map; }
     BucketMap const& bucket_map() const { return m_bucket_map; }
 
+    u64 storage_usage() const;
+    u64 storage_quota() const;
+
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
