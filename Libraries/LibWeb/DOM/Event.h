@@ -101,6 +101,8 @@ public:
     GC::Ptr<EventTarget> current_target() const { return m_current_target; }
     void set_current_target(EventTarget* current_target) { m_current_target = current_target; }
 
+    GC::Ptr<EventTarget> current_target_for_bindings() const;
+
     bool return_value() const { return !m_cancelled; }
     void set_return_value(bool return_value)
     {

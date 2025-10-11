@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CrossOrigin/Reporting.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -24,7 +25,7 @@ GC_DEFINE_ALLOCATOR(WindowProxy);
 
 // 7.4 The WindowProxy exotic object, https://html.spec.whatwg.org/multipage/window-object.html#the-windowproxy-exotic-object
 WindowProxy::WindowProxy(JS::Realm& realm)
-    : JS::Object(realm, nullptr, MayInterfereWithIndexedPropertyAccess::Yes)
+    : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
 {
 }
 
