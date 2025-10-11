@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+2 Pass
+4 Fail
+Fail	IDBCursor.continue() - continues
+Fail	IDBCursor.continue() - with given key
+Pass	IDBCursor.continue() - skip far forward
+Fail	IDBCursor.continue() - within range
+Pass	IDBCursor.continue() - within single key range
+Fail	IDBCursor.continue() - within single key range, with several results

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	The source of the request from index => index.get(0) is the index itself
+Pass	The source of the request from index => index.getKey(0) is the index itself
+Pass	The source of the request from index => index.getAll() is the index itself
+Pass	The source of the request from index => index.getAllKeys() is the index itself
+Pass	The source of the request from index => index.count() is the index itself
+Pass	The source of the request from index => index.openCursor() is the index itself
+Pass	The source of the request from index => index.openKeyCursor() is the index itself
