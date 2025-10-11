@@ -175,12 +175,12 @@ def main():
         build_main(build_dir, args.jobs, args.target, args.args)
         build_main(build_dir, args.jobs, "install", args.args)
     elif args.command == "vcpkg":
-        configure_build_env(args.preset)
+        configure_build_env(platform, args.preset)
         build_vcpkg()
     elif args.command == "clean":
-        clean_main(args.preset)
+        clean_main(platform, args.preset)
     elif args.command == "rebuild":
-        clean_main(args.preset)
+        clean_main(platform, args.preset)
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "addr2line":
@@ -190,7 +190,7 @@ def main():
 
 
 def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
-    ladybird_source_dir, build_preset_dir = configure_build_env(preset)
+    ladybird_source_dir, build_preset_dir = configure_build_env(platform, preset)
     build_vcpkg()
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
@@ -265,7 +265,7 @@ def configure_skia_jemalloc() -> list[str]:
     return cmake_args
 
 
-def configure_build_env(preset: str) -> tuple[Path, Path]:
+def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
     ladybird_source_dir = ensure_ladybird_source_dir()
     build_root_dir = ladybird_source_dir / "Build"
 
@@ -289,6 +289,8 @@ def configure_build_env(preset: str) -> tuple[Path, Path]:
     os.environ["PATH"] += os.pathsep + str(ladybird_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
     os.environ["PATH"] += os.pathsep + vcpkg_root
     os.environ["VCPKG_ROOT"] = vcpkg_root
+    if platform.host_architecture == HostArchitecture.riscv64:
+        os.environ["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
 
     return ladybird_source_dir, build_preset_dir
 
@@ -417,8 +419,8 @@ def profile_main(host_system: HostSystem, build_dir: Path, target: str, args: li
     run_command(valgrind_args, exit_on_failure=True)
 
 
-def clean_main(preset: str):
-    ladybird_source_dir, build_preset_dir = configure_build_env(preset)
+def clean_main(platform: Platform, preset: str):
+    ladybird_source_dir, build_preset_dir = configure_build_env(platform, preset)
     shutil.rmtree(str(build_preset_dir), ignore_errors=True)
 
     user_vars_cmake_module = ladybird_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
