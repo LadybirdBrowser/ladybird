@@ -7,6 +7,7 @@
 #include "CSSMathNegate.h"
 #include <LibWeb/Bindings/CSSMathNegatePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -119,6 +120,11 @@ Optional<SumValue> CSSMathNegate::create_a_sum_value() const
 
     // 4. Return values.
     return values;
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathNegate::create_calculation_node(CalculationContext const& context) const
+{
+    return NegateCalculationNode::create(TRY(m_value->create_calculation_node(context)));
 }
 
 }

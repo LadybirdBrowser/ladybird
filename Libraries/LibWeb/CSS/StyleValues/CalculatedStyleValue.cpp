@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
@@ -33,6 +34,16 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 
 namespace Web::CSS {
+
+CalculationContext CalculationContext::for_property(PropertyNameAndID const& property)
+{
+    // FIXME: Handle registered custom properties, which may limit which types they accept.
+    return {
+        .percentages_resolve_as = property_resolves_percentages_relative_to(property.id()),
+        .resolve_numbers_as_integers = property_accepts_type(property.id(), ValueType::Integer),
+        .accepted_type_ranges = property_accepted_type_ranges(property.id()),
+    };
+}
 
 static Optional<NumericType> add_the_types(Vector<NonnullRefPtr<CalculationNode const>> const& nodes)
 {

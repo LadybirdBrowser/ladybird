@@ -32,6 +32,8 @@ struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
     bool resolve_numbers_as_integers = false;
     AcceptedTypeRangeMap accepted_type_ranges {};
+
+    static CalculationContext for_property(PropertyNameAndID const&);
 };
 
 class CalculatedStyleValue : public StyleValue {

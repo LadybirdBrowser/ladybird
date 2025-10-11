@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 69 tests
 
-65 Pass
-4 Fail
+64 Pass
+5 Fail
 Pass	Can set 'cursor' to CSS-wide keywords: initial
 Pass	Can set 'cursor' to CSS-wide keywords: inherit
 Pass	Can set 'cursor' to CSS-wide keywords: unset
@@ -67,7 +67,7 @@ Pass	Setting 'cursor' to a flexible length: -3.14fr throws TypeError
 Fail	Setting 'cursor' to a number: 0 throws TypeError
 Fail	Setting 'cursor' to a number: -3.14 throws TypeError
 Fail	Setting 'cursor' to a number: 3.14 throws TypeError
-Pass	Setting 'cursor' to a number: calc(2 + 3) throws TypeError
+Fail	Setting 'cursor' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'cursor' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'cursor' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'cursor' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError

@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -155,6 +156,16 @@ Optional<SumValue> CSSMathMax::create_a_sum_value() const
 
     // 4. Return the item of args whose sole item has the largest value.
     return item_with_largest_value;
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathMax::create_calculation_node(CalculationContext const& context) const
+{
+    Vector<NonnullRefPtr<CalculationNode const>> child_nodes;
+    for (auto const& child_value : m_values->values()) {
+        child_nodes.append(TRY(child_value->create_calculation_node(context)));
+    }
+
+    return MaxCalculationNode::create(move(child_nodes));
 }
 
 }

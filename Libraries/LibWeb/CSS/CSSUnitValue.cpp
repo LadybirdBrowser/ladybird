@@ -297,6 +297,34 @@ Optional<SumValue> CSSUnitValue::create_a_sum_value() const
     return SumValue { SumValueItem { value, { { unit, 1 } } } };
 }
 
+static Optional<CalculationNode::NumericValue> create_numeric_value(double value, FlyString const& unit)
+{
+    if (unit == "number"_fly_string)
+        return Number { Number::Type::Number, value };
+
+    if (unit == "percent"_fly_string)
+        return Percentage { value };
+
+    if (auto dimension_type = dimension_for_unit(unit); dimension_type.has_value()) {
+        switch (*dimension_type) {
+        case DimensionType::Angle:
+            return Angle { value, string_to_angle_unit(unit).release_value() };
+        case DimensionType::Flex:
+            return Flex { value, string_to_flex_unit(unit).release_value() };
+        case DimensionType::Frequency:
+            return Frequency { value, string_to_frequency_unit(unit).release_value() };
+        case DimensionType::Length:
+            return Length { value, string_to_length_unit(unit).release_value() };
+        case DimensionType::Resolution:
+            return Resolution { value, string_to_resolution_unit(unit).release_value() };
+        case DimensionType::Time:
+            return Time { value, string_to_time_unit(unit).release_value() };
+        }
+    }
+
+    return {};
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
 WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_internal_representation(PropertyNameAndID const& property) const
 {
@@ -322,102 +350,107 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     }
 
     auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {
-        CalculationContext context {
-            .percentages_resolve_as = property_resolves_percentages_relative_to(property.id()),
-            .resolve_numbers_as_integers = property_accepts_type(property.id(), ValueType::Integer),
-            .accepted_type_ranges = property_accepted_type_ranges(property.id()),
-        };
+        auto context = CalculationContext::for_property(property);
         auto numeric_node = NumericCalculationNode::create(value, context);
         auto math_sum_node = SumCalculationNode::create({ move(numeric_node) });
         return CalculatedStyleValue::create(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);
     };
 
-    if (m_unit == "number"_fly_string) {
-        // NB: Number before Integer, because a custom property accepts either and we want to avoid rounding in that case.
-        if (property_accepts_type(property.id(), ValueType::Number)) {
-            if (property_accepts_number(property.id(), m_value))
-                return NumberStyleValue::create(m_value);
-            return wrap_in_math_sum(Number { Number::Type::Number, m_value });
-        }
-
-        if (property_accepts_type(property.id(), ValueType::Integer)) {
-            // NB: Same rounding as CalculatedStyleValue::resolve_integer(). Maybe this should go somewhere central?
-            auto integer = llround(m_value);
-            if (property_accepts_integer(property.id(), integer))
-                return IntegerStyleValue::create(integer);
-            return wrap_in_math_sum(Number { Number::Type::Number, m_value });
-        }
-
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
-    }
-
-    if (m_unit == "percent"_fly_string) {
-        if (property_accepts_type(property.id(), ValueType::Percentage)) {
-            Percentage percentage { m_value };
-            if (property_accepts_percentage(property.id(), percentage))
-                return PercentageStyleValue::create(percentage);
-            return wrap_in_math_sum(percentage);
-        }
-
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
-    }
-
-    auto dimension_type = dimension_for_unit(m_unit);
-    if (!dimension_type.has_value())
+    auto value = create_numeric_value(m_value, m_unit);
+    if (!value.has_value()) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unrecognized unit '{}'.", m_unit)) };
-
-    switch (*dimension_type) {
-    case DimensionType::Angle:
-        if (property_accepts_type(property.id(), ValueType::Angle)) {
-            Angle value { m_value, string_to_angle_unit(m_unit).release_value() };
-            if (property_accepts_angle(property.id(), value))
-                return AngleStyleValue::create(value);
-            return wrap_in_math_sum(value);
-        }
-        break;
-    case DimensionType::Flex:
-        if (property_accepts_type(property.id(), ValueType::Flex)) {
-            Flex value { m_value, string_to_flex_unit(m_unit).release_value() };
-            if (property_accepts_flex(property.id(), value))
-                return FlexStyleValue::create(value);
-            return wrap_in_math_sum(value);
-        }
-        break;
-    case DimensionType::Frequency:
-        if (property_accepts_type(property.id(), ValueType::Frequency)) {
-            Frequency value { m_value, string_to_frequency_unit(m_unit).release_value() };
-            if (property_accepts_frequency(property.id(), value))
-                return FrequencyStyleValue::create(value);
-            return wrap_in_math_sum(value);
-        }
-        break;
-    case DimensionType::Length:
-        if (property_accepts_type(property.id(), ValueType::Length)) {
-            Length value { m_value, string_to_length_unit(m_unit).release_value() };
-            if (property_accepts_length(property.id(), value))
-                return LengthStyleValue::create(value);
-            return wrap_in_math_sum(value);
-        }
-        break;
-    case DimensionType::Resolution:
-        if (property_accepts_type(property.id(), ValueType::Resolution)) {
-            Resolution value { m_value, string_to_resolution_unit(m_unit).release_value() };
-            if (property_accepts_resolution(property.id(), value))
-                return ResolutionStyleValue::create(value);
-            return wrap_in_math_sum(value);
-        }
-        break;
-    case DimensionType::Time:
-        if (property_accepts_type(property.id(), ValueType::Time)) {
-            Time value { m_value, string_to_time_unit(m_unit).release_value() };
-            if (property_accepts_time(property.id(), value))
-                return TimeStyleValue::create(value);
-            return wrap_in_math_sum(value);
-        }
-        break;
     }
 
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+    // FIXME: Check types allowed by registered custom properties.
+    auto style_value = value->visit(
+        [&](Number const& number) -> RefPtr<StyleValue const> {
+            // NB: Number before Integer, because a custom property accepts either and we want to avoid rounding in that case.
+            if (property_accepts_type(property.id(), ValueType::Number)) {
+                if (property_accepts_number(property.id(), number.value()))
+                    return NumberStyleValue::create(number.value());
+                return wrap_in_math_sum(number);
+            }
+
+            if (property_accepts_type(property.id(), ValueType::Integer)) {
+                // NB: Same rounding as CalculatedStyleValue::resolve_integer(). Maybe this should go somewhere central?
+                auto integer = llround(number.value());
+                if (property_accepts_integer(property.id(), integer))
+                    return IntegerStyleValue::create(integer);
+                return wrap_in_math_sum(number);
+            }
+
+            return {};
+        },
+        [&](Percentage const& percentage) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Percentage)) {
+                if (property_accepts_percentage(property.id(), percentage))
+                    return PercentageStyleValue::create(percentage);
+                return wrap_in_math_sum(percentage);
+            }
+
+            return {};
+        },
+        [&](Angle const& angle) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Angle)) {
+                if (property_accepts_angle(property.id(), angle))
+                    return AngleStyleValue::create(angle);
+                return wrap_in_math_sum(angle);
+            }
+            return {};
+        },
+        [&](Flex const& flex) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Flex)) {
+                if (property_accepts_flex(property.id(), flex))
+                    return FlexStyleValue::create(flex);
+                return wrap_in_math_sum(flex);
+            }
+            return {};
+        },
+        [&](Frequency const& frequency) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Frequency)) {
+                if (property_accepts_frequency(property.id(), frequency))
+                    return FrequencyStyleValue::create(frequency);
+                return wrap_in_math_sum(frequency);
+            }
+            return {};
+        },
+        [&](Length const& length) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Length)) {
+                if (property_accepts_length(property.id(), length))
+                    return LengthStyleValue::create(length);
+                return wrap_in_math_sum(length);
+            }
+            return {};
+        },
+        [&](Resolution const& resolution) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Resolution)) {
+                if (property_accepts_resolution(property.id(), resolution))
+                    return ResolutionStyleValue::create(resolution);
+                return wrap_in_math_sum(resolution);
+            }
+            return {};
+        },
+        [&](Time const& time) -> RefPtr<StyleValue const> {
+            if (property_accepts_type(property.id(), ValueType::Time)) {
+                if (property_accepts_time(property.id(), time))
+                    return TimeStyleValue::create(time);
+                return wrap_in_math_sum(time);
+            }
+            return {};
+        });
+
+    if (!style_value)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
+    return style_value.release_nonnull();
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSUnitValue::create_calculation_node(CalculationContext const& context) const
+{
+    auto value = create_numeric_value(m_value, m_unit);
+    if (!value.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create calculation node from `{}{}`.", m_value, m_unit)) };
+
+    return NumericCalculationNode::create(value.release_value(), context);
 }
 
 }

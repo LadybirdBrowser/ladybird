@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 95 tests
 
-83 Pass
-12 Fail
+89 Pass
+6 Fail
 Pass	Can set 'width' to CSS-wide keywords: initial
 Pass	Can set 'width' to CSS-wide keywords: inherit
 Pass	Can set 'width' to CSS-wide keywords: unset
@@ -13,11 +13,11 @@ Pass	Can set 'width' to the 'auto' keyword: auto
 Pass	Can set 'width' to a percent: 0%
 Fail	Can set 'width' to a percent: -3.14%
 Pass	Can set 'width' to a percent: 3.14%
-Fail	Can set 'width' to a percent: calc(0% + 0%)
+Pass	Can set 'width' to a percent: calc(0% + 0%)
 Pass	Can set 'width' to a length: 0px
 Pass	Can set 'width' to a length: -3.14em
 Pass	Can set 'width' to a length: 3.14cm
-Fail	Can set 'width' to a length: calc(0px + 0em)
+Pass	Can set 'width' to a length: calc(0px + 0em)
 Pass	Setting 'width' to a time: 0s throws TypeError
 Pass	Setting 'width' to a time: -3.14ms throws TypeError
 Pass	Setting 'width' to a time: 3.14s throws TypeError
@@ -44,11 +44,11 @@ Fail	Can set 'min-width' to var() references:  var(--A)
 Pass	Can set 'min-width' to a percent: 0%
 Fail	Can set 'min-width' to a percent: -3.14%
 Pass	Can set 'min-width' to a percent: 3.14%
-Fail	Can set 'min-width' to a percent: calc(0% + 0%)
+Pass	Can set 'min-width' to a percent: calc(0% + 0%)
 Pass	Can set 'min-width' to a length: 0px
 Pass	Can set 'min-width' to a length: -3.14em
 Pass	Can set 'min-width' to a length: 3.14cm
-Fail	Can set 'min-width' to a length: calc(0px + 0em)
+Pass	Can set 'min-width' to a length: calc(0px + 0em)
 Pass	Setting 'min-width' to a time: 0s throws TypeError
 Pass	Setting 'min-width' to a time: -3.14ms throws TypeError
 Pass	Setting 'min-width' to a time: 3.14s throws TypeError
@@ -76,11 +76,11 @@ Pass	Can set 'max-width' to the 'none' keyword: none
 Pass	Can set 'max-width' to a percent: 0%
 Fail	Can set 'max-width' to a percent: -3.14%
 Pass	Can set 'max-width' to a percent: 3.14%
-Fail	Can set 'max-width' to a percent: calc(0% + 0%)
+Pass	Can set 'max-width' to a percent: calc(0% + 0%)
 Pass	Can set 'max-width' to a length: 0px
 Pass	Can set 'max-width' to a length: -3.14em
 Pass	Can set 'max-width' to a length: 3.14cm
-Fail	Can set 'max-width' to a length: calc(0px + 0em)
+Pass	Can set 'max-width' to a length: calc(0px + 0em)
 Pass	Setting 'max-width' to a time: 0s throws TypeError
 Pass	Setting 'max-width' to a time: -3.14ms throws TypeError
 Pass	Setting 'max-width' to a time: 3.14s throws TypeError

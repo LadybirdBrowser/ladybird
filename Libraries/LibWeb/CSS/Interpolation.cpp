@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
@@ -11,6 +11,7 @@
 #include "Interpolation.h"
 #include <AK/IntegralMath.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -600,10 +601,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
     auto from = with_keyword_values_resolved(element, property_id, a_from);
     auto to = with_keyword_values_resolved(element, property_id, a_to);
 
-    CalculationContext calculation_context {
-        .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
-        .accepted_type_ranges = property_accepted_type_ranges(property_id),
-    };
+    auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
 
     auto animation_type = animation_type_from_longhand_property(property_id);
     switch (animation_type) {
