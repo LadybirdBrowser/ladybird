@@ -113,6 +113,7 @@ private:
     O(BitwiseAnd, bitwise_and)                           \
     O(BitwiseOr, bitwise_or)                             \
     O(BitwiseXor, bitwise_xor)                           \
+    O(Div, div)                                          \
     O(GreaterThan, greater_than)                         \
     O(GreaterThanEquals, greater_than_equals)            \
     O(LeftShift, left_shift)                             \
@@ -124,7 +125,6 @@ private:
     O(UnsignedRightShift, unsigned_right_shift)
 
 #define JS_ENUMERATE_COMMON_BINARY_OPS_WITHOUT_FAST_PATH(O) \
-    O(Div, div)                                             \
     O(Exp, exp)                                             \
     O(Mod, mod)                                             \
     O(In, in)                                               \
