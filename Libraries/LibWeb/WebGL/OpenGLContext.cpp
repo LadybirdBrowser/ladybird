@@ -23,9 +23,16 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
-// Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
-#if defined(AK_OS_MACOS) || defined(USE_VULKAN_IMAGES)
+// Enable WebGL if we're on MacOS and can use Metal, if we're on Windows and can use DirectX, or if we can use shareable Vulkan images
+#if defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS) || defined(USE_VULKAN_IMAGES)
 #    define ENABLE_WEBGL 1
+#endif
+
+#if defined(AK_OS_WINDOWS)
+#    include <LibGfx/Direct3DContext.h>
+#    include <d3d11.h>
+#    include <d3d12.h>
+#    include <wrl.h>
 #endif
 
 namespace Web::WebGL {
@@ -94,7 +101,7 @@ void OpenGLContext::free_surface_resources()
 #    endif
 
     if (m_impl->surface != EGL_NO_SURFACE) {
-#    ifdef AK_OS_MACOS
+#    if defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS)
         eglReleaseTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
 #    endif
         eglDestroySurface(m_impl->display, m_impl->surface);
@@ -135,6 +142,8 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         EGL_PLATFORM_ANGLE_TYPE_ANGLE,
 #    if defined(AK_OS_MACOS)
         EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
+#    elif defined(AK_OS_WINDOWS)
+        EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
 #    elif defined(USE_VULKAN_IMAGES)
         EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE,
         EGL_PLATFORM_ANGLE_NATIVE_PLATFORM_TYPE_ANGLE,
@@ -165,7 +174,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
 #    if defined(AK_OS_MACOS)
     eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target);
     VERIFY(texture_target == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target == EGL_TEXTURE_2D);
-#    elif defined(USE_VULKAN_IMAGES)
+#    elif defined(USE_VULKAN_IMAGES) || defined(AK_OS_WINDOWS)
     texture_target = EGL_TEXTURE_2D;
 #    endif
 
@@ -363,6 +372,53 @@ void OpenGLContext::allocate_vkimage_painting_surface()
 }
 #endif
 
+#if defined(AK_OS_WINDOWS)
+void OpenGLContext::allocate_d3d11texture_painting_surface()
+{
+    char const* extensions = eglQueryString(m_impl->display, EGL_EXTENSIONS);
+    if (!strstr(extensions, "EGL_ANGLE_d3d_share_handle_client_buffer")) {
+        dbgln("Required extension EGL_ANGLE_d3d_share_handle_client_buffer not supported");
+        return;
+    }
+
+    auto const& d3d_ctx = m_skia_backend_context->direct3d_context();
+    auto d3d11_shared_texture = MUST(Gfx::Direct3D11Texture::try_create_shared(d3d_ctx, m_size.width(), m_size.height(), DXGI_FORMAT_B8G8R8A8_UNORM));
+
+    HANDLE shared_handle = INVALID_HANDLE_VALUE;
+    if (HRESULT const hr = d3d11_shared_texture->get_resource().GetSharedHandle(&shared_handle); FAILED(hr)) {
+        dbgln("GetSharedHandle failed: {}", Error::from_windows_error(hr));
+        return;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> d3d12_resource;
+    if (HRESULT const hr = d3d_ctx.d12_device().OpenSharedHandle(shared_handle, IID_PPV_ARGS(&d3d12_resource)); FAILED(hr)) {
+        dbgln("OpenSharedHandle failed: {}", Error::from_windows_error(hr));
+        return;
+    }
+    auto* d12_resource = d3d12_resource.Get();
+    VERIFY(d12_resource != nullptr);
+    m_painting_surface = Gfx::PaintingSurface::create_from_d3dtexture(m_skia_backend_context, *d12_resource, Gfx::PaintingSurface::Origin::BottomLeft);
+
+    EGLint attribs[] = {
+        EGL_WIDTH, m_size.width(),
+        EGL_HEIGHT, m_size.height(),
+        EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
+        EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
+        EGL_NONE
+    };
+
+    m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE, shared_handle, m_impl->config, attribs);
+    VERIFY(m_impl->surface != EGL_NO_SURFACE);
+
+    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+
+    glGenTextures(1, &m_impl->color_buffer);
+    glBindTexture(GL_TEXTURE_2D, m_impl->color_buffer);
+    auto result = eglBindTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
+    VERIFY(result == EGL_TRUE);
+}
+#endif
+
 void OpenGLContext::allocate_painting_surface_if_needed()
 {
 #ifdef ENABLE_WEBGL
@@ -375,6 +431,8 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
 #    if defined(AK_OS_MACOS)
     allocate_iosurface_painting_surface();
+#    elif defined(AK_OS_WINDOWS)
+    allocate_d3d11texture_painting_surface();
 #    elif defined(USE_VULKAN_IMAGES)
     allocate_vkimage_painting_surface();
 #    endif
@@ -422,7 +480,7 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
     // eglWaitUntilWorkScheduledANGLE only has an effect on CGL and Metal backends, so we only use it on macOS.
 #    if defined(AK_OS_MACOS)
     eglWaitUntilWorkScheduledANGLE(m_impl->display);
-#    elif defined(USE_VULKAN_IMAGES)
+#    elif defined(USE_VULKAN_IMAGES) || defined(AK_OS_WINDOWS)
     // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from the surface
     glFinish();
 #    endif
