@@ -100,8 +100,13 @@ void CanvasRenderingContext2D::fill_rect(float x, float y, float width, float he
     fill_internal(rect_path(x, y, width, height), Gfx::WindingRule::EvenOdd);
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clearrect
 void CanvasRenderingContext2D::clear_rect(float x, float y, float width, float height)
 {
+    // 1. If any of the arguments are infinite or NaN, then return.
+    if (!isfinite(x) || !isfinite(y) || !isfinite(width) || !isfinite(height))
+        return;
+
     if (auto* painter = this->painter()) {
         auto rect = Gfx::FloatRect(x, y, width, height);
         painter->clear_rect(rect, clear_color());
