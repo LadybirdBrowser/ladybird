@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 25 tests
+Found 35 tests
 
-19 Pass
+29 Pass
 6 Fail
 Pass	min(1em, 110px / 10px * 1px) should be used-value-equivalent to 10px
 Pass	max(10px, 110px / 10px * 1px) should be used-value-equivalent to 11px
@@ -14,6 +14,16 @@ Pass	calc(10em / 1em) should be used-value-equivalent to 10
 Pass	calc(10em / 1rem) should be used-value-equivalent to 10
 Pass	calc(10em / 1px) should be used-value-equivalent to 100
 Pass	calc(1px / 10em * NaN) should be used-value-equivalent to 0
+Pass	calc(10% / 1px) should be used-value-equivalent to 1
+Pass	calc(1% * 100% / 10%) should be used-value-equivalent to 10%
+Pass	calc(10% / 10%) should be used-value-equivalent to 1
+Pass	calc((10% * 1%) / 1px) should be used-value-equivalent to 10px
+Pass	calc(10% * 10% / 1px * 10deg / 1deg / 10px) should be used-value-equivalent to 1
+Pass	calc(10% * 10% / 1px * 1deg / 1deg) should be used-value-equivalent to 1px
+Pass	calc(1px * 2deg / 1deg) should be used-value-equivalent to 2px
+Pass	calc(1px * 3deg / 1deg / 1px) should be used-value-equivalent to 3
+Pass	e.style['width'] = "calc((1% * 1deg) / 1px)" should not set the property value
+Pass	e.style['width'] = "calc((1% * 1% * 1%) / 1px)" should not set the property value
 Pass	Property width value 'calc(1px * 10em / 0em)'
 Pass	Property width value 'calc(1px / 1px * 10em * infinity)'
 Fail	Property margin-left value 'calc(1px * 10em / -0em)'
