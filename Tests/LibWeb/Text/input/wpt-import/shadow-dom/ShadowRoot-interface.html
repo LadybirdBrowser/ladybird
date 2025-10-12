@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Shadow DOM: ShadowRoot interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="ShadowRoot interface and its attributes must be defined">
+<link rel="help" href="https://w3c.github.io/webcomponents/spec/shadow/#the-shadowroot-interface">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+test(function () {
+    assert_true('ShadowRoot' in window, '"ShadowRoot" exists on window');
+}, 'Check the existence of ShadowRoot interface');
+
+test(function () {
+    assert_equals(Object.getPrototypeOf(ShadowRoot.prototype), DocumentFragment.prototype, 'ShadowRoot must inherit from DocumentFragment');
+}, 'ShadowRoot must inherit from DocumentFragment');
+
+test(function () {
+    assert_throws_js(TypeError, function () { new ShadowRoot(); }, 'new ShadowRoot() must throw a TypeError');
+}, 'ShadowRoot must not be a constructor');
+
+function testActiveElement(mode) {
+    test(function () {
+        var host = document.createElement('div');
+        document.body.appendChild(host);
+        var shadowRoot = host.attachShadow({'mode': mode});
+        shadowRoot.appendChild(document.createElement('input'));
+        assert_equals(shadowRoot.activeElement, null, 'ShadowRoot.host must return null if an ' + mode + ' shadow tree does not have a focused element');
+        shadowRoot.firstChild.focus();
+        assert_equals(shadowRoot.activeElement, shadowRoot.firstChild, 'ShadowRoot.host must return the focused element of an ' + mode + ' shadow tree');
+        host.remove();
+        assert_equals(shadowRoot.activeElement, null, 'ShadowRoot.host must return null if an ' + mode + ' shadow tree lost focus');
+    }, 'ShadowRoot.activeElement must return the focused element of the context object when shadow root is ' + mode + '.');
+}
+
+testActiveElement('open');
+testActiveElement('closed');
+
+test(function () {
+    var host1 = document.createElement('div');
+    assert_equals(host1.attachShadow({'mode': 'open'}).host, host1, 'ShadowRoot.host must return the shadow host of an open shadow tree')
+
+    var host2 = document.createElement('div');
+    assert_equals(host2.attachShadow({'mode': 'closed'}).host, host2, 'ShadowRoot.host must return the shadow host of a closed shadow tree');
+}, 'ShadowRoot.host must return the shadow host of the context object.');
+
+function testInnerHTML(mode) {
+    test(function () {
+        var host = document.createElement('div');
+        var shadowRoot = host.attachShadow({'mode': mode});
+        assert_equals(shadowRoot.innerHTML, '', 'ShadowRoot.innerHTML must be an empty string when the shadow root does not have any children');
+
+        shadowRoot.appendChild(document.createTextNode('hello'));
+        assert_equals(shadowRoot.innerHTML, 'hello', 'ShadowRoot.innerHTML must serialize a text node child');
+
+        shadowRoot.appendChild(document.createElement('span'));
+        assert_equals(shadowRoot.innerHTML, 'hello<span></span>', 'ShadowRoot.innerHTML must serialize a HTML element child');
+    }, 'ShadowRoot.innerHTML must return the result of the HTML fragment serialization algorithm when shadow root is ' + mode + '.');
+}
+
+testInnerHTML('open');
+testInnerHTML('closed');
+
+function testSetInnerHTML(mode) {
+    test(function () {
+        var host = document.createElement('div');
+        var shadowRoot = host.attachShadow({'mode': mode});
+        shadowRoot.innerHTML = 'hello';
+        assert_equals(shadowRoot.childNodes.length, 1, 'ShadowRoot.innerHTML = "hello" must insert a single child (text node)');
+        assert_true(shadowRoot.firstChild instanceof Text, 'The first child of the shadow root after ShadowRoot.innerHTML = "hello" must be a Text node');
+        assert_equals(shadowRoot.firstChild.data, 'hello', 'The first Text node should contain the string "hello" after ShadowRoot.innerHTML = "hello"');
+
+        shadowRoot.innerHTML = '<b>hello</b>';
+        assert_equals(shadowRoot.childNodes.length, 1, 'ShadowRoot.innerHTML = "<b>hello</b>" must insert a single child (b)');
+        assert_true(shadowRoot.firstChild instanceof HTMLElement, 'The first child of the shadow root after ShadowRoot.innerHTML = "<b>hello</b>" must be a HTML element');
+        assert_equals(shadowRoot.firstChild.localName, 'b', 'The local name of the shadow root\'s first child after ShadowRoot.innerHTML = "<b>hello</b>" must be "b"');
+        assert_equals(shadowRoot.innerHTML, '<b>hello</b>', 'ShadowRoot.innerHTML must be "<b>hello</b>" after ShadowRoot.innerHTML = "<b>hello</b>"');
+
+        shadowRoot.innerHTML = '';
+        assert_equals(shadowRoot.childNodes.length, 0, 'ShadowRoot.innerHTML = "" must remove all its children');
+    }, 'ShadowRoot.innerHTML must replace all with the result of invoking the fragment parsing algorithm when shadow root is ' + mode + '.');
+}
+
+testSetInnerHTML('open');
+testSetInnerHTML('closed');
+
+function testStyleSheets(mode) {
+    test(function () {
+        var host = document.createElement('div');
+        var shadowRoot = host.attachShadow({'mode': mode});
+
+        shadowRoot.innerHTML = '<span></span><style> a.rule {} </style><style> b.rule {} </style>';
+        assert_equals(shadowRoot.styleSheets.length, 0, 'shadowRoot.styleSheets must be empty when the shadow root is not connected');
+        var styles = shadowRoot.querySelectorAll('style');
+        assert_equals(styles[0].sheet, null, "Sheet should be null in a disconnected tree");
+        assert_equals(styles[1].sheet, null, "Sheet should be null in a disconnected tree");
+
+        document.body.appendChild(host);
+        assert_equals(shadowRoot.styleSheets.length, 2, 'shadowRoot.styleSheets must contain two items when the shadow root has two style elements');
+        assert_equals(shadowRoot.styleSheets[0], styles[0].sheet, 'shadowRoot.styleSheets[0] must be the first style element in the shadow root');
+        assert_equals(shadowRoot.styleSheets[1], styles[1].sheet, 'shadowRoot.styleSheets[1] must be the second style element in the shadow root');
+
+        host.remove();
+        assert_equals(shadowRoot.styleSheets.length, 0, 'shadowRoot.styleSheets must be empty when the shadow root is not connected');
+        assert_equals(styles[0].sheet, null, "Sheet should be null in a disconnected tree");
+        assert_equals(styles[1].sheet, null, "Sheet should be null in a disconnected tree");
+    }, 'ShadowRoot.styleSheets must return a StyleSheetList sequence containing the shadow root style sheets when shadow root is ' + mode + '.');
+}
+
+testStyleSheets('open');
+testStyleSheets('closed');
+
+</script>
+</body>
+</html>
