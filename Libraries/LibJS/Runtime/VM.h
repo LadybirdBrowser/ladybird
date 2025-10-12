@@ -108,8 +108,8 @@ public:
 
     bool did_reach_stack_space_limit() const
     {
-#if defined(AK_OS_MACOS) && defined(HAS_ADDRESS_SANITIZER)
-        // We hit stack limits sooner on macOS 14 arm64 with ASAN enabled.
+#if defined(HAS_ADDRESS_SANITIZER)
+        // We hit stack limits sooner with ASAN enabled.
         return m_stack_info.size_free() < 96 * KiB;
 #else
         return m_stack_info.size_free() < 32 * KiB;
