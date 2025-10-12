@@ -5,6 +5,7 @@
 <script src="../../resources/testharnessreport.js"></script>
 <script src="../../css/support/numeric-testcommon.js"></script>
 <script src="../../css/support/computed-testcommon.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
 <style>
 :root {
   font-size: 10px;
@@ -40,6 +41,26 @@ test_math_used("calc(10em / 1em)", "10", {"prop": "z-index"});
 test_math_used("calc(10em / 1rem)", "10", {"prop": "z-index"});
 test_math_used("calc(10em / 1px)", "100", {"prop": "z-index"});
 test_math_used("calc(1px / 10em * NaN)", "0", {"prop": "z-index"});
+
+// 10% -> 1px; 1px / 1px -> 1.
+test_math_used("calc(10% / 1px)", "1", {"prop": "line-height"});
+// 1% * 100% / 10% -> 10%.
+test_math_used("calc(1% * 100% / 10%)", "10%", {"prop": "line-height"});
+// 10% / 10% -> 1.
+test_math_used("calc(10% / 10%)", "1", {"prop": "line-height"});
+// 10% -> 1px; 1% -> 0.1px; 1px / 0.1px / 1px -> 10px.
+test_math_used("calc((10% * 1%) / 1px)", "10px");
+// 10% -> 1px; 1px * 1px / 1px * 10deg / 1deg / 10px -> 1.
+test_math_used("calc(10% * 10% / 1px * 10deg / 1deg / 10px)", "1", {"prop": "line-height"});
+// 10% -> 1px; 1px * 1px / 1px * 1deg / 1deg -> 1px.
+test_math_used("calc(10% * 10% / 1px * 1deg / 1deg)", "1px", {"prop": "line-height"});
+// 1px * 2deg / 1deg -> 2px.
+test_math_used("calc(1px * 2deg / 1deg)", "2px", {"prop": "line-height"});
+// 1px * 3deg / 1deg / 1px -> 3.
+test_math_used("calc(1px * 3deg / 1deg / 1px)", "3", {"prop": "line-height"});
+
+test_invalid_value("width", "calc((1% * 1deg) / 1px)");
+test_invalid_value("width", "calc((1% * 1% * 1%) / 1px)");
 
 testComputedValueGreaterOrLowerThan("width", "calc(1px * 10em / 0em)", REALLY_LARGE);
 testComputedValueGreaterOrLowerThan("width", "calc(1px / 1px * 10em * infinity)", REALLY_LARGE);

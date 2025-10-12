@@ -3601,7 +3601,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr
 
     // NOTE: We also support calc()'d numbers
     if (specified_value->is_calculated() && specified_value->as_calculated().resolves_to_number())
-        return NumberStyleValue::create(specified_value->as_calculated().resolve_number(CalculationResolutionContext::from_computation_context(computation_context)).value());
+        return NumberStyleValue::create(specified_value->as_calculated().resolve_number(CalculationResolutionContext::from_computation_context(computation_context, Length(1, LengthUnit::Em))).value());
 
     // <percentage [0,∞]>
     if (specified_value->is_percentage())
