@@ -24,7 +24,7 @@ public:
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    Layout::SVGGraphicsBox const& layout_box() const;
+    SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(*Paintable::dom_node()); }
 
     void set_computed_path(Gfx::Path path)
     {
