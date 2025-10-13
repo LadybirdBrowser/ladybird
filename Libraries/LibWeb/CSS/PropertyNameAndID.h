@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <AK/GenericShorthands.h>
 #include <AK/Optional.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
