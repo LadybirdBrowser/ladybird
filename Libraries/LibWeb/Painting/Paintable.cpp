@@ -52,6 +52,17 @@ String Paintable::debug_description() const
     return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
 }
 
+void Paintable::resolve_paint_properties()
+{
+    m_visible_for_hit_testing = true;
+    if (auto dom_node = this->dom_node(); dom_node && dom_node->is_inert()) {
+        // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+        // When a node is inert:
+        // - Hit-testing must act as if the 'pointer-events' CSS property were set to 'none'.
+        m_visible_for_hit_testing = false;
+    }
+}
+
 bool Paintable::is_visible() const
 {
     auto const& computed_values = this->computed_values();
@@ -90,13 +101,7 @@ CSS::ImmutableComputedValues const& Paintable::computed_values() const
 
 bool Paintable::visible_for_hit_testing() const
 {
-    // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
-    // When a node is inert:
-    // - Hit-testing must act as if the 'pointer-events' CSS property were set to 'none'.
-    if (auto dom_node = this->dom_node(); dom_node && dom_node->is_inert())
-        return false;
-
-    return computed_values().pointer_events() != CSS::PointerEvents::None;
+    return m_visible_for_hit_testing && computed_values().pointer_events() != CSS::PointerEvents::None;
 }
 
 void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
