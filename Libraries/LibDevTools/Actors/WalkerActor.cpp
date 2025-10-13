@@ -6,6 +6,7 @@
 
 #include <AK/JsonArray.h>
 #include <AK/StringUtils.h>
+#include <LibDevTools/Actors/AccessibilityNodeActor.h>
 #include <LibDevTools/Actors/LayoutInspectorActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
@@ -124,6 +125,54 @@ void WalkerActor::handle_message(Message const& message)
         send_response(message, move(response));
 
         m_has_new_mutations_since_last_mutations_request = false;
+        return;
+    }
+
+    if (message.type == "getNodeFromActor"sv) {
+        auto path = get_required_parameter<JsonArray>(message, "path"sv);
+        if (!path.has_value())
+            return;
+
+        auto actor_id = get_required_parameter<String>(message, "actorID"sv);
+        if (!actor_id.has_value())
+            return;
+
+        // The ["rawAccessible","DOMNode"] path retrieves the DOM node corresponding to an AccessibilityNodeActor.
+        if (path->size() == 2) {
+            auto const& first = path->at(0);
+            auto const& second = path->at(1);
+            if (first.is_string() && first.as_string() == "rawAccessible"sv
+                && second.is_string() && second.as_string() == "DOMNode"sv) {
+
+                auto maybe_accessibility_actor = devtools().actor_registry().find(actor_id.value());
+                if (maybe_accessibility_actor == devtools().actor_registry().end()) {
+                    send_unknown_actor_error(message, actor_id.value());
+                    return;
+                }
+
+                auto accessibility_actor = as<AccessibilityNodeActor>(maybe_accessibility_actor->value.ptr());
+                if (auto node_actor_name = m_dom_node_id_to_actor_map.get(accessibility_actor->node_identifier().id); node_actor_name.has_value()) {
+                    auto dom_node = dom_node_for(this, node_actor_name.value());
+                    if (!dom_node.has_value()) {
+                        send_unknown_actor_error(message, node_actor_name.value());
+                        return;
+                    }
+
+                    JsonObject node;
+                    node.set("node"sv, serialize_node(dom_node->node));
+                    node.set("newParents"sv, JsonArray {});
+
+                    response.set("node"sv, move(node));
+                    send_response(message, move(response));
+                    return;
+                }
+            }
+        }
+
+        JsonObject error;
+        error.set("error"sv, "unrecognizedNodePath"sv);
+        error.set("message"sv, MUST(String::formatted("Unrecognized or missing path for getNodeFromActor: '{}'", message.data.serialized())));
+        send_response(message, move(error));
         return;
     }
 

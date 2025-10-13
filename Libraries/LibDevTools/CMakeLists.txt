@@ -1,5 +1,8 @@
 set(SOURCES
     Actor.cpp
+    Actors/AccessibilityActor.cpp
+    Actors/AccessibilityNodeActor.cpp
+    Actors/AccessibilityWalkerActor.cpp
     Actors/ConsoleActor.cpp
     Actors/CSSPropertiesActor.cpp
     Actors/DeviceActor.cpp
@@ -9,6 +12,7 @@ set(SOURCES
     Actors/LayoutInspectorActor.cpp
     Actors/NodeActor.cpp
     Actors/PageStyleActor.cpp
+    Actors/ParentAccessibilityActor.cpp
     Actors/PreferenceActor.cpp
     Actors/ProcessActor.cpp
     Actors/RootActor.cpp
