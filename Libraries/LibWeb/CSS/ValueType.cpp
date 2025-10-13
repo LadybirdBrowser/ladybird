@@ -61,6 +61,10 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::String;
     if (string.equals_ignoring_ascii_case("time"sv))
         return ValueType::Time;
+    if (string.equals_ignoring_ascii_case("transform-function"sv))
+        return ValueType::TransformFunction;
+    if (string.equals_ignoring_ascii_case("transform-list"sv))
+        return ValueType::TransformList;
     if (string.equals_ignoring_ascii_case("url"sv))
         return ValueType::Url;
     return {};
@@ -123,6 +127,10 @@ StringView value_type_to_string(ValueType value_type)
         return "String"sv;
     case Web::CSS::ValueType::Time:
         return "Time"sv;
+    case Web::CSS::ValueType::TransformFunction:
+        return "TransformFunction"sv;
+    case Web::CSS::ValueType::TransformList:
+        return "TransformList"sv;
     case Web::CSS::ValueType::Url:
         return "Url"sv;
     }

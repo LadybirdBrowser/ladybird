@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 239 tests
 
-177 Pass
-62 Fail
+189 Pass
+50 Fail
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid
@@ -53,12 +53,12 @@ Pass	syntax:'<time>', initialValue:'2s' is valid
 Pass	syntax:'<time>', initialValue:'calc(2s - 9ms)' is valid
 Pass	syntax:'<resolution>', initialValue:'10dpi' is valid
 Pass	syntax:'<resolution>', initialValue:'3dPpX' is valid
-Fail	syntax:'<transform-function>', initialValue:'translateX(2px)' is valid
+Pass	syntax:'<transform-function>', initialValue:'translateX(2px)' is valid
 Pass	syntax:'<transform-function>|<integer>', initialValue:'5' is valid
-Fail	syntax:'<transform-function>|<integer>', initialValue:'scale(2)' is valid
-Fail	syntax:'<transform-function>+', initialValue:'translateX(2px) rotate(42deg)' is valid
-Fail	syntax:'<transform-list>', initialValue:'scale(2)' is valid
-Fail	syntax:'<transform-list>', initialValue:'translateX(2px) rotate(20deg)' is valid
+Pass	syntax:'<transform-function>|<integer>', initialValue:'scale(2)' is valid
+Pass	syntax:'<transform-function>+', initialValue:'translateX(2px) rotate(42deg)' is valid
+Pass	syntax:'<transform-list>', initialValue:'scale(2)' is valid
+Pass	syntax:'<transform-list>', initialValue:'translateX(2px) rotate(20deg)' is valid
 Pass	syntax:'<string>', initialValue:''foo bar'' is valid
 Fail	syntax:'<string>', initialValue:' 'foo bar' ' is valid
 Pass	syntax:'<string>', initialValue:''foo bar' is valid
@@ -94,15 +94,15 @@ Pass	syntax:'yellow', initialValue:'yellow' is valid
 Fail	syntax:'yellow | <color>+', initialValue:'yellow blue' is valid
 Pass	syntax:'<color># | yellow', initialValue:'yellow, blue' is valid
 Fail	syntax:'yellow | <color>#', initialValue:'yellow, blue' is valid
-Fail	syntax:'<transform-list> | <transform-function> ', initialValue:'scale(2) rotate(90deg)' is valid
+Pass	syntax:'<transform-list> | <transform-function> ', initialValue:'scale(2) rotate(90deg)' is valid
 Fail	syntax:'<transform-function> | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
-Fail	syntax:'<transform-list> | <transform-function>+ ', initialValue:'scale(2) rotate(90deg)' is valid
-Fail	syntax:'<transform-function>+ | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
-Fail	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2) rotate(90deg)' is valid
-Fail	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
+Pass	syntax:'<transform-list> | <transform-function>+ ', initialValue:'scale(2) rotate(90deg)' is valid
+Pass	syntax:'<transform-function>+ | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
+Pass	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2) rotate(90deg)' is valid
+Pass	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
 Fail	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2), rotate(90deg)' is valid
-Fail	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2), rotate(90deg)' is valid
-Fail	syntax:'<transform-list>', initialValue:'scale(2) rotate(90deg) ' is valid
+Pass	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2), rotate(90deg)' is valid
+Pass	syntax:'<transform-list>', initialValue:'scale(2) rotate(90deg) ' is valid
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1' is valid
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1 1' is valid
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1%' is valid

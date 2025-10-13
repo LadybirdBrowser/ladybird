@@ -67,6 +67,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -4700,6 +4701,131 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     return parsed_value.release_value();
 }
 
+// https://drafts.csswg.org/css-transforms-1/#typedef-transform-function
+RefPtr<StyleValue const> Parser::parse_transform_function_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    auto const& part = tokens.consume_a_token();
+    if (!part.is_function())
+        return nullptr;
+    auto maybe_function = transform_function_from_string(part.function().name);
+    if (!maybe_function.has_value())
+        return nullptr;
+
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { part.function().name });
+
+    auto function = maybe_function.release_value();
+    auto function_metadata = transform_function_metadata(function);
+
+    auto function_tokens = TokenStream { part.function().value };
+    auto arguments = parse_a_comma_separated_list_of_component_values(function_tokens);
+
+    if (arguments.size() > function_metadata.parameters.size()) {
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<transform-function>"_fly_string,
+            .value_string = part.function().original_source_text(),
+            .description = MUST(String::formatted("Too many arguments to {}. max: {}", part.function().name, function_metadata.parameters.size())),
+        });
+        return nullptr;
+    }
+
+    if (arguments.size() < function_metadata.parameters.size() && function_metadata.parameters[arguments.size()].required) {
+        ErrorReporter::the().report(InvalidValueError {
+            .value_type = "<transform-function>"_fly_string,
+            .value_string = part.function().original_source_text(),
+            .description = MUST(String::formatted("Required parameter at position {} is missing", arguments.size())),
+        });
+        return nullptr;
+    }
+
+    StyleValueVector values;
+    for (auto argument_index = 0u; argument_index < arguments.size(); ++argument_index) {
+        TokenStream argument_tokens { arguments[argument_index] };
+        argument_tokens.discard_whitespace();
+
+        switch (function_metadata.parameters[argument_index].type) {
+        case TransformFunctionParameterType::Angle: {
+            // These are `<angle> | <zero>` in the spec, so we have to check for both kinds.
+            if (auto angle_value = parse_angle_value(argument_tokens)) {
+                values.append(angle_value.release_nonnull());
+                break;
+            }
+            if (argument_tokens.next_token().is(Token::Type::Number) && argument_tokens.next_token().token().number_value() == 0) {
+                argument_tokens.discard_a_token(); // 0
+                values.append(AngleStyleValue::create(Angle::make_degrees(0)));
+                break;
+            }
+            return nullptr;
+        }
+        case TransformFunctionParameterType::Length:
+        case TransformFunctionParameterType::LengthNone: {
+            if (auto length_value = parse_length_value(argument_tokens)) {
+                values.append(length_value.release_nonnull());
+                break;
+            }
+            if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::LengthNone
+                && argument_tokens.next_token().is_ident("none"sv)) {
+
+                argument_tokens.discard_a_token(); // none
+                values.append(KeywordStyleValue::create(Keyword::None));
+                break;
+            }
+            return nullptr;
+        }
+        case TransformFunctionParameterType::LengthPercentage: {
+            if (auto length_percentage_value = parse_length_percentage_value(argument_tokens)) {
+                values.append(length_percentage_value.release_nonnull());
+                break;
+            }
+            return nullptr;
+        }
+        case TransformFunctionParameterType::Number: {
+            if (auto number_value = parse_number_value(argument_tokens)) {
+                values.append(number_value.release_nonnull());
+                break;
+            }
+            return nullptr;
+        }
+        case TransformFunctionParameterType::NumberPercentage: {
+            if (auto number_percentage_value = parse_number_percentage_value(argument_tokens)) {
+                values.append(number_percentage_value.release_nonnull());
+                break;
+            }
+            return nullptr;
+        }
+        }
+
+        argument_tokens.discard_whitespace();
+        if (argument_tokens.has_next_token())
+            return nullptr;
+    }
+
+    transaction.commit();
+    return TransformationStyleValue::create(PropertyID::Transform, function, move(values));
+}
+
+// https://drafts.csswg.org/css-transforms-1/#typedef-transform-list
+RefPtr<StyleValue const> Parser::parse_transform_list_value(TokenStream<ComponentValue>& tokens)
+{
+    // <transform-list> = <transform-function>+
+    // https://www.w3.org/TR/css-transforms-1/#transform-property
+    StyleValueVector transformations;
+    auto transaction = tokens.begin_transaction();
+    while (tokens.has_next_token()) {
+        if (auto maybe_function = parse_transform_function_value(tokens)) {
+            transformations.append(maybe_function.release_nonnull());
+            tokens.discard_whitespace();
+            continue;
+        }
+        break;
+    }
+    if (transformations.is_empty())
+        return {};
+    transaction.commit();
+    return StyleValueList::create(move(transformations), StyleValueList::Separator::Space);
+}
+
 RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<ComponentValue>& tokens)
 {
     switch (value_type) {
@@ -4758,6 +4884,10 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_string_value(tokens);
     case ValueType::Time:
         return parse_time_value(tokens);
+    case ValueType::TransformFunction:
+        return parse_transform_function_value(tokens);
+    case ValueType::TransformList:
+        return parse_transform_list_value(tokens);
     case ValueType::Url:
         return parse_url_value(tokens);
     }
