@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="author" title="Luke Warlow" href="mailto:lwarlow@igalia.com">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+</head>
+<body>
+<div id="container"></div>
+<script>
+  var container = document.querySelector('#container')
+  const cleanupPolicy =
+    trustedTypes.createPolicy('cleanup', { createHTML: _ => "" });
+  function cleanup() { container.innerHTML = cleanupPolicy.createHTML(""); }
+
+  // TrustedHTML assignments do not throw.
+  test(t => {
+    t.add_cleanup(cleanup);
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+
+    let d = document.createElement('div');
+    let s = d.attachShadow({mode: 'open'});
+    document.querySelector('#container').appendChild(d);
+    s.setHTMLUnsafe(html);
+    assert_equals(s.innerHTML, RESULTS.HTML);
+  }, "shadowRoot.setHTMLUnsafe(html) assigned via policy (successful HTML transformation).");
+
+  // String assignments throw.
+  test(t => {
+    t.add_cleanup(cleanup);
+    let d = document.createElement('div');
+    let s = d.attachShadow({mode: 'open'});
+    container.appendChild(d);
+    assert_throws_js(TypeError, _ => {
+      s.setHTMLUnsafe("Fail");
+    });
+    assert_equals(s.innerHTML, "");
+  }, "`shadowRoot.setHTMLUnsafe(string)` throws.");
+
+  // Null assignment throws.
+  test(t => {
+    t.add_cleanup(cleanup);
+    let d = document.createElement('div');
+    let s = d.attachShadow({mode: 'open'});
+    container.appendChild(d);
+    assert_throws_js(TypeError, _ => {
+      s.setHTMLUnsafe(null);
+    });
+    assert_equals(s.innerHTML, "");
+  }, "`shadowRoot.setHTMLUnsafe(null)` throws.");
+
+  // After default policy creation string assignment implicitly calls createHTML.
+  test(t => {
+    t.add_cleanup(cleanup);
+    let p = window.trustedTypes.createPolicy("default", { createHTML:
+      (value, type, sink) => {
+        assert_equals(sink, "ShadowRoot setHTMLUnsafe");
+        return createHTMLJS(value);
+      }
+    });
+
+    let d = document.createElement('div');
+    let s = d.attachShadow({mode: 'open'});
+    document.querySelector('#container').appendChild(d);
+    s.setHTMLUnsafe(INPUTS.HTML);
+    assert_equals(s.innerHTML, RESULTS.HTML);
+  }, "`shadowRoot.setHTMLUnsafe(string)` assigned via default policy (successful HTML transformation).");
+
+  // After default policy creation null assignment implicitly calls createHTML.
+  test(t => {
+    t.add_cleanup(cleanup);
+    let d = document.createElement('div');
+    let s = d.attachShadow({mode: 'open'});
+    container.appendChild(d);
+    s.setHTMLUnsafe(null);
+    assert_equals(s.innerHTML, "null");
+  }, "`shadowRoot.setHTMLUnsafe(string)` assigned via default policy does not throw");
+</script>
+</body>
+</html>

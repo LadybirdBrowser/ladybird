@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	script.src accepts only TrustedScriptURL
+Pass	iframe.srcdoc accepts only TrustedHTML
+Pass	div.onclick accepts only TrustedScript
+Pass	`Script.prototype.setAttribute.SrC = string` throws.
+Pass	script.src accepts string and null after default policy was created.
+Pass	script.src's mutationobservers receive the default policy's value.
+Pass	iframe.srcdoc's mutationobservers receive the default policy's value.
+Pass	div.onclick's mutationobservers receive the default policy's value.
+Pass	iframe.srcdoc accepts string and null after default policy was created.
+Pass	div.onclick accepts string and null after default policy was created.
+Pass	a.rel accepts a Trusted Type
+Pass	a.rel accepts strings
+Pass	a.rel accepts null
+Pass	`script.src = setAttributeNode(embed.src)` with string works.

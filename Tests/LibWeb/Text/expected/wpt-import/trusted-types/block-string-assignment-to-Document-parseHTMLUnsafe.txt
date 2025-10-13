@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Document.parseHTMLUnsafe assigned via policy (successful HTML transformation).
+Pass	`Document.parseHTMLUnsafe(string)` throws.
+Pass	'Document.parseHTMLUnsafe(null)' throws
+Pass	'Document.parseHTMLUnsafe(string)' assigned via default policy (successful HTML transformation).
+Pass	'Document.parseHTMLUnsafe(null)' assigned via default policy does not throw

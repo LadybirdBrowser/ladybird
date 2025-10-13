@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+</head>
+<body>
+<script>
+  // TrustedHTML assignments do not throw.
+  let p = createHTML_policy(window, 1);
+  test(t => {
+    document.body.innerText = '';
+    let html = p.createHTML(INPUTS.HTML);
+    document.write(html);
+    assert_equals(document.body.innerText, RESULTS.HTML);
+  }, "document.write with html assigned via policy (successful URL transformation).");
+
+  test(t => {
+    document.body.innerText = '';
+    let a = p.createHTML("abcdef");
+    let b = p.createHTML("ghijkl");
+    document.write(a,b);
+    assert_equals(document.body.innerText, "abcdefghijkl");
+  }, "document.write with multiple trusted arguments.");
+
+  // TrustedHTML assignments do not throw. (Now for writeln.)
+  test(t => {
+    document.body.innerText = '';
+    let html = p.createHTML(INPUTS.HTML);
+    document.writeln(html);
+    assert_equals(document.body.innerText, RESULTS.HTML);
+  }, "document.writeln with html assigned via policy (successful URL transformation).");
+
+  test(t => {
+    document.body.innerText = '';
+    let a = p.createHTML("abcdef");
+    let b = p.createHTML("ghijkl");
+    document.writeln(a,b);
+    assert_equals(document.body.innerText, "abcdefghijkl");
+  }, "document.writeln with multiple trusted arguments.");
+
+  // String assignments throw.
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      document.write('A string');
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.write(string)` throws");
+
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      let a = "abcdef";
+      let b = "ghijkl";
+      document.write(a, b);
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.write(string, string)` throws");
+
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      let a = "abcdef";
+      let b = p.createHTML("ghijkl");
+      document.write(a, b);
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.write(string, TrustedHTML)` throws");
+
+  // String assignments throw. (Now for writeln.)
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      document.writeln('A string');
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.writeln(string)` throws");
+
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      let a = "abcdef";
+      let b = "ghijkl";
+      document.writeln(a, b);
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.writeln(string, string)` throws");
+
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      let a = "abcdef";
+      let b = p.createHTML("ghijkl");
+      document.writeln(a, b);
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.writeln(string, TrustedHTML)` throws");
+
+  // Null assignment throws.
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      document.write(null);
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.write(null)` throws");
+
+  // Null assignment throws. (Now for writeln.)
+  test(t => {
+    const old = document.body.innerText;
+    assert_throws_js(TypeError, _ => {
+      document.writeln(null);
+    });
+    assert_equals(document.body.innerText, old);
+  }, "`document.writeln(null)` throws");
+
+  let default_policy = trustedTypes.createPolicy('default',
+          { createHTML: (html, type, sink) => {
+              if (html === "assertSinkEqualsDocumentWrite") {
+                assert_equals(sink, "Document write");
+              } else if (html === "assertSinkEqualsDocumentWriteLn") {
+                assert_equals(sink, "Document writeln");
+              } else if (html === "assertSinkEqualsDocumentWriteLn\n") {
+                // Ensure that new line characters aren't incorrectly added prior to processing
+                assert_unreached(`Should not process any other HTML, but got "${html}"`);
+              }
+
+              return html.replace("Hi", "Quack")
+                      .replace("transformed", "a duck")
+                      .replace("defghi", "zxcvbn")
+            } });
+
+  // Default policy works.
+  test(t => {
+    document.body.innerText = '';
+    document.write(INPUTS.HTML);
+    assert_equals(document.body.innerText, RESULTS.HTML);
+  }, "`document.write(string)` observes default policy");
+
+  test(t => {
+    document.body.innerText = '';
+    let a = "abcdef";
+    let b = "ghijkl";
+    document.write(a, b);
+    assert_equals(document.body.innerText, "abczxcvbnjkl");
+  }, "`document.write(string, string)` observes default policy");
+
+  test(t => {
+    document.body.innerText = '';
+    let a = "abcdef";
+    let b = p.createHTML("ghijkl");
+    document.write(a, b);
+    assert_equals(document.body.innerText, "abczxcvbnjkl");
+  }, "`document.write(string, TrustedHTML)` observes default policy");
+
+  test(t => {
+    document.body.innerText = '';
+    document.write("assertSinkEqualsDocumentWrite");
+  }, "`document.write` passes the correct sink string to the default policy");
+
+  // Default policy works. (Now for writeln.)
+  test(t => {
+    document.body.innerText = '';
+    document.writeln(INPUTS.HTML);
+    assert_equals(document.body.innerText, RESULTS.HTML);
+  }, "`document.writeln(string)` observes default policy");
+
+  test(t => {
+    document.body.innerText = '';
+    let a = "abcdef";
+    let b = "ghijkl";
+    document.writeln(a, b);
+    assert_equals(document.body.innerText, "abczxcvbnjkl");
+  }, "`document.writeln(string, string)` observes default policy");
+
+  test(t => {
+    document.body.innerText = '';
+    let a = "abcdef";
+    let b = p.createHTML("ghijkl");
+    document.writeln(a, b);
+    assert_equals(document.body.innerText, "abczxcvbnjkl");
+  }, "`document.writeln(string, TrustedHTML)` observes default policy");
+
+  test(t => {
+    document.body.innerText = '';
+    document.writeln("assertSinkEqualsDocumentWriteLn");
+  }, "`document.writeln` passes the correct sink string to the default policy");
+</script>
