@@ -42,7 +42,6 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
             MUST(object.add("name"sv, name));
             auto description = MUST(element->accessible_description(document));
             MUST(object.add("description"sv, description));
-            MUST(object.add("id"sv, element->unique_id().value()));
 
             if (has_role)
                 MUST(object.add("role"sv, ARIA::role_name(*role)));
@@ -55,8 +54,11 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
         MUST(object.add("type"sv, "text"sv));
 
         auto const* text_node = static_cast<DOM::Text const*>(value().ptr());
-        MUST(object.add("text"sv, text_node->data().to_utf8()));
+        MUST(object.add("name"sv, text_node->data().to_utf8()));
+        MUST(object.add("role"sv, "text leaf"sv));
     }
+
+    MUST(object.add("id"sv, value()->unique_id().value()));
 
     if (value()->has_child_nodes()) {
         auto node_children = MUST(object.add_array("children"sv));
