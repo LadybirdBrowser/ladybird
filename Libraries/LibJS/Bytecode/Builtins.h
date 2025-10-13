@@ -26,6 +26,7 @@ namespace JS::Bytecode {
     O(MathSin, math_sin, Math, sin, 1)                                                            \
     O(MathCos, math_cos, Math, cos, 1)                                                            \
     O(MathTan, math_tan, Math, tan, 1)                                                            \
+    O(OrdinaryHasInstance, ordinary_has_instance, InternalBuiltin, ordinary_has_instance, 1)      \
     O(ArrayIteratorPrototypeNext, array_iterator_prototype_next, ArrayIteratorPrototype, next, 0) \
     O(MapIteratorPrototypeNext, map_iterator_prototype_next, MapIteratorPrototype, next, 0)       \
     O(SetIteratorPrototypeNext, set_iterator_prototype_next, SetIteratorPrototype, next, 0)       \

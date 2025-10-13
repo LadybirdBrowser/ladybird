@@ -49,6 +49,8 @@ public:
     bool is_set_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::SetIteratorPrototypeNext; }
     bool is_string_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::StringIteratorPrototypeNext; }
 
+    Optional<Bytecode::Builtin> builtin() const { return m_builtin; }
+
 protected:
     NativeFunction(Utf16FlyString name, Object& prototype);
     NativeFunction(AK::Function<ThrowCompletionOr<Value>(VM&)>, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
