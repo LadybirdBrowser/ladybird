@@ -32,6 +32,8 @@ public:
 
     virtual void set_is_2d(bool value) override;
 
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
+
 private:
     explicit CSSSkew(JS::Realm&, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
 

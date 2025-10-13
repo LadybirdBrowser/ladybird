@@ -33,6 +33,8 @@ public:
     GC::Ref<Geometry::DOMMatrix> matrix() const { return m_matrix; }
     WebIDL::ExceptionOr<void> set_matrix(GC::Ref<Geometry::DOMMatrix> matrix);
 
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
+
 private:
     explicit CSSMatrixComponent(JS::Realm&, Is2D, GC::Ref<Geometry::DOMMatrix>);
 

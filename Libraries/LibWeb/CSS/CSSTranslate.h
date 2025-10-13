@@ -32,6 +32,8 @@ public:
     WebIDL::ExceptionOr<void> set_y(GC::Ref<CSSNumericValue> value);
     WebIDL::ExceptionOr<void> set_z(GC::Ref<CSSNumericValue> value);
 
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
+
 private:
     explicit CSSTranslate(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
 

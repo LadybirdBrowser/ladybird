@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -176,6 +178,24 @@ WebIDL::ExceptionOr<void> CSSTranslate::set_z(GC::Ref<CSSNumericValue> z)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTranslate z component doesn't match <length>"sv };
     m_z = z;
     return {};
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> CSSTranslate::create_style_value(PropertyNameAndID const& property) const
+{
+    if (is_2d()) {
+        return TransformationStyleValue::create(property.id(), TransformFunction::Translate,
+            {
+                TRY(m_x->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+                TRY(m_y->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            });
+    }
+
+    return TransformationStyleValue::create(property.id(), TransformFunction::Translate3d,
+        {
+            TRY(m_x->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_y->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_z->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+        });
 }
 
 }
