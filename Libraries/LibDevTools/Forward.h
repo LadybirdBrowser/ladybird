@@ -35,6 +35,7 @@ class WalkerActor;
 class WatcherActor;
 
 struct CSSProperty;
+struct Node;
 struct ProcessDescription;
 struct TabDescription;
 

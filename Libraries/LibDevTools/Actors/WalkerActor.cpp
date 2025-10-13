@@ -388,19 +388,6 @@ JsonValue WalkerActor::serialize_root() const
     return serialize_node(m_dom_tree);
 }
 
-static constexpr Web::DOM::NodeType parse_node_type(StringView type)
-{
-    if (type == "document"sv)
-        return Web::DOM::NodeType::DOCUMENT_NODE;
-    if (type == "element"sv)
-        return Web::DOM::NodeType::ELEMENT_NODE;
-    if (type == "text"sv)
-        return Web::DOM::NodeType::TEXT_NODE;
-    if (type == "comment"sv)
-        return Web::DOM::NodeType::COMMENT_NODE;
-    return Web::DOM::NodeType::INVALID;
-}
-
 JsonValue WalkerActor::serialize_node(JsonObject const& node) const
 {
     auto tab = m_tab.strong_ref();
@@ -414,7 +401,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     auto name = node.get_string("name"sv).release_value();
     auto type = node.get_string("type"sv).release_value();
 
-    auto dom_type = parse_node_type(type);
+    auto dom_type = parse_dom_node_type(type);
     JsonValue node_value;
 
     auto is_top_level_document = &node == &m_dom_tree;
@@ -450,7 +437,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
 
         if (auto parent_actor = m_dom_node_id_to_actor_map.get(parent_id); parent_actor.has_value()) {
             if (auto parent_node = WalkerActor::dom_node_for(this, *parent_actor); parent_node.has_value()) {
-                dom_type = parse_node_type(parent_node->node.get_string("type"sv).value());
+                dom_type = parse_dom_node_type(parent_node->node.get_string("type"sv).value());
                 is_displayed = !is_top_level_document && parent_node->node.get_bool("visible"sv).value_or(false);
             }
         }
@@ -518,14 +505,14 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     return serialized;
 }
 
-Optional<WalkerActor::DOMNode> WalkerActor::dom_node_for(WeakPtr<WalkerActor> const& weak_walker, StringView actor)
+Optional<Node> WalkerActor::dom_node_for(WeakPtr<WalkerActor> const& weak_walker, StringView actor)
 {
     if (auto walker = weak_walker.strong_ref())
         return walker->dom_node(actor);
     return {};
 }
 
-Optional<WalkerActor::DOMNode> WalkerActor::dom_node(StringView actor)
+Optional<Node> WalkerActor::dom_node(StringView actor)
 {
     auto tab = m_tab.strong_ref();
     if (!tab)
@@ -538,7 +525,7 @@ Optional<WalkerActor::DOMNode> WalkerActor::dom_node(StringView actor)
     auto const& dom_node = *maybe_dom_node.value();
     auto identifier = NodeIdentifier::for_node(dom_node);
 
-    return DOMNode { .node = dom_node, .identifier = move(identifier), .tab = tab.release_nonnull() };
+    return Node { .node = dom_node, .identifier = move(identifier), .tab = tab.release_nonnull() };
 }
 
 Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const& node, StringView selector)
