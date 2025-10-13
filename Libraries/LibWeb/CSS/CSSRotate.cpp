@@ -8,6 +8,8 @@
 #include <LibWeb/Bindings/CSSRotatePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -216,6 +218,24 @@ WebIDL::ExceptionOr<void> CSSRotate::set_angle(GC::Ref<CSSNumericValue> value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSRotate angle component doesn't match <angle>"sv };
     m_angle = value;
     return {};
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> CSSRotate::create_style_value(PropertyNameAndID const& property) const
+{
+    if (is_2d()) {
+        return TransformationStyleValue::create(property.id(), TransformFunction::Rotate,
+            {
+                TRY(m_angle->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            });
+    }
+
+    return TransformationStyleValue::create(property.id(), TransformFunction::Rotate3d,
+        {
+            TRY(m_x->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_y->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_z->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_angle->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+        });
 }
 
 }

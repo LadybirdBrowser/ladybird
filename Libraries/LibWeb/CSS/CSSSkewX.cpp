@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -104,6 +106,14 @@ WebIDL::ExceptionOr<void> CSSSkewX::set_ax(GC::Ref<CSSNumericValue> ax)
 void CSSSkewX::set_is_2d(bool)
 {
     // The is2D attribute of a CSSSkewX, CSSSkewXX, or CSSSkewXY object must, on setting, do nothing.
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> CSSSkewX::create_style_value(PropertyNameAndID const& property) const
+{
+    return TransformationStyleValue::create(property.id(), TransformFunction::SkewX,
+        {
+            TRY(m_ax->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+        });
 }
 
 }

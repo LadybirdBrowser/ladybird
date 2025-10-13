@@ -7,6 +7,9 @@
 #include "CSSMatrixComponent.h"
 #include <LibWeb/Bindings/CSSMatrixComponentPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -80,6 +83,41 @@ WebIDL::ExceptionOr<void> CSSMatrixComponent::set_matrix(GC::Ref<Geometry::DOMMa
     // FIXME: Should this modify is_2d? Or should we modify the matrix's is_2d?
     m_matrix = matrix;
     return {};
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> CSSMatrixComponent::create_style_value(PropertyNameAndID const& property) const
+{
+    if (is_2d()) {
+        return TransformationStyleValue::create(property.id(), TransformFunction::Matrix,
+            {
+                NumberStyleValue::create(m_matrix->a()),
+                NumberStyleValue::create(m_matrix->b()),
+                NumberStyleValue::create(m_matrix->c()),
+                NumberStyleValue::create(m_matrix->d()),
+                NumberStyleValue::create(m_matrix->e()),
+                NumberStyleValue::create(m_matrix->f()),
+            });
+    }
+
+    return TransformationStyleValue::create(property.id(), TransformFunction::Matrix3d,
+        {
+            NumberStyleValue::create(m_matrix->m11()),
+            NumberStyleValue::create(m_matrix->m12()),
+            NumberStyleValue::create(m_matrix->m13()),
+            NumberStyleValue::create(m_matrix->m14()),
+            NumberStyleValue::create(m_matrix->m21()),
+            NumberStyleValue::create(m_matrix->m22()),
+            NumberStyleValue::create(m_matrix->m23()),
+            NumberStyleValue::create(m_matrix->m24()),
+            NumberStyleValue::create(m_matrix->m31()),
+            NumberStyleValue::create(m_matrix->m32()),
+            NumberStyleValue::create(m_matrix->m33()),
+            NumberStyleValue::create(m_matrix->m34()),
+            NumberStyleValue::create(m_matrix->m41()),
+            NumberStyleValue::create(m_matrix->m42()),
+            NumberStyleValue::create(m_matrix->m43()),
+            NumberStyleValue::create(m_matrix->m44()),
+        });
 }
 
 }

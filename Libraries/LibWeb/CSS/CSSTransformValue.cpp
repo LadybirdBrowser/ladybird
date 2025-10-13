@@ -8,6 +8,9 @@
 #include <LibWeb/Bindings/CSSTransformValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -153,6 +156,37 @@ WebIDL::ExceptionOr<String> CSSTransformValue::to_string() const
         builder.append(TRY(transform->to_string()));
     }
     return builder.to_string_without_validation();
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSTransformValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
+{
+    // NB: This can become <transform-function> or <transform-list>, and we don't know which is wanted without performing the type checking.
+    //     We can worry about that if and when we ever do have a CSSTransformValue that isn't top-level.
+    VERIFY(perform_type_check == PerformTypeCheck::Yes);
+
+    // If value is a CSSStyleValue subclass,
+    //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
+    //
+    //     If any component of property’s CSS grammar has a limited numeric range, and the corresponding part of value
+    //     is a CSSUnitValue that is outside of that range, replace that value with the result of wrapping it in a
+    //     fresh CSSMathSum whose values internal slot contains only that part of value.
+    //
+    //     Return the value.
+
+    // NB: We match <transform-function> if we have 1 transform. We match <transform-list> always.
+    if (m_transforms.size() == 1 && property_accepts_type(property.id(), ValueType::TransformFunction))
+        return TRY(m_transforms.first()->create_style_value(property));
+
+    if (property_accepts_type(property.id(), ValueType::TransformList)) {
+        StyleValueVector transforms;
+        transforms.ensure_capacity(m_transforms.size());
+        for (auto const transform : m_transforms)
+            transforms.unchecked_append(TRY(transform->create_style_value(property)));
+        return StyleValueList::create(move(transforms), StyleValueList::Separator::Space);
+    }
+
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
 }
 
 }

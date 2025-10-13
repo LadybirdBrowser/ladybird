@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -197,6 +199,24 @@ WebIDL::ExceptionOr<void> CSSScale::set_z(CSSNumberish value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSScale z component doesn't match <number>"sv };
     m_z = rectified_z;
     return {};
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> CSSScale::create_style_value(PropertyNameAndID const& property) const
+{
+    if (is_2d()) {
+        return TransformationStyleValue::create(property.id(), TransformFunction::Scale,
+            {
+                TRY(m_x->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+                TRY(m_y->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            });
+    }
+
+    return TransformationStyleValue::create(property.id(), TransformFunction::Scale3d,
+        {
+            TRY(m_x->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_y->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+            TRY(m_z->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No)),
+        });
 }
 
 }

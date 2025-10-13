@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -155,6 +157,14 @@ WebIDL::ExceptionOr<void> CSSPerspective::set_length(CSSPerspectiveValue value)
 void CSSPerspective::set_is_2d(bool)
 {
     // The is2D attribute of a CSSPerspective object must, on setting, do nothing.
+}
+
+WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> CSSPerspective::create_style_value(PropertyNameAndID const& property) const
+{
+    auto length = TRY(m_length.visit([&](auto const& value) {
+        return value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::No);
+    }));
+    return TransformationStyleValue::create(property.id(), TransformFunction::Perspective, { move(length) });
 }
 
 }

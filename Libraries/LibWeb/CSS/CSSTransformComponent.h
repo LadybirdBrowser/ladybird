@@ -31,6 +31,8 @@ public:
 
     virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const = 0;
 
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const = 0;
+
 protected:
     explicit CSSTransformComponent(JS::Realm&, Is2D is_2d);
 
