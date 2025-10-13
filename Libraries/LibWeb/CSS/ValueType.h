@@ -40,6 +40,8 @@ enum class ValueType : u8 {
     Resolution,
     String,
     Time,
+    TransformFunction,
+    TransformList,
     Url,
 };
 

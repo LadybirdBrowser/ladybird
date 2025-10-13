@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 33 tests
 
-27 Pass
-6 Fail
+28 Pass
+5 Fail
 Pass	Can set 'transform' to CSS-wide keywords: initial
 Pass	Can set 'transform' to CSS-wide keywords: inherit
 Pass	Can set 'transform' to CSS-wide keywords: unset
 Pass	Can set 'transform' to CSS-wide keywords: revert
 Fail	Can set 'transform' to var() references:  var(--A)
-Fail	Can set 'transform' to the 'none' keyword: none
+Pass	Can set 'transform' to the 'none' keyword: none
 Fail	Can set 'transform' to a transform: translate(50%, 50%)
 Fail	Can set 'transform' to a transform: perspective(10em)
 Fail	Can set 'transform' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6)

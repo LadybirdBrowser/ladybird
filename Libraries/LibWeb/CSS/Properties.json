@@ -3783,7 +3783,13 @@
     "affects-layout": false,
     "affects-stacking-context": true,
     "percentages-resolve-to": "length",
-    "multiplicity": "list"
+    "multiplicity": "list",
+    "valid-types": [
+      "transform-list"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
   },
   "transform-box": {
     "animation-type": "discrete",
