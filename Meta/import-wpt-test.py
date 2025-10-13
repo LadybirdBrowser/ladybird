@@ -157,6 +157,10 @@ def map_to_path(
         if source.resource.startswith("/") or not is_resource:
             file_path = Path(base_directory, source.resource.lstrip("/"))
         else:
+            parsed_url = urlparse(source.resource)
+            if parsed_url.scheme != "":
+                print(f"Skipping '{source.resource}'. Downloading external resources is not supported.")
+                continue
             # Add it as a sibling path if it's a relative resource
             sibling_location = Path(resource_path).parent
             parent_directory = Path(base_directory, sibling_location)
