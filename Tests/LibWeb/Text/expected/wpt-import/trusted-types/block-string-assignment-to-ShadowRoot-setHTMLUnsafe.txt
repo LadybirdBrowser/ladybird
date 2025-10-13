@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	shadowRoot.setHTMLUnsafe(html) assigned via policy (successful HTML transformation).
+Pass	`shadowRoot.setHTMLUnsafe(string)` throws.
+Pass	`shadowRoot.setHTMLUnsafe(null)` throws.
+Pass	`shadowRoot.setHTMLUnsafe(string)` assigned via default policy (successful HTML transformation).
+Pass	`shadowRoot.setHTMLUnsafe(string)` assigned via default policy does not throw
