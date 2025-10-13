@@ -1905,7 +1905,7 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, float font_size, int slope, double font_weight, Percentage const& font_width) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto width = round_to<int>(font_width.value());
@@ -2067,7 +2067,16 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width());
+    auto const& font_size_adjust_specified_value = style.property(PropertyID::FontSizeAdjust, ComputedProperties::WithAnimationsApplied::No);
+    style.set_property(
+        PropertyID::FontSizeAdjust,
+        compute_font_size_adjust(font_size_adjust_specified_value, font_computation_context),
+        style.is_property_inherited(PropertyID::FontSizeAdjust) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+
+    auto font_size = adjusted_font_size(style.font_size().to_float(), style.font_size_adjust(), m_root_element_font_metrics);
+    style.set_adjusted_font_size(font_size);
+
+    auto font_list = compute_font_for_style_values(font_family, font_size, style.font_slope(), style.font_weight(), style.font_width());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
@@ -3377,6 +3386,36 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     VERIFY_NOT_REACHED();
 }
 
+float StyleComputer::adjusted_font_size(float unadjusted_font_size, FontSizeAdjust const& font_size_adjust, Length::FontMetrics const& font_metrics)
+{
+    if (font_size_adjust.is_none())
+        return unadjusted_font_size;
+
+    auto adjusted_font_size_value = [](float unadjusted_size, float metric, float font_size, float size_adjust) -> float {
+        if (unadjusted_size == 0.0f)
+            return 0.0f;
+
+        float aspect = metric / font_size;
+        return unadjusted_size * (size_adjust / aspect);
+    };
+
+    float size_adjust = font_size_adjust.number.value();
+    float font_size = font_metrics.font_size.to_float();
+
+    switch (font_size_adjust.font_metric.value()) {
+    case FontMetric::ExHeight:
+        return adjusted_font_size_value(unadjusted_font_size, font_metrics.x_height.to_float(), font_size, size_adjust);
+    case FontMetric::CapHeight:
+        return adjusted_font_size_value(unadjusted_font_size, font_metrics.cap_height.to_float(), font_size, size_adjust);
+    case FontMetric::ChWidth:
+        return adjusted_font_size_value(unadjusted_font_size, font_metrics.zero_advance.to_float(), font_size, size_adjust);
+    case FontMetric::IcHeight:
+    case FontMetric::IcWidth:
+        return adjusted_font_size_value(unadjusted_font_size, 1, font_size, size_adjust);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, ComputationContext const& computation_context)
 {
     // https://drafts.csswg.org/css-fonts/#font-size-prop
@@ -3478,15 +3517,13 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size_adjust(NonnullR
                 return KeywordStyleValue::create(Keyword::None);
             number = *resolved_metric;
         } else {
-            font_metric_keyword = keyword;
+            VERIFY_NOT_REACHED();
         }
-    }
-    if (specified_value->is_number()) {
+    } else if (specified_value->is_number()) {
         number = specified_value->as_number().number();
     } else if (specified_value->is_calculated()) {
         number = specified_value->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value();
-    }
-    if (specified_value->is_value_list()) {
+    } else if (specified_value->is_value_list()) {
         auto const& value_list = specified_value->as_value_list().values();
         VERIFY(value_list.size() == 2);
         font_metric_keyword = value_list.at(0)->as_keyword().keyword();

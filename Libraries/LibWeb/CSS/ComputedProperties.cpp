@@ -378,7 +378,7 @@ CSSPixels ComputedProperties::line_height() const
     // normal
     // Determine the preferred line height automatically based on font metrics.
     if (line_height.is_keyword() && line_height.to_keyword() == Keyword::Normal)
-        return CSSPixels { round_to<i32>(font_size() * normal_line_height_scale) };
+        return CSSPixels { round_to<i32>(adjusted_font_size() * normal_line_height_scale) };
 
     // <length [0,∞]>
     // The specified length is used as the preferred line height. Negative values are illegal.
@@ -2083,6 +2083,30 @@ WillChange ComputedProperties::will_change() const
     if (will_change_entry.has_value())
         return WillChange({ *will_change_entry });
     return WillChange::make_auto();
+}
+
+FontSizeAdjust ComputedProperties::font_size_adjust() const
+{
+    auto const& value = property(PropertyID::FontSizeAdjust);
+    if (value.is_keyword()) {
+        VERIFY(value.to_keyword() == Keyword::None);
+        return FontSizeAdjust::none();
+    }
+    if (value.is_number())
+        return FontSizeAdjust { .font_metric = FontMetric::ExHeight, .number = value.as_number().number() };
+
+    VERIFY(value.is_value_list());
+    auto const& value_list = value.as_value_list().values();
+    VERIFY(value_list.size() == 2);
+    auto font_metric = keyword_to_font_metric(value_list[0]->to_keyword());
+    auto number = 0.0;
+    if (value_list[1]->is_number()) {
+        number = value_list[1]->as_number().number();
+    } else if (value.is_calculated() && value.as_calculated().resolves_to_number()) {
+        number = (value.as_calculated().resolve_number({}).value());
+    }
+
+    return FontSizeAdjust { .font_metric = move(font_metric), .number = number };
 }
 
 CSSPixels ComputedProperties::font_size() const
