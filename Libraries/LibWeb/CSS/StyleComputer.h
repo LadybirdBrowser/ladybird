@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/CascadedProperties.h>
+#include <LibWeb/CSS/FontSizeAdjust.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleInvalidationData.h>
 #include <LibWeb/Export.h>
@@ -177,7 +178,7 @@ public:
     static CSSPixels default_user_font_size();
     static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
     static CSSPixels relative_size_mapping(RelativeSize, CSSPixels inherited_font_size);
-    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width) const;
+    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, float font_size, int font_slope, double font_weight, Percentage const& font_width) const;
     [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
@@ -292,6 +293,8 @@ private:
     [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
+
+    static float adjusted_font_size(float unadjusted_font_size, FontSizeAdjust const& font_size_adjust, Length::FontMetrics const&);
 
     OwnPtr<SelectorInsights> m_selector_insights;
     Array<OwnPtr<RuleCache>, to_underlying(PseudoClass::__Count)> m_pseudo_class_rule_cache;
