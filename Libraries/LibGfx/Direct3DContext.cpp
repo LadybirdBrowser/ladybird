@@ -123,4 +123,54 @@ ErrorOr<NonnullOwnPtr<Direct3DContext>> Direct3DContext::try_create()
     return direct3d_context;
 }
 
+struct Direct3D11Texture::Impl {
+    Direct3DContext const& context;
+    winrt::com_ptr<ID3D11Texture2D> d11_texture;
+    winrt::com_ptr<IDXGIResource> dxgi_resource;
+    HANDLE shared_handle { INVALID_HANDLE_VALUE };
+};
+
+Direct3D11Texture::Direct3D11Texture(Direct3DContext const& context)
+    : m_impl(make<Impl>(context))
+{
+}
+
+Direct3D11Texture::~Direct3D11Texture() = default;
+
+ErrorOr<HANDLE> Direct3D11Texture::shared_handle() const
+{
+    if (m_impl->shared_handle != INVALID_HANDLE_VALUE)
+        return m_impl->shared_handle;
+
+    if (HRESULT const hr = m_impl->dxgi_resource->GetSharedHandle(&m_impl->shared_handle); FAILED(hr)) {
+        return Error::from_windows_error(hr);
+    }
+    return m_impl->shared_handle;
+}
+
+ErrorOr<NonnullRefPtr<Direct3D11Texture>> Direct3D11Texture::try_create_shared(Direct3DContext const& context, u32 width, u32 height, DXGI_FORMAT format)
+{
+    D3D11_TEXTURE2D_DESC tex_desc = {};
+    tex_desc.Width = width;
+    tex_desc.Height = height;
+    tex_desc.MipLevels = 1;
+    tex_desc.ArraySize = 1;
+    tex_desc.Format = format;
+    tex_desc.SampleDesc.Count = 1;
+    tex_desc.SampleDesc.Quality = 0;
+    tex_desc.Usage = D3D11_USAGE_DEFAULT;
+    tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    tex_desc.CPUAccessFlags = 0;
+    tex_desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
+
+    NonnullRefPtr<Direct3D11Texture> texture = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Direct3D11Texture(context)));
+    if (HRESULT const hr = context.d11_device().CreateTexture2D(&tex_desc, nullptr, texture->m_impl->d11_texture.put()); FAILED(hr)) {
+        return Error::from_windows_error(hr);
+    }
+    if (HRESULT const hr = texture->m_impl->d11_texture->QueryInterface(IID_PPV_ARGS(texture->m_impl->dxgi_resource.put())); FAILED(hr)) {
+        return Error::from_windows_error(hr);
+    }
+    return texture;
+}
+
 }
