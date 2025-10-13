@@ -2097,6 +2097,10 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         auto result = composite_raw_values(underlying_value.as_integer().integer(), animated_value.as_integer().integer());
         return IntegerStyleValue::create(result);
     }
+    case StyleValue::Type::Keyword:
+        if (underlying_value == animated_value)
+            return underlying_value;
+        return {};
     case StyleValue::Type::Length: {
         auto result = composite_dimension_value(underlying_value, animated_value);
         if (!result.has_value())
