@@ -86,7 +86,7 @@ static PaintPhase to_paint_phase(StackingContext::StackingContextPaintPhase phas
 
 void StackingContext::paint_node_as_stacking_context(Paintable const& paintable, DisplayListRecordingContext& context)
 {
-    if (paintable.layout_node().is_svg_svg_box()) {
+    if (paintable.is_svg_svg_paintable()) {
         paint_svg(context, static_cast<PaintableBox const&>(paintable), PaintPhase::Foreground);
         return;
     }
@@ -121,7 +121,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         if (child.has_stacking_context())
             return IterationDecision::Continue;
 
-        if (child.layout_node().is_svg_svg_box()) {
+        if (child.is_svg_svg_paintable()) {
             paint_svg(context, static_cast<PaintableBox const&>(child), to_paint_phase(phase));
             return IterationDecision::Continue;
         }
@@ -198,15 +198,15 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
 
 void StackingContext::paint_child(DisplayListRecordingContext& context, StackingContext const& child)
 {
-    VERIFY(!child.paintable_box().layout_node().is_svg_box());
+    VERIFY(!child.paintable_box().is_svg_paintable());
     const_cast<StackingContext&>(child).set_last_paint_generation_id(context.paint_generation_id());
     child.paint(context);
 }
 
 void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 {
-    VERIFY(!paintable_box().layout_node().is_svg_box());
-    if (paintable_box().layout_node().is_svg_svg_box()) {
+    VERIFY(!paintable_box().is_svg_paintable());
+    if (paintable_box().is_svg_svg_paintable()) {
         auto const& svg_svg_paintable = static_cast<SVGSVGPaintable const&>(paintable_box());
         paint_node(svg_svg_paintable, context, PaintPhase::Background);
         paint_node(svg_svg_paintable, context, PaintPhase::Border);
