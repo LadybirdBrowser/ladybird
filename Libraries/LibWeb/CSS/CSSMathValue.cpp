@@ -26,7 +26,7 @@ void CSSMathValue::initialize(JS::Realm& realm)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_internal_representation(PropertyNameAndID const& property) const
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
 {
     // If value is a CSSStyleValue subclass,
     //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_int
         return false;
     }();
 
-    if (!matches)
+    if (perform_type_check == PerformTypeCheck::Yes && !matches)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."sv };
 
     return CalculatedStyleValue::create(TRY(create_calculation_node(context)), type(), move(context));

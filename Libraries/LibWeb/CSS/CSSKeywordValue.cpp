@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<String> CSSKeywordValue::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_internal_representation(PropertyNameAndID const& property) const
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
 {
     // If value is a CSSStyleValue subclass,
     //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
@@ -87,7 +87,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
         auto keyword = keyword_from_string(m_value);
         return keyword.has_value() && property_accepts_keyword(property.id(), keyword.value());
     }();
-    if (!matches_grammar) {
+    if (perform_type_check == PerformTypeCheck::Yes && !matches_grammar) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Property '{}' does not accept the keyword '{}'", property.name(), m_value)) };
     }
 

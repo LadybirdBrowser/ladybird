@@ -62,7 +62,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
     // To create an internal representation, given a string property and a string or CSSStyleValue value:
     return value.visit(
         [&property](GC::Root<CSSStyleValue> const& css_style_value) {
-            return css_style_value->create_an_internal_representation(property);
+            return css_style_value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
         },
         [&](String const& css_text) -> WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> {
             // If value is a USVString,
@@ -71,7 +71,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
             // FIXME: Avoid passing name as a string, as it gets immediately converted back to PropertyNameAndID.
             auto result = TRY(CSSStyleValue::parse_a_css_style_value(vm, property.name(), css_text, CSSStyleValue::ParseMultiple::No));
             // AD-HOC: Result is a CSSStyleValue but we want an internal representation, so... convert it again I guess?
-            return result.get<GC::Ref<CSSStyleValue>>()->create_an_internal_representation(property);
+            return result.get<GC::Ref<CSSStyleValue>>()->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
         });
 }
 
