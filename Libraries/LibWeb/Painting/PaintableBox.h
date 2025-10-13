@@ -213,8 +213,6 @@ public:
 
     Optional<CSSPixelRect> get_clip_rect() const;
 
-    bool is_viewport() const { return layout_node_with_style_and_box_metrics().is_viewport(); }
-
     virtual bool wants_mouse_events() const override;
 
     CSSPixelRect transform_box_rect() const;

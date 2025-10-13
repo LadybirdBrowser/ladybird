@@ -167,7 +167,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             background_positioning_area.set_location(paintable_box.layout_node().root().navigable()->viewport_scroll_offset());
             break;
         case CSS::BackgroundAttachment::Local:
-            if (!paintable_box.is_viewport()) {
+            if (!paintable_box.is_viewport_paintable()) {
                 auto scroll_offset = paintable_box.scroll_offset();
                 background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
             }

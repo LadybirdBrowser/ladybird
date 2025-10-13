@@ -95,7 +95,7 @@ PaintableWithLines::~PaintableWithLines()
 
 CSSPixelPoint PaintableBox::scroll_offset() const
 {
-    if (is_viewport()) {
+    if (is_viewport_paintable()) {
         auto navigable = document().navigable();
         VERIFY(navigable);
         return navigable->viewport_scroll_offset();
@@ -361,7 +361,7 @@ bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) c
     auto scrollable_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect->width() : scrollable_overflow_rect->height();
     auto scrollport_size = direction == ScrollDirection::Horizontal ? absolute_padding_box_rect().width() : absolute_padding_box_rect().height();
     auto overflow_value_allows_scrolling = overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll;
-    if ((is_viewport() && overflow != CSS::Overflow::Hidden) || overflow_value_allows_scrolling)
+    if ((is_viewport_paintable() && overflow != CSS::Overflow::Hidden) || overflow_value_allows_scrolling)
         return scrollable_overflow_size > scrollport_size;
     return false;
 }
@@ -488,7 +488,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
         }
     }
 
-    if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport()) && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
+    if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport_paintable()) && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
         auto scrollbar_colors = computed_values().scrollbar_color();
         if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
             auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
@@ -1153,10 +1153,10 @@ void PaintableBox::scroll_to_mouse_position(CSSPixelPoint position)
     auto scroll_position_in_pixels = CSSPixels::nearest_value_for(scroll_position * (scrollable_overflow_size - padding_size));
 
     // Set the new scroll offset.
-    auto new_scroll_offset = is_viewport() ? document().navigable()->viewport_scroll_offset() : scroll_offset();
+    auto new_scroll_offset = is_viewport_paintable() ? document().navigable()->viewport_scroll_offset() : scroll_offset();
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
 
-    if (is_viewport())
+    if (is_viewport_paintable())
         document().navigable()->perform_scroll_of_viewport(new_scroll_offset);
     else
         (void)set_scroll_offset(new_scroll_offset);
@@ -1213,7 +1213,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (hit_test_scrollbars(position, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    if (is_viewport()) {
+    if (is_viewport_paintable()) {
         auto& viewport_paintable = const_cast<ViewportPaintable&>(static_cast<ViewportPaintable const&>(*this));
         viewport_paintable.build_stacking_context_tree_if_needed();
         viewport_paintable.document().update_paint_and_hit_testing_properties_if_needed();
