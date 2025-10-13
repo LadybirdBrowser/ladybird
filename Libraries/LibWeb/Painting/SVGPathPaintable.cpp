@@ -24,11 +24,6 @@ SVGPathPaintable::SVGPathPaintable(Layout::SVGGraphicsBox const& layout_box)
 {
 }
 
-Layout::SVGGraphicsBox const& SVGPathPaintable::layout_box() const
-{
-    return static_cast<Layout::SVGGraphicsBox const&>(layout_node());
-}
-
 TraversalDecision SVGPathPaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (!computed_path().has_value())
@@ -55,8 +50,7 @@ void SVGPathPaintable::resolve_paint_properties()
 {
     Base::resolve_paint_properties();
 
-    auto& graphics_element = layout_box().dom_node();
-
+    auto& graphics_element = dom_node();
     m_stroke_thickness = graphics_element.stroke_width().value_or(1);
     m_stroke_dasharray = graphics_element.stroke_dasharray();
     m_stroke_dashoffset = graphics_element.stroke_dashoffset().value_or(0);
@@ -72,7 +66,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     if (phase != PaintPhase::Foreground)
         return;
 
-    auto& graphics_element = layout_box().dom_node();
+    auto& graphics_element = dom_node();
 
     auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
     auto svg_element_rect = svg_node->paintable_box()->absolute_rect();
