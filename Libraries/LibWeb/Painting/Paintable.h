@@ -145,7 +145,7 @@ public:
     SelectionState selection_state() const { return m_selection_state; }
     void set_selection_state(SelectionState state) { m_selection_state = state; }
 
-    virtual void resolve_paint_properties() { }
+    virtual void resolve_paint_properties();
 
     [[nodiscard]] String debug_description() const;
 
@@ -177,6 +177,7 @@ private:
     bool m_absolutely_positioned : 1 { false };
     bool m_floating : 1 { false };
     bool m_inline : 1 { false };
+    bool m_visible_for_hit_testing : 1 { true };
     bool m_needs_paint_only_properties_update : 1 { true };
 };
 

@@ -788,6 +788,9 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
         html_element.set_inert(is_inert);
         return TraversalDecision::Continue;
     });
+
+    if (auto paintable_box = this->paintable_box())
+        paintable_box->set_needs_paint_only_properties_update(true);
 }
 
 WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children) const
