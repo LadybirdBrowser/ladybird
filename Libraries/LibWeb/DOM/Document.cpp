@@ -3329,11 +3329,6 @@ StringView Document::visibility_state() const
     VERIFY_NOT_REACHED();
 }
 
-void Document::set_visibility_state(Badge<HTML::BrowsingContext>, HTML::VisibilityState visibility_state)
-{
-    m_visibility_state = visibility_state;
-}
-
 // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
 void Document::update_the_visibility_state(HTML::VisibilityState visibility_state)
 {
