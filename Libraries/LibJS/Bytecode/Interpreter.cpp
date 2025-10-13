@@ -2904,6 +2904,8 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
     case Builtin::SetIteratorPrototypeNext:
     case Builtin::StringIteratorPrototypeNext:
         VERIFY_NOT_REACHED();
+    case Builtin::OrdinaryHasInstance:
+        VERIFY_NOT_REACHED();
     case Bytecode::Builtin::__Count:
         VERIFY_NOT_REACHED();
     }

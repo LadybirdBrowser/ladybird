@@ -2172,6 +2172,12 @@ ThrowCompletionOr<Value> instance_of(VM& vm, Value value, Value target)
 
     // 3. If instOfHandler is not undefined, then
     if (instance_of_handler) {
+        // OPTIMIZATION: If the handler is the default OrdinaryHasInstance, we can skip doing a generic call.
+        if (auto* native_function = as_if<NativeFunction>(*instance_of_handler)) {
+            if (native_function->builtin() == Bytecode::Builtin::OrdinaryHasInstance) {
+                return ordinary_has_instance(vm, value, target);
+            }
+        }
         // a. Return ToBoolean(? Call(instOfHandler, target, « V »)).
         return Value(TRY(call(vm, *instance_of_handler, target, value)).to_boolean());
     }
