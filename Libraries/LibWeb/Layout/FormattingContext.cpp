@@ -1163,13 +1163,13 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     box_state.margin_bottom = margin_bottom.to_px_or_zero(box, width_of_containing_block);
 }
 
-CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coordinate_space(Box const& box, Box const& ancestor_box) const
+CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coordinate_space(Box const& box) const
 {
     auto box_used_values = m_state.get(box);
     CSSPixelRect rect = { { 0, 0 }, box_used_values.content_size() };
     VERIFY(box_used_values.offset.is_zero()); // Set as result of this calculation
     for (auto const* current = box.static_position_containing_block(); current; current = current->containing_block()) {
-        if (current == &ancestor_box)
+        if (current == box.containing_block())
             return rect;
         auto const& current_state = m_state.get(*current);
         rect.translate_by(current_state.offset);
@@ -1247,7 +1247,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     CSSPixelPoint used_offset;
 
     auto static_position = m_state.get(box).static_position();
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
+    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box);
     static_position += offset_to_static_parent.location();
 
     if (box.computed_values().inset().top().is_auto() && box.computed_values().inset().bottom().is_auto()) {
