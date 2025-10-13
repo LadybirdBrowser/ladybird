@@ -1,0 +1,283 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#dom-css-registerproperty" />
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#supported-syntax-strings" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+<script>
+
+let assert_valid = test_initial_value_valid;
+let assert_invalid = test_initial_value_invalid;
+
+assert_valid("*", "a");
+assert_valid(" * ", "b");
+assert_valid("<length>", "2px");
+assert_valid(" <number>", "5");
+assert_valid("<percentage> ", "10%");
+assert_valid("<color>+", "red");
+assert_valid(" <length>+ | <percentage>", "2px 8px");
+assert_valid(" <length>+ | <color>#", "red, blue");
+assert_valid("<length>|<percentage>|<length-percentage>", "2px"); // Valid but silly
+assert_valid("<color> | <image> | <url> | <integer> | <angle>", "red");
+assert_valid("<time> | <resolution> | <transform-list> | <custom-ident>", "red");
+assert_valid("\t<color>\n|   foo", "foo");
+
+assert_valid("*", ":> hello");
+assert_valid("*", "([ brackets ]) { yay (??)}");
+assert_valid("*", "yep 'this is valid too'");
+assert_valid("*", "unmatched opening bracket is valid :(");
+assert_valid("*", '"');
+assert_valid("*", "default");
+
+assert_valid("<length>", "0");
+assert_valid("<length>", "10px /*:)*/");
+assert_valid("<length>", " calc(-2px)");
+assert_valid("<length>", "calc(2px*4 + 10px)");
+assert_valid("<length>", "7.1e-4cm");
+assert_valid("<length>", "calc(7in - 12px)");
+assert_valid("<length>+", "2px 7px calc(8px)");
+assert_valid("<length>#", "2px, 7px, calc(8px)");
+assert_valid("<percentage>", "-9.3e3%");
+assert_valid("<length-percentage>", "-54%");
+assert_valid("<length-percentage>", "0");
+assert_valid("<length-percentage>", "calc(-11px + 10.4%)");
+assert_valid("<length>", "10vmin");
+assert_valid("<percentage> | <length>+", "calc(100vh - 10px) 30px");
+
+assert_valid("<number>", "-109");
+assert_valid("<number>", "2.3e4");
+assert_valid("<number>", "calc(1 / 2)");
+assert_valid("<integer>", "-109");
+assert_valid("<integer>", "19");
+assert_valid("<integer>", "calc(1)");
+assert_valid("<integer>", "calc(1 + 2)");
+assert_valid("<integer>", "calc(3.1415)");
+assert_valid("<integer>", "calc(3.1415 + 3.1415)");
+
+assert_valid("<angle>", "10deg");
+assert_valid("<angle>", "20.5rad");
+assert_valid("<angle>", "calc(50grad + 3.14159rad)");
+assert_valid("<time>", "2s");
+assert_valid("<time>", "calc(2s - 9ms)");
+assert_valid("<resolution>", "10dpi");
+assert_valid("<resolution>", "3dPpX");
+assert_valid("<transform-function>", "translateX(2px)");
+assert_valid("<transform-function>|<integer>", "5");
+assert_valid("<transform-function>|<integer>", "scale(2)");
+assert_valid("<transform-function>+", "translateX(2px) rotate(42deg)");
+assert_valid("<transform-list>", "scale(2)");
+assert_valid("<transform-list>", "translateX(2px) rotate(20deg)");
+
+// <string> is accepted in https://github.com/w3c/css-houdini-drafts/issues/1103
+assert_valid("<string>", "'foo bar'");
+assert_valid("<string>", " 'foo bar' ");
+assert_valid("<string>", "'foo bar");
+assert_valid("<string>", `'"foo" bar'`);
+assert_valid("<string>", '"bar baz"');
+assert_valid("<string>", `"bar 'baz'"`);
+assert_valid("<string>", `"bar 'baz'`);
+assert_valid("<string>+", "'foo' 'bar'");
+assert_valid("<string>#", "'foo', 'bar'");
+assert_valid("<string>+ | <string>#", "'foo' 'bar'");
+assert_valid("<string>+ | <string>#", " 'foo' 'bar'");
+assert_valid("<string>+ | <string>#", `'foo' "bar"`);
+assert_valid("<string>+ | <string>#", `'foo' "bar`);
+assert_valid("<string># | <string>+", "'foo', 'bar'");
+assert_valid("<string># | <string>+", "'foo', 'bar' ");
+assert_valid("<string># | <string>+", `"foo", 'bar'`);
+assert_valid("<string># | <string>+", `"foo", 'bar`);
+
+assert_valid("<color>", "rgb(12, 34, 56)");
+assert_valid("<color>", "lightgoldenrodyellow");
+assert_valid("<image>", "url(a)");
+assert_valid("<image>", "linear-gradient(yellow, blue)");
+assert_valid("<url>", "url(a)");
+
+assert_valid("<color>+", "yellow blue");
+assert_valid("<color>+", "yellow blue ");
+assert_valid("<color>+ | <color>", "yellow blue");
+assert_valid("<color> | <color>+", "yellow blue");
+assert_valid("<color># | <color>", "yellow, blue");
+assert_valid("<color> | <color>#", "yellow, blue");
+assert_valid("<color># | <color>+", "yellow blue");
+assert_valid("<color>+ | <color>#", "yellow, blue");
+assert_valid("<color>+ | yellow", "yellow blue");
+assert_valid("yellow", "yellow");
+assert_valid("yellow | <color>+", "yellow blue");
+assert_valid("<color># | yellow", "yellow, blue");
+assert_valid("yellow | <color>#", "yellow, blue");
+assert_valid("<transform-list> | <transform-function> ", "scale(2) rotate(90deg)");
+assert_valid("<transform-function> | <transform-list>", "scale(2) rotate(90deg)");
+assert_valid("<transform-list> | <transform-function>+ ", "scale(2) rotate(90deg)");
+assert_valid("<transform-function>+ | <transform-list>", "scale(2) rotate(90deg)");
+assert_valid("<transform-list> | <transform-function># ", "scale(2) rotate(90deg)");
+assert_valid("<transform-function># | <transform-list>", "scale(2) rotate(90deg)");
+assert_valid("<transform-list> | <transform-function># ", "scale(2), rotate(90deg)");
+assert_valid("<transform-function># | <transform-list>", "scale(2), rotate(90deg)");
+assert_valid("<transform-list>", "scale(2) rotate(90deg) ");
+assert_valid("<integer>+ | <percentage>+ | <length>+ ", "1");
+assert_valid("<integer>+ | <percentage>+ | <length>+ ", "1 1");
+assert_valid("<integer>+ | <percentage>+ | <length>+ ", "1%");
+assert_valid("<integer>+ | <percentage>+ | <length>+ ", "1% 1%");
+assert_valid("<integer>+ | <percentage>+ | <length>+ ", "1px");
+assert_valid("<integer>+ | <percentage>+ | <length>+ ", "1px 1px");
+
+assert_valid("banana", "banana");
+assert_valid("bAnAnA", "bAnAnA");
+assert_valid("ba-na-nya", "ba-na-nya");
+assert_valid("banana", "banan\\61");
+assert_valid("banan\\61", "banana");
+assert_valid("<custom-ident>", "banan\\61");
+assert_valid("big | bigger | BIGGER", "bigger");
+assert_valid("foo+|bar", "foo foo foo");
+
+assert_valid("banana\t", "banana");
+assert_valid("\nbanana\r\n", "banana");
+assert_valid("ba\f\n|\tna\r|nya", "nya");
+
+assert_valid(null, "null");
+assert_valid(undefined, "undefined");
+assert_valid(["array"], "array");
+
+assert_valid("\\1F914", "🤔");
+assert_valid("hmm\\1F914", "hmm🤔");
+assert_valid("\\1F914hmm", "🤔hmm");
+assert_valid("\\1F914 hmm", "🤔hmm");
+assert_valid("\\1F914\\1F914", "🤔🤔");
+
+// Invalid syntax
+assert_invalid("<color>#", "yellow blue");
+assert_invalid("banana,nya", "banana");
+assert_invalid("<\\6c ength>", "10px");
+assert_invalid("<banana>", "banana");
+assert_invalid("<Number>", "10");
+assert_invalid("<length", "10px");
+assert_invalid("<LENGTH>", "10px");
+assert_invalid("< length>", "10px");
+assert_invalid("<length >", "10px");
+assert_invalid("<length> +", "10px");
+assert_invalid("<transform-list>+", "scale(2)");
+assert_invalid("<transform-list>#", "scale(2)");
+
+assert_invalid("<length>++", "10px");
+assert_invalid("<length>##", "10px");
+assert_invalid("<length>+#", "10px");
+assert_invalid("<length>#+", "10px");
+assert_invalid("<length> | *", "10px");
+assert_invalid("<length>+", "2px,7px,calc(8px)");
+assert_invalid("<length>#", "2px 7px calc(8px)");
+assert_invalid("*|banana", "banana");
+assert_invalid("|banana", "banana");
+assert_invalid("*+", "banana");
+assert_invalid("|", "banana");
+assert_invalid(" |", "banana");
+assert_invalid("||", "banana");
+assert_invalid("foo bar", "foo bar");
+assert_invalid("foo foo foo", "foo foo foo");
+assert_invalid("foo § bar", "foo § bar");
+assert_invalid("foo \\1F914 bar", "foo \\1F914 bar");
+assert_invalid("<length> <number>", "0px 0");
+assert_invalid("<length> <length> <length>", "0px 0px 0px");
+
+assert_invalid("<integer>+ | <percentage>+ | <length>+ ", "1 1%");
+assert_invalid("<integer>+ | <percentage>+ | <length>+ ", "1% 1");
+assert_invalid("<integer>+ | <percentage>+ | <length>+ ", "1px 1");
+assert_invalid("<integer>+ | <percentage>+ | <length>+ ", "1 1px");
+assert_invalid("<integer>+ | <percentage>+ | <length>+ ", "1px 1%");
+assert_invalid("<integer>+ | <percentage>+ | <length>+ ", "1% 1px");
+
+assert_invalid("initial", "initial");
+assert_invalid("inherit", "inherit");
+assert_invalid("unset", "unset");
+assert_invalid("revert", "revert");
+assert_invalid("revert-layer", "revert-layer");
+assert_invalid("default", "default");
+assert_invalid("<length>|initial", "10px");
+assert_invalid("<length>|INHERIT", "10px");
+assert_invalid("<percentage>|unsEt", "2%");
+assert_invalid("<color>|REVert", "red");
+assert_invalid("<integer>|deFAUlt", "1");
+
+// Invalid initialValue
+// The 5 tests that follow are not clearly backed by the specification,
+// but they're probably a good idea and we should change the spec. See
+// https://github.com/w3c/css-houdini-drafts/issues/1076 .
+assert_invalid("*", "initial");
+assert_invalid("*", "inherit");
+assert_invalid("*", "unset");
+assert_invalid("*", "revert");
+assert_invalid("*", "revert-layer");
+// ... end possibly-invalid tests.
+assert_invalid("<custom-ident>", "initial");
+assert_invalid("<custom-ident>", "inherit");
+assert_invalid("<custom-ident>", "unset");
+assert_invalid("<custom-ident>", "revert");
+assert_invalid("<custom-ident>", "revert-layer");
+assert_invalid("<custom-ident>", "default");
+assert_invalid("<custom-ident>+", "foo initial bar");
+assert_invalid("<custom-ident>+", "foo inherit bar");
+assert_invalid("<custom-ident>+", "foo unset bar");
+assert_invalid("<custom-ident>+", "foo revert bar");
+assert_invalid("<custom-ident>+", "foo revert-layer bar");
+assert_invalid("<custom-ident>+", "foo default bar");
+
+assert_invalid("*", ")");
+assert_invalid("*", "([)]");
+assert_invalid("*", "whee!");
+assert_invalid("*", '"\n');
+assert_invalid("*", "url(moo '')");
+assert_invalid("*", "semi;colon");
+assert_invalid("*", "var(invalid var ref)");
+assert_invalid("*", "var(--foo)");
+
+assert_invalid("banana", "bAnAnA");
+assert_invalid("<length>", "var(--moo)");
+assert_invalid("<length>", "10");
+assert_invalid("<length>", "10%");
+assert_invalid("<length>", "calc(5px + 10%)");
+assert_invalid("<length>", "10em");
+assert_invalid("<length>", "calc(4px + 3em)");
+assert_invalid("<length>", "calc(4px + calc(8 * 2em))");
+assert_invalid("<length>+", "calc(2ex + 16px)");
+assert_invalid("<length>+", "10px calc(20px + 4rem)");
+assert_invalid("<length>+", "");
+assert_invalid("<length>#", "");
+assert_invalid("<length>", "10px;");
+assert_invalid("<length-percentage>", "calc(2px + 10% + 7ex)");
+assert_invalid("<percentage>", "0");
+assert_invalid("<integer>", "1.0");
+assert_invalid("<integer>", "1e0");
+assert_invalid("<number>|foo", "foo var(--foo, bla)");
+assert_invalid("Foo | bar", "foo");
+assert_invalid("Foo | bar", "Bar");
+
+assert_invalid("<angle>", "0");
+assert_invalid("<angle>", "10%");
+assert_invalid("<time>", "2px");
+assert_invalid("<resolution>", "10");
+
+// "The allowed range of <resolution> values always excludes negative values"
+// https://www.w3.org/TR/css-values-4/#resolution-value
+assert_invalid("<resolution>", "-5.3dpcm");
+
+assert_invalid("<transform-function>", "scale()");
+assert_invalid("<transform-list>", "scale()");
+assert_invalid("<transform-list>+", "translateX(2px) rotate(20deg)");
+assert_invalid("<color>", "fancy-looking");
+assert_invalid("<image>", "banana.png");
+assert_invalid("<url>", "banana.png");
+
+assert_invalid("<string>", "foo bar'");
+assert_invalid("<string>", 'foo bar"');
+assert_invalid("<string>", '"foo" bar');
+assert_invalid("<string>", "'foo' 2px");
+assert_invalid("<string>", "foo");
+assert_invalid("<string>", "1");
+assert_invalid("<string>", "1px");
+assert_invalid("<string>", "calc(1 + 2)");
+assert_invalid("<string>", "rgb(255, 99, 71)");
+assert_invalid("<string>+", "foo 'bar'");
+assert_invalid("<string>#", "foo, 'bar'");
+assert_invalid("<string># | <string>+", "foo', 'bar'");
+</script>

@@ -1,0 +1,250 @@
+Harness status: OK
+
+Found 239 tests
+
+177 Pass
+62 Fail
+Pass	syntax:'*', initialValue:'a' is valid
+Pass	syntax:' * ', initialValue:'b' is valid
+Pass	syntax:'<length>', initialValue:'2px' is valid
+Pass	syntax:' <number>', initialValue:'5' is valid
+Pass	syntax:'<percentage> ', initialValue:'10%' is valid
+Pass	syntax:'<color>+', initialValue:'red' is valid
+Pass	syntax:' <length>+ | <percentage>', initialValue:'2px 8px' is valid
+Pass	syntax:' <length>+ | <color>#', initialValue:'red, blue' is valid
+Pass	syntax:'<length>|<percentage>|<length-percentage>', initialValue:'2px' is valid
+Pass	syntax:'<color> | <image> | <url> | <integer> | <angle>', initialValue:'red' is valid
+Pass	syntax:'<time> | <resolution> | <transform-list> | <custom-ident>', initialValue:'red' is valid
+Pass	syntax:'	<color>
+|   foo', initialValue:'foo' is valid
+Pass	syntax:'*', initialValue:':> hello' is valid
+Pass	syntax:'*', initialValue:'([ brackets ]) { yay (??)}' is valid
+Pass	syntax:'*', initialValue:'yep 'this is valid too'' is valid
+Pass	syntax:'*', initialValue:'unmatched opening bracket is valid :(' is valid
+Pass	syntax:'*', initialValue:'"' is valid
+Pass	syntax:'*', initialValue:'default' is valid
+Pass	syntax:'<length>', initialValue:'0' is valid
+Pass	syntax:'<length>', initialValue:'10px /*:)*/' is valid
+Fail	syntax:'<length>', initialValue:' calc(-2px)' is valid
+Pass	syntax:'<length>', initialValue:'calc(2px*4 + 10px)' is valid
+Pass	syntax:'<length>', initialValue:'7.1e-4cm' is valid
+Pass	syntax:'<length>', initialValue:'calc(7in - 12px)' is valid
+Pass	syntax:'<length>+', initialValue:'2px 7px calc(8px)' is valid
+Fail	syntax:'<length>#', initialValue:'2px, 7px, calc(8px)' is valid
+Pass	syntax:'<percentage>', initialValue:'-9.3e3%' is valid
+Fail	syntax:'<length-percentage>', initialValue:'-54%' is valid
+Fail	syntax:'<length-percentage>', initialValue:'0' is valid
+Fail	syntax:'<length-percentage>', initialValue:'calc(-11px + 10.4%)' is valid
+Pass	syntax:'<length>', initialValue:'10vmin' is valid
+Pass	syntax:'<percentage> | <length>+', initialValue:'calc(100vh - 10px) 30px' is valid
+Pass	syntax:'<number>', initialValue:'-109' is valid
+Pass	syntax:'<number>', initialValue:'2.3e4' is valid
+Pass	syntax:'<number>', initialValue:'calc(1 / 2)' is valid
+Pass	syntax:'<integer>', initialValue:'-109' is valid
+Pass	syntax:'<integer>', initialValue:'19' is valid
+Pass	syntax:'<integer>', initialValue:'calc(1)' is valid
+Pass	syntax:'<integer>', initialValue:'calc(1 + 2)' is valid
+Pass	syntax:'<integer>', initialValue:'calc(3.1415)' is valid
+Pass	syntax:'<integer>', initialValue:'calc(3.1415 + 3.1415)' is valid
+Pass	syntax:'<angle>', initialValue:'10deg' is valid
+Pass	syntax:'<angle>', initialValue:'20.5rad' is valid
+Pass	syntax:'<angle>', initialValue:'calc(50grad + 3.14159rad)' is valid
+Pass	syntax:'<time>', initialValue:'2s' is valid
+Pass	syntax:'<time>', initialValue:'calc(2s - 9ms)' is valid
+Pass	syntax:'<resolution>', initialValue:'10dpi' is valid
+Pass	syntax:'<resolution>', initialValue:'3dPpX' is valid
+Fail	syntax:'<transform-function>', initialValue:'translateX(2px)' is valid
+Pass	syntax:'<transform-function>|<integer>', initialValue:'5' is valid
+Fail	syntax:'<transform-function>|<integer>', initialValue:'scale(2)' is valid
+Fail	syntax:'<transform-function>+', initialValue:'translateX(2px) rotate(42deg)' is valid
+Fail	syntax:'<transform-list>', initialValue:'scale(2)' is valid
+Fail	syntax:'<transform-list>', initialValue:'translateX(2px) rotate(20deg)' is valid
+Pass	syntax:'<string>', initialValue:''foo bar'' is valid
+Fail	syntax:'<string>', initialValue:' 'foo bar' ' is valid
+Pass	syntax:'<string>', initialValue:''foo bar' is valid
+Pass	syntax:'<string>', initialValue:''"foo" bar'' is valid
+Pass	syntax:'<string>', initialValue:'"bar baz"' is valid
+Pass	syntax:'<string>', initialValue:'"bar 'baz'"' is valid
+Pass	syntax:'<string>', initialValue:'"bar 'baz'' is valid
+Pass	syntax:'<string>+', initialValue:''foo' 'bar'' is valid
+Fail	syntax:'<string>#', initialValue:''foo', 'bar'' is valid
+Pass	syntax:'<string>+ | <string>#', initialValue:''foo' 'bar'' is valid
+Pass	syntax:'<string>+ | <string>#', initialValue:' 'foo' 'bar'' is valid
+Pass	syntax:'<string>+ | <string>#', initialValue:''foo' "bar"' is valid
+Pass	syntax:'<string>+ | <string>#', initialValue:''foo' "bar' is valid
+Fail	syntax:'<string># | <string>+', initialValue:''foo', 'bar'' is valid
+Fail	syntax:'<string># | <string>+', initialValue:''foo', 'bar' ' is valid
+Fail	syntax:'<string># | <string>+', initialValue:'"foo", 'bar'' is valid
+Fail	syntax:'<string># | <string>+', initialValue:'"foo", 'bar' is valid
+Pass	syntax:'<color>', initialValue:'rgb(12, 34, 56)' is valid
+Pass	syntax:'<color>', initialValue:'lightgoldenrodyellow' is valid
+Pass	syntax:'<image>', initialValue:'url(a)' is valid
+Pass	syntax:'<image>', initialValue:'linear-gradient(yellow, blue)' is valid
+Pass	syntax:'<url>', initialValue:'url(a)' is valid
+Pass	syntax:'<color>+', initialValue:'yellow blue' is valid
+Pass	syntax:'<color>+', initialValue:'yellow blue ' is valid
+Pass	syntax:'<color>+ | <color>', initialValue:'yellow blue' is valid
+Fail	syntax:'<color> | <color>+', initialValue:'yellow blue' is valid
+Pass	syntax:'<color># | <color>', initialValue:'yellow, blue' is valid
+Fail	syntax:'<color> | <color>#', initialValue:'yellow, blue' is valid
+Pass	syntax:'<color># | <color>+', initialValue:'yellow blue' is valid
+Fail	syntax:'<color>+ | <color>#', initialValue:'yellow, blue' is valid
+Pass	syntax:'<color>+ | yellow', initialValue:'yellow blue' is valid
+Pass	syntax:'yellow', initialValue:'yellow' is valid
+Fail	syntax:'yellow | <color>+', initialValue:'yellow blue' is valid
+Pass	syntax:'<color># | yellow', initialValue:'yellow, blue' is valid
+Fail	syntax:'yellow | <color>#', initialValue:'yellow, blue' is valid
+Fail	syntax:'<transform-list> | <transform-function> ', initialValue:'scale(2) rotate(90deg)' is valid
+Fail	syntax:'<transform-function> | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
+Fail	syntax:'<transform-list> | <transform-function>+ ', initialValue:'scale(2) rotate(90deg)' is valid
+Fail	syntax:'<transform-function>+ | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
+Fail	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2) rotate(90deg)' is valid
+Fail	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
+Fail	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2), rotate(90deg)' is valid
+Fail	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2), rotate(90deg)' is valid
+Fail	syntax:'<transform-list>', initialValue:'scale(2) rotate(90deg) ' is valid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1' is valid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1 1' is valid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1%' is valid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1% 1%' is valid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1px' is valid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1px 1px' is valid
+Pass	syntax:'banana', initialValue:'banana' is valid
+Pass	syntax:'bAnAnA', initialValue:'bAnAnA' is valid
+Pass	syntax:'ba-na-nya', initialValue:'ba-na-nya' is valid
+Pass	syntax:'banana', initialValue:'banan\61' is valid
+Pass	syntax:'banan\61', initialValue:'banana' is valid
+Pass	syntax:'<custom-ident>', initialValue:'banan\61' is valid
+Pass	syntax:'big | bigger | BIGGER', initialValue:'bigger' is valid
+Pass	syntax:'foo+|bar', initialValue:'foo foo foo' is valid
+Pass	syntax:'banana	', initialValue:'banana' is valid
+Pass	syntax:'
+banana
+', initialValue:'banana' is valid
+Pass	syntax:'ba
+|	na|nya', initialValue:'nya' is valid
+Pass	syntax:'null', initialValue:'null' is valid
+Pass	syntax:'undefined', initialValue:'undefined' is valid
+Pass	syntax:'array', initialValue:'array' is valid
+Pass	syntax:'\1F914', initialValue:'🤔' is valid
+Pass	syntax:'hmm\1F914', initialValue:'hmm🤔' is valid
+Pass	syntax:'\1F914hmm', initialValue:'🤔hmm' is valid
+Pass	syntax:'\1F914 hmm', initialValue:'🤔hmm' is valid
+Pass	syntax:'\1F914\1F914', initialValue:'🤔🤔' is valid
+Pass	syntax:'<color>#', initialValue:'yellow blue' is invalid
+Pass	syntax:'banana,nya', initialValue:'banana' is invalid
+Fail	syntax:'<\6c ength>', initialValue:'10px' is invalid
+Pass	syntax:'<banana>', initialValue:'banana' is invalid
+Pass	syntax:'<Number>', initialValue:'10' is invalid
+Pass	syntax:'<length', initialValue:'10px' is invalid
+Pass	syntax:'<LENGTH>', initialValue:'10px' is invalid
+Pass	syntax:'< length>', initialValue:'10px' is invalid
+Pass	syntax:'<length >', initialValue:'10px' is invalid
+Pass	syntax:'<length> +', initialValue:'10px' is invalid
+Pass	syntax:'<transform-list>+', initialValue:'scale(2)' is invalid
+Pass	syntax:'<transform-list>#', initialValue:'scale(2)' is invalid
+Pass	syntax:'<length>++', initialValue:'10px' is invalid
+Pass	syntax:'<length>##', initialValue:'10px' is invalid
+Pass	syntax:'<length>+#', initialValue:'10px' is invalid
+Pass	syntax:'<length>#+', initialValue:'10px' is invalid
+Pass	syntax:'<length> | *', initialValue:'10px' is invalid
+Pass	syntax:'<length>+', initialValue:'2px,7px,calc(8px)' is invalid
+Pass	syntax:'<length>#', initialValue:'2px 7px calc(8px)' is invalid
+Pass	syntax:'*|banana', initialValue:'banana' is invalid
+Pass	syntax:'|banana', initialValue:'banana' is invalid
+Pass	syntax:'*+', initialValue:'banana' is invalid
+Pass	syntax:'|', initialValue:'banana' is invalid
+Pass	syntax:' |', initialValue:'banana' is invalid
+Pass	syntax:'||', initialValue:'banana' is invalid
+Pass	syntax:'foo bar', initialValue:'foo bar' is invalid
+Pass	syntax:'foo foo foo', initialValue:'foo foo foo' is invalid
+Pass	syntax:'foo § bar', initialValue:'foo § bar' is invalid
+Pass	syntax:'foo \1F914 bar', initialValue:'foo \1F914 bar' is invalid
+Pass	syntax:'<length> <number>', initialValue:'0px 0' is invalid
+Pass	syntax:'<length> <length> <length>', initialValue:'0px 0px 0px' is invalid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1 1%' is invalid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1% 1' is invalid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1px 1' is invalid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1 1px' is invalid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1px 1%' is invalid
+Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1% 1px' is invalid
+Fail	syntax:'initial', initialValue:'initial' is invalid
+Fail	syntax:'inherit', initialValue:'inherit' is invalid
+Fail	syntax:'unset', initialValue:'unset' is invalid
+Fail	syntax:'revert', initialValue:'revert' is invalid
+Fail	syntax:'revert-layer', initialValue:'revert-layer' is invalid
+Fail	syntax:'default', initialValue:'default' is invalid
+Fail	syntax:'<length>|initial', initialValue:'10px' is invalid
+Fail	syntax:'<length>|INHERIT', initialValue:'10px' is invalid
+Fail	syntax:'<percentage>|unsEt', initialValue:'2%' is invalid
+Fail	syntax:'<color>|REVert', initialValue:'red' is invalid
+Fail	syntax:'<integer>|deFAUlt', initialValue:'1' is invalid
+Fail	syntax:'*', initialValue:'initial' is invalid
+Fail	syntax:'*', initialValue:'inherit' is invalid
+Fail	syntax:'*', initialValue:'unset' is invalid
+Fail	syntax:'*', initialValue:'revert' is invalid
+Fail	syntax:'*', initialValue:'revert-layer' is invalid
+Pass	syntax:'<custom-ident>', initialValue:'initial' is invalid
+Pass	syntax:'<custom-ident>', initialValue:'inherit' is invalid
+Pass	syntax:'<custom-ident>', initialValue:'unset' is invalid
+Pass	syntax:'<custom-ident>', initialValue:'revert' is invalid
+Pass	syntax:'<custom-ident>', initialValue:'revert-layer' is invalid
+Pass	syntax:'<custom-ident>', initialValue:'default' is invalid
+Pass	syntax:'<custom-ident>+', initialValue:'foo initial bar' is invalid
+Pass	syntax:'<custom-ident>+', initialValue:'foo inherit bar' is invalid
+Pass	syntax:'<custom-ident>+', initialValue:'foo unset bar' is invalid
+Pass	syntax:'<custom-ident>+', initialValue:'foo revert bar' is invalid
+Pass	syntax:'<custom-ident>+', initialValue:'foo revert-layer bar' is invalid
+Pass	syntax:'<custom-ident>+', initialValue:'foo default bar' is invalid
+Fail	syntax:'*', initialValue:')' is invalid
+Fail	syntax:'*', initialValue:'([)]' is invalid
+Fail	syntax:'*', initialValue:'whee!' is invalid
+Fail	syntax:'*', initialValue:'"
+' is invalid
+Fail	syntax:'*', initialValue:'url(moo '')' is invalid
+Pass	syntax:'*', initialValue:'semi;colon' is invalid
+Fail	syntax:'*', initialValue:'var(invalid var ref)' is invalid
+Fail	syntax:'*', initialValue:'var(--foo)' is invalid
+Fail	syntax:'banana', initialValue:'bAnAnA' is invalid
+Pass	syntax:'<length>', initialValue:'var(--moo)' is invalid
+Pass	syntax:'<length>', initialValue:'10' is invalid
+Pass	syntax:'<length>', initialValue:'10%' is invalid
+Pass	syntax:'<length>', initialValue:'calc(5px + 10%)' is invalid
+Fail	syntax:'<length>', initialValue:'10em' is invalid
+Fail	syntax:'<length>', initialValue:'calc(4px + 3em)' is invalid
+Fail	syntax:'<length>', initialValue:'calc(4px + calc(8 * 2em))' is invalid
+Fail	syntax:'<length>+', initialValue:'calc(2ex + 16px)' is invalid
+Fail	syntax:'<length>+', initialValue:'10px calc(20px + 4rem)' is invalid
+Pass	syntax:'<length>+', initialValue:'' is invalid
+Pass	syntax:'<length>#', initialValue:'' is invalid
+Pass	syntax:'<length>', initialValue:'10px;' is invalid
+Pass	syntax:'<length-percentage>', initialValue:'calc(2px + 10% + 7ex)' is invalid
+Pass	syntax:'<percentage>', initialValue:'0' is invalid
+Pass	syntax:'<integer>', initialValue:'1.0' is invalid
+Pass	syntax:'<integer>', initialValue:'1e0' is invalid
+Pass	syntax:'<number>|foo', initialValue:'foo var(--foo, bla)' is invalid
+Fail	syntax:'Foo | bar', initialValue:'foo' is invalid
+Fail	syntax:'Foo | bar', initialValue:'Bar' is invalid
+Pass	syntax:'<angle>', initialValue:'0' is invalid
+Pass	syntax:'<angle>', initialValue:'10%' is invalid
+Pass	syntax:'<time>', initialValue:'2px' is invalid
+Pass	syntax:'<resolution>', initialValue:'10' is invalid
+Pass	syntax:'<resolution>', initialValue:'-5.3dpcm' is invalid
+Pass	syntax:'<transform-function>', initialValue:'scale()' is invalid
+Pass	syntax:'<transform-list>', initialValue:'scale()' is invalid
+Pass	syntax:'<transform-list>+', initialValue:'translateX(2px) rotate(20deg)' is invalid
+Pass	syntax:'<color>', initialValue:'fancy-looking' is invalid
+Pass	syntax:'<image>', initialValue:'banana.png' is invalid
+Pass	syntax:'<url>', initialValue:'banana.png' is invalid
+Pass	syntax:'<string>', initialValue:'foo bar'' is invalid
+Pass	syntax:'<string>', initialValue:'foo bar"' is invalid
+Pass	syntax:'<string>', initialValue:'"foo" bar' is invalid
+Pass	syntax:'<string>', initialValue:''foo' 2px' is invalid
+Pass	syntax:'<string>', initialValue:'foo' is invalid
+Pass	syntax:'<string>', initialValue:'1' is invalid
+Pass	syntax:'<string>', initialValue:'1px' is invalid
+Pass	syntax:'<string>', initialValue:'calc(1 + 2)' is invalid
+Pass	syntax:'<string>', initialValue:'rgb(255, 99, 71)' is invalid
+Pass	syntax:'<string>+', initialValue:'foo 'bar'' is invalid
+Pass	syntax:'<string>#', initialValue:'foo, 'bar'' is invalid
+Pass	syntax:'<string># | <string>+', initialValue:'foo', 'bar'' is invalid
