@@ -32,6 +32,9 @@ public:
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
 
+    using OnAccessibilityTreeInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
+    virtual void inspect_accessibility_tree(TabDescription const&, OnAccessibilityTreeInspectionComplete) const { }
+
     using OnDOMNodePropertiesReceived = Function<void(WebView::DOMNodeProperties)>;
     virtual void listen_for_dom_properties(TabDescription const&, OnDOMNodePropertiesReceived) const { }
     virtual void stop_listening_for_dom_properties(TabDescription const&) const { }
