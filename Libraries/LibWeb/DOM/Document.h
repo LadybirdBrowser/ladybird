@@ -542,9 +542,6 @@ public:
     // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
     void update_the_visibility_state(HTML::VisibilityState);
 
-    // NOTE: This does not fire any events, unlike update_the_visibility_state().
-    void set_visibility_state(Badge<HTML::BrowsingContext>, HTML::VisibilityState);
-
     void run_the_resize_steps();
     void run_the_scroll_steps();
 
