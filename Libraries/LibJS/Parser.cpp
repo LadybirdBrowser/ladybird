@@ -327,7 +327,7 @@ public:
                 continue;
             }
 
-            if (m_type == ScopeType::Function && m_bound_names.contains(identifier_group_name)) {
+            if (m_type == ScopeType::Function && !m_is_function_declaration && m_bound_names.contains(identifier_group_name)) {
                 // NOTE: Currently parser can't determine that named function expression assignment creates scope with binding for function name so function names are not considered as candidates to be optimized in global variables access
                 identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment = true;
             }
@@ -495,6 +495,11 @@ public:
         m_is_arrow_function = true;
     }
 
+    void set_is_function_declaration()
+    {
+        m_is_function_declaration = true;
+    }
+
 private:
     void throw_identifier_declared(Utf16FlyString const& name, NonnullRefPtr<Declaration const> const& declaration)
     {
@@ -544,6 +549,8 @@ private:
     bool m_uses_this_from_environment { false };
     bool m_uses_this { false };
     bool m_is_arrow_function { false };
+
+    bool m_is_function_declaration { false };
 };
 
 class OperatorPrecedenceTable {
@@ -2991,6 +2998,8 @@ NonnullRefPtr<FunctionNodeType> Parser::parse_function_node(u16 parse_options, O
     FunctionParsingInsights parsing_insights;
     auto body = [&] {
         ScopePusher function_scope = ScopePusher::function_scope(*this, name);
+        if constexpr (IsSame<FunctionNodeType, FunctionDeclaration>)
+            function_scope.set_is_function_declaration();
 
         consume(TokenType::ParenOpen);
         parameters = parse_formal_parameters(function_length, parse_options);
