@@ -125,14 +125,11 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     auto parse_for_type = [&](ValueType const type) -> Optional<PropertyAndValue> {
         if (auto property = any_property_accepts_type(property_ids, type); property.has_value()) {
             auto context_guard = push_temporary_value_parsing_context(*property);
-            if (auto maybe_easing_function = parse_value(type, tokens))
-                return PropertyAndValue { *property, maybe_easing_function };
+            if (auto maybe_parsed_value = parse_value(type, tokens))
+                return PropertyAndValue { *property, maybe_parsed_value };
         }
         return OptionalNone {};
     };
-
-    if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())
-        return parsed.release_value();
 
     if (peek_token.is(Token::Type::Ident)) {
         // NOTE: We do not try to parse "CSS-wide keywords" here. https://www.w3.org/TR/css-values-4/#common-keywords
@@ -160,6 +157,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto parsed = parse_for_type(ValueType::CornerShape); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Counter); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
         return parsed.release_value();
