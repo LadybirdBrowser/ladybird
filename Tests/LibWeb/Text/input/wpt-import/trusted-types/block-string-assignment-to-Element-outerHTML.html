@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+</head>
+<body>
+<div id="container"></div>
+<script>
+  var container = document.querySelector('#container')
+
+  // TrustedHTML assignments do not throw.
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+
+    var d = document.createElement('div');
+    document.querySelector('#container').appendChild(d);
+    d.outerHTML = html;
+    assert_equals(container.innerText, RESULTS.HTML);
+
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "outerHTML with html assigned via policy (successful HTML transformation).");
+
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    assert_throws_dom("NoModificationAllowedError", _ => {
+      document.documentElement.outerHTML = p.createHTML('<p>Content</p>');
+    });
+  }, "`outerHTML = TrustedHTML` throws NoModificationAllowedError when parent is a document.");
+
+  // String assignments throw.
+  test(t => {
+    var d = document.createElement('div');
+    container.appendChild(d);
+    assert_throws_js(TypeError, _ => {
+      d.outerHTML = "Fail.";
+    });
+    assert_equals(container.innerText, "");
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`outerHTML = string` throws.");
+
+  test(t => {
+    assert_throws_js(TypeError, _ => {
+      document.documentElement.outerHTML = '<p>Content</p>';
+    });
+  }, "`outerHTML = string` throws TypeError even when parent is a document.");
+
+  // Null assignment throws.
+  test(t => {
+    var d = document.createElement('div');
+    container.appendChild(d);
+    assert_throws_js(TypeError, _ => {
+      d.outerHTML = null;
+    });
+    assert_equals(container.innerText, "");
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`outerHTML = null` throws.");
+
+  // After default policy creation string assignment implicitly calls createHTML.
+  test(t => {
+    let p = window.trustedTypes.createPolicy("default", {
+      createHTML: (value, type, sink) => {
+        assert_equals(sink, "Element outerHTML");
+        return createHTMLJS(value);
+      }
+    });
+
+    var d = document.createElement('div');
+    document.querySelector('#container').appendChild(d);
+    d.outerHTML = INPUTS.HTML;
+    assert_equals(container.innerText, RESULTS.HTML);
+
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`outerHTML = string` assigned via default policy (successful HTML transformation).");
+
+  // After default policy creation null assignment implicitly calls createHTML.
+  test(t => {
+    var d = document.createElement('div');
+    container.appendChild(d);
+    d.outerHTML = null;
+    assert_equals(container.innerText, "");
+
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`outerHTML = null` assigned via default policy does not throw");
+</script>
+</body>
+</html>
