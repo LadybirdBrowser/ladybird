@@ -961,6 +961,22 @@ void Application::inspect_tab(DevTools::TabDescription const& description, OnTab
     view->inspect_dom_tree();
 }
 
+void Application::inspect_accessibility_tree(DevTools::TabDescription const& description, OnAccessibilityTreeInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->on_received_accessibility_tree = [&view = *view, on_complete = move(on_complete)](JsonObject accessibility_tree) {
+        view.on_received_accessibility_tree = nullptr;
+        on_complete(move(accessibility_tree));
+    };
+
+    view->inspect_accessibility_tree();
+}
+
 void Application::listen_for_dom_properties(DevTools::TabDescription const& description, OnDOMNodePropertiesReceived on_dom_node_properties_received) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

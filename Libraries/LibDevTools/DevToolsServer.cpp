@@ -11,6 +11,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/TCPServer.h>
 #include <LibDevTools/Actors/DeviceActor.h>
+#include <LibDevTools/Actors/ParentAccessibilityActor.h>
 #include <LibDevTools/Actors/PreferenceActor.h>
 #include <LibDevTools/Actors/ProcessActor.h>
 #include <LibDevTools/Actors/TabActor.h>
@@ -79,6 +80,7 @@ ErrorOr<void> DevToolsServer::on_new_client()
     register_actor<DeviceActor>();
     register_actor<PreferenceActor>();
     register_actor<ProcessActor>(ProcessDescription { .is_parent = true });
+    register_actor<ParentAccessibilityActor>();
 
     return {};
 }
