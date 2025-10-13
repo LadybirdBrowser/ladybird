@@ -9,10 +9,15 @@
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
+#include <AK/RefCounted.h>
+
+#include <dxgiformat.h>
 
 #if !defined(AK_OS_WINDOWS)
 static_assert(false, "This file must only be used for Windows");
 #endif
+
+using HANDLE = void*;
 
 // NOTE: We can't include the header that defines ComPtr as it transitively includes other headers that define conflicting macros
 struct IDXGIAdapter1;
@@ -37,6 +42,21 @@ public:
 
 private:
     Direct3DContext();
+
+    struct Impl;
+    NonnullOwnPtr<Impl> m_impl;
+};
+
+class Direct3D11Texture : public RefCounted<Direct3D11Texture> {
+public:
+    ~Direct3D11Texture();
+
+    static ErrorOr<NonnullRefPtr<Direct3D11Texture>> try_create_shared(Direct3DContext const& context, u32 width, u32 height, DXGI_FORMAT format);
+
+    ErrorOr<HANDLE> shared_handle() const;
+
+private:
+    Direct3D11Texture(Direct3DContext const& context);
 
     struct Impl;
     NonnullOwnPtr<Impl> m_impl;
