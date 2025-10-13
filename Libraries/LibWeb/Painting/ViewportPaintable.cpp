@@ -139,7 +139,7 @@ void ViewportPaintable::assign_clip_frames()
                 paintable_box.set_own_clip_frame(clip_frame.value());
             }
         }
-        for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
+        for (auto block = paintable.containing_block(); !block->is_viewport_paintable(); block = block->containing_block()) {
             if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
                     auto& paintable_box = static_cast<PaintableBox&>(paintable);
