@@ -1279,7 +1279,7 @@ Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestTy
 TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     for (auto const* child = last_child(); child; child = child->previous_sibling()) {
-        if (child->layout_node().is_positioned() && child->computed_values().z_index().value_or(0) == 0)
+        if (child->is_positioned() && child->computed_values().z_index().value_or(0) == 0)
             continue;
         if (child->has_stacking_context())
             continue;
@@ -1390,7 +1390,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         }
     }
 
-    if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || layout_node().is_positioned())
+    if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || is_positioned())
         && absolute_border_box_rect().contains(offset_position_adjusted_by_scroll_offset)) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
