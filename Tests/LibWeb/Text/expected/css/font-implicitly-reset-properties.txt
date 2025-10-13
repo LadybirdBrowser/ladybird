@@ -2,7 +2,7 @@ font-feature-settings: normal
 font-kerning: auto
 font-language-override: normal
 font-optical-sizing: undefined
-font-size-adjust: undefined
+font-size-adjust: none
 font-variant-alternates: normal
 font-variant-caps: normal
 font-variant-east-asian: normal

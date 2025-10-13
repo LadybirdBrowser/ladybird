@@ -592,6 +592,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_feature_settings_value(tokens); });
     case PropertyID::FontLanguageOverride:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_language_override_value(tokens); });
+    case PropertyID::FontSizeAdjust:
+        if (auto parsed_value = parse_font_size_adjust_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::FontStyle:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_font_style_value(tokens); });
     case PropertyID::FontVariationSettings:
@@ -2750,7 +2754,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             PropertyID::FontKerning,
             PropertyID::FontLanguageOverride,
             // FIXME: PropertyID::FontOpticalSizing,
-            // FIXME: PropertyID::FontSizeAdjust,
+            PropertyID::FontSizeAdjust,
             PropertyID::FontVariationSettings,
         },
         {
@@ -2768,7 +2772,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             property_initial_value(PropertyID::FontKerning), // font-kerning,
             initial_value,                                   // font-language-override
                                                              // FIXME: font-optical-sizing,
-                                                             // FIXME: font-size-adjust,
+            initial_value,                                   // font-size-adjust,
             initial_value,                                   // font-variation-settings
         });
 }
@@ -2937,6 +2941,44 @@ RefPtr<StyleValue const> Parser::parse_font_feature_settings_value(TokenStream<C
 
     transaction.commit();
     return StyleValueList::create(move(feature_tags), StyleValueList::Separator::Comma);
+}
+
+// https://drafts.csswg.org/css-fonts/#font-size-adjust-prop
+RefPtr<StyleValue const> Parser::parse_font_size_adjust_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | [ ex-height | cap-height | ch-width | ic-width | ic-height ]? [ from-font | <number [0,∞]> ]
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
+        transaction.commit();
+        return none;
+    }
+
+    auto first_value = parse_css_value_for_property(PropertyID::FontSizeAdjust, tokens);
+    if (!first_value)
+        return nullptr;
+    if (first_value->is_number() || first_value->is_calculated() || first_value->to_keyword() == Keyword::FromFont) {
+        if (tokens.has_next_token())
+            return nullptr;
+        transaction.commit();
+        return first_value;
+    }
+
+    auto font_metric_keyword = keyword_to_font_metric(first_value->to_keyword());
+    if (!font_metric_keyword.has_value())
+        return nullptr;
+
+    tokens.discard_whitespace();
+    auto second_value = parse_css_value_for_property(PropertyID::FontSizeAdjust, tokens);
+    if (!second_value)
+        return nullptr;
+    if (!second_value->is_number() && !second_value->is_calculated() && second_value->to_keyword() != Keyword::FromFont)
+        return nullptr;
+
+    transaction.commit();
+    if (first_value->is_keyword() && first_value->as_keyword().keyword() == Keyword::ExHeight)
+        return second_value;
+    return StyleValueList::create({ first_value.release_nonnull(), second_value.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)

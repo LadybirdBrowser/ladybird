@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 278 tests
+Found 279 tests
 
-272 Pass
+273 Pass
 6 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -24,6 +24,7 @@ Pass	font-feature-settings
 Pass	font-kerning
 Pass	font-language-override
 Pass	font-size
+Pass	font-size-adjust
 Pass	font-style
 Pass	font-variant-alternates
 Pass	font-variant-caps
