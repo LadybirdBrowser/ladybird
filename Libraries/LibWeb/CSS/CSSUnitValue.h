@@ -35,7 +35,7 @@ public:
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
     virtual Optional<SumValue> create_a_sum_value() const override;
 
-    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const override;
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:

@@ -326,7 +326,7 @@ static Optional<CalculationNode::NumericValue> create_numeric_value(double value
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_internal_representation(PropertyNameAndID const& property) const
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
 {
     // If value is a CSSStyleValue subclass,
     //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
@@ -338,7 +338,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     //     Return the value.
 
     // NB: We store all custom properties as UnresolvedStyleValue, so we always need to create one here.
-    if (property.is_custom_property()) {
+    if (perform_type_check == PerformTypeCheck::Yes && property.is_custom_property()) {
         auto token = [this]() {
             if (m_unit == "number"_fly_string)
                 return Parser::Token::create_number(Number { Number::Type::Number, m_value });
@@ -359,6 +359,35 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     auto value = create_numeric_value(m_value, m_unit);
     if (!value.has_value()) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unrecognized unit '{}'.", m_unit)) };
+    }
+
+    if (perform_type_check == PerformTypeCheck::No) {
+        return value->visit(
+                        [&](Number const& number) -> RefPtr<StyleValue const> {
+                            return NumberStyleValue::create(number.value());
+                        },
+                        [&](Percentage const& percentage) -> RefPtr<StyleValue const> {
+                            return PercentageStyleValue::create(percentage);
+                        },
+                        [&](Angle const& angle) -> RefPtr<StyleValue const> {
+                            return AngleStyleValue::create(angle);
+                        },
+                        [&](Flex const& flex) -> RefPtr<StyleValue const> {
+                            return FlexStyleValue::create(flex);
+                        },
+                        [&](Frequency const& frequency) -> RefPtr<StyleValue const> {
+                            return FrequencyStyleValue::create(frequency);
+                        },
+                        [&](Length const& length) -> RefPtr<StyleValue const> {
+                            return LengthStyleValue::create(length);
+                        },
+                        [&](Resolution const& resolution) -> RefPtr<StyleValue const> {
+                            return ResolutionStyleValue::create(resolution);
+                        },
+                        [&](Time const& time) -> RefPtr<StyleValue const> {
+                            return TimeStyleValue::create(time);
+                        })
+            .release_nonnull();
     }
 
     // FIXME: Check types allowed by registered custom properties.

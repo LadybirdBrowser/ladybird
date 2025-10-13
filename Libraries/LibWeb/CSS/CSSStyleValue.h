@@ -37,7 +37,12 @@ public:
 
     virtual WebIDL::ExceptionOr<String> to_string() const;
 
-    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const;
+    // FIXME: Temporary hack. Really we want to pass something like a CalculationContext with the valid types and ranges.
+    enum class PerformTypeCheck : u8 {
+        No,
+        Yes,
+    };
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const;
 
 protected:
     explicit CSSStyleValue(JS::Realm&);

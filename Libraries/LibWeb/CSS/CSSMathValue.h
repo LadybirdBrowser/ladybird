@@ -32,7 +32,7 @@ public:
     };
     virtual String serialize_math_value(Nested, Parens) const = 0;
 
-    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&) const final override;
+    virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const final override;
 
 protected:
     explicit CSSMathValue(JS::Realm&, Bindings::CSSMathOperator, NumericType);

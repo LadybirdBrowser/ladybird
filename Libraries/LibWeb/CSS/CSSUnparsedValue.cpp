@@ -168,7 +168,7 @@ WebIDL::ExceptionOr<String> CSSUnparsedValue::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnparsedValue::create_an_internal_representation(PropertyNameAndID const&) const
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnparsedValue::create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const
 {
     // If value is a CSSStyleValue subclass,
     //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.

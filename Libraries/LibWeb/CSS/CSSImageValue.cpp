@@ -40,7 +40,7 @@ WebIDL::ExceptionOr<String> CSSImageValue::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSImageValue::create_an_internal_representation(PropertyNameAndID const& property) const
+WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSImageValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
 {
     // If value is a CSSStyleValue subclass,
     //     If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
@@ -53,7 +53,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSImageValue::create_an_in
         }
         return property_accepts_type(property.id(), ValueType::Image);
     }();
-    if (!matches_grammar) {
+    if (perform_type_check == PerformTypeCheck::Yes && !matches_grammar) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Property '{}' does not accept <image>", property.name())) };
     }
 
