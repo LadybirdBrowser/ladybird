@@ -40,7 +40,7 @@ GC::Ref<Shape> Shape::create_uncacheable_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
     new_shape->m_dictionary = true;
-    new_shape->m_cacheable = true;
+    new_shape->m_cacheable = false;
     new_shape->m_prototype = m_prototype;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     ensure_property_table();
@@ -291,6 +291,7 @@ void Shape::add_property_without_transition(PropertyKey const& property_key, Pro
     if (m_property_table->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
         VERIFY(m_property_count < NumericLimits<u32>::max());
         ++m_property_count;
+        ++m_dictionary_generation;
     }
 }
 
@@ -303,6 +304,7 @@ void Shape::set_property_attributes_without_transition(PropertyKey const& proper
     VERIFY(it != m_property_table->end());
     it->value.attributes = attributes;
     m_property_table->set(property_key, it->value);
+    ++m_dictionary_generation;
 }
 
 void Shape::remove_property_without_transition(PropertyKey const& property_key, u32 offset)
@@ -317,6 +319,7 @@ void Shape::remove_property_without_transition(PropertyKey const& property_key, 
         if (it.value.offset > offset)
             --it.value.offset;
     }
+    ++m_dictionary_generation;
 }
 
 GC::Ref<Shape> Shape::clone_for_prototype()
