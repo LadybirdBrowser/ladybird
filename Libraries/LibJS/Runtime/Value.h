@@ -382,7 +382,10 @@ public:
     bool to_boolean() const;
 
     ThrowCompletionOr<Value> get(VM&, PropertyKey const&) const;
+    ThrowCompletionOr<Value> get(VM&, PropertyKey const&, Bytecode::PropertyLookupCache&) const;
+
     ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&) const;
+    ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&, Bytecode::PropertyLookupCache&) const;
 
     [[nodiscard]] String to_string_without_side_effects() const;
     [[nodiscard]] Utf16String to_utf16_string_without_side_effects() const;

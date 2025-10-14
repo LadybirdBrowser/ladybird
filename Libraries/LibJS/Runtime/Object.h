@@ -121,6 +121,7 @@ public:
     // 7.3 Operations on Objects, https://tc39.es/ecma262/#sec-operations-on-objects
 
     ThrowCompletionOr<Value> get(PropertyKey const&) const;
+    ThrowCompletionOr<Value> get(PropertyKey const&, Bytecode::PropertyLookupCache&) const;
     ThrowCompletionOr<void> set(PropertyKey const&, Value, ShouldThrowExceptions);
     ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr);
     void create_method_property(PropertyKey const&, Value);
