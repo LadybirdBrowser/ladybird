@@ -22,7 +22,8 @@ ThrowCompletionOr<GC::Ref<AsyncGenerator>> AsyncGenerator::create(Realm& realm, 
 {
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-    auto generating_function_prototype = TRY(generating_function->get(vm.names.prototype));
+    static Bytecode::PropertyLookupCache cache;
+    auto generating_function_prototype = TRY(generating_function->get(vm.names.prototype, cache));
     auto generating_function_prototype_object = TRY(generating_function_prototype.to_object(vm));
     auto object = realm.create<AsyncGenerator>(realm, generating_function_prototype_object, move(execution_context));
     object->m_generating_function = generating_function;

@@ -127,7 +127,8 @@ ThrowCompletionOr<size_t> length_of_array_like(VM& vm, Object const& object)
         return object.indexed_properties().array_like_size();
 
     // 1. Return ℝ(? ToLength(? Get(obj, "length"))).
-    return TRY(object.get(vm.names.length)).to_length(vm);
+    static Bytecode::PropertyLookupCache cache;
+    return TRY(object.get(vm.names.length, cache)).to_length(vm);
 }
 
 // 7.3.20 CreateListFromArrayLike ( obj [ , elementTypes ] ), https://tc39.es/ecma262/#sec-createlistfromarraylike
@@ -173,7 +174,8 @@ ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM& vm, Val
 ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& object, FunctionObject& default_constructor)
 {
     // 1. Let C be ? Get(O, "constructor").
-    auto constructor = TRY(object.get(vm.names.constructor));
+    static Bytecode::PropertyLookupCache cache;
+    auto constructor = TRY(object.get(vm.names.constructor, cache));
 
     // 2. If C is undefined, return defaultConstructor.
     if (constructor.is_undefined())
@@ -184,7 +186,8 @@ ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& obj
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
 
     // 4. Let S be ? Get(C, @@species).
-    auto species = TRY(constructor.as_object().get(vm.well_known_symbol_species()));
+    static Bytecode::PropertyLookupCache cache2;
+    auto species = TRY(constructor.as_object().get(vm.well_known_symbol_species(), cache2));
 
     // 5. If S is either undefined or null, return defaultConstructor.
     if (species.is_nullish())
@@ -407,7 +410,8 @@ ThrowCompletionOr<Object*> get_prototype_from_constructor(VM& vm, FunctionObject
     // 1. Assert: intrinsicDefaultProto is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 
     // 2. Let proto be ? Get(constructor, "prototype").
-    auto prototype = TRY(constructor.get(vm.names.prototype));
+    static Bytecode::PropertyLookupCache cache;
+    auto prototype = TRY(constructor.get(vm.names.prototype, cache));
 
     // 3. If Type(proto) is not Object, then
     if (!prototype.is_object()) {

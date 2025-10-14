@@ -29,7 +29,8 @@ ThrowCompletionOr<GC::Ref<GeneratorObject>> GeneratorObject::create(Realm& realm
         // changed thus we hardcode the prototype.
         generating_function_prototype = realm.intrinsics().generator_prototype();
     } else {
-        generating_function_prototype = TRY(generating_function->get(vm.names.prototype));
+        static Bytecode::PropertyLookupCache cache;
+        generating_function_prototype = TRY(generating_function->get(vm.names.prototype, cache));
     }
     auto generating_function_prototype_object = TRY(generating_function_prototype.to_object(vm));
     auto object = realm.create<GeneratorObject>(realm, generating_function_prototype_object, move(execution_context));

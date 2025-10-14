@@ -39,7 +39,8 @@ Iterator::Iterator(Object& prototype)
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM& vm, Object& object)
 {
     // 1. Let nextMethod be ? Get(obj, "next").
-    auto next_method = TRY(object.get(vm.names.next));
+    static Bytecode::PropertyLookupCache cache;
+    auto next_method = TRY(object.get(vm.names.next, cache));
 
     // 2. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
     // 3. Return iteratorRecord.
@@ -57,7 +58,8 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM& vm, Valu
         return vm.throw_completion<TypeError>(ErrorType::NotIterable, object.to_string_without_side_effects());
 
     // 3. Let nextMethod be ? Get(iterator, "next").
-    auto next_method = TRY(iterator.get(vm, vm.names.next));
+    static Bytecode::PropertyLookupCache cache;
+    auto next_method = TRY(iterator.get(vm, vm.names.next, cache));
 
     // 4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
     auto iterator_record = vm.heap().allocate<IteratorRecord>(iterator.as_object(), next_method, false);
@@ -79,7 +81,8 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM& vm, Value object, It
         // b. If method is undefined, then
         if (!method) {
             // i. Let syncMethod be ? GetMethod(obj, @@iterator).
-            auto sync_method = TRY(object.get_method(vm, vm.well_known_symbol_iterator()));
+            static Bytecode::PropertyLookupCache cache;
+            auto sync_method = TRY(object.get_method(vm, vm.well_known_symbol_iterator(), cache));
 
             // ii. If syncMethod is undefined, throw a TypeError exception.
             if (!sync_method)
@@ -95,7 +98,8 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM& vm, Value object, It
     // 2. Else,
     else {
         // a. Let method be ? GetMethod(obj, @@iterator).
-        method = TRY(object.get_method(vm, vm.well_known_symbol_iterator()));
+        static Bytecode::PropertyLookupCache cache;
+        method = TRY(object.get_method(vm, vm.well_known_symbol_iterator(), cache));
     }
 
     // 3. If method is undefined, throw a TypeError exception.
@@ -124,7 +128,8 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM& vm, Valu
     }
 
     // 2. Let method be ? GetMethod(obj, %Symbol.iterator%).
-    auto method = TRY(object.get_method(vm, vm.well_known_symbol_iterator()));
+    static Bytecode::PropertyLookupCache cache;
+    auto method = TRY(object.get_method(vm, vm.well_known_symbol_iterator(), cache));
 
     Value iterator;
 
@@ -192,14 +197,16 @@ ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM& vm, IteratorRecord& iterato
 ThrowCompletionOr<bool> iterator_complete(VM& vm, Object& iterator_result)
 {
     // 1. Return ToBoolean(? Get(iterResult, "done")).
-    return TRY(iterator_result.get(vm.names.done)).to_boolean();
+    static Bytecode::PropertyLookupCache cache;
+    return TRY(iterator_result.get(vm.names.done, cache)).to_boolean();
 }
 
 // 7.4.8 IteratorValue ( iteratorResult ), https://tc39.es/ecma262/#sec-iteratorvalue
 ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
 {
     // 1. Return ? Get(iterResult, "value").
-    return TRY(iterator_result.get(vm.names.value));
+    static Bytecode::PropertyLookupCache cache;
+    return TRY(iterator_result.get(vm.names.value, cache));
 }
 
 // 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
@@ -220,7 +227,8 @@ ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecord& i
     auto result = TRY(iterator_next(vm, iterator_record));
 
     // 2. Let done be Completion(IteratorComplete(result)).
-    auto done = result->get(vm.names.done);
+    static Bytecode::PropertyLookupCache cache;
+    auto done = result->get(vm.names.done, cache);
 
     // 3. If done is a throw completion, then
     if (done.is_throw_completion()) {
@@ -244,7 +252,8 @@ ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecord& i
     }
 
     // 6. Return result.
-    return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done_value, result->get(vm.names.value) } };
+    static Bytecode::PropertyLookupCache cache2;
+    return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done_value, result->get(vm.names.value, cache2) } };
 }
 
 // 7.4.10 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue

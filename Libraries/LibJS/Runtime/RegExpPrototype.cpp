@@ -61,7 +61,8 @@ void RegExpPrototype::initialize(Realm& realm)
 static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_object, Utf16View const& string, bool unicode)
 {
     // Let thisIndex be ℝ(? ToLength(? Get(rx, "lastIndex"))).
-    auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex));
+    static Bytecode::PropertyLookupCache cache;
+    auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex, cache));
     auto last_index = TRY(last_index_value.to_length(vm));
 
     // Let nextIndex be AdvanceStringIndex(S, thisIndex, fullUnicode).
@@ -176,7 +177,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     // 1. Let length be the length of S.
     // 2. Let lastIndex be ℝ(? ToLength(? Get(R, "lastIndex"))).
-    auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex));
+    static Bytecode::PropertyLookupCache cache;
+    auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex, cache));
     auto last_index = TRY(last_index_value.to_length(vm));
 
     auto const& regex = regexp_object.regex();
@@ -393,7 +395,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<PrimitiveString> string)
 {
     // 1. Let exec be ? Get(R, "exec").
-    auto exec = TRY(regexp_object.get(vm.names.exec));
+    static Bytecode::PropertyLookupCache cache;
+    auto exec = TRY(regexp_object.get(vm.names.exec, cache));
 
     // 2. If IsCallable(exec) is true, then
     if (exec.is_function()) {
@@ -508,10 +511,13 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::flags)
     // 17. If unicodeSets is true, append the code unit 0x0076 (LATIN SMALL LETTER V) as the last code unit of result.
     // 18. Let sticky be ToBoolean(? Get(R, "sticky")).
     // 19. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) as the last code unit of result.
-#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)        \
-    auto flag_##flag_name = TRY(regexp_object->get(vm.names.flagName)); \
-    if (flag_##flag_name.to_boolean())                                  \
-        builder.append(#flag_char##sv);
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)                   \
+    {                                                                              \
+        static Bytecode::PropertyLookupCache cache;                                \
+        auto flag_##flag_name = TRY(regexp_object->get(vm.names.flagName, cache)); \
+        if (flag_##flag_name.to_boolean())                                         \
+            builder.append(#flag_char##sv);                                        \
+    }
     JS_ENUMERATE_REGEXP_FLAGS
 #undef __JS_ENUMERATE
 
@@ -532,7 +538,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let flags be ? ToString(? Get(rx, "flags")).
-    auto flags_value = TRY(regexp_object->get(vm.names.flags));
+    static Bytecode::PropertyLookupCache cache;
+    auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
     // 5. If flags does not contain "g", then
@@ -608,7 +615,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(R, "flags")).
-    auto flags_value = TRY(regexp_object->get(vm.names.flags));
+    static Bytecode::PropertyLookupCache cache;
+    auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
     // Steps 9-12 are performed early so that flags can be moved.
@@ -625,7 +633,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto matcher = TRY(construct(vm, *constructor, regexp_object, PrimitiveString::create(vm, move(flags))));
 
     // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-    auto last_index_value = TRY(regexp_object->get(vm.names.lastIndex));
+    static Bytecode::PropertyLookupCache cache2;
+    auto last_index_value = TRY(regexp_object->get(vm.names.lastIndex, cache2));
     auto last_index = TRY(last_index_value.to_length(vm));
 
     // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
@@ -659,7 +668,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     }
 
     // 7. Let flags be ? ToString(? Get(rx, "flags")).
-    auto flags_value = TRY(regexp_object->get(vm.names.flags));
+    static Bytecode::PropertyLookupCache cache;
+    auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
     // 8. If flags contains "g", let global be true. Otherwise, let global be false.
@@ -731,7 +741,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
         auto matched_length = matched->length_in_utf16_code_units();
 
         // e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
-        auto position_value = TRY(result->get(vm.names.index));
+        static Bytecode::PropertyLookupCache cache2;
+        auto position_value = TRY(result->get(vm.names.index, cache2));
         double position = TRY(position_value.to_integer_or_infinity(vm));
 
         // f. Set position to the result of clamping position between 0 and lengthS.
@@ -760,7 +771,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
         }
 
         // j. Let namedCaptures be ? Get(result, "groups").
-        auto named_captures = TRY(result->get(vm.names.groups));
+        static Bytecode::PropertyLookupCache cache3;
+        auto named_captures = TRY(result->get(vm.names.groups, cache3));
 
         String replacement;
 
@@ -833,7 +845,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let previousLastIndex be ? Get(rx, "lastIndex").
-    auto previous_last_index = TRY(regexp_object->get(vm.names.lastIndex));
+    static Bytecode::PropertyLookupCache cache;
+    auto previous_last_index = TRY(regexp_object->get(vm.names.lastIndex, cache));
 
     // 5. If SameValue(previousLastIndex, +0𝔽) is false, then
     if (!same_value(previous_last_index, Value(0))) {
@@ -845,7 +858,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     auto result = TRY(regexp_exec(vm, regexp_object, string));
 
     // 7. Let currentLastIndex be ? Get(rx, "lastIndex").
-    auto current_last_index = TRY(regexp_object->get(vm.names.lastIndex));
+    static Bytecode::PropertyLookupCache cache2;
+    auto current_last_index = TRY(regexp_object->get(vm.names.lastIndex, cache2));
 
     // 8. If SameValue(currentLastIndex, previousLastIndex) is false, then
     if (!same_value(current_last_index, previous_last_index)) {
@@ -858,7 +872,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
         return Value(-1);
 
     // 10. Return ? Get(result, "index").
-    return TRY(result.get(vm, vm.names.index));
+    static Bytecode::PropertyLookupCache cache3;
+    return TRY(result.get(vm, vm.names.index, cache3));
 }
 
 // 22.2.6.13 get RegExp.prototype.source, https://tc39.es/ecma262/#sec-get-regexp.prototype.source
@@ -903,7 +918,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(rx, "flags")).
-    auto flags_value = TRY(regexp_object->get(vm.names.flags));
+    static Bytecode::PropertyLookupCache cache;
+    auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
     // 6. If flags contains "u" or flags contains "v", let unicodeMatching be true.
@@ -973,7 +989,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
         // d. Else,
 
         // i. Let e be ℝ(? ToLength(? Get(splitter, "lastIndex"))).
-        auto last_index_value = TRY(splitter->get(vm.names.lastIndex));
+        static Bytecode::PropertyLookupCache cache2;
+        auto last_index_value = TRY(splitter->get(vm.names.lastIndex, cache2));
         auto last_index = TRY(last_index_value.to_length(vm));
 
         // ii. Set e to min(e, size).
@@ -1068,11 +1085,13 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::to_string)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let pattern be ? ToString(? Get(R, "source")).
-    auto source_attr = TRY(regexp_object->get(vm.names.source));
+    static Bytecode::PropertyLookupCache cache;
+    auto source_attr = TRY(regexp_object->get(vm.names.source, cache));
     auto pattern = TRY(source_attr.to_string(vm));
 
     // 4. Let flags be ? ToString(? Get(R, "flags")).
-    auto flags_attr = TRY(regexp_object->get(vm.names.flags));
+    static Bytecode::PropertyLookupCache cache2;
+    auto flags_attr = TRY(regexp_object->get(vm.names.flags, cache2));
     auto flags = TRY(flags_attr.to_string(vm));
 
     // 5. Let result be the string-concatenation of "/", pattern, "/", and flags.
