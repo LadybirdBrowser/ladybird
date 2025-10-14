@@ -333,8 +333,7 @@ bool HTMLMediaElement::ended() const
     // The ended attribute must return true if, the last time the event loop reached step 1, the media element had ended
     // playback and the direction of playback was forwards, and false otherwise.
     // FIXME: Add a hook into EventLoop::process() to be notified when step 1 is reached.
-    // FIXME: Detect playback direction.
-    return has_ended_playback();
+    return has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#durationChange
@@ -1590,10 +1589,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
 
     // 2. If the playback has ended and the direction of playback is forwards, seek to the earliest possible position
     //    of the media resource.
-    if (has_ended_playback()) {
-        // FIXME: Detect playback direction.
+    if (has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards)
         seek_element(0);
-    }
 
     // 3. If the media element's paused attribute is true, then:
     if (paused()) {
@@ -1963,6 +1960,11 @@ bool HTMLMediaElement::is_eligible_for_autoplay() const
         document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::Autoplay));
 }
 
+HTMLMediaElement::PlaybackDirection HTMLMediaElement::direction_of_playback() const
+{
+    return m_playback_rate >= 0 ? PlaybackDirection::Forwards : PlaybackDirection::Backwards;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#ended-playback
 bool HTMLMediaElement::has_ended_playback() const
 {
@@ -1977,16 +1979,23 @@ bool HTMLMediaElement::has_ended_playback() const
         // The current playback position is the end of the media resource, and
         m_current_playback_position == m_duration &&
 
-        // FIXME: The direction of playback is forwards, and
+        // The direction of playback is forwards, and
+        direction_of_playback() == PlaybackDirection::Forwards &&
 
         // The media element does not have a loop attribute specified.
         !has_attribute(HTML::AttributeNames::loop)) {
         return true;
     }
 
-    // FIXME: Or:
-    //            The current playback position is the earliest possible position, and
-    //            The direction of playback is backwards.
+    // Or:
+    if (
+        // The current playback position is the earliest possible position, and
+        m_current_playback_position == 0 &&
+
+        // The direction of playback is backwards.
+        direction_of_playback() == PlaybackDirection::Backwards) {
+        return true;
+    }
 
     return false;
 }
@@ -2011,8 +2020,7 @@ void HTMLMediaElement::reached_end_of_media_playback()
         dispatch_time_update_event();
 
         // 2. If the media element has ended playback, the direction of playback is forwards, and paused is false, then:
-        // FIXME: Detect playback direction.
-        if (has_ended_playback() && !paused()) {
+        if (has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards && !paused()) {
             // 1. Set the paused attribute to true.
             set_paused(true);
 
