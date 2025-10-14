@@ -383,6 +383,8 @@ void LayoutState::commit(Box& root)
         paintable_with_lines->for_each_in_inclusive_subtree_of_type<Painting::PaintableWithLines>([&](auto& paintable) {
             if (paintable.line_index() != line_index)
                 return TraversalDecision::Continue;
+            if (is<BlockContainer>(paintable.layout_node()))
+                return TraversalDecision::Continue;
 
             auto used_values = used_values_per_layout_node.get(paintable.layout_node_with_style_and_box_metrics());
             if (&paintable != paintable_with_lines && used_values.has_value())
