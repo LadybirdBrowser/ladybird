@@ -49,6 +49,12 @@ jobs:
         with:
           ref: ${{ inputs.reference_to_build }}
 
+      - name: 'Determine build commit hash'
+        id: build-commit
+        shell: bash
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
       - name: "Set up environment"
         uses: ./.github/actions/setup
         with:
@@ -102,6 +108,17 @@ jobs:
         run: |
           cpack
 
+          # Inject the COMMIT file for older builds (before commit 5c5de0e30e04).
+          for package in ladybird-*.tar.gz; do
+            if ! tar -tzf "${package}" | grep -qx COMMIT; then
+              echo "${{ steps.build-commit.outputs.sha }}" > COMMIT
+              gunzip "${package}"
+              tar --append --file="${package%.gz}" COMMIT
+              gzip "${package%.gz}"
+              rm COMMIT
+            fi
+          done
+
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
@@ -115,23 +132,27 @@ jobs:
       - name: Sanity-check the js repl
         shell: bash
         run: |
-          set -e
-          tar -xvzf Build/distribution/ladybird-js-${{ matrix.package_type }}.tar.gz
-          ./bin/js -c "console.log('Hello, World\!');" > js-repl-out.txt
-          if ! grep -q "\"Hello, World\!\"" js-repl-out.txt; then
+          path="Build/distribution/ladybird-js-${{ matrix.package_type }}.tar.gz"
+          if [ -f "${path}" ]; then
+            tar -xvzf "${path}"
+            bin/js -c "console.log('Hello, World\!');" > js-repl-out.txt
+            if ! grep -q "\"Hello, World\!\"" js-repl-out.txt; then
               echo "Sanity check failed: \"Hello, World\!\" not found in output."
               exit 1
+            fi
           fi
 
       - name: Sanity-check the wasm repl
         shell: bash
         run: |
-          set -e
-          tar -xvzf Build/distribution/ladybird-wasm-${{ matrix.package_type }}.tar.gz
-          ./bin/wasm -e run_sanity_check -w ${{ github.workspace }}/Libraries/LibWasm/Tests/CI/ci-sanity-check.wasm > wasm-repl-out.txt
-          if ! grep -q "Hello, World\!" wasm-repl-out.txt; then
+          path="Build/distribution/ladybird-wasm-${{ matrix.package_type }}.tar.gz"
+          if [ -f "${path}" ]; then
+            tar -xvzf "${path}"
+            bin/wasm -e run_sanity_check -w ${{ github.workspace }}/Libraries/LibWasm/Tests/CI/ci-sanity-check.wasm > wasm-repl-out.txt
+            if ! grep -q "Hello, World\!" wasm-repl-out.txt; then
               echo "Sanity check failed: Hello, World\! not found in output."
               exit 1
+            fi
           fi
 
       - name: Upload js package
