@@ -319,6 +319,10 @@ private:
     // by requiring that (...)+ only contain the matches for the last iteration.
     // To do that, we have to keep track of which capture groups are "in scope", so we can clear them as needed.
     Vector<Vector<size_t>> m_capture_groups_in_scope;
+
+    // Recursion depth tracking to prevent stack overflow
+    size_t m_recursion_depth { 0 };
+    static constexpr size_t MAX_RECURSION_DEPTH = 512;
 };
 
 using PosixExtended = PosixExtendedParser;

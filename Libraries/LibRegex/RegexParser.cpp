@@ -993,6 +993,12 @@ bool ECMA262Parser::has_duplicate_in_current_alternative(FlyString const& name)
 
 bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_minimum, ParseFlags flags)
 {
+    // Check recursion depth to prevent stack overflow
+    if (m_recursion_depth >= MAX_RECURSION_DEPTH)
+        return set_error(Error::ReachedMaxRecursion);
+
+    ++m_recursion_depth;
+
     size_t total_match_length_minimum = NumericLimits<size_t>::max();
     Vector<ByteCode> alternatives;
 
@@ -1002,8 +1008,10 @@ bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_mini
         ByteCode alternative_stack;
         size_t alternative_minimum_length = 0;
         auto alt_ok = parse_alternative(alternative_stack, alternative_minimum_length, flags);
-        if (!alt_ok)
+        if (!alt_ok) {
+            --m_recursion_depth;
             return false;
+        }
 
         alternatives.append(move(alternative_stack));
         total_match_length_minimum = min(alternative_minimum_length, total_match_length_minimum);
@@ -1018,6 +1026,7 @@ bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_mini
     Optimizer::append_alternation(stack, alternatives.span());
     match_length_minimum = total_match_length_minimum;
 
+    --m_recursion_depth;
     return true;
 }
 

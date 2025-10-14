@@ -1379,3 +1379,28 @@ TEST_CASE(account_for_opcode_size_calculating_incoming_jump_edges)
         EXPECT_EQ(result.matches.first().view.to_byte_string(), "aa"sv);
     }
 }
+
+TEST_CASE(deep_recursion_limit)
+{
+    // Test that deeply nested regex patterns don't cause stack overflow.
+    // Issue #4776: Patterns like (||(||(||... caused stack overflow.
+    
+    // Create a deeply nested pattern that would previously overflow the stack
+    // We use 600 levels to exceed the MAX_RECURSION_DEPTH of 512
+    constexpr int DEEP_NESTING_LEVELS = 600;
+    
+    StringBuilder pattern_builder;
+    for (int i = 0; i < DEEP_NESTING_LEVELS; i++) {
+        pattern_builder.append("(||"sv);
+    }
+    for (int i = 0; i < DEEP_NESTING_LEVELS; i++) {
+        pattern_builder.append(')');
+    }
+    
+    auto pattern = pattern_builder.to_byte_string();
+    Regex<ECMA262> re(pattern);
+    
+    // The parser should return an error instead of crashing
+    EXPECT_EQ(re.parser_result.error, regex::Error::ReachedMaxRecursion);
+}
+
