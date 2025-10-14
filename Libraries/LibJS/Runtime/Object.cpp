@@ -1547,7 +1547,15 @@ ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType pref
     // 3. For each element name of methodNames, do
     for (auto& method_name : method_names) {
         // a. Let method be ? Get(O, name).
-        auto method = TRY(get(method_name));
+        Value method;
+        if (method_name == vm.names.toString) {
+            static Bytecode::PropertyLookupCache cache;
+            method = TRY(get(method_name, cache));
+        } else {
+            ASSERT(method_name == vm.names.valueOf);
+            static Bytecode::PropertyLookupCache cache;
+            method = TRY(get(method_name, cache));
+        }
 
         // b. If IsCallable(method) is true, then
         if (method.is_function()) {

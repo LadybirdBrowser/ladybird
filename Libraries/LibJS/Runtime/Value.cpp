@@ -305,7 +305,8 @@ ThrowCompletionOr<bool> Value::is_regexp(VM& vm) const
         return false;
 
     // 2. Let matcher be ? Get(argument, @@match).
-    auto matcher = TRY(as_object().get(vm.well_known_symbol_match()));
+    static Bytecode::PropertyLookupCache cache;
+    auto matcher = TRY(as_object().get(vm.well_known_symbol_match(), cache));
 
     // 3. If matcher is not undefined, return ToBoolean(matcher).
     if (!matcher.is_undefined())
@@ -569,7 +570,8 @@ ThrowCompletionOr<Value> Value::to_primitive_slow_case(VM& vm, PreferredType pre
     // 1. If input is an Object, then
     if (is_object()) {
         // a. Let exoticToPrim be ? GetMethod(input, @@toPrimitive).
-        auto exotic_to_primitive = TRY(get_method(vm, vm.well_known_symbol_to_primitive()));
+        static Bytecode::PropertyLookupCache cache;
+        auto exotic_to_primitive = TRY(get_method(vm, vm.well_known_symbol_to_primitive(), cache));
 
         // b. If exoticToPrim is not undefined, then
         if (exotic_to_primitive) {
@@ -2194,7 +2196,8 @@ ThrowCompletionOr<Value> instance_of(VM& vm, Value value, Value target)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, target.to_string_without_side_effects());
 
     // 2. Let instOfHandler be ? GetMethod(target, @@hasInstance).
-    auto instance_of_handler = TRY(target.get_method(vm, vm.well_known_symbol_has_instance()));
+    static Bytecode::PropertyLookupCache cache;
+    auto instance_of_handler = TRY(target.get_method(vm, vm.well_known_symbol_has_instance(), cache));
 
     // 3. If instOfHandler is not undefined, then
     if (instance_of_handler) {
@@ -2241,7 +2244,8 @@ ThrowCompletionOr<Value> ordinary_has_instance(VM& vm, Value lhs, Value rhs)
     auto* lhs_object = &lhs.as_object();
 
     // 4. Let P be ? Get(C, "prototype").
-    auto rhs_prototype = TRY(rhs_function.get(vm.names.prototype));
+    static Bytecode::PropertyLookupCache cache;
+    auto rhs_prototype = TRY(rhs.get(vm, vm.names.prototype, cache));
 
     // 5. If P is not an Object, throw a TypeError exception.
     if (!rhs_prototype.is_object())
