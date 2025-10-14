@@ -216,6 +216,13 @@ private:
     void update_volume();
 
     bool is_eligible_for_autoplay() const;
+
+    enum class PlaybackDirection : u8 {
+        Forwards,
+        Backwards,
+    };
+    PlaybackDirection direction_of_playback() const;
+
     bool has_ended_playback() const;
     void reached_end_of_media_playback();
 
