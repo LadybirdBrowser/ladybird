@@ -19,6 +19,20 @@ static constexpr auto v128_tag = 0x7b;
 static constexpr auto function_reference_tag = 0x70;
 static constexpr auto extern_reference_tag = 0x6f;
 
+// wasm-gc references
+static constexpr auto array_reference_tag = 0x6a;
+static constexpr auto struct_reference_tag = 0x6b;
+static constexpr auto i31_reference_tag = 0x6c;
+static constexpr auto eq_reference_tag = 0x6d;
+static constexpr auto any_reference_tag = 0x6e;
+static constexpr auto none_reference_tag = 0x71;
+static constexpr auto noextern_reference_tag = 0x72;
+static constexpr auto nofunc_reference_tag = 0x73;
+static constexpr auto noexn_heap_reference_tag = 0x74;
+
+static constexpr auto nullable_reference_tag_tag = 0x63;
+static constexpr auto non_nullable_reference_tag_tag = 0x64;
+
 // Function
 static constexpr auto function_signature_tag = 0x60;
 

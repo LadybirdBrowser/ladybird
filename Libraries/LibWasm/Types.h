@@ -169,6 +169,7 @@ public:
         FunctionReference,
         ExternReference,
         ExceptionReference,
+        UnsupportedHeapReference, // Stub for wasm-gc proposal's reference types.
     };
 
     explicit ValueType(Kind kind)
@@ -178,7 +179,7 @@ public:
 
     bool operator==(ValueType const&) const = default;
 
-    auto is_reference() const { return m_kind == ExternReference || m_kind == FunctionReference; }
+    auto is_reference() const { return m_kind == ExternReference || m_kind == FunctionReference || m_kind == UnsupportedHeapReference; }
     auto is_vector() const { return m_kind == V128; }
     auto is_numeric() const { return !is_reference() && !is_vector(); }
     auto kind() const { return m_kind; }
@@ -204,6 +205,8 @@ public:
             return "externref";
         case ExceptionReference:
             return "exnref";
+        case UnsupportedHeapReference:
+            return "todo.heapref";
         }
         VERIFY_NOT_REACHED();
     }

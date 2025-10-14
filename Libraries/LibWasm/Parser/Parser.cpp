@@ -118,6 +118,22 @@ ParseResult<ValueType> ValueType::parse(Stream& stream)
         return ValueType(FunctionReference);
     case Constants::extern_reference_tag:
         return ValueType(ExternReference);
+    case Constants::array_reference_tag:
+    case Constants::struct_reference_tag:
+    case Constants::i31_reference_tag:
+    case Constants::eq_reference_tag:
+    case Constants::any_reference_tag:
+    case Constants::none_reference_tag:
+    case Constants::noextern_reference_tag:
+    case Constants::nofunc_reference_tag:
+    case Constants::noexn_heap_reference_tag:
+        // FIXME: Implement these when we support wasm-gc properly.
+        return ValueType(UnsupportedHeapReference);
+    case Constants::nullable_reference_tag_tag:
+    case Constants::non_nullable_reference_tag_tag:
+        tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+        (void)tag;
+        return ValueType(UnsupportedHeapReference);
     default:
         return ParseError::InvalidTag;
     }

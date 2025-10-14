@@ -760,6 +760,9 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
                 [](Wasm::Reference::Exception const&) { return ByteString("exception"); },
                 [](auto const& ref) { return ByteString::number(ref.address.value()); }));
         break;
+    case ValueType::UnsupportedHeapReference:
+        print("unsupported-heap-ref");
+        break;
     }
     TemporaryChange<size_t> change { m_indent, 0 };
 }

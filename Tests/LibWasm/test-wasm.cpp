@@ -314,12 +314,15 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                 }
                 case Wasm::ValueType::FunctionReference:
                 case Wasm::ValueType::ExternReference:
-                case Wasm::ValueType::ExceptionReference:
+                case Wasm::ValueType::ExceptionReference: {
                     auto ref = global->value().to<Wasm::Reference>();
                     return ref.ref().visit(
                         [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
                         [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
                         [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
+                }
+                case Wasm::ValueType::UnsupportedHeapReference:
+                    return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
                 }
             }
             return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("'{}' does not refer to a function or a global", name)));
@@ -406,6 +409,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             else
                 return vm.throw_completion<JS::TypeError>("Exception references are not supported"sv);
             break;
+        case Wasm::ValueType::Kind::UnsupportedHeapReference:
+            return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
         }
     }
 
@@ -420,7 +425,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     if (result.values().is_empty())
         return JS::js_null();
 
-    auto to_js_value = [&](Wasm::Value const& value, Wasm::ValueType type) {
+    auto to_js_value = [&](Wasm::Value const& value, Wasm::ValueType type) -> JS::ThrowCompletionOr<JS::Value> {
         switch (type.kind()) {
         case Wasm::ValueType::I32:
             return JS::Value(static_cast<double>(value.to<i32>()));
@@ -442,6 +447,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
         case Wasm::ValueType::ExceptionReference:
             return JS::js_null();
+        case Wasm::ValueType::UnsupportedHeapReference:
+            return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
         }
         VERIFY_NOT_REACHED();
     };
@@ -452,6 +459,6 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     size_t i = 0;
     return JS::Array::create_from<Wasm::Value>(*vm.current_realm(), result.values(), [&](Wasm::Value value) {
         auto value_type = type->results()[i++];
-        return to_js_value(value, value_type);
+        return MUST(to_js_value(value, value_type));
     });
 }

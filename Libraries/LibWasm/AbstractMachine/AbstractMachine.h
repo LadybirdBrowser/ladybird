@@ -99,6 +99,10 @@ public:
             // ref.null exnref
             m_value = u128(0, 4);
             break;
+        case ValueType::UnsupportedHeapReference:
+            // ref.null (todo)
+            m_value = u128(0, 5);
+            break;
         }
     }
 
