@@ -45,6 +45,7 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
     metrics.x_height = skMetrics.fXHeight;
     metrics.advance_of_ascii_zero = font.measureText("0", 1, SkTextEncoding::kUTF8);
     metrics.ascent = -skMetrics.fAscent;
+    metrics.cap_height = skMetrics.fCapHeight;
     metrics.descent = skMetrics.fDescent;
     metrics.line_gap = skMetrics.fLeading;
 
