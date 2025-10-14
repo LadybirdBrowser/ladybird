@@ -42,7 +42,20 @@ struct [[gnu::packed]] FourCC {
             | static_cast<u8>(cc[3]);
     }
 
+    bool operator<(FourCC const& other) const
+    {
+        return this->to_u32() < other.to_u32();
+    }
+
     char cc[4];
 };
 
 }
+
+template<>
+struct AK::Traits<Gfx::FourCC> : public AK::DefaultTraits<Gfx::FourCC> {
+    static unsigned hash(Gfx::FourCC const& key)
+    {
+        return key.to_u32();
+    }
+};
