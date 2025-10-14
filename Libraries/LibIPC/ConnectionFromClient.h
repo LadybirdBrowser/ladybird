@@ -31,11 +31,6 @@ public:
         , ClientEndpoint::template Proxy<ServerEndpoint>(*this, {})
         , m_client_id(client_id)
     {
-        this->transport().set_up_read_hook([this] {
-            NonnullRefPtr protect = *this;
-            // FIXME: Do something about errors.
-            (void)this->drain_messages_from_peer();
-        });
     }
 
     virtual ~ConnectionFromClient() override = default;

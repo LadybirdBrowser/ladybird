@@ -41,7 +41,11 @@ protected:
 
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
     void wait_for_transport_to_become_readable();
-    ErrorOr<void> drain_messages_from_peer();
+    enum class PeerEOF {
+        No,
+        Yes
+    };
+    PeerEOF drain_messages_from_peer();
 
     void handle_messages();
 
