@@ -267,7 +267,7 @@ double HTMLMediaElement::current_time() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-currenttime
-void HTMLMediaElement::set_current_time(double current_time)
+double HTMLMediaElement::set_current_time(double current_time)
 {
     // On setting, if the media element's readyState is HAVE_NOTHING, then it must set the media element's default playback start
     // position to the new value; otherwise, it must set the official playback position to the new value and then seek to the new
@@ -275,9 +275,14 @@ void HTMLMediaElement::set_current_time(double current_time)
     if (m_ready_state == ReadyState::HaveNothing) {
         m_default_playback_start_position = current_time;
     } else {
-        m_official_playback_position = current_time;
+        // AD-HOC: Don't set the official playback position here, as seek_element() will set it according to the seekable
+        //         ranges. We return the value passed to the setter to ensure that chained assignments like
+        //             videoA.currentTime = videoB.currentTime = Number.MAX_VALUE;
+        //         will seek both videoA and videoB to their corresponding ending positions.
+
         seek_element(current_time);
     }
+    return current_time;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-fastseek
