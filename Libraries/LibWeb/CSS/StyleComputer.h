@@ -177,7 +177,7 @@ public:
     static CSSPixels default_user_font_size();
     static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
     static CSSPixels relative_size_mapping(RelativeSize, CSSPixels inherited_font_size);
-    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width) const;
+    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, HashMap<FlyString, NumberOrCalculated> const& font_variation_settings, Length::ResolutionContext const& length_resolution_context) const;
     [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
@@ -238,8 +238,8 @@ private:
     LogicalAliasMappingContext compute_logical_alias_mapping_context(DOM::AbstractElement, ComputeStyleMode, MatchingRuleSet const&) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties) const;
     [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&, Optional<LogicalAliasMappingContext>, ReadonlySpan<PropertyID> properties_to_cascade) const;
-    static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
-    static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
+    static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, bool inclusive);
+    static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void compute_math_depth(ComputedProperties&, Optional<DOM::AbstractElement>) const;
@@ -323,7 +323,7 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface const> vector_font() const { return m_vector_font; }
 
-    RefPtr<Gfx::Font const> font_with_point_size(float point_size);
+    RefPtr<Gfx::Font const> font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations = {});
     void start_loading_next_url();
 
     bool is_loading() const;

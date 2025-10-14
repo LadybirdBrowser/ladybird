@@ -229,14 +229,14 @@ bool FontLoader::is_loading() const
     return m_fetch_controller && !m_vector_font;
 }
 
-RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size)
+RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations)
 {
     if (!m_vector_font) {
         if (!m_fetch_controller)
             start_loading_next_url();
         return nullptr;
     }
-    return m_vector_font->font(point_size);
+    return m_vector_font->font(point_size, variations);
 }
 
 void FontLoader::start_loading_next_url()
@@ -330,18 +330,18 @@ struct StyleComputer::MatchingFontCandidate {
     FontFaceKey key;
     Variant<FontLoaderList*, Gfx::Typeface const*> loader_or_typeface;
 
-    [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size) const
+    [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations) const
     {
         auto font_list = Gfx::FontCascadeList::create();
         if (auto* loader_list = loader_or_typeface.get_pointer<FontLoaderList*>(); loader_list) {
             for (auto const& loader : **loader_list) {
-                if (auto font = loader->font_with_point_size(point_size); font)
+                if (auto font = loader->font_with_point_size(point_size, variations); font)
                     font_list->add(*font, loader->unicode_ranges());
             }
             return font_list;
         }
 
-        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->font(point_size));
+        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->font(point_size, variations));
         return font_list;
     }
 };
@@ -1672,27 +1672,27 @@ Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedP
     return font_metrics;
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive)
+RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, bool inclusive)
 {
     using Fn = AK::Function<bool(MatchingFontCandidate const&)>;
     auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= target_weight; })
                           : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight > target_weight; });
     auto it = find_if(candidates.begin(), candidates.end(), pred);
     for (; it != candidates.end(); ++it) {
-        if (auto found_font = it->font_with_point_size(font_size_in_pt))
+        if (auto found_font = it->font_with_point_size(font_size_in_pt, variations))
             return found_font;
     }
     return {};
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive)
+RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, bool inclusive)
 {
     using Fn = AK::Function<bool(MatchingFontCandidate const&)>;
     auto pred = inclusive ? Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight <= target_weight; })
                           : Fn([&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight < target_weight; });
     auto it = find_if(candidates.rbegin(), candidates.rend(), pred);
     for (; it != candidates.rend(); ++it) {
-        if (auto found_font = it->font_with_point_size(font_size_in_pt))
+        if (auto found_font = it->font_with_point_size(font_size_in_pt, variations))
             return found_font;
     }
     return {};
@@ -1736,34 +1736,38 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyStr
     // If the desired weight is inclusively between 400 and 500, weights greater than or equal to the target weight
     // are checked in ascending order until 500 is hit and checked, followed by weights less than the target weight
     // in descending order, followed by weights greater than 500, until a match is found.
+
+    Gfx::FontVariationSettings variations;
+    variations.set_weight(weight);
+
     if (weight >= 400 && weight <= 500) {
         auto it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
             [&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= weight; });
         for (; it != matching_family_fonts.end() && it->key.weight <= 500; ++it) {
-            if (auto found_font = it->font_with_point_size(font_size_in_pt))
+            if (auto found_font = it->font_with_point_size(font_size_in_pt, variations))
                 return found_font;
         }
-        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, false))
+        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, variations, false))
             return found_font;
         for (; it != matching_family_fonts.end(); ++it) {
-            if (auto found_font = it->font_with_point_size(font_size_in_pt))
+            if (auto found_font = it->font_with_point_size(font_size_in_pt, variations))
                 return found_font;
         }
     }
     // If the desired weight is less than 400, weights less than or equal to the desired weight are checked in descending order
     // followed by weights above the desired weight in ascending order until a match is found.
     if (weight < 400) {
-        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, true))
+        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, variations, true))
             return found_font;
-        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, false))
+        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, variations, false))
             return found_font;
     }
     // If the desired weight is greater than 500, weights greater than or equal to the desired weight are checked in ascending order
     // followed by weights below the desired weight in descending order until a match is found.
     if (weight > 500) {
-        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, true))
+        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, variations, true))
             return found_font;
-        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, false))
+        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, variations, false))
             return found_font;
     }
     return {};
@@ -1825,7 +1829,7 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, NumberOrCalculated> const& font_variation_settings, Length::ResolutionContext const& length_resolution_context) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto width = round_to<int>(font_width.value());
@@ -1846,10 +1850,32 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         auto result = Gfx::FontCascadeList::create();
         if (auto it = m_loaded_fonts.find(key); it != m_loaded_fonts.end()) {
             auto const& loaders = it->value;
+
+            Gfx::FontVariationSettings variation;
+            variation.set_weight(font_weight);
+
+            CalculationResolutionContext context {
+                .length_resolution_context = length_resolution_context,
+            };
+
+            for (auto const& [tag_string, value] : font_variation_settings) {
+                auto string_view = tag_string.bytes_as_string_view();
+                if (string_view.length() != 4)
+                    continue;
+                auto tag = Gfx::FourCC(string_view.characters_without_null_termination());
+
+                auto resolved_value = value.resolved(context);
+                if (!resolved_value.has_value())
+                    continue;
+
+                variation.axes.set(tag, resolved_value.release_value());
+            }
+
             for (auto const& loader : loaders) {
-                if (auto found_font = loader->font_with_point_size(font_size_in_pt))
+                if (auto found_font = loader->font_with_point_size(font_size_in_pt, variation))
                     result->add(*found_font, loader->unicode_ranges());
             }
+
             return result;
         }
 
@@ -1985,7 +2011,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width());
+    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width(), style.font_variation_settings().value_or({}), font_computation_context.length_resolution_context);
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 

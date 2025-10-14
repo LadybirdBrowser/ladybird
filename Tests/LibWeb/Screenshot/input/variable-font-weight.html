@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Variable-Font-Weight</title>
+    <link rel="match" href="../expected/variable-font-weight-ref.html" />
+    <meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-4066">
+    <style>
+        @font-face {
+            font-family: 'Roboto Flex';
+            src: url(../data/variable-font-example.woff2) format('woff2');
+        }
+
+        body {
+            font-family: 'Roboto Flex', sans-serif;
+            font-synthesis: none;
+            font-synthesis-weight: none;
+        }
+    </style>
+</head>
+<body>
+    <span style="font-family: sans-serif">Sens serif</span>
+    Character outside <b>all unicode-ranges</b>:
+
+    <h1>Character outside all unicode-ranges:</h1>
+    Character outside all unicode-ranges:
+
+    <div style="font-variation-settings: 'wght' 900, 'opsz' 200;">
+        Hello
+    </div>
+</body>
+</html>
