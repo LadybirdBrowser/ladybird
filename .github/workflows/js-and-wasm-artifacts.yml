@@ -55,6 +55,13 @@ jobs:
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
+      - name: 'Use latest custom actions'
+        if: ${{ inputs.reference_to_build != '' && github.sha != steps.build-commit.outputs.sha }}
+        shell: bash
+        run: |
+          git fetch origin master
+          git checkout origin/master -- .github/actions
+
       - name: "Set up environment"
         uses: ./.github/actions/setup
         with:
