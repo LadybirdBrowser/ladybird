@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
  *
@@ -15,6 +15,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf8View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -1306,11 +1307,36 @@ ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property_key) con
     return TRY(object->internal_get(property_key, *this));
 }
 
+ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property, Bytecode::PropertyLookupCache& cache) const
+{
+    if (is_nullish())
+        return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefined);
+    return Bytecode::get_by_id<Bytecode::GetByIdMode::Normal>(vm, [&]() { return Optional<Utf16FlyString const&> {}; }, [&]() { return property; }, *this, *this, cache);
+}
+
 // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
 ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key) const
 {
     // 1. Let func be ? GetV(V, P).
     auto function = TRY(get(vm, property_key));
+
+    // 2. If func is either undefined or null, return undefined.
+    if (function.is_nullish())
+        return nullptr;
+
+    // 3. If IsCallable(func) is false, throw a TypeError exception.
+    if (!function.is_function())
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, function.to_string_without_side_effects());
+
+    // 4. Return func.
+    return function.as_function();
+}
+
+// 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
+ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key, Bytecode::PropertyLookupCache& cache) const
+{
+    // 1. Let func be ? GetV(V, P).
+    auto function = TRY(get(vm, property_key, cache));
 
     // 2. If func is either undefined or null, return undefined.
     if (function.is_nullish())

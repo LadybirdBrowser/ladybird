@@ -125,6 +125,13 @@ ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key) const
     return TRY(internal_get(property_key, this));
 }
 
+// 7.3.2 Get ( O, P ), https://tc39.es/ecma262/#sec-get-o-p
+ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key, Bytecode::PropertyLookupCache& cache) const
+{
+    // 1. Return ? O.[[Get]](P, O).
+    return TRY(Value(this).get(vm(), property_key, cache));
+}
+
 // NOTE: 7.3.3 GetV ( V, P ) is implemented as Value::get().
 
 // 7.3.4 Set ( O, P, V, Throw ), https://tc39.es/ecma262/#sec-set-o-p-v-throw
