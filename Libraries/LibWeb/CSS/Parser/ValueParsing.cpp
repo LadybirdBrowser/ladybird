@@ -4847,6 +4847,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_anchor_size(tokens);
     case ValueType::Angle:
         return parse_angle_value(tokens);
+    case ValueType::AnglePercentage:
+        return parse_angle_percentage_value(tokens);
     case ValueType::BackgroundPosition:
         return parse_position_value(tokens, PositionParsingMode::BackgroundPosition);
     case ValueType::BasicShape:
@@ -4870,12 +4872,16 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_flex_value(tokens);
     case ValueType::Frequency:
         return parse_frequency_value(tokens);
+    case ValueType::FrequencyPercentage:
+        return parse_frequency_percentage_value(tokens);
     case ValueType::Image:
         return parse_image_value(tokens);
     case ValueType::Integer:
         return parse_integer_value(tokens);
     case ValueType::Length:
         return parse_length_value(tokens);
+    case ValueType::LengthPercentage:
+        return parse_length_percentage_value(tokens);
     case ValueType::Number:
         return parse_number_value(tokens);
     case ValueType::Opacity:
@@ -4898,6 +4904,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_string_value(tokens);
     case ValueType::Time:
         return parse_time_value(tokens);
+    case ValueType::TimePercentage:
+        return parse_time_percentage_value(tokens);
     case ValueType::TransformFunction:
         return parse_transform_function_value(tokens);
     case ValueType::TransformList:
