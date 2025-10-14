@@ -10,6 +10,7 @@
 
 #include <core/SkData.h>
 #include <core/SkFontMgr.h>
+#include <core/SkStream.h>
 #include <core/SkTypeface.h>
 #ifndef AK_OS_ANDROID
 #    include <ports/SkFontMgr_fontconfig.h>
@@ -54,6 +55,35 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     }
 
     return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+}
+
+RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
+{
+    if (axes.is_empty())
+        return this;
+
+    SkFontArguments font_args;
+
+    Vector<SkFontArguments::VariationPosition::Coordinate> coords;
+    coords.ensure_capacity(axes.size());
+    for (size_t i = 0; i < axes.size(); ++i) {
+        coords.unchecked_append({ axes[i].tag.to_u32(), axes[i].value });
+    }
+    SkFontArguments::VariationPosition variation_pos;
+    variation_pos.coordinates = coords.data();
+    variation_pos.coordinateCount = static_cast<int>(coords.size());
+    font_args.setVariationDesignPosition(variation_pos);
+
+    font_args.setCollectionIndex(m_ttc_index);
+
+    auto data = SkData::MakeWithoutCopy(m_buffer.data(), m_buffer.size());
+    auto stream = std::make_unique<SkMemoryStream>(data);
+    auto skia_typeface = s_font_manager->makeFromStream(std::move(stream), font_args);
+
+    if (!skia_typeface)
+        return {};
+
+    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, static_cast<int>(m_ttc_index) });
 }
 
 SkTypeface const* TypefaceSkia::sk_typeface() const

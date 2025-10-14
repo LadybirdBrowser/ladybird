@@ -15,6 +15,7 @@ class TypefaceSkia : public Gfx::Typeface {
 
 public:
     static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, int index = 0);
+    RefPtr<TypefaceSkia const> clone_with_variations(Vector<FontVariationAxis> const& axes) const;
 
     virtual u32 glyph_count() const override;
     virtual u16 units_per_em() const override;
