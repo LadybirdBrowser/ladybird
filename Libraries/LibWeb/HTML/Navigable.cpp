@@ -1872,6 +1872,13 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
     // 7. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_session_history_entry() : nullptr;
 
+    // When replacing, preserve the navigation API ID and key to maintain entry identity
+    // This ensures the Navigation API can still find and reference this entry after replacement
+    if (entry_to_replace) {
+        history_entry->set_navigation_api_id(entry_to_replace->navigation_api_id());
+        history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+    }
+
     // 8. Let history be navigable's active document's history object.
     auto history = active_document()->history();
 
@@ -2110,6 +2117,11 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     history_entry->set_url(entry_to_replace->url());
     history_entry->set_document_state(document_state);
 
+    // Preserve the navigation API ID and key from the entry being replaced
+    // This maintains entry identity across document reloads for the Navigation API
+    history_entry->set_navigation_api_id(entry_to_replace->navigation_api_id());
+    history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+
     // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
     traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, user_involvement] {
         finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry);
@@ -2273,6 +2285,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
         //    then set historyEntry's navigation API key to entryToReplace's navigation API key.
         if (history_entry->document_state()->origin().has_value() && entry_to_replace->document_state()->origin().has_value() && history_entry->document_state()->origin()->is_same_origin(*entry_to_replace->document_state()->origin())) {
             history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+            // Also preserve the navigation API ID to maintain entry identity
+            history_entry->set_navigation_api_id(entry_to_replace->navigation_api_id());
         }
 
         // 4. Set targetStep to traversable's current session history step.
@@ -2318,6 +2332,13 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
 
     // 5. Let entryToReplace be activeEntry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_entry : nullptr;
+
+    // When replacing, preserve the navigation API ID and key to maintain entry identity
+    // This ensures the Navigation API can still find and reference this entry after replacement
+    if (entry_to_replace) {
+        new_entry->set_navigation_api_id(entry_to_replace->navigation_api_id());
+        new_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+    }
 
     // 6. If historyHandling is "push", then:
     if (history_handling == HistoryHandlingBehavior::Push) {
