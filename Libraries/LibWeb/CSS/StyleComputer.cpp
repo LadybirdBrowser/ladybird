@@ -2350,6 +2350,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
             for (auto const& property : inline_style->properties())
                 style->set_property(property.property_id, property.value);
         }
+        abstract_element.element().adjust_computed_style(style);
         return style;
     }
 
@@ -2603,7 +2604,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     compute_text_align(computed_style, abstract_element);
 
     // 8. Let the element adjust computed style
-    abstract_element.element().adjust_computed_style(computed_style);
+    if (!abstract_element.pseudo_element().has_value())
+        abstract_element.element().adjust_computed_style(computed_style);
 
     // 9. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
