@@ -99,7 +99,13 @@ String MediaFeature::to_string() const
 MatchResult MediaFeature::evaluate(DOM::Document const* document) const
 {
     VERIFY(document);
-    VERIFY(document->window());
+
+    // Documents without a window (e.g., those created by DOMParser) don't have a browsing context,
+    // so media queries cannot be evaluated against them and should return False.
+    // See: https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
+    if (!document->window())
+        return MatchResult::False;
+
     auto maybe_queried_value = document->window()->query_media_feature(m_id);
     if (!maybe_queried_value.has_value())
         return MatchResult::False;
