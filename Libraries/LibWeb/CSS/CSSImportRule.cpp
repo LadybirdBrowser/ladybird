@@ -53,6 +53,12 @@ void CSSImportRule::visit_edges(Cell::Visitor& visitor)
 void CSSImportRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
 {
     Base::set_parent_style_sheet(parent_style_sheet);
+
+    if (m_style_sheet && parent_style_sheet) {
+        for (auto owning_document_or_shadow_root : parent_style_sheet->owning_documents_or_shadow_roots())
+            m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
+    }
+
     // Crude detection of whether we're already fetching.
     if (m_style_sheet || m_document_load_event_delayer.has_value())
         return;
@@ -174,9 +180,15 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
 {
     m_style_sheet = style_sheet;
     m_style_sheet->set_owner_css_rule(this);
-    m_document->style_computer().invalidate_rule_cache();
+
     m_document->style_computer().load_fonts_from_sheet(*m_style_sheet);
-    m_document->invalidate_style(DOM::StyleInvalidationReason::CSSImportRule);
+
+    if (m_parent_style_sheet) {
+        for (auto owning_document_or_shadow_root : m_parent_style_sheet->owning_documents_or_shadow_roots())
+            m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
+    }
+
+    m_style_sheet->invalidate_owners(DOM::StyleInvalidationReason::CSSImportRule);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssimportrule-media
