@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const styleE = document.createElement('style');
+        styleE.onload = () => {
+            println("Onload event fired");
+            done();
+        }
+        document.head.append(styleE);
+    });
+</script>
