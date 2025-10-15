@@ -346,6 +346,10 @@ void CacheEntryReader::pipe_error(Error error)
 {
     dbgln("\033[31;1mError transferring cache to pipe for\033[0m {}: {}", m_url, error);
 
+    // FIXME: We may not want to actually remove the cache file for all errors. For now, let's assume the file is not
+    //        useable at this point and remove it.
+    remove();
+
     if (m_on_pipe_error)
         m_on_pipe_error(m_bytes_piped);
 
