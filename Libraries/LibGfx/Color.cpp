@@ -422,6 +422,15 @@ Color Color::from_linear_srgb(float red, float green, float blue, float alpha)
         clamp(lroundf(alpha * 255.f), 0, 255));
 }
 
+Color Color::from_linear_display_p3(float r, float g, float b, float alpha)
+{
+    float x = 0.48657095 * r + 0.26566769 * g + 0.19821729 * b;
+    float y = 0.22897456 * r + 0.69173852 * g + 0.07928691 * b;
+    float z = 0.00000000 * r + 0.04511338 * g + 1.04394437 * b;
+
+    return from_xyz65(x, y, z, alpha);
+}
+
 // https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
 Color Color::from_a98rgb(float r, float g, float b, float alpha)
 {
@@ -453,11 +462,7 @@ Color Color::from_display_p3(float r, float g, float b, float alpha)
     auto linear_g = to_linear(g);
     auto linear_b = to_linear(b);
 
-    float x = 0.48657095 * linear_r + 0.26566769 * linear_g + 0.19821729 * linear_b;
-    float y = 0.22897456 * linear_r + 0.69173852 * linear_g + 0.07928691 * linear_b;
-    float z = 0.00000000 * linear_r + 0.04511338 * linear_g + 1.04394437 * linear_b;
-
-    return from_xyz65(x, y, z, alpha);
+    return from_linear_display_p3(linear_r, linear_g, linear_b, alpha);
 }
 
 // https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb

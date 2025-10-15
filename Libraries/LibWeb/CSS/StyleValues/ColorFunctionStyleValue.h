@@ -22,7 +22,7 @@ public:
 
     virtual bool is_color_function() const override { return true; }
 
-    static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "rec2020"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
+    static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "display-p3-linear"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "rec2020"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
 
 private:
     ColorFunctionStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> c1, ValueComparingNonnullRefPtr<StyleValue const> c2, ValueComparingNonnullRefPtr<StyleValue const> c3, ValueComparingNonnullRefPtr<StyleValue const> alpha)
