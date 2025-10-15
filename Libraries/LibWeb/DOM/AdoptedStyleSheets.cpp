@@ -31,7 +31,6 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
             return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "Sharing a StyleSheet between documents is not allowed."_utf16);
 
         style_sheet.add_owning_document_or_shadow_root(document_or_shadow_root);
-        document_or_shadow_root.document().style_computer().load_fonts_from_sheet(style_sheet);
         document_or_shadow_root.document().style_computer().invalidate_rule_cache();
         document_or_shadow_root.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
         return {};
@@ -43,7 +42,6 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
         auto& style_sheet = static_cast<CSS::CSSStyleSheet&>(object);
 
         style_sheet.remove_owning_document_or_shadow_root(document_or_shadow_root);
-        document_or_shadow_root.document().style_computer().unload_fonts_from_sheet(style_sheet);
         document_or_shadow_root.document().style_computer().invalidate_rule_cache();
         document_or_shadow_root.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
         return {};
