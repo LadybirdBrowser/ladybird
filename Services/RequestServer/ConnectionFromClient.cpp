@@ -117,17 +117,23 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     i32 request_id { 0 };
     WeakPtr<ConnectionFromClient> client;
     int writer_fd { 0 };
-    HTTP::HeaderMap headers;
-    bool got_all_headers { false };
     bool is_connect_only { false };
     size_t downloaded_so_far { 0 };
     URL::URL url;
     ByteString method;
     Optional<String> reason_phrase;
     ByteBuffer body;
+
     AllocatingMemoryStream send_buffer;
     NonnullRefPtr<Core::Notifier> write_notifier;
     bool done_fetching { false };
+
+    Optional<long> http_status_code;
+    HTTP::HeaderMap headers;
+    bool got_all_headers { false };
+
+    Optional<size_t> start_offset_of_resumed_response;
+    size_t bytes_transferred_to_client { 0 };
 
     Optional<CacheEntryWriter&> cache_entry;
     UnixDateTime request_start_time;
@@ -161,9 +167,42 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
 
     ErrorOr<void> write_queued_bytes_without_blocking()
     {
+        auto available_bytes = send_buffer.used_buffer_size();
+
+        // If we've received a response to a range request that is not the partial content (206) we requested, we must
+        // only transfer the subset of data that WebContent now needs. We discard all received bytes up to the expected
+        // start of the remaining data, and then transfer the remaining bytes.
+        if (start_offset_of_resumed_response.has_value()) {
+            if (http_status_code == 206) {
+                start_offset_of_resumed_response.clear();
+            } else if (http_status_code == 200) {
+                // All bytes currently available have already been transferred. Discard them entirely.
+                if (bytes_transferred_to_client + available_bytes <= *start_offset_of_resumed_response) {
+                    bytes_transferred_to_client += available_bytes;
+
+                    MUST(send_buffer.discard(available_bytes));
+                    return {};
+                }
+
+                // Some bytes currently available have already been transferred. Discard those bytes and transfer the rest.
+                if (bytes_transferred_to_client + available_bytes > *start_offset_of_resumed_response) {
+                    auto bytes_to_discard = *start_offset_of_resumed_response - bytes_transferred_to_client;
+                    bytes_transferred_to_client += bytes_to_discard;
+                    available_bytes -= bytes_to_discard;
+
+                    MUST(send_buffer.discard(bytes_to_discard));
+                }
+
+                start_offset_of_resumed_response.clear();
+            } else {
+                return Error::from_string_literal("Unacceptable status code for resumed HTTP request");
+            }
+        }
+
         Vector<u8> bytes_to_send;
-        bytes_to_send.resize(send_buffer.used_buffer_size());
+        bytes_to_send.resize(available_bytes);
         send_buffer.peek_some(bytes_to_send);
+
         auto result = Core::System::write(this->writer_fd, bytes_to_send);
         if (result.is_error()) {
             if (result.error().code() != EAGAIN) {
@@ -180,7 +219,9 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
                 cache_entry.clear();
         }
 
+        bytes_transferred_to_client += result.value();
         MUST(send_buffer.discard(result.value()));
+
         write_notifier->set_enabled(!send_buffer.is_eof());
         if (send_buffer.is_eof() && done_fetching)
             schedule_self_destruction();
@@ -217,16 +258,26 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
 
     void flush_headers_if_needed()
     {
+        if (!http_status_code.has_value())
+            http_status_code = acquire_http_status_code();
+
         if (got_all_headers)
             return;
         got_all_headers = true;
-        long http_status_code = 0;
-        auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
-        VERIFY(result == CURLE_OK);
-        client->async_headers_became_available(request_id, headers, http_status_code, reason_phrase);
+
+        client->async_headers_became_available(request_id, headers, *http_status_code, reason_phrase);
 
         if (g_disk_cache.has_value())
-            cache_entry = g_disk_cache->create_entry(url, method, http_status_code, reason_phrase, headers, request_start_time);
+            cache_entry = g_disk_cache->create_entry(url, method, *http_status_code, reason_phrase, headers, request_start_time);
+    }
+
+    long acquire_http_status_code() const
+    {
+        long code = 0;
+        auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &code);
+        VERIFY(result == CURLE_OK);
+
+        return code;
     }
 };
 
@@ -483,6 +534,11 @@ void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::Header
 {
     VERIFY(0 && "RequestServer::ConnectionFromClient::start_request is not implemented");
 }
+
+void ConnectionFromClient::issue_network_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry>)
+{
+    VERIFY(0 && "RequestServer::ConnectionFromClient::issue_network_request is not implemented");
+}
 #else
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
@@ -504,25 +560,37 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                     async_request_finished(request_id, bytes_sent, {}, {});
                     MUST(Core::System::close(writer_fd));
                 },
-                [this, request_id, writer_fd](auto bytes_sent) {
-                    // FIXME: We should switch to a network request automatically if reading from cache has failed.
-                    async_request_finished(request_id, bytes_sent, {}, Requests::NetworkError::CacheReadFailed);
-                    (void)Core::System::close(writer_fd);
+                [this, request_id, writer_fd, method = move(method), url = move(url), request_headers = move(request_headers), request_body = move(request_body), proxy_data](auto bytes_sent) mutable {
+                    // FIXME: We should really also have a way to validate the data once CacheEntry is storing its crc.
+                    ResumeRequestForFailedCacheEntry resume_request {
+                        .start_offset = bytes_sent,
+                        .writer_fd = writer_fd,
+                    };
+
+                    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request);
                 });
 
             return;
         }
     }
 
+    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data);
+}
+
+void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, Optional<ResumeRequestForFailedCacheEntry> resume_request)
+{
     auto host = url.serialized_host().to_byte_string();
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
-        ->when_rejected([this, request_id](auto const& error) {
+        ->when_rejected([this, request_id, resume_request](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
             // FIXME: Implement timing info for DNS lookup failure.
             async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
+
+            if (resume_request.has_value())
+                MUST(Core::System::close(resume_request->writer_fd));
         })
-        .when_resolved([this, request_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data](auto const& dns_result) mutable {
+        .when_resolved([this, request_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data, resume_request](auto const& dns_result) mutable {
             if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
                 dbgln("StartRequest: DNS lookup failed for '{}'", host);
                 // FIXME: Implement timing info for DNS lookup failure.
@@ -538,16 +606,23 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                 return;
             }
 
-            auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
-            if (fds_or_error.is_error()) {
-                dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
-                return;
-            }
+            int writer_fd = 0;
 
-            auto fds = fds_or_error.release_value();
-            auto writer_fd = fds[1];
-            auto reader_fd = fds[0];
-            async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+            if (resume_request.has_value()) {
+                writer_fd = resume_request->writer_fd;
+            } else {
+                auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
+                if (fds_or_error.is_error()) {
+                    dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
+                    return;
+                }
+
+                auto fds = fds_or_error.release_value();
+                auto reader_fd = fds[0];
+                writer_fd = fds[1];
+
+                async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+            }
 
             auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
             request->url = url;
@@ -612,6 +687,14 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             if (curl_headers) {
                 set_option(CURLOPT_HTTPHEADER, curl_headers);
                 request->curl_string_lists.append(curl_headers);
+            }
+
+            if (resume_request.has_value()) {
+                auto range = ByteString::formatted("{}-", resume_request->start_offset);
+                set_option(CURLOPT_RANGE, range.characters());
+
+                request->got_all_headers = true; // Don't re-send the headers for resumed requests.
+                request->start_offset_of_resumed_response = resume_request->start_offset;
             }
 
             // FIXME: Set up proxy if applicable
