@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: display-p3-linear</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#valdef-color-display-p3-linear">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/greensquare-ref.html">
+<meta name="assert" content="display-p3-linear with no alpha">
+<style>
+    .test { background-color: red; width: 12em; height: 12em; }
+    .test { background-color: color(display-p3-linear 0.0383 0.2087 0.0156); } /* green (sRGB #008000) converted to display-p3-linear */
+</style>
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <div class="test"></div>
+</body>

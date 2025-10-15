@@ -21,6 +21,8 @@ ColorStyleValue::ColorType color_type_from_string_view(StringView color_space)
         return ColorStyleValue::ColorType::A98RGB;
     if (color_space == "display-p3"sv)
         return ColorStyleValue::ColorType::DisplayP3;
+    if (color_space == "display-p3-linear"sv)
+        return ColorStyleValue::ColorType::DisplayP3Linear;
     if (color_space == "srgb"sv)
         return ColorStyleValue::ColorType::sRGB;
     if (color_space == "srgb-linear"sv)
@@ -42,6 +44,8 @@ StringView string_view_from_color_type(ColorStyleValue::ColorType color_type)
         return "a98-rgb"sv;
     if (color_type == ColorStyleValue::ColorType::DisplayP3)
         return "display-p3"sv;
+    if (color_type == ColorStyleValue::ColorType::DisplayP3Linear)
+        return "display-p3-linear"sv;
     if (color_type == ColorStyleValue::ColorType::sRGB)
         return "srgb"sv;
     if (color_type == ColorStyleValue::ColorType::sRGBLinear)
@@ -170,6 +174,9 @@ Optional<Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_r
 
     if (color_type() == ColorType::DisplayP3)
         return Color::from_display_p3(c1, c2, c3, alpha_val);
+
+    if (color_type() == ColorType::DisplayP3Linear)
+        return Color::from_linear_display_p3(c1, c2, c3, alpha_val);
 
     if (color_type() == ColorType::sRGB) {
         auto const to_u8 = [](float c) -> u8 { return round_to<u8>(clamp(255 * c, 0, 255)); };

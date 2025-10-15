@@ -31,6 +31,7 @@ public:
         RGB, // This is used by RGBColorStyleValue for rgb(...) and rgba(...).
         A98RGB,
         DisplayP3,
+        DisplayP3Linear,
         HSL,
         HWB,
         Lab,
