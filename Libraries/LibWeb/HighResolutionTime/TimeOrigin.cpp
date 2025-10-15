@@ -45,13 +45,13 @@ DOMHighResTimeStamp get_time_origin_timestamp(JS::Object const& global)
 }
 
 // https://w3c.github.io/hr-time/#dfn-coarsen-time
-DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, bool cross_origin_isolated_capability)
+DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability)
 {
     // 1. Let time resolution be 100 microseconds, or a higher implementation-defined value.
     auto time_resolution_milliseconds = 0.1;
 
     // 2. If crossOriginIsolatedCapability is true, set time resolution to be 5 microseconds, or a higher implementation-defined value.
-    if (cross_origin_isolated_capability)
+    if (cross_origin_isolated_capability == HTML::CanUseCrossOriginIsolatedAPIs::Yes)
         time_resolution_milliseconds = 0.005;
 
     // 3. In an implementation-defined manner, coarsen and potentially jitter timestamp such that its resolution will not exceed time resolution
@@ -79,7 +79,7 @@ DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp time, JS::
     auto& settings = HTML::relevant_principal_settings_object(global);
 
     // 2. Let coarse time be the result of calling coarsen time with time and settings's cross-origin isolated capability.
-    auto coarse_time = coarsen_time(time, settings.cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
+    auto coarse_time = coarsen_time(time, settings.cross_origin_isolated_capability());
 
     // 2. Return the relative high resolution coarse time for coarse time and global.
     return relative_high_resolution_coarsen_time(coarse_time, global);
@@ -94,7 +94,7 @@ DOMHighResTimeStamp relative_high_resolution_coarsen_time(DOMHighResTimeStamp co
 }
 
 // https://w3c.github.io/hr-time/#dfn-coarsened-shared-current-time
-DOMHighResTimeStamp coarsened_shared_current_time(bool cross_origin_isolated_capability)
+DOMHighResTimeStamp coarsened_shared_current_time(HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability)
 {
     // The coarsened shared current time given an optional boolean crossOriginIsolatedCapability (default false), must return the result of calling coarsen time with the unsafe shared current time and crossOriginIsolatedCapability.
     return coarsen_time(unsafe_shared_current_time(), cross_origin_isolated_capability);
