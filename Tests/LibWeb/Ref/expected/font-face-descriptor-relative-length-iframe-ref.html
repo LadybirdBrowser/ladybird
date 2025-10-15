@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <body>
+        <iframe
+            id="iframe"
+            width="500"
+            srcdoc="
+            <!DOCTYPE html>
+            <html>
+                <style>
+                    @font-face {
+                        font-family: test;
+                        src: url(../data/pass.woff) format(woff);
+                    }
+                
+                    #foo {
+                        font-family: test;
+                    }
+                </style>
+                <body>
+                    <p>Test passes if the word PASS appears below.</p>
+                    <p id='foo'>P</p>
+                </body>
+            </html>"
+            onload="waitForFonts()"
+        ></iframe>
+        <script>
+            function waitForFonts() {
+                iframe.contentDocument.fonts.ready.then(() => {
+                    document.documentElement.classList = "";
+                });
+            }
+        </script>
+    </body>
+</html>
