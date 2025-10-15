@@ -154,7 +154,7 @@ public:
         auto unsafe_walltime = HighResolutionTime::wall_clock_unsafe_current_time();
 
         // 2. Return the result of calling coarsen time with unsafeWallTime and settingsObject's cross-origin isolated capability.
-        return HighResolutionTime::coarsen_time(unsafe_walltime, cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
+        return HighResolutionTime::coarsen_time(unsafe_walltime, cross_origin_isolated_capability());
     }
 
 protected:
