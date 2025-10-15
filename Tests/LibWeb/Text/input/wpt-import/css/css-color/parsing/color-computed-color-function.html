@@ -18,7 +18,7 @@
   }
 </style>
 <script>
-for (const colorSpace of [ "srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb", "display-p3" ]) {
+for (const colorSpace of [ "srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb", "display-p3", "display-p3-linear" ]) {
     test_computed_value("color", `color(${colorSpace} 0% 0% 0%)`, `color(${colorSpace} 0 0 0)`);
     test_computed_value("color", `color(${colorSpace} 10% 10% 10%)`, `color(${colorSpace} 0.1 0.1 0.1)`);
     test_computed_value("color", `color(${colorSpace} .2 .2 25%)`, `color(${colorSpace} 0.2 0.2 0.25)`);
@@ -148,6 +148,26 @@ test_computed_value("color", "color(display-p3 none none none / none)", "color(d
 test_computed_value("color", "color(display-p3 1.00 none 0.2 / none)", "color(display-p3 1 none 0.2 / none)", "[Display P3 with alpha, number and none]");
 test_computed_value("color", "color(display-p3 100% none 20% / 30%)", "color(display-p3 1 none 0.2 / 0.3)", "[Display P3 with alpha, percent and none]");
 test_computed_value("color", "color(display-p3 100% none 0.2 / 23.7%)", "color(display-p3 1 none 0.2 / 0.237)", "[Display P3 with alpha, number, percent and none]");
+
+// Opaque Display P3 Linear in color()
+test_computed_value("color", "color(display-p3-linear 1.00 0.50 0.200)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear all numbers]");
+test_computed_value("color", "color(display-p3-linear 100% 50% 20%)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear all percent]");
+test_computed_value("color", "color(display-p3-linear 100% 0.5 20%)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear mixed number and percent]");
+test_computed_value("color", "color(display-p3-linear 1.00 50% 0.2)", "color(display-p3-linear 1 0.5 0.2)", "[Display P3 Linear mixed number and percent 2]");
+test_computed_value("color", "color(display-p3-linear none none none)", "color(display-p3-linear none none none)", "[Display P3 Linear all none]");
+test_computed_value("color", "color(display-p3-linear 1.00 none 0.2)", "color(display-p3-linear 1 none 0.2)", "[Display P3 Linear number and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 20%)", "color(display-p3-linear 1 none 0.2)", "[Display P3 Linear percent and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 0.2)", "color(display-p3-linear 1 none 0.2)", "[Display P3 Linear number, percent and none]");
+
+// non-unity alpha, Display P3 Linear in  color()
+test_computed_value("color", "color(display-p3-linear 1.00 0.50 0.200 / 0.6)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, all numbers]");
+test_computed_value("color", "color(display-p3-linear 100% 50% 20% / 60%)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, all percent]");
+test_computed_value("color", "color(display-p3-linear 100% 0.5 20% / 0.6)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, mixed number and percent]");
+test_computed_value("color", "color(display-p3-linear 1.00 50% 0.2 / 60%)", "color(display-p3-linear 1 0.5 0.2 / 0.6)", "[Display P3 Linear with alpha, mixed number and percent 2]");
+test_computed_value("color", "color(display-p3-linear none none none / none)", "color(display-p3-linear none none none / none)", "[Display P3 Linear with alpha, all none]");
+test_computed_value("color", "color(display-p3-linear 1.00 none 0.2 / none)", "color(display-p3-linear 1 none 0.2 / none)", "[Display P3 Linear with alpha, number and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 20% / 30%)", "color(display-p3-linear 1 none 0.2 / 0.3)", "[Display P3 Linear with alpha, percent and none]");
+test_computed_value("color", "color(display-p3-linear 100% none 0.2 / 23.7%)", "color(display-p3-linear 1 none 0.2 / 0.237)", "[Display P3 Linear with alpha, number, percent and none]");
 
 // Opaque A98 RGB in color()
 test_computed_value("color", "color(a98-rgb 1.00 0.50 0.200)", "color(a98-rgb 1 0.5 0.2)", "[A98 RGB all numbers]");

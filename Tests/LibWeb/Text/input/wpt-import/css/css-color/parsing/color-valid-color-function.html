@@ -12,7 +12,7 @@
 </head>
 <body>
 <script>
-for (const colorSpace of [ "srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb", "display-p3", "xyz", "xyz-d50", "xyz-d65" ]) {
+for (const colorSpace of [ "srgb", "srgb-linear", "a98-rgb", "rec2020", "prophoto-rgb", "display-p3", "display-p3-linear", "xyz", "xyz-d50", "xyz-d65" ]) {
     const resultColorSpace = colorSpace == "xyz" ? "xyz-d65" : colorSpace;
 
     test_valid_value("color", `color(${colorSpace} 0% 0% 0%)`, `color(${resultColorSpace} 0 0 0)`);

@@ -28,6 +28,7 @@ test_valid_value("color", "rgb(-2, 3, 4)", "rgb(0, 3, 4)");
 test_valid_value("color", "rgb(100, 200, 300)", "rgb(100, 200, 255)");
 test_valid_value("color", "rgb(20, 10, 0, -10)", "rgba(20, 10, 0, 0)");
 test_valid_value("color", "rgb(100%, 200%, 300%)", "rgb(255, 255, 255)");
+test_valid_value("color", "light-dark(black, white)");
 </script>
 </body>
 </html>
