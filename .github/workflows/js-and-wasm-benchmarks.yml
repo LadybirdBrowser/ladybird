@@ -53,7 +53,6 @@ jobs:
           sudo apt-get install -y python3-venv
 
       - name: 'Download JS repl artifact'
-        id: download-js-artifact
         uses: dawidd6/action-download-artifact@v11
         with:
           run_id: ${{ github.event.workflow_run.id }}
@@ -73,15 +72,16 @@ jobs:
           commit_hash=$(cat js-repl/COMMIT)
           echo "sha=${commit_hash}" >> "${GITHUB_OUTPUT}"
 
-      - name: 'Download Wasm repl artifact'
-        id: download-wasm-artifact
+      - name: 'Download wasm repl artifact'
         uses: dawidd6/action-download-artifact@v11
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: ladybird-wasm-${{ matrix.package_type }}
           path: wasm-repl
+          if_no_artifact_found: warn
 
-      - name: 'Extract Wasm repl'
+      - name: 'Extract wasm repl'
+        if: ${{ hashFiles('wasm-repl/*.tar.gz') != '' }}
         shell: bash
         run: |
           cd wasm-repl
@@ -95,17 +95,24 @@ jobs:
           source .venv/bin/activate
           python3 -m pip install -r requirements.txt
 
-          run_options="--iterations=5"
+          run_options='--iterations=5'
+
+          js_path="${{ github.workspace }}/js-repl/bin/js"
+          run_options="${run_options} --executable=${js_path}"
+
+          wasm_path="${{ github.workspace }}/wasm-repl/bin/wasm"
+          if [ -x "${wasm_path}" ]; then
+              run_options="${run_options} --wasm-executable=${wasm_path}"
+          else
+              echo "Wasm repl not found; skipping wasm benchmarks."
+          fi
 
           if [ "${{ github.event.workflow_run.event }}" = "workflow_dispatch" ]; then
               # Upstream was run manually; we might run into failing benchmarks as a result of older builds.
               run_options="${run_options} --continue-on-failure"
           fi
 
-          ./run.py \
-              --executable=${{ github.workspace }}/js-repl/bin/js \
-              --wasm-executable=${{ github.workspace }}/wasm-repl/bin/wasm \
-              ${run_options}
+          ./run.py ${run_options}
 
       - name: 'Save results as an artifact'
         uses: actions/upload-artifact@v4
