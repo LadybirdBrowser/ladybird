@@ -27,7 +27,6 @@
     test_invalid_value(`color`, `color-mix(in hsl hsl(120deg 10% 20%), hsl(30deg 30% 40%))`); // Missing comma after interpolation method.
     test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) hsl(30deg 30% 40%))`); // Missing comma between colors.
     test_invalid_value(`color`, `color-mix(hsl(120deg 10% 20%), hsl(30deg 30% 40%), in hsl)`); // Interpolation method not at the beginning.
-    test_invalid_value(`color`, `color-mix(hsl(120deg 10% 20%), hsl(30deg 30% 40%))`); // Missing interpolation method.
 
     test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) -10%, hwb(30deg 30% 40%))`); // Percentages less than 0 are not valid.
     test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) 150%, hwb(30deg 30% 40%))`); // Percentages greater than 100 are not valid.
@@ -41,7 +40,6 @@
     test_invalid_value(`color`, `color-mix(in hwb hwb(120deg 10% 20%), hwb(30deg 30% 40%))`); // Missing comma after interpolation method.
     test_invalid_value(`color`, `color-mix(in hwb, hwb(120deg 10% 20%) hwb(30deg 30% 40%))`); // Missing comma between colors.
     test_invalid_value(`color`, `color-mix(hwb(120deg 10% 20%), hwb(30deg 30% 40%), in hwb)`); // Interpolation method not at the beginning.
-    test_invalid_value(`color`, `color-mix(hwb(120deg 10% 20%), hwb(30deg 30% 40%))`); // Missing interpolation method.
     test_invalid_value(`color`, `color-mix(in srgb, red, blue blue)`); // Too many parameters.
 
     for (const colorSpace of [ "lch", "oklch" ]) {
@@ -57,7 +55,6 @@
         test_invalid_value(`color`, `color-mix(in ${colorSpace} ${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg))`); // Missing comma after interpolation method.
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30deg) ${colorSpace}(50% 60 70deg))`); // Missing comma between colors.
         test_invalid_value(`color`, `color-mix(${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg), in ${colorSpace})`); // Interpolation method not at the beginning.
-        test_invalid_value(`color`, `color-mix(${colorSpace}(10% 20 30deg), ${colorSpace}(50% 60 70deg))`); // Missing interpolation method.
     }
 
     for (const colorSpace of [ "lab", "oklab" ]) {
@@ -71,10 +68,9 @@
         test_invalid_value(`color`, `color-mix(in ${colorSpace} ${colorSpace}(10% 20 30), ${colorSpace}(50% 60 70))`); // Missing comma after interpolation method.
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, ${colorSpace}(10% 20 30) ${colorSpace}(50% 60 70))`); // Missing comma between colors.
         test_invalid_value(`color`, `color-mix(${colorSpace}(10% 20 30), ${colorSpace}(50% 60 70), in ${colorSpace})`); // Interpolation method not at the beginning.
-        test_invalid_value(`color`, `color-mix(${colorSpace}(10% 20 30), ${colorSpace}(50% 60 70))`); // Missing interpolation method.
     }
 
-    for (const colorSpace of [ "srgb", "srgb-linear", "display-p3", "a98-rgb", "prophoto-rgb", "rec2020", "xyz", "xyz-d50", "xyz-d65" ]) {
+    for (const colorSpace of [ "srgb", "srgb-linear", "display-p3", "display-p3-linear", "a98-rgb", "prophoto-rgb", "rec2020", "xyz", "xyz-d50", "xyz-d65" ]) {
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) -10%, color(${colorSpace} .5 .6 .7))`); // Percentages less than 0 are not valid.
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 150%, color(${colorSpace} .5 .6 .7))`); // Percentages greater than 100 are not valid.
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) 0%, color(${colorSpace} .5 .6 .7) 0%)`); // Sum of percengates cannot be 0%.
@@ -85,7 +81,6 @@
         test_invalid_value(`color`, `color-mix(in ${colorSpace} color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`); // Missing comma after interpolation method.
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) color(${colorSpace} .5 .6 .7))`); // Missing comma between colors.
         test_invalid_value(`color`, `color-mix(color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7), in ${colorSpace})`); // Interpolation method not at the beginning.
-        test_invalid_value(`color`, `color-mix(color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7))`); // Missing interpolation method.
     }
 </script>
 </body>
