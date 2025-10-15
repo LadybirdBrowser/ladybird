@@ -148,7 +148,10 @@ ErrorOr<void> JPEGLoadingContext::decode()
 
         // Photoshop writes inverted CMYK data (i.e. Photoshop's 0 should be 255). We convert this
         // to expected values.
-        if (cinfo.saw_Adobe_marker) {
+        bool should_invert_cmyk = cinfo.jpeg_color_space == JCS_CMYK
+            && (!cinfo.saw_Adobe_marker || cinfo.Adobe_transform == 0);
+
+        if (should_invert_cmyk) {
             for (int i = 0; i < cmyk_bitmap->size().height(); ++i) {
                 auto* line = cmyk_bitmap->scanline(i);
 
