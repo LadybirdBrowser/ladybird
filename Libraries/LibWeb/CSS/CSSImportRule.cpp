@@ -181,8 +181,6 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
     m_style_sheet = style_sheet;
     m_style_sheet->set_owner_css_rule(this);
 
-    m_document->style_computer().load_fonts_from_sheet(*m_style_sheet);
-
     if (m_parent_style_sheet) {
         for (auto owning_document_or_shadow_root : m_parent_style_sheet->owning_documents_or_shadow_roots())
             m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);

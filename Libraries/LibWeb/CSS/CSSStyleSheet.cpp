@@ -322,6 +322,11 @@ void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_sh
     VERIFY(document_or_shadow_root.is_document() || document_or_shadow_root.is_shadow_root());
     m_owning_documents_or_shadow_roots.set(document_or_shadow_root);
 
+    // All owning documents or shadow roots must be part of the same document so we only need to load this style
+    // sheet's fonts against the document of the first
+    if (this->owning_documents_or_shadow_roots().size() == 1)
+        document_or_shadow_root.document().style_computer().load_fonts_from_sheet(*this);
+
     for (auto const& import_rule : m_import_rules) {
         if (import_rule->loaded_style_sheet())
             import_rule->loaded_style_sheet()->add_owning_document_or_shadow_root(document_or_shadow_root);
@@ -331,6 +336,11 @@ void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_sh
 void CSSStyleSheet::remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root)
 {
     m_owning_documents_or_shadow_roots.remove(document_or_shadow_root);
+
+    // All owning documents or shadow roots must be part of the same document so we only need to unload this style
+    // sheet's fonts once we have none remaining.
+    if (this->owning_documents_or_shadow_roots().size() == 0)
+        document_or_shadow_root.document().style_computer().unload_fonts_from_sheet(*this);
 
     for (auto const& import_rule : m_import_rules) {
         if (import_rule->loaded_style_sheet())
