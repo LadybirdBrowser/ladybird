@@ -190,7 +190,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //    shared current time given crossOriginIsolatedCapability, and render-blocking is set to request’s
     //    render-blocking.
     auto timing_info = Infrastructure::FetchTimingInfo::create(vm);
-    auto now = HighResolutionTime::coarsened_shared_current_time(cross_origin_isolated_capability == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
+    auto now = HighResolutionTime::coarsened_shared_current_time(cross_origin_isolated_capability);
     timing_info->set_start_time(now);
     timing_info->set_post_redirect_start_time(now);
     timing_info->set_render_blocking(request.render_blocking());
@@ -1166,7 +1166,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         // 3. Let serviceWorkerStartTime be the coarsened shared current time given fetchParams’s cross-origin isolated
         //    capability.
-        auto service_worker_start_time = HighResolutionTime::coarsened_shared_current_time(fetch_params.cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
+        auto service_worker_start_time = HighResolutionTime::coarsened_shared_current_time(fetch_params.cross_origin_isolated_capability());
 
         // FIXME: 4. Set response to the result of invoking handle fetch for requestForServiceWorker, with fetchParams’s
         //           controller and fetchParams’s cross-origin isolated capability.
@@ -1468,7 +1468,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
 
     // 16. Set timingInfo’s redirect end time and post-redirect start time to the coarsened shared current time given
     //     fetchParams’s cross-origin isolated capability.
-    auto now = HighResolutionTime::coarsened_shared_current_time(fetch_params.cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
+    auto now = HighResolutionTime::coarsened_shared_current_time(fetch_params.cross_origin_isolated_capability());
     timing_info->set_redirect_end_time(now);
     timing_info->set_post_redirect_start_time(now);
 
