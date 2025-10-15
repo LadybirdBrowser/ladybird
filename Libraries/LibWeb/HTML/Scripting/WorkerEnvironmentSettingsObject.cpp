@@ -114,7 +114,7 @@ CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isol
 double WorkerEnvironmentSettingsObject::time_origin() const
 {
     // Return the result of coarsening unsafeWorkerCreationTime with worker global scope's cross-origin isolated capability.
-    return HighResolutionTime::coarsen_time(m_unsafe_worker_creation_time, cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes);
+    return HighResolutionTime::coarsen_time(m_unsafe_worker_creation_time, cross_origin_isolated_capability());
 }
 
 void WorkerEnvironmentSettingsObject::visit_edges(JS::Cell::Visitor& visitor)
