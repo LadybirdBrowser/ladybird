@@ -18,6 +18,7 @@
 #include <LibMain/Main.h>
 #include <LibMedia/Audio/Loader.h>
 #include <LibRequests/RequestClient.h>
+#include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/Window.h>
@@ -107,6 +108,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
     StringView echo_server_port_string_view {};
+    StringView default_time_zone {};
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Browser process command line", "command-line", 0, "command_line");
@@ -129,11 +131,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
+    args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
 
     args_parser.parse(arguments);
 
     if (wait_for_debugger) {
         Core::Process::wait_for_debugger_and_break();
+    }
+
+    if (!default_time_zone.is_empty()) {
+        if (auto result = Unicode::set_current_time_zone(default_time_zone); result.is_error())
+            dbgln("Failed to set default time zone: {}", result.error());
     }
 
     auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));

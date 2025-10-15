@@ -109,6 +109,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> webdriver_content_ipc_path;
     Optional<StringView> user_agent_preset;
     Optional<StringView> dns_server_address;
+    Optional<StringView> default_time_zone;
     Optional<u16> dns_server_port;
     bool use_dns_over_tls = false;
     bool layout_test_mode = false;
@@ -178,6 +179,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
     args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
+    args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
@@ -276,6 +278,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .enable_autoplay = enable_autoplay ? EnableAutoplay::Yes : EnableAutoplay::No,
         .collect_garbage_on_every_allocation = collect_garbage_on_every_allocation ? CollectGarbageOnEveryAllocation::Yes : CollectGarbageOnEveryAllocation::No,
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
+        .default_time_zone = default_time_zone,
     };
 
     create_platform_options(m_browser_options, m_web_content_options);

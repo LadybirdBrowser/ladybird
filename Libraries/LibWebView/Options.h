@@ -169,6 +169,7 @@ struct WebContentOptions {
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
+    Optional<StringView> default_time_zone {};
 };
 
 }
