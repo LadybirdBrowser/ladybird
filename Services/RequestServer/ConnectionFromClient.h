@@ -56,6 +56,12 @@ private:
     virtual void websocket_close(i64 websocket_id, u16, ByteString) override;
     virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i64, ByteString, ByteString) override;
 
+    struct ResumeRequestForFailedCacheEntry {
+        size_t start_offset { 0 };
+        int writer_fd { 0 };
+    };
+    void issue_network_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry> = {});
+
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     struct ActiveRequest;
