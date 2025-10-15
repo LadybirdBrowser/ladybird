@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <head>
+        <link
+            rel="match"
+            href="../../expected/font-face-descriptor-relative-length-iframe-ref.html"
+        />
+    </head>
+    <body>
+        <iframe
+            id="iframe"
+            width="500"
+            srcdoc="
+            <!DOCTYPE html>
+            <html>
+                <style>
+                    @font-face {
+                        font-family: test;
+                        src: url(../../data/fail.woff) format(woff);
+                        font-weight: 400;
+                    }
+                
+                    @font-face {
+                        font-family: test;
+                        src: url(../../data/pass.woff) format(woff);
+                        /* Should compute to '100' because 100vw = 500px */
+                        font-weight: calc(100 + (sign(100vw - 500px) * 1000));
+                    }
+                
+                    #foo {
+                        font-family: test;
+                        font-weight: 100;
+                    }
+                </style>
+                <body>
+                    <p>Test passes if the word PASS appears below.</p>
+                    <p id='foo'>P</p>
+                </body>
+            </html>"
+            onload="waitForFonts()"
+        ></iframe>
+        <script>
+            function waitForFonts() {
+                iframe.contentDocument.fonts.ready.then(() => {
+                    document.documentElement.classList = "";
+                });
+            }
+        </script>
+    </body>
+</html>
