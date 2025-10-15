@@ -2405,17 +2405,15 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
     // 6. Let range be a key range.
     GC::Ptr<IDBKeyRange> range;
 
-    // 7. Let direction be a cursor direction.
-    Bindings::IDBCursorDirection direction;
+    // 7. Let direction be "next".
+    // FIXME: Spec bug: https://github.com/w3c/IndexedDB/pull/478
+    Bindings::IDBCursorDirection direction = Bindings::IDBCursorDirection::Next;
 
     // 8. If running is a potentially valid key range with queryOrOptions is true, then:
     // AD-HOC: Check if query_or_options is null following https://github.com/w3c/IndexedDB/issues/475
     if (query_or_options.is_nullish() || is_a_potentially_valid_key_range(realm, query_or_options)) {
         // 1. Set range to the result of converting a value to a key range with queryOrOptions. Rethrow any exceptions.
         range = TRY(convert_a_value_to_a_key_range(realm, query_or_options));
-
-        // 2. Set direction to "next".
-        direction = Bindings::IDBCursorDirection::Next;
     }
 
     // 9. Else:
@@ -2436,8 +2434,6 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
             direction = Bindings::IDBCursorDirection::Prev;
         else if (direction_value == "prevunique")
             direction = Bindings::IDBCursorDirection::Prevunique;
-        else
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid direction value"_string };
     }
 
     // 10. Let operation be an algorithm to run.
