@@ -549,7 +549,7 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
 }
 
 // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
-ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(ExecutionContext& callee_context, FunctionObject& new_target)
+FLATTEN ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(ExecutionContext& callee_context, FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -566,14 +566,14 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     // 3. If kind is base, then
     if (kind == ConstructorKind::Base) {
         // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
-        this_argument = TRY(ordinary_create_from_constructor<Object>(vm, new_target, &Intrinsics::object_prototype, ConstructWithPrototypeTag::Tag));
+        this_argument = TRY(ordinary_create_from_constructor<Object>(vm, *realm(), new_target, &Intrinsics::object_prototype, ConstructWithPrototypeTag::Tag));
     }
 
     // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
     prepare_for_ordinary_call(vm, callee_context, &new_target);
 
     // 5. Assert: calleeContext is now the running execution context.
-    VERIFY(&vm.running_execution_context() == &callee_context);
+    ASSERT(&vm.running_execution_context() == &callee_context);
 
     // 6. If kind is base, then
     if (kind == ConstructorKind::Base) {
@@ -628,7 +628,7 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     auto this_binding = TRY(constructor_env->get_this_binding(vm));
 
     // 16. Assert: Type(thisBinding) is Object.
-    VERIFY(this_binding.is_object());
+    ASSERT(this_binding.is_object());
 
     // 17. Return thisBinding.
     return this_binding.as_object();
@@ -765,7 +765,7 @@ void ECMAScriptFunctionObject::ordinary_call_bind_this(VM& vm, ExecutionContext&
             this_value = MUST(this_argument.to_object(vm));
 
             // ii. NOTE: ToObject produces wrapper objects using calleeRealm.
-            VERIFY(vm.current_realm() == callee_realm);
+            ASSERT(vm.current_realm() == callee_realm);
         }
     }
 
@@ -908,7 +908,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
     if (kind() == FunctionKind::Async)
         return AsyncFunctionDriverWrapper::create(realm, generator_object);
 
-    VERIFY(kind() == FunctionKind::Generator);
+    ASSERT(kind() == FunctionKind::Generator);
     return generator_object;
 }
 

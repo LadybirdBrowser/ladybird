@@ -157,11 +157,17 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> construct(VM& vm, FunctionObjec
 
 // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
 template<typename T, typename... Args>
-ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM& vm, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)(), Args&&... args)
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM& vm, Realm& realm, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)(), Args&&... args)
 {
-    auto& realm = *vm.current_realm();
     auto* prototype = TRY(get_prototype_from_constructor(vm, constructor, intrinsic_default_prototype));
     return realm.create<T>(forward<Args>(args)..., *prototype);
+}
+
+// 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
+template<typename T, typename... Args>
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM& vm, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)(), Args&&... args)
+{
+    return ordinary_create_from_constructor<T>(vm, *vm.current_realm(), constructor, intrinsic_default_prototype, forward<Args>(args)...);
 }
 
 // 7.3.35 AddValueToKeyedGroup ( groups, key, value ), https://tc39.es/ecma262/#sec-add-value-to-keyed-group
