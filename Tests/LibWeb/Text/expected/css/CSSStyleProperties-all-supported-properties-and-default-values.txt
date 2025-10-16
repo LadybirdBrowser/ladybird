@@ -697,6 +697,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'scrollbar-gutter': 'auto'
 'scrollbarWidth': 'auto'
 'scrollbar-width': 'auto'
+'shapeImageThreshold': '0'
+'shape-image-threshold': '0'
 'shapeOutside': 'none'
 'shape-outside': 'none'
 'shapeRendering': 'auto'

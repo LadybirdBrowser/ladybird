@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	Property shape-image-threshold value '-7'
-Fail	Property shape-image-threshold value '0.5'
-Fail	Property shape-image-threshold value '12.5'
-Fail	Property shape-image-threshold value '-100%'
-Fail	Property shape-image-threshold value '50%'
-Fail	Property shape-image-threshold value '300%'
+6 Pass
+Pass	Property shape-image-threshold value '-7'
+Pass	Property shape-image-threshold value '0.5'
+Pass	Property shape-image-threshold value '12.5'
+Pass	Property shape-image-threshold value '-100%'
+Pass	Property shape-image-threshold value '50%'
+Pass	Property shape-image-threshold value '300%'
