@@ -81,15 +81,17 @@ jobs:
   flatpak:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: Flatpak ${{ matrix.arch }}
+
+    # FIXME: Temporarily run on GitHub runners until Blacksmith runners have overlay redirect_dir enabled.
     strategy:
       fail-fast: false
       matrix:
         arch: [ 'x86_64' ]
-        runner_labels: [ '["blacksmith-8vcpu-ubuntu-2404"]' ]
+        runner_labels: [ '["ubuntu-24.04"]' ]
 
         include:
           - arch: 'aarch64'
-            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
+            runner_labels: '["ubuntu-24.04-arm"]'
 
     secrets: inherit
     uses: ./.github/workflows/flatpak-template.yml
