@@ -1133,20 +1133,22 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                 case PropertyLookupCache::Entry::Type::Empty:
                     break;
                 case PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain: {
-                    if (!cache.prototype) [[unlikely]]
+                    auto cached_prototype = cache.prototype.ptr();
+                    if (!cached_prototype) [[unlikely]]
                         break;
                     // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
                     bool can_use_cache = [&]() -> bool {
                         if (&object->shape() != cache.shape) [[unlikely]]
                             return false;
-                        if (!cache.prototype_chain_validity) [[unlikely]]
+                        auto cached_prototype_chain_validity = cache.prototype_chain_validity.ptr();
+                        if (!cached_prototype_chain_validity) [[unlikely]]
                             return false;
-                        if (!cache.prototype_chain_validity->is_valid()) [[unlikely]]
+                        if (!cached_prototype_chain_validity->is_valid()) [[unlikely]]
                             return false;
                         return true;
                     }();
-                    if (can_use_cache) {
-                        auto value_in_prototype = cache.prototype->get_direct(cache.property_offset.value());
+                    if (can_use_cache) [[likely]] {
+                        auto value_in_prototype = cached_prototype->get_direct(cache.property_offset.value());
                         if (value_in_prototype.is_accessor()) [[unlikely]] {
                             (void)TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
                             return {};
@@ -1170,12 +1172,14 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     //               reuse the resulting shape from the cache.
                     if (cache.from_shape != &object->shape()) [[unlikely]]
                         break;
-                    if (!cache.shape) [[unlikely]]
+                    auto cached_shape = cache.shape.ptr();
+                    if (!cached_shape) [[unlikely]]
                         break;
                     // The cache is invalid if the prototype chain has been mutated, since such a mutation could have added a setter for the property.
-                    if (cache.prototype_chain_validity && !cache.prototype_chain_validity->is_valid()) [[unlikely]]
+                    auto cached_prototype_chain_validity = cache.prototype_chain_validity.ptr();
+                    if (cached_prototype_chain_validity && !cached_prototype_chain_validity->is_valid()) [[unlikely]]
                         break;
-                    object->unsafe_set_shape(*cache.shape);
+                    object->unsafe_set_shape(*cached_shape);
                     object->put_direct(*cache.property_offset, value);
                     return {};
                 }
