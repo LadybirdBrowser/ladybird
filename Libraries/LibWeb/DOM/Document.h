@@ -953,6 +953,8 @@ private:
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
 
+    virtual void finalize() override final;
+
     void invalidate_style_of_elements_affected_by_has();
 
     void tear_down_layout_tree();
