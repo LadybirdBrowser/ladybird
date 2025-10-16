@@ -24,7 +24,5 @@ jobs:
         with:
           bundle: Ladybird.flatpak
           manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
-          cache: 'true'
           arch: ${{ inputs.arch }}
           # Note: default cache key is 'flatpak-builder-${arch}-${sha256(manifestPath)}'
-          upload-artifact: 'true'
