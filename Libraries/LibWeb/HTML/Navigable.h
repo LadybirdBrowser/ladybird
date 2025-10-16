@@ -51,8 +51,7 @@ struct PaintConfig {
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
-class WEB_API Navigable : public JS::Cell
-    , public Weakable<Navigable> {
+class WEB_API Navigable : public JS::Cell {
     GC_CELL(Navigable, JS::Cell);
     GC_DECLARE_ALLOCATOR(Navigable);
 

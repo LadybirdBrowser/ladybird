@@ -126,7 +126,7 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
 
     auto shared_resource_request = HTML::SharedResourceRequest::get_or_create(realm, document->page(), request->url());
     shared_resource_request->add_callbacks(
-        [document, weak_document = document->make_weak_ptr<DOM::Document>()] {
+        [document, weak_document = GC::Weak { document }] {
             if (!weak_document)
                 return;
 

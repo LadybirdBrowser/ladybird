@@ -110,8 +110,8 @@ GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, Pro
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
         if (!m_forward_transitions)
-            m_forward_transitions = make<HashMap<TransitionKey, WeakPtr<Shape>>>();
-        m_forward_transitions->set(key, new_shape.ptr());
+            m_forward_transitions = make<HashMap<TransitionKey, GC::Weak<Shape>>>();
+        m_forward_transitions->set(key, new_shape);
     }
     return new_shape;
 }
@@ -125,7 +125,7 @@ GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_ke
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
         if (!m_forward_transitions)
-            m_forward_transitions = make<HashMap<TransitionKey, WeakPtr<Shape>>>();
+            m_forward_transitions = make<HashMap<TransitionKey, GC::Weak<Shape>>>();
         m_forward_transitions->set(key, new_shape.ptr());
     }
     return new_shape;
@@ -141,7 +141,7 @@ GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
         if (!m_prototype_transitions)
-            m_prototype_transitions = make<HashMap<GC::Ptr<Object>, WeakPtr<Shape>>>();
+            m_prototype_transitions = make<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>>();
         m_prototype_transitions->set(new_prototype, new_shape.ptr());
     }
     return new_shape;
@@ -279,7 +279,7 @@ GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
     auto new_shape = heap().allocate<Shape>(*this, property_key, TransitionType::Delete);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_delete_transitions)
-        m_delete_transitions = make<HashMap<PropertyKey, WeakPtr<Shape>>>();
+        m_delete_transitions = make<HashMap<PropertyKey, GC::Weak<Shape>>>();
     m_delete_transitions->set(property_key, new_shape.ptr());
     return new_shape;
 }

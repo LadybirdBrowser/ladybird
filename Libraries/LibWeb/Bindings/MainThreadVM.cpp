@@ -744,7 +744,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
             // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from node’s registered observer list.
             for (auto& node : mutation_observer->node_list()) {
                 // FIXME: Is this correct?
-                if (node.is_null())
+                if (!node)
                     continue;
 
                 if (node->registered_observer_list()) {

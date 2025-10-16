@@ -68,7 +68,7 @@ void Page::set_focused_navigable(Badge<EventHandler>, HTML::Navigable& navigable
 void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::Navigable& navigable)
 {
     if (&navigable == m_focused_navigable.ptr())
-        m_focused_navigable.clear();
+        m_focused_navigable = nullptr;
 }
 
 void Page::load(URL::URL const& url)
@@ -405,7 +405,7 @@ void Page::on_pending_dialog_closed()
     }
 }
 
-void Page::did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color)
+void Page::did_request_color_picker(GC::Weak<HTML::HTMLInputElement> target, Color current_color)
 {
     if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::ColorPicker;
@@ -425,12 +425,12 @@ void Page::color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUp
             auto& input_element = as<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
             input_element.did_pick_color(move(picked_color), state);
             if (state == HTML::ColorPickerUpdateState::Closed)
-                m_pending_non_blocking_dialog_target.clear();
+                m_pending_non_blocking_dialog_target = nullptr;
         }
     }
 }
 
-void Page::did_request_file_picker(WeakPtr<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles allow_multiple_files)
+void Page::did_request_file_picker(GC::Weak<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles allow_multiple_files)
 {
     if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::FilePicker;
@@ -449,12 +449,12 @@ void Page::file_picker_closed(Span<HTML::SelectedFile> selected_files)
             auto& input_element = as<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
             input_element.did_select_files(selected_files);
 
-            m_pending_non_blocking_dialog_target.clear();
+            m_pending_non_blocking_dialog_target = nullptr;
         }
     }
 }
 
-void Page::did_request_select_dropdown(WeakPtr<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
+void Page::did_request_select_dropdown(GC::Weak<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::Select;
@@ -471,7 +471,7 @@ void Page::select_dropdown_closed(Optional<u32> const& selected_item_id)
         if (m_pending_non_blocking_dialog_target) {
             auto& select_element = as<HTML::HTMLSelectElement>(*m_pending_non_blocking_dialog_target);
             select_element.did_select_item(selected_item_id);
-            m_pending_non_blocking_dialog_target.clear();
+            m_pending_non_blocking_dialog_target = nullptr;
         }
     }
 }

@@ -298,7 +298,7 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
     } else {
         document = &intersection_root.get<GC::Root<DOM::Element>>().cell()->document();
     }
-    if (m_document.has_value() && document->origin().is_same_origin(m_document->origin())) {
+    if (m_document && document->origin().is_same_origin(m_document->origin())) {
         if (auto layout_node = intersection_root.visit([&](auto& node) -> GC::Ptr<Layout::Node> { return node->layout_node(); })) {
             rect.inflate(
                 m_root_margin[0].to_px(*layout_node, rect.height()),

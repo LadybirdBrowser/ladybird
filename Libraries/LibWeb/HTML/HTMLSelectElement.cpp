@@ -480,7 +480,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     }
 
     // Request select dropdown
-    auto weak_element = make_weak_ptr<HTMLSelectElement>();
+    auto weak_element = GC::Weak<HTMLSelectElement> { *this };
     auto rect = get_bounding_client_rect();
     auto position = document().navigable()->to_top_level_position(Web::CSSPixelPoint { rect.x(), rect.bottom() });
     document().page().did_request_select_dropdown(weak_element, position, rect.width(), m_select_items);

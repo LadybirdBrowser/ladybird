@@ -570,7 +570,7 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
 
 void HTMLLinkElement::set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document)
 {
-    m_parser_document = document->make_weak_ptr<DOM::Document>();
+    m_parser_document = document;
 }
 
 bool HTMLLinkElement::is_implicitly_potentially_render_blocking() const

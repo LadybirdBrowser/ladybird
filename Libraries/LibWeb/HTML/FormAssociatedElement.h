@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
-#include <AK/WeakPtr.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Bindings/HTMLFormElementPrototype.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/Export.h>
@@ -178,7 +178,7 @@ protected:
 private:
     void reset_form_owner();
 
-    WeakPtr<HTMLFormElement> m_form;
+    GC::Weak<HTMLFormElement> m_form;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };

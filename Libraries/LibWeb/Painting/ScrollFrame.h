@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/WeakPtr.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -40,7 +40,7 @@ public:
     }
 
 private:
-    WeakPtr<PaintableBox> m_paintable_box;
+    GC::Weak<PaintableBox> m_paintable_box;
     size_t m_id { 0 };
     bool m_sticky { false };
     RefPtr<ScrollFrame const> m_parent;

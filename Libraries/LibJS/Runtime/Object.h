@@ -64,8 +64,7 @@ struct CacheableSetPropertyMetadata {
     GC::Ptr<Object const> prototype;
 };
 
-class JS_API Object : public Cell
-    , public Weakable<Object> {
+class JS_API Object : public Cell {
     GC_CELL(Object, Cell);
     GC_DECLARE_ALLOCATOR(Object);
 

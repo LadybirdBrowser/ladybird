@@ -10,8 +10,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16FlyString.h>
-#include <AK/WeakPtr.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Weak.h>
+#include <LibGC/WeakInlines.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/StringTable.h>
@@ -37,11 +38,11 @@ struct PropertyLookupCache {
             GetPropertyInPrototypeChain,
         };
         Type type { Type::Empty };
-        WeakPtr<Shape> from_shape;
-        WeakPtr<Shape> shape;
+        GC::Weak<Shape> from_shape;
+        GC::Weak<Shape> shape;
         Optional<u32> property_offset;
-        WeakPtr<Object> prototype;
-        WeakPtr<PrototypeChainValidity> prototype_chain_validity;
+        GC::Weak<Object> prototype;
+        GC::Weak<PrototypeChainValidity> prototype_chain_validity;
     };
     AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };

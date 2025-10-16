@@ -52,7 +52,7 @@ private:
     Vector<GC::Ref<ResizeObservation>> m_skipped_targets;
 
     // AD-HOC: This is the document where we've registered the observer.
-    WeakPtr<DOM::Document> m_document;
+    GC::Weak<DOM::Document> m_document;
 
     IntrusiveListNode<ResizeObserver> m_list_node;
 

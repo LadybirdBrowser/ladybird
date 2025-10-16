@@ -167,7 +167,7 @@ private:
 
     Optional<String> m_mime_type;
 
-    WeakPtr<DOM::Document> m_parser_document;
+    GC::Weak<DOM::Document> m_parser_document;
 };
 
 }

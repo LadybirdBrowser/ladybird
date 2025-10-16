@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include <AK/WeakPtr.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
@@ -159,13 +159,13 @@ public:
     void dismiss_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed);
     void accept_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed);
 
-    void did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color);
+    void did_request_color_picker(GC::Weak<HTML::HTMLInputElement> target, Color current_color);
     void color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUpdateState state);
 
-    void did_request_file_picker(WeakPtr<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles);
+    void did_request_file_picker(GC::Weak<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles);
     void file_picker_closed(Span<HTML::SelectedFile> selected_files);
 
-    void did_request_select_dropdown(WeakPtr<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items);
+    void did_request_select_dropdown(GC::Weak<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
     using ClipboardRequest = GC::Ref<GC::Function<void(Vector<Clipboard::SystemClipboardItem>)>>;
@@ -246,7 +246,7 @@ private:
 
     GC::Ref<PageClient> m_client;
 
-    WeakPtr<HTML::Navigable> m_focused_navigable;
+    GC::Weak<HTML::Navigable> m_focused_navigable;
 
     GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 
@@ -275,7 +275,7 @@ private:
     GC::Ptr<GC::Function<void()>> m_on_pending_dialog_closed;
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
-    WeakPtr<HTML::HTMLElement> m_pending_non_blocking_dialog_target;
+    GC::Weak<HTML::HTMLElement> m_pending_non_blocking_dialog_target;
 
     HashMap<u64, ClipboardRequest> m_pending_clipboard_requests;
     u64 m_next_clipboard_request_id { 0 };

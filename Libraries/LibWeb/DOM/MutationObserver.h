@@ -38,8 +38,8 @@ public:
     void disconnect();
     Vector<GC::Root<MutationRecord>> take_records();
 
-    Vector<WeakPtr<Node>>& node_list() { return m_node_list; }
-    Vector<WeakPtr<Node>> const& node_list() const { return m_node_list; }
+    Vector<GC::Weak<Node>>& node_list() { return m_node_list; }
+    Vector<GC::Weak<Node>> const& node_list() const { return m_node_list; }
 
     WebIDL::CallbackType& callback() { return *m_callback; }
 
@@ -61,7 +61,7 @@ private:
     // https://dom.spec.whatwg.org/#mutationobserver-node-list
     // NOTE: These are weak, per https://dom.spec.whatwg.org/#garbage-collection
     // Registered observers in a node’s registered observer list have a weak reference to the node.
-    Vector<WeakPtr<Node>> m_node_list;
+    Vector<GC::Weak<Node>> m_node_list;
 
     // https://dom.spec.whatwg.org/#concept-mo-queue
     Vector<GC::Ref<MutationRecord>> m_record_queue;

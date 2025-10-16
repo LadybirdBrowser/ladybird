@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -79,7 +80,7 @@ private:
     GC::Ptr<CSSStyleSheet> m_style_sheet;
 
     URL m_url;
-    WeakPtr<DOM::Document> m_document;
+    GC::Weak<DOM::Document> m_document;
 
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
