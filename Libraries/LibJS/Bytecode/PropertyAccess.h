@@ -92,19 +92,21 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
         prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
 
     for (auto& cache_entry : cache.entries) {
-        if (cache_entry.prototype) {
+        auto cached_prototype = cache_entry.prototype.ptr();
+        if (cached_prototype) {
             // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
             bool can_use_cache = [&]() -> bool {
                 if (&shape != cache_entry.shape) [[unlikely]]
                     return false;
-                if (!cache_entry.prototype_chain_validity) [[unlikely]]
+                auto cached_prototype_chain_validity = cache_entry.prototype_chain_validity.ptr();
+                if (!cached_prototype_chain_validity) [[unlikely]]
                     return false;
-                if (!cache_entry.prototype_chain_validity->is_valid()) [[unlikely]]
+                if (!cached_prototype_chain_validity->is_valid()) [[unlikely]]
                     return false;
                 return true;
             }();
             if (can_use_cache) [[likely]] {
-                auto value = cache_entry.prototype->get_direct(cache_entry.property_offset.value());
+                auto value = cached_prototype->get_direct(cache_entry.property_offset.value());
                 if (value.is_accessor())
                     return TRY(call(vm, value.as_accessor().getter(), this_value));
                 return value;
