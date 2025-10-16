@@ -258,6 +258,7 @@ scale: none
 scrollbar-color: auto
 scrollbar-gutter: auto
 scrollbar-width: auto
+shape-outside: none
 stop-color: rgb(0, 0, 0)
 stop-opacity: 1
 table-layout: auto

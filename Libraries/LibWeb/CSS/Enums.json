@@ -703,6 +703,12 @@
     "thin",
     "none"
   ],
+  "shape-box": [
+    "content-box",
+    "padding-box",
+    "border-box",
+    "margin-box"
+  ],
   "shape-rendering": [
     "auto",
     "optimizespeed",

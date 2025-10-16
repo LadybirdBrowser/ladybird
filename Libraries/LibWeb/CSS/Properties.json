@@ -3449,6 +3449,12 @@
       "none"
     ]
   },
+  "shape-outside": {
+    "affects-layout": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none"
+  },
   "shape-rendering": {
     "affects-layout": true,
     "animation-type": "discrete",

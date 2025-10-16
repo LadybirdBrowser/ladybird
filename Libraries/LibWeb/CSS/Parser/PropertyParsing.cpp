@@ -782,6 +782,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (auto parsed_value = parse_scrollbar_gutter_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::ShapeOutside:
+        if (auto parsed_value = parse_shape_outside_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     case PropertyID::StrokeDasharray:
         if (auto parsed_value = parse_stroke_dasharray_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -2280,6 +2284,60 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
 
     transaction.commit();
     return ShadowStyleValue::create(shadow_type, color, offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius, spread_distance, placement.release_value());
+}
+
+RefPtr<StyleValue const> Parser::parse_shape_outside_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | [ <basic-shape> || <shape-box> ] | <image>
+    auto transaction = tokens.begin_transaction();
+
+    // none
+    if (auto maybe_none = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
+        transaction.commit();
+        return maybe_none;
+    }
+
+    // <image>
+    if (auto maybe_image = parse_image_value(tokens)) {
+        transaction.commit();
+        return maybe_image;
+    }
+
+    // [ <basic-shape> || <shape-box> ]
+    RefPtr<StyleValue const> basic_shape_value;
+    RefPtr<StyleValue const> shape_box_value;
+    while (tokens.has_next_token()) {
+        if (auto maybe_basic_shape_value = parse_basic_shape_value(tokens)) {
+            if (basic_shape_value)
+                return nullptr;
+            basic_shape_value = maybe_basic_shape_value;
+            continue;
+        }
+
+        if (auto maybe_keyword_value = parse_keyword_value(tokens)) {
+            if (shape_box_value)
+                return nullptr;
+            if (!keyword_to_shape_box(maybe_keyword_value->to_keyword()).has_value())
+                return nullptr;
+            shape_box_value = maybe_keyword_value;
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    if (!basic_shape_value && !shape_box_value)
+        return nullptr;
+
+    transaction.commit();
+
+    if (basic_shape_value && !shape_box_value)
+        return basic_shape_value;
+
+    if (!basic_shape_value && shape_box_value)
+        return shape_box_value;
+
+    return StyleValueList::create({ basic_shape_value.release_nonnull(), shape_box_value.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)

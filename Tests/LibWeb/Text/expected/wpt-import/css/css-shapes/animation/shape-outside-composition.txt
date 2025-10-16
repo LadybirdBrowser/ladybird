@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 64 tests
 
-64 Fail
+9 Pass
+55 Fail
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 25px 25%)] from add [circle(10px at 25px 75%)] to add [circle(50px at 50px center)] at (-0.3) should be [circle(98px at 42.5px 107.5%)]
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 25px 25%)] from add [circle(10px at 25px 75%)] to add [circle(50px at 50px center)] at (0) should be [circle(110px at 50px 100%)]
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 25px 25%)] from add [circle(10px at 25px 75%)] to add [circle(50px at 50px center)] at (0.3) should be [circle(122px at 57.5px 92.5%)]
@@ -13,12 +14,12 @@ Fail	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)] from add [circle(50px at 50px 50%)] to replace [circle(50% at 150px 150%)] at (0) should be [circle(calc(150px + 0%) at 70px 70%)]
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)] from add [circle(50px at 50px 50%)] to replace [circle(50% at 150px 150%)] at (0.3) should be [circle(calc(105px + 15%) at 94px 94%)]
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)] from add [circle(50px at 50px 50%)] to replace [circle(50% at 150px 150%)] at (0.6) should be [circle(calc(60px + 30%) at 118px 118%)]
-Fail	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)] from add [circle(50px at 50px 50%)] to replace [circle(50% at 150px 150%)] at (1) should be [circle(50% at 150px 150%)]
+Pass	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)] from add [circle(50px at 50px 50%)] to replace [circle(50% at 150px 150%)] at (1) should be [circle(50% at 150px 150%)]
 Fail	Compositing: property <shape-outside> underlying [circle(100px at 20px 20%)] from add [circle(50px at 50px 50%)] to replace [circle(50% at 150px 150%)] at (1.5) should be [circle(calc(-75px + 75%) at 190px 190%)]
-Fail	Compositing: property <shape-outside> underlying [circle(farthest-side at 25px 75%)] from add [circle(farthest-side at 25px 75%)] to add [circle(farthest-side at 50px center)] at (0.25) should be [circle(farthest-side at 25px 75%)]
-Fail	Compositing: property <shape-outside> underlying [circle(farthest-side at 25px 75%)] from add [circle(farthest-side at 25px 75%)] to add [circle(farthest-side at 50px center)] at (0.75) should be [circle(farthest-side at 50px 50%)]
+Pass	Compositing: property <shape-outside> underlying [circle(farthest-side at 25px 75%)] from add [circle(farthest-side at 25px 75%)] to add [circle(farthest-side at 50px center)] at (0.25) should be [circle(farthest-side at 25px 75%)]
+Pass	Compositing: property <shape-outside> underlying [circle(farthest-side at 25px 75%)] from add [circle(farthest-side at 25px 75%)] to add [circle(farthest-side at 50px center)] at (0.75) should be [circle(farthest-side at 50px 50%)]
 Fail	Compositing: property <shape-outside> underlying [circle(50px at 10px 20px)] from add [circle(50px at 10px 20px)] to add [circle(farthest-side at 30px 40px)] at (0.25) should be [circle(100px at 20px 40px)]
-Fail	Compositing: property <shape-outside> underlying [circle(50px at 10px 20px)] from add [circle(50px at 10px 20px)] to add [circle(farthest-side at 30px 40px)] at (0.75) should be [circle(farthest-side at 30px 40px)]
+Pass	Compositing: property <shape-outside> underlying [circle(50px at 10px 20px)] from add [circle(50px at 10px 20px)] to add [circle(farthest-side at 30px 40px)] at (0.75) should be [circle(farthest-side at 30px 40px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from add [ellipse(40px 30px at 20px 10px)] to add [ellipse(140px 130px at 120px 110px)] at (-0.3) should be [ellipse(20px 20px at 20px 20px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from add [ellipse(40px 30px at 20px 10px)] to add [ellipse(140px 130px at 120px 110px)] at (0) should be [ellipse(50px 50px at 50px 50px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from add [ellipse(40px 30px at 20px 10px)] to add [ellipse(140px 130px at 120px 110px)] at (0.3) should be [ellipse(80px 80px at 80px 80px)]
@@ -26,13 +27,13 @@ Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from add [ellipse(40px 30px at 20px 10px)] to add [ellipse(140px 130px at 120px 110px)] at (1) should be [ellipse(150px 150px at 150px 150px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from add [ellipse(40px 30px at 20px 10px)] to add [ellipse(140px 130px at 120px 110px)] at (1.5) should be [ellipse(200px 200px at 200px 200px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (-0.3) should be [ellipse(37px 24px at 11px -2px)]
-Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (0) should be [ellipse(40px 30px at 20px 10px)]
+Pass	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (0) should be [ellipse(40px 30px at 20px 10px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (0.3) should be [ellipse(43px 36px at 29px 22px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (0.6) should be [ellipse(46px 42px at 38px 34px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (1) should be [ellipse(50px 50px at 50px 50px)]
 Fail	Compositing: property <shape-outside> underlying [ellipse(10px 20px at 30px 40px)] from replace [ellipse(40px 30px at 20px 10px)] to add [ellipse(40px 30px at 20px 10px)] at (1.5) should be [ellipse(55px 60px at 65px 70px)]
-Fail	Compositing: property <shape-outside> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.25) should be [ellipse()]
-Fail	Compositing: property <shape-outside> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.75) should be [ellipse(closest-side farthest-side)]
+Pass	Compositing: property <shape-outside> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.25) should be [ellipse()]
+Pass	Compositing: property <shape-outside> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.75) should be [ellipse(closest-side farthest-side)]
 Fail	Compositing: property <shape-outside> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (-0.3) should be [inset(calc(46px + -12%))]
 Fail	Compositing: property <shape-outside> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0) should be [inset(calc(40px + 0%))]
 Fail	Compositing: property <shape-outside> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.3) should be [inset(calc(34px + 12%))]
@@ -64,6 +65,6 @@ Fail	Compositing: property <shape-outside> underlying [polygon(evenodd, 10px 20p
 Fail	Compositing: property <shape-outside> underlying [polygon(evenodd, 10px 20px)] from add [polygon(evenodd, 10px 20px)] to add [polygon(evenodd, 110px 120px)] at (1) should be [polygon(evenodd, 120px 140px)]
 Fail	Compositing: property <shape-outside> underlying [polygon(evenodd, 10px 20px)] from add [polygon(evenodd, 10px 20px)] to add [polygon(evenodd, 110px 120px)] at (1.5) should be [polygon(evenodd, 170px 190px)]
 Fail	Compositing: property <shape-outside> underlying [polygon(evenodd, 10px 20px)] from add [polygon(evenodd, 10px 20px)] to add [polygon(nonzero, 30px 40px)] at (0.25) should be [polygon(evenodd, 20px 40px)]
-Fail	Compositing: property <shape-outside> underlying [polygon(evenodd, 10px 20px)] from add [polygon(evenodd, 10px 20px)] to add [polygon(nonzero, 30px 40px)] at (0.75) should be [polygon(30px 40px)]
+Pass	Compositing: property <shape-outside> underlying [polygon(evenodd, 10px 20px)] from add [polygon(evenodd, 10px 20px)] to add [polygon(nonzero, 30px 40px)] at (0.75) should be [polygon(30px 40px)]
 Fail	Compositing: property <shape-outside> underlying [polygon(10px 20px, 30px 40px)] from add [polygon(10px 20px, 30px 40px)] to add [polygon(30px 40px)] at (0.25) should be [polygon(20px 40px, 60px 80px)]
-Fail	Compositing: property <shape-outside> underlying [polygon(10px 20px, 30px 40px)] from add [polygon(10px 20px, 30px 40px)] to add [polygon(30px 40px)] at (0.75) should be [polygon(30px 40px)]
+Pass	Compositing: property <shape-outside> underlying [polygon(10px 20px, 30px 40px)] from add [polygon(10px 20px, 30px 40px)] to add [polygon(30px 40px)] at (0.75) should be [polygon(30px 40px)]
