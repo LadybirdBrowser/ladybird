@@ -478,6 +478,7 @@ private:
     RefPtr<StyleValue const> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_shadow_value(TokenStream<ComponentValue>&, ShadowStyleValue::ShadowType);
     RefPtr<StyleValue const> parse_single_shadow_value(TokenStream<ComponentValue>&, ShadowStyleValue::ShadowType);
+    RefPtr<StyleValue const> parse_shape_outside_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_text_decoration_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_text_underline_position_value(TokenStream<ComponentValue>&);
