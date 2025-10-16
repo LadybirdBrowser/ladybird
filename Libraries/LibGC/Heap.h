@@ -25,6 +25,7 @@
 #include <LibGC/Root.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/WeakBlock.h>
 #include <LibGC/WeakContainer.h>
 
 namespace GC {
@@ -81,6 +82,8 @@ public:
 
     void enqueue_post_gc_task(AK::Function<void()>);
 
+    WeakImpl* create_weak_impl(void*);
+
 private:
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
@@ -113,6 +116,7 @@ private:
     void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells);
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
+    void sweep_weak_blocks();
 
     ALWAYS_INLINE CellAllocator& allocator_for_size(size_t cell_size)
     {
@@ -159,6 +163,9 @@ private:
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 
     Vector<AK::Function<void()>> m_post_gc_tasks;
+
+    WeakBlock::List m_usable_weak_blocks;
+    WeakBlock::List m_full_weak_blocks;
 } SWIFT_IMMORTAL_REFERENCE;
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)

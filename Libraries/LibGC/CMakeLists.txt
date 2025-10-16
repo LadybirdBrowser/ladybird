@@ -9,6 +9,7 @@ set(SOURCES
     RootVector.cpp
     Heap.cpp
     HeapBlock.cpp
+    WeakBlock.cpp
     WeakContainer.cpp
 )
 

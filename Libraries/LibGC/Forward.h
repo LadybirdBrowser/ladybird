@@ -20,6 +20,7 @@ class Heap;
 class HeapBlock;
 class NanBoxedValue;
 class WeakContainer;
+class WeakImpl;
 
 template<typename T>
 class Function;

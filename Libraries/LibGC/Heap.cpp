@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -20,6 +20,8 @@
 #include <LibGC/HeapBlock.h>
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
+#include <LibGC/WeakInlines.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -258,6 +260,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             mark_live_cells(roots);
         }
         finalize_unmarked_cells();
+        sweep_weak_blocks();
         sweep_dead_cells(print_report, collection_measurement_timer);
     }
 
@@ -462,6 +465,22 @@ void Heap::finalize_unmarked_cells()
     });
 }
 
+void Heap::sweep_weak_blocks()
+{
+    for (auto& weak_block : m_usable_weak_blocks) {
+        weak_block.sweep();
+    }
+    Vector<WeakBlock&> now_usable_weak_blocks;
+    for (auto& weak_block : m_full_weak_blocks) {
+        weak_block.sweep();
+        if (weak_block.can_allocate())
+            now_usable_weak_blocks.append(weak_block);
+    }
+    for (auto& weak_block : now_usable_weak_blocks) {
+        m_usable_weak_blocks.append(weak_block);
+    }
+}
+
 void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measurement_timer)
 {
     dbgln_if(HEAP_DEBUG, "sweep_dead_cells:");
@@ -557,6 +576,23 @@ void Heap::undefer_gc()
 void Heap::uproot_cell(Cell* cell)
 {
     m_uprooted_cells.append(cell);
+}
+
+WeakImpl* Heap::create_weak_impl(void* ptr)
+{
+    if (m_usable_weak_blocks.is_empty()) {
+        // NOTE: These are leaked on Heap destruction, but that's fine since Heap is tied to process lifetime.
+        auto* weak_block = WeakBlock::create();
+        m_usable_weak_blocks.append(*weak_block);
+    }
+
+    auto* weak_block = m_usable_weak_blocks.first();
+    auto* new_weak_impl = weak_block->allocate(static_cast<Cell*>(ptr));
+    if (!weak_block->can_allocate()) {
+        m_full_weak_blocks.append(*weak_block);
+    }
+
+    return new_weak_impl;
 }
 
 }

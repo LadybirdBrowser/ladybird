@@ -276,11 +276,13 @@
 #    define ASAN_UNPOISON_MEMORY_REGION(addr, size) __asan_unpoison_memory_region(addr, size)
 #    define LSAN_REGISTER_ROOT_REGION(base, size) __lsan_register_root_region(base, size)
 #    define LSAN_UNREGISTER_ROOT_REGION(base, size) __lsan_unregister_root_region(base, size)
+#    define LSAN_IGNORE_OBJECT(base) __lsan_ignore_object(base)
 #else
 #    define ASAN_POISON_MEMORY_REGION(addr, size)
 #    define ASAN_UNPOISON_MEMORY_REGION(addr, size)
 #    define LSAN_REGISTER_ROOT_REGION(base, size)
 #    define LSAN_UNREGISTER_ROOT_REGION(base, size)
+#    define LSAN_IGNORE_OBJECT(base)
 #endif
 
 #if __has_feature(blocks)
