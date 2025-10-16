@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Module scripts with no imports always execute asynchronously</title>
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <link rel="help" href="https://github.com/whatwg/html/issues/3746">
+</head>
+<body>
+<script>
+async_test(t => {
+  window.results = [];
+  window.logExecution = msg => window.results.push(msg);
+
+  const script = document.createElement('script');
+  script.type = 'module';
+  script.textContent = "window.logExecution('module')";
+  document.body.append(script);
+  window.logExecution('classic');
+
+  window.onload = t.step_func_done(e => {
+    assert_array_equals(window.results, ['classic', 'module']);
+  });
+});
+</script>
+</body>
+</html>

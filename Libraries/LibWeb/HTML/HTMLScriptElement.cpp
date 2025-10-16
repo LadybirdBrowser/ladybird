@@ -466,11 +466,14 @@ void HTMLScriptElement::prepare_script()
             begin_delaying_document_load_event(*m_preparation_time_document);
 
             auto steps = create_on_fetch_script_complete(heap(), [this](auto result) {
-                // 1. Mark as ready el given result.
-                if (!result)
-                    mark_as_ready(ResultState::Null {});
-                else
-                    mark_as_ready(Result(*result));
+                // 1. Queue an element task on the networking task source given el to perform the following steps:
+                queue_an_element_task(Task::Source::Networking, [this, result = move(result)] {
+                    // 1. Mark as ready el given result.
+                    if (!result)
+                        mark_as_ready(ResultState::Null {});
+                    else
+                        mark_as_ready(Result(*result));
+                });
             });
 
             // 2. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:
