@@ -4455,6 +4455,21 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue>
     return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {});
 }
 
+// https://drafts.csswg.org/css-color-4/#typedef-opacity-opacity-value
+RefPtr<StyleValue const> Parser::parse_opacity_value(TokenStream<ComponentValue>& tokens)
+{
+    auto value = parse_number_percentage_value(tokens);
+
+    if (!value)
+        return nullptr;
+
+    // Percentages map to the range [0,1] for opacity values
+    if (value->is_percentage())
+        return NumberStyleValue::create(value->as_percentage().percentage().as_fraction());
+
+    return value;
+}
+
 // https://drafts.csswg.org/css-fonts/#typedef-opentype-tag
 RefPtr<StringStyleValue const> Parser::parse_opentype_tag_value(TokenStream<ComponentValue>& tokens)
 {
@@ -4866,6 +4881,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_length_value(tokens);
     case ValueType::Number:
         return parse_number_value(tokens);
+    case ValueType::Opacity:
+        return parse_opacity_value(tokens);
     case ValueType::OpentypeTag:
         return parse_opentype_tag_value(tokens);
     case ValueType::Paint:

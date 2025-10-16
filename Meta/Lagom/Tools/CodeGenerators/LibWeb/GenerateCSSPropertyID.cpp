@@ -234,6 +234,7 @@ enum class PropertyID : @property_id_underlying_type@ {
     generator.set("first_inherited_longhand_property_id", title_casify(inherited_longhand_property_ids.first()));
     generator.set("last_inherited_longhand_property_id", title_casify(inherited_longhand_property_ids.last()));
 
+    // FIXME: property_accepts_{number,percentage}() has a different range from accepted_type_ranges() despite the names sounding similar.
     generator.append(R"~~~(
 };
 
@@ -923,44 +924,42 @@ AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID property_id)
 
             StringBuilder ranges_builder;
 
-            // Opacity values are unique in that the range which calculated and interpolated values should be clamped
-            // to [0,1] is different from the range of allowed values [-∞,∞]. To handle this we set the allowed range
-            // in Properties.json to [-∞,∞] but overwrite it to [0,1] here.
-            // FIXME: This is confusing as property_accepts_{number,percentage}() has a different range from this
-            //        despite the names sounding similar.
-            if (first_is_one_of(name, "opacity"sv, "fill-opacity"sv, "flood-opacity"sv, "stop-opacity"sv, "stroke-opacity"sv)) {
-                ranges_builder.append("{ ValueType::Number, { 0, 1 } }, { ValueType::Percentage, { 0, 100 } }"sv);
-            } else {
-                for (auto& type : valid_types.values()) {
-                    VERIFY(type.is_string());
+            for (auto& type : valid_types.values()) {
+                VERIFY(type.is_string());
 
-                    Vector<String> type_parts = MUST(type.as_string().split(' '));
-
-                    if (type_parts.size() < 2)
-                        continue;
-
-                    auto type_name = type_parts.first();
-
-                    if (type_name == "custom-ident")
-                        continue;
-
-                    // Drop the brackets on the range e.g. "[-∞,∞]" -> "-∞,∞"
-                    auto type_range = MUST(type_parts.get(1)->substring_from_byte_offset(1, type_parts.get(1)->byte_count() - 2));
-
-                    auto limits = MUST(type_range.split(','));
-
-                    if (limits.size() != 2)
-                        VERIFY_NOT_REACHED();
-
-                    // FIXME: Use min and max values for i32 instead of float where applicable (e.g. for "integer")
-                    auto min = limits.get(0) == "-∞" ? "AK::NumericLimits<float>::lowest()"_string : *limits.get(0);
-                    auto max = limits.get(1) == "∞" ? "AK::NumericLimits<float>::max()"_string : *limits.get(1);
-
-                    if (!ranges_builder.is_empty())
-                        ranges_builder.appendff(", ");
-
-                    ranges_builder.appendff("{{ ValueType::{}, {{ {}, {} }} }}", title_casify(type_name), min, max);
+                // Opacity values should have their calculated and interpolated values clamped to [0,1] which is
+                // different from the range of allowed values [-∞,∞].
+                if (type.as_string() == "opacity"sv) {
+                    ranges_builder.append("{ ValueType::Number, { 0, 1 } }, { ValueType::Percentage, { 0, 100 } }"sv);
+                    continue;
                 }
+
+                Vector<String> type_parts = MUST(type.as_string().split(' '));
+
+                if (type_parts.size() < 2)
+                    continue;
+
+                auto type_name = type_parts.first();
+
+                if (type_name == "custom-ident")
+                    continue;
+
+                // Drop the brackets on the range e.g. "[-∞,∞]" -> "-∞,∞"
+                auto type_range = MUST(type_parts.get(1)->substring_from_byte_offset(1, type_parts.get(1)->byte_count() - 2));
+
+                auto limits = MUST(type_range.split(','));
+
+                if (limits.size() != 2)
+                    VERIFY_NOT_REACHED();
+
+                // FIXME: Use min and max values for i32 instead of float where applicable (e.g. for "integer")
+                auto min = limits.get(0) == "-∞" ? "AK::NumericLimits<float>::lowest()"_string : *limits.get(0);
+                auto max = limits.get(1) == "∞" ? "AK::NumericLimits<float>::max()"_string : *limits.get(1);
+
+                if (!ranges_builder.is_empty())
+                    ranges_builder.appendff(", ");
+
+                ranges_builder.appendff("{{ ValueType::{}, {{ {}, {} }} }}", title_casify(type_name), min, max);
             }
 
             property_generator.set("ranges", ranges_builder.to_string_without_validation());

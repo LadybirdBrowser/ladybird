@@ -398,6 +398,7 @@ private:
     RefPtr<StyleValue const> parse_contain_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_container_type_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue const> parse_opentype_tag_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_opacity_value(TokenStream<ComponentValue>&);
     RefPtr<FontSourceStyleValue const> parse_font_source_value(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue const> parse_anchor(TokenStream<ComponentValue>&);
@@ -460,7 +461,6 @@ private:
     RefPtr<StyleValue const> parse_list_style_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_mask_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
-    RefPtr<StyleValue const> parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_paint_order_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);

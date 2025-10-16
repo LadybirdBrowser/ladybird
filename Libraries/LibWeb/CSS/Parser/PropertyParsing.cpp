@@ -172,6 +172,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Ratio); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::Opacity); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::OpentypeTag); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Rect); parsed.has_value())
@@ -719,14 +721,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     case PropertyID::MaskSize:
         if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::Opacity:
-    case PropertyID::FillOpacity:
-    case PropertyID::FloodOpacity:
-    case PropertyID::StopOpacity:
-    case PropertyID::StrokeOpacity:
-        if (auto parsed_value = parse_opacity_value(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     // FIXME: This can be removed once we have generic logic for parsing "positional-value-list-shorthand"s
@@ -4059,19 +4053,6 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
     }
 
     return nullptr;
-}
-
-RefPtr<StyleValue const> Parser::parse_opacity_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
-{
-    auto value = parse_css_value_for_property(property_id, tokens);
-    if (!value)
-        return nullptr;
-
-    // Percentages map to the range [0,1] for opacity values
-    if (value->is_percentage())
-        value = NumberStyleValue::create(value->as_percentage().percentage().as_fraction());
-
-    return value;
 }
 
 RefPtr<StyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue>& tokens)
