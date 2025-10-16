@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: the computed value of the circle() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-circle">
+<meta name="assert" content="Tests parsing of the circle() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("shape-outside", "circle()");
+test_computed_value("shape-outside", "circle(1px)");
+test_computed_value("shape-outside", "circle(20px at center)", "circle(20px at 50% 50%)");
+test_computed_value("shape-outside", "circle(at 10% 20%)");
+test_computed_value("shape-outside", "circle(4% at top right)", "circle(4% at 100% 0%)");
+test_computed_value("shape-outside", "circle(calc(100% - 20px) at calc(100% - 20px) calc(100% / 4))", "circle(calc(100% - 20px) at calc(100% - 20px) 25%)");
+
+test_computed_value("shape-outside", "circle(closest-corner at center)", "circle(closest-corner at 50% 50%)");
+test_computed_value("shape-outside", "circle(closest-corner at 20px 50px)", "circle(closest-corner at 20px 50px)");
+test_computed_value("shape-outside", "circle(closest-side at center)", "circle(at 50% 50%)");
+test_computed_value("shape-outside", "circle(closest-side at 20px 30%)", "circle(at 20px 30%)");
+test_computed_value("shape-outside", "circle(farthest-corner at center top)", "circle(farthest-corner at 50% 0%)");
+test_computed_value("shape-outside", "circle(farthest-corner at center)", "circle(farthest-corner at 50% 50%)");
+test_computed_value("shape-outside", "circle(farthest-side at center top)", "circle(farthest-side at 50% 0%)");
+test_computed_value("shape-outside", "circle(farthest-side at center)", "circle(farthest-side at 50% 50%)");
+</script>
+</body>
+</html>

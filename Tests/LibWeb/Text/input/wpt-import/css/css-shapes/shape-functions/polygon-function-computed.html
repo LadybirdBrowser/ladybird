@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the polygon() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-polygon">
+<meta name="assert" content="Tests parsing of the polygon() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("shape-outside", "polygon(1% 2%)");
+test_computed_value("shape-outside", "polygon(calc(100% - 20px) calc(30% + 10px))");
+test_computed_value("shape-outside", "polygon(nonzero, 1px 2px, 3em 4em)", "polygon(1px 2px, 48px 64px)");
+test_computed_value("shape-outside", "polygon(evenodd, 1px 2px, 3em 4em, 6pt 6%)", "polygon(evenodd, 1px 2px, 48px 64px, 8px 6%)");
+</script>
+</body>
+</html>

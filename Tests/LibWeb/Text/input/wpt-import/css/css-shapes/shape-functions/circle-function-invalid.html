@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the circle() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-circle">
+<meta name="assert" content="Tests parsing of the circle() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("shape-outside", "circle(123)");
+test_invalid_value("shape-outside", "circle(at)");
+test_invalid_value("shape-outside", "circle(4% 20%)");
+test_invalid_value("shape-outside", "circle(4% 20% at center)");
+test_invalid_value("shape-outside", "circle(4px 20px)");
+test_invalid_value("shape-outside", "circle(4px, 20px)");
+test_invalid_value("shape-outside", "circle(at 4px, 20px)");
+test_invalid_value("shape-outside", "circle(-10px at 20px 30px)");
+test_invalid_value("shape-outside", "circle(-10% at 20% 30%)");
+test_invalid_value("shape-outside", "circle(1% 2% at 0% 100%)");
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['shape-margin'] = "none" should not set the property value
+Pass	e.style['shape-margin'] = "10" should not set the property value

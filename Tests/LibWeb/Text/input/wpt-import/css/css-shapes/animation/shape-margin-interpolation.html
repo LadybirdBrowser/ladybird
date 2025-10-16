@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>shape-margin interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes/#shape-margin-property">
+<meta name="assert" content="shape-margin supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  shape-margin: 30px;
+}
+.target {
+  shape-margin: 10px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'shape-margin',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect: '7px'},
+  {at: 0, expect: '10px'},
+  {at: 0.3, expect: '13px'},
+  {at: 0.6, expect: '16px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '25px'},
+]);
+
+test_interpolation({
+  property: 'shape-margin',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+
+test_interpolation({
+  property: 'shape-margin',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '15px'},
+]);
+
+test_interpolation({
+  property: 'shape-margin',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '0px'},
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '6px'},
+  {at: 0.6, expect: '12px'},
+  {at: 1, expect: '20px'},
+  {at: 1.5, expect: '30px'},
+]);
+
+test_interpolation({
+  property: 'shape-margin',
+  from: '0px',
+  to: '100px'
+}, [
+  {at: -0.3, expect: '0px'}, // CSS shape-margin can't be negative.
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '30px'},
+  {at: 0.6, expect: '60px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '150px'},
+]);
+</script>

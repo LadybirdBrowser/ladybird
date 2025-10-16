@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing shape-image-threshold with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-shapes/#shape-image-threshold-property">
+<meta name="assert" content="shape-image-threshold supports the full grammar '<number>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("shape-image-threshold", "12.5");
+test_valid_value("shape-image-threshold", "-7");
+
+// https://github.com/w3c/csswg-drafts/issues/4102
+test_valid_value("shape-image-threshold", "-100%", "-1");
+test_valid_value("shape-image-threshold", "50%", "0.5");
+test_valid_value("shape-image-threshold", "300%", "3");
+</script>
+</body>
+</html>

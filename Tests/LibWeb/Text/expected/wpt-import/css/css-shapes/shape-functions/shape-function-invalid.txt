@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 40 tests
+
+40 Pass
+Pass	e.style['clip-path'] = "shape(from 20px 40px line to 20px 30px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px line to 20px 30px,)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px, 40px, line to 20px, 30px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to top)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to bottom)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to y-start)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to y-end)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to left)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to right)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to x-start)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline to x-end)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to top 20px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline to right, vline to bottom left, close)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline by left)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, hline by right)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline by top)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, move to 20px 30px, vline by bottom)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve to 20px 20px, using 10px 30px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve to 20px 20px using 10px 30px, 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px, using 10px 30px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px using 10px 30px, 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px via 10px 30px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px via 10px 30px 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, smooth by 20px 20px via 10px 30px / 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, smooth by 20px 20px using 10px 30px 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve to 20px 20px with 10px 30px 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px with 10px 30px 12px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 20px with 10px 30px /)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by top left using 10px 30px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 30px using top right)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve to 20px 30px using top right / 20px from end)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by top right of 10% 20%)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by 10px 20px of top right small cw)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve by 20px 30px from start, using 23px 32px)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, curve to 20px 20px using top left from origin / 12px 32px from end)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% 12deg)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% rotate 12deg rotate 13deg)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw large 12deg)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% small large)" should not set the property value
+Pass	e.style['clip-path'] = "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw ccw)" should not set the property value
