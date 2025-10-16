@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Property shape-margin value 'calc(10px + 0.5em)'
+Fail	Property shape-margin value 'calc(10px - 0.5em)'
+Fail	Property shape-margin value '50%'

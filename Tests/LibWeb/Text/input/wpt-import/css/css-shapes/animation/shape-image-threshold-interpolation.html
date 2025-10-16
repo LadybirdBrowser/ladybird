@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>shape-image-threshold interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes/#shape-image-threshold-property">
+<meta name="assert" content="shape-image-threshold supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  shape-image-threshold: 0.4;
+}
+.target {
+  shape-image-threshold: 0.6;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'shape-image-threshold',
+  from: neutralKeyframe,
+  to: '0.8',
+}, [
+  {at: -1.5, expect: '0.3'},
+  {at: -0.5, expect: '0.5'},
+  {at: 0, expect: '0.6'},
+  {at: 0.5, expect: '0.7'},
+  {at: 1, expect: '0.8'},
+  {at: 1.5, expect: '0.9'},
+]);
+
+test_interpolation({
+  property: 'shape-image-threshold',
+  from: 'initial',
+  to: '0.8',
+}, [
+  {at: -1.5, expect: '0'},
+  {at: -0.5, expect: '0'},
+  {at: 0, expect: '0'},
+  {at: 0.5, expect: '0.4'},
+  {at: 1, expect: '0.8'},
+  {at: 1.5, expect: '1'},
+]);
+
+test_interpolation({
+  property: 'shape-image-threshold',
+  from: 'inherit',
+  to: '0.8',
+}, [
+  {at: -1.5, expect: '0'},
+  {at: -0.5, expect: '0.2'},
+  {at: 0, expect: '0.4'},
+  {at: 0.5, expect: '0.6'},
+  {at: 1, expect: '0.8'},
+  {at: 1.5, expect: '1'},
+]);
+
+test_interpolation({
+  property: 'shape-image-threshold',
+  from: 'unset',
+  to: '0.8',
+}, [
+  {at: -1.5, expect: '0'},
+  {at: -0.5, expect: '0'},
+  {at: 0, expect: '0'},
+  {at: 0.5, expect: '0.4'},
+  {at: 1, expect: '0.8'},
+  {at: 1.5, expect: '1'},
+]);
+
+test_interpolation({
+  property: 'shape-image-threshold',
+  from: '0.5',
+  to: '1'
+}, [
+  {at: -1.5, expect: '0'},
+  {at: -0.5, expect: '0.25'},
+  {at: 0, expect: '0.5'},
+  {at: 0.5, expect: '0.75'},
+  {at: 1, expect: '1'},
+  {at: 1.5, expect: '1'}
+]);
+</script>

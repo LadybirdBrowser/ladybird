@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	e.style['shape-outside'] = "ellipse(10px)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(10px -20px)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(20px, 40px at center)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(farthest-side at)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(1% 2% top right)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(3% at 100% 0%)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(closest-side)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(farthest-side at 100% 0%)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(10% -20% at 30% 40%)" should not set the property value
+Pass	e.style['shape-outside'] = "ellipse(-50px 60px at 70% 80%)" should not set the property value

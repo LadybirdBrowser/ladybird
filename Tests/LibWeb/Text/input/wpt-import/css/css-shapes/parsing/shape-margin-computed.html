@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: getComputedStyle().shapeMargin</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes/#shape-margin-property">
+<meta name="assert" content="shape-margin computed value is non-negative <length-percentage>.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<div id="target"></div>
+<script>
+test_computed_value("shape-margin", "calc(10px + 0.5em)", "30px");
+test_computed_value("shape-margin", "calc(10px - 0.5em)", "0px");
+test_computed_value("shape-margin", "50%");
+</script>
+</body>
+</html>

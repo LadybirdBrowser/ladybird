@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 2: computed values for the shape() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-function">
+<meta name="assert" content="Tests parsing of the circle() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("clip-path", "shape(from 20px 40px, line to 20px 30px)");
+test_computed_value("clip-path", "shape(from 20px 40px, line to 20px 30px )", "shape(from 20px 40px, line to 20px 30px)");
+test_computed_value("clip-path", "shape(from 0 0, line to 100% 100%)", "shape(from 0px 0px, line to 100% 100%)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, line by 20px 30px)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to 100px)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline by 100%)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to 100px)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline by 100%)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, curve by 20px 20px with 10px 30px)");
+test_computed_value("clip-path", "shape(from 20px 40px, curve by 20px 20px with 10px 30px / 12px 32px)");
+
+test_computed_value("clip-path", "shape(from center, curve to center bottom with top right / bottom right)",
+                                 "shape(from 50% 50%, curve to 50% 100% with 100% 0% / 100% 100%)");
+
+test_computed_value("clip-path", "shape(from center, curve by 20px 20px with 10px 30px from end / 12px 32px from start)",
+                                 "shape(from 50% 50%, curve by 20px 20px with 10px 30px from end / 12px 32px)");
+
+test_computed_value("clip-path", "shape(from center right, curve by 20px 20px with 10px 30px from origin / 12px 32px from origin)",
+                                 "shape(from 100% 50%, curve by 20px 20px with 10px 30px from origin / 12px 32px from origin)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, curve to top right with 10px 30px from origin / 12px 32px from origin)",
+                                 "shape(from 20px 40px, curve to 100% 0% with 10px 30px / 12px 32px)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, smooth by 20px 20px)");
+test_computed_value("clip-path", "shape(from 20px 40px, smooth by 20px 20px with 12px 32px)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10%)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 0)", "shape(from 20px 40px, arc by 20px 20px of 0px)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 0)", "shape(from 20px 40px, arc by 20px 20px of 10% 0px)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% rotate 0deg)", "shape(from 20px 40px, arc by 20px 20px of 10%)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20%)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% large)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of -10% -20% large)");
+
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% rotate 1deg)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw rotate 12deg)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw rotate 3.14159265rad)", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw rotate 180deg)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% large rotate 12deg)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw large)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% large cw)", "shape(from 20px 40px, arc by 20px 20px of 10% 20% cw large)");
+test_computed_value("clip-path", "shape(from 20px 40px, arc by 20px 20px of 10% 20% rotate 12deg large)", "shape(from 20px 40px, arc by 20px 20px of 10% 20% large rotate 12deg)");
+
+document.getElementById('target').remove();
+</script>
+</body>
+</html>

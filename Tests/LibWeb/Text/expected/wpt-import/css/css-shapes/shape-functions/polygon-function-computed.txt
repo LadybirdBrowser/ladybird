@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Property shape-outside value 'polygon(1% 2%)'
+Fail	Property shape-outside value 'polygon(calc(100% - 20px) calc(30% + 10px))'
+Fail	Property shape-outside value 'polygon(nonzero, 1px 2px, 3em 4em)'
+Fail	Property shape-outside value 'polygon(evenodd, 1px 2px, 3em 4em, 6pt 6%)'

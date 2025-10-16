@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['shape-outside'] = "xywh(0px 1px -2% 3em)" should not set the property value
+Pass	e.style['shape-outside'] = "xywh(0px 1px 2% -3em)" should not set the property value
+Pass	e.style['shape-outside'] = "xywh(10px 20px)" should not set the property value
+Pass	e.style['shape-outside'] = "xywh(10px 20px 30px)" should not set the property value
+Pass	e.style['shape-outside'] = "xywh(10px 20px, 30px 25px)" should not set the property value
+Pass	e.style['shape-outside'] = "xywh(10px 20px 30px 25px round 0px -1px 2%)" should not set the property value

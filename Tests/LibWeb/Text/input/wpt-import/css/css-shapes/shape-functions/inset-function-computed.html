@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: the computed value of the inset() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-inset">
+<meta name="assert" content="Tests parsing of the inset() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("shape-outside", "inset(100%)");
+test_computed_value("shape-outside", "inset(0 1px)", "inset(0px 1px)");
+test_computed_value("shape-outside", "inset(0px 1px 2%)");
+test_computed_value("shape-outside", "inset(-20px -20px 2%)");
+test_computed_value("shape-outside", "inset(0px 1px 2% 3em)", "inset(0px 1px 2% 48px)");
+test_computed_value("shape-outside", "inset(0px calc(100% - 20px) 2% 3em)", "inset(0px calc(100% - 20px) 2% 48px)");
+test_computed_value("shape-outside", "inset(0px round 100%)");
+test_computed_value("shape-outside", "inset(0px round 0 1px)", "inset(0px round 0px 1px)");
+test_computed_value("shape-outside", "inset(0px round 0px 1px 2%)");
+test_computed_value("shape-outside", "inset(0px round 0px 1px 2% 3em)", "inset(0px round 0px 1px 2% 48px)");
+test_computed_value("shape-outside", "inset(10px round 20% / 0px 1px 2% 3em)", "inset(10px round 20% / 0px 1px 2% 48px)");
+</script>
+</body>
+</html>

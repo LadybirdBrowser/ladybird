@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: parsing the inset() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-inset">
+<meta name="assert" content="Tests parsing of the inset() function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("shape-outside", "inset(0px, 1px)");
+test_invalid_value("shape-outside", "inset(0px round 0px, 1px)");
+test_invalid_value("shape-outside", "inset()");
+test_invalid_value("shape-outside", "inset(123)");
+test_invalid_value("shape-outside", "inset(1% 2% 3% 4% 5%)");
+test_invalid_value("shape-outside", "inset(round 0)");
+test_invalid_value("shape-outside", "inset(0px round)");
+test_invalid_value("shape-outside", "inset(0px round 123)");
+test_invalid_value("shape-outside", "inset(0px round 1% 2% 3% 4% 5%)");
+test_invalid_value("shape-outside", "inset(0px round / 1px)");
+test_invalid_value("shape-outside", "inset(10px round -20px)");
+test_invalid_value("shape-outside", "inset(30% round -40%)");
+</script>
+</body>
+</html>
