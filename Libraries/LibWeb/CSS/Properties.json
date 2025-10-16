@@ -3445,6 +3445,15 @@
       "none"
     ]
   },
+  "shape-image-threshold": {
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "valid-types": [
+      "opacity"
+    ]
+  },
   "shape-outside": {
     "affects-layout": true,
     "animation-type": "by-computed-value",

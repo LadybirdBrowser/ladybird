@@ -3254,6 +3254,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(Propert
     case PropertyID::Opacity:
     case PropertyID::StopOpacity:
     case PropertyID::StrokeOpacity:
+    case PropertyID::ShapeImageThreshold:
         return compute_opacity(absolutized_value);
     case PropertyID::PositionArea:
         return compute_position_area(absolutized_value);
