@@ -19,6 +19,7 @@
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>

@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>

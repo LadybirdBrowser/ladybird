@@ -10,10 +10,10 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/NavigationPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
-#include <LibWeb/HTML/Navigable.h>
 
 namespace Web::HTML {
 

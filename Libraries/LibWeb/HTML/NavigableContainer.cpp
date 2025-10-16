@@ -351,4 +351,18 @@ bool NavigableContainer::currently_delays_the_load_event() const
     return false;
 }
 
+bool NavigableContainer::content_navigable_has_session_history_entry_and_ready_for_navigation() const
+{
+    if (!content_navigable())
+        return false;
+    return m_content_navigable->has_session_history_entry_and_ready_for_navigation();
+}
+
+void NavigableContainer::set_content_navigable_has_session_history_entry_and_ready_for_navigation()
+{
+    if (!content_navigable())
+        return;
+    content_navigable()->set_has_session_history_entry_and_ready_for_navigation();
+}
+
 }

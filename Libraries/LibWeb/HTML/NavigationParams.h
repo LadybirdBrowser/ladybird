@@ -17,15 +17,9 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#user-navigation-involvement
-enum class UserNavigationInvolvement {
-    BrowserUI,
-    Activation,
-    None,
-};
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigation-params
 struct NavigationParams : GC::Cell {

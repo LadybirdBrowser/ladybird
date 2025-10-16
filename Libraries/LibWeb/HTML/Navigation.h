@@ -10,9 +10,9 @@
 #include <LibWeb/Bindings/NavigationPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
-#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
 

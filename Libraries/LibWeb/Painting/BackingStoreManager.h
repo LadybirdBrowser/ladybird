@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/Navigable.h>
 
 namespace Web::Painting {
 

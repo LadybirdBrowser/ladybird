@@ -10,6 +10,7 @@
 #include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StoragePrototype.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/Window.h>

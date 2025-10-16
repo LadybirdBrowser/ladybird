@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {

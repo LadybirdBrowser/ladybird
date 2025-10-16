@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
 

@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
