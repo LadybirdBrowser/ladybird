@@ -4471,7 +4471,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
                     //     1. Append a weak reference to element to elements.
                     // 5. Set this's explicitly set attr-elements to elements.
                     attribute_generator.append(R"~~~(
-    Vector<WeakPtr<DOM::Element>> elements;
+    Vector<GC::Weak<DOM::Element>> elements;
     elements.ensure_capacity(cpp_value->size());
 
     for (auto const& element : *cpp_value) {

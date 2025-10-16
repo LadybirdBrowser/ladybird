@@ -86,7 +86,7 @@ private:
 
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
-    WeakPtr<DOM::EventTarget> m_mousedown_target;
+    GC::Weak<DOM::EventTarget> m_mousedown_target;
 
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
 

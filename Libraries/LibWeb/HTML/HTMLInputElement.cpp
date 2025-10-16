@@ -380,7 +380,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
             // 2. Wait for the user to have made their selection.
             auto accepted_file_types = element.parse_accept_attribute();
             auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
-            auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+            auto weak_element = GC::Weak<HTMLInputElement> { element };
 
             element.set_is_open(true);
             element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
@@ -404,7 +404,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     //    events, or a cancel event.)
     else {
         if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
-            auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+            auto weak_element = GC::Weak<HTMLInputElement> { element };
             element.set_is_open(true);
             element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_utf16_string(element.value()).value_or(Color(0, 0, 0)));
         }

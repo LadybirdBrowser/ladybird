@@ -1788,9 +1788,9 @@ void Document::invalidate_style_of_elements_affected_by_has()
 
     auto nodes = move(m_pending_nodes_for_style_invalidation_due_to_presence_of_has);
     for (auto const& node : nodes) {
-        if (node.is_null())
+        if (!node)
             continue;
-        for (auto* ancestor = node.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        for (auto ancestor = node.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (!ancestor->is_element())
                 continue;
             auto& element = static_cast<Element&>(*ancestor);
@@ -3420,7 +3420,7 @@ void Document::run_the_scroll_steps()
 void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_list)
 {
     m_needs_media_query_evaluation = true;
-    m_media_query_lists.append(*media_query_list);
+    m_media_query_lists.append(media_query_list);
 }
 
 // https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes
@@ -3432,7 +3432,7 @@ void Document::evaluate_media_queries_and_report_changes()
 
     // NOTE: Not in the spec, but we take this opportunity to prune null WeakPtrs.
     m_media_query_lists.remove_all_matching([](auto& it) {
-        return it.is_null();
+        return !it;
     });
 
     // 1. For each MediaQueryList object target that has doc as its document,
@@ -3443,7 +3443,7 @@ void Document::evaluate_media_queries_and_report_changes()
         //    with its type attribute initialized to change, its isTrusted attribute
         //    initialized to true, its media attribute initialized to target’s media,
         //    and its matches attribute initialized to target’s matches state.
-        if (media_query_list_ptr.is_null())
+        if (!media_query_list_ptr)
             continue;
         GC::Ptr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr();
         bool did_match = media_query_list->matches();
@@ -6845,7 +6845,7 @@ NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(Fly
 GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const
 {
     if (auto elements = m_map.get(element_id); elements.has_value() && !elements->is_empty()) {
-        if (auto element = elements->first(); element.has_value())
+        if (auto element = elements->first())
             return *element;
     }
     return {};

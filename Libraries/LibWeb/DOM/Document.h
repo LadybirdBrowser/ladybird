@@ -681,7 +681,7 @@ public:
     WebIDL::ExceptionOr<String> query_command_value(FlyString const& command);
 
     WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
-    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(String const& expression, const DOM::Node& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
     GC::Ref<DOM::Node> create_ns_resolver(GC::Ref<DOM::Node> node_resolver); // legacy
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
@@ -924,7 +924,7 @@ public:
 
     void schedule_ancestors_style_invalidation_due_to_presence_of_has(Node& node)
     {
-        m_pending_nodes_for_style_invalidation_due_to_presence_of_has.set(node.make_weak_ptr<Node>());
+        m_pending_nodes_for_style_invalidation_due_to_presence_of_has.set(node);
     }
 
     ElementByIdMap& element_by_id() const;
@@ -1117,7 +1117,7 @@ private:
 
     // Used by evaluate_media_queries_and_report_changes().
     bool m_needs_media_query_evaluation { false };
-    Vector<WeakPtr<CSS::MediaQueryList>> m_media_query_lists;
+    Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
@@ -1280,8 +1280,8 @@ private:
     RefPtr<Core::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
 
-    // NOTE: This is WeakPtr, not GCPtr, on purpose. We don't want the document to keep some old detached navigable alive.
-    WeakPtr<HTML::Navigable> m_cached_navigable;
+    // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
+    GC::Weak<HTML::Navigable> m_cached_navigable;
 
     bool m_enable_cookies_on_file_domains { false };
 
@@ -1333,7 +1333,7 @@ private:
     // https://drafts.csswg.org/css-view-transitions-1/#document-update-callback-queue
     Vector<GC::Ptr<ViewTransition::ViewTransition>> m_update_callback_queue = {};
 
-    HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
+    HashTable<GC::Weak<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 
     GC::Ref<StyleInvalidator> m_style_invalidator;
 

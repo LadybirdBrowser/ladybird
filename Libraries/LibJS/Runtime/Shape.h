@@ -10,8 +10,8 @@
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
-#include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
@@ -36,8 +36,7 @@ struct TransitionKey {
     }
 };
 
-class PrototypeChainValidity final : public Cell
-    , public Weakable<PrototypeChainValidity> {
+class PrototypeChainValidity final : public Cell {
     GC_CELL(PrototypeChainValidity, Cell);
     GC_DECLARE_ALLOCATOR(PrototypeChainValidity);
 
@@ -50,8 +49,7 @@ private:
     size_t padding { 0 };
 };
 
-class JS_API Shape final : public Cell
-    , public Weakable<Shape> {
+class JS_API Shape final : public Cell {
     GC_CELL(Shape, Cell);
     GC_DECLARE_ALLOCATOR(Shape);
 
@@ -129,9 +127,9 @@ private:
 
     mutable OwnPtr<OrderedHashMap<PropertyKey, PropertyMetadata>> m_property_table;
 
-    OwnPtr<HashMap<TransitionKey, WeakPtr<Shape>>> m_forward_transitions;
-    OwnPtr<HashMap<GC::Ptr<Object>, WeakPtr<Shape>>> m_prototype_transitions;
-    OwnPtr<HashMap<PropertyKey, WeakPtr<Shape>>> m_delete_transitions;
+    OwnPtr<HashMap<TransitionKey, GC::Weak<Shape>>> m_forward_transitions;
+    OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;
+    OwnPtr<HashMap<PropertyKey, GC::Weak<Shape>>> m_delete_transitions;
     GC::Ptr<Shape> m_previous;
     Optional<PropertyKey> m_property_key;
     GC::Ptr<Object> m_prototype;

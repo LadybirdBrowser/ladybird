@@ -106,7 +106,7 @@ private:
     Vector<GC::Ref<DOM::Element>> m_observation_targets;
 
     // AD-HOC: This is the document where we've registered the IntersectionObserver.
-    WeakPtr<DOM::Document> m_document;
+    GC::Weak<DOM::Document> m_document;
 };
 
 }

@@ -10,17 +10,17 @@ namespace Web::DOM {
 
 void ElementByIdMap::add(FlyString const& element_id, Element& element)
 {
-    auto& elements_with_id = m_map.ensure(element_id, [] { return Vector<WeakPtr<Element>> {}; });
+    auto& elements_with_id = m_map.ensure(element_id, [] { return Vector<GC::Weak<Element>> {}; });
 
     // Remove all elements that were deallocated.
-    elements_with_id.remove_all_matching([](WeakPtr<Element>& element) {
-        return !element.has_value();
+    elements_with_id.remove_all_matching([](GC::Weak<Element>& element) {
+        return !element;
     });
 
     elements_with_id.remove_first_matching([&](auto const& another_element) {
         return &element == another_element.ptr();
     });
-    elements_with_id.insert_before_matching(element, [&](auto& another_element) {
+    elements_with_id.insert_before_matching(GC::Weak<Element> { element }, [&](auto& another_element) {
         return element.is_before(*another_element);
     });
 }
@@ -32,7 +32,7 @@ void ElementByIdMap::remove(FlyString const& element_id, Element& element)
         return;
     auto& elements_with_id = *maybe_elements_with_id;
     elements_with_id.remove_all_matching([&](auto& another_element) {
-        if (!another_element.has_value())
+        if (!another_element)
             return true;
         return &element == another_element.ptr();
     });

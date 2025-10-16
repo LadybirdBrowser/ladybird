@@ -18,7 +18,7 @@ public:
     GC::Ptr<Element> get(FlyString const& element_id) const;
 
 private:
-    HashMap<FlyString, Vector<WeakPtr<Element>>> m_map;
+    HashMap<FlyString, Vector<GC::Weak<Element>>> m_map;
 };
 
 }

@@ -8,9 +8,9 @@
 
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
-#include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
@@ -119,7 +119,7 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
 
-    Vector<WeakPtr<DOM::Document>> m_documents;
+    Vector<GC::Weak<DOM::Document>> m_documents;
 
     // Used to implement step 4 of "perform a microtask checkpoint".
     // NOTE: These are weak references! ESO registers and unregisters itself from the event loop manually.

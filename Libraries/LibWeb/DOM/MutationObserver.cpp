@@ -97,7 +97,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
             // 1. For each node of this’s node list, remove all transient registered observers whose source is registered from node’s registered observer list.
             for (auto& node : m_node_list) {
                 // FIXME: Is this correct?
-                if (node.is_null())
+                if (!node)
                     continue;
 
                 if (node->registered_observer_list()) {
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
         target.add_registered_observer(new_registered_observer);
 
         // 2. Append target to this’s node list.
-        m_node_list.append(target.make_weak_ptr<Node>());
+        m_node_list.append(target);
     }
 
     return {};
@@ -132,7 +132,7 @@ void MutationObserver::disconnect()
     // 1. For each node of this’s node list, remove any registered observer from node’s registered observer list for which this is the observer.
     for (auto& node : m_node_list) {
         // FIXME: Is this correct?
-        if (node.is_null())
+        if (!node)
             continue;
 
         if (node->registered_observer_list()) {
