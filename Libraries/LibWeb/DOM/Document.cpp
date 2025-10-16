@@ -494,8 +494,11 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
     HTML::main_thread_event_loop().register_document({}, *this);
 }
 
-Document::~Document()
+Document::~Document() = default;
+
+void Document::finalize()
 {
+    Base::finalize();
     HTML::main_thread_event_loop().unregister_document({}, *this);
 }
 
