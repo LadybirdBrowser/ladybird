@@ -13,6 +13,8 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibThreading/Mutex.h>
+#include <LibThreading/RWLock.h>
 #include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #include <LibWebView/EventLoop/EventLoopImplementationQtEventTarget.h>
 
@@ -20,23 +22,43 @@
 #include <QEvent>
 #include <QEventLoop>
 #include <QSocketNotifier>
+#include <QThread>
 #include <QTimer>
 
 namespace WebView {
 
 struct ThreadData;
-static thread_local ThreadData* s_thread_data;
+static thread_local OwnPtr<ThreadData> s_this_thread_data;
+static HashMap<pthread_t, ThreadData*> s_thread_data;
+static Threading::RWLock s_thread_data_lock;
+static thread_local pthread_t s_thread_id;
 
 struct ThreadData {
     static ThreadData& the()
     {
-        if (!s_thread_data) {
-            // FIXME: Don't leak this.
-            s_thread_data = new ThreadData;
+        if (s_thread_id == 0)
+            s_thread_id = pthread_self();
+        if (!s_this_thread_data) {
+            s_this_thread_data = make<ThreadData>();
+            Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+            s_thread_data.set(s_thread_id, s_this_thread_data.ptr());
         }
-        return *s_thread_data;
+        return *s_this_thread_data;
     }
 
+    static ThreadData* for_thread(pthread_t thread_id)
+    {
+        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        return s_thread_data.get(thread_id).value_or(nullptr);
+    }
+
+    ~ThreadData()
+    {
+        Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+        s_thread_data.remove(s_thread_id);
+    }
+
+    Threading::Mutex mutex;
     HashMap<Core::Notifier*, NonnullOwnPtr<QSocketNotifier>> notifiers;
 };
 
@@ -293,16 +315,31 @@ void EventLoopManagerQt::register_notifier(Core::Notifier& notifier)
         TODO();
     }
     auto socket_notifier = make<QSocketNotifier>(notifier.fd(), type);
-    QObject::connect(socket_notifier, &QSocketNotifier::activated, [&notifier] {
-        qt_notifier_activated(notifier);
+    QObject::connect(socket_notifier, &QSocketNotifier::activated, [weak_notifier = notifier.make_weak_ptr()] {
+        if (!weak_notifier)
+            return;
+        qt_notifier_activated(static_cast<Core::Notifier&>(*weak_notifier));
     });
 
-    ThreadData::the().notifiers.set(&notifier, move(socket_notifier));
+    {
+        auto& thread_data = ThreadData::the();
+        Threading::MutexLocker locker(thread_data.mutex);
+        thread_data.notifiers.set(&notifier, move(socket_notifier));
+    }
+    notifier.set_owner_thread(s_thread_id);
 }
 
 void EventLoopManagerQt::unregister_notifier(Core::Notifier& notifier)
 {
-    ThreadData::the().notifiers.remove(&notifier);
+    auto* thread_data = ThreadData::for_thread(notifier.owner_thread());
+    if (!thread_data)
+        return;
+    Threading::MutexLocker locker(thread_data->mutex);
+    auto deleted_notifier = thread_data->notifiers.take(&notifier).release_value();
+    if (QThread::currentThread() != deleted_notifier->thread()) {
+        auto* deleted_notifier_ptr = deleted_notifier.ptr();
+        QMetaObject::invokeMethod(deleted_notifier_ptr, [deleted_notifier = move(deleted_notifier)] { }, Qt::QueuedConnection);
+    }
 }
 
 void EventLoopManagerQt::handle_signal(int signal_number)
