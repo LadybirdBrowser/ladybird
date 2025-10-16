@@ -242,51 +242,54 @@ void HTMLScriptElement::prepare_script()
         // then set el's type to "importmap".
         m_script_type = ScriptType::ImportMap;
     }
-    // 12. Otherwise, return. (No script is executed, and el's type is left as null.)
+    // FIXME: 12. Otherwise, if the script block's type string is an ASCII case-insensitive match for the string "speculationrules", then set el's type to "speculationrules".
+    // 13. Otherwise, return. (No script is executed, and el's type is left as null.)
     else {
         VERIFY(m_script_type == ScriptType::Null);
         return;
     }
 
-    // 13. If parser document is non-null, then set el's parser document back to parser document and set el's force async to false.
+    // 14. If parser document is non-null, then set el's parser document back to parser document and set el's force async to false.
     if (parser_document) {
         m_parser_document = parser_document;
         m_force_async = false;
     }
 
-    // 14. Set el's already started to true.
+    // 15. Set el's already started to true.
     m_already_started = true;
 
-    // 15. Set el's preparation-time document to its node document.
+    // 16. Set el's preparation-time document to its node document.
     m_preparation_time_document = &document();
 
-    // 16. If parser document is non-null, and parser document is not equal to el's preparation-time document, then return.
+    // 17. If parser document is non-null, and parser document is not equal to el's preparation-time document, then return.
     if (parser_document != nullptr && parser_document != m_preparation_time_document) {
         dbgln("HTMLScriptElement: Refusing to run script because the parser document is not the same as the preparation time document.");
         return;
     }
 
-    // 17. If scripting is disabled for el, then return.
+    // 18. If scripting is disabled for el, then return.
     if (is_scripting_disabled()) {
         dbgln("HTMLScriptElement: Refusing to run script because scripting is disabled.");
         return;
     }
 
-    // 18. If el has a nomodule content attribute and its type is "classic", then return.
+    // 19. If el has a nomodule content attribute and its type is "classic", then return.
     if (m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::nomodule)) {
         dbgln("HTMLScriptElement: Refusing to run classic script because it has the nomodule attribute.");
         return;
     }
 
-    // 19. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content Security Policy?
-    //     algorithm returns "Blocked" when given el, "script", and source text, then return. [CSP]
+    // FIXME: 20. Let cspType be "script speculationrules" if el's type is "speculationrules"; otherwise, "script".
+
+    // 21. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content
+    //     Security Policy? algorithm returns "Blocked" when given el, cspType, and source text, then return [CSP]
     if (!has_attribute(AttributeNames::src)
         && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text_utf8) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
         return;
     }
 
-    // 20. If el has an event attribute and a for attribute, and el's type is "classic", then:
+    // 22. If el has an event attribute and a for attribute, and el's type is "classic", then:
     if (m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::event) && has_attribute(HTML::AttributeNames::for_)) {
         // 1. Let for be the value of el's' for attribute.
         auto for_ = get_attribute_value(HTML::AttributeNames::for_);
@@ -312,7 +315,7 @@ void HTMLScriptElement::prepare_script()
         }
     }
 
-    // 21. If el has a charset attribute, then let encoding be the result of getting an encoding from the value of the charset attribute.
+    // 23. If el has a charset attribute, then let encoding be the result of getting an encoding from the value of the charset attribute.
     //     If el does not have a charset attribute, or if getting an encoding failed, then let encoding be el's node document's the encoding.
     Optional<String> encoding;
 
@@ -328,34 +331,34 @@ void HTMLScriptElement::prepare_script()
 
     VERIFY(encoding.has_value());
 
-    // 22. Let classic script CORS setting be the current state of el's crossorigin content attribute.
+    // 24. Let classic script CORS setting be the current state of el's crossorigin content attribute.
     auto classic_script_cors_setting = m_crossorigin;
 
-    // 23. Let module script credentials mode be the CORS settings attribute credentials mode for el's crossorigin content attribute.
+    // 25. Let module script credentials mode be the CORS settings attribute credentials mode for el's crossorigin content attribute.
     auto module_script_credential_mode = cors_settings_attribute_credentials_mode(m_crossorigin);
 
-    // 24. Let cryptographic nonce be el's [[CryptographicNonce]] internal slot's value.
+    // 26. Let cryptographic nonce be el's [[CryptographicNonce]] internal slot's value.
     auto cryptographic_nonce = m_cryptographic_nonce;
 
-    // 25. If el has an integrity attribute, then let integrity metadata be that attribute's value.
+    // 27. If el has an integrity attribute, then let integrity metadata be that attribute's value.
     //     Otherwise, let integrity metadata be the empty string.
     String integrity_metadata;
     if (auto maybe_integrity = attribute(HTML::AttributeNames::integrity); maybe_integrity.has_value()) {
         integrity_metadata = *maybe_integrity;
     }
 
-    // 26. Let referrer policy be the current state of el's referrerpolicy content attribute.
+    // 28. Let referrer policy be the current state of el's referrerpolicy content attribute.
     auto referrer_policy = m_referrer_policy;
 
-    // 27. Let fetch priority be the current state of el's fetchpriority content attribute.
+    // 29. Let fetch priority be the current state of el's fetchpriority content attribute.
     auto fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto);
 
-    // 28. Let parser metadata be "parser-inserted" if el is parser-inserted, and "not-parser-inserted" otherwise.
+    // 30. Let parser metadata be "parser-inserted" if el is parser-inserted, and "not-parser-inserted" otherwise.
     auto parser_metadata = is_parser_inserted()
         ? Fetch::Infrastructure::Request::ParserMetadata::ParserInserted
         : Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted;
 
-    // 29. Let options be a script fetch options whose cryptographic nonce is cryptographic nonce,
+    // 31. Let options be a script fetch options whose cryptographic nonce is cryptographic nonce,
     //     integrity metadata is integrity metadata, parser metadata is parser metadata,
     //     credentials mode is module script credentials mode, referrer policy is referrer policy,
     //     and fetch priority is fetch priority.
@@ -368,12 +371,13 @@ void HTMLScriptElement::prepare_script()
         .fetch_priority = move(fetch_priority),
     };
 
-    // 30. Let settings object be el's node document's relevant settings object.
+    // 32. Let settings object be el's node document's relevant settings object.
     auto& settings_object = document().relevant_settings_object();
 
-    // 31. If el has a src content attribute, then:
+    // 33. If el has a src content attribute, then:
     if (has_attribute(HTML::AttributeNames::src)) {
-        // 1. If el's type is "importmap",
+        // 1. If el's type is "importmap" or "speculationrules", then:
+        // FIXME: Add "speculationrules" support.
         if (m_script_type == ScriptType::ImportMap) {
             // then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
@@ -445,9 +449,9 @@ void HTMLScriptElement::prepare_script()
         }
     }
 
-    // 32. If el does not have a src content attribute:
+    // 34. If el does not have a src content attribute:
     if (!has_attribute(HTML::AttributeNames::src)) {
-        // Let base URL be el's node document's document base URL.
+        // 1. Let base URL be el's node document's document base URL.
         auto base_url = document().base_url();
 
         // 2. Switch on el's type:
@@ -488,9 +492,10 @@ void HTMLScriptElement::prepare_script()
             // 2. Mark as ready el given result.
             mark_as_ready(Result(move(result)));
         }
+        // FIXME: -> "speculationrules"
     }
 
-    // 33. If el's type is "classic" and el has a src attribute, or el's type is "module":
+    // 35. If el's type is "classic" and el has a src attribute, or el's type is "module":
     if ((m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::src)) || m_script_type == ScriptType::Module) {
         // 1. Assert: el's result is "uninitialized".
         // FIXME: I believe this step to be a spec bug, and it should be removed: https://github.com/whatwg/html/issues/8534
@@ -564,7 +569,7 @@ void HTMLScriptElement::prepare_script()
         }
     }
 
-    // 34. Otherwise:
+    // 36. Otherwise:
     else {
         // 1. Assert: el's result is not "uninitialized".
         VERIFY(!m_result.has<ResultState::Uninitialized>());
