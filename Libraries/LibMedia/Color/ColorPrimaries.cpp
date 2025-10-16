@@ -50,6 +50,11 @@ ALWAYS_INLINE constexpr FloatMatrix3x3 generate_rgb_to_xyz_matrix(FloatVector2 r
     return vectors_to_matrix(matrix_row(matrix, 0) * scale_vector, matrix_row(matrix, 1) * scale_vector, matrix_row(matrix, 2) * scale_vector);
 }
 
+constexpr FloatVector2 BT_470_BG_WHITE = { 0.310f, 0.316f };
+constexpr FloatVector2 BT_470_BG_RED = { 0.67f, 0.33f };
+constexpr FloatVector2 BT_470_BG_GREEN = { 0.21f, 0.71f };
+constexpr FloatVector2 BT_470_BG_BLUE = { 0.14f, 0.08f };
+
 constexpr FloatVector2 ILLUMINANT_D65 = { 0.3127f, 0.3290f };
 
 constexpr FloatVector2 BT_709_RED = { 0.64f, 0.33f };
@@ -64,6 +69,7 @@ constexpr FloatVector2 BT_2020_RED = { 0.708f, 0.292f };
 constexpr FloatVector2 BT_2020_GREEN = { 0.170f, 0.797f };
 constexpr FloatVector2 BT_2020_BLUE = { 0.131f, 0.046f };
 
+constexpr FloatMatrix3x3 bt_470_bg_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_470_BG_RED, BT_470_BG_GREEN, BT_470_BG_BLUE, BT_470_BG_WHITE);
 constexpr FloatMatrix3x3 bt_709_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_709_RED, BT_709_GREEN, BT_709_BLUE, ILLUMINANT_D65);
 constexpr FloatMatrix3x3 bt_601_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_601_RED, BT_601_GREEN, BT_601_BLUE, ILLUMINANT_D65);
 constexpr FloatMatrix3x3 bt_2020_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_2020_RED, BT_2020_GREEN, BT_2020_BLUE, ILLUMINANT_D65);
@@ -72,6 +78,9 @@ DecoderErrorOr<FloatMatrix3x3> get_conversion_matrix(ColorPrimaries input_primar
 {
     FloatMatrix3x3 input_conversion_matrix;
     switch (input_primaries) {
+    case ColorPrimaries::BT470BG:
+        input_conversion_matrix = bt_470_bg_rgb_to_xyz;
+        break;
     case ColorPrimaries::BT709:
         input_conversion_matrix = bt_709_rgb_to_xyz;
         break;
@@ -87,6 +96,9 @@ DecoderErrorOr<FloatMatrix3x3> get_conversion_matrix(ColorPrimaries input_primar
 
     FloatMatrix3x3 output_conversion_matrix;
     switch (output_primaries) {
+    case ColorPrimaries::BT470BG:
+        output_conversion_matrix = bt_470_bg_rgb_to_xyz.inverse();
+        break;
     case ColorPrimaries::BT709:
         output_conversion_matrix = bt_709_rgb_to_xyz.inverse();
         break;
