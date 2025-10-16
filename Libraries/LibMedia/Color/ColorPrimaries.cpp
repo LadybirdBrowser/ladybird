@@ -64,9 +64,9 @@ constexpr FloatVector2 BT_2020_RED = { 0.708f, 0.292f };
 constexpr FloatVector2 BT_2020_GREEN = { 0.170f, 0.797f };
 constexpr FloatVector2 BT_2020_BLUE = { 0.131f, 0.046f };
 
-constexpr FloatMatrix3x3 bt_2020_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_2020_RED, BT_2020_GREEN, BT_2020_BLUE, ILLUMINANT_D65);
 constexpr FloatMatrix3x3 bt_709_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_709_RED, BT_709_GREEN, BT_709_BLUE, ILLUMINANT_D65);
 constexpr FloatMatrix3x3 bt_601_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_601_RED, BT_601_GREEN, BT_601_BLUE, ILLUMINANT_D65);
+constexpr FloatMatrix3x3 bt_2020_rgb_to_xyz = generate_rgb_to_xyz_matrix(BT_2020_RED, BT_2020_GREEN, BT_2020_BLUE, ILLUMINANT_D65);
 
 DecoderErrorOr<FloatMatrix3x3> get_conversion_matrix(ColorPrimaries input_primaries, ColorPrimaries output_primaries)
 {
