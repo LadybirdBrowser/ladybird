@@ -240,7 +240,7 @@ struct ThreadData {
 
     static ThreadData* for_thread(pthread_t thread_id)
     {
-        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        // NOTE: s_thread_data_lock is supposed to be held by the caller.
         return s_thread_data.get(thread_id).value_or(nullptr);
     }
 
@@ -266,6 +266,8 @@ struct ThreadData {
         Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id);
     }
+
+    Threading::Mutex mutex;
 
     // Each thread has its own timers, notifiers and a wake pipe.
     TimeoutSet timeouts;
@@ -328,6 +330,7 @@ void EventLoopImplementationUnix::wake()
 void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mode)
 {
     auto& thread_data = ThreadData::the();
+    Threading::MutexLocker locker(thread_data.mutex);
 
 retry:
     bool has_pending_events = ThreadEventQueue::current().has_pending_events();
@@ -612,6 +615,7 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
 {
     VERIFY(milliseconds >= 0);
     auto& thread_data = ThreadData::the();
+    Threading::MutexLocker locker(thread_data.mutex);
     auto timer = new EventLoopTimer;
     timer->owner_thread = s_thread_id;
     timer->owner = object;
@@ -625,9 +629,11 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
 void EventLoopManagerUnix::unregister_timer(intptr_t timer_id)
 {
     auto* timer = bit_cast<EventLoopTimer*>(timer_id);
-    auto thread_data_ptr = ThreadData::for_thread(timer->owner_thread);
+    Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+    auto* thread_data_ptr = ThreadData::for_thread(timer->owner_thread);
     if (!thread_data_ptr)
         return;
+    Threading::MutexLocker thread_data_content_locker(thread_data_ptr->mutex);
     auto& thread_data = *thread_data_ptr;
     auto expected = false;
     if (timer->is_being_deleted.compare_exchange_strong(expected, true, AK::MemoryOrder::memory_order_acq_rel)) {
@@ -640,6 +646,7 @@ void EventLoopManagerUnix::unregister_timer(intptr_t timer_id)
 void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 {
     auto& thread_data = ThreadData::the();
+    Threading::MutexLocker locker(thread_data.mutex);
 
     thread_data.notifier_to_index.set(&notifier, thread_data.poll_fds.size());
     thread_data.notifiers.append(&notifier);
@@ -652,9 +659,11 @@ void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 
 void EventLoopManagerUnix::unregister_notifier(Notifier& notifier)
 {
+    Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
     auto* thread_data = ThreadData::for_thread(notifier.owner_thread());
     if (!thread_data)
         return;
+    Threading::MutexLocker thread_data_content_locker(thread_data->mutex);
 
     auto notifier_index = thread_data->notifier_to_index.take(&notifier).release_value();
 
