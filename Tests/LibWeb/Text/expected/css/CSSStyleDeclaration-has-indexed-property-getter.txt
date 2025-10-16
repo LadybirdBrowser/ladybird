@@ -261,6 +261,7 @@ All properties associated with getComputedStyle(document.body):
     "scrollbar-gutter",
     "scrollbar-width",
     "shape-image-threshold",
+    "shape-margin",
     "shape-outside",
     "stop-color",
     "stop-opacity",

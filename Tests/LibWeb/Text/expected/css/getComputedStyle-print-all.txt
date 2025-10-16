@@ -259,6 +259,7 @@ scrollbar-color: auto
 scrollbar-gutter: auto
 scrollbar-width: auto
 shape-image-threshold: 0
+shape-margin: 0px
 shape-outside: none
 stop-color: rgb(0, 0, 0)
 stop-opacity: 1
