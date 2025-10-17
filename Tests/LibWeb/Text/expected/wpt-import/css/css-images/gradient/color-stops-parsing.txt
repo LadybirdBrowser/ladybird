@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 162 tests
 
-160 Pass
-2 Fail
+162 Pass
 Pass	linear-gradient() [ unparsable ]
 Pass	linear-gradient(black, 25%) [ unparsable ]
 Pass	linear-gradient(black, invalid) [ unparsable ]
@@ -125,7 +124,7 @@ Pass	conic-gradient(0%, black, white) [ unparsable ]
 Pass	conic-gradient(black) [ parsable ]
 Pass	conic-gradient(black 0%) [ parsable ]
 Pass	conic-gradient(black, white) [ parsable ]
-Fail	conic-gradient(black 0, white) [ parsable ]
+Pass	conic-gradient(black 0, white) [ parsable ]
 Pass	conic-gradient(black 0%, white) [ parsable ]
 Pass	conic-gradient(black 0%, white 100%) [ parsable ]
 Pass	conic-gradient(black, green, white) [ parsable ]
@@ -152,7 +151,7 @@ Pass	repeating-conic-gradient(0%, black, white) [ unparsable ]
 Pass	repeating-conic-gradient(black) [ parsable ]
 Pass	repeating-conic-gradient(black 0%) [ parsable ]
 Pass	repeating-conic-gradient(black, white) [ parsable ]
-Fail	repeating-conic-gradient(black 0, white) [ parsable ]
+Pass	repeating-conic-gradient(black 0, white) [ parsable ]
 Pass	repeating-conic-gradient(black 0%, white) [ parsable ]
 Pass	repeating-conic-gradient(black 0%, white 100%) [ parsable ]
 Pass	repeating-conic-gradient(black, green, white) [ parsable ]
