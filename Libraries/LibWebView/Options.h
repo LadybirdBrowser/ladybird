@@ -68,6 +68,11 @@ using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;
 
 constexpr inline u16 default_devtools_port = 6000;
 
+enum class EnableContentFilter {
+    No,
+    Yes,
+};
+
 struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -84,6 +89,7 @@ struct BrowserOptions {
     Optional<ByteString> webdriver_content_ipc_path {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
+    EnableContentFilter enable_content_filter { EnableContentFilter::Yes };
 };
 
 enum class EnableHTTPDiskCache {

@@ -118,6 +118,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool enable_idl_tracing = false;
     bool disable_http_cache = false;
     bool enable_http_disk_cache = false;
+    bool disable_content_filter = false;
     bool enable_autoplay = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
@@ -166,6 +167,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(disable_http_cache, "Disable HTTP cache", "disable-http-cache");
     args_parser.add_option(enable_http_disk_cache, "Enable HTTP disk cache", "enable-http-disk-cache");
+    args_parser.add_option(disable_content_filter, "Disable content filter", "disable-content-filter");
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
@@ -243,6 +245,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
                           : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port, validate_dnssec_locally)) }
                 : OptionalNone()),
         .devtools_port = devtools_port,
+        .enable_content_filter = disable_content_filter ? EnableContentFilter::No : EnableContentFilter::Yes,
     };
 
     if (window_width.has_value())
@@ -856,7 +859,7 @@ void Application::initialize_actions()
     m_debug_menu->add_action(*m_enable_scripting_action);
 
     m_enable_content_filtering_action = Action::create_checkable("Enable Content Filtering"sv, ActionID::EnableContentFiltering, check(m_enable_content_filtering_action, "content-filtering"sv));
-    m_enable_content_filtering_action->set_checked(true);
+    m_enable_content_filtering_action->set_checked(m_browser_options.enable_content_filter == WebView::EnableContentFilter::Yes);
     m_debug_menu->add_action(*m_enable_content_filtering_action);
 
     m_block_pop_ups_action = Action::create_checkable("Block Pop-ups"sv, ActionID::BlockPopUps, check(m_block_pop_ups_action, "block-pop-ups"sv));
