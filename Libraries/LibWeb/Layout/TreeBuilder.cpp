@@ -89,7 +89,7 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
         return layout_parent;
 
     if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside())
-        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
+        return layout_parent;
 
     if (!has_in_flow_block_children(layout_parent) || layout_parent.children_are_inline())
         return layout_parent;
@@ -122,6 +122,11 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
 
     if (!layout_parent.children_are_inline()) {
         // Parent block has block-level children, insert this block into parent.
+        return layout_parent;
+    }
+
+    if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside()) {
+        // Flex and grid containers can have mixed inline and block children.
         return layout_parent;
     }
 
