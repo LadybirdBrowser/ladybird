@@ -16,6 +16,8 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibThreading/Mutex.h>
+#include <LibThreading/RWLock.h>
 #include <pthread.h>
 #include <sys/select.h>
 #include <unistd.h>
@@ -28,9 +30,7 @@ struct ThreadData;
 class TimeoutSet;
 
 HashMap<pthread_t, ThreadData*> s_thread_data;
-pthread_key_t s_thread_key;
-static pthread_rwlock_t s_thread_data_lock_impl;
-static pthread_rwlock_t* s_thread_data_lock = nullptr;
+Threading::RWLock s_thread_data_lock;
 thread_local pthread_t s_thread_id;
 thread_local OwnPtr<ThreadData> s_this_thread_data;
 
@@ -223,14 +223,6 @@ public:
 struct ThreadData {
     static ThreadData& the()
     {
-        if (!s_thread_data_lock) {
-            pthread_rwlock_init(&s_thread_data_lock_impl, nullptr);
-            s_thread_data_lock = &s_thread_data_lock_impl;
-            pthread_key_create(&s_thread_key, [](void*) {
-                s_this_thread_data.clear();
-            });
-        }
-
         if (s_thread_id == 0)
             s_thread_id = pthread_self();
         ThreadData* data = nullptr;
@@ -238,9 +230,8 @@ struct ThreadData {
             data = new ThreadData;
             s_this_thread_data = adopt_own(*data);
 
-            pthread_rwlock_wrlock(&*s_thread_data_lock);
+            Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
             s_thread_data.set(s_thread_id, s_this_thread_data.ptr());
-            pthread_rwlock_unlock(&*s_thread_data_lock);
         } else {
             data = s_this_thread_data.ptr();
         }
@@ -249,10 +240,8 @@ struct ThreadData {
 
     static ThreadData* for_thread(pthread_t thread_id)
     {
-        pthread_rwlock_rdlock(&*s_thread_data_lock);
-        auto result = s_thread_data.get(thread_id).value_or(nullptr);
-        pthread_rwlock_unlock(&*s_thread_data_lock);
-        return result;
+        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        return s_thread_data.get(thread_id).value_or(nullptr);
     }
 
     ThreadData()
@@ -274,9 +263,8 @@ struct ThreadData {
 
     ~ThreadData()
     {
-        pthread_rwlock_wrlock(&*s_thread_data_lock);
+        Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id);
-        pthread_rwlock_unlock(&*s_thread_data_lock);
     }
 
     // Each thread has its own timers, notifiers and a wake pipe.
