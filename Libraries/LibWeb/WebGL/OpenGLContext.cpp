@@ -69,7 +69,7 @@ OpenGLContext::~OpenGLContext()
 void OpenGLContext::free_surface_resources()
 {
 #ifdef ENABLE_WEBGL
-    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
     if (m_impl->framebuffer) {
         glDeleteFramebuffers(1, &m_impl->framebuffer);
@@ -289,7 +289,7 @@ void OpenGLContext::allocate_iosurface_painting_surface()
     };
     m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, iosurface.core_foundation_pointer(), m_impl->config, surface_attributes);
 
-    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
     glGenTextures(1, &m_impl->color_buffer);
     glBindTexture(m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer);
@@ -407,7 +407,7 @@ void OpenGLContext::make_current()
 {
 #ifdef ENABLE_WEBGL
     allocate_painting_surface_if_needed();
-    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 #endif
 }
 
