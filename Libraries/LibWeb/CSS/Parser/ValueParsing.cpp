@@ -4110,7 +4110,8 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 return CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
             },
             [](FunctionContext const& function) -> Optional<CalculationContext> {
-                // Gradients resolve percentages as lengths relative to the gradient-box.
+                // Gradients resolve percentages as lengths relative to the gradient-box (except within
+                // <angular-color-stop-list>s which are handled by a special context)
                 if (function.name.is_one_of_ignoring_ascii_case(
                         "linear-gradient"sv, "repeating-linear-gradient"sv,
                         "radial-gradient"sv, "repeating-radial-gradient"sv,
@@ -4140,6 +4141,8 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
             },
             [](SpecialContext special_context) -> Optional<CalculationContext> {
                 switch (special_context) {
+                case SpecialContext::AngularColorStopList:
+                    return CalculationContext { .percentages_resolve_as = ValueType::Angle };
                 case SpecialContext::ShadowBlurRadius:
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::TranslateZArgument:
