@@ -858,6 +858,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             m_margin_state.reset();
         }
         m_y_offset_of_current_block_container = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
+    } else if (creates_block_formatting_context(block_container) && block_container.is_absolutely_positioned()) {
+        m_y_offset_of_current_block_container = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
     }
     m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(false);
 
