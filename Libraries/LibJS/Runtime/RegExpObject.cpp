@@ -275,12 +275,30 @@ String RegExpObject::escape_regexp_pattern() const
     // FIXME: Check the 'u' and 'v' flags and escape accordingly
     StringBuilder builder;
     auto escaped = false;
+    auto in_character_class = false;
 
     for (auto code_point : m_pattern) {
         if (escaped) {
             escaped = false;
             builder.append_code_point('\\');
-            builder.append_code_point(code_point);
+
+            switch (code_point) {
+            case '\n':
+                builder.append_code_point('n');
+                break;
+            case '\r':
+                builder.append_code_point('r');
+                break;
+            case LINE_SEPARATOR:
+                builder.append("u2028"sv);
+                break;
+            case PARAGRAPH_SEPARATOR:
+                builder.append("u2029"sv);
+                break;
+            default:
+                builder.append_code_point(code_point);
+                break;
+            }
             continue;
         }
 
@@ -289,9 +307,18 @@ String RegExpObject::escape_regexp_pattern() const
             continue;
         }
 
+        if (code_point == '[') {
+            in_character_class = true;
+        } else if (code_point == ']') {
+            in_character_class = false;
+        }
+
         switch (code_point) {
         case '/':
-            builder.append("\\/"sv);
+            if (in_character_class)
+                builder.append_code_point('/');
+            else
+                builder.append("\\/"sv);
             break;
         case '\n':
             builder.append("\\n"sv);
