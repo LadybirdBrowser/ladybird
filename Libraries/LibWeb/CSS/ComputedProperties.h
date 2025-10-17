@@ -235,6 +235,7 @@ public:
 
     [[nodiscard]] CSSPixels line_height() const;
     [[nodiscard]] CSSPixels font_size() const;
+    [[nodiscard]] FontSizeAdjust font_size_adjust() const;
     double font_weight() const;
     Percentage font_width() const;
     int font_slope() const;
@@ -265,6 +266,9 @@ public:
         m_attempted_pseudo_class_matches = results;
     }
 
+    float adjusted_font_size() const { return m_adjusted_font_size; }
+    void set_adjusted_font_size(float size) { m_adjusted_font_size = size; }
+
 private:
     ComputedProperties();
 
@@ -290,6 +294,7 @@ private:
     RefPtr<Gfx::Font const> m_first_available_computed_font;
 
     Optional<CSSPixels> m_line_height;
+    float m_adjusted_font_size { 0.0f };
 
     PseudoClassBitmap m_attempted_pseudo_class_matches;
 };
