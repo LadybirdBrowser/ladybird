@@ -564,6 +564,7 @@ private:
         DescriptorID descriptor;
     };
     enum SpecialContext : u8 {
+        AngularColorStopList,
         ShadowBlurRadius,
         TranslateZArgument
     };
