@@ -64,11 +64,11 @@ void RequestList::all_previous_requests_processed(GC::Heap& heap, GC::Ref<IDBReq
                 return stored_pending_connection_process.ptr() == pending_request_process.ptr();
             });
             VERIFY(was_removed);
-            queue_a_database_task(on_complete);
+            on_complete->function()();
         });
         m_pending_request_queue.append(*pending_request_process);
     } else {
-        queue_a_database_task(on_complete);
+        on_complete->function()();
     }
 }
 
@@ -94,7 +94,7 @@ void RequestList::PendingRequestProcess::add_request_to_observe(GC::Ref<IDBReque
         });
 
         if (requests_waiting_on.is_empty()) {
-            queue_a_database_task(after_all.as_nonnull());
+            after_all.as_nonnull()->function()();
         }
     }));
 
