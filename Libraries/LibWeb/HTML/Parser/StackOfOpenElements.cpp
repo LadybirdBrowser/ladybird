@@ -25,9 +25,9 @@ void StackOfOpenElements::visit_edges(JS::Cell::Visitor& visitor)
 bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list, CheckMathAndSVG check_math_and_svg) const
 {
     for (auto const& element : m_elements.in_reverse()) {
-        if (element->local_name() == tag_name)
+        if (element->namespace_uri() == Namespace::HTML && element->local_name() == tag_name)
             return true;
-        if (list.contains_slow(element->local_name()))
+        if (element->namespace_uri() == Namespace::HTML && list.contains_slow(element->local_name()))
             return false;
         if (check_math_and_svg == CheckMathAndSVG::Yes && element->namespace_uri() == Namespace::SVG && element->local_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
             return false;
@@ -47,7 +47,7 @@ bool StackOfOpenElements::has_in_scope_impl(DOM::Element const& target_node, Vec
     for (auto& element : m_elements.in_reverse()) {
         if (element.ptr() == &target_node)
             return true;
-        if (list.contains_slow(element->local_name()))
+        if (element->namespace_uri() == Namespace::HTML && list.contains_slow(element->local_name()))
             return false;
         if (element->namespace_uri() == Namespace::SVG && element->local_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
             return false;
