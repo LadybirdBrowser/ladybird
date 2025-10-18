@@ -104,7 +104,20 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     Optional<String> old_value;
 
     // 2. Let reorder be true.
+    auto reorder_ = true;
+
     // 3. If this's map[key] exists:
+    if (auto existing_value = m_storage_bottle->get(key); existing_value.has_value()) {
+        // 1. Set oldValue to this's map[key].
+        old_value = existing_value.release_value();
+
+        // 2. If oldValue is value, then return.
+        if (old_value == value)
+            return {};
+
+        // 3. Set reorder to false.
+        reorder_ = false;
+    }
 
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException.
     // 5. Set this's map[key] to value.
@@ -112,6 +125,10 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     if (error == WebView::StorageOperationError::QuotaExceededError) {
         return WebIDL::QuotaExceededError::create(realm(), Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
     }
+
+    // 6. If reorder is true, then reorder this.
+    if (reorder_)
+        reorder();
 
     // 7. Broadcast this with key, oldValue, and value.
     broadcast(key, old_value, value);
@@ -141,6 +158,13 @@ void Storage::remove_item(String const& key)
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-clear
 void Storage::clear()
 {
+    // NOTE: Spec is not explicit about what to do if the storage is already empty, but
+    //       `StorageEvent` description implies it must only be fired when storage areas change.
+    //       This matches the behavior of `set_item` and `remove_item` methods.
+    //       See: https://html.spec.whatwg.org/multipage/indices.html#event-storage
+    if (m_storage_bottle->size() == 0)
+        return;
+
     // 1. Clear this's map.
     m_storage_bottle->clear();
 
