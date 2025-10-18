@@ -11,6 +11,7 @@ import sys
 
 class HostArchitecture(enum.IntEnum):
     x86_64 = enum.auto()
+    riscv64 = enum.auto()
     AArch64 = enum.auto()
 
 
@@ -39,6 +40,8 @@ class Platform:
         self.architecture = platform.machine().lower()
         if self.architecture in ("x86_64", "amd64"):
             self.host_architecture = HostArchitecture.x86_64
+        elif self.architecture == "riscv64":
+            self.host_architecture = HostArchitecture.riscv64
         elif self.architecture in ("aarch64", "arm64"):
             self.host_architecture = HostArchitecture.AArch64
         else:
