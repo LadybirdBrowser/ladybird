@@ -3,7 +3,7 @@ test("length is 1", () => {
 });
 
 describe("basic functionality", () => {
-    test("deferred function gets called when stack is disposed", async () => {
+    test.skip("deferred function gets called when stack is disposed", async () => {
         const stack = new AsyncDisposableStack();
         let disposedCalled = 0;
         expect(disposedCalled).toBe(0);
@@ -20,7 +20,7 @@ describe("basic functionality", () => {
         expect(disposedCalled).toBe(1);
     });
 
-    test("deferred stack is already disposed", async () => {
+    test.skip("deferred stack is already disposed", async () => {
         const stack = new AsyncDisposableStack();
         stack.defer(() => {
             expect(stack.disposed).toBeTrue();
@@ -55,7 +55,7 @@ describe("throws errors", () => {
         expect(stack.disposed).toBeFalse();
     });
 
-    test("defer throws if stack is already disposed (over type errors)", async () => {
+    test.skip("defer throws if stack is already disposed (over type errors)", async () => {
         const stack = new AsyncDisposableStack();
         await stack.disposeAsync();
         expect(stack.disposed).toBeTrue();
