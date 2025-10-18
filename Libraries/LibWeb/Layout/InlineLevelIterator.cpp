@@ -497,10 +497,11 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         else
             m_text_node_context->is_first_chunk = false;
 
+        auto chunk_opt = m_text_node_context->chunk_iterator.next();
+
         if (!m_text_node_context->chunk_iterator.peek(0).has_value())
             m_text_node_context->is_last_chunk = true;
 
-        auto chunk_opt = m_text_node_context->chunk_iterator.next();
         auto is_empty_editable = false;
         if (!chunk_opt.has_value()) {
             auto const is_only_chunk = m_text_node_context->is_first_chunk && m_text_node_context->is_last_chunk;
