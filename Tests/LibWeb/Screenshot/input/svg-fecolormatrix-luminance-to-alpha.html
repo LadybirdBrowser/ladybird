@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-fecolormatrix-luminance-to-alpha-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-12000">
+<style>
+  html, body { margin: 0; background: white; }
+</style>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="cm_luma">
+      <feColorMatrix type="luminanceToAlpha"/>
+    </filter>
+  </defs>
+  <!-- Red square filtered to alpha; will render as black with alpha equal to luminance -->
+  <g filter="url(#cm_luma)">
+    <rect x="10" y="10" width="180" height="180" fill="#ff0000"/>
+  </g>
+</svg>
