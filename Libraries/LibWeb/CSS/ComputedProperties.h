@@ -84,6 +84,7 @@ public:
     Optional<LengthPercentage> length_percentage(PropertyID, Layout::NodeWithStyle const&, ClampNegativeLengths) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const&, ClampNegativeLengths, LengthPercentageOrAuto const& default_value) const;
     Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
+    HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
     ColorInterpolation color_interpolation() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
     TextAnchor text_anchor() const;
