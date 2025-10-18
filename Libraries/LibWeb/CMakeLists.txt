@@ -1023,6 +1023,7 @@ set(SOURCES
     WebGL/Extensions/ANGLEInstancedArrays.cpp
     WebGL/Extensions/EXTBlendMinMax.cpp
     WebGL/Extensions/EXTColorBufferFloat.cpp
+    WebGL/Extensions/EXTRenderSnorm.cpp
     WebGL/Extensions/OESVertexArrayObject.cpp
     WebGL/Extensions/WebGLCompressedTextureS3tc.cpp
     WebGL/Extensions/WebGLDrawBuffers.cpp
