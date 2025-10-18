@@ -52,27 +52,6 @@ GC::Ptr<Layout::Node> SVGForeignObjectElement::create_layout_node(GC::Ref<CSS::C
     return heap().allocate<Layout::SVGForeignObjectBox>(document(), *this, move(style));
 }
 
-bool SVGForeignObjectElement::is_presentational_hint(FlyString const& name) const
-{
-    if (Base::is_presentational_hint(name))
-        return true;
-
-    return first_is_one_of(name,
-        SVG::AttributeNames::width,
-        SVG::AttributeNames::height);
-}
-
-void SVGForeignObjectElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
-{
-    Base::apply_presentational_hints(cascaded_properties);
-    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    if (auto width_value = parse_css_value(parsing_context, get_attribute_value(Web::HTML::AttributeNames::width), CSS::PropertyID::Width))
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, width_value.release_nonnull());
-
-    if (auto height_value = parse_css_value(parsing_context, get_attribute_value(Web::HTML::AttributeNames::height), CSS::PropertyID::Height))
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, height_value.release_nonnull());
-}
-
 GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::x()
 {
     return *m_x;
