@@ -33,7 +33,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& socket_path, bool headless, bool force_cpu_painting, Optional<StringView> debug_process)
+static Vector<ByteString> create_arguments(ByteString const& socket_path, bool headless, bool force_cpu_painting, Optional<StringView> debug_process, Optional<StringView> default_time_zone)
 {
     Vector<ByteString> arguments {
         "--webdriver-content-path"sv,
@@ -59,6 +59,9 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool h
     if (debug_process.has_value())
         arguments.append(ByteString::formatted("--debug-process={}", debug_process.value()));
 
+    if (default_time_zone.has_value())
+        arguments.append(ByteString::formatted("--default-time-zone={}", default_time_zone.value()));
+
     // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
     arguments.append("--disable-site-isolation"sv);
 
@@ -75,6 +78,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool force_cpu_painting = false;
     bool headless = false;
     Optional<StringView> debug_process;
+    Optional<StringView> default_time_zone;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
@@ -83,6 +87,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_cpu_painting, "Launch browser with GPU painting disabled", "force-cpu-painting");
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(headless, "Launch browser without a graphical interface", "headless");
+    args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
     args_parser.parse(arguments);
 
     auto ipv4_address = IPv4Address::from_string(listen_address);
@@ -123,7 +128,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& socket_path, bool headless) {
-            auto arguments = create_arguments(socket_path, headless, force_cpu_painting, debug_process);
+            auto arguments = create_arguments(socket_path, headless, force_cpu_painting, debug_process, default_time_zone);
             return launch_process("Ladybird"sv, arguments.span());
         };
 

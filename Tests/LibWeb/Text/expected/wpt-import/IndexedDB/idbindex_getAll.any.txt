@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 19 tests
+
+18 Pass
+1 Fail
+Pass	Single item get
+Pass	Empty object store
+Pass	Get all
+Pass	Get all with generated keys
+Pass	Get all with large values
+Pass	maxCount=10
+Pass	Get bound range
+Pass	Get bound range with maxCount
+Pass	Get upper excluded
+Pass	Get lower excluded
+Pass	Get bound range (generated) with maxCount
+Pass	Non existent key
+Pass	maxCount=0
+Pass	Max value count
+Pass	Query with empty range where  first key < upperBound
+Pass	Query with empty range where lowerBound < last key
+Pass	Retrieve multiEntry key
+Pass	Retrieve one key multiple values
+Fail	Get all values with invalid query keys

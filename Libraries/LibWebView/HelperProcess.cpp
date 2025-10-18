@@ -128,6 +128,11 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append(ByteString::number(maybe_echo_server_port.value()));
     }
 
+    if (web_content_options.default_time_zone.has_value()) {
+        arguments.append("--default-time-zone");
+        arguments.append(web_content_options.default_time_zone.value());
+    }
+
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());

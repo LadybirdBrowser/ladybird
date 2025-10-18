@@ -73,6 +73,9 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
     // Ensure tests are resilient to minor changes to the viewport scrollbar.
     web_content_options.paint_viewport_scrollbars = WebView::PaintViewportScrollbars::No;
 
+    // Ensure consistent time zone operations across different machine configurations.
+    web_content_options.default_time_zone = "UTC"sv;
+
     if (dump_gc_graph) {
         // Force all tests to run in serial if we are interested in the GC graph.
         test_concurrency = 1;
