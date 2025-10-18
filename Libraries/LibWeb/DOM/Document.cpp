@@ -6177,6 +6177,8 @@ void Document::remove_an_element_from_the_top_layer_immediately(GC::Ref<Element>
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el, if it exists.
     element->set_rendered_in_top_layer(false);
     element->set_needs_style_update(true);
+
+    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentImmediatelyRemoveElementFromTheTopLayer);
 }
 
 // https://drafts.csswg.org/css-position-4/#process-top-layer-removals
@@ -6196,6 +6198,9 @@ void Document::process_top_layer_removals()
         m_top_layer_elements.remove(element);
         m_top_layer_pending_removals.remove(element);
     }
+
+    if (!elements_to_remove.is_empty())
+        invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentPendingTopLayerRemovalsProcessed);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#topmost-auto-popover
