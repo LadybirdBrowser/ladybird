@@ -35,10 +35,14 @@ namespace Web::Painting {
 DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> context)
     : m_context(context)
 {
+    if (!m_context) {
+        dbgln("Falling back to CPU Backend painter");
+    }
 }
 
 DisplayListPlayerSkia::DisplayListPlayerSkia()
 {
+    dbgln("Falling back to CPU Backend painter");
 }
 
 DisplayListPlayerSkia::~DisplayListPlayerSkia()
