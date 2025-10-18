@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="author" title="Luke Warlow" href="mailto:lwarlow@igalia.com">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+</head>
+<body>
+<div id="container"></div>
+<script>
+  var container = document.querySelector('#container')
+
+  // TrustedHTML assignments do not throw.
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+
+    var d = document.createElement('div');
+    document.querySelector('#container').appendChild(d);
+    d.setHTMLUnsafe(html);
+    assert_equals(container.innerText, RESULTS.HTML);
+
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "element.setHTMLUnsafe(html) assigned via policy (successful HTML transformation).");
+
+  // String assignments throw.
+  test(t => {
+    var d = document.createElement('div');
+    container.appendChild(d);
+    assert_throws_js(TypeError, _ => {
+      d.setHTMLUnsafe("Fail");
+    });
+    assert_equals(container.innerText, "");
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`element.setHTMLUnsafe(string)` throws.");
+
+  // Null assignment throws.
+  test(t => {
+    var d = document.createElement('div');
+    container.appendChild(d);
+    assert_throws_js(TypeError, _ => {
+      d.outerHTML = null;
+    });
+    assert_equals(container.innerText, "");
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`element.setHTMLUnsafe(null)` throws.");
+
+  // After default policy creation string assignment implicitly calls createHTML.
+  test(t => {
+    let p = window.trustedTypes.createPolicy("default", {
+      createHTML: (value, type, sink) => {
+        assert_equals(sink, "Element setHTMLUnsafe");
+        return createHTMLJS(value);
+      }
+    });
+
+    var d = document.createElement('div');
+    document.querySelector('#container').appendChild(d);
+    d.setHTMLUnsafe(INPUTS.HTML);
+    assert_equals(container.innerText, RESULTS.HTML);
+
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`element.setHTMLUnsafe(string)` assigned via default policy (successful HTML transformation).");
+
+  // After default policy creation null assignment implicitly calls createHTML.
+  test(t => {
+    var d = document.createElement('div');
+    container.appendChild(d);
+    d.setHTMLUnsafe(null);
+    assert_equals(container.innerText, "null");
+
+    while (container.firstChild)
+      container.firstChild.remove();
+  }, "`element.setHTMLUnsafe(string)` assigned via default policy does not throw");
+</script>
+</body>
+</html>

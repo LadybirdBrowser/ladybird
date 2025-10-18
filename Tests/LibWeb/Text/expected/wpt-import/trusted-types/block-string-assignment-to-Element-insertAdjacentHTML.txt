@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	insertAdjacentHTML with html assigned via policy (successful HTML transformation).
+Pass	insertAdjacentHTML(TrustedHTML) throws SyntaxError DOMException when position invalid.
+Pass	`insertAdjacentHTML(string)` throws.
+Pass	`insertAdjacentHTML(string)` still throws TypeError when position invalid.
+Pass	`insertAdjacentHTML(null)` throws.
+Pass	`insertAdjacentHTML(string)` assigned via default policy (successful HTML transformation).
+Pass	`insertAdjacentHTML(null)` assigned via default policy does not throw.

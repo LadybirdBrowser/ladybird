@@ -48,19 +48,8 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String c
     if (attr_ns.has_value() && attr_ns.value().is_empty())
         attr_ns.clear();
 
-    // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
-    // we care about in the table in get_trusted_type_data_for_attribute function
     // 5. Let interface be the element interface for localName and elementNs.
-    Utf16String interface;
-    if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML) {
-        interface = "HTMLIFrameElement"_utf16;
-    } else if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML) {
-        interface = "HTMLScriptElement"_utf16;
-    } else if (local_name == SVG::TagNames::script && element_ns == Namespace::SVG) {
-        interface = "SVGScriptElement"_utf16;
-    } else {
-        interface = "Element"_utf16;
-    }
+    Utf16String const interface = element_interface_name(local_name, element_ns.value());
 
     // 6. Let expectedType be null.
     Optional<Utf16String> expected_type {};

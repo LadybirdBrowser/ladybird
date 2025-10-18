@@ -296,7 +296,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     };
 
     auto style_element = TRY(DOM::create_element(document, HTML::TagNames::style, Namespace::HTML));
-    style_element->set_text_content(R"~~~(
+    MUST(style_element->set_text_content(R"~~~(
         :root {
             background-color: #222;
         }
@@ -310,7 +310,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         img {
             background-color: #fff;
         }
-    )~~~"_utf16);
+    )~~~"_utf16));
     TRY(document->head()->append_child(style_element));
 
     auto url_string = document->url_string();
