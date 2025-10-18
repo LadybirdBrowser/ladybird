@@ -1,0 +1,91 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>insertAdjacentHTML in HTML</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="insert_adjacent_html.js"></script>
+</head>
+<body>
+<p id="display"></p><div id="content" style="display: none"></div><div id="content2" style="display: none"></div>
+<script><![CDATA[
+var script_ran = false;
+
+function testPositions(node, testDesc) {
+  test(function() {
+    script_ran = false;
+    node.insertAdjacentHTML("beforeBegin", "\u003Cscript>script_ran = true;\u003C/script><i></i>");
+    assert_equals(node.previousSibling.localName, "i", "Should have had <i> as previous sibling");
+    assert_equals(node.previousSibling.previousSibling.localName, "script", "Should have had <script> as second previous child");
+    assert_false(script_ran, "script should not have run");
+  }, "beforeBegin " + node.id + " " + testDesc)
+
+  test(function() {
+    script_ran = false;
+    node.insertAdjacentHTML("Afterbegin", "<b></b>\u003Cscript>script_ran = true;\u003C/script>");
+    assert_equals(node.firstChild.localName, "b", "Should have had <b> as first child");
+    assert_equals(node.firstChild.nextSibling.localName, "script", "Should have had <script> as second child");
+    assert_false(script_ran, "script should not have run");
+  }, "Afterbegin " + node.id + " " + testDesc);
+
+  test(function() {
+    script_ran = false;
+    node.insertAdjacentHTML("BeforeEnd", "\u003Cscript>script_ran = true;\u003C/script><u></u>");
+    assert_equals(node.lastChild.localName, "u", "Should have had <u> as last child");
+    assert_equals(node.lastChild.previousSibling.localName, "script", "Should have had <script> as penultimate child");
+    assert_false(script_ran, "script should not have run");
+  }, "BeforeEnd " + node.id + " " + testDesc)
+
+  test(function() {
+    script_ran = false;
+    node.insertAdjacentHTML("afterend", "<a></a>\u003Cscript>script_ran = true;\u003C/script>");
+    assert_equals(node.nextSibling.localName, "a", "Should have had <a> as next sibling");
+    assert_equals(node.nextSibling.nextSibling.localName, "script", "Should have had <script> as second next sibling");
+    assert_false(script_ran, "script should not have run");
+  }, "afterend " + node.id + " " + testDesc)
+}
+
+var content = document.getElementById("content");
+testPositions(content, "without next sibling");
+testPositions(content, "again, with next sibling");
+
+test(function() {
+  assert_throws_dom("SYNTAX_ERR", function() {content.insertAdjacentHTML("bar", "foo")});
+  assert_throws_dom("SYNTAX_ERR", function() {content.insertAdjacentHTML("beforebegİn", "foo")});
+  assert_throws_dom("SYNTAX_ERR", function() {content.insertAdjacentHTML("beforebegın", "foo")});
+}, "Should throw when inserting with invalid position string");
+
+var parentElement = document.createElement("div");
+var child = document.createElement("div");
+child.id = "child";
+
+testThrowingNoParent(child, "null");
+testThrowingNoParent(document.documentElement, "a document");
+
+test(function() {
+  child.insertAdjacentHTML("afterBegin", "foo");
+  child.insertAdjacentHTML("beforeend", "bar");
+  assert_equals(child.textContent, "foobar");
+  parentElement.appendChild(child);
+}, "Inserting after being and before end should order things correctly");
+
+testPositions(child, "node not in tree but has parent");
+
+test(function() {
+  script_ran = false;
+  content.appendChild(parentElement); // must not run scripts
+  assert_false(script_ran, "script should not have run");
+}, "Should not run script when appending things which have descendant <script> inserted via insertAdjacentHTML");
+
+var content2 = document.getElementById("content2");
+testPositions(content2, "without next sibling");
+testPositions(content2, "test again, now that there's a next sibling");
+
+// XML-only: 
+test(function() {
+  assert_throws_dom("SYNTAX_ERR", function() {content.insertAdjacentHTML("beforeend", "<p>")});
+});
+
+]]></script>
+<div id="log"></div>
+</body>
+</html>
