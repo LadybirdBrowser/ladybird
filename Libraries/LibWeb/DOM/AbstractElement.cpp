@@ -26,6 +26,42 @@ Document& AbstractElement::document() const
     return m_element->document();
 }
 
+CSS::TreeCountingFunctionResolutionContext AbstractElement::tree_counting_function_resolution_context() const
+{
+    // FIXME: When used on an element-backed pseudo-element which is also a real element, the tree counting functions
+    //        resolve for that real element. For other pseudo elements, they resolve as if they were resolved against
+    //        the originating element. It follows that for nested pseudo elements the resolution will recursively walk
+    //        the originating elements until a real element is found.
+
+    // FIXME: A tree counting function is a tree-scoped reference where it references an implicit tree-scoped name for
+    //        the element it resolves against. This is done to not leak tree information to an outer tree. A tree
+    //        counting function that is scoped to an outer tree relative to the element it resolves against, will alway
+    //        resolve to 0.
+    auto const& element_to_resolve_tree_counting_function_against = element();
+
+    // The sibling-count() functional notation represents, as an <integer>, the total number of child elements in the
+    // parent of the element on which the notation is used.
+    auto const& parent = element_to_resolve_tree_counting_function_against.parent_element();
+
+    // If there is no parent we are the root node
+    if (!parent)
+        return { .sibling_count = 1, .sibling_index = 1 };
+
+    size_t count = 0;
+    size_t index = 0;
+
+    for (auto const* child = parent->first_child_of_type<DOM::Element>(); child; child = child->next_element_sibling()) {
+        ++count;
+        if (child == &element_to_resolve_tree_counting_function_against)
+            index = count;
+    }
+
+    return {
+        .sibling_count = count,
+        .sibling_index = index
+    };
+}
+
 GC::Ptr<Layout::NodeWithStyle> AbstractElement::layout_node()
 {
     if (m_pseudo_element.has_value())

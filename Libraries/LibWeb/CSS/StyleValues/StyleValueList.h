@@ -37,7 +37,7 @@ public:
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
 
     bool properties_equal(StyleValueList const& other) const { return m_properties == other.m_properties; }
 

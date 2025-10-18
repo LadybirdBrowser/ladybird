@@ -87,6 +87,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Time, time, TimeStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                        \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transition, transition, TransitionStyleValue)                                    \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(TreeCountingFunction, tree_counting_function, TreeCountingFunctionStyleValue)    \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(UnicodeRange, unicode_range, UnicodeRangeStyleValue)                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Unresolved, unresolved, UnresolvedStyleValue)                                    \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                         \
@@ -156,6 +157,10 @@ struct ColorResolutionContext {
     [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
 };
 
+struct PropertyComputationDependencies {
+    bool tree_counting_function : 1 { false };
+};
+
 class WEB_API StyleValue : public RefCounted<StyleValue> {
 public:
     virtual ~StyleValue() = default;
@@ -203,7 +208,7 @@ public:
     bool has_auto() const;
     virtual bool has_color() const { return false; }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;

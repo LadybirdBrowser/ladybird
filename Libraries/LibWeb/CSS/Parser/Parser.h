@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/CSS/StyleValues/TreeCountingFunctionStyleValue.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
@@ -67,6 +68,23 @@ struct NegateNode {
 
 }
 
+struct FunctionContext {
+    StringView name;
+};
+struct DescriptorContext {
+    AtRuleID at_rule;
+    DescriptorID descriptor;
+};
+enum SpecialContext : u8 {
+    AngularColorStopList,
+    DOMMatrixInitString,
+    MediaCondition,
+    ShadowBlurRadius,
+    TranslateZArgument,
+};
+
+using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
+
 enum class ParsingMode {
     Normal,
     SVGPresentationAttribute, // See https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
@@ -81,6 +99,7 @@ struct ParsingParams {
     GC::Ptr<DOM::Document const> document;
     ParsingMode mode { ParsingMode::Normal };
 
+    Vector<ValueParsingContext> value_context;
     Vector<RuleContext> rule_context;
     HashTable<FlyString> declared_namespaces;
 };
@@ -148,6 +167,7 @@ public:
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
 
     RefPtr<CalculatedStyleValue const> parse_calculated_value(ComponentValue const&);
+    RefPtr<TreeCountingFunctionStyleValue const> parse_tree_counting_function(TokenStream<ComponentValue>&, TreeCountingFunctionStyleValue::ComputedType);
 
 private:
     Parser(ParsingParams const&, Vector<Token>);
@@ -557,20 +577,6 @@ private:
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;
 
-    struct FunctionContext {
-        StringView name;
-    };
-    struct DescriptorContext {
-        AtRuleID at_rule;
-        DescriptorID descriptor;
-    };
-    enum SpecialContext : u8 {
-        AngularColorStopList,
-        ShadowBlurRadius,
-        TranslateZArgument
-    };
-    // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
-    using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
     Vector<ValueParsingContext> m_value_context;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
     {
@@ -578,6 +584,7 @@ private:
         return ScopeGuard { [&] { m_value_context.take_last(); } };
     }
     bool context_allows_quirky_length() const;
+    bool context_allows_tree_counting_functions() const;
 
     Vector<RuleContext> m_rule_context;
     HashTable<FlyString> m_declared_namespaces;

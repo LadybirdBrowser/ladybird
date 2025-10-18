@@ -22,13 +22,13 @@ bool StyleValueList::Properties::operator==(Properties const& other) const
     return separator == other.separator && values.span() == other.values.span();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
     StyleValueVector absolutized_style_values;
     absolutized_style_values.ensure_capacity(m_properties.values.size());
 
     for (auto const& value : m_properties.values)
-        absolutized_style_values.append(value->absolutized(computation_context));
+        absolutized_style_values.append(value->absolutized(computation_context, property_computation_dependencies));
 
     return StyleValueList::create(move(absolutized_style_values), m_properties.separator);
 }

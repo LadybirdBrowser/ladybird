@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	e.style['left'] = "calc(1px * sibling-index())" should set the property value
+Pass	e.style['left'] = "calc(1px * sibling-index( ))" should set the property value
+Pass	e.style['z-index'] = "sibling-index()" should set the property value
+Pass	e.style['left'] = "calc(1px * sibling-index(100px))" should not set the property value
+Pass	e.style['left'] = "calc(1px * sibling-index(1))" should not set the property value
+Pass	e.style['left'] = "calc(1px * sibling-count())" should set the property value
+Pass	e.style['left'] = "calc(1px * sibling-count( ))" should set the property value
+Pass	e.style['z-index'] = "sibling-count()" should set the property value
+Pass	e.style['left'] = "calc(1px * sibling-count(100px))" should not set the property value
+Pass	e.style['left'] = "calc(1px * sibling-count(1))" should not set the property value

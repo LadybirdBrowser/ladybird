@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
@@ -114,14 +115,14 @@ static Optional<NumericType> multiply_the_types(Vector<NonnullRefPtr<Calculation
 }
 
 template<typename T>
-static NonnullRefPtr<CalculationNode const> simplify_children_vector(T const& original, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
+static NonnullRefPtr<CalculationNode const> simplify_children_vector(T const& original, CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies)
 {
     Vector<NonnullRefPtr<CalculationNode const>> simplified_children;
     simplified_children.ensure_capacity(original.children().size());
 
     bool any_changed = false;
     for (auto const& child : original.children()) {
-        auto simplified = simplify_a_calculation_tree(child, context, resolution_context);
+        auto simplified = simplify_a_calculation_tree(child, context, resolution_context, property_computation_dependencies);
         if (simplified != child)
             any_changed = true;
         simplified_children.append(move(simplified));
@@ -133,19 +134,19 @@ static NonnullRefPtr<CalculationNode const> simplify_children_vector(T const& or
 }
 
 template<typename T>
-static NonnullRefPtr<CalculationNode const> simplify_child(T const& original, NonnullRefPtr<CalculationNode const> const& child, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
+static NonnullRefPtr<CalculationNode const> simplify_child(T const& original, NonnullRefPtr<CalculationNode const> const& child, CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies)
 {
-    auto simplified = simplify_a_calculation_tree(child, context, resolution_context);
+    auto simplified = simplify_a_calculation_tree(child, context, resolution_context, property_computation_dependencies);
     if (simplified != child)
         return T::create(move(simplified));
     return original;
 }
 
 template<typename T>
-static NonnullRefPtr<CalculationNode const> simplify_2_children(T const& original, NonnullRefPtr<CalculationNode const> const& child_1, NonnullRefPtr<CalculationNode const> const& child_2, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
+static NonnullRefPtr<CalculationNode const> simplify_2_children(T const& original, NonnullRefPtr<CalculationNode const> const& child_1, NonnullRefPtr<CalculationNode const> const& child_2, CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies)
 {
-    auto simplified_1 = simplify_a_calculation_tree(child_1, context, resolution_context);
-    auto simplified_2 = simplify_a_calculation_tree(child_2, context, resolution_context);
+    auto simplified_1 = simplify_a_calculation_tree(child_1, context, resolution_context, property_computation_dependencies);
+    auto simplified_2 = simplify_a_calculation_tree(child_2, context, resolution_context, property_computation_dependencies);
     if (simplified_1 != child_1 || simplified_2 != child_2)
         return T::create(move(simplified_1), move(simplified_2));
     return original;
@@ -411,9 +412,11 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     // NOTE: Already the case.
 
     // 2. If root is a numeric value, or a non-math function, serialize root per the normal rules for it and return the result.
-    // FIXME: Support non-math functions in calculation trees.
     if (root.type() == CalculationNode::Type::Numeric)
         return static_cast<NumericCalculationNode const&>(root).value_to_string();
+
+    if (root.type() == CalculationNode::Type::NonMathFunction)
+        return as<NonMathFunctionCalculationNode>(root).function()->to_string(serialization_mode);
 
     // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math function for the function
     //    corresponding to the node type, treating the node’s children as the function’s comma-separated calculation
@@ -580,6 +583,7 @@ StringView CalculationNode::name() const
     case Type::Product:
     case Type::Negate:
     case Type::Invert:
+    case Type::NonMathFunction:
         return "calc"sv;
     }
     VERIFY_NOT_REACHED();
@@ -829,9 +833,9 @@ bool SumCalculationNode::contains_percentage() const
     return false;
 }
 
-NonnullRefPtr<CalculationNode const> SumCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> SumCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_children_vector(*this, context, resolution_context);
+    return simplify_children_vector(*this, context, resolution_context, property_computation_dependencies);
 }
 
 void SumCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -891,9 +895,9 @@ bool ProductCalculationNode::contains_percentage() const
     return false;
 }
 
-NonnullRefPtr<CalculationNode const> ProductCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> ProductCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_children_vector(*this, context, resolution_context);
+    return simplify_children_vector(*this, context, resolution_context, property_computation_dependencies);
 }
 
 void ProductCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -945,9 +949,9 @@ bool NegateCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> NegateCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> NegateCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 void NegateCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -998,9 +1002,9 @@ bool InvertCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> InvertCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> InvertCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 void InvertCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -1052,9 +1056,9 @@ bool MinCalculationNode::contains_percentage() const
     return false;
 }
 
-NonnullRefPtr<CalculationNode const> MinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> MinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_children_vector(*this, context, resolution_context);
+    return simplify_children_vector(*this, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-min
@@ -1166,9 +1170,9 @@ bool MaxCalculationNode::contains_percentage() const
     return false;
 }
 
-NonnullRefPtr<CalculationNode const> MaxCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> MaxCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_children_vector(*this, context, resolution_context);
+    return simplify_children_vector(*this, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-max
@@ -1230,11 +1234,11 @@ bool ClampCalculationNode::contains_percentage() const
     return m_min_value->contains_percentage() || m_center_value->contains_percentage() || m_max_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> ClampCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> ClampCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    auto simplified_min = simplify_a_calculation_tree(m_min_value, context, resolution_context);
-    auto simplified_center = simplify_a_calculation_tree(m_center_value, context, resolution_context);
-    auto simplified_max = simplify_a_calculation_tree(m_max_value, context, resolution_context);
+    auto simplified_min = simplify_a_calculation_tree(m_min_value, context, resolution_context, property_computation_dependencies);
+    auto simplified_center = simplify_a_calculation_tree(m_center_value, context, resolution_context, property_computation_dependencies);
+    auto simplified_max = simplify_a_calculation_tree(m_max_value, context, resolution_context, property_computation_dependencies);
     if (simplified_min != m_min_value || simplified_center != m_center_value || simplified_max != m_max_value)
         return create(move(simplified_min), move(simplified_center), move(simplified_max));
     return *this;
@@ -1330,9 +1334,9 @@ bool AbsCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> AbsCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> AbsCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-abs
@@ -1381,9 +1385,9 @@ bool SignCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> SignCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> SignCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-sign
@@ -1448,9 +1452,9 @@ bool SinCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> SinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> SinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 enum class SinCosOrTan {
@@ -1533,9 +1537,9 @@ bool CosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> CosCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> CosCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-cos
@@ -1579,9 +1583,9 @@ bool TanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> TanCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> TanCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-tan
@@ -1625,9 +1629,9 @@ bool AsinCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> AsinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> AsinCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 enum class AsinAcosOrAtan {
@@ -1715,9 +1719,9 @@ bool AcosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> AcosCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> AcosCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-acos
@@ -1761,9 +1765,9 @@ bool AtanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> AtanCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> AtanCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-atan
@@ -1808,9 +1812,9 @@ bool Atan2CalculationNode::contains_percentage() const
     return m_y->contains_percentage() || m_x->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> Atan2CalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> Atan2CalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_2_children(*this, m_x, m_y, context, resolution_context);
+    return simplify_2_children(*this, m_x, m_y, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-atan2
@@ -1874,9 +1878,9 @@ PowCalculationNode::PowCalculationNode(NonnullRefPtr<CalculationNode const> x, N
 
 PowCalculationNode::~PowCalculationNode() = default;
 
-NonnullRefPtr<CalculationNode const> PowCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> PowCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_2_children(*this, m_x, m_y, context, resolution_context);
+    return simplify_2_children(*this, m_x, m_y, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-pow
@@ -1929,9 +1933,9 @@ SqrtCalculationNode::SqrtCalculationNode(NonnullRefPtr<CalculationNode const> va
 
 SqrtCalculationNode::~SqrtCalculationNode() = default;
 
-NonnullRefPtr<CalculationNode const> SqrtCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> SqrtCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-sqrt
@@ -1993,9 +1997,9 @@ bool HypotCalculationNode::contains_percentage() const
     return false;
 }
 
-NonnullRefPtr<CalculationNode const> HypotCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> HypotCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_children_vector(*this, context, resolution_context);
+    return simplify_children_vector(*this, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-hypot
@@ -2068,9 +2072,9 @@ LogCalculationNode::LogCalculationNode(NonnullRefPtr<CalculationNode const> x, N
 
 LogCalculationNode::~LogCalculationNode() = default;
 
-NonnullRefPtr<CalculationNode const> LogCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> LogCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_2_children(*this, m_x, m_y, context, resolution_context);
+    return simplify_2_children(*this, m_x, m_y, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-log
@@ -2124,9 +2128,9 @@ ExpCalculationNode::ExpCalculationNode(NonnullRefPtr<CalculationNode const> valu
 
 ExpCalculationNode::~ExpCalculationNode() = default;
 
-NonnullRefPtr<CalculationNode const> ExpCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> ExpCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_child(*this, m_value, context, resolution_context);
+    return simplify_child(*this, m_value, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-exp
@@ -2184,10 +2188,10 @@ bool RoundCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> RoundCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> RoundCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    auto simplified_x = simplify_a_calculation_tree(m_x, context, resolution_context);
-    auto simplified_y = simplify_a_calculation_tree(m_y, context, resolution_context);
+    auto simplified_x = simplify_a_calculation_tree(m_x, context, resolution_context, property_computation_dependencies);
+    auto simplified_y = simplify_a_calculation_tree(m_y, context, resolution_context, property_computation_dependencies);
     if (simplified_x != m_x || simplified_y != m_y)
         return create(m_strategy, move(simplified_x), move(simplified_y));
     return *this;
@@ -2355,9 +2359,9 @@ bool ModCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> ModCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> ModCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_2_children(*this, m_x, m_y, context, resolution_context);
+    return simplify_2_children(*this, m_x, m_y, context, resolution_context, property_computation_dependencies);
 }
 
 enum class ModOrRem {
@@ -2445,9 +2449,9 @@ bool RemCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-NonnullRefPtr<CalculationNode const> RemCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+NonnullRefPtr<CalculationNode const> RemCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies) const
 {
-    return simplify_2_children(*this, m_x, m_y, context, resolution_context);
+    return simplify_2_children(*this, m_x, m_y, context, resolution_context, property_computation_dependencies);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-mod
@@ -2471,6 +2475,35 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
         return false;
     return m_x->equals(*static_cast<RemCalculationNode const&>(other).m_x)
         && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
+}
+
+NonnullRefPtr<NonMathFunctionCalculationNode const> NonMathFunctionCalculationNode::create(AbstractNonMathCalcFunctionStyleValue const& function, NumericType numeric_type)
+{
+    return adopt_ref(*new (nothrow) NonMathFunctionCalculationNode(move(function), move(numeric_type)));
+}
+
+NonMathFunctionCalculationNode::NonMathFunctionCalculationNode(AbstractNonMathCalcFunctionStyleValue const& function, NumericType numeric_type)
+    : CalculationNode(Type::NonMathFunction, numeric_type)
+    , m_function(function)
+{
+}
+
+NonMathFunctionCalculationNode::~NonMathFunctionCalculationNode() = default;
+
+void NonMathFunctionCalculationNode::dump(StringBuilder& builder, int indent) const
+{
+    builder.appendff("{: >{}}NON-MATH FUNCTION: {}", "", indent, m_function->to_string(SerializationMode::Normal));
+}
+
+bool NonMathFunctionCalculationNode::equals(CalculationNode const& other) const
+{
+    if (this == &other)
+        return true;
+
+    if (type() != other.type())
+        return false;
+
+    return static_cast<NonMathFunctionCalculationNode const&>(other).function() == m_function;
 }
 
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, CalculationResolutionContext const& context, Optional<NumericType> numeric_type)
@@ -2544,9 +2577,9 @@ String CalculatedStyleValue::to_string(SerializationMode serialization_mode) con
     return serialize_a_math_function(m_calculation, m_context, serialization_mode);
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
 {
-    auto simplified_calculation_tree = simplify_a_calculation_tree(m_calculation, m_context, CalculationResolutionContext::from_computation_context(computation_context));
+    auto simplified_calculation_tree = simplify_a_calculation_tree(m_calculation, m_context, CalculationResolutionContext::from_computation_context(computation_context), &property_computation_dependencies);
 
     auto const simplified_percentage_dimension_mix = [&]() -> Optional<ValueComparingNonnullRefPtr<StyleValue const>> {
         // NOTE: A percentage dimension mix is a SumCalculationNode with two NumericCalculationNode children which have
@@ -2600,7 +2633,8 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
 Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context) const
 {
     // The calculation tree is again simplified at used value time; with used value time information.
-    auto simplified_tree = simplify_a_calculation_tree(m_calculation, m_context, resolution_context);
+    // NOTE: Any nodes which rely on dynamic state should have been simplified away in absolutized so we can pass a nullptr here
+    auto simplified_tree = simplify_a_calculation_tree(m_calculation, m_context, resolution_context, nullptr);
 
     if (!is<NumericCalculationNode>(*simplified_tree))
         return {};
@@ -2823,7 +2857,7 @@ static RefPtr<NumericCalculationNode const> make_calculation_node(CalculatedStyl
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-simplification
-NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& original_root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
+NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& original_root, CalculationContext const& context, CalculationResolutionContext const& resolution_context, PropertyComputationDependencies* property_computation_dependencies)
 {
     // To simplify a calculation tree root:
     // FIXME: If needed, we could detect that nothing has changed and then return the original `root`, in more places.
@@ -2931,10 +2965,18 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
     }
 
     // 2. If root is any other leaf node (not an operator node):
-    // FIXME: We don't yet allow any of these inside a calculation tree. Revisit once we do.
+    if (root->type() == CalculationNode::Type::NonMathFunction) {
+        //  1. If there is enough information available to determine its numeric value, return its value, expressed in
+        //     the value’s canonical unit.
+        if (auto resolved_calculation_node = as<NonMathFunctionCalculationNode>(*root).function()->resolve_to_calculation_node(context, resolution_context, property_computation_dependencies))
+            return resolved_calculation_node.release_nonnull();
+
+        // 2. Otherwise, return root.
+        return root;
+    }
 
     // 3. At this point, root is an operator node. Simplify all the calculation children of root.
-    root = root->with_simplified_children(context, resolution_context);
+    root = root->with_simplified_children(context, resolution_context, property_computation_dependencies);
 
     // 4. If root is an operator node that’s not one of the calc-operator nodes, and all of its calculation children
     //    are numeric values with enough information to compute the operation root represents, return the result of

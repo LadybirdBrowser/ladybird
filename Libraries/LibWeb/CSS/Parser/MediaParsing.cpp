@@ -458,6 +458,8 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     {
         auto transaction = tokens.begin_transaction();
         auto value = [this](MediaFeatureID media_feature, TokenStream<ComponentValue>& tokens) -> Optional<MediaFeatureValue> {
+            auto context_guard = push_temporary_value_parsing_context(SpecialContext::MediaCondition);
+
             // One branch for each member of the MediaFeatureValueType enum:
             // Identifiers
             if (tokens.next_token().is(Token::Type::Ident)) {

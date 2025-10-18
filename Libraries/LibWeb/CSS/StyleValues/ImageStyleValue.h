@@ -72,7 +72,7 @@ private:
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
     void animate();
     Gfx::ImmutableBitmap const* bitmap(size_t frame_index, Gfx::IntSize = {}) const;
 

@@ -67,6 +67,7 @@ Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     , m_parsing_mode(context.mode)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
+    , m_value_context(move(context.value_context))
     , m_rule_context(move(context.rule_context))
     , m_declared_namespaces(move(context.declared_namespaces))
 {
@@ -1691,6 +1692,21 @@ bool Parser::context_allows_quirky_length() const
     }
 
     return unitless_length_allowed;
+}
+
+bool Parser::context_allows_tree_counting_functions() const
+{
+    for (auto context : m_value_context) {
+        if (context.has<DescriptorContext>())
+            return false;
+
+        if (auto const* special_context = context.get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::DOMMatrixInitString, SpecialContext::MediaCondition))
+            return false;
+
+        // TODO: Handle other contexts where tree counting functions are not allowed
+    }
+
+    return true;
 }
 
 Vector<ComponentValue> Parser::parse_as_list_of_component_values()
