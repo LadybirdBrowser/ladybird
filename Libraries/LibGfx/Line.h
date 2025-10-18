@@ -54,28 +54,15 @@ public:
         auto delta_a = other.m_a - m_a;
         auto num = cross_product(delta_a, r);
         auto denom = cross_product(r, s);
-        if (denom == 0) {
-            if (num == 0) {
-                // Lines are collinear, check if line ends are touching
-                if (m_a == other.m_a || m_a == other.m_b)
-                    return m_a;
-                if (m_b == other.m_a || m_b == other.m_b)
-                    return m_b;
-                // Check if they're overlapping
-                if (!(m_b.x() - m_a.x() < 0 && m_b.x() - other.m_a.x() < 0 && other.m_b.x() - m_a.x() && other.m_b.x() - other.m_a.x())) {
-                    // Overlapping
-                    // TODO find center point?
-                }
-                if (!(m_b.y() - m_a.y() < 0 && m_b.y() - other.m_a.y() < 0 && other.m_b.y() - m_a.y() && other.m_b.y() - other.m_a.y())) {
-                    // Overlapping
-                    // TODO find center point?
-                }
-                return {};
-            } else {
-                // Lines are parallel and not intersecting
-                return {};
-            }
+
+        bool parallel = denom == 0;
+        bool collinear = num == 0;
+        if (parallel) {
+            if (collinear)
+                return collinear_intersection_point(other);
+            return {};
         }
+
         auto u = static_cast<float>(num) / static_cast<float>(denom);
         if (u < 0.0f || u > 1.0f) {
             // Lines are not parallel and don't intersect
@@ -168,6 +155,56 @@ public:
     ByteString to_byte_string() const;
 
 private:
+    // Return a single point representing the intersection of two collinear segments.
+    // Compute the 1D overlap via the segment parameter t (dot-product projection onto r),
+    // then return the midpoint in t mapped back to 2D. If overlap length is zero, this is
+    // the shared endpoint; if there is no overlap, return empty.
+    Optional<Point<T>> collinear_intersection_point(Line const& other) const
+    {
+        auto r = m_b - m_a;
+        auto s = other.m_b - other.m_a;
+
+        auto dot = [](auto const& p, auto const& q) {
+            return static_cast<double>(p.x()) * static_cast<double>(q.x())
+                + static_cast<double>(p.y()) * static_cast<double>(q.y());
+        };
+
+        // Parameterize A by t in [0,1]: A(t) = m_a + t * r
+        double const rr = dot(r, r);
+        if (rr == 0.0) {
+            // A is a point, return if it lies on B
+            double const ss = dot(s, s);
+            if (ss == 0.0)
+                return (m_a == other.m_a) ? Optional<Point<T>>(m_a) : Optional<Point<T>> {};
+            auto am = m_a - other.m_a;
+            double u = dot(am, s) / ss; // parameter on B
+            if (u >= 0.0 && u <= 1.0)
+                return m_a;
+            return {};
+        }
+
+        // Project B endpoints onto A's parameter t.
+        double t0 = dot(other.m_a - m_a, r) / rr;
+        double t1 = dot(other.m_b - m_a, r) / rr;
+        if (t0 > t1) {
+            double tmp = t0;
+            t0 = t1;
+            t1 = tmp;
+        }
+
+        // Overlap of [0,1] with [t0, t1]
+        double const start = t0 > 0.0 ? t0 : 0.0;
+        double const end = t1 < 1.0 ? t1 : 1.0;
+        if (end < start)
+            return {};
+
+        double const t_mid = (start + end) / 2.0;
+        // TODO: round if we're dealing with int
+        return Point<T> {
+            m_a.x() + static_cast<T>(t_mid * r.x()),
+            m_a.y() + static_cast<T>(t_mid * r.y()),
+        };
+    }
     Point<T> m_a;
     Point<T> m_b;
 };
