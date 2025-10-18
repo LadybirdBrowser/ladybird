@@ -21,6 +21,27 @@ namespace Requests {
 
 class RequestClient;
 
+class ReadStream {
+public:
+    static ErrorOr<NonnullOwnPtr<ReadStream>> try_create(int reader_fd);
+
+    RefPtr<Core::Notifier> notifier() const { return m_notifier; }
+
+    bool is_eof() const { return m_stream->is_eof(); }
+
+    ErrorOr<Bytes> read_some(Bytes bytes) { return m_stream->read_some(bytes); }
+
+private:
+    explicit ReadStream(NonnullOwnPtr<Stream> stream, RefPtr<Core::Notifier> notifier)
+        : m_stream(move(stream))
+        , m_notifier(move(notifier))
+    {
+    }
+
+    NonnullOwnPtr<Stream> m_stream;
+    RefPtr<Core::Notifier> m_notifier;
+};
+
 class Request : public RefCounted<Request> {
 public:
     struct CertificateAndKey {
@@ -90,7 +111,7 @@ private:
     struct InternalStreamData {
         InternalStreamData() { }
 
-        OwnPtr<Stream> read_stream;
+        OwnPtr<ReadStream> read_stream;
         RefPtr<Core::Notifier> read_notifier;
         u32 total_size { 0 };
         Optional<NetworkError> network_error;

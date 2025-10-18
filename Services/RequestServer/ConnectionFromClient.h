@@ -11,6 +11,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/RequestClientEndpoint.h>
+#include <RequestServer/RequestPipe.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
 namespace RequestServer {
@@ -58,7 +59,7 @@ private:
 
     struct ResumeRequestForFailedCacheEntry {
         size_t start_offset { 0 };
-        int writer_fd { 0 };
+        RefPtr<RequestPipe> pipe;
     };
     void issue_network_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry> = {});
 

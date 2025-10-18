@@ -82,7 +82,7 @@ endif()
 
 function(set_helper_process_properties)
     set(targets ${ARGV})
-    if (APPLE)
+    if (APPLE OR WIN32)
         # Store helper processes in the same bundle directory as the main application
         set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:ladybird>")
     else()
