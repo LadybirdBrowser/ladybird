@@ -17,7 +17,7 @@
 
 namespace Web::WebGL {
 
-class WebGL2RenderingContext : public Bindings::PlatformObject
+class WebGL2RenderingContext final : public Bindings::PlatformObject
     , public WebGL2RenderingContextImpl {
     WEB_PLATFORM_OBJECT(WebGL2RenderingContext, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
@@ -50,6 +50,8 @@ public:
 
     WebIDL::Long drawing_buffer_width() const;
     WebIDL::Long drawing_buffer_height() const;
+
+    virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
 
 private:
     virtual void initialize(JS::Realm&) override;
@@ -84,6 +86,7 @@ private:
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
     GC::Ptr<Extensions::EXTColorBufferFloat> m_ext_color_buffer_float_extension;
     GC::Ptr<Extensions::EXTRenderSnorm> m_ext_render_snorm;
+    GC::Ptr<Extensions::EXTTextureFilterAnisotropic> m_ext_texture_filter_anisotropic;
     GC::Ptr<Extensions::EXTTextureNorm16> m_ext_texture_norm16;
     GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
     GC::Ptr<Extensions::WebGLCompressedTextureS3tcSrgb> m_webgl_compressed_texture_s3tc_srgb_extension;

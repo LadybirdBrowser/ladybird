@@ -8,6 +8,7 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include <GLES3/gl3.h>
 extern "C" {
+#include <GLES2/gl2ext.h>
 #include <GLES2/gl2ext_angle.h>
 }
 
@@ -394,6 +395,13 @@ void WebGL2RenderingContextImpl::sampler_parameteri(GC::Root<WebGLSampler> sampl
     case GL_TEXTURE_WRAP_S:
     case GL_TEXTURE_WRAP_T:
         break;
+    case GL_TEXTURE_MAX_ANISOTROPY_EXT: {
+        if (ext_texture_filter_anisotropic_extension_enabled())
+            break;
+
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
     default:
         dbgln("Unknown WebGL sampler parameter name: 0x{:04x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -427,6 +435,13 @@ void WebGL2RenderingContextImpl::sampler_parameterf(GC::Root<WebGLSampler> sampl
     case GL_TEXTURE_WRAP_S:
     case GL_TEXTURE_WRAP_T:
         break;
+    case GL_TEXTURE_MAX_ANISOTROPY_EXT: {
+        if (ext_texture_filter_anisotropic_extension_enabled())
+            break;
+
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
     default:
         dbgln("Unknown WebGL sampler parameter name: 0x{:04x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -2570,6 +2585,16 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         GLint64 result { 0 };
         glGetInteger64vRobustANGLE(GL_MAX_SERVER_WAIT_TIMEOUT, 1, nullptr, &result);
         return JS::Value(static_cast<double>(result));
+    }
+    case GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: {
+        if (ext_texture_filter_anisotropic_extension_enabled()) {
+            GLfloat result { 0.0f };
+            glGetFloatvRobustANGLE(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, 1, nullptr, &result);
+            return JS::Value(result);
+        }
+
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
     }
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);

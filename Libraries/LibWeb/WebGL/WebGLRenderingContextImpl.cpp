@@ -1443,6 +1443,16 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
         return JS::Int32Array::create(m_realm, 4, array_buffer);
     }
+    case GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: {
+        if (ext_texture_filter_anisotropic_extension_enabled()) {
+            GLfloat result { 0.0f };
+            glGetFloatvRobustANGLE(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, 1, nullptr, &result);
+            return JS::Value(result);
+        }
+
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
