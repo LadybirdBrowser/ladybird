@@ -21,10 +21,7 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> t
 {
     m_transport->set_up_read_hook([this] {
         NonnullRefPtr protect = *this;
-
-        if (auto result = drain_messages_from_peer(); result.is_error())
-            dbgln("Read hook error while draining messages: {}", result.error());
-
+        drain_messages_from_peer();
         handle_messages();
     });
 }
@@ -96,7 +93,7 @@ void ConnectionBase::wait_for_transport_to_become_readable()
     m_transport->wait_until_readable();
 }
 
-ErrorOr<void> ConnectionBase::drain_messages_from_peer()
+ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 {
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
         if (auto message = try_parse_message(raw_message.bytes, raw_message.fds)) {
@@ -117,10 +114,10 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
         deferred_invoke([this] {
             shutdown();
         });
-        return Error::from_string_literal("IPC connection EOF");
+        return PeerEOF::Yes;
     }
 
-    return {};
+    return PeerEOF::No;
 }
 
 OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id)
@@ -140,7 +137,7 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
             break;
 
         wait_for_transport_to_become_readable();
-        if (drain_messages_from_peer().is_error())
+        if (drain_messages_from_peer() == PeerEOF::Yes)
             break;
     }
 
