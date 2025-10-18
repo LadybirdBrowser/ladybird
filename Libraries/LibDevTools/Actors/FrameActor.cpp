@@ -7,6 +7,7 @@
 #include <AK/Enumerate.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <LibDevTools/Actors/AccessibilityActor.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
@@ -20,12 +21,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread)
+NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread, WeakPtr<AccessibilityActor> accessibility)
 {
-    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(console), move(inspector), move(style_sheets), move(thread)));
+    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(console), move(inspector), move(style_sheets), move(thread), move(accessibility)));
 }
 
-FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread)
+FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread, WeakPtr<AccessibilityActor> accessibility)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_css_properties(move(css_properties))
@@ -33,6 +34,7 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
     , m_inspector(move(inspector))
     , m_style_sheets(move(style_sheets))
     , m_thread(move(thread))
+    , m_accessibility(move(accessibility))
 {
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_console_messages(
@@ -127,10 +129,12 @@ JsonObject FrameActor::serialize_target() const
 
     target.set("traits"sv, move(traits));
 
-    if (auto css_properties = m_css_properties.strong_ref())
-        target.set("cssPropertiesActor"sv, css_properties->name());
+    if (auto accessibility = m_accessibility.strong_ref())
+        target.set("accessibilityActor"sv, accessibility->name());
     if (auto console = m_console.strong_ref())
         target.set("consoleActor"sv, console->name());
+    if (auto css_properties = m_css_properties.strong_ref())
+        target.set("cssPropertiesActor"sv, css_properties->name());
     if (auto inspector = m_inspector.strong_ref())
         target.set("inspectorActor"sv, inspector->name());
     if (auto style_sheets = m_style_sheets.strong_ref())

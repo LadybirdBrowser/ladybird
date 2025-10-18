@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <LibCore/EventLoop.h>
+#include <LibDevTools/Actors/AccessibilityActor.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
@@ -95,8 +96,9 @@ void WatcherActor::handle_message(Message const& message)
             auto& inspector = devtools().register_actor<InspectorActor>(m_tab);
             auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
             auto& thread = devtools().register_actor<ThreadActor>();
+            auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
 
-            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, console, inspector, style_sheets, thread);
+            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, console, inspector, style_sheets, thread, accessibility);
             m_target = target;
 
             response.set("type"sv, "target-available-form"sv);

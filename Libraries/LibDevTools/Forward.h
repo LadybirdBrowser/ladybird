@@ -11,6 +11,9 @@
 namespace DevTools {
 
 class Actor;
+class AccessibilityActor;
+class AccessibilityNodeActor;
+class AccessibilityWalkerActor;
 class Connection;
 class ConsoleActor;
 class CSSPropertiesActor;
@@ -23,6 +26,7 @@ class InspectorActor;
 class LayoutInspectorActor;
 class NodeActor;
 class PageStyleActor;
+class ParentAccessibilityActor;
 class PreferenceActor;
 class ProcessActor;
 class RootActor;
@@ -35,6 +39,7 @@ class WalkerActor;
 class WatcherActor;
 
 struct CSSProperty;
+struct Node;
 struct ProcessDescription;
 struct TabDescription;
 
