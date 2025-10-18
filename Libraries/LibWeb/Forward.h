@@ -1224,6 +1224,7 @@ namespace Web::WebGL::Extensions {
 class ANGLEInstancedArrays;
 class EXTBlendMinMax;
 class EXTColorBufferFloat;
+class EXTRenderSnorm;
 class OESVertexArrayObject;
 class WebGLCompressedTextureS3tc;
 class WebGLDrawBuffers;

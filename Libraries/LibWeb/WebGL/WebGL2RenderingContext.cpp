@@ -16,6 +16,7 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/Extensions/EXTColorBufferFloat.h>
+#include <LibWeb/WebGL/Extensions/EXTRenderSnorm.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
@@ -75,6 +76,7 @@ void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
     WebGL2RenderingContextImpl::visit_edges(visitor);
     visitor.visit(m_canvas_element);
     visitor.visit(m_ext_color_buffer_float_extension);
+    visitor.visit(m_ext_render_snorm);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
 }
 
@@ -180,6 +182,15 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
 
         VERIFY(m_ext_color_buffer_float_extension);
         return m_ext_color_buffer_float_extension;
+    }
+
+    if (name.equals_ignoring_ascii_case("EXT_render_snorm"sv)) {
+        if (!m_ext_render_snorm) {
+            m_ext_render_snorm = MUST(Extensions::EXTRenderSnorm::create(realm(), *this));
+        }
+
+        VERIFY(m_ext_render_snorm);
+        return m_ext_render_snorm;
     }
 
     return nullptr;
