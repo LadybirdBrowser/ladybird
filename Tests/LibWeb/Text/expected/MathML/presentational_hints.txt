@@ -1,0 +1,24 @@
+direction: ltr
+direction: ltr
+direction: rtl
+color: red
+color: rgb(255, 0, 0)
+background-color: blue
+background-color: rgb(0, 0, 255)
+font-size: 10px
+math-style: compact
+math-style: normal
+math-style: normal
+math-style: compact
+math-style: compact
+math-depth: 1
+math-depth: 2
+math-depth: 3
+math-depth: -2
+text-transform: math-auto
+text-transform: none
+width: 10px
+width: auto
+height: 20px
+height: 30px
+height: auto

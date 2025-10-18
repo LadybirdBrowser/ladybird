@@ -83,6 +83,8 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MathML/MathMLElement.h>
+#include <LibWeb/MathML/MathMLMiElement.h>
+#include <LibWeb/MathML/MathMLMspaceElement.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/SVGAElement.h>
@@ -543,6 +545,12 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
 
 static GC::Ref<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
+    auto const& local_name = qualified_name.local_name();
+    if (local_name == MathML::TagNames::mi)
+        return realm.create<MathML::MathMLMiElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mspace)
+        return realm.create<MathML::MathMLMspaceElement>(document, move(qualified_name));
+
     // https://w3c.github.io/mathml-core/#dom-and-javascript
     // All the nodes representing MathML elements in the DOM must implement, and expose to scripts,
     // the following MathMLElement interface.
