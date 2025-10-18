@@ -15,6 +15,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::AnchorSize;
     if (string.equals_ignoring_ascii_case("angle"sv))
         return ValueType::Angle;
+    if (string.equals_ignoring_ascii_case("angle-percentage"sv))
+        return ValueType::AnglePercentage;
     if (string.equals_ignoring_ascii_case("background-position"sv))
         return ValueType::BackgroundPosition;
     if (string.equals_ignoring_ascii_case("basic-shape"sv))
@@ -35,12 +37,16 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::Flex;
     if (string.equals_ignoring_ascii_case("frequency"sv))
         return ValueType::Frequency;
+    if (string.equals_ignoring_ascii_case("frequency-percentage"sv))
+        return ValueType::FrequencyPercentage;
     if (string.equals_ignoring_ascii_case("image"sv))
         return ValueType::Image;
     if (string.equals_ignoring_ascii_case("integer"sv))
         return ValueType::Integer;
     if (string.equals_ignoring_ascii_case("length"sv))
         return ValueType::Length;
+    if (string.equals_ignoring_ascii_case("length-percentage"sv))
+        return ValueType::LengthPercentage;
     if (string.equals_ignoring_ascii_case("number"sv))
         return ValueType::Number;
     if (string.equals_ignoring_ascii_case("opacity"sv))
@@ -63,6 +69,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::String;
     if (string.equals_ignoring_ascii_case("time"sv))
         return ValueType::Time;
+    if (string.equals_ignoring_ascii_case("time-percentage"sv))
+        return ValueType::TimePercentage;
     if (string.equals_ignoring_ascii_case("transform-function"sv))
         return ValueType::TransformFunction;
     if (string.equals_ignoring_ascii_case("transform-list"sv))
@@ -81,6 +89,8 @@ StringView value_type_to_string(ValueType value_type)
         return "AnchorSize"sv;
     case Web::CSS::ValueType::Angle:
         return "Angle"sv;
+    case Web::CSS::ValueType::AnglePercentage:
+        return "AnglePercentage"sv;
     case Web::CSS::ValueType::BackgroundPosition:
         return "BackgroundPosition"sv;
     case Web::CSS::ValueType::BasicShape:
@@ -103,12 +113,16 @@ StringView value_type_to_string(ValueType value_type)
         return "Flex"sv;
     case Web::CSS::ValueType::Frequency:
         return "Frequency"sv;
+    case Web::CSS::ValueType::FrequencyPercentage:
+        return "FrequencyPercentage"sv;
     case Web::CSS::ValueType::Image:
         return "Image"sv;
     case Web::CSS::ValueType::Integer:
         return "Integer"sv;
     case Web::CSS::ValueType::Length:
         return "Length"sv;
+    case Web::CSS::ValueType::LengthPercentage:
+        return "LengthPercentage"sv;
     case Web::CSS::ValueType::Number:
         return "Number"sv;
     case Web::CSS::ValueType::Opacity:
@@ -131,6 +145,8 @@ StringView value_type_to_string(ValueType value_type)
         return "String"sv;
     case Web::CSS::ValueType::Time:
         return "Time"sv;
+    case Web::CSS::ValueType::TimePercentage:
+        return "TimePercentage"sv;
     case Web::CSS::ValueType::TransformFunction:
         return "TransformFunction"sv;
     case Web::CSS::ValueType::TransformList:
