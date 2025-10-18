@@ -1371,14 +1371,18 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 
         if (property_value->is_keyword()) {
             auto keyword = property_value->as_keyword().keyword();
-            if (keyword == Keyword::None)
+            if (keyword == Keyword::None) {
+                properties.append({});
                 continue;
+            }
             if (keyword == Keyword::All)
                 properties_for_this_transition = expanded_longhands_for_shorthand(PropertyID::All);
         } else {
             auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
-            if (!maybe_property.has_value())
+            if (!maybe_property.has_value()) {
+                properties.append({});
                 continue;
+            }
 
             auto transition_property = maybe_property.release_value();
             if (property_is_shorthand(transition_property)) {
