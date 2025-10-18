@@ -1,0 +1,51 @@
+#import <DOM/EventTarget.idl>
+#import <WebGPU/GPUAdapterInfo.idl>
+#import <WebGPU/GPUQueue.idl>
+#import <WebGPU/GPUObjectBase.idl>
+#import <WebGPU/GPUSupportedFeatures.idl>
+#import <WebGPU/GPUSupportedLimits.idl>
+
+// https://www.w3.org/TR/webgpu/#gpudevicedescriptor
+dictionary GPUDeviceDescriptor
+         : GPUObjectDescriptorBase {
+    // FIXME: sequence<GPUFeatureName> requiredFeatures = [];
+    // FIXME: record<DOMString, (GPUSize64 or undefined)> requiredLimits = {};
+    GPUQueueDescriptor defaultQueue = {};
+};
+
+// https://www.w3.org/TR/webgpu/#gpudevice
+[Exposed=(Window,Worker), SecureContext]
+interface GPUDevice : EventTarget {
+    // FIXME: [SameObject] readonly attribute GPUSupportedFeatures features;
+    // FIXME: [SameObject] readonly attribute GPUSupportedLimits limits;
+    // FIXME: [SameObject] readonly attribute GPUAdapterInfo adapterInfo;
+
+    [SameObject] readonly attribute GPUQueue queue;
+
+    [FIXME] undefined destroy();
+
+    // FIXME: GPUBuffer createBuffer(GPUBufferDescriptor descriptor);
+    // FIXME: GPUTexture createTexture(GPUTextureDescriptor descriptor);
+    // FIXME: GPUSampler createSampler(optional GPUSamplerDescriptor descriptor = {});
+    // FIXME: GPUExternalTexture importExternalTexture(GPUExternalTextureDescriptor descriptor);
+
+    // FIXME: GPUBindGroupLayout createBindGroupLayout(GPUBindGroupLayoutDescriptor descriptor);
+    // FIXME: GPUPipelineLayout createPipelineLayout(GPUPipelineLayoutDescriptor descriptor);
+    // FIXME: GPUBindGroup createBindGroup(GPUBindGroupDescriptor descriptor);
+
+    // FIXME: GPUShaderModule createShaderModule(GPUShaderModuleDescriptor descriptor);
+    // FIXME: GPUComputePipeline createComputePipeline(GPUComputePipelineDescriptor descriptor);
+    // FIXME: GPURenderPipeline createRenderPipeline(GPURenderPipelineDescriptor descriptor);
+    // FIXME: Promise<GPUComputePipeline> createComputePipelineAsync(GPUComputePipelineDescriptor descriptor);
+    // FIXME: Promise<GPURenderPipeline> createRenderPipelineAsync(GPURenderPipelineDescriptor descriptor);
+
+    // FIXME: GPUCommandEncoder createCommandEncoder(optional GPUCommandEncoderDescriptor descriptor = {});
+    // FIXME: GPURenderBundleEncoder createRenderBundleEncoder(GPURenderBundleEncoderDescriptor descriptor);
+
+    // FIXME: GPUQuerySet createQuerySet(GPUQuerySetDescriptor descriptor);
+};
+GPUDevice includes GPUObjectBase;
+
+// FIXME: https://www.w3.org/TR/webgpu/#enumdef-gpudevicelostreason
+// FIXME: https://www.w3.org/TR/webgpu/#gpudevicelostinfo
+// FIXME: https://www.w3.org/TR/webgpu/#dom-gpudevice-lost

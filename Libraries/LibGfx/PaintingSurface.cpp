@@ -10,15 +10,15 @@
 
 #include <core/SkColorSpace.h>
 #include <core/SkSurface.h>
-#include <gpu/GrBackendSurface.h>
-#include <gpu/GrDirectContext.h>
+#include <gpu/ganesh/GrBackendSurface.h>
+#include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 
 #ifdef AK_OS_MACOS
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
 #elif defined(USE_VULKAN_IMAGES)
 #    include <gpu/ganesh/vk/GrVkBackendSurface.h>
-#    include <gpu/vk/GrVkTypes.h>
+#    include <gpu/ganesh/vk/GrVkTypes.h>
 #endif
 
 namespace Gfx {

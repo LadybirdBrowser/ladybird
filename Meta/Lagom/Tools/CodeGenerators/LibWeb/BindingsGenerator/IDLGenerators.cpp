@@ -80,6 +80,11 @@ static bool is_platform_object(Type const& type)
         "Gamepad"sv,
         "GamepadButton"sv,
         "GamepadHapticActuator"sv,
+        "GPU"sv,
+        "GPUAdapter"sv,
+        "GPUAdapterInfo"sv,
+        "GPUSupportedFeatures"sv,
+        "GPUSupportedLimits"sv,
         "HTMLCollection"sv,
         "IDBCursor"sv,
         "IDBCursorWithValue"sv,
@@ -157,6 +162,7 @@ static bool is_platform_object(Type const& type)
         "WebGLUniformLocation"sv,
         "WebGLVertexArrayObject"sv,
         "WebGLVertexArrayObjectOES"sv,
+        "WGSLLanguageFeatures"sv,
         "Window"sv,
         "WindowProxy"sv,
         "WritableStream"sv,
@@ -4971,6 +4977,7 @@ using namespace Web::WebAssembly;
 using namespace Web::WebAudio;
 using namespace Web::WebGL;
 using namespace Web::WebGL::Extensions;
+using namespace Web::WebGPU;
 using namespace Web::WebIDL;
 using namespace Web::WebVTT;
 using namespace Web::XHR;
