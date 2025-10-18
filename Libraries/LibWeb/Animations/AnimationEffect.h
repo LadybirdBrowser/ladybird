@@ -11,8 +11,8 @@
 #include <AK/Variant.h>
 #include <LibWeb/Bindings/AnimationEffectPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 
 namespace Web::Animations {
 
@@ -79,7 +79,7 @@ class AnimationEffect : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
-    static RefPtr<CSS::StyleValue const> parse_easing_string(StringView value);
+    static Optional<CSS::EasingFunction> parse_easing_string(StringView value);
 
     EffectTiming get_timing() const;
     ComputedEffectTiming get_computed_timing() const;
@@ -106,8 +106,8 @@ public:
     Bindings::PlaybackDirection playback_direction() const { return m_playback_direction; }
     void set_playback_direction(Bindings::PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
 
-    CSS::EasingStyleValue::Function const& timing_function() { return m_timing_function; }
-    void set_timing_function(CSS::EasingStyleValue::Function value) { m_timing_function = move(value); }
+    CSS::EasingFunction const& timing_function() { return m_timing_function; }
+    void set_timing_function(CSS::EasingFunction value) { m_timing_function = move(value); }
 
     GC::Ptr<Animation> associated_animation() const { return m_associated_animation; }
     void set_associated_animation(GC::Ptr<Animation> value);
@@ -193,7 +193,7 @@ protected:
     GC::Ptr<Animation> m_associated_animation {};
 
     // https://www.w3.org/TR/web-animations-1/#time-transformations
-    CSS::EasingStyleValue::Function m_timing_function { CSS::EasingStyleValue::Linear::identity() };
+    CSS::EasingFunction m_timing_function { CSS::EasingFunction::linear() };
 
     // Used for calculating transitions in StyleComputer
     Phase m_previous_phase { Phase::Idle };

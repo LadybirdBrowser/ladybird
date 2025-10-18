@@ -13,7 +13,9 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -80,7 +82,7 @@ EffectTiming AnimationEffect::get_timing() const
         .iterations = m_iteration_count,
         .duration = m_iteration_duration,
         .direction = m_playback_direction,
-        .easing = m_timing_function.to_string(CSS::SerializationMode::Normal),
+        .easing = m_timing_function.to_string(),
     };
 }
 
@@ -115,7 +117,7 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
             .iterations = m_iteration_count,
             .duration = duration,
             .direction = m_playback_direction,
-            .easing = m_timing_function.to_string(CSS::SerializationMode::Normal),
+            .easing = m_timing_function.to_string(),
         },
 
         end_time(),
@@ -158,12 +160,11 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
 
     // 4. If the easing member of input exists but cannot be parsed using the <easing-function> production
     //    [CSS-EASING-1], throw a TypeError and abort this procedure.
-    RefPtr<CSS::StyleValue const> easing_value;
+    Optional<CSS::EasingFunction> easing_value;
     if (timing.easing.has_value()) {
         easing_value = parse_easing_string(timing.easing.value());
-        if (!easing_value)
+        if (!easing_value.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid easing function"sv };
-        VERIFY(easing_value->is_easing());
     }
 
     // 5. Assign each member that exists in input to the corresponding timing property of effect as follows:
@@ -197,8 +198,8 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
         m_playback_direction = timing.direction.value();
 
     //    - easing → timing function
-    if (easing_value)
-        m_timing_function = easing_value->as_easing().function();
+    if (easing_value.has_value())
+        m_timing_function = easing_value.value();
 
     if (auto animation = m_associated_animation)
         animation->effect_timing_changed({});
@@ -604,11 +605,14 @@ Optional<double> AnimationEffect::transformed_progress() const
     return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
 }
 
-RefPtr<CSS::StyleValue const> AnimationEffect::parse_easing_string(StringView value)
+Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView value)
 {
     if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
-        if (style_value->is_easing())
-            return style_value;
+        if (style_value->is_unresolved() || style_value->is_value_list() || style_value->is_css_wide_keyword())
+            return {};
+
+        // FIXME: We should absolutize style_value to resolve relative lengths within calcs
+        return CSS::EasingFunction::from_style_value(style_value.release_nonnull());
     }
 
     return {};

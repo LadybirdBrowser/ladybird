@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 35 tests
+
+20 Pass
+15 Fail
+Pass	e.style['animation-timing-function'] = "linear(0 0%, 1 100%)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear( 0 0%, 1 100% )" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(0, 1)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(-10, -5, 0, 5, 10)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(-10 -10%, -5 -5%, 0, 5, 10)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(0 calc(0%), 0 calc(100%))" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(0 calc(50% - 50%), 0 calc(50% + 50%))" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(0 calc(50%), 0 100%)" should set the property value
+Fail	e.style['animation-timing-function'] = "linear(0 0% 50%, 1 50% 100%)" should set the property value
+Fail	e.style['animation-timing-function'] = "linear(0, 0.5 25% 75%, 1 100% 100%)" should set the property value
+Fail	e.style['animation-timing-function'] = "linear(0, 1.3, 1, 0.92, 1, 0.99, 1, 0.998, 1 100% 100%)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear(0, 0 40%, 1, 0.5, 1)" should set the property value
+Fail	e.style['animation-timing-function'] = "linear(0, 1.3, 1, 0.92, 1, 0.99, 1, 1.004, 0.998, 1 100% 100%)" should set the property value
+Fail	e.style['animation-timing-function'] = "linear(calc(0/0), 1)" should set the property value
+Pass	e.style['animation-timing-function'] = "linear()" should not set the property value
+Fail	e.style['animation-timing-function'] = "linear(0)" should not set the property value
+Pass	e.style['animation-timing-function'] = "linear(100%)" should not set the property value
+Pass	e.style['animation-timing-function'] = "linear(0% 1 50%)" should not set the property value
+Fail	e.style['animation-timing-function'] = "linear(0 0% 100%)" should not set the property value
+Fail	e.style['animation-timing-function'] = "linear(0% 100% 0)" should not set the property value
+Pass	e.style['animation-timing-function'] = "linear(0 calc(50px - 50%), 0 calc(50em + 50em))" should not set the property value
+Pass	e.style['animation-timing-function'] = "linear(0 calc(50%, 50%), 0 calc(50% + 50%))" should not set the property value
+Pass	Property animation-timing-function value 'linear(0 0%, 1 100%)'
+Pass	Property animation-timing-function value 'linear( 0 0%, 1 100% )'
+Fail	Property animation-timing-function value 'linear(0, 1)'
+Fail	Property animation-timing-function value 'linear(-10, -5, 0, 5, 10)'
+Fail	Property animation-timing-function value 'linear(-10 -10%, -5 -5%, 0, 5, 10)'
+Pass	Property animation-timing-function value 'linear(0 calc(0%), 0 calc(100%))'
+Pass	Property animation-timing-function value 'linear(0 calc(50% - 50%), 0 calc(50% + 50%))'
+Pass	Property animation-timing-function value 'linear(0 calc(min(50%, 60%)), 0 100%)'
+Pass	Property animation-timing-function value 'linear(0 0% 50%, 1 50% 100%)'
+Fail	Property animation-timing-function value 'linear(0, 0.5 25% 75%, 1 100% 100%)'
+Fail	Property animation-timing-function value 'linear(0, 1.3, 1, 0.92, 1, 0.99, 1, 0.998, 1 100% 100%)'
+Fail	Property animation-timing-function value 'linear(0, 0 40%, 1, 0.5, 1)'
+Fail	Property animation-timing-function value 'linear(0, 1.3, 1, 0.92, 1, 0.99, 1, 1.004, 0.998, 1 100% 100%)'

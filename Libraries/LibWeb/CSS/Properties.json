@@ -345,7 +345,8 @@
     "__comment": "FIXME: animation properties should be coordinating-lists",
     "multiplicity": "single",
     "valid-types": [
-      "easing-function"
+      "easing-function",
+      "easing-keyword"
     ]
   },
   "appearance": {
@@ -3900,7 +3901,8 @@
     "initial": "ease",
     "multiplicity": "coordinating-list",
     "valid-types": [
-      "easing-function"
+      "easing-function",
+      "easing-keyword"
     ]
   },
   "translate": {

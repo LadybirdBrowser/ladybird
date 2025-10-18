@@ -718,7 +718,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             set_longhand_property(CSS::PropertyID::TransitionProperty, KeywordStyleValue::create(Keyword::All));
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()));
+            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, KeywordStyleValue::create(Keyword::Ease));
             set_longhand_property(CSS::PropertyID::TransitionBehavior, KeywordStyleValue::create(Keyword::Normal));
         } else if (value.is_transition()) {
             auto const& transitions = value.as_transition().transitions();
@@ -1277,9 +1277,9 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
             play_state = *play_state_value;
     }
 
-    CSS::EasingStyleValue::Function timing_function { CSS::EasingStyleValue::CubicBezier::ease() };
-    if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
-        timing_function = timing_property->as_easing().function();
+    EasingFunction timing_function = EasingFunction::ease();
+    if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && (timing_property->is_easing() || (timing_property->is_keyword() && !timing_property->is_css_wide_keyword())))
+        timing_function = EasingFunction::from_style_value(timing_property.release_nonnull());
 
     Bindings::CompositeOperation composite_operation { Bindings::CompositeOperation::Replace };
     if (auto composite_property = cascaded_properties.property(PropertyID::AnimationComposition); composite_property) {
@@ -1421,7 +1421,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
     auto timing_functions = normalize_transition_length_list(
         PropertyID::TransitionTimingFunction,
-        [] { return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()); });
+        [] { return KeywordStyleValue::create(Keyword::Ease); });
     auto transition_behaviors = normalize_transition_length_list(
         PropertyID::TransitionBehavior,
         [] { return KeywordStyleValue::create(Keyword::None); });

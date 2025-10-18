@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Animations: getComputedStyle().transitionTimingFunction</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#propdef-transition-timing-function">
+<meta name="assert" content="transition-timing-function computed value is a computed <easing-function> list.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target" style="font-size: 16px;"></div>
+<script>
+test_computed_value("transition-timing-function", "linear");
+
+test_computed_value("transition-timing-function", "ease");
+test_computed_value("transition-timing-function", "ease-in");
+test_computed_value("transition-timing-function", "ease-out");
+test_computed_value("transition-timing-function", "ease-in-out");
+test_computed_value("transition-timing-function", "cubic-bezier(0.1, 0.2, 0.8, 0.9)");
+test_computed_value("transition-timing-function", "cubic-bezier(0, -2, 1, 3)");
+test_computed_value("transition-timing-function", "cubic-bezier(0, 0.7, 1, 1.3)");
+
+test_computed_value("transition-timing-function", "step-start", "steps(1, start)");
+test_computed_value("transition-timing-function", "step-end", "steps(1)");
+test_computed_value("transition-timing-function", "steps(4)");
+test_computed_value("transition-timing-function", "steps(4, start)");
+test_computed_value("transition-timing-function", "steps(2, end)", "steps(2)");
+test_computed_value("transition-timing-function", "steps(2, jump-start)");
+test_computed_value("transition-timing-function", "steps(2, jump-end)", "steps(2)");
+test_computed_value("transition-timing-function", "steps(2, jump-both)");
+test_computed_value("transition-timing-function", "steps(2, jump-none)");
+test_computed_value("transition-timing-function", "steps(calc(2 * sibling-index()), jump-none)", "steps(2, jump-none)");
+test_computed_value("transition-timing-function", "steps(sibling-index(), jump-none)", "steps(2, jump-none)");
+test_computed_value("transition-timing-function", "steps(calc(2 * sign(1em - 1000px)), jump-none)", "steps(2, jump-none)");
+test_computed_value("transition-timing-function", "steps(calc(2 * sign(1em - 1000px)), start)", "steps(1, start)");
+
+test_computed_value("transition-timing-function", "linear, ease, linear");
+</script>
+</body>
+</html>

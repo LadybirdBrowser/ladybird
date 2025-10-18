@@ -2865,20 +2865,10 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
     if (part.is(Token::Type::Ident)) {
         auto name = part.token().ident();
         auto maybe_simple_easing = [&] -> RefPtr<EasingStyleValue const> {
-            if (name.equals_ignoring_ascii_case("linear"sv))
-                return EasingStyleValue::create(EasingStyleValue::Linear::identity());
-            if (name.equals_ignoring_ascii_case("ease"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
-            if (name.equals_ignoring_ascii_case("ease-in"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in());
-            if (name.equals_ignoring_ascii_case("ease-out"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_out());
-            if (name.equals_ignoring_ascii_case("ease-in-out"sv))
-                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in_out());
             if (name.equals_ignoring_ascii_case("step-start"sv))
-                return EasingStyleValue::create(EasingStyleValue::Steps::step_start());
+                return EasingStyleValue::create(EasingStyleValue::Steps { IntegerStyleValue::create(1), StepPosition::Start });
             if (name.equals_ignoring_ascii_case("step-end"sv))
-                return EasingStyleValue::create(EasingStyleValue::Steps::step_end());
+                return EasingStyleValue::create(EasingStyleValue::Steps { IntegerStyleValue::create(1), StepPosition::End });
             return {};
         }();
 
@@ -2908,32 +2898,32 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
         for (auto const& argument : comma_separated_arguments) {
             TokenStream argument_tokens { argument };
 
-            Optional<double> output;
-            Optional<double> first_input;
-            Optional<double> second_input;
+            RefPtr<StyleValue const> output;
+            RefPtr<StyleValue const> first_input;
+            RefPtr<StyleValue const> second_input;
 
-            if (argument_tokens.next_token().is(Token::Type::Number))
-                output = argument_tokens.consume_a_token().token().number_value();
+            if (auto maybe_output = parse_number_value(argument_tokens))
+                output = maybe_output;
 
-            if (argument_tokens.next_token().is(Token::Type::Percentage)) {
-                first_input = argument_tokens.consume_a_token().token().percentage() / 100;
-                if (argument_tokens.next_token().is(Token::Type::Percentage)) {
-                    second_input = argument_tokens.consume_a_token().token().percentage() / 100;
+            if (auto maybe_first_input = parse_percentage_value(argument_tokens)) {
+                first_input = maybe_first_input;
+                if (auto maybe_second_input = parse_percentage_value(argument_tokens)) {
+                    second_input = maybe_second_input;
                 }
             }
 
-            if (argument_tokens.next_token().is(Token::Type::Number)) {
-                if (output.has_value())
+            if (auto maybe_output = parse_number_value(argument_tokens)) {
+                if (output)
                     return nullptr;
-                output = argument_tokens.consume_a_token().token().number_value();
+                output = maybe_output;
             }
 
-            if (argument_tokens.has_next_token() || !output.has_value())
+            if (argument_tokens.has_next_token() || !output)
                 return nullptr;
 
-            stops.append({ output.value(), first_input, first_input.has_value() });
-            if (second_input.has_value())
-                stops.append({ output.value(), second_input, true });
+            stops.append({ *output, first_input });
+            if (second_input)
+                stops.append({ *output, second_input });
         }
 
         if (stops.is_empty())
@@ -2954,25 +2944,28 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
 
         auto parse_argument = [this, &comma_separated_arguments](auto index) {
             TokenStream<ComponentValue> argument_tokens { comma_separated_arguments[index] };
-            return parse_number(argument_tokens);
+            return parse_number_value(argument_tokens);
         };
 
+        m_value_context.append(SpecialContext::CubicBezierFunctionXCoordinate);
         auto x1 = parse_argument(0);
-        auto y1 = parse_argument(1);
         auto x2 = parse_argument(2);
+        m_value_context.take_last();
+
+        auto y1 = parse_argument(1);
         auto y2 = parse_argument(3);
-        if (!x1.has_value() || !y1.has_value() || !x2.has_value() || !y2.has_value())
+        if (!x1 || !y1 || !x2 || !y2)
             return nullptr;
-        if (!x1->is_calculated() && (x1->value() < 0.0 || x1->value() > 1.0))
+        if (x1->is_number() && (x1->as_number().number() < 0.0 || x1->as_number().number() > 1.0))
             return nullptr;
-        if (!x2->is_calculated() && (x2->value() < 0.0 || x2->value() > 1.0))
+        if (x2->is_number() && (x2->as_number().number() < 0.0 || x2->as_number().number() > 1.0))
             return nullptr;
 
         EasingStyleValue::CubicBezier bezier {
-            x1.release_value(),
-            y1.release_value(),
-            x2.release_value(),
-            y2.release_value(),
+            x1.release_nonnull(),
+            y1.release_nonnull(),
+            x2.release_nonnull(),
+            y2.release_nonnull(),
         };
 
         transaction.commit();
@@ -2988,59 +2981,53 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
                 return nullptr;
         }
 
-        EasingStyleValue::Steps steps;
+        StepPosition position = StepPosition::End;
+
+        if (comma_separated_arguments.size() == 2) {
+            if (comma_separated_arguments[1].size() != 1)
+                return nullptr;
+
+            auto token = comma_separated_arguments[1][0];
+
+            if (!token.is(Token::Type::Ident))
+                return nullptr;
+
+            auto keyword = keyword_from_string(token.token().ident());
+
+            if (!keyword.has_value())
+                return nullptr;
+
+            auto step_position = keyword_to_step_position(keyword.value());
+
+            if (!step_position.has_value())
+                return nullptr;
+
+            position = step_position.value();
+        }
 
         auto const& intervals_argument = comma_separated_arguments[0][0];
         auto intervals_token = TokenStream<ComponentValue>::of_single_token(intervals_argument);
-        auto intervals = parse_integer(intervals_token);
-        if (!intervals.has_value())
+        m_value_context.append(position == StepPosition::JumpNone ? SpecialContext::StepsIntervalsJumpNone : SpecialContext::StepsIntervalsNormal);
+        auto intervals = parse_integer_value(intervals_token);
+        m_value_context.take_last();
+        if (!intervals)
             return nullptr;
-
-        if (comma_separated_arguments.size() == 2) {
-            TokenStream identifier_stream { comma_separated_arguments[1] };
-            auto keyword_value = parse_keyword_value(identifier_stream);
-            if (!keyword_value)
-                return nullptr;
-            switch (keyword_value->to_keyword()) {
-            case Keyword::JumpStart:
-                steps.position = EasingStyleValue::Steps::Position::JumpStart;
-                break;
-            case Keyword::JumpEnd:
-                steps.position = EasingStyleValue::Steps::Position::JumpEnd;
-                break;
-            case Keyword::JumpBoth:
-                steps.position = EasingStyleValue::Steps::Position::JumpBoth;
-                break;
-            case Keyword::JumpNone:
-                steps.position = EasingStyleValue::Steps::Position::JumpNone;
-                break;
-            case Keyword::Start:
-                steps.position = EasingStyleValue::Steps::Position::Start;
-                break;
-            case Keyword::End:
-                steps.position = EasingStyleValue::Steps::Position::End;
-                break;
-            default:
-                return nullptr;
-            }
-        }
 
         // Perform extra validation
         // https://drafts.csswg.org/css-easing/#step-easing-functions
         // If the <step-position> is jump-none, the <integer> must be at least 2, or the function is invalid.
         // Otherwise, the <integer> must be at least 1, or the function is invalid.
-        if (!intervals->is_calculated()) {
-            if (steps.position == EasingStyleValue::Steps::Position::JumpNone) {
-                if (intervals->value() <= 1)
+        if (intervals->is_integer()) {
+            if (position == StepPosition::JumpNone) {
+                if (intervals->as_integer().integer() <= 1)
                     return nullptr;
-            } else if (intervals->value() <= 0) {
+            } else if (intervals->as_integer().integer() <= 0) {
                 return nullptr;
             }
         }
 
-        steps.number_of_intervals = *intervals;
         transaction.commit();
-        return EasingStyleValue::create(steps);
+        return EasingStyleValue::create(EasingStyleValue::Steps { intervals.release_nonnull(), position });
     }
 
     return nullptr;
@@ -4143,6 +4130,13 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 switch (special_context) {
                 case SpecialContext::AngularColorStopList:
                     return CalculationContext { .percentages_resolve_as = ValueType::Angle };
+                case SpecialContext::CubicBezierFunctionXCoordinate:
+                    // Coordinates on the X axis must be between 0 and 1
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                case SpecialContext::StepsIntervalsJumpNone:
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 2, NumericLimits<float>::max() } } } };
+                case SpecialContext::StepsIntervalsNormal:
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 1, NumericLimits<float>::max() } } } };
                 case SpecialContext::ShadowBlurRadius:
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::TranslateZArgument:
@@ -4260,7 +4254,7 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             }
 
             if (component_value->is(Token::Type::Number))
-                return NumericCalculationNode::create(component_value->token().number(), context);
+                return NumericCalculationNode::create(Number { Number::Type::Number, component_value->token().number().value() }, context);
 
             if (component_value->is(Token::Type::Dimension)) {
                 auto numeric_value = component_value->token().dimension_value();

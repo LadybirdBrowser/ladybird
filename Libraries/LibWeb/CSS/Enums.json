@@ -281,6 +281,13 @@
     "inline",
     "run-in"
   ],
+  "easing-keyword": [
+    "linear",
+    "ease",
+    "ease-in",
+    "ease-out",
+    "ease-in-out"
+  ],
   "empty-cells": [
     "show",
     "hide"
@@ -714,6 +721,14 @@
     "optimizespeed",
     "crispedges",
     "geometricprecision"
+  ],
+  "step-position": [
+    "jump-start",
+    "jump-end",
+    "jump-none",
+    "jump-both",
+    "start",
+    "end"
   ],
   "stroke-linecap": [
     "butt",

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	e.style['animation-timing-function'] = "auto" should not set the property value
+Pass	e.style['animation-timing-function'] = "ease-in ease-out" should not set the property value
+Pass	e.style['animation-timing-function'] = "cubic-bezier(1, 2, 3)" should not set the property value
+Pass	e.style['animation-timing-function'] = "cubic-bezier(1, 2, 3, infinite)" should not set the property value
+Pass	e.style['animation-timing-function'] = "cubic-bezier(1, 2, 3, 4, 5)" should not set the property value
+Pass	e.style['animation-timing-function'] = "cubic-bezier(-0.1, 0.1, 0.5, 0.9)" should not set the property value
+Pass	e.style['animation-timing-function'] = "cubic-bezier(0.5, 0.1, 1.1, 0.9)" should not set the property value
+Pass	e.style['animation-timing-function'] = "initial, cubic-bezier(0, -2, 1, 3)" should not set the property value
+Pass	e.style['animation-timing-function'] = "cubic-bezier(0, -2, 1, 3), initial" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(1, jump-none)" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(-100, jump-none)" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(0, start)" should not set the property value
+Pass	e.style['animation-timing-function'] = "steps(-100, start)" should not set the property value

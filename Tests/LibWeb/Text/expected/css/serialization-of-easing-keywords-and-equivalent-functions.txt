@@ -1,0 +1,28 @@
+Specified: #linear { animation-timing-function: linear; transition-timing-function: linear(0, 1); }
+Keyword computed: linear
+Function computed: linear(0, 1)
+
+Specified: #ease-in { animation-timing-function: ease-in; transition-timing-function: cubic-bezier(0.42, 0, 1, 1); }
+Keyword computed: ease-in
+Function computed: cubic-bezier(0.42, 0, 1, 1)
+
+Specified: #ease-out { animation-timing-function: ease-out; transition-timing-function: cubic-bezier(0, 0, 0.58, 1); }
+Keyword computed: ease-out
+Function computed: cubic-bezier(0, 0, 0.58, 1)
+
+Specified: #ease-in-out { animation-timing-function: ease-in-out; transition-timing-function: cubic-bezier(0.42, 0, 0.58, 1); }
+Keyword computed: ease-in-out
+Function computed: cubic-bezier(0.42, 0, 0.58, 1)
+
+Specified: #ease { animation-timing-function: ease; transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1); }
+Keyword computed: ease
+Function computed: cubic-bezier(0.25, 0.1, 0.25, 1)
+
+Specified: #step-start { animation-timing-function: steps(1, start); transition-timing-function: steps(1, start); }
+Keyword computed: steps(1, start)
+Function computed: steps(1, start)
+
+Specified: #step-end { animation-timing-function: steps(1); transition-timing-function: steps(1); }
+Keyword computed: steps(1)
+Function computed: steps(1)
+

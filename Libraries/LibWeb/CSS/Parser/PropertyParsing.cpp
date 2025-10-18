@@ -29,7 +29,6 @@
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
@@ -126,14 +125,11 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     auto parse_for_type = [&](ValueType const type) -> Optional<PropertyAndValue> {
         if (auto property = any_property_accepts_type(property_ids, type); property.has_value()) {
             auto context_guard = push_temporary_value_parsing_context(*property);
-            if (auto maybe_easing_function = parse_value(type, tokens))
-                return PropertyAndValue { *property, maybe_easing_function };
+            if (auto maybe_parsed_value = parse_value(type, tokens))
+                return PropertyAndValue { *property, maybe_parsed_value };
         }
         return OptionalNone {};
     };
-
-    if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())
-        return parsed.release_value();
 
     if (peek_token.is(Token::Type::Ident)) {
         // NOTE: We do not try to parse "CSS-wide keywords" here. https://www.w3.org/TR/css-values-4/#common-keywords
@@ -161,6 +157,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto parsed = parse_for_type(ValueType::CornerShape); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Counter); parsed.has_value())
+        return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
         return parsed.release_value();
@@ -825,7 +823,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TransitionTimingFunction:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_easing_value(tokens); }))
+        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Translate:
@@ -5117,7 +5115,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
                 continue;
             }
 
-            if (auto easing = parse_easing_value(tokens)) {
+            if (auto easing = parse_css_value_for_property(PropertyID::TransitionTimingFunction, tokens)) {
                 if (transition.easing) {
                     ErrorReporter::the().report(InvalidPropertyError {
                         .property_name = "transition"_fly_string,
@@ -5127,7 +5125,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
                     return {};
                 }
 
-                transition.easing = easing->as_easing();
+                transition.easing = easing;
                 continue;
             }
 
@@ -5183,7 +5181,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
             transition.property_name = KeywordStyleValue::create(Keyword::All);
 
         if (!transition.easing)
-            transition.easing = EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
+            transition.easing = KeywordStyleValue::create(Keyword::Ease);
 
         transitions.append(move(transition));
 

@@ -560,10 +560,10 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         auto easing_string = keyframe.easing.get<String>();
         auto easing_value = AnimationEffect::parse_easing_string(easing_string);
 
-        if (!easing_value)
+        if (!easing_value.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
 
-        keyframe.easing.set(NonnullRefPtr<CSS::StyleValue const> { *easing_value });
+        keyframe.easing.set(easing_value.value());
     }
 
     // 9. Parse each of the values in unused easings using the CSS syntax defined for easing member of the EffectTiming
@@ -571,7 +571,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
     for (auto& unused_easing : unused_easings) {
         auto easing_string = unused_easing.get<String>();
         auto easing_value = AnimationEffect::parse_easing_string(easing_string);
-        if (!easing_value)
+        if (!easing_value.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
     }
 
@@ -827,8 +827,8 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
-            auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::StyleValue const>>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string(CSS::SerializationMode::Normal)), ShouldThrowExceptions::Yes));
+            auto easing_value = keyframe.easing.get<CSS::EasingFunction>();
+            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value.to_string()), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
                 TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));

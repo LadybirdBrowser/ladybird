@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
@@ -20,7 +19,7 @@ public:
         ValueComparingRefPtr<StyleValue const> property_name;
         TimeOrCalculated duration { CSS::Time::make_seconds(0.0) };
         TimeOrCalculated delay { CSS::Time::make_seconds(0.0) };
-        ValueComparingRefPtr<EasingStyleValue const> easing;
+        ValueComparingRefPtr<StyleValue const> easing;
         TransitionBehavior transition_behavior { TransitionBehavior::Normal };
 
         bool operator==(Transition const&) const = default;

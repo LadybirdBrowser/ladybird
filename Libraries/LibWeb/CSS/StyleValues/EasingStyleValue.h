@@ -19,15 +19,9 @@ namespace Web::CSS {
 class EasingStyleValue final : public StyleValueWithDefaultOperators<EasingStyleValue> {
 public:
     struct Linear {
-        static Linear identity();
-
         struct Stop {
-            double output;
-            Optional<double> input;
-
-            // "NOTE: Serialization relies on whether or not an input progress value was originally supplied,
-            // so that information should be retained in the internal representation."
-            bool had_explicit_input;
+            ValueComparingNonnullRefPtr<StyleValue const> output;
+            ValueComparingRefPtr<StyleValue const> input;
 
             bool operator==(Stop const&) const = default;
         };
@@ -36,22 +30,14 @@ public:
 
         bool operator==(Linear const&) const = default;
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
-
-        Linear(Vector<Stop> stops);
     };
 
     struct CubicBezier {
-        static CubicBezier ease();
-        static CubicBezier ease_in();
-        static CubicBezier ease_out();
-        static CubicBezier ease_in_out();
-
-        NumberOrCalculated x1 { 0 };
-        NumberOrCalculated y1 { 0 };
-        NumberOrCalculated x2 { 0 };
-        NumberOrCalculated y2 { 0 };
+        ValueComparingNonnullRefPtr<StyleValue const> x1;
+        ValueComparingNonnullRefPtr<StyleValue const> y1;
+        ValueComparingNonnullRefPtr<StyleValue const> x2;
+        ValueComparingNonnullRefPtr<StyleValue const> y2;
 
         struct CachedSample {
             double x;
@@ -66,36 +52,21 @@ public:
             return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
         }
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
     };
 
     struct Steps {
-        enum class Position {
-            JumpStart,
-            JumpEnd,
-            JumpNone,
-            JumpBoth,
-            Start,
-            End,
-        };
-
-        static Steps step_start();
-        static Steps step_end();
-
-        IntegerOrCalculated number_of_intervals { 1 };
-        Position position { Position::End };
+        ValueComparingNonnullRefPtr<StyleValue const> number_of_intervals;
+        StepPosition position;
 
         bool operator==(Steps const&) const = default;
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
     };
 
     struct WEB_API Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
-        double evaluate_at(double input_progress, bool before_flag) const;
         String to_string(SerializationMode) const;
     };
 
@@ -108,6 +79,8 @@ public:
     Function const& function() const { return m_function; }
 
     virtual String to_string(SerializationMode mode) const override { return m_function.to_string(mode); }
+
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 

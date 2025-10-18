@@ -12,7 +12,6 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/CSS/CSSTransition.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -171,9 +170,8 @@ void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo
                 duration = resolved_time.value().to_milliseconds();
             }
         }
-        auto timing_function = timing_functions[i]->is_easing() ? timing_functions[i]->as_easing().function() : CSS::EasingStyleValue::CubicBezier::ease();
+        auto timing_function = CSS::EasingFunction::from_style_value(timing_functions[i]);
         auto transition_behavior = CSS::keyword_to_transition_behavior(transition_behaviors[i]->to_keyword()).value_or(CSS::TransitionBehavior::Normal);
-        VERIFY(timing_functions[i]->is_easing());
         transition.transition_attributes.empend(delay, duration, timing_function, transition_behavior);
 
         for (auto const& property : properties[i])

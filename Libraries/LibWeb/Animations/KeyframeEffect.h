@@ -17,7 +17,7 @@
 
 namespace Web::Animations {
 
-using EasingValue = Variant<String, NonnullRefPtr<CSS::StyleValue const>>;
+using EasingValue = Variant<String, CSS::EasingFunction>;
 
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffectoptions-dictionary
 struct KeyframeEffectOptions : public EffectTiming {
