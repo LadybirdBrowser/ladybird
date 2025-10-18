@@ -1228,6 +1228,7 @@ class EXTRenderSnorm;
 class EXTTextureNorm16;
 class OESVertexArrayObject;
 class WebGLCompressedTextureS3tc;
+class WebGLCompressedTextureS3tcSrgb;
 class WebGLDrawBuffers;
 class WebGLVertexArrayObjectOES;
 
