@@ -7,6 +7,7 @@
 
 #include "ShorthandStyleValue.h"
 #include <LibGfx/Font/FontWeight.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
@@ -68,6 +69,74 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         return ""_string;
     }
+
+    // FIXME: This is required as parse_comma_separated_value_list() returns a single value directly instead of a list if there's only one.
+    auto const style_value_as_value_list = [&](RefPtr<StyleValue const> value) -> StyleValueVector {
+        if (value->is_value_list())
+            return value->as_value_list().values();
+
+        return { value.release_nonnull() };
+    };
+
+    auto const coordinating_value_list_shorthand_to_string = [&](StringView entry_when_all_longhands_initial) {
+        auto entry_count = style_value_as_value_list(longhand(m_properties.sub_properties[0])).size();
+
+        // If we don't have the same number of values for each longhand, we can't serialize this shorthand.
+        if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return style_value_as_value_list(longhand(longhand_id)).size() != entry_count; }))
+            return ""_string;
+
+        // We should serialize a longhand if:
+        // - The value is not the initial value
+        // - Another longhand value which will be included later in the serialization is valid for this longhand.
+        auto should_serialize_longhand = [&](size_t entry_index, size_t longhand_index) {
+            auto longhand_id = m_properties.sub_properties[longhand_index];
+            auto longhand_value = style_value_as_value_list(longhand(longhand_id))[entry_index];
+
+            if (!longhand_value->equals(style_value_as_value_list(property_initial_value(longhand_id))[0]))
+                return true;
+
+            for (size_t other_longhand_index = longhand_index + 1; other_longhand_index < m_properties.sub_properties.size(); other_longhand_index++) {
+                auto other_longhand_id = m_properties.sub_properties[other_longhand_index];
+                auto other_longhand_value = style_value_as_value_list(longhand(other_longhand_id))[entry_index];
+
+                // FIXME: This should really account for the other longhand being included in the serialization for any reason, not just because it is not the initial value.
+                if (other_longhand_value->equals(style_value_as_value_list(property_initial_value(other_longhand_id))[0]))
+                    continue;
+
+                if (parse_css_value(Parser::ParsingParams {}, other_longhand_value->to_string(mode), longhand_id))
+                    return true;
+            }
+
+            return false;
+        };
+
+        StringBuilder builder;
+        for (size_t entry_index = 0; entry_index < entry_count; entry_index++) {
+            bool first = true;
+
+            for (size_t longhand_index = 0; longhand_index < m_properties.sub_properties.size(); longhand_index++) {
+                auto longhand_id = m_properties.sub_properties[longhand_index];
+                auto longhand_value = style_value_as_value_list(longhand(longhand_id))[entry_index];
+
+                if (!should_serialize_longhand(entry_index, longhand_index))
+                    continue;
+
+                if (!builder.is_empty() && !first)
+                    builder.append(' ');
+
+                builder.append(longhand_value->to_string(mode));
+                first = false;
+            }
+
+            if (first)
+                builder.append(entry_when_all_longhands_initial);
+
+            if (entry_index != entry_count - 1)
+                builder.append(", "sv);
+        }
+
+        return builder.to_string_without_validation();
+    };
 
     auto positional_value_list_shorthand_to_string = [&](Vector<ValueComparingNonnullRefPtr<StyleValue const>> values) -> String {
         switch (values.size()) {
@@ -141,79 +210,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         //       handled above, thus, if we get to here that mustn't be the case and we should return the empty string.
         return ""_string;
     }
-    case PropertyID::Animation: {
-        auto const get_longhand_as_vector = [&](PropertyID longhand_id) -> StyleValueVector {
-            auto value = longhand(longhand_id);
-
-            if (value->is_value_list())
-                return value->as_value_list().values();
-
-            // FIXME: This is required as parse_comma_separated_value_list() returns a single value directly instead of a list if there's only one.
-            return { value.release_nonnull() };
-        };
-
-        // If we don't have the same number of values for each longhand, we can't serialize this shorthand.
-        if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return get_longhand_as_vector(longhand_id).size() != get_longhand_as_vector(m_properties.sub_properties[0]).size(); }))
-            return ""_string;
-
-        StringBuilder builder;
-        for (size_t i = 0; i < get_longhand_as_vector(m_properties.sub_properties[0]).size(); i++) {
-            auto animation_name = get_longhand_as_vector(PropertyID::AnimationName)[i]->to_string(mode);
-            bool first = true;
-
-            for (auto longhand_id : m_properties.sub_properties) {
-                auto longhand_value = get_longhand_as_vector(longhand_id)[i];
-
-                bool should_serialize_longhand = [&]() {
-                    if (!longhand_value->equals(property_initial_value(longhand_id)))
-                        return true;
-
-                    if (longhand_id == PropertyID::AnimationDuration && !get_longhand_as_vector(PropertyID::AnimationDelay)[i]->equals(property_initial_value(PropertyID::AnimationDelay)))
-                        return true;
-
-                    auto animation_name_keyword = keyword_from_string(animation_name);
-
-                    if (!animation_name_keyword.has_value() || animation_name_keyword == Keyword::None)
-                        return false;
-
-                    // https://drafts.csswg.org/css-animations-1/#animation
-                    // Furthermore, when serializing, default values of other properties must be output in at least the
-                    // cases necessary to distinguish an animation-name that could be a value of another property
-                    if (longhand_id == PropertyID::AnimationTimingFunction && animation_name.bytes_as_string_view().is_one_of_ignoring_ascii_case("linear"sv, "ease"sv, "ease-in"sv, "ease-out"sv, "ease-in-out"sv, "step-start"sv, "step-end"sv))
-                        return true;
-
-                    if (longhand_id == PropertyID::AnimationDirection && keyword_to_animation_direction(animation_name_keyword.value()).has_value())
-                        return true;
-
-                    if (longhand_id == PropertyID::AnimationFillMode && keyword_to_animation_fill_mode(animation_name_keyword.value()).has_value())
-                        return true;
-
-                    if (longhand_id == PropertyID::AnimationPlayState && keyword_to_animation_play_state(animation_name_keyword.value()).has_value())
-                        return true;
-
-                    return false;
-                }();
-
-                if (!should_serialize_longhand)
-                    continue;
-
-                if (!builder.is_empty() && !first)
-                    builder.append(' ');
-
-                builder.append(longhand_value->to_string(mode));
-                first = false;
-            }
-
-            if (first) {
-                builder.append("none"sv);
-            }
-
-            if (i != get_longhand_as_vector(m_properties.sub_properties[0]).size() - 1)
-                builder.append(", "sv);
-        }
-
-        return builder.to_string_without_validation();
-    }
+    case PropertyID::Animation:
+        return coordinating_value_list_shorthand_to_string("none"sv);
     case PropertyID::Background: {
         auto color = longhand(PropertyID::BackgroundColor);
         auto image = longhand(PropertyID::BackgroundImage);
