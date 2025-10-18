@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #foo {
+            transition-property: non-property-ident, top, left, right;
+            transition-duration: 1s, 2s;
+        }
+    </style>
+    <div id="foo" style="top: 0; left: 0; right: 0"></div>
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await animationFrame();
+            await animationFrame();
+
+            foo.style.top = "10px";
+            foo.style.left = "10px";
+            foo.style.right = "10px";
+
+            for (const animation of document.getAnimations()) {
+                println(
+                    `${animation.transitionProperty}: ${animation.effect.getTiming().duration}`
+                );
+            }
+        });
+    </script>
+</html>
