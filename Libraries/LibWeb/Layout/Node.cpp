@@ -392,6 +392,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_vertical_align(computed_style.vertical_align());
 
     {
+        // FIXME: Use `ComputedProperties::assemble_coordinated_value_list()` for this
         auto const& attachments = computed_style.property(CSS::PropertyID::BackgroundAttachment);
         auto const& clips = computed_style.property(CSS::PropertyID::BackgroundClip);
         auto const& images = computed_style.property(CSS::PropertyID::BackgroundImage);

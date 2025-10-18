@@ -312,6 +312,43 @@ Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContex
     return value.to_color(color_resolution_context).value();
 }
 
+// https://drafts.csswg.org/css-values-4/#linked-properties
+HashMap<PropertyID, StyleValueVector> ComputedProperties::assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const
+{
+    // A coordinating list property group creates a coordinated value list, which has, for each entry, a value from each
+    // property in the group; these are used together to define a single effect, such as a background image layer or an
+    // animation. The coordinated value list is assembled as follows:
+    // - The length of the coordinated value list is determined by the number of items specified in one particular
+    //   coordinating list property, the coordinating list base property. (In the case of backgrounds, this is the
+    //   background-image property.)
+    // - The Nth value of the coordinated value list is constructed by collecting the Nth use value of each coordinating
+    //   list property
+    // - If a coordinating list property has too many values specified, excess values at the end of its list are not
+    //   used.
+    // - If a coordinating list property has too few values specified, its value list is repeated to add more used
+    //   values.
+    // - The computed values of the coordinating list properties are not affected by such truncation or repetition.
+
+    // FIXME: This is only required until we update parse_comma_separated_list to always return a StyleValueList
+    auto const get_property_value_as_list = [&](PropertyID property_id) {
+        auto const& value = property(property_id);
+
+        return value.is_value_list() ? value.as_value_list().values() : StyleValueVector { value };
+    };
+
+    HashMap<PropertyID, StyleValueVector> coordinated_value_list;
+
+    for (size_t i = 0; i < get_property_value_as_list(base_property_id).size(); i++) {
+        for (auto property_id : property_ids) {
+            auto const& list = get_property_value_as_list(property_id);
+
+            coordinated_value_list.ensure(property_id).append(list[i % list.size()]);
+        }
+    }
+
+    return coordinated_value_list;
+}
+
 ColorInterpolation ComputedProperties::color_interpolation() const
 {
     auto const& value = property(PropertyID::ColorInterpolation);
