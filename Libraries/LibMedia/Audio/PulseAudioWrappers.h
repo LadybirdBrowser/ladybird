@@ -117,7 +117,7 @@ public:
     // Uncorks the stream and forces data to be written to the buffers to force playback to
     // resume as soon as possible.
     ErrorOr<void> resume();
-    ErrorOr<AK::Duration> total_time_played();
+    AK::Duration total_time_played() const;
 
     ErrorOr<void> set_volume(double volume);
 

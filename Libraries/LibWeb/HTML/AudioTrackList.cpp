@@ -52,6 +52,8 @@ void AudioTrackList::add_track(Badge<HTMLMediaElement>, GC::Ref<AudioTrack> audi
 
 void AudioTrackList::remove_all_tracks(Badge<HTMLMediaElement>)
 {
+    for (auto& audio_track : m_audio_tracks)
+        audio_track->set_enabled(false);
     m_audio_tracks.clear();
 }
 

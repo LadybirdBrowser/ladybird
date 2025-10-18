@@ -315,7 +315,6 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
         switch (*mouse_tracking_component) {
         case HTML::HTMLMediaElement::MediaComponent::Timeline:
             set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::No);
-            media_element.set_layout_display_time({}, {});
             break;
 
         case HTML::HTMLMediaElement::MediaComponent::Volume:
@@ -415,14 +414,17 @@ void MediaPaintable::set_current_time(HTML::HTMLMediaElement& media_element, CSS
     x_offset = min(x_offset, timeline_rect.width());
 
     auto x_percentage = static_cast<double>(x_offset) / static_cast<double>(timeline_rect.width());
-    auto position = static_cast<double>(x_percentage) * media_element.duration();
+    auto position = x_percentage * media_element.duration();
+
+    if (position != media_element.layout_display_time({}))
+        media_element.set_current_time(position);
 
     switch (temporarily) {
     case Temporary::Yes:
         media_element.set_layout_display_time({}, position);
         break;
     case Temporary::No:
-        media_element.set_current_time(position);
+        media_element.set_layout_display_time({}, {});
         break;
     }
 }

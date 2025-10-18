@@ -232,7 +232,7 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
         flags = static_cast<pa_stream_flags>(static_cast<u32>(flags) | PA_STREAM_START_CORKED);
     }
 
-    // This is a workaround for an issue with starting the stream corked, see PulseAudioPlaybackStream::total_time_played().
+    // This is a workaround for an issue with starting the stream corked, see PulseAudioStream::total_time_played().
     pa_stream_set_started_callback(
         stream, [](pa_stream* stream, void* user_data) {
             static_cast<PulseAudioStream*>(user_data)->m_started_playback = true;
@@ -455,7 +455,7 @@ ErrorOr<void> PulseAudioStream::resume()
     return {};
 }
 
-ErrorOr<AK::Duration> PulseAudioStream::total_time_played()
+AK::Duration PulseAudioStream::total_time_played() const
 {
     auto locker = m_context->main_loop_locker();
 
@@ -472,10 +472,12 @@ ErrorOr<AK::Duration> PulseAudioStream::total_time_played()
 
     pa_usec_t time = 0;
     auto error = pa_stream_get_time(m_stream, &time);
-    if (error == -PA_ERR_NODATA)
+    if (error)
         return AK::Duration::zero();
-    if (error != 0)
-        return Error::from_string_literal("Failed to get time from PulseAudio stream");
+    if (error != 0) {
+        warnln("Unexpected error in pa_stream_get_time(): {}", error);
+        return AK::Duration::zero();
+    }
     if (time > NumericLimits<i64>::max()) {
         warnln("WARNING: Audio time is too large!");
         time -= NumericLimits<i64>::max();

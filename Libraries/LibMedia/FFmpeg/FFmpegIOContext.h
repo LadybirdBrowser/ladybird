@@ -8,11 +8,7 @@
 
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-}
+#include <LibMedia/FFmpeg/FFmpegForward.h>
 
 namespace Media::FFmpeg {
 

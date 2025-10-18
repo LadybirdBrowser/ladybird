@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Hunter Salyer <thefalsehonesty@gmail.com>
- * Copyright (c) 2022-2023, Gregory Bertilson <Zaggy1024@gmail.com>
+ * Copyright (c) 2022-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -50,7 +50,9 @@ constexpr u32 TRACK_ENTRY_ID = 0xAE;
 constexpr u32 TRACK_NUMBER_ID = 0xD7;
 constexpr u32 TRACK_UID_ID = 0x73C5;
 constexpr u32 TRACK_TYPE_ID = 0x83;
+constexpr u32 TRACK_NAME_ID = 0x536E;
 constexpr u32 TRACK_LANGUAGE_ID = 0x22B59C;
+constexpr u32 TRACK_LANGUAGE_BCP_47_ID = 0x22B59D;
 constexpr u32 TRACK_CODEC_ID = 0x86;
 constexpr u32 TRACK_CODEC_PRIVATE_ID = 0x63A2;
 constexpr u32 TRACK_CODEC_DELAY_ID = 0x56AA;
@@ -476,9 +478,17 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
             track_entry->set_track_type(static_cast<TrackEntry::TrackType>(TRY_READ(streamer.read_u64())));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry->track_type()));
             break;
+        case TRACK_NAME_ID:
+            track_entry->set_name(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Name attribute: {}", track_entry->name());
+            break;
         case TRACK_LANGUAGE_ID:
             track_entry->set_language(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Language attribute: {}", track_entry->language());
+            break;
+        case TRACK_LANGUAGE_BCP_47_ID:
+            track_entry->set_language_bcp_47(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's LanguageBCP47 attribute: {}", track_entry->language());
             break;
         case TRACK_CODEC_ID:
             track_entry->set_codec_id(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
@@ -978,6 +988,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
         }
     }
 
+    m_last_timestamp.clear();
     m_current_cluster.clear();
     return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of stream"sv);
 }
