@@ -16,6 +16,7 @@
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
+#include <LibWeb/WebGL/Extensions/EXTTextureFilterAnisotropic.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
@@ -96,6 +97,7 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_canvas_element);
     visitor.visit(m_angle_instanced_arrays_extension);
     visitor.visit(m_ext_blend_min_max_extension);
+    visitor.visit(m_ext_texture_filter_anisotropic);
     visitor.visit(m_oes_vertex_array_object_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_srgb_extension);
@@ -206,6 +208,15 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_ext_blend_min_max_extension;
     }
 
+    if (name.equals_ignoring_ascii_case("EXT_texture_filter_anisotropic"sv)) {
+        if (!m_ext_texture_filter_anisotropic) {
+            m_ext_texture_filter_anisotropic = MUST(Extensions::EXTTextureFilterAnisotropic::create(realm(), this));
+        }
+
+        VERIFY(m_ext_texture_filter_anisotropic);
+        return m_ext_texture_filter_anisotropic;
+    }
+
     if (name.equals_ignoring_ascii_case("OES_vertex_array_object"sv)) {
         if (!m_oes_vertex_array_object_extension) {
             m_oes_vertex_array_object_extension = MUST(Extensions::OESVertexArrayObject::create(realm(), *this));
@@ -255,6 +266,11 @@ WebIDL::Long WebGLRenderingContext::drawing_buffer_height() const
 {
     auto size = canvas_for_binding()->bitmap_size_for_canvas();
     return size.height();
+}
+
+bool WebGLRenderingContext::ext_texture_filter_anisotropic_extension_enabled() const
+{
+    return !!m_ext_texture_filter_anisotropic;
 }
 
 }
