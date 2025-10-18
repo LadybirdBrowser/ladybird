@@ -17,6 +17,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
+#include <LibWeb/HTML/InitialInsertion.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/RenderingThread.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/BackingStoreManager.h>
@@ -32,22 +34,9 @@
 
 namespace Web::HTML {
 
-enum class InitialInsertion : u8 {
-    Yes,
-    No,
-};
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
 struct TargetSnapshotParams {
     SandboxingFlagSet sandboxing_flags {};
-};
-
-struct PaintConfig {
-    bool paint_overlay { false };
-    bool should_show_line_box_borders { false };
-    Optional<Gfx::IntRect> canvas_fill_rect {};
-
-    bool operator==(PaintConfig const& other) const = default;
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
@@ -110,12 +99,6 @@ public:
     virtual bool is_top_level_traversable() const { return false; }
 
     [[nodiscard]] bool is_focused() const;
-
-    enum class WindowType {
-        ExistingOrNone,
-        NewAndUnrestricted,
-        NewWithNoOpener,
-    };
 
     struct ChosenNavigable {
         GC::Ptr<Navigable> navigable;
@@ -306,6 +289,5 @@ WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
-UserNavigationInvolvement user_navigation_involvement(DOM::Event const&);
 
 }

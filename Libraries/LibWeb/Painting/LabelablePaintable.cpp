@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Painting/LabelablePaintable.h>
 #include <LibWeb/UIEvents/MouseButton.h>

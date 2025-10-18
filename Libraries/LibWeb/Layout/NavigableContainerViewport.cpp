@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>

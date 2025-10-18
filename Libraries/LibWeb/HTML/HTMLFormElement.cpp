@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/RadioNodeList.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 #include <LibWeb/Infra/CharacterTypes.h>

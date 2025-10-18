@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>

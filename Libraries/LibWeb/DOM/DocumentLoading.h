@@ -9,6 +9,8 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
 

@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
 

@@ -10,8 +10,9 @@
 
 #include <AK/Time.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/Bindings/NavigationPrototype.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
 

@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(StringView u
         return nullptr;
 
     // 17. If noopener is true or windowType is "new with no opener", then return null.
-    if (no_opener == TokenizedFeature::NoOpener::Yes || window_type == Navigable::WindowType::NewWithNoOpener)
+    if (no_opener == TokenizedFeature::NoOpener::Yes || window_type == WindowType::NewWithNoOpener)
         return nullptr;
 
     // 18. Return targetNavigable's active WindowProxy.
@@ -254,7 +254,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
         return OpenedWindow {};
 
     // 15. If windowType is either "new and unrestricted" or "new with no opener", then:
-    if (window_type == Navigable::WindowType::NewAndUnrestricted || window_type == Navigable::WindowType::NewWithNoOpener) {
+    if (window_type == WindowType::NewAndUnrestricted || window_type == WindowType::NewWithNoOpener) {
         // 1. Set targetNavigable's active browsing context's is popup to the result of checking if a popup window is requested, given tokenizedFeatures.
         target_navigable->active_browsing_context()->set_is_popup(check_if_a_popup_window_is_requested(tokenized_features));
 

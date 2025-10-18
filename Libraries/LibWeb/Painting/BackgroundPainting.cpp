@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/CSS/Sizing.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>

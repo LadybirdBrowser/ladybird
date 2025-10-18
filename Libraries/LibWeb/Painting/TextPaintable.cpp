@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/LabelableNode.h>
 #include <LibWeb/Page/EventHandler.h>

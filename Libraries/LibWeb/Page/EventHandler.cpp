@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/Viewport.h>

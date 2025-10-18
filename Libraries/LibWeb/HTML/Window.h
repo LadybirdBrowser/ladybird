@@ -19,14 +19,13 @@
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/MimeType.h>
-#include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/RequestIdleCallback/IdleRequest.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -123,7 +122,7 @@ public:
     struct OpenedWindow {
         GC::Ptr<Navigable> navigable;
         TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
-        Navigable::WindowType window_type { Navigable::WindowType::ExistingOrNone };
+        WindowType window_type { WindowType::ExistingOrNone };
     };
     WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(StringView url, StringView target, StringView features);
 

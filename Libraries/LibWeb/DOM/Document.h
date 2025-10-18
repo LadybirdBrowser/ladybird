@@ -36,6 +36,7 @@
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/NavigationType.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>

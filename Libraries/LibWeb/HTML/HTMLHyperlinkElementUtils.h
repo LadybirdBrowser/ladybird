@@ -9,8 +9,8 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
-#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
 
