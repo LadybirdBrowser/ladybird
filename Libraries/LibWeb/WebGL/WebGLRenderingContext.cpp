@@ -18,6 +18,7 @@
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
+#include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
@@ -97,6 +98,7 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ext_blend_min_max_extension);
     visitor.visit(m_oes_vertex_array_object_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
+    visitor.visit(m_webgl_compressed_texture_s3tc_srgb_extension);
     visitor.visit(m_webgl_draw_buffers_extension);
 }
 
@@ -220,6 +222,15 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 
         VERIFY(m_webgl_compressed_texture_s3tc_extension);
         return m_webgl_compressed_texture_s3tc_extension;
+    }
+
+    if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc_srgb"sv)) {
+        if (!m_webgl_compressed_texture_s3tc_srgb_extension) {
+            m_webgl_compressed_texture_s3tc_srgb_extension = MUST(Extensions::WebGLCompressedTextureS3tcSrgb::create(realm(), this));
+        }
+
+        VERIFY(m_webgl_compressed_texture_s3tc_srgb_extension);
+        return m_webgl_compressed_texture_s3tc_srgb_extension;
     }
 
     if (name.equals_ignoring_ascii_case("WEBGL_draw_buffers"sv)) {
