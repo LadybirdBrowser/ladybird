@@ -3,7 +3,7 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastextalign
 // enum CanvasTextAlign { "start", "end", "left", "right", "center" };
 // enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic", "bottom" };
-enum CanvasDirection { "ltr", "rtl", "inherit" };
+// enum CanvasDirection { "ltr", "rtl", "inherit" };
 enum CanvasFontKerning { "auto", "normal", "none" };
 enum CanvasFontStretch { "ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "normal", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded" };
 enum CanvasFontVariantCaps { "normal", "small-caps", "all-small-caps", "petite-caps", "all-petite-caps", "unicase", "titling-caps" };
@@ -16,7 +16,7 @@ interface mixin CanvasTextDrawingStyles {
     attribute DOMString font; // (default 10px sans-serif)
     attribute CanvasTextAlign textAlign; // (default: "start")
     attribute CanvasTextBaseline textBaseline; // (default: "alphabetic")
-    [FIXME] attribute CanvasDirection direction; // (default: "inherit")
+    attribute CanvasDirection direction; // (default: "inherit")
     [FIXME] attribute DOMString letterSpacing; // (default: "0px")
     [FIXME] attribute CanvasFontKerning fontKerning; // (default: "auto")
     [FIXME] attribute CanvasFontStretch fontStretch; // (default: "normal")
