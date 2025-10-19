@@ -20,7 +20,7 @@ interface Sanitizer {
     [FIXME] boolean allowAttribute(SanitizerAttribute attribute);
     [FIXME] boolean removeAttribute(SanitizerAttribute attribute);
     boolean setComments(boolean allow);
-    [FIXME] boolean setDataAttributes(boolean allow);
+    boolean setDataAttributes(boolean allow);
 
     // Remove markup that executes script.
     [FIXME] boolean removeUnsafe();
