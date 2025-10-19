@@ -1,0 +1,21 @@
+// https://wicg.github.io/sanitizer-api/#sanitizer
+[Exposed=Window]
+interface Sanitizer {
+    // TODO
+    // constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
+
+    // Query configuration:
+    [FIXME] SanitizerConfig get();
+
+    // Modify a Sanitizer’s lists and fields:
+    [FIXME] boolean allowElement(SanitizerElementWithAttributes element);
+    [FIXME] boolean removeElement(SanitizerElement element);
+    [FIXME] boolean replaceElementWithChildren(SanitizerElement element);
+    [FIXME] boolean allowAttribute(SanitizerAttribute attribute);
+    [FIXME] boolean removeAttribute(SanitizerAttribute attribute);
+    [FIXME] boolean setComments(boolean allow);
+    [FIXME] boolean setDataAttributes(boolean allow);
+
+    // Remove markup that executes script.
+    [FIXME] boolean removeUnsafe();
+};
