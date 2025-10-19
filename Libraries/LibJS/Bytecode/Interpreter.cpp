@@ -502,10 +502,17 @@ void handle_jump(Interpreter& interpreter, u8 const* bytecode, size_t& program_c
 template<>
 FLATTEN void handle<Op::Mov>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
 {
-    auto& instruction = *reinterpret_cast<Op::Mov const*>(&bytecode[program_counter]);
-    interpreter.set(instruction.dst(), interpreter.get(instruction.src()));
-    INCREMENT_PROGRAM_COUNTER(Op::Mov);
-    DISPATCH_NEXT(interpreter);
+    // OPTIMIZATION: Movs tend to follow each other, like when preparing arguments for other operations,
+    //               so lets try to make them a bit faster by looping here.
+    Instruction::Type next_type;
+    do {
+        auto const& instruction = *reinterpret_cast<Op::Mov const*>(&bytecode[program_counter]);
+        interpreter.set(instruction.dst(), interpreter.get(instruction.src()));
+        INCREMENT_PROGRAM_COUNTER(Op::Mov);
+        next_type = reinterpret_cast<Instruction const*>(&bytecode[program_counter])->type();
+    } while (next_type == Instruction::Type::Mov);
+    auto fn = Interpreter::dispatch_instruction_table.data()[static_cast<size_t>(next_type)];
+    TAILCALL return fn(interpreter, bytecode, program_counter);
 }
 
 template<>
