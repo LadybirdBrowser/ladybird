@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Export.h>
@@ -106,6 +107,16 @@ private:
     Span<Value> m_registers_and_constants_and_locals_arguments;
     ExecutionContext* m_running_execution_context { nullptr };
     ReadonlySpan<Utf16FlyString> m_identifier_table;
+
+    template<typename OP>
+    friend void handle(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+    template<typename OP>
+    friend void handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+    template<typename OP>
+    friend void handle_jump(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+
+    typedef void (*dispatch_instruction_table_t)(Interpreter&, u8 const*, size_t&);
+    static AK::Array<dispatch_instruction_table_t, to_underlying(Instruction::Type::__Last)> const dispatch_instruction_table;
 };
 
 JS_API extern bool g_dump_bytecode;
