@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 35 tests
+
+8 Pass
+27 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Sanitizer interface: existence and properties of interface object
+Pass	Sanitizer interface object length
+Pass	Sanitizer interface object name
+Pass	Sanitizer interface: existence and properties of interface prototype object
+Pass	Sanitizer interface: existence and properties of interface prototype object's "constructor" property
+Pass	Sanitizer interface: existence and properties of interface prototype object's @@unscopables property
+Fail	Sanitizer interface: operation get()
+Fail	Sanitizer interface: operation allowElement(SanitizerElementWithAttributes)
+Fail	Sanitizer interface: operation removeElement(SanitizerElement)
+Fail	Sanitizer interface: operation replaceElementWithChildren(SanitizerElement)
+Fail	Sanitizer interface: operation allowAttribute(SanitizerAttribute)
+Fail	Sanitizer interface: operation removeAttribute(SanitizerAttribute)
+Fail	Sanitizer interface: operation setComments(boolean)
+Fail	Sanitizer interface: operation setDataAttributes(boolean)
+Fail	Sanitizer interface: operation removeUnsafe()
+Fail	Sanitizer must be primary interface of new Sanitizer({})
+Fail	Stringification of new Sanitizer({})
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "get()" with the proper type
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "allowElement(SanitizerElementWithAttributes)" with the proper type
+Fail	Sanitizer interface: calling allowElement(SanitizerElementWithAttributes) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "removeElement(SanitizerElement)" with the proper type
+Fail	Sanitizer interface: calling removeElement(SanitizerElement) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "replaceElementWithChildren(SanitizerElement)" with the proper type
+Fail	Sanitizer interface: calling replaceElementWithChildren(SanitizerElement) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "allowAttribute(SanitizerAttribute)" with the proper type
+Fail	Sanitizer interface: calling allowAttribute(SanitizerAttribute) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "removeAttribute(SanitizerAttribute)" with the proper type
+Fail	Sanitizer interface: calling removeAttribute(SanitizerAttribute) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "setComments(boolean)" with the proper type
+Fail	Sanitizer interface: calling setComments(boolean) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "setDataAttributes(boolean)" with the proper type
+Fail	Sanitizer interface: calling setDataAttributes(boolean) on new Sanitizer({}) with too few arguments must throw TypeError
+Fail	Sanitizer interface: new Sanitizer({}) must inherit property "removeUnsafe()" with the proper type

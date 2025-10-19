@@ -420,6 +420,7 @@ SVGTransformList
 SVGUnitTypes
 SVGUseElement
 SVGViewElement
+Sanitizer
 Screen
 ScreenOrientation
 ScriptProcessorNode

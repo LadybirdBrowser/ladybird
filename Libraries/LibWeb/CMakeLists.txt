@@ -850,6 +850,7 @@ set(SOURCES
     ResizeObserver/ResizeObserverEntry.cpp
     ResizeObserver/ResizeObserverSize.cpp
     ResourceTiming/PerformanceResourceTiming.cpp
+    SanitizerAPI/Sanitizer.cpp
     SecureContexts/AbstractOperations.cpp
     Selection/Selection.cpp
     ServiceWorker/CacheStorage.cpp

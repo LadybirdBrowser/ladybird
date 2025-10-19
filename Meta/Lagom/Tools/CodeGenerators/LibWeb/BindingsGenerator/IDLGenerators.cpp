@@ -118,6 +118,7 @@ static bool is_platform_object(Type const& type)
         "Range"sv,
         "ReadableStream"sv,
         "Request"sv,
+        "Sanitizer"sv,
         "Selection"sv,
         "ServiceWorkerContainer"sv,
         "ServiceWorkerRegistration"sv,
@@ -4959,6 +4960,7 @@ using namespace Web::PerformanceTimeline;
 using namespace Web::RequestIdleCallback;
 using namespace Web::ResizeObserver;
 using namespace Web::ResourceTiming;
+using namespace Web::SanitizerAPI;
 using namespace Web::Selection;
 using namespace Web::Serial;
 using namespace Web::ServiceWorker;
