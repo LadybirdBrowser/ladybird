@@ -151,6 +151,7 @@ public:
         If,
         Else,
         Function,
+        TryTable,
     };
 
     struct Frame {

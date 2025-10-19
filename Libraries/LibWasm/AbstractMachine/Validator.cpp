@@ -2091,6 +2091,16 @@ VALIDATE_INSTRUCTION(try_table)
 {
     auto& args = instruction.arguments().get<Instruction::TryTableArgs>();
     auto block_type = TRY(validate(args.try_.block_type));
+
+    auto& parameters = block_type.parameters();
+    for (size_t i = 1; i <= parameters.size(); ++i)
+        TRY(stack.take(parameters[parameters.size() - i]));
+
+    m_frames.empend(block_type, FrameKind::TryTable, stack.size());
+    m_max_frame_size = max(m_max_frame_size, m_frames.size());
+    for (auto& parameter : parameters)
+        stack.append(parameter);
+
     for (auto& catch_ : args.catches) {
         auto label = catch_.target_label();
         TRY(validate(label));
