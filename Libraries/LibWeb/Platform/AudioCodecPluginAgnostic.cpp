@@ -4,6 +4,34 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// NOTE: Error Handling Pattern in AudioCodecPluginAgnostic
+// ========================================================
+//
+// This class uses an asynchronous promise-based pattern for audio operations. All async operations
+// can fail, and it's critical to propagate these errors to the media element for proper user feedback.
+//
+// Error Propagation Strategy:
+// ---------------------------
+// - All promise rejections are handled via `.when_rejected()` callbacks
+// - Errors are formatted with context and passed to `on_decoder_error()` callback
+// - The `on_decoder_error` function (inherited from AudioCodecPlugin) notifies the HTML media element
+// - Each error handler captures a weak pointer to `this` to safely handle object destruction
+// - Error messages are formatted using String::formatted() to provide actionable diagnostics
+//
+// Common Error Scenarios:
+// ----------------------
+// 1. Device Unavailable: Audio hardware may be disconnected or in use by another application
+// 2. Resource Exhaustion: System may run out of audio buffers or memory
+// 3. Permission Issues: Platform may deny audio playback permissions
+// 4. Hardware Failures: Audio drivers may encounter errors during playback
+//
+// Example Error Flow:
+// ------------------
+// User seeks video → seek() called → discard_buffer_and_suspend() fails →
+// `.when_rejected()` called → error formatted → `on_decoder_error()` invoked →
+// HTMLMediaElement notified → Error event fired to JavaScript
+//
+
 #include <AK/MemoryStream.h>
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
@@ -109,8 +137,15 @@ void AudioCodecPluginAgnostic::resume_playback()
                 self->m_update_timer->start();
             });
         })
-        .when_rejected([](Error&&) {
-            // FIXME: Propagate errors.
+        .when_rejected([self = make_weak_ptr<AudioCodecPluginAgnostic>()](Error&& error) {
+            // NOTE: Propagate audio playback resume errors to the decoder error handler.
+            // This ensures the media element is notified when audio output fails to resume,
+            // which can occur due to device unavailability, resource conflicts, or permission issues.
+            if (!self)
+                return;
+
+            auto error_message = MUST(String::formatted("Failed to resume audio playback: {}", error));
+            self->on_decoder_error(move(error_message));
         });
 }
 
@@ -137,15 +172,30 @@ void AudioCodecPluginAgnostic::pause_playback()
 
             return {};
         })
-        .when_rejected([](Error&&) {
-            // FIXME: Propagate errors.
+        .when_rejected([self = make_weak_ptr<AudioCodecPluginAgnostic>()](Error&& error) {
+            // NOTE: Propagate audio playback pause errors to the decoder error handler.
+            // This ensures the media element is notified when the audio buffer fails to drain
+            // or the output stream fails to suspend, which may indicate hardware issues or
+            // resource exhaustion.
+            if (!self)
+                return;
+
+            auto error_message = MUST(String::formatted("Failed to pause audio playback: {}", error));
+            self->on_decoder_error(move(error_message));
         });
 }
 
 void AudioCodecPluginAgnostic::set_volume(double volume)
 {
-    m_output->set_volume(volume)->when_rejected([](Error&&) {
-        // FIXME: Propagate errors.
+    m_output->set_volume(volume)->when_rejected([self = make_weak_ptr<AudioCodecPluginAgnostic>()](Error&& error) {
+        // NOTE: Propagate volume setting errors to the decoder error handler.
+        // While volume changes are typically non-critical, failures may indicate
+        // underlying audio device issues that the media element should be aware of.
+        if (!self)
+            return;
+
+        auto error_message = MUST(String::formatted("Failed to set audio volume: {}", error));
+        self->on_decoder_error(move(error_message));
     });
 }
 
@@ -174,16 +224,31 @@ void AudioCodecPluginAgnostic::seek(double position)
                 if (was_paused) {
                     self->update_timestamp();
                 } else {
-                    self->m_output->resume()->when_rejected([](Error&&) {
-                        // FIXME: Propagate errors.
+                    self->m_output->resume()->when_rejected([self](Error&& error) {
+                        // NOTE: Propagate errors that occur when resuming playback after a seek operation.
+                        // This is critical because seek failures while resuming could leave the media
+                        // in an inconsistent state where playback was expected to continue.
+                        if (!self)
+                            return;
+
+                        auto error_message = MUST(String::formatted("Failed to resume audio playback after seek: {}", error));
+                        self->on_decoder_error(move(error_message));
                     });
                 }
             });
 
             return {};
         })
-        .when_rejected([](Error&&) {
-            // FIXME: Propagate errors.
+        .when_rejected([self = make_weak_ptr<AudioCodecPluginAgnostic>()](Error&& error) {
+            // NOTE: Propagate errors that occur during the seek operation itself.
+            // This handles failures in discarding the buffer, suspending the output,
+            // or seeking within the audio loader. These errors indicate the seek operation
+            // could not be completed and the media element should be notified.
+            if (!self)
+                return;
+
+            auto error_message = MUST(String::formatted("Failed to seek audio playback: {}", error));
+            self->on_decoder_error(move(error_message));
         });
 }
 
