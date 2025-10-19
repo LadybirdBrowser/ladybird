@@ -1,0 +1,38 @@
+// https://wicg.github.io/sanitizer-api/#dictdef-sanitizerelementnamespace
+dictionary SanitizerElementNamespace {
+    required Utf16DOMString name;
+    Utf16DOMString? _namespace = "http://www.w3.org/1999/xhtml";
+};
+
+// Used by "elements"
+// https://wicg.github.io/sanitizer-api/#dictdef-sanitizerelementnamespacewithattributes
+dictionary SanitizerElementNamespaceWithAttributes : SanitizerElementNamespace {
+    sequence<SanitizerAttribute> attributes;
+    sequence<SanitizerAttribute> removeAttributes;
+};
+
+// https://wicg.github.io/sanitizer-api/#typedefdef-sanitizerelement
+typedef (Utf16DOMString or SanitizerElementNamespace) SanitizerElement;
+// https://wicg.github.io/sanitizer-api/#typedefdef-sanitizerelementwithattributes
+typedef (Utf16DOMString or SanitizerElementNamespaceWithAttributes) SanitizerElementWithAttributes;
+
+// https://wicg.github.io/sanitizer-api/#dictdef-sanitizerattributenamespace
+dictionary SanitizerAttributeNamespace {
+    required Utf16DOMString name;
+    Utf16DOMString? _namespace = null;
+};
+// https://wicg.github.io/sanitizer-api/#typedefdef-sanitizerattribute
+typedef (Utf16DOMString or SanitizerAttributeNamespace) SanitizerAttribute;
+
+// https://wicg.github.io/sanitizer-api/#dictdef-sanitizerconfig
+dictionary SanitizerConfig {
+    sequence<SanitizerElementWithAttributes> elements;
+    sequence<SanitizerElement> removeElements;
+    sequence<SanitizerElement> replaceWithChildrenElements;
+
+    sequence<SanitizerAttribute> attributes;
+    sequence<SanitizerAttribute> removeAttributes;
+
+    boolean comments;
+    boolean dataAttributes;
+};
