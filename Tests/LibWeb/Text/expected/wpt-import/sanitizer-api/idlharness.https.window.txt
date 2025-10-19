@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-19 Pass
-16 Fail
+21 Pass
+14 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Sanitizer interface: existence and properties of interface object
@@ -19,7 +19,7 @@ Fail	Sanitizer interface: operation replaceElementWithChildren(SanitizerElement)
 Fail	Sanitizer interface: operation allowAttribute(SanitizerAttribute)
 Fail	Sanitizer interface: operation removeAttribute(SanitizerAttribute)
 Pass	Sanitizer interface: operation setComments(boolean)
-Fail	Sanitizer interface: operation setDataAttributes(boolean)
+Pass	Sanitizer interface: operation setDataAttributes(boolean)
 Fail	Sanitizer interface: operation removeUnsafe()
 Pass	Sanitizer must be primary interface of new Sanitizer({})
 Pass	Stringification of new Sanitizer({})
@@ -36,6 +36,6 @@ Fail	Sanitizer interface: new Sanitizer({}) must inherit property "removeAttribu
 Pass	Sanitizer interface: calling removeAttribute(SanitizerAttribute) on new Sanitizer({}) with too few arguments must throw TypeError
 Pass	Sanitizer interface: new Sanitizer({}) must inherit property "setComments(boolean)" with the proper type
 Pass	Sanitizer interface: calling setComments(boolean) on new Sanitizer({}) with too few arguments must throw TypeError
-Fail	Sanitizer interface: new Sanitizer({}) must inherit property "setDataAttributes(boolean)" with the proper type
+Pass	Sanitizer interface: new Sanitizer({}) must inherit property "setDataAttributes(boolean)" with the proper type
 Pass	Sanitizer interface: calling setDataAttributes(boolean) on new Sanitizer({}) with too few arguments must throw TypeError
 Fail	Sanitizer interface: new Sanitizer({}) must inherit property "removeUnsafe()" with the proper type

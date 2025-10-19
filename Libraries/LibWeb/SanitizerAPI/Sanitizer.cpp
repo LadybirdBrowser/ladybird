@@ -55,6 +55,42 @@ bool Sanitizer::set_comments(bool allow)
     return true;
 }
 
+// https://wicg.github.io/sanitizer-api/#sanitizer-set-data-attributes
+bool Sanitizer::set_data_attributes(bool allow)
+{
+    // 1. If configuration["attributes"] does not exist, then return false.
+    if (!m_configuration.attributes.has_value())
+        return false;
+
+    // 2. If configuration["dataAttributes"] equals allow, then return false.
+    if (m_configuration.data_attributes.has_value() && m_configuration.data_attributes.value() == allow)
+        return false;
+
+    // 3. If allow is true:
+    if (!allow) {
+        // 1. Remove any items attr from configuration["attributes"] where attr is a custom data attribute.
+        m_configuration.attributes.value().remove_all_matching(is_a_custom_data_attribute);
+
+        // 2. If configuration["elements"] exists:
+        if (auto* elements = m_configuration.elements.ptr(); elements) {
+            // 1. For each element in configuration["elements"]:
+            for (auto element : *elements) {
+                // 1. If element[attributes] exists:
+                if (auto* element_namespace = element.get_pointer<SanitizerElementNamespaceWithAttributes>(); element_namespace) {
+                    // 1. Remove any items attr from element[attributes] where attr is a custom data attribute.
+                    element_namespace->attributes.value().remove_all_matching(is_a_custom_data_attribute);
+                }
+            }
+        }
+    }
+
+    // 4. Set configuration["dataAttributes"] to allow.
+    m_configuration.data_attributes = allow;
+
+    // 5. Return true.
+    return true;
+}
+
 Sanitizer::Sanitizer(JS::Realm& realm)
     : PlatformObject(realm)
 {
@@ -76,6 +112,25 @@ bool Sanitizer::set_a_configuration(SanitizerConfig const& configuration, AllowC
 
     // 4. Return true.
     return true;
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#custom-data-attribute
+bool is_a_custom_data_attribute(SanitizerAttribute const& attribute)
+{
+    // TODO: It is not very clear in the spec what to do if the SanitizerAttribute is a SanitizerAttributeNamespace
+    // A custom data attribute is an attribute in no namespace whose name starts with the string "data-",
+    // has at least one character after the hyphen, is a valid attribute local name, and contains no ASCII upper alphas.
+    return attribute.visit(
+        [](Utf16String const& v) {
+            return v.starts_with("data-"_utf16)
+                && v.length_in_code_points() > 5
+                && v.to_ascii_lowercase() == v;
+        },
+        [](SanitizerAttributeNamespace const& v) {
+            return !v.namespace_.has_value() && v.name.starts_with("data-"_utf16)
+                && v.name.length_in_code_points() > 5
+                && v.name.to_ascii_lowercase() == v.name;
+        });
 }
 
 }
