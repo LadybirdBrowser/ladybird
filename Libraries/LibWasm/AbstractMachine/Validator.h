@@ -296,7 +296,7 @@ public:
     ErrorOr<void, ValidationError> validate_instruction(Instruction const&, Stack& stack, bool& is_constant);
 
     // Types
-    ErrorOr<void, ValidationError> validate(Limits const&, u64 bound); // n <= bound && m? <= bound
+    ErrorOr<void, ValidationError> validate(Limits const&, Optional<u64> bound); // n <= bound && m? <= bound
     ErrorOr<FunctionType, ValidationError> validate(BlockType const&);
     ErrorOr<void, ValidationError> validate(FunctionType const&) { return {}; }
     ErrorOr<void, ValidationError> validate(TableType const&);

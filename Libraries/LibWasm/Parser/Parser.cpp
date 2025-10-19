@@ -173,10 +173,10 @@ ParseResult<Limits> Limits::parse(ConstrainedStream& stream)
 
     auto address_type = (flag & 0b00000100) ? AddressType::I64 : AddressType::I32;
 
-    auto min_or_error = stream.read_value<LEB128<u32>>();
+    auto min_or_error = stream.read_value<LEB128<u64>>();
     if (min_or_error.is_error())
         return with_eof_check(stream, ParseError::ExpectedSize);
-    size_t min = min_or_error.release_value();
+    u64 min = min_or_error.release_value();
 
     Optional<u64> max;
     if (flag & 1) {
@@ -186,7 +186,7 @@ ParseResult<Limits> Limits::parse(ConstrainedStream& stream)
         max = value_or_error.release_value();
     }
 
-    return Limits { address_type, static_cast<u64>(min), move(max) };
+    return Limits { address_type, min, move(max) };
 }
 
 ParseResult<MemoryType> MemoryType::parse(ConstrainedStream& stream)
