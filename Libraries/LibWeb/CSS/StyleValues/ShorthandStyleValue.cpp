@@ -838,6 +838,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
         return builder.to_string_without_validation();
     }
+    case PropertyID::Transition:
+        return coordinating_value_list_shorthand_to_string("all"sv);
     case PropertyID::WhiteSpace: {
         auto white_space_collapse_property = longhand(PropertyID::WhiteSpaceCollapse);
         auto text_wrap_mode_property = longhand(PropertyID::TextWrapMode);
