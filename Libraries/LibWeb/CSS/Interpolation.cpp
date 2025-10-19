@@ -1465,33 +1465,6 @@ static RefPtr<StyleValue const> interpolate_mixed_value(CalculationContext const
     auto to_value_type = get_value_type_of_numeric_style_value(to);
 
     if (from_value_type.has_value() && from_value_type == to_value_type) {
-        auto to_calculation_node = [&calculation_context](StyleValue const& value) -> NonnullRefPtr<CalculationNode const> {
-            switch (value.type()) {
-            case StyleValue::Type::Angle:
-                return NumericCalculationNode::create(value.as_angle().angle(), calculation_context);
-            case StyleValue::Type::Frequency:
-                return NumericCalculationNode::create(value.as_frequency().frequency(), calculation_context);
-            case StyleValue::Type::Integer:
-                // https://drafts.csswg.org/css-values-4/#combine-integers
-                // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB); that is,
-                // interpolation happens in the real number space as for <number>s, and the result is converted to an
-                // <integer> by rounding to the nearest integer.
-                return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(value.as_integer().integer()) }, calculation_context);
-            case StyleValue::Type::Length:
-                return NumericCalculationNode::create(value.as_length().length(), calculation_context);
-            case StyleValue::Type::Number:
-                return NumericCalculationNode::create(Number { Number::Type::Number, value.as_number().number() }, calculation_context);
-            case StyleValue::Type::Percentage:
-                return NumericCalculationNode::create(value.as_percentage().percentage(), calculation_context);
-            case StyleValue::Type::Time:
-                return NumericCalculationNode::create(value.as_time().time(), calculation_context);
-            case StyleValue::Type::Calculated:
-                return value.as_calculated().calculation();
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        };
-
         // https://drafts.csswg.org/css-values-4/#combine-mixed
         // The computed value of a percentage-dimension mix is defined as
         // FIXME: a computed dimension if the percentage component is zero or is defined specifically to compute to a dimension value
@@ -1509,8 +1482,8 @@ static RefPtr<StyleValue const> interpolate_mixed_value(CalculationContext const
                 return PercentageStyleValue::create(Percentage { percentage_component });
         }
 
-        auto from_node = to_calculation_node(from);
-        auto to_node = to_calculation_node(to);
+        auto from_node = CalculationNode::from_style_value(from, calculation_context);
+        auto to_node = CalculationNode::from_style_value(to, calculation_context);
 
         // https://drafts.csswg.org/css-values-4/#combine-math
         // Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is defined as Vresult = calc((1 - p) * VA + p * VB).

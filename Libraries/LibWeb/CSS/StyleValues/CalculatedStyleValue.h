@@ -201,6 +201,8 @@ public:
 
     virtual ~CalculationNode();
 
+    static NonnullRefPtr<CalculationNode const> from_style_value(NonnullRefPtr<StyleValue const> const&, CalculationContext const&);
+
     Type type() const { return m_type; }
 
     // https://www.w3.org/TR/css-values-4/#calculation-tree-operator-nodes
