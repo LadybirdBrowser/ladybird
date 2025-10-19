@@ -76,7 +76,6 @@
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -707,42 +706,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         } else {
             set_longhand_property(CSS::PropertyID::BackgroundPositionX, value);
             set_longhand_property(CSS::PropertyID::BackgroundPositionY, value);
-        }
-
-        return;
-    }
-
-    if (property_id == CSS::PropertyID::Transition) {
-        if (value.to_keyword() == Keyword::None) {
-            // Handle `none` as a shorthand for `all 0s ease 0s`.
-            set_longhand_property(CSS::PropertyID::TransitionProperty, KeywordStyleValue::create(Keyword::All));
-            set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
-            set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, KeywordStyleValue::create(Keyword::Ease));
-            set_longhand_property(CSS::PropertyID::TransitionBehavior, KeywordStyleValue::create(Keyword::Normal));
-        } else if (value.is_transition()) {
-            auto const& transitions = value.as_transition().transitions();
-            Array<Vector<ValueComparingNonnullRefPtr<StyleValue const>>, 5> transition_values;
-            for (auto const& transition : transitions) {
-                transition_values[0].append(*transition.property_name);
-                transition_values[1].append(transition.duration.as_style_value());
-                transition_values[2].append(transition.delay.as_style_value());
-                if (transition.easing)
-                    transition_values[3].append(*transition.easing);
-                transition_values[4].append(KeywordStyleValue::create(to_keyword(transition.transition_behavior)));
-            }
-
-            set_longhand_property(CSS::PropertyID::TransitionProperty, StyleValueList::create(move(transition_values[0]), StyleValueList::Separator::Comma));
-            set_longhand_property(CSS::PropertyID::TransitionDuration, StyleValueList::create(move(transition_values[1]), StyleValueList::Separator::Comma));
-            set_longhand_property(CSS::PropertyID::TransitionDelay, StyleValueList::create(move(transition_values[2]), StyleValueList::Separator::Comma));
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, StyleValueList::create(move(transition_values[3]), StyleValueList::Separator::Comma));
-            set_longhand_property(CSS::PropertyID::TransitionBehavior, StyleValueList::create(move(transition_values[4]), StyleValueList::Separator::Comma));
-        } else {
-            set_longhand_property(CSS::PropertyID::TransitionProperty, value);
-            set_longhand_property(CSS::PropertyID::TransitionDuration, value);
-            set_longhand_property(CSS::PropertyID::TransitionDelay, value);
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, value);
-            set_longhand_property(CSS::PropertyID::TransitionBehavior, value);
         }
 
         return;
