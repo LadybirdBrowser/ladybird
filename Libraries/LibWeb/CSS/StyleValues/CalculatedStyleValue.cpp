@@ -533,6 +533,30 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
     VERIFY_NOT_REACHED();
 }
 
+NonnullRefPtr<CalculationNode const> CalculationNode::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, CalculationContext const& calculation_context)
+{
+    switch (style_value->type()) {
+    case StyleValue::Type::Angle:
+        return NumericCalculationNode::create(style_value->as_angle().angle(), calculation_context);
+    case StyleValue::Type::Frequency:
+        return NumericCalculationNode::create(style_value->as_frequency().frequency(), calculation_context);
+    case StyleValue::Type::Integer:
+        return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(style_value->as_integer().integer()) }, calculation_context);
+    case StyleValue::Type::Length:
+        return NumericCalculationNode::create(style_value->as_length().length(), calculation_context);
+    case StyleValue::Type::Number:
+        return NumericCalculationNode::create(Number { Number::Type::Number, style_value->as_number().number() }, calculation_context);
+    case StyleValue::Type::Percentage:
+        return NumericCalculationNode::create(style_value->as_percentage().percentage(), calculation_context);
+    case StyleValue::Type::Time:
+        return NumericCalculationNode::create(style_value->as_time().time(), calculation_context);
+    case StyleValue::Type::Calculated:
+        return style_value->as_calculated().calculation();
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 CalculationNode::CalculationNode(Type type, Optional<NumericType> numeric_type)
     : m_type(type)
     , m_numeric_type(move(numeric_type))
