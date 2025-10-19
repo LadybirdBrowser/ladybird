@@ -436,6 +436,7 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
     auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kClamp, interpolation, &matrix);
 
     SkPaint paint;
+    paint.setDither(true);
     paint.setShader(shader);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
@@ -825,6 +826,7 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
     auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), color_space, positions.data(), positions.size(), tile_mode, interpolation, &matrix);
 
     SkPaint paint;
+    paint.setDither(true);
     paint.setAntiAlias(true);
     paint.setShader(shader);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
@@ -862,6 +864,7 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
     auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kRepeat, 0, 360, interpolation, &matrix);
 
     SkPaint paint;
+    paint.setDither(true);
     paint.setAntiAlias(true);
     paint.setShader(shader);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
