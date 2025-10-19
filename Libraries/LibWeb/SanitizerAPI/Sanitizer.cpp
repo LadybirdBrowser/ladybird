@@ -53,11 +53,13 @@ void Sanitizer::initialize(JS::Realm& realm)
 }
 
 // https://wicg.github.io/sanitizer-api/#sanitizer-set-a-configuration
-bool Sanitizer::set_a_configuration(SanitizerConfig const&, AllowCommentsAndDataAttributes)
+bool Sanitizer::set_a_configuration(SanitizerConfig const& configuration, AllowCommentsAndDataAttributes)
 {
     // 1. TODO Canonicalize configuration with allowCommentsAndDataAttributes.
     // 2. TODO If configuration is not valid, then return false.
-    // 3. TODO Set sanitizer’s configuration to configuration.
+    // 3. Set sanitizer’s configuration to configuration.
+    m_configuration = configuration;
+
     // 4. Return true.
     return true;
 }
