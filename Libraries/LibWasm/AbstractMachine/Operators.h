@@ -1046,7 +1046,7 @@ struct CheckedTruncate {
         // FIXME: This function assumes that all values of ResultT are representable in Lhs
         //        the assumption comes from the fact that this was used exclusively by LibJS,
         //        which only considers values that are all representable in 'double'.
-        if (!AK::is_within_range<ResultT>(truncated))
+        if (!AK::is_within_range<ResultT>(static_cast<long double>(truncated)))
             return "Truncation out of range"sv;
 
         return static_cast<ResultT>(truncated);
