@@ -384,7 +384,6 @@ class TimePercentage;
 class TimeStyleValue;
 class Transformation;
 class TransformationStyleValue;
-class TransitionStyleValue;
 class TreeCountingFunctionStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;

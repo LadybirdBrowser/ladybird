@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 10 tests
 
-9 Pass
-1 Fail
+10 Pass
 Pass	Default transition value
 Pass	Property transition value '1s'
 Pass	Property transition value 'cubic-bezier(0, -2, 1, 3)'
 Pass	Property transition value '1s -3s'
-Fail	Property transition value 'none'
+Pass	Property transition value 'none'
 Pass	Property transition value 'top'
 Pass	Property transition value '1s -3s cubic-bezier(0, -2, 1, 3) top'
 Pass	Property transition value '1s -3s, cubic-bezier(0, -2, 1, 3) top'
