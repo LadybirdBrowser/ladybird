@@ -10,6 +10,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/SanitizerPrototype.h>
+#include <LibWeb/SanitizerAPI/SanitizerConfig.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SanitizerAPI {
@@ -20,7 +21,7 @@ class Sanitizer final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Sanitizer);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Sanitizer>> construct_impl(JS::Realm&, Bindings::SanitizerPresets);
+    static WebIDL::ExceptionOr<GC::Ref<Sanitizer>> construct_impl(JS::Realm&, Optional<Variant<SanitizerConfig, Bindings::SanitizerPresets>> configuration = Bindings::SanitizerPresets::Default);
     virtual ~Sanitizer() override = default;
 
 private:
@@ -34,7 +35,7 @@ private:
     };
 
     // https://wicg.github.io/sanitizer-api/#sanitizer-set-a-configuration
-    bool set_a_configuration(Bindings::SanitizerPresets, AllowCommentsAndDataAttributes);
+    bool set_a_configuration(SanitizerConfig const&, AllowCommentsAndDataAttributes);
 };
 
 }

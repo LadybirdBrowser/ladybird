@@ -1,11 +1,14 @@
+#import <SanitizerAPI/SanitizerConfig.idl>
+
 // https://wicg.github.io/sanitizer-api/#enumdef-sanitizerpresets
 enum SanitizerPresets { "default" };
 
 // https://wicg.github.io/sanitizer-api/#sanitizer
 [Exposed=Window]
 interface Sanitizer {
-    // TODO constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
-    constructor(optional SanitizerPresets configuration = "default");
+    // TODO: IDLGenerator does not support yet default values based on enums
+    // constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
+    constructor(optional (SanitizerConfig or SanitizerPresets) configuration);
 
     // Query configuration:
     [FIXME] SanitizerConfig get();
