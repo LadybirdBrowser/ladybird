@@ -1209,6 +1209,7 @@ class WebGLContextEvent;
 class WebGLFramebuffer;
 class WebGLObject;
 class WebGLProgram;
+class WebGLQuery;
 class WebGLRenderbuffer;
 class WebGLRenderingContext;
 class WebGLSampler;

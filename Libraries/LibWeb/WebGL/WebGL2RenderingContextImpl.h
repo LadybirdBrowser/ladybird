@@ -67,6 +67,11 @@ public:
     void clear_bufferiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Int32List values, WebIDL::UnsignedLongLong src_offset);
     void clear_bufferuiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Uint32List values, WebIDL::UnsignedLongLong src_offset);
     void clear_bufferfi(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, float depth, WebIDL::Long stencil);
+    GC::Root<WebGLQuery> create_query();
+    void delete_query(GC::Root<WebGLQuery> query);
+    void begin_query(WebIDL::UnsignedLong target, GC::Root<WebGLQuery> query);
+    void end_query(WebIDL::UnsignedLong target);
+    JS::Value get_query_parameter(GC::Root<WebGLQuery> query, WebIDL::UnsignedLong pname);
     GC::Root<WebGLSampler> create_sampler();
     void delete_sampler(GC::Root<WebGLSampler> sampler);
     void bind_sampler(WebIDL::UnsignedLong unit, GC::Root<WebGLSampler> sampler);

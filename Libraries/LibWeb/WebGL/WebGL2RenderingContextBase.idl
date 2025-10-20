@@ -377,13 +377,13 @@ interface mixin WebGL2RenderingContextBase {
     undefined clearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
 
     // Query Objects
-    [FIXME] WebGLQuery createQuery();
-    [FIXME] undefined deleteQuery(WebGLQuery? query);
+    WebGLQuery createQuery();
+    undefined deleteQuery(WebGLQuery? query);
     [FIXME] GLboolean isQuery(WebGLQuery? query); // [WebGLHandlesContextLoss]
-    [FIXME] undefined beginQuery(GLenum target, WebGLQuery query);
-    [FIXME] undefined endQuery(GLenum target);
+    undefined beginQuery(GLenum target, WebGLQuery query);
+    undefined endQuery(GLenum target);
     [FIXME] WebGLQuery? getQuery(GLenum target, GLenum pname);
-    [FIXME] any getQueryParameter(WebGLQuery query, GLenum pname);
+    any getQueryParameter(WebGLQuery query, GLenum pname);
 
     // Sampler Objects
     WebGLSampler createSampler();
