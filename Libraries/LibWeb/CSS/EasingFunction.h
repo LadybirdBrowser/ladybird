@@ -42,7 +42,7 @@ struct CubicBezierEasingFunction {
 };
 
 struct StepsEasingFunction {
-    long interval_count;
+    i64 interval_count;
     StepPosition position;
     String stringified;
 
