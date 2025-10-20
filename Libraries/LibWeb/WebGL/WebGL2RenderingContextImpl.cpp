@@ -787,6 +787,23 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Root<WebGL
     return glClientWaitSync(sync_handle, flags, timeout);
 }
 
+void WebGL2RenderingContextImpl::wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
+{
+    m_context->make_current();
+
+    GLsync sync_handle = nullptr;
+    if (sync) {
+        auto handle_or_error = sync->sync_handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    }
+
+    glWaitSync(sync_handle, flags, timeout);
+}
+
 JS::Value WebGL2RenderingContextImpl::get_sync_parameter(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
