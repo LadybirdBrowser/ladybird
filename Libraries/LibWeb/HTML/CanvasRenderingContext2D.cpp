@@ -13,6 +13,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
@@ -521,24 +522,95 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata-short
-void CanvasRenderingContext2D::put_image_data(ImageData& image_data, float x, float y)
+WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_image_data(ImageData& image_data, float dx, float dy)
 {
     // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
     // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
-    // FIXME: "put pixels from an ImageData onto a bitmap" is a spec algorithm.
-    //        https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
-    if (auto* painter = this->painter()) {
-        auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
-        painter->draw_bitmap(
-            dst_rect,
-            Gfx::ImmutableBitmap::create(image_data.bitmap(), Gfx::AlphaType::Unpremultiplied),
-            image_data.bitmap().rect(),
-            Gfx::ScalingMode::NearestNeighbor,
-            drawing_state().filter,
-            1.0f,
-            Gfx::CompositingAndBlendingOperator::SourceOver);
-        did_draw(dst_rect);
+    if (auto* painter = this->painter())
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *painter, dx, dy, 0, 0, image_data.width(), image_data.height()));
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata
+WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_image_data(ImageData& image_data, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+{
+    // The putImageData(imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight) method steps are to put pixels
+    // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth, and
+    // dirtyHeight.
+    if (auto* painter = this->painter())
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *painter, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
+WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Gfx::Painter& painter, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+{
+    // 1. Let buffer be imageData's data attribute value's [[ViewedArrayBuffer]] internal slot.
+    auto* buffer = image_data.data()->viewed_array_buffer();
+
+    // 2. If IsDetachedBuffer(buffer) is true, then throw an "InvalidStateError" DOMException
+    if (buffer->is_detached())
+        return WebIDL::InvalidStateError::create(image_data.realm(), "ImageData's underlying buffer is detached"_utf16);
+
+    // 3. If dirtyWidth is negative, then let dirtyX be dirtyX+dirtyWidth, and let dirtyWidth be equal to the
+    //    absolute magnitude of dirtyWidth.
+    if (dirty_width < 0) {
+        dirty_x += dirty_width;
+        dirty_width = abs(dirty_width);
     }
+    // If dirtyHeight is negative, then let dirtyY be dirtyY+dirtyHeight, and let dirtyHeight be equal to the absolute
+    // magnitude of dirtyHeight.
+    if (dirty_height < 0) {
+        dirty_y += dirty_height;
+        dirty_height = abs(dirty_height);
+    }
+
+    // 4. If dirtyX is negative, then let dirtyWidth be dirtyWidth+dirtyX, and let dirtyX be 0.
+    if (dirty_x < 0) {
+        dirty_width += dirty_x;
+        dirty_x = 0;
+    }
+
+    // If dirtyY is negative, then let dirtyHeight be dirtyHeight+dirtyY, and let dirtyY be 0.
+    if (dirty_y < 0) {
+        dirty_height += dirty_y;
+        dirty_y = 0;
+    }
+
+    // 5. If dirtyX+dirtyWidth is greater than the width attribute of the imageData argument, then let dirtyWidth be
+    //    the value of that width attribute, minus the value of dirtyX.
+    if (dirty_x + dirty_width > image_data.width()) {
+        dirty_width = image_data.width() - dirty_x;
+    }
+    // If dirtyY+dirtyHeight is greater than the height attribute of the imageData argument, then let dirtyHeight be
+    // the value of that height attribute, minus the value of dirtyY.
+    if (dirty_y + dirty_height > image_data.height()) {
+        dirty_height = image_data.height() - dirty_y;
+    }
+
+    // 6. If, after those changes, either dirtyWidth or dirtyHeight are negative or zero, then return without affecting
+    //    any bitmaps.
+    if (dirty_width <= 0 || dirty_height <= 0)
+        return {};
+
+    // 7. For all integer values of x and y where dirtyX ≤ x < dirtyX+dirtyWidth and dirtyY ≤ y < dirtyY+dirtyHeight,
+    //    set the pixel with coordinate (dx+x, dy+y) in bitmap to the color of the pixel at coordinate (x, y) in the
+    //    imageData data structure's bitmap, converted from imageData's colorSpace to the color space of bitmap using
+    //    'relative-colorimetric' rendering intent.
+    auto dst_rect = Gfx::FloatRect { dx + dirty_x, dy + dirty_y, dirty_width, dirty_height };
+    painter.draw_bitmap(
+        dst_rect,
+        Gfx::ImmutableBitmap::create(image_data.bitmap(), Gfx::AlphaType::Unpremultiplied),
+        Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height },
+        Gfx::ScalingMode::NearestNeighbor,
+        drawing_state().filter,
+        1.0f,
+        Gfx::CompositingAndBlendingOperator::SourceOver);
+    did_draw(dst_rect);
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
