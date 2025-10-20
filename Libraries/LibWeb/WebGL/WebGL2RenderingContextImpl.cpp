@@ -188,6 +188,102 @@ void WebGL2RenderingContextImpl::uniform4ui(GC::Root<WebGLUniformLocation> locat
     glUniform4ui(location ? location->handle() : 0, v0, v1, v2, v3);
 }
 
+void WebGL2RenderingContextImpl::uniform_matrix3x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    constexpr auto matrix_size = 3 * 2;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniformMatrix3x2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform_matrix4x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    constexpr auto matrix_size = 4 * 2;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniformMatrix4x2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform_matrix2x3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    constexpr auto matrix_size = 2 * 3;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniformMatrix2x3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform_matrix4x3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    constexpr auto matrix_size = 4 * 3;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniformMatrix4x3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform_matrix2x4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    constexpr auto matrix_size = 2 * 4;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniformMatrix2x4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform_matrix3x4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    constexpr auto matrix_size = 3 * 4;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniformMatrix3x4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+}
+
 void WebGL2RenderingContextImpl::vertex_attrib_i_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, WebIDL::Long stride, WebIDL::LongLong offset)
 {
     m_context->make_current();
