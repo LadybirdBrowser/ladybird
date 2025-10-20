@@ -95,7 +95,7 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
 
 WebIDL::ExceptionOr<void> CanvasPath::arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise)
 {
-    if (radius < 0)
+    if (radius < 0 && isfinite(radius))
         return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The radius provided ({}) is negative.", radius));
     return ellipse(x, y, radius, radius, 0, start_angle, end_angle, counter_clockwise);
 }
