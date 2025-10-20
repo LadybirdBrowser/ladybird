@@ -756,21 +756,53 @@ GC::Root<WebGLSync> WebGL2RenderingContextImpl::fence_sync(WebIDL::UnsignedLong 
 void WebGL2RenderingContextImpl::delete_sync(GC::Root<WebGLSync> sync)
 {
     m_context->make_current();
-    glDeleteSync((GLsync)(sync ? sync->sync_handle() : nullptr));
+
+    GLsync sync_handle = nullptr;
+    if (sync) {
+        auto handle_or_error = sync->sync_handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    }
+
+    glDeleteSync(sync_handle);
 }
 
 WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
 {
     m_context->make_current();
-    return glClientWaitSync((GLsync)(sync ? sync->sync_handle() : nullptr), flags, timeout);
+
+    GLsync sync_handle = nullptr;
+    if (sync) {
+        auto handle_or_error = sync->sync_handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return GL_WAIT_FAILED;
+        }
+        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    }
+
+    return glClientWaitSync(sync_handle, flags, timeout);
 }
 
 JS::Value WebGL2RenderingContextImpl::get_sync_parameter(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
+    GLsync sync_handle = nullptr;
+    if (sync) {
+        auto handle_or_error = sync->sync_handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return JS::js_null();
+        }
+        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    }
+
     GLint result = 0;
-    glGetSynciv((GLsync)(sync ? sync->sync_handle() : nullptr), pname, 1, nullptr, &result);
+    glGetSynciv(sync_handle, pname, 1, nullptr, &result);
     return JS::Value(result);
 }
 

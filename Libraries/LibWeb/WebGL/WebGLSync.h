@@ -20,7 +20,7 @@ public:
 
     virtual ~WebGLSync() override;
 
-    GLsyncInternal sync_handle() const { return m_sync_handle; }
+    ErrorOr<GLsyncInternal> sync_handle(WebGLRenderingContextBase const* context) const;
 
 protected:
     explicit WebGLSync(JS::Realm&, WebGLRenderingContextBase&, GLsyncInternal handle);
