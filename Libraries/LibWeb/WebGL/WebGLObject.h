@@ -34,9 +34,10 @@ protected:
 
     bool invalidated() const { return m_invalidated; }
 
-private:
     // FIXME: It should be GC::Ptr instead of raw pointer, but we need to make WebGLRenderingContextBase inherit from PlatformObject first.
     WebGLRenderingContextBase* m_context;
+
+private:
     GLuint m_handle { 0 };
 
     bool m_invalidated { false };

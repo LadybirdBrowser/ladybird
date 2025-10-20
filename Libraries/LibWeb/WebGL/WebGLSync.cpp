@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/WebGLSyncPrototype.h>
 #include <LibWeb/WebGL/WebGLSync.h>
 
+#include <GLES2/gl2.h>
+
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLSync);
@@ -30,6 +32,13 @@ void WebGLSync::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLSync);
     Base::initialize(realm);
+}
+
+ErrorOr<GLsyncInternal> WebGLSync::sync_handle(WebGLRenderingContextBase const* context) const
+{
+    if (context == m_context)
+        return m_sync_handle;
+    return Error::from_errno(GL_INVALID_OPERATION);
 }
 
 }
