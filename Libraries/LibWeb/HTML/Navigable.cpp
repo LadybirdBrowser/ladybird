@@ -1651,10 +1651,13 @@ void Navigable::begin_navigation(NavigateParams params)
     //     - url equals navigable's active session history entry's URL with exclude fragments set to true; and
     //     - url's fragment is non-null,
     //     then:
+    // NOTE: We also check that this is not a reload (reload_pending). During a reload, even though the URL matches,
+    //       we need to fetch a fresh document rather than just scrolling to the fragment.
     if (document_resource.has<Empty>()
         && !response
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
-        && url.fragment().has_value()) {
+        && url.fragment().has_value()
+        && !active_session_history_entry()->document_state()->reload_pending()) {
         // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
         navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id);
 
