@@ -35,6 +35,8 @@ public:
     Optional<AbstractElement> previous_sibling_in_tree_order() { return walk_layout_tree(WalkMethod::PreviousSibling); }
     bool is_before(AbstractElement const&) const;
 
+    void set_inheritance_override(GC::Ref<Element> element) { m_inheritance_override = element; }
+
     GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
 
     void set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty>&& custom_properties);
@@ -63,6 +65,8 @@ private:
 
     GC::Ref<Element> m_element;
     Optional<CSS::PseudoElement> m_pseudo_element;
+
+    GC::Ptr<Element> m_inheritance_override;
 };
 
 }

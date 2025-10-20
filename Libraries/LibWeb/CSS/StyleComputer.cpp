@@ -2461,11 +2461,20 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 {
     build_rule_cache_if_needed();
 
-    // Special path for elements that use pseudo element as style selector
+    // Special path for elements that represent a pseudo-element in some element's internal shadow tree.
     if (abstract_element.element().use_pseudo_element().has_value()) {
         auto& element = abstract_element.element();
-        auto& parent_element = as<HTML::HTMLElement>(*element.root().parent_or_shadow_host());
-        auto style = compute_style({ parent_element, element.use_pseudo_element() });
+        auto& host_element = *element.root().parent_or_shadow_host_element();
+
+        // We have to decide where to inherit from. If the pseudo-element has a parent element,
+        // we inherit from that. Otherwise, we inherit from the host element in the light DOM.
+        DOM::AbstractElement abstract_element_for_pseudo_element { host_element, element.use_pseudo_element() };
+        if (auto parent_element = element.parent_element())
+            abstract_element_for_pseudo_element.set_inheritance_override(*parent_element);
+        else
+            abstract_element_for_pseudo_element.set_inheritance_override(host_element);
+
+        auto style = compute_style(abstract_element_for_pseudo_element);
 
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {

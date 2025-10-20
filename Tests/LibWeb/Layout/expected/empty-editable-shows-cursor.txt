@@ -23,12 +23,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
             BlockContainer <div> at [11,10] flex-item [0+0+0 0 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 0, rect: [11,10 0x18] baseline: 13.796875
               TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [11,10] flex-item [0+0+0 36.84375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-              frag 0 from BlockContainer start: 0, length: 0, rect: [11,10 36.84375x18] baseline: 13.796875
-              BlockContainer <div> at [11,10] inline-block [0+0+0 36.84375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 5, rect: [11,10 36.84375x18] baseline: 13.796875
-                    "hello"
-                TextNode <#text> (not painted)
+            BlockContainer <div> at [11,10] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [11,10 36.84375x18] baseline: 13.796875
+                  "hello"
+              TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         BlockContainer <textarea> at [221,11] inline-block [0+1+2 160 2+1+0] [0+1+2 30 2+1+0] [BFC] children: not-inline
           BlockContainer <div> at [221,11] [0+0+0 160 0+0+0] [0+0+0 15 0+0+0] children: inline
@@ -64,9 +62,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableBox (Box<DIV>) [9,9 200x20]
             PaintableWithLines (BlockContainer<DIV>) [11,10 0x18]
               TextPaintable (TextNode<#text>)
-            PaintableWithLines (BlockContainer(anonymous)) [11,10 36.84375x18]
-              PaintableWithLines (BlockContainer<DIV>) [11,10 36.84375x18]
-                TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer<DIV>) [11,10 196x18]
+              TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<TEXTAREA>) [218,8 166x36]
           PaintableWithLines (BlockContainer<DIV>) [221,11 160x15]
