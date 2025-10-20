@@ -43,6 +43,10 @@ public:
     void uniform2ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1);
     void uniform3ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2);
     void uniform4ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2, WebIDL::UnsignedLong v3);
+    void uniform1uiv(GC::Root<WebGLUniformLocation> location, Uint32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);
+    void uniform2uiv(GC::Root<WebGLUniformLocation> location, Uint32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);
+    void uniform3uiv(GC::Root<WebGLUniformLocation> location, Uint32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);
+    void uniform4uiv(GC::Root<WebGLUniformLocation> location, Uint32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);
     void uniform_matrix3x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);
     void uniform_matrix4x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);
     void uniform_matrix2x3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length);

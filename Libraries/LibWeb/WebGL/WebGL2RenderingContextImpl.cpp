@@ -188,6 +188,62 @@ void WebGL2RenderingContextImpl::uniform4ui(GC::Root<WebGLUniformLocation> locat
     glUniform4ui(location ? location->handle() : 0, v0, v1, v2, v3);
 }
 
+void WebGL2RenderingContextImpl::uniform1uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_uint32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    glUniform1uiv(location->handle(), span.size(), span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform2uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_uint32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 2 != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniform2uiv(location->handle(), span.size() / 2, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform3uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_uint32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 3 != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniform3uiv(location->handle(), span.size() / 3, span.data());
+}
+
+void WebGL2RenderingContextImpl::uniform4uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+{
+    m_context->make_current();
+
+    if (!location)
+        return;
+
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_uint32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 4 != 0) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glUniform4uiv(location->handle(), span.size() / 4, span.data());
+}
+
 void WebGL2RenderingContextImpl::uniform_matrix3x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
