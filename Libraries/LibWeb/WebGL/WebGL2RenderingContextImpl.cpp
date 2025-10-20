@@ -101,6 +101,15 @@ void WebGL2RenderingContextImpl::invalidate_framebuffer(WebIDL::UnsignedLong tar
     needs_to_present();
 }
 
+void WebGL2RenderingContextImpl::invalidate_sub_framebuffer(WebIDL::UnsignedLong target, Vector<WebIDL::UnsignedLong> attachments, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height)
+{
+    m_context->make_current();
+    m_context->notify_content_will_change();
+
+    glInvalidateSubFramebuffer(target, attachments.size(), attachments.data(), x, y, width, height);
+    needs_to_present();
+}
+
 void WebGL2RenderingContextImpl::read_buffer(WebIDL::UnsignedLong src)
 {
     m_context->make_current();
