@@ -6,6 +6,7 @@
  */
 
 #define GL_GLEXT_PROTOTYPES 1
+
 #include <GLES3/gl3.h>
 extern "C" {
 #include <GLES2/gl2ext.h>
@@ -22,6 +23,7 @@ extern "C" {
 #include <LibWeb/WebGL/WebGLBuffer.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
+#include <LibWeb/WebGL/WebGLQuery.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLShader.h>
@@ -517,6 +519,82 @@ void WebGL2RenderingContextImpl::clear_bufferfi(WebIDL::UnsignedLong buffer, Web
     m_context->notify_content_will_change();
     needs_to_present();
     glClearBufferfi(buffer, drawbuffer, depth, stencil);
+}
+
+GC::Root<WebGLQuery> WebGL2RenderingContextImpl::create_query()
+{
+    m_context->make_current();
+
+    GLuint handle = 0;
+    glGenQueries(1, &handle);
+    return WebGLQuery::create(m_realm, *this, handle);
+}
+
+void WebGL2RenderingContextImpl::delete_query(GC::Root<WebGLQuery> query)
+{
+    m_context->make_current();
+
+    GLuint query_handle = 0;
+    if (query) {
+        auto handle_or_error = query->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        query_handle = handle_or_error.release_value();
+    }
+
+    glDeleteQueries(1, &query_handle);
+}
+
+void WebGL2RenderingContextImpl::begin_query(WebIDL::UnsignedLong target, GC::Root<WebGLQuery> query)
+{
+    m_context->make_current();
+
+    GLuint query_handle = 0;
+    if (query) {
+        auto handle_or_error = query->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        query_handle = handle_or_error.release_value();
+    }
+
+    glBeginQuery(target, query_handle);
+}
+
+void WebGL2RenderingContextImpl::end_query(WebIDL::UnsignedLong target)
+{
+    m_context->make_current();
+    glEndQuery(target);
+}
+
+JS::Value WebGL2RenderingContextImpl::get_query_parameter(GC::Root<WebGLQuery> query, WebIDL::UnsignedLong pname)
+{
+    m_context->make_current();
+
+    GLuint query_handle = 0;
+    if (query) {
+        auto handle_or_error = query->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return JS::js_null();
+        }
+        query_handle = handle_or_error.release_value();
+    }
+
+    GLuint result { 0 };
+    glGetQueryObjectuivRobustANGLE(query_handle, pname, 1, nullptr, &result);
+
+    switch (pname) {
+    case GL_QUERY_RESULT:
+        return JS::Value(result);
+    case GL_QUERY_RESULT_AVAILABLE:
+        return JS::Value(result == GL_TRUE);
+    default:
+        return JS::js_null();
+    }
 }
 
 GC::Root<WebGLSampler> WebGL2RenderingContextImpl::create_sampler()
