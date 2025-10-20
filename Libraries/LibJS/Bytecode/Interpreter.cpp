@@ -335,128 +335,6 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
     VERIFY_NOT_REACHED();
 }
 
-#define JS_ENUMERATE_GENERIC_BYTECODE_OPS(X) \
-    X(Add)                                   \
-    X(AddPrivateName)                        \
-    X(ArrayAppend)                           \
-    X(AsyncIteratorClose)                    \
-    X(BitwiseAnd)                            \
-    X(BitwiseNot)                            \
-    X(BitwiseOr)                             \
-    X(BitwiseXor)                            \
-    X(BlockDeclarationInstantiation)         \
-    X(Call)                                  \
-    X(CallBuiltin)                           \
-    X(CallConstruct)                         \
-    X(CallConstructWithArgumentArray)        \
-    X(CallDirectEval)                        \
-    X(CallDirectEvalWithArgumentArray)       \
-    X(CallWithArgumentArray)                 \
-    X(Catch)                                 \
-    X(ConcatString)                          \
-    X(CopyObjectExcludingProperties)         \
-    X(CreateLexicalEnvironment)              \
-    X(CreateVariableEnvironment)             \
-    X(CreatePrivateEnvironment)              \
-    X(CreateVariable)                        \
-    X(CreateRestParams)                      \
-    X(CreateArguments)                       \
-    X(Decrement)                             \
-    X(DeleteById)                            \
-    X(DeleteByIdWithThis)                    \
-    X(DeleteByValue)                         \
-    X(DeleteByValueWithThis)                 \
-    X(DeleteVariable)                        \
-    X(Div)                                   \
-    X(Dump)                                  \
-    X(EnterObjectEnvironment)                \
-    X(Exp)                                   \
-    X(GetById)                               \
-    X(GetByIdWithThis)                       \
-    X(GetByValue)                            \
-    X(GetByValueWithThis)                    \
-    X(GetCalleeAndThisFromEnvironment)       \
-    X(GetCompletionFields)                   \
-    X(GetGlobal)                             \
-    X(GetImportMeta)                         \
-    X(GetIterator)                           \
-    X(GetLength)                             \
-    X(GetLengthWithThis)                     \
-    X(GetMethod)                             \
-    X(GetNewTarget)                          \
-    X(GetNextMethodFromIteratorRecord)       \
-    X(GetObjectFromIteratorRecord)           \
-    X(GetObjectPropertyIterator)             \
-    X(GetPrivateById)                        \
-    X(GetBinding)                            \
-    X(GetInitializedBinding)                 \
-    X(GreaterThan)                           \
-    X(GreaterThanEquals)                     \
-    X(HasPrivateId)                          \
-    X(ImportCall)                            \
-    X(In)                                    \
-    X(Increment)                             \
-    X(InitializeLexicalBinding)              \
-    X(InitializeVariableBinding)             \
-    X(InstanceOf)                            \
-    X(IteratorClose)                         \
-    X(IteratorNext)                          \
-    X(IteratorNextUnpack)                    \
-    X(IteratorToArray)                       \
-    X(LeaveFinally)                          \
-    X(LeaveLexicalEnvironment)               \
-    X(LeavePrivateEnvironment)               \
-    X(LeaveUnwindContext)                    \
-    X(LeftShift)                             \
-    X(LessThan)                              \
-    X(LessThanEquals)                        \
-    X(LooselyEquals)                         \
-    X(LooselyInequals)                       \
-    X(Mod)                                   \
-    X(Mul)                                   \
-    X(NewArray)                              \
-    X(NewClass)                              \
-    X(NewFunction)                           \
-    X(NewObject)                             \
-    X(NewPrimitiveArray)                     \
-    X(NewRegExp)                             \
-    X(NewTypeError)                          \
-    X(Not)                                   \
-    X(PrepareYield)                          \
-    X(PostfixDecrement)                      \
-    X(PostfixIncrement)                      \
-    X(PutBySpread)                           \
-    X(PutPrivateById)                        \
-    X(ResolveSuperBase)                      \
-    X(ResolveThisBinding)                    \
-    X(RestoreScheduledJump)                  \
-    X(RightShift)                            \
-    X(SetCompletionType)                     \
-    X(SetGlobal)                             \
-    X(SetLexicalBinding)                     \
-    X(SetVariableBinding)                    \
-    X(StrictlyEquals)                        \
-    X(StrictlyInequals)                      \
-    X(Sub)                                   \
-    X(SuperCallWithArgumentArray)            \
-    X(Throw)                                 \
-    X(ThrowIfNotObject)                      \
-    X(ThrowIfNullish)                        \
-    X(ThrowIfTDZ)                            \
-    X(Typeof)                                \
-    X(TypeofBinding)                         \
-    X(UnaryMinus)                            \
-    X(UnaryPlus)                             \
-    X(UnsignedRightShift)
-
-#define JS_ENUMERATE_SIMPLE_JUMP_OPS(X) \
-    X(Jump)                             \
-    X(JumpIf)                           \
-    X(JumpTrue)                         \
-    X(JumpFalse)                        \
-    X(JumpNullish)                      \
-    X(JumpUndefined)
-
 #ifdef AK_COMPILER_CLANG
 #    define TAILCALL [[clang::musttail]]
 #    define HAS_TAILCALL
@@ -701,15 +579,7 @@ FLATTEN size_t handle_generic(Interpreter& interpreter, u8 const* bytecode, size
     template FLATTEN size_t handle_generic<Op::name>(Interpreter & interpreter, u8 const* bytecode, size_t program_counter);
 
 JS_ENUMERATE_GENERIC_BYTECODE_OPS(HANDLE_INSTRUCTION)
-
-#define PutOp(kind)                                \
-    HANDLE_INSTRUCTION(Put##kind##ById)            \
-    HANDLE_INSTRUCTION(Put##kind##ByNumericId)     \
-    HANDLE_INSTRUCTION(Put##kind##ByValue)         \
-    HANDLE_INSTRUCTION(Put##kind##ByValueWithThis) \
-    HANDLE_INSTRUCTION(Put##kind##ByIdWithThis)    \
-    HANDLE_INSTRUCTION(Put##kind##ByNumericIdWithThis)
-JS_ENUMERATE_PUT_KINDS(PutOp)
+JS_ENUMERATE_PUT_OPS(HANDLE_INSTRUCTION)
 
 #undef HANDLE_INSTRUCTION
 #undef PutOp
@@ -745,13 +615,6 @@ FLATTEN size_t handle<Op::Yield>(Interpreter& interpreter, u8 const* bytecode, s
 
 #define GenericOp(op) \
     result[to_underlying(Instruction::Type::op)] = &handle_generic<Op::op>;
-#define PutOp(kind)                        \
-    GenericOp(Put##kind##ById);            \
-    GenericOp(Put##kind##ByNumericId);     \
-    GenericOp(Put##kind##ByValue);         \
-    GenericOp(Put##kind##ByValueWithThis); \
-    GenericOp(Put##kind##ByIdWithThis);    \
-    GenericOp(Put##kind##ByNumericIdWithThis);
 #define ComparisonOp(op, snake_name, numeric_operator) \
     result[to_underlying(Instruction::Type::Jump##op)] = &handle_jump<Op::Jump##op>;
 #define JumpOp(op) result[to_underlying(Instruction::Type::op)] = &handle_jump<Op::op>;
@@ -759,7 +622,7 @@ FLATTEN size_t handle<Op::Yield>(Interpreter& interpreter, u8 const* bytecode, s
 constexpr auto Interpreter::dispatch_instruction_table = [] constexpr {
     AK::Array<Interpreter::dispatch_instruction_table_t, to_underlying(Instruction::Type::__Last)> result;
     JS_ENUMERATE_GENERIC_BYTECODE_OPS(GenericOp);
-    JS_ENUMERATE_PUT_KINDS(PutOp);
+    JS_ENUMERATE_PUT_OPS(GenericOp);
     JS_ENUMERATE_COMPARISON_OPS(ComparisonOp);
     JS_ENUMERATE_SIMPLE_JUMP_OPS(JumpOp);
     result[to_underlying(Instruction::Type::Mov)] = &handle<Op::Mov>;
