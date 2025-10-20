@@ -340,6 +340,40 @@ void WebGL2RenderingContextImpl::uniform_matrix3x4fv(GC::Root<WebGLUniformLocati
     glUniformMatrix3x4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
+void WebGL2RenderingContextImpl::vertex_attrib_i4i(WebIDL::UnsignedLong index, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z, WebIDL::Long w)
+{
+    m_context->make_current();
+    glVertexAttribI4i(index, x, y, z, w);
+}
+
+void WebGL2RenderingContextImpl::vertex_attrib_i4iv(WebIDL::UnsignedLong index, Int32List values)
+{
+    m_context->make_current();
+    auto span = MUST(span_from_int32_list(values, /* src_offset= */ 0));
+    if (span.size() < 4) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glVertexAttribI4iv(index, span.data());
+}
+
+void WebGL2RenderingContextImpl::vertex_attrib_i4ui(WebIDL::UnsignedLong index, WebIDL::UnsignedLong x, WebIDL::UnsignedLong y, WebIDL::UnsignedLong z, WebIDL::UnsignedLong w)
+{
+    m_context->make_current();
+    glVertexAttribI4ui(index, x, y, z, w);
+}
+
+void WebGL2RenderingContextImpl::vertex_attrib_i4uiv(WebIDL::UnsignedLong index, Uint32List values)
+{
+    m_context->make_current();
+    auto span = MUST(span_from_uint32_list(values, /* src_offset= */ 0));
+    if (span.size() < 4) [[unlikely]] {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+    glVertexAttribI4uiv(index, span.data());
+}
+
 void WebGL2RenderingContextImpl::vertex_attrib_i_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, WebIDL::Long stride, WebIDL::LongLong offset)
 {
     m_context->make_current();
