@@ -475,6 +475,13 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
             program_counter += sizeof(Op);           \
     } while (0)
 
+// Note: Anything that can throw must sync the program counter with the execution context,
+//       as the Error stack traceback generation relies on it.
+#define SYNC_PROGRAM_COUNTER(interpreter)                                          \
+    do {                                                                           \
+        interpreter.running_execution_context().program_counter = program_counter; \
+    } while (0)
+
 #define DISPATCH_NEXT(interpreter)                                                                              \
     do {                                                                                                        \
         auto& next_instruction = *reinterpret_cast<Instruction const*>(&bytecode[program_counter]);             \
@@ -482,25 +489,26 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
         TAILCALL return fn(interpreter, bytecode, program_counter);                                             \
     } while (0)
 
-#define HANDLE_EXCEPTION(result, interpreter)                                                                                                    \
-    do {                                                                                                                                         \
-        if (result.is_error()) [[unlikely]] {                                                                                                    \
-            if (interpreter.handle_exception(program_counter, result.error_value()) == Interpreter::HandleExceptionResponse::ExitFromExecutable) \
-                return;                                                                                                                          \
-            DISPATCH_NEXT(interpreter);                                                                                                          \
-        }                                                                                                                                        \
+#define HANDLE_EXCEPTION(result, interpreter)                                                                                                                    \
+    do {                                                                                                                                                         \
+        ASSERT(interpreter.running_execution_context()->program_counter == program_counter); /*Exception causing instructions need up to date program counters*/ \
+        if (result.is_error()) [[unlikely]] {                                                                                                                    \
+            if (interpreter.handle_exception(program_counter, result.error_value()) == Interpreter::HandleExceptionResponse::ExitFromExecutable)                 \
+                return program_counter;                                                                                                                          \
+            DISPATCH_NEXT(interpreter);                                                                                                                          \
+        }                                                                                                                                                        \
     } while (0)
 
 // Note: Redeclaration, as otherwise the array creation later would fail, for some reason.
 template<typename OP>
-void handle(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+size_t handle(Interpreter& interpreter, u8 const* bytecode, size_t program_counter);
 template<typename OP>
-void handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+size_t handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t program_counter);
 template<typename OP>
-void handle_jump(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+size_t handle_jump(Interpreter& interpreter, u8 const* bytecode, size_t program_counter);
 
 template<>
-FLATTEN void handle<Op::Mov>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::Mov>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     // OPTIMIZATION: Movs tend to follow each other, like when preparing arguments for other operations,
     //               so lets try to make them a bit faster by looping here.
@@ -516,22 +524,22 @@ FLATTEN void handle<Op::Mov>(Interpreter& interpreter, u8 const* bytecode, size_
 }
 
 template<>
-FLATTEN void handle<Op::End>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::End>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::End const*>(&bytecode[program_counter]);
     interpreter.accumulator() = interpreter.get(instruction.value());
-    return;
+    return program_counter;
 }
 
 template<>
-FLATTEN void handle_jump<Op::Jump>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_jump<Op::Jump>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::Jump const*>(&bytecode[program_counter]);
     program_counter = instruction.target().address();
     DISPATCH_NEXT(interpreter);
 }
 template<>
-FLATTEN void handle_jump<Op::JumpIf>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_jump<Op::JumpIf>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::JumpIf const*>(&bytecode[program_counter]);
     if (interpreter.get(instruction.condition()).to_boolean())
@@ -541,7 +549,7 @@ FLATTEN void handle_jump<Op::JumpIf>(Interpreter& interpreter, u8 const* bytecod
     DISPATCH_NEXT(interpreter);
 }
 template<>
-FLATTEN void handle_jump<Op::JumpTrue>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_jump<Op::JumpTrue>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::JumpTrue const*>(&bytecode[program_counter]);
     if (interpreter.get(instruction.condition()).to_boolean()) {
@@ -552,7 +560,7 @@ FLATTEN void handle_jump<Op::JumpTrue>(Interpreter& interpreter, u8 const* bytec
     DISPATCH_NEXT(interpreter);
 }
 template<>
-FLATTEN void handle_jump<Op::JumpFalse>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_jump<Op::JumpFalse>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::JumpFalse const*>(&bytecode[program_counter]);
     if (!interpreter.get(instruction.condition()).to_boolean()) {
@@ -563,7 +571,7 @@ FLATTEN void handle_jump<Op::JumpFalse>(Interpreter& interpreter, u8 const* byte
     DISPATCH_NEXT(interpreter);
 }
 template<>
-FLATTEN void handle_jump<Op::JumpNullish>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_jump<Op::JumpNullish>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::JumpNullish const*>(&bytecode[program_counter]);
     if (interpreter.get(instruction.condition()).is_nullish())
@@ -575,7 +583,7 @@ FLATTEN void handle_jump<Op::JumpNullish>(Interpreter& interpreter, u8 const* by
 
 #define HANDLE_COMPARISON_OP(op_TitleCase, op_snake_case, numeric_operator)                                                    \
     template<>                                                                                                                 \
-    FLATTEN void handle_jump<Op::Jump##op_TitleCase>(Interpreter & interpreter, u8 const* bytecode, size_t& program_counter)   \
+    FLATTEN size_t handle_jump<Op::Jump##op_TitleCase>(Interpreter & interpreter, u8 const* bytecode, size_t program_counter)  \
     {                                                                                                                          \
         auto& instruction = *reinterpret_cast<Op::Jump##op_TitleCase const*>(&bytecode[program_counter]);                      \
         auto lhs = interpreter.get(instruction.lhs());                                                                         \
@@ -590,6 +598,7 @@ FLATTEN void handle_jump<Op::JumpNullish>(Interpreter& interpreter, u8 const* by
             program_counter = result ? instruction.true_target().address() : instruction.false_target().address();             \
             DISPATCH_NEXT(interpreter);                                                                                        \
         }                                                                                                                      \
+        SYNC_PROGRAM_COUNTER(interpreter);                                                                                     \
         auto result = op_snake_case(interpreter.vm(), interpreter.get(instruction.lhs()), interpreter.get(instruction.rhs())); \
         HANDLE_EXCEPTION(result, interpreter);                                                                                 \
         if (result.value())                                                                                                    \
@@ -603,7 +612,7 @@ JS_ENUMERATE_COMPARISON_OPS(HANDLE_COMPARISON_OP)
 #undef HANDLE_COMPARISON_OP
 
 template<>
-FLATTEN void handle_jump<Op::JumpUndefined>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_jump<Op::JumpUndefined>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::JumpUndefined const*>(&bytecode[program_counter]);
     if (interpreter.get(instruction.condition()).is_undefined())
@@ -614,7 +623,7 @@ FLATTEN void handle_jump<Op::JumpUndefined>(Interpreter& interpreter, u8 const* 
 }
 
 template<>
-FLATTEN void handle<Op::EnterUnwindContext>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::EnterUnwindContext>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::EnterUnwindContext const*>(&bytecode[program_counter]);
     interpreter.enter_unwind_context();
@@ -623,12 +632,12 @@ FLATTEN void handle<Op::EnterUnwindContext>(Interpreter& interpreter, u8 const* 
 }
 
 template<>
-FLATTEN void handle<Op::ContinuePendingUnwind>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::ContinuePendingUnwind>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::ContinuePendingUnwind const*>(&bytecode[program_counter]);
     if (auto exception = interpreter.reg(Register::exception()); !exception.is_special_empty_value()) {
         if (interpreter.handle_exception(program_counter, exception) == Interpreter::HandleExceptionResponse::ExitFromExecutable)
-            return;
+            return program_counter;
         DISPATCH_NEXT(interpreter);
     }
     if (!interpreter.saved_return_value().is_special_empty_value()) {
@@ -645,7 +654,7 @@ FLATTEN void handle<Op::ContinuePendingUnwind>(Interpreter& interpreter, u8 cons
                 DISPATCH_NEXT(interpreter);
             }
         }
-        return;
+        return program_counter;
     }
     auto const old_scheduled_jump = interpreter.running_execution_context().previously_scheduled_jumps.take_last();
     if (interpreter.m_scheduled_jump.has_value()) {
@@ -661,7 +670,7 @@ FLATTEN void handle<Op::ContinuePendingUnwind>(Interpreter& interpreter, u8 cons
 }
 
 template<>
-FLATTEN void handle<Op::ScheduleJump>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::ScheduleJump>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::ScheduleJump const*>(&bytecode[program_counter]);
     interpreter.m_scheduled_jump = instruction.target().address();
@@ -672,12 +681,13 @@ FLATTEN void handle<Op::ScheduleJump>(Interpreter& interpreter, u8 const* byteco
 }
 
 template<typename OP>
-FLATTEN void handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     constexpr bool has_exception_check = requires { requires IsSame<decltype(declval<OP>().execute_impl(declval<Interpreter&>())), ThrowCompletionOr<void>>; };
 
     auto const& instruction = *reinterpret_cast<OP const*>(&bytecode[program_counter]);
     if constexpr (has_exception_check) {
+        SYNC_PROGRAM_COUNTER(interpreter);
         auto result = instruction.execute_impl(interpreter);
         HANDLE_EXCEPTION(result, interpreter);
     } else {
@@ -688,7 +698,7 @@ FLATTEN void handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t
 }
 
 #define HANDLE_INSTRUCTION(name) \
-    template FLATTEN void handle_generic<Op::name>(Interpreter & interpreter, u8 const* bytecode, size_t& program_counter);
+    template FLATTEN size_t handle_generic<Op::name>(Interpreter & interpreter, u8 const* bytecode, size_t program_counter);
 
 JS_ENUMERATE_GENERIC_BYTECODE_OPS(HANDLE_INSTRUCTION)
 
@@ -705,23 +715,23 @@ JS_ENUMERATE_PUT_KINDS(PutOp)
 #undef PutOp
 
 template<>
-FLATTEN void handle<Op::Await>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::Await>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::Await const*>(&bytecode[program_counter]);
     instruction.execute_impl(interpreter);
-    return;
+    return program_counter;
 }
 
 template<>
-FLATTEN void handle<Op::Return>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::Return>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::Return const*>(&bytecode[program_counter]);
     instruction.execute_impl(interpreter);
-    return;
+    return program_counter;
 }
 
 template<>
-FLATTEN void handle<Op::Yield>(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter)
+FLATTEN size_t handle<Op::Yield>(Interpreter& interpreter, u8 const* bytecode, size_t program_counter)
 {
     auto& instruction = *reinterpret_cast<Op::Yield const*>(&bytecode[program_counter]);
     instruction.execute_impl(interpreter);
@@ -730,7 +740,7 @@ FLATTEN void handle<Op::Yield>(Interpreter& interpreter, u8 const* bytecode, siz
     //       but we generate a Yield Operation in the case of returns in
     //       generators as well, so we need to check if it will actually
     //       continue or is a `return` in disguise
-    return;
+    return program_counter;
 }
 
 #define GenericOp(op) \
@@ -784,7 +794,7 @@ void Interpreter::run_bytecode(size_t entry_point)
 
     auto& next_instruction = *reinterpret_cast<Instruction const*>(&bytecode[program_counter]);
     auto fn = dispatch_instruction_table[static_cast<size_t>(next_instruction.type())];
-    fn(*this, bytecode, program_counter);
+    program_counter = fn(*this, bytecode, program_counter);
 }
 
 Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) const

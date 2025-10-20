@@ -109,13 +109,13 @@ private:
     ReadonlySpan<Utf16FlyString> m_identifier_table;
 
     template<typename OP>
-    friend void handle(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+    friend size_t handle(Interpreter& interpreter, u8 const* bytecode, size_t program_counter);
     template<typename OP>
-    friend void handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+    friend size_t handle_generic(Interpreter& interpreter, u8 const* bytecode, size_t program_counter);
     template<typename OP>
-    friend void handle_jump(Interpreter& interpreter, u8 const* bytecode, size_t& program_counter);
+    friend size_t handle_jump(Interpreter& interpreter, u8 const* bytecode, size_t program_counter);
 
-    typedef void (*dispatch_instruction_table_t)(Interpreter&, u8 const*, size_t&);
+    typedef size_t (*dispatch_instruction_table_t)(Interpreter&, u8 const*, size_t);
     static AK::Array<dispatch_instruction_table_t, to_underlying(Instruction::Type::__Last)> const dispatch_instruction_table;
 };
 
