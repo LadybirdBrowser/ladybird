@@ -102,13 +102,13 @@ private:
     ExecutionContext* m_running_execution_context { nullptr };
 
     template<typename OP>
-    friend void handle(Interpreter& interpreter, u8 const* bytecode, u32& program_counter);
+    friend u32 handle(Interpreter& interpreter, u8 const* bytecode, u32 program_counter);
     template<typename OP>
-    friend void handle_generic(Interpreter& interpreter, u8 const* bytecode, u32& program_counter);
+    friend u32 handle_generic(Interpreter& interpreter, u8 const* bytecode, u32 program_counter);
     template<typename OP>
-    friend void handle_jump(Interpreter& interpreter, u8 const* bytecode, u32& program_counter);
+    friend u32 handle_jump(Interpreter& interpreter, u8 const* bytecode, u32 program_counter);
 
-    typedef void (*dispatch_instruction_table_t)(Interpreter&, u8 const*, u32&);
+    typedef u32 (*dispatch_instruction_table_t)(Interpreter&, u8 const*, u32);
     static AK::Array<dispatch_instruction_table_t, to_underlying(Instruction::Type::__Last)> const dispatch_instruction_table;
 };
 
