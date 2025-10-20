@@ -618,7 +618,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             };
 
             // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true, then:
-            if (!target_entry->document() || target_entry->document_state()->reload_pending()) {
+            // NOTE: Skip document population for synchronous navigations, as they should never require fetching.
+            // Synchronous navigations are same-document navigations that only modify URL/state.
+            if (synchronous_navigation == SynchronousNavigation::No
+                && (!target_entry->document() || target_entry->document_state()->reload_pending())) {
                 // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
                 // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
