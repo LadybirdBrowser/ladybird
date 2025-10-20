@@ -130,15 +130,6 @@ void ComputedProperties::set_property_without_modifying_flags(PropertyID id, Non
     m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
 }
 
-void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-
-    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = style_for_revert.m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)];
-    set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
-    set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
-}
-
 Display ComputedProperties::display_before_box_type_transformation() const
 {
     return m_display_before_box_type_transformation;
