@@ -1195,6 +1195,11 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
 
     auto& box_state = m_state.get_mutable(box);
 
+    // NOTE: We reset the offset to zero here, since we're about to recalculate it.
+    //       This is necessary when layout_absolutely_positioned_element is called multiple times
+    //       (e.g., during nested layout of absolutely positioned elements).
+    box_state.set_content_offset({ 0, 0 });
+
     // The border computed values are not changed by the compute_height & width calculations below.
     // The spec only adjusts and computes sizes, insets and margins.
     box_state.border_left = box.computed_values().border_left().width;
