@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
