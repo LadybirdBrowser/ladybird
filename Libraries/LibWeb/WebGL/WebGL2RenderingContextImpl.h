@@ -82,6 +82,7 @@ public:
     GC::Root<WebGLSync> fence_sync(WebIDL::UnsignedLong condition, WebIDL::UnsignedLong flags);
     void delete_sync(GC::Root<WebGLSync> sync);
     WebIDL::UnsignedLong client_wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout);
+    void wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout);
     JS::Value get_sync_parameter(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong pname);
     void bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer);
     void bind_buffer_range(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer, WebIDL::LongLong offset, WebIDL::LongLong size);
