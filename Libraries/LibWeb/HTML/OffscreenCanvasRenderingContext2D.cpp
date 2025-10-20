@@ -155,10 +155,16 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> OffscreenCanvasRenderingContext2D::get_i
     return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::get_image_data()"_utf16);
 }
 
-void OffscreenCanvasRenderingContext2D::put_image_data(ImageData&, float, float)
-
+WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::put_image_data(ImageData&, float, float)
 {
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::put_image_data()");
+    return {};
+}
+
+WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::put_image_data(ImageData&, float, float, float, float, float, float)
+{
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::put_image_data()");
+    return {};
 }
 
 void OffscreenCanvasRenderingContext2D::reset_to_default_state()
