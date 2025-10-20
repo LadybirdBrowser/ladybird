@@ -8,6 +8,7 @@
 
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Parser/HTMLToken.h>
 
 namespace Web::HTML {
 
@@ -20,16 +21,17 @@ public:
         bool is_marker() const { return !element; }
 
         GC::Ptr<DOM::Element> element;
+        AK::OwnPtr<HTMLToken> token;
     };
 
     bool is_empty() const { return m_entries.is_empty(); }
     bool contains(DOM::Element const&) const;
 
-    void add(DOM::Element& element);
+    void add(DOM::Element& element, HTMLToken& token);
     void add_marker();
-    void insert_at(size_t index, DOM::Element& element);
+    void insert_at(size_t index, DOM::Element& element, HTMLToken& token);
 
-    void replace(DOM::Element& to_remove, DOM::Element& to_add);
+    void replace(DOM::Element& to_remove, DOM::Element& to_add, HTMLToken& token);
 
     void remove(DOM::Element&);
 
@@ -43,6 +45,8 @@ public:
     Optional<size_t> find_index(DOM::Element const&) const;
 
     void visit_edges(JS::Cell::Visitor&);
+
+    static AK::OwnPtr<HTMLToken> create_own_token(HTMLToken& token);
 
 private:
     Vector<Entry> m_entries;
