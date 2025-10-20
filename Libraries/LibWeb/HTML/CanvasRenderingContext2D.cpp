@@ -600,14 +600,18 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
     //    imageData data structure's bitmap, converted from imageData's colorSpace to the color space of bitmap using
     //    'relative-colorimetric' rendering intent.
     auto dst_rect = Gfx::FloatRect { dx + dirty_x, dy + dirty_y, dirty_width, dirty_height };
+    painter.save();
+    painter.set_transform({});
     painter.draw_bitmap(
         dst_rect,
         Gfx::ImmutableBitmap::create(image_data.bitmap(), Gfx::AlphaType::Unpremultiplied),
         Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height },
         Gfx::ScalingMode::NearestNeighbor,
-        drawing_state().filter,
+        {},
         1.0f,
         Gfx::CompositingAndBlendingOperator::SourceOver);
+    painter.restore();
+
     did_draw(dst_rect);
 
     return {};
