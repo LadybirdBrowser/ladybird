@@ -802,7 +802,6 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
                 align-items: center;
                 text-overflow: clip;
                 white-space: nowrap;
-                display: inline;
             )~~~"sv);
     }
     return *style;
