@@ -19,6 +19,7 @@ AbstractElement::AbstractElement(GC::Ref<Element> element, Optional<CSS::PseudoE
 void AbstractElement::visit(GC::Cell::Visitor& visitor) const
 {
     visitor.visit(m_element);
+    visitor.visit(m_inheritance_override);
 }
 
 Document& AbstractElement::document() const
@@ -78,6 +79,9 @@ GC::Ptr<Element const> AbstractElement::parent_element() const
 
 Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
 {
+    if (m_inheritance_override)
+        return AbstractElement { *m_inheritance_override };
+
     GC::Ptr<Element const> element = m_element->element_to_inherit_style_from(m_pseudo_element);
 
     if (!element)
