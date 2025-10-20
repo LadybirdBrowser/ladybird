@@ -310,13 +310,21 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     return path.copy_transformed(transform);
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filltext
 void CanvasRenderingContext2D::fill_text(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
+    if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
+        return;
+
     fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroketext
 void CanvasRenderingContext2D::stroke_text(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
+    if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
+        return;
+
     stroke_internal(text_path(text, x, y, max_width));
 }
 
