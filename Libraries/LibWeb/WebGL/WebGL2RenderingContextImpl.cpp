@@ -404,6 +404,14 @@ void WebGL2RenderingContextImpl::draw_elements_instanced(WebIDL::UnsignedLong mo
     needs_to_present();
 }
 
+void WebGL2RenderingContextImpl::draw_range_elements(WebIDL::UnsignedLong mode, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, WebIDL::Long count, WebIDL::UnsignedLong type, WebIDL::LongLong offset)
+{
+    m_context->make_current();
+    m_context->notify_content_will_change();
+    needs_to_present();
+    glDrawRangeElements(mode, start, end, count, type, reinterpret_cast<void*>(offset));
+}
+
 void WebGL2RenderingContextImpl::draw_buffers(Vector<WebIDL::UnsignedLong> buffers)
 {
     m_context->make_current();

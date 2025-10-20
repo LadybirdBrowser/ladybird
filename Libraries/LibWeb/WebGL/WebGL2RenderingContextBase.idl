@@ -365,7 +365,7 @@ interface mixin WebGL2RenderingContextBase {
     undefined vertexAttribDivisor(GLuint index, GLuint divisor);
     undefined drawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
     undefined drawElementsInstanced(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei instanceCount);
-    [FIXME] undefined drawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, GLintptr offset);
+    undefined drawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, GLintptr offset);
 
     // Multiple Render Targets
     undefined drawBuffers(sequence<GLenum> buffers);
