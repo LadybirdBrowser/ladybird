@@ -1290,7 +1290,16 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
     // FIXME: 1. Assert: this is running on traversable's session history traversal queue.
 
     // 2. If targetNavigable's active session history entry is not targetEntry, then return.
-    if (target_navigable->active_session_history_entry() != target_entry) {
+    // Note: Compare by navigation_api_id since entries may be replaced with new objects that have the same ID
+    if (target_navigable->active_session_history_entry()->navigation_api_id() != target_entry->navigation_api_id()) {
+        return;
+    }
+
+    // AD-HOC: If the target entry doesn't have a document, this cannot be a same-document navigation.
+    // Same-document navigations modify URL/state within an existing document, so the entry must already have one.
+    // This check prevents incorrectly treating cross-document navigations as same-document.
+    if (!target_entry->document()) {
+        dbgln("finalize_a_same_document_navigation: target entry has no document, aborting same-document finalization");
         return;
     }
 
@@ -1303,7 +1312,12 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
     // 5. If entryToReplace is null, then:
     // FIXME: Checking containment of entryToReplace should not be needed.
     //        For more details see https://github.com/whatwg/html/issues/10232#issuecomment-2037543137
-    if (!entry_to_replace || !target_entries.contains_slow(GC::Ref { *entry_to_replace })) {
+    // NOTE: Check by navigation_api_id since entries may be replaced with new objects that have the same ID
+    auto entry_to_replace_found = entry_to_replace && target_entries.find_if([&](auto& entry) {
+        return entry->navigation_api_id() == entry_to_replace->navigation_api_id();
+    }) != target_entries.end();
+
+    if (!entry_to_replace || !entry_to_replace_found) {
         // 1. Clear the forward session history of traversable.
         traversable->clear_the_forward_session_history();
 
@@ -1317,7 +1331,12 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
         target_entries.append(target_entry);
     } else {
         // 1. Replace entryToReplace with targetEntry in targetEntries.
-        *(target_entries.find(*entry_to_replace)) = target_entry;
+        // NOTE: Use ID-based comparison since entries may be replaced with new objects that have the same ID
+        auto entry_iterator = target_entries.find_if([&](auto& entry) {
+            return entry->navigation_api_id() == entry_to_replace->navigation_api_id();
+        });
+        VERIFY(entry_iterator != target_entries.end());
+        *entry_iterator = target_entry;
 
         // 2. Set targetEntry's step to entryToReplace's step.
         target_entry->set_step(entry_to_replace->step());
