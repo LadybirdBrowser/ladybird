@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,7 +21,7 @@ void ListOfActiveFormattingElements::visit_edges(JS::Cell::Visitor& visitor)
 
 void ListOfActiveFormattingElements::ensure_noahs_ark_clause(DOM::Element& element)
 {
-    Vector<Entry> possible_matches;
+    Vector<Entry&> possible_matches;
     for (size_t i = m_entries.size(); i > 0;) {
         i--;
         auto& entry = m_entries[i];
@@ -28,7 +29,7 @@ void ListOfActiveFormattingElements::ensure_noahs_ark_clause(DOM::Element& eleme
             break;
         if (entry.element->local_name() == element.local_name()
             && entry.element->namespace_uri() == element.namespace_uri()
-            && entry.element->attribute_list_size() == element.attribute_list_size())
+            && entry.token->attribute_count() == element.attribute_list_size())
             possible_matches.append(entry);
     }
 
@@ -38,7 +39,7 @@ void ListOfActiveFormattingElements::ensure_noahs_ark_clause(DOM::Element& eleme
     // FIXME: the attributes should be compared as they where created by the parser
     element.for_each_attribute([&](auto& name, auto& value) {
         possible_matches.remove_all_matching([&](auto& entry) {
-            auto attr = entry.element->get_attribute(name);
+            auto attr = entry.token->attribute(name);
             return !attr.has_value() || attr != value;
         });
     });
@@ -49,8 +50,19 @@ void ListOfActiveFormattingElements::ensure_noahs_ark_clause(DOM::Element& eleme
     remove(*possible_matches.last().element);
 }
 
+AK::OwnPtr<HTMLToken> ListOfActiveFormattingElements::create_own_token(HTMLToken& token)
+{
+    auto new_token = make<HTMLToken>(token.type());
+    new_token->set_tag_name(token.tag_name());
+    token.for_each_attribute([&](auto const& attribute) {
+        new_token->add_attribute(attribute);
+        return IterationDecision::Continue;
+    });
+    return new_token;
+}
+
 // https://html.spec.whatwg.org/multipage/parsing.html#push-onto-the-list-of-active-formatting-elements
-void ListOfActiveFormattingElements::add(DOM::Element& element)
+void ListOfActiveFormattingElements::add(DOM::Element& element, HTMLToken& token)
 {
     // 1. If there are already three elements in the list of active formatting elements after the last marker, if any, or anywhere in the list if there are no markers,
     //    that have the same tag name, namespace, and attributes as element, then remove the earliest such element from the list of active formatting elements.
@@ -58,12 +70,12 @@ void ListOfActiveFormattingElements::add(DOM::Element& element)
     //    can be paired such that the two attributes in each pair have identical names, namespaces, and values (the order of the attributes does not matter).
     ensure_noahs_ark_clause(element);
     // 2. Add element to the list of active formatting elements.
-    m_entries.append({ element });
+    m_entries.append({ element, create_own_token(token) });
 }
 
 void ListOfActiveFormattingElements::add_marker()
 {
-    m_entries.append({ nullptr });
+    m_entries.append({ nullptr, nullptr });
 }
 
 bool ListOfActiveFormattingElements::contains(DOM::Element const& element) const
@@ -112,17 +124,20 @@ Optional<size_t> ListOfActiveFormattingElements::find_index(DOM::Element const& 
     return {};
 }
 
-void ListOfActiveFormattingElements::replace(DOM::Element& to_remove, DOM::Element& to_add)
+void ListOfActiveFormattingElements::replace(DOM::Element& to_remove, DOM::Element& to_add, HTMLToken& token)
 {
-    for (size_t i = 0; i < m_entries.size(); i++) {
-        if (m_entries[i].element.ptr() == &to_remove)
-            m_entries[i].element = GC::make_root(to_add);
+    for (auto& entry : m_entries) {
+        if (entry.element.ptr() == &to_remove) {
+            entry.element = GC::make_root(to_add);
+            entry.token = create_own_token(token);
+            break;
+        }
     }
 }
 
-void ListOfActiveFormattingElements::insert_at(size_t index, DOM::Element& element)
+void ListOfActiveFormattingElements::insert_at(size_t index, DOM::Element& element, HTMLToken& token)
 {
-    m_entries.insert(index, { element });
+    m_entries.insert(index, { element, create_own_token(token) });
 }
 
 }

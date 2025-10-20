@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -1713,14 +1714,10 @@ Create:
     // 8. Create: Insert an HTML element for the token for which the element entry was created, to obtain new element.
     VERIFY(!entry->is_marker());
 
-    // FIXME: Hold on to the real token!
-    auto new_element = insert_html_element(HTMLToken::make_start_tag(entry->element->local_name()));
-    entry->element->for_each_attribute([&](auto& name, auto& value) {
-        new_element->append_attribute(name, value);
-    });
+    auto new_element = insert_html_element(*entry->token);
 
     // 9. Replace the entry for entry in the list with an entry for new element.
-    m_list_of_active_formatting_elements.entries().at(index).element = new_element;
+    m_list_of_active_formatting_elements.replace(*entry->element, new_element, *entry->token);
 
     // 10. If the entry for new element in the list of active formatting elements is not the last entry in the list, return to the step labeled advance.
     if (index != m_list_of_active_formatting_elements.entries().size() - 1)
@@ -1840,16 +1837,17 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
                 break;
 
             // 4. If innerLoopCounter is greater than 3 and node is in the list of active formatting elements,
-            if (inner_loop_counter > 3 && m_list_of_active_formatting_elements.contains(*node)) {
-                auto node_index = m_list_of_active_formatting_elements.find_index(*node);
-                if (node_index.has_value() && node_index.value() < bookmark)
+            auto node_index = m_list_of_active_formatting_elements.find_index(*node);
+            if (inner_loop_counter > 3 && node_index.has_value()) {
+                if (node_index.value() < bookmark)
                     bookmark--;
                 // then remove node from the list of active formatting elements.
                 m_list_of_active_formatting_elements.remove(*node);
+                node_index = {};
             }
 
             // 5. If node is not in the list of active formatting elements,
-            if (!m_list_of_active_formatting_elements.contains(*node)) {
+            if (!node_index.has_value()) {
                 // then remove node from the stack of open elements and continue.
                 m_stack_of_open_elements.remove(*node);
                 continue;
@@ -1857,10 +1855,10 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
 
             // 6. Create an element for the token for which the element node was created,
             //    in the HTML namespace, with commonAncestor as the intended parent;
-            // FIXME: hold onto the real token
-            auto element = create_element_for(HTMLToken::make_start_tag(node->local_name()), Namespace::HTML, *common_ancestor);
+            auto& entry = m_list_of_active_formatting_elements.entries().at(node_index.value());
+            auto element = create_element_for(*entry.token, Namespace::HTML, *common_ancestor);
             //    replace the entry for node in the list of active formatting elements with an entry for the new element,
-            m_list_of_active_formatting_elements.replace(*node, *element);
+            m_list_of_active_formatting_elements.replace(*node, *element, *entry.token);
             //    replace the entry for node in the stack of open elements with an entry for the new element,
             m_stack_of_open_elements.replace(*node, element);
             //    and let node be the new element.
@@ -1886,8 +1884,10 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
 
         // 15. Create an element for the token for which formattingElement was created,
         //     in the HTML namespace, with furthestBlock as the intended parent.
-        // FIXME: hold onto the real token
-        auto element = create_element_for(HTMLToken::make_start_tag(formatting_element->local_name()), Namespace::HTML, *furthest_block);
+        auto formatting_element_index = m_list_of_active_formatting_elements.find_index(*formatting_element);
+        auto& entry = m_list_of_active_formatting_elements.entries().at(formatting_element_index.value());
+        auto token_data = ListOfActiveFormattingElements::create_own_token(*entry.token);
+        auto element = create_element_for(*token_data, Namespace::HTML, *furthest_block);
 
         // 16. Take all of the child nodes of furthestBlock and append them to the element created in the last step.
         for (auto& child : furthest_block->children_as_vector())
@@ -1898,11 +1898,10 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
 
         // 18. Remove formattingElement from the list of active formatting elements,
         //     and insert the new element into the list of active formatting elements at the position of the aforementioned bookmark.
-        auto formatting_element_index = m_list_of_active_formatting_elements.find_index(*formatting_element);
         if (formatting_element_index.has_value() && formatting_element_index.value() < bookmark)
             bookmark--;
         m_list_of_active_formatting_elements.remove(*formatting_element);
-        m_list_of_active_formatting_elements.insert_at(bookmark, *element);
+        m_list_of_active_formatting_elements.insert_at(bookmark, *element, *token_data);
 
         // 19. Remove formattingElement from the stack of open elements, and insert the new element
         //     into the stack of open elements immediately below the position of furthestBlock in that stack.
@@ -2626,7 +2625,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // Insert an HTML element for the token. Push onto the list of active formatting elements that element.
         auto element = insert_html_element(token);
-        m_list_of_active_formatting_elements.add(*element);
+        m_list_of_active_formatting_elements.add(*element, token);
         return;
     }
 
@@ -2637,7 +2636,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // Insert an HTML element for the token. Push onto the list of active formatting elements that element.
         auto element = insert_html_element(token);
-        m_list_of_active_formatting_elements.add(*element);
+        m_list_of_active_formatting_elements.add(*element, token);
         return;
     }
 
@@ -2655,7 +2654,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // Insert an HTML element for the token. Push onto the list of active formatting elements that element.
         auto element = insert_html_element(token);
-        m_list_of_active_formatting_elements.add(*element);
+        m_list_of_active_formatting_elements.add(*element, token);
         return;
     }
 
