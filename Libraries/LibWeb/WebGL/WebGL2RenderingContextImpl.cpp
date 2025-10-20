@@ -31,6 +31,16 @@ extern "C" {
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
+#define SET_ERROR_VALUE_IF_ERROR(expression, error_value) \
+    ({                                                    \
+        auto maybe_error = expression;                    \
+        if (maybe_error.is_error()) [[unlikely]] {        \
+            set_error(error_value);                       \
+            return;                                       \
+        }                                                 \
+        maybe_error.release_value();                      \
+    })
+
 namespace Web::WebGL {
 
 static Vector<GLchar> null_terminated_string(StringView string)
@@ -121,45 +131,36 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
 {
     m_context->make_current();
 
-    void const* src_data_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes src_data_span;
     if (src_data) {
-        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        src_data_ptr = byte_buffer.data() + src_data->byte_offset();
-        buffer_size = src_data->byte_length();
+        src_data_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, /* src_offset= */ 0), GL_INVALID_OPERATION);
     }
-    glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, buffer_size, src_data_ptr);
+
+    glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
 }
 
 void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
 
-    void const* src_data_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes src_data_span;
     if (src_data) {
-        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        src_data_ptr = byte_buffer.data() + src_offset;
-        buffer_size = src_data->byte_length();
+        src_data_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset), GL_INVALID_OPERATION);
     }
-    glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, buffer_size, src_data_ptr);
+
+    glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
 }
 
 void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
 
-    void const* pixels_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes src_data_span;
     if (src_data) {
-        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data() + src_offset;
-        buffer_size = src_data->byte_length();
+        src_data_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset), GL_INVALID_OPERATION);
     }
-    glTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, buffer_size, pixels_ptr);
+
+    glTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, src_data_span.size(), src_data_span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform1ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0)
@@ -228,18 +229,18 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
     m_context->make_current();
     m_context->notify_content_will_change();
 
-    auto span = span_from_float32_list(values);
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(values, src_offset), GL_INVALID_VALUE);
 
     switch (buffer) {
     case GL_COLOR:
-        if (src_offset + 4 > span.size()) {
+        if (span.size() < 4) {
             set_error(GL_INVALID_VALUE);
             return;
         }
         break;
     case GL_DEPTH:
     case GL_STENCIL:
-        if (src_offset + 1 > span.size()) {
+        if (span.size() < 1) {
             set_error(GL_INVALID_VALUE);
             return;
         }
@@ -250,7 +251,6 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
         return;
     }
 
-    span = span.slice(src_offset);
     glClearBufferfv(buffer, drawbuffer, span.data());
     needs_to_present();
 }
@@ -260,19 +260,18 @@ void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, Web
     m_context->make_current();
     m_context->notify_content_will_change();
 
-    auto span = span_from_int32_list(values);
-    auto count = span.size();
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_int32_list(values, src_offset), GL_INVALID_VALUE);
 
     switch (buffer) {
     case GL_COLOR:
-        if (src_offset + 4 > count) {
+        if (span.size() < 4) {
             set_error(GL_INVALID_VALUE);
             return;
         }
         break;
     case GL_DEPTH:
     case GL_STENCIL:
-        if (src_offset + 1 > count) {
+        if (span.size() < 1) {
             set_error(GL_INVALID_VALUE);
             return;
         }
@@ -283,7 +282,6 @@ void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, Web
         return;
     }
 
-    span = span.slice(src_offset);
     glClearBufferiv(buffer, drawbuffer, span.data());
     needs_to_present();
 }
@@ -293,17 +291,17 @@ void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, We
     m_context->make_current();
     m_context->notify_content_will_change();
 
-    auto span = span_from_uint32_list(values);
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_uint32_list(values, src_offset), GL_INVALID_VALUE);
     switch (buffer) {
     case GL_COLOR:
-        if (src_offset + 4 > span.size()) {
+        if (span.size() < 4) {
             set_error(GL_INVALID_VALUE);
             return;
         }
         break;
     case GL_DEPTH:
     case GL_STENCIL:
-        if (src_offset + 1 > span.size()) {
+        if (span.size() < 1) {
             set_error(GL_INVALID_VALUE);
             return;
         }
@@ -314,7 +312,6 @@ void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, We
         return;
     }
 
-    span = span.slice(src_offset);
     glClearBufferuiv(buffer, drawbuffer, span.data());
     needs_to_present();
 }
@@ -714,119 +711,44 @@ void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Ro
 {
     m_context->make_current();
 
-    void const* ptr = nullptr;
-    size_t byte_size = 0;
-    if (src_data->is_typed_array_base()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*src_data->raw_object());
-        ptr = typed_array_base.viewed_array_buffer()->buffer().data() + typed_array_base.byte_offset();
-        byte_size = src_data->byte_length();
-    } else if (src_data->is_data_view()) {
-        auto& data_view = static_cast<JS::DataView&>(*src_data->raw_object());
-        ptr = data_view.viewed_array_buffer()->buffer().data();
-        byte_size = data_view.viewed_array_buffer()->byte_length();
-    } else if (src_data->is_array_buffer()) {
-        auto& array_buffer = static_cast<JS::ArrayBuffer&>(*src_data->raw_object());
-        ptr = array_buffer.buffer().data();
-        byte_size = array_buffer.byte_length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-    glBufferData(target, byte_size, ptr, usage);
+    auto data = MUST(get_offset_span<u8 const>(*src_data, /* src_offset= */ 0));
+    glBufferData(target, data.size(), data.data(), usage);
 }
 
 void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::BufferSource> src_data)
 {
     m_context->make_current();
 
-    void const* ptr = nullptr;
-    size_t byte_size = 0;
-    if (src_data->is_typed_array_base()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*src_data->raw_object());
-        ptr = typed_array_base.viewed_array_buffer()->buffer().data() + typed_array_base.byte_offset();
-        byte_size = src_data->byte_length();
-    } else if (src_data->is_data_view()) {
-        auto& data_view = static_cast<JS::DataView&>(*src_data->raw_object());
-        ptr = data_view.viewed_array_buffer()->buffer().data();
-        byte_size = data_view.viewed_array_buffer()->byte_length();
-    } else if (src_data->is_array_buffer()) {
-        auto& array_buffer = static_cast<JS::ArrayBuffer&>(*src_data->raw_object());
-        ptr = array_buffer.buffer().data();
-        byte_size = array_buffer.byte_length();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-    glBufferSubData(target, dst_byte_offset, byte_size, ptr);
+    auto data = MUST(get_offset_span<u8 const>(*src_data, /* src_offset= */ 0));
+    glBufferSubData(target, dst_byte_offset, data.size(), data.data());
 }
 
 void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLong usage, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
 {
     m_context->make_current();
 
-    VERIFY(src_data);
-    auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-    auto const& byte_buffer = viewed_array_buffer->buffer();
-    auto src_data_length = src_data->byte_length();
-    auto src_data_element_size = src_data->element_size();
-    u8 const* buffer_ptr = byte_buffer.data();
-
-    u64 copy_length = length == 0 ? src_data_length - src_offset : length;
-    copy_length *= src_data_element_size;
-
-    if (src_offset > src_data_length) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    if (src_offset + copy_length > src_data_length) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    buffer_ptr += src_offset * src_data_element_size;
-    glBufferData(target, copy_length, buffer_ptr, usage);
+    auto span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset, length), GL_INVALID_VALUE);
+    glBufferData(target, span.size(), span.data(), usage);
 }
 
 void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
 {
     m_context->make_current();
 
-    VERIFY(src_data);
-    auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-    auto const& byte_buffer = viewed_array_buffer->buffer();
-    auto src_data_length = src_data->byte_length();
-    auto src_data_element_size = src_data->element_size();
-    u8 const* buffer_ptr = byte_buffer.data();
-
-    u64 copy_length = length == 0 ? src_data_length - src_offset : length;
-    copy_length *= src_data_element_size;
-
-    if (src_offset > src_data_length) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    if (src_offset + copy_length > src_data_length) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    buffer_ptr += src_offset * src_data_element_size;
-    glBufferSubData(target, dst_byte_offset, copy_length, buffer_ptr);
+    auto span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset, length), GL_INVALID_VALUE);
+    glBufferSubData(target, dst_byte_offset, span.size(), span.data());
 }
 
 void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
 {
     m_context->make_current();
 
-    void const* pixels_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes pixels_span;
     if (pixels) {
-        auto const& viewed_array_buffer = pixels->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data() + pixels->byte_offset();
-        buffer_size = pixels->byte_length();
+        pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*pixels, /* src_offset= */ 0), GL_INVALID_OPERATION);
     }
-    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, buffer_size, pixels_ptr);
+
+    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, pixels_span.size(), pixels_span.data());
 }
 
 void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
@@ -844,15 +766,12 @@ void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, We
 {
     m_context->make_current();
 
-    void const* pixels_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes pixels_span;
     if (pixels) {
-        auto const& viewed_array_buffer = pixels->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data() + pixels->byte_offset();
-        buffer_size = pixels->byte_length();
+        pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*pixels, /* src_offset= */ 0), GL_INVALID_OPERATION);
     }
-    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, buffer_size, pixels_ptr);
+
+    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, pixels_span.size(), pixels_span.data());
 }
 
 void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
@@ -882,15 +801,12 @@ void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL
 {
     m_context->make_current();
 
-    void const* pixels_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes pixels_span;
     if (src_data) {
-        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data() + src_offset;
-        buffer_size = src_data->byte_length();
+        pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset), GL_INVALID_OPERATION);
     }
-    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, buffer_size, pixels_ptr);
+
+    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, pixels_span.size(), pixels_span.data());
 }
 
 void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
@@ -909,63 +825,28 @@ void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, We
 {
     m_context->make_current();
 
-    void const* pixels_ptr = nullptr;
-    size_t buffer_size = 0;
+    ReadonlyBytes pixels_span;
     if (src_data) {
-        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
-        auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data() + src_data->byte_offset() + src_offset;
-        buffer_size = src_data->byte_length();
+        pixels_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset), GL_INVALID_OPERATION);
     }
-    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, buffer_size, pixels_ptr);
+
+    glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, pixels_span.size(), pixels_span.data());
 }
 
 void WebGL2RenderingContextImpl::compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
 
-    u8 const* pixels_ptr = src_data->viewed_array_buffer()->buffer().data();
-    size_t count = src_data->byte_length();
-    auto src_data_element_size = src_data->element_size();
-
-    if ((src_offset * src_data_element_size) + src_length_override > count) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    pixels_ptr += src_data->byte_offset();
-    pixels_ptr += src_offset * src_data_element_size;
-    if (src_length_override == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length_override;
-    }
-
-    glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, count, src_data->byte_length(), pixels_ptr);
+    auto pixels = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset, src_length_override), GL_INVALID_VALUE);
+    glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, pixels.size(), pixels.size(), pixels.data());
 }
 
 void WebGL2RenderingContextImpl::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
 
-    u8 const* pixels_ptr = src_data->viewed_array_buffer()->buffer().data();
-    size_t count = src_data->byte_length();
-    auto src_data_element_size = src_data->element_size();
-
-    if ((src_offset * src_data_element_size) + src_length_override > count) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    pixels_ptr += src_data->byte_offset();
-    pixels_ptr += src_offset * src_data_element_size;
-    if (src_length_override == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length_override;
-    }
-
-    glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, count, src_data->byte_length(), pixels_ptr);
+    auto pixels = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset, src_length_override), GL_INVALID_VALUE);
+    glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, pixels.size(), pixels.size(), pixels.data());
 }
 
 void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -975,189 +856,109 @@ void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> locat
     if (!location)
         return;
 
-    auto span = span_from_float32_list(values);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform1fv(location->handle(), count, span.data());
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    glUniform1fv(location->handle(), span.size(), span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_float32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > span.size()) {
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 2 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform2fv(location->handle(), count / 2, span.data());
+    glUniform2fv(location->handle(), span.size() / 2, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_float32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 3 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform3fv(location->handle(), count / 3, span.data());
+    glUniform3fv(location->handle(), span.size() / 3, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_float32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 4 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform4fv(location->handle(), count / 4, span.data());
+    glUniform4fv(location->handle(), span.size() / 4, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_int32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
-        set_error(GL_INVALID_VALUE);
-        return;
-    }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform1iv(location->handle(), count / 1, span.data());
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_int32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    glUniform1iv(location->handle(), span.size(), span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_int32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_int32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 2 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform2iv(location->handle(), count / 2, span.data());
+    glUniform2iv(location->handle(), span.size() / 2, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_int32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_int32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 3 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform3iv(location->handle(), count / 3, span.data());
+    glUniform3iv(location->handle(), span.size() / 3, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
     if (!location)
         return;
 
-    auto span = span_from_int32_list(v);
-    auto count = span.size();
-    if (src_offset + src_length > count) {
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_int32_list(values, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % 4 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniform4iv(location->handle(), count / 4, span.data());
+    glUniform4iv(location->handle(), span.size() / 4, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1167,23 +968,13 @@ void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation
     if (!location)
         return;
 
-    auto matrix_size = 2 * 2;
-    auto span = span_from_float32_list(data);
-    auto count = span.size() / matrix_size;
-
-    if (src_offset + src_length > (count * matrix_size)) {
+    constexpr auto matrix_size = 2 * 2;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniformMatrix2fv(location->handle(), count, transpose, span.data());
+    glUniformMatrix2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1193,23 +984,13 @@ void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation
     if (!location)
         return;
 
-    auto matrix_size = 3 * 3;
-    auto span = span_from_float32_list(data);
-    auto count = span.size() / matrix_size;
-
-    if (src_offset + src_length > (count * matrix_size)) {
+    constexpr auto matrix_size = 3 * 3;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniformMatrix3fv(location->handle(), count, transpose, span.data());
+    glUniformMatrix3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
 void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
@@ -1219,23 +1000,13 @@ void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation
     if (!location)
         return;
 
-    auto matrix_size = 4 * 4;
-    auto span = span_from_float32_list(data);
-    auto count = span.size() / matrix_size;
-
-    if (src_offset + src_length > (count * matrix_size)) {
+    constexpr auto matrix_size = 4 * 4;
+    auto span = SET_ERROR_VALUE_IF_ERROR(span_from_float32_list(data, src_offset, src_length), GL_INVALID_VALUE);
+    if (span.size() % matrix_size != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-
-    span = span.slice(src_offset);
-    if (src_length == 0) {
-        count -= src_offset;
-    } else {
-        count = src_length;
-    }
-
-    glUniformMatrix4fv(location->handle(), count, transpose, span.data());
+    glUniformMatrix4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
 void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
@@ -1246,8 +1017,8 @@ void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, Web
         return;
     }
 
-    void* ptr = pixels->viewed_array_buffer()->buffer().data() + pixels->byte_offset();
-    glReadPixelsRobustANGLE(x, y, width, height, format, type, pixels->byte_length(), nullptr, nullptr, nullptr, ptr);
+    auto span = MUST(get_offset_span<u8>(*pixels, /* src_offset= */ 0));
+    glReadPixelsRobustANGLE(x, y, width, height, format, type, span.size(), nullptr, nullptr, nullptr, span.data());
 }
 
 void WebGL2RenderingContextImpl::active_texture(WebIDL::UnsignedLong texture)
@@ -3070,7 +2841,7 @@ void WebGL2RenderingContextImpl::vertex_attrib1fv(WebIDL::UnsignedLong index, Fl
 {
     m_context->make_current();
 
-    auto span = span_from_float32_list(values);
+    auto span = MUST(span_from_float32_list(values, /* src_offset= */ 0));
     if (span.size() < 1) {
         set_error(GL_INVALID_VALUE);
         return;
@@ -3082,7 +2853,7 @@ void WebGL2RenderingContextImpl::vertex_attrib2fv(WebIDL::UnsignedLong index, Fl
 {
     m_context->make_current();
 
-    auto span = span_from_float32_list(values);
+    auto span = MUST(span_from_float32_list(values, /* src_offset= */ 0));
     if (span.size() < 2) {
         set_error(GL_INVALID_VALUE);
         return;
@@ -3094,7 +2865,7 @@ void WebGL2RenderingContextImpl::vertex_attrib3fv(WebIDL::UnsignedLong index, Fl
 {
     m_context->make_current();
 
-    auto span = span_from_float32_list(values);
+    auto span = MUST(span_from_float32_list(values, /* src_offset= */ 0));
     if (span.size() < 3) {
         set_error(GL_INVALID_VALUE);
         return;
@@ -3106,7 +2877,7 @@ void WebGL2RenderingContextImpl::vertex_attrib4fv(WebIDL::UnsignedLong index, Fl
 {
     m_context->make_current();
 
-    auto span = span_from_float32_list(values);
+    auto span = MUST(span_from_float32_list(values, /* src_offset= */ 0));
     if (span.size() < 4) {
         set_error(GL_INVALID_VALUE);
         return;
