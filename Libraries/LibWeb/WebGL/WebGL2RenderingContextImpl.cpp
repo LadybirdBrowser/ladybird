@@ -75,6 +75,23 @@ void WebGL2RenderingContextImpl::blit_framebuffer(WebIDL::Long src_x0, WebIDL::L
     glBlitFramebuffer(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0, dst_x1, dst_y1, mask, filter);
 }
 
+void WebGL2RenderingContextImpl::framebuffer_texture_layer(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, GC::Root<WebGLTexture> texture, WebIDL::Long level, WebIDL::Long layer)
+{
+    m_context->make_current();
+
+    GLuint texture_handle = 0;
+    if (texture) {
+        auto handle_or_error = texture->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        texture_handle = handle_or_error.release_value();
+    }
+
+    glFramebufferTextureLayer(target, attachment, texture_handle, level, layer);
+}
+
 void WebGL2RenderingContextImpl::invalidate_framebuffer(WebIDL::UnsignedLong target, Vector<WebIDL::UnsignedLong> attachments)
 {
     m_context->make_current();
