@@ -68,7 +68,6 @@ public:
         Yes,
     };
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    void revert_property(PropertyID, ComputedProperties const& style_for_revert);
 
     GC::Ptr<CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
     void set_transition_property_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
