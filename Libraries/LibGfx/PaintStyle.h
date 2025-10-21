@@ -20,6 +20,7 @@ namespace Gfx {
 class PaintStyle : public RefCounted<PaintStyle> {
 public:
     virtual ~PaintStyle() = default;
+    virtual bool is_visible() const { return true; }
 };
 
 class SolidColorPaintStyle : public PaintStyle {
@@ -28,6 +29,8 @@ public:
     {
         return adopt_nonnull_ref_or_enomem(new (nothrow) SolidColorPaintStyle(color));
     }
+
+    bool is_visible() const override { return m_color.alpha() > 0; }
 
     Color const& color() const { return m_color; }
 
@@ -64,6 +67,11 @@ public:
     void set_color_stops(Vector<ColorStop>&& color_stops) { m_color_stops = move(color_stops); }
 
     Optional<float> repeat_length() const { return m_repeat_length; }
+
+    bool is_visible() const override
+    {
+        return any_of(m_color_stops, [](auto& stop) { return stop.color.alpha() > 0; });
+    }
 
 private:
     Vector<ColorStop, 4> m_color_stops;
