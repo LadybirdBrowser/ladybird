@@ -109,59 +109,60 @@ private:
 };
 
 #define JS_ENUMERATE_COMMON_BINARY_OPS_WITH_FAST_PATH(O) \
-    O(Add, add)                                          \
-    O(BitwiseAnd, bitwise_and)                           \
-    O(BitwiseOr, bitwise_or)                             \
-    O(BitwiseXor, bitwise_xor)                           \
-    O(Div, div)                                          \
-    O(GreaterThan, greater_than)                         \
-    O(GreaterThanEquals, greater_than_equals)            \
-    O(LeftShift, left_shift)                             \
-    O(LessThan, less_than)                               \
-    O(LessThanEquals, less_than_equals)                  \
-    O(Mul, mul)                                          \
-    O(RightShift, right_shift)                           \
-    O(Sub, sub)                                          \
-    O(UnsignedRightShift, unsigned_right_shift)
+    O(Add, add, true)                                    \
+    O(BitwiseAnd, bitwise_and, true)                     \
+    O(BitwiseOr, bitwise_or, true)                       \
+    O(BitwiseXor, bitwise_xor, true)                     \
+    O(Div, div, true)                                    \
+    O(GreaterThan, greater_than, true)                   \
+    O(GreaterThanEquals, greater_than_equals, true)      \
+    O(LeftShift, left_shift, true)                       \
+    O(LessThan, less_than, true)                         \
+    O(LessThanEquals, less_than_equals, true)            \
+    O(Mul, mul, true)                                    \
+    O(RightShift, right_shift, true)                     \
+    O(Sub, sub, true)                                    \
+    O(UnsignedRightShift, unsigned_right_shift, true)
 
 #define JS_ENUMERATE_COMMON_BINARY_OPS_WITHOUT_FAST_PATH(O) \
-    O(Exp, exp)                                             \
-    O(Mod, mod)                                             \
-    O(In, in)                                               \
-    O(InstanceOf, instance_of)                              \
-    O(LooselyInequals, loosely_inequals)                    \
-    O(LooselyEquals, loosely_equals)                        \
-    O(StrictlyInequals, strict_inequals)                    \
-    O(StrictlyEquals, strict_equals)
+    O(Exp, exp, true)                                       \
+    O(Mod, mod, true)                                       \
+    O(In, in, false)                                        \
+    O(InstanceOf, instance_of, false)                       \
+    O(LooselyInequals, loosely_inequals, true)              \
+    O(LooselyEquals, loosely_equals, true)                  \
+    O(StrictlyInequals, strict_inequals, true)              \
+    O(StrictlyEquals, strict_equals, true)
 
-#define JS_DECLARE_COMMON_BINARY_OP(OpTitleCase, op_snake_case)             \
-    class OpTitleCase final : public Instruction {                          \
-    public:                                                                 \
-        explicit OpTitleCase(Operand dst, Operand lhs, Operand rhs)         \
-            : Instruction(Type::OpTitleCase)                                \
-            , m_dst(dst)                                                    \
-            , m_lhs(lhs)                                                    \
-            , m_rhs(rhs)                                                    \
-        {                                                                   \
-        }                                                                   \
-                                                                            \
-        ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const; \
-        ByteString to_byte_string_impl(Bytecode::Executable const&) const;  \
-        void visit_operands_impl(Function<void(Operand&)> visitor)          \
-        {                                                                   \
-            visitor(m_dst);                                                 \
-            visitor(m_lhs);                                                 \
-            visitor(m_rhs);                                                 \
-        }                                                                   \
-                                                                            \
-        Operand dst() const { return m_dst; }                               \
-        Operand lhs() const { return m_lhs; }                               \
-        Operand rhs() const { return m_rhs; }                               \
-                                                                            \
-    private:                                                                \
-        Operand m_dst;                                                      \
-        Operand m_lhs;                                                      \
-        Operand m_rhs;                                                      \
+#define JS_DECLARE_COMMON_BINARY_OP(OpTitleCase, op_snake_case, can_throw_if_both_primitive) \
+    class OpTitleCase final : public Instruction {                                           \
+    public:                                                                                  \
+        static constexpr bool no_throw_if_both_primitive = can_throw_if_both_primitive;      \
+        explicit OpTitleCase(Operand dst, Operand lhs, Operand rhs)                          \
+            : Instruction(Type::OpTitleCase)                                                 \
+            , m_dst(dst)                                                                     \
+            , m_lhs(lhs)                                                                     \
+            , m_rhs(rhs)                                                                     \
+        {                                                                                    \
+        }                                                                                    \
+                                                                                             \
+        ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;                  \
+        ByteString to_byte_string_impl(Bytecode::Executable const&) const;                   \
+        void visit_operands_impl(Function<void(Operand&)> visitor)                           \
+        {                                                                                    \
+            visitor(m_dst);                                                                  \
+            visitor(m_lhs);                                                                  \
+            visitor(m_rhs);                                                                  \
+        }                                                                                    \
+                                                                                             \
+        Operand dst() const { return m_dst; }                                                \
+        Operand lhs() const { return m_lhs; }                                                \
+        Operand rhs() const { return m_rhs; }                                                \
+                                                                                             \
+    private:                                                                                 \
+        Operand m_dst;                                                                       \
+        Operand m_lhs;                                                                       \
+        Operand m_rhs;                                                                       \
     };
 
 JS_ENUMERATE_COMMON_BINARY_OPS_WITHOUT_FAST_PATH(JS_DECLARE_COMMON_BINARY_OP)

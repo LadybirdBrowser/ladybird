@@ -682,9 +682,25 @@ template<typename OP>
 FLATTEN u32 handle_generic(Interpreter& interpreter, u8 const* bytecode, u32 program_counter)
 {
     constexpr bool has_exception_check = requires { requires IsSame<decltype(declval<OP>().execute_impl(declval<Interpreter&>())), ThrowCompletionOr<void>>; };
-
+    constexpr bool no_throw_if_both_num = has_exception_check && requires { OP::no_throw_if_both_primitive; requires(OP::no_throw_if_both_primitive); };
     auto const& instruction = *reinterpret_cast<OP const*>(&bytecode[program_counter]);
-    if constexpr (has_exception_check) {
+    if constexpr (no_throw_if_both_num) {
+        auto lhs = interpreter.get(instruction.lhs());
+        auto rhs = interpreter.get(instruction.rhs());
+        auto is_primitive = [](Value value) {
+            // Note: Excluding BigInts here as those will actually throw in arithmetic operations
+            //       Which we do not special-case here
+            return value.is_number() || value.is_boolean() || value.is_nullish() || value.is_string();
+        };
+        if (is_primitive(lhs) && is_primitive(rhs)) {
+            [[maybe_unused]] auto result = instruction.execute_impl(interpreter);
+            ASSERT(!result.is_throw_completion());
+        } else {
+            SYNC_PROGRAM_COUNTER(interpreter);
+            auto result = instruction.execute_impl(interpreter);
+            HANDLE_EXCEPTION(result, interpreter);
+        }
+    } else if constexpr (has_exception_check) {
         SYNC_PROGRAM_COUNTER(interpreter);
         auto result = instruction.execute_impl(interpreter);
         HANDLE_EXCEPTION(result, interpreter);
@@ -1883,23 +1899,23 @@ void Dump::execute_impl(Bytecode::Interpreter& interpreter) const
     }
 }
 
-#define JS_DEFINE_EXECUTE_FOR_COMMON_BINARY_OP(OpTitleCase, op_snake_case)                      \
-    ThrowCompletionOr<void> OpTitleCase::execute_impl(Bytecode::Interpreter& interpreter) const \
-    {                                                                                           \
-        auto& vm = interpreter.vm();                                                            \
-        auto lhs = interpreter.get(m_lhs);                                                      \
-        auto rhs = interpreter.get(m_rhs);                                                      \
-        interpreter.set(m_dst, Value { TRY(op_snake_case(vm, lhs, rhs)) });                     \
-        return {};                                                                              \
+#define JS_DEFINE_EXECUTE_FOR_COMMON_BINARY_OP(OpTitleCase, op_snake_case, no_throw_if_both_primitive) \
+    ThrowCompletionOr<void> OpTitleCase::execute_impl(Bytecode::Interpreter& interpreter) const        \
+    {                                                                                                  \
+        auto& vm = interpreter.vm();                                                                   \
+        auto lhs = interpreter.get(m_lhs);                                                             \
+        auto rhs = interpreter.get(m_rhs);                                                             \
+        interpreter.set(m_dst, Value { TRY(op_snake_case(vm, lhs, rhs)) });                            \
+        return {};                                                                                     \
     }
 
-#define JS_DEFINE_TO_BYTE_STRING_FOR_COMMON_BINARY_OP(OpTitleCase, op_snake_case)             \
-    ByteString OpTitleCase::to_byte_string_impl(Bytecode::Executable const& executable) const \
-    {                                                                                         \
-        return ByteString::formatted(#OpTitleCase " {}, {}, {}",                              \
-            format_operand("dst"sv, m_dst, executable),                                       \
-            format_operand("lhs"sv, m_lhs, executable),                                       \
-            format_operand("rhs"sv, m_rhs, executable));                                      \
+#define JS_DEFINE_TO_BYTE_STRING_FOR_COMMON_BINARY_OP(OpTitleCase, op_snake_case, no_throw_if_both_primitive) \
+    ByteString OpTitleCase::to_byte_string_impl(Bytecode::Executable const& executable) const                 \
+    {                                                                                                         \
+        return ByteString::formatted(#OpTitleCase " {}, {}, {}",                                              \
+            format_operand("dst"sv, m_dst, executable),                                                       \
+            format_operand("lhs"sv, m_lhs, executable),                                                       \
+            format_operand("rhs"sv, m_rhs, executable));                                                      \
     }
 
 JS_ENUMERATE_COMMON_BINARY_OPS_WITHOUT_FAST_PATH(JS_DEFINE_EXECUTE_FOR_COMMON_BINARY_OP)
