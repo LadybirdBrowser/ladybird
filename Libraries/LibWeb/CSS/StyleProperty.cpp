@@ -13,7 +13,7 @@ StyleProperty::~StyleProperty() = default;
 
 bool StyleProperty::operator==(StyleProperty const& other) const
 {
-    if (important != other.important || property_id != other.property_id || custom_name != other.custom_name)
+    if (important != other.important || name_and_id != other.name_and_id)
         return false;
     return value->equals(*other.value);
 }

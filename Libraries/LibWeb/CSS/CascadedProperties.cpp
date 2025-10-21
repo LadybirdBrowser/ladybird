@@ -36,7 +36,7 @@ void CascadedProperties::revert_property(PropertyID property_id, Important impor
         return;
     auto& entries = it->value;
     entries.remove_all_matching([&](auto& entry) {
-        return entry.property.property_id == property_id
+        return entry.property.name_and_id.id() == property_id
             && entry.property.important == important
             && cascade_origin == entry.origin;
     });
@@ -51,7 +51,7 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
         return;
     auto& entries = it->value;
     entries.remove_all_matching([&](auto& entry) {
-        return entry.property.property_id == property_id
+        return entry.property.name_and_id.id() == property_id
             && entry.property.important == important
             && layer_name == entry.layer_name;
     });
@@ -68,9 +68,9 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
             if (entry.property.important == Important::Yes && important == Important::No)
                 return;
             entry.property = StyleProperty {
-                .important = important,
-                .property_id = property_id,
+                .name_and_id = PropertyNameAndID::from_id(property_id),
                 .value = value,
+                .important = important,
             };
             return;
         }
@@ -78,9 +78,9 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
 
     entries.append(Entry {
         .property = StyleProperty {
-            .important = important,
-            .property_id = property_id,
+            .name_and_id = PropertyNameAndID::from_id(property_id),
             .value = value,
+            .important = important,
         },
         .origin = origin,
         .layer_name = move(layer_name),
@@ -93,9 +93,9 @@ void CascadedProperties::set_unresolved_shorthand(PropertyID property_id, Nonnul
     m_unresolved_shorthands.set(property_id,
         Entry {
             .property = StyleProperty {
-                .important = important,
-                .property_id = property_id,
+                .name_and_id = PropertyNameAndID::from_id(property_id),
                 .value = value,
+                .important = important,
             },
             .origin = origin,
             .layer_name = move(layer_name),
@@ -110,9 +110,9 @@ void CascadedProperties::set_property_from_presentational_hint(PropertyID proper
 
         entries.append(Entry {
             .property = StyleProperty {
-                .important = Important::No,
-                .property_id = longhand_property_id,
+                .name_and_id = PropertyNameAndID::from_id(longhand_property_id),
                 .value = longhand_value,
+                .important = Important::No,
             },
             .origin = CascadeOrigin::Author,
             .layer_name = {},

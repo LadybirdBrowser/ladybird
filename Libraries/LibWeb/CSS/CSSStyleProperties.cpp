@@ -85,8 +85,11 @@ Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_orde
     Vector<StyleProperty> specified_order_declarations;
 
     for (auto declaration : declarations) {
-        StyleComputer::for_each_property_expanding_shorthands(declaration.property_id, declaration.value, [&](CSS::PropertyID longhand_id, CSS::StyleValue const& longhand_property_value) {
-            auto existing_entry_index = specified_order_declarations.find_first_index_if([&](StyleProperty const& existing_declaration) { return existing_declaration.property_id == longhand_id; });
+        StyleComputer::for_each_property_expanding_shorthands(declaration.name_and_id.id(), declaration.value, [&](PropertyID longhand_id, StyleValue const& longhand_property_value) {
+            auto existing_entry_index = specified_order_declarations.find_first_index_if(
+                [&](StyleProperty const& existing_declaration) {
+                    return existing_declaration.name_and_id.id() == longhand_id;
+                });
 
             if (existing_entry_index.has_value()) {
                 // If there is an existing entry for this property and it is a higher cascading order than the current entry, skip the current entry.
@@ -98,9 +101,10 @@ Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_orde
             }
 
             specified_order_declarations.append(StyleProperty {
+                .name_and_id = PropertyNameAndID::from_id(longhand_id),
+                .value = longhand_property_value,
                 .important = declaration.important,
-                .property_id = longhand_id,
-                .value = longhand_property_value });
+            });
         });
     }
 
@@ -151,10 +155,10 @@ String CSSStyleProperties::item(size_t index) const
     if (index < custom_properties_count) {
         auto keys = m_custom_properties.keys();
         auto custom_property = m_custom_properties.get(keys[index]);
-        return custom_property.ptr()->custom_name.to_string();
+        return custom_property.ptr()->name_and_id.name().to_string();
     }
 
-    return CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id).to_string();
+    return string_from_property_id(m_properties[index - custom_properties_count].name_and_id.id()).to_string();
 }
 
 Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id) const
@@ -247,10 +251,9 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
     else {
         if (property.is_custom_property()) {
             StyleProperty style_property {
-                .important = !priority.is_empty() ? Important::Yes : Important::No,
-                .property_id = property.id(),
+                .name_and_id = property,
                 .value = component_value_list.release_nonnull(),
-                .custom_name = property.name(),
+                .important = !priority.is_empty() ? Important::Yes : Important::No,
             };
             m_custom_properties.set(property.name(), style_property);
             updated = true;
@@ -413,10 +416,10 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         m_custom_properties.remove(property.name());
         m_custom_properties.set(property.name(),
             StyleProperty {
-                Important::No,
-                PropertyID::Custom,
-                style_value,
-                property.name() });
+                .name_and_id = property,
+                .value = style_value,
+                .important = Important::No,
+            });
         return {};
     }
 
@@ -432,12 +435,12 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
 
     StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
         m_properties.remove_first_matching([longhand_id](StyleProperty const& style_property) {
-            return style_property.property_id == longhand_id;
+            return style_property.name_and_id.id() == longhand_id;
         });
         m_properties.append(StyleProperty {
-            .important = Important::No,
-            .property_id = longhand_id,
+            .name_and_id = PropertyNameAndID::from_id(longhand_id),
             .value = longhand_value,
+            .important = Important::No,
         });
     });
 
@@ -484,9 +487,9 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
             // 3. If important flags of all declarations in list are same, then return the serialization of list.
             // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
             return StyleProperty {
-                .important = last_important_flag.value(),
-                .property_id = property.id(),
+                .name_and_id = property,
                 .value = ShorthandStyleValue::create(property.id(), longhand_ids, list),
+                .important = last_important_flag.value(),
             };
 
             // 4. Return the empty string.
@@ -532,9 +535,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         if (property_name_and_id.is_custom_property()) {
             if (auto maybe_value = abstract_element.get_custom_property(property_name_and_id.name())) {
                 return StyleProperty {
-                    .property_id = property_id,
+                    .name_and_id = property_name_and_id,
                     .value = maybe_value.release_nonnull(),
-                    .custom_name = property_name_and_id.name(),
                 };
             }
             return {};
@@ -544,7 +546,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             auto style = abstract_element.document().style_computer().compute_style(abstract_element);
 
             return StyleProperty {
-                .property_id = property_id,
+                .name_and_id = property_name_and_id,
                 .value = style->property(property_id),
             };
         }
@@ -553,7 +555,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         if (!value)
             return {};
         return StyleProperty {
-            .property_id = property_id,
+            .name_and_id = property_name_and_id,
             .value = *value,
         };
     }
@@ -562,7 +564,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         return custom_property(property_name_and_id.name()).map([](auto& it) { return it; });
 
     for (auto const& property : m_properties) {
-        if (property.property_id == property_id)
+        if (property.name_and_id == property_name_and_id)
             return property;
     }
     return {};
@@ -977,7 +979,7 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optiona
                 if (property_to_remove.is_custom_property()) {
                     removed = m_custom_properties.remove(property_to_remove.name());
                 } else {
-                    removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_to_remove.id(); });
+                    removed = m_properties.remove_first_matching([&](auto& entry) { return entry.name_and_id.id() == property_to_remove.id(); });
                 }
             }
 
@@ -1076,7 +1078,7 @@ String CSSStyleProperties::serialized() const
     // 3. Declaration loop: For each CSS declaration declaration in declaration block’s declarations, follow these substeps:
     for (auto& declaration : m_properties) {
         // 1. Let property be declaration’s property name.
-        auto property = declaration.property_id;
+        auto property = declaration.name_and_id.id();
 
         // 2. If property is in already serialized, continue with the steps labeled declaration loop.
         if (already_serialized.contains(property))
@@ -1094,12 +1096,12 @@ String CSSStyleProperties::serialized() const
                 Vector<StyleProperty> longhands;
 
                 for (auto const& longhand_declaration : m_properties) {
-                    if (!already_serialized.contains(longhand_declaration.property_id) && shorthands_for_longhand(longhand_declaration.property_id).contains_slow(shorthand))
+                    if (!already_serialized.contains(longhand_declaration.name_and_id.id()) && shorthands_for_longhand(longhand_declaration.name_and_id.id()).contains_slow(shorthand))
                         longhands.append(longhand_declaration);
                 }
 
                 // 2. If not all properties that map to shorthand are present in longhands, continue with the steps labeled shorthand loop.
-                if (any_of(expanded_longhands_for_shorthand(shorthand), [&](auto longhand_id) { return !any_of(longhands, [&](auto const& longhand_declaration) { return longhand_declaration.property_id == longhand_id; }); }))
+                if (any_of(expanded_longhands_for_shorthand(shorthand), [&](auto longhand_id) { return !any_of(longhands, [&](auto const& longhand_declaration) { return longhand_declaration.name_and_id.id() == longhand_id; }); }))
                     continue;
 
                 // 3. Let current longhands be an empty array.
@@ -1107,7 +1109,7 @@ String CSSStyleProperties::serialized() const
 
                 // 4. Append all CSS declarations in longhands that have a property name that maps to shorthand to current longhands.
                 for (auto const& longhand : longhands) {
-                    if (shorthands_for_longhand(longhand.property_id).contains_slow(shorthand))
+                    if (shorthands_for_longhand(longhand.name_and_id.id()).contains_slow(shorthand))
                         current_longhands.append(longhand);
                 }
 
@@ -1129,8 +1131,8 @@ String CSSStyleProperties::serialized() const
                 //    in current longhands which belongs to the same logical property group, but has a different
                 //    mapping logic as any of the longhands in current longhands, and is not in current
                 //    longhands, continue with the steps labeled shorthand loop.
-                auto first_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[0].property_id; });
-                auto last_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[current_longhands.size() - 1].property_id; });
+                auto first_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.name_and_id == current_longhands[0].name_and_id; });
+                auto last_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.name_and_id == current_longhands[current_longhands.size() - 1].name_and_id; });
 
                 VERIFY(first_current_longhand_index.has_value());
                 VERIFY(last_current_longhand_index.has_value());
@@ -1139,18 +1141,18 @@ String CSSStyleProperties::serialized() const
 
                 for (auto current_declaration_index = first_current_longhand_index.value(); current_declaration_index <= last_current_longhand_index.value(); ++current_declaration_index) {
                     // NB: Declaration is in current longhands
-                    if (any_of(current_longhands, [&](auto const& current_longhand) { return current_longhand.property_id == m_properties[current_declaration_index].property_id; }))
+                    if (any_of(current_longhands, [&](auto const& current_longhand) { return current_longhand.name_and_id == m_properties[current_declaration_index].name_and_id; }))
                         continue;
 
-                    auto logical_property_group_for_current_declaration = logical_property_group_for_property(m_properties[current_declaration_index].property_id);
+                    auto logical_property_group_for_current_declaration = logical_property_group_for_property(m_properties[current_declaration_index].name_and_id.id());
 
                     if (!logical_property_group_for_current_declaration.has_value())
                         continue;
 
-                    auto current_declaration_is_logical_alias = property_is_logical_alias(m_properties[current_declaration_index].property_id);
+                    auto current_declaration_is_logical_alias = property_is_logical_alias(m_properties[current_declaration_index].name_and_id.id());
 
                     // NB: Declaration has any counterpart in current longhands with same logical property group but different mapping logic
-                    if (any_of(current_longhands, [&](auto const& current_longhand) { return logical_property_group_for_property(current_longhand.property_id) == logical_property_group_for_current_declaration && property_is_logical_alias(current_longhand.property_id) != current_declaration_is_logical_alias; })) {
+                    if (any_of(current_longhands, [&](auto const& current_longhand) { return logical_property_group_for_property(current_longhand.name_and_id.id()) == logical_property_group_for_current_declaration && property_is_logical_alias(current_longhand.name_and_id.id()) != current_declaration_is_logical_alias; })) {
                         should_continue = true;
                         break;
                     }
@@ -1176,14 +1178,14 @@ String CSSStyleProperties::serialized() const
 
                 // 11. Append the property names of all items of current longhands to already serialized.
                 for (auto const& longhand : current_longhands)
-                    append_property_to_already_serialized(longhand.property_id);
+                    append_property_to_already_serialized(longhand.name_and_id.id());
 
                 // 12. Continue with the steps labeled declaration loop.
             }
         }
 
         // FIXME: File spec issue that this should only be run if we haven't serialized this declaration in the above shorthand loop.
-        if (!already_serialized.contains(declaration.property_id)) {
+        if (!already_serialized.contains(declaration.name_and_id.id())) {
             // 5. Let value be the result of invoking serialize a CSS value of declaration.
             auto value = serialize_a_css_value(declaration);
 
@@ -1195,7 +1197,7 @@ String CSSStyleProperties::serialized() const
             list.append(move(serialized_declaration));
 
             // 8. Append property to already serialized.
-            append_property_to_already_serialized(declaration.property_id);
+            append_property_to_already_serialized(declaration.name_and_id.id());
         }
     }
 
@@ -1240,7 +1242,7 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
         return String {};
 
     // 1. Let shorthand be the first shorthand property, in preferred order, that exactly maps to all of the longhand properties in list.
-    Optional<PropertyID> shorthand = shorthands_for_longhand(list.first().property_id).first_matching([&](PropertyID shorthand) {
+    Optional<PropertyID> shorthand = shorthands_for_longhand(list.first().name_and_id.id()).first_matching([&](PropertyID shorthand) {
         auto longhands_for_potential_shorthand = expanded_longhands_for_shorthand(shorthand);
 
         // The potential shorthand exactly maps to all of the longhand properties in list if:
@@ -1249,7 +1251,7 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
             return false;
 
         // b. All longhand properties in the list are contained in the list of longhands for the potential shorthand.
-        return all_of(longhands_for_potential_shorthand, [&](auto longhand) { return any_of(list, [&](auto const& declaration) { return declaration.property_id == longhand; }); });
+        return all_of(longhands_for_potential_shorthand, [&](auto longhand) { return any_of(list, [&](auto const& declaration) { return declaration.name_and_id.id() == longhand; }); });
     });
 
     // 2. If there is no such shorthand or shorthand cannot exactly represent the values of all the properties in list, return the empty string.
@@ -1265,7 +1267,7 @@ String CSSStyleProperties::serialize_a_css_value(Vector<StyleProperty> list) con
             if (property_is_shorthand(longhand_id))
                 longhand_values.append(make_shorthand_value(longhand_id));
             else
-                longhand_values.append(list.first_matching([&](auto declaration) { return declaration.property_id == longhand_id; })->value);
+                longhand_values.append(list.first_matching([&](auto declaration) { return declaration.name_and_id.id() == longhand_id; })->value);
         }
 
         return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
@@ -1313,7 +1315,7 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
     // NOTE: The below algorithm is only suggested rather than required by the spec
     // https://drafts.csswg.org/cssom/#example-a40690cb
     // 1. If property is a case-sensitive match for a property name of a CSS declaration in declarations, follow these substeps:
-    auto maybe_target_index = m_properties.find_first_index_if([&](auto declaration) { return declaration.property_id == property_id; });
+    auto maybe_target_index = m_properties.find_first_index_if([&](auto declaration) { return declaration.name_and_id.id() == property_id; });
 
     if (maybe_target_index.has_value()) {
         // 1. Let target declaration be such CSS declaration.
@@ -1332,11 +1334,11 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
             // 3. For each declaration in declarations after target declaration:
             for (size_t i = maybe_target_index.value() + 1; i < m_properties.size(); ++i) {
                 // 1. If declaration’s property name is not in the same logical property group as property, then continue.
-                if (logical_property_group_for_property(m_properties[i].property_id) != logical_property_group_for_set_property)
+                if (logical_property_group_for_property(m_properties[i].name_and_id.id()) != logical_property_group_for_set_property)
                     continue;
 
                 // 2. If declaration’ property name has the same mapping logic as property, then continue.
-                if (property_is_logical_alias(m_properties[i].property_id) == set_property_is_logical_alias)
+                if (property_is_logical_alias(m_properties[i].name_and_id.id()) == set_property_is_logical_alias)
                     continue;
 
                 // 3. Let needs append be true.
@@ -1381,9 +1383,9 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
     // 2. Append a new CSS declaration with property name property, value component value list, and important flag set
     //    if important flag is set to declarations.
     m_properties.append(StyleProperty {
-        .important = important,
-        .property_id = property_id,
+        .name_and_id = PropertyNameAndID::from_id(property_id),
         .value = move(value),
+        .important = important,
     });
 
     // 3. Return true

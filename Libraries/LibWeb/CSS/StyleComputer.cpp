@@ -739,25 +739,26 @@ void StyleComputer::cascade_declarations(
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
         for (auto const& property : declaration.properties()) {
 
+            auto property_id = property.name_and_id.id();
             // OPTIMIZATION: If we've been asked to only cascade a specific set of properties, skip the rest.
             // FIXME: This skips shorthands whose longhands are in properties_to_cascade. However, we don't need that functionality (yet?)
             if (!properties_to_cascade.is_empty()) {
-                if (!properties_to_cascade.contains_slow(property.property_id))
+                if (!properties_to_cascade.contains_slow(property_id))
                     continue;
             }
 
             if (important != property.important)
                 continue;
 
-            if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property.property_id))
+            if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property_id))
                 continue;
 
             // Record any UnresolvedStyleValues in shorthands, so that we can expand them after custom properties are computed.
-            if (property_is_shorthand(property.property_id) && property.value->is_unresolved()) {
-                cascaded_properties.set_unresolved_shorthand(property.property_id, property.value, important, cascade_origin, layer_name, declaration);
+            if (property_is_shorthand(property_id) && property.value->is_unresolved()) {
+                cascaded_properties.set_unresolved_shorthand(property_id, property.value, important, cascade_origin, layer_name, declaration);
             }
 
-            for_each_property_expanding_shorthands(property.property_id, property.value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
+            for_each_property_expanding_shorthands(property_id, property.value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 PropertyID physical_property_id;
 
                 if (property_is_logical_alias(longhand_id)) {
@@ -2318,7 +2319,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
-                style->set_property(property.property_id, property.value);
+                style->set_property(property.name_and_id.id(), property.value);
         }
         abstract_element.element().adjust_computed_style(style);
         return style;
@@ -2780,13 +2781,13 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
-                    if (!is_animatable_property(it.property_id))
+                    if (!is_animatable_property(it.name_and_id.id()))
                         continue;
 
                     // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {
-                        animated_properties.set(shorthand_id);
-                        resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<StyleValue const> { shorthand_value });
+                    for_each_property_expanding_shorthands(it.name_and_id.id(), it.value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
+                        animated_properties.set(longhand_id);
+                        resolved_keyframe.properties.set(longhand_id, NonnullRefPtr<StyleValue const> { longhand_value });
                     });
                 }
 
@@ -3042,10 +3043,9 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
     for (auto const& [name, style_property] : custom_properties) {
         resolved_custom_properties.set(name,
             StyleProperty {
-                .important = style_property.important,
-                .property_id = style_property.property_id,
+                .name_and_id = style_property.name_and_id,
                 .value = compute_value_of_custom_property(abstract_element, name),
-                .custom_name = style_property.custom_name,
+                .important = style_property.important,
             });
     }
     abstract_element.set_custom_properties(move(resolved_custom_properties));

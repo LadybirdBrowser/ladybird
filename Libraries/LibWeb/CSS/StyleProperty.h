@@ -7,19 +7,17 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <LibWeb/CSS/Important.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 
 namespace Web::CSS {
 
 struct WEB_API StyleProperty {
     ~StyleProperty();
 
-    Important important { Important::No };
-    PropertyID property_id;
+    PropertyNameAndID name_and_id;
     NonnullRefPtr<StyleValue const> value;
-    FlyString custom_name {};
+    Important important { Important::No };
 
     bool operator==(StyleProperty const& other) const;
 };
