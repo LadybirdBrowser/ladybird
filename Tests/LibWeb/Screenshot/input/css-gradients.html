@@ -1,15 +1,24 @@
 <!DOCTYPE html>
-<html>
 <link rel="match" href="../expected/css-gradients-ref.html" />
-<meta name="fuzzy" content="maxDifference=0-63;totalPixels=0-362">
+<meta name="fuzzy" content="maxDifference=0-63;totalPixels=0-215">
 <style>
   body {
     background-color: white;
   }
 
+  section.boxes {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  section.rects {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   div {
     border: 1px solid black;
-    margin: 20px;
+    margin: 5px;
   }
 
   .box {
@@ -210,7 +219,7 @@
     background-image: repeating-radial-gradient(circle at calc(100% - 10px) calc(20% + 10px), #333, #333 10px, #eee 10px, #eee 20px);
   }
 </style>
-<body>
+<section class="boxes">
   <div class="box grad-0"></div>
   <div class="box grad-1"></div>
   <div class="box grad-2"></div>
@@ -220,15 +229,9 @@
   <div class="box grad-6"></div>
   <div class="box grad-rainbow"></div>
   <div class="box grad-hints"></div>
-  <div class="rect grad-7"></div>
   <div class="box grad-8"></div>
   <div class="box grad-9"></div>
   <div class="box grad-10"></div>
-  <div class="rect grad-11"></div>
-  <div class="rect grad-12"></div>
-  <div class="rect grad-13"></div>
-  <div class="rect grad-14"></div>
-  <div class="rect grad-15"></div>
   <div class="box grad-webkit"></div>
   <div class="box grad-repeat-0"></div>
   <div class="box grad-repeat-1"></div>
@@ -243,6 +246,14 @@
   <div class="box grad-conic-6"></div>
   <div class="box grad-conic-repeat-1"></div>
   <div class="box grad-conic-repeat-2"></div>
+</section>
+<section class="rects">
+  <div class="rect grad-7"></div>
+  <div class="rect grad-11"></div>
+  <div class="rect grad-12"></div>
+  <div class="rect grad-13"></div>
+  <div class="rect grad-14"></div>
+  <div class="rect grad-15"></div>
   <div class="rect grad-radial-1"></div>
   <div class="rect grad-radial-2"></div>
   <div class="rect grad-radial-3"></div>
@@ -251,5 +262,4 @@
   <div class="rect grad-radial-repeat-2"></div>
   <div class="rect grad-radial-repeat-3"></div>
   <div class="rect grad-radial-calc"></div>
-</body>
-</html>
+</section>
