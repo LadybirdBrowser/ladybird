@@ -373,8 +373,6 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     if (!painter)
         return;
 
-    paint_shadow_for_stroke_internal(path);
-
     auto& state = drawing_state();
 
     auto line_cap = to_gfx_cap(state.line_cap);
@@ -386,6 +384,7 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     for (auto const& dash : state.dash_list) {
         dash_array.append(static_cast<float>(dash));
     }
+    paint_shadow_for_stroke_internal(path, line_cap, line_join, dash_array);
     painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filter, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
 
     did_draw(path.bounding_box());
@@ -1090,7 +1089,7 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     did_draw(path.bounding_box());
 }
 
-void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const& path)
+void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const& path, Gfx::Path::CapStyle line_cap, Gfx::Path::JoinStyle line_join, Vector<float> const& dash_array)
 {
     auto* painter = this->painter();
     if (!painter)
@@ -1120,7 +1119,7 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     transform.multiply(state.transform);
     painter->set_transform(transform);
-    painter->stroke_path(path, state.shadow_color.with_opacity(alpha), state.line_width, state.shadow_blur, state.current_compositing_and_blending_operator);
+    painter->stroke_path(path, state.shadow_color.with_opacity(alpha), state.line_width, state.shadow_blur, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
 
     painter->restore();
 

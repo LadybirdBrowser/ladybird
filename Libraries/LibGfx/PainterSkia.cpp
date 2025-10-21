@@ -188,7 +188,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     });
 }
 
-void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle cap_style, Gfx::Path::JoinStyle join_style, float miter_limit, Vector<float> const& dash_array, float dash_offset)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (thickness <= 0)
@@ -200,6 +200,10 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(thickness);
     paint.setColor(to_skia_color(color));
+    paint.setStrokeCap(to_skia_cap(cap_style));
+    paint.setStrokeJoin(to_skia_join(join_style));
+    paint.setStrokeMiter(miter_limit);
+    paint.setPathEffect(SkDashPathEffect::Make(dash_array.data(), dash_array.size(), dash_offset));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
     auto sk_path = to_skia_path(path);
     impl().with_canvas([&](auto& canvas) {
