@@ -99,15 +99,16 @@ public:
     };
 
     struct VideoTrack {
-        u64 pixel_width;
-        u64 pixel_height;
+        u64 pixel_width { 0 };
+        u64 pixel_height { 0 };
 
         ColorFormat color_format;
     };
 
     struct AudioTrack {
-        u64 channels;
-        u64 bit_depth;
+        u64 channels { 1 };
+        double sampling_frequency { 8000.0 };
+        u64 bit_depth { 0 };
     };
 
     u64 track_number() const { return m_track_number; }
@@ -136,19 +137,9 @@ public:
     void set_codec_delay(u64 codec_delay) { m_codec_delay = codec_delay; }
     u64 timestamp_offset() const { return m_timestamp_offset; }
     void set_timestamp_offset(u64 timestamp_offset) { m_timestamp_offset = timestamp_offset; }
-    Optional<VideoTrack> video_track() const
-    {
-        if (track_type() != Video)
-            return {};
-        return m_video_track;
-    }
+    Optional<VideoTrack> video_track() const { return m_video_track; }
     void set_video_track(VideoTrack video_track) { m_video_track = video_track; }
-    Optional<AudioTrack> audio_track() const
-    {
-        if (track_type() != Audio)
-            return {};
-        return m_audio_track;
-    }
+    Optional<AudioTrack> audio_track() const { return m_audio_track; }
     void set_audio_track(AudioTrack audio_track) { m_audio_track = audio_track; }
 
 private:
@@ -163,11 +154,8 @@ private:
     double m_timestamp_scale { 1 };
     u64 m_codec_delay { 0 };
     u64 m_timestamp_offset { 0 };
-
-    union {
-        VideoTrack m_video_track {};
-        AudioTrack m_audio_track;
-    };
+    Optional<VideoTrack> m_video_track;
+    Optional<AudioTrack> m_audio_track;
 };
 
 class Block {
