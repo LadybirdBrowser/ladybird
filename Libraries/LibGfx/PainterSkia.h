@@ -32,11 +32,13 @@ public:
     virtual void save() override;
     virtual void restore() override;
     virtual void clip(Gfx::Path const&, Gfx::WindingRule) override;
+    virtual void reset() override;
 
 private:
     struct Impl;
     Impl& impl() { return *m_impl; }
     NonnullOwnPtr<Impl> m_impl;
+    u32 m_initial_save_count { 0 };
 };
 
 }

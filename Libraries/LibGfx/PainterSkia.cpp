@@ -134,6 +134,9 @@ static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Optional<Gfx::Filter 
 PainterSkia::PainterSkia(NonnullRefPtr<Gfx::PaintingSurface> painting_surface)
     : m_impl(adopt_own(*new Impl { move(painting_surface) }))
 {
+    m_impl->with_canvas([this](auto& canvas) {
+        m_initial_save_count = canvas.save();
+    });
 }
 
 PainterSkia::~PainterSkia() = default;
@@ -332,6 +335,13 @@ void PainterSkia::clip(Gfx::Path const& path, Gfx::WindingRule winding_rule)
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
     impl().with_canvas([&](auto& canvas) {
         canvas.clipPath(sk_path, SkClipOp::kIntersect, true);
+    });
+}
+
+void PainterSkia::reset()
+{
+    impl().with_canvas([&](auto& canvas) {
+        canvas.restoreToCount(m_initial_save_count);
     });
 }
 
