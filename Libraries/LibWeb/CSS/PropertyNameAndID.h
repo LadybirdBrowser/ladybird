@@ -47,6 +47,13 @@ public:
         return serialize_an_identifier(name());
     }
 
+    bool operator==(PropertyNameAndID const& other) const
+    {
+        if (is_custom_property())
+            return other.is_custom_property() && m_name == other.m_name;
+        return !other.is_custom_property() && m_property_id == other.m_property_id;
+    }
+
 private:
     PropertyNameAndID(Optional<FlyString> name, PropertyID id)
         : m_name(move(name))
