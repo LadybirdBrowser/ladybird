@@ -127,3 +127,41 @@ describe("setter - errors", () => {
         }).toThrowWithMessage(TypeError, "An operation was performed on a revoked Proxy object");
     });
 });
+
+describe("Correct stack trace", () => {
+    test("from binary ops", () => {
+        function a() {
+            return 1 + b();
+        }
+        function b() {
+            return 2 + 3n;
+        }
+
+        hadError = false;
+        try {
+            a();
+        } catch (e) {
+            hadError = true;
+            expectedHeader = "TypeError: Cannot use addition operator with BigInt and other type";
+            expected_lines = [
+                /^    at b \(.+[\\/]Error[\\/]Error\.prototype\.stack\.js:137:\d+\)$/,
+                /^    at a \(.+[\\/]Error[\\/]Error\.prototype\.stack\.js:134:\d+\)$/,
+                /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:142:\d+$/,
+                /^    at test \(.+[\\/]test-common\.js:\d+:\d+\)$/,
+                /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:132:9$/,
+                /^    at describe \(.+[\\/]test-common\.js:\d+:\d+\)$/,
+                /^    at .+[\\/]Error[\\/]Error\.prototype\.stack\.js:131:9$/,
+            ];
+            const stack = e.stack;
+            const [header, ...lines] = stack.trim().split("\n");
+            expect(header).toBe(expectedHeader);
+            expect(lines).toHaveLength(expected_lines.length);
+            for (let i = 0; i < lines.length; ++i) {
+                const line = lines[i];
+                const expected_line = expected_lines[i];
+                expect(!!line.match(expected_line)).toBeTrue();
+            }
+        }
+        expect(hadError).toBeTrue();
+    });
+});
