@@ -73,6 +73,7 @@ constexpr u32 BITS_PER_CHANNEL_ID = 0x55B2;
 
 // Audio
 constexpr u32 CHANNELS_ID = 0x9F;
+constexpr u32 SAMPLING_FREQUENCY_ID = 0xB5;
 constexpr u32 BIT_DEPTH_ID = 0x6264;
 
 // Clusters
@@ -448,6 +449,10 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
         case CHANNELS_ID:
             audio_track.channels = TRY_READ(streamer.read_u64());
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's Channels attribute: {}", audio_track.channels);
+            break;
+        case SAMPLING_FREQUENCY_ID:
+            audio_track.sampling_frequency = TRY_READ(streamer.read_float());
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's SamplingFrequency attribute: {}", audio_track.channels);
             break;
         case BIT_DEPTH_ID:
             audio_track.bit_depth = TRY_READ(streamer.read_u64());
