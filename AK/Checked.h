@@ -348,14 +348,9 @@ public:
     {
 #if __has_builtin(__builtin_add_overflow_p)
         return __builtin_add_overflow_p(u, v, (T)0);
-#elif __has_builtin(__builtin_add_overflow)
+#else
         T result;
         return __builtin_add_overflow(u, v, &result);
-#else
-        Checked checked;
-        checked = u;
-        checked += v;
-        return checked.has_overflow();
 #endif
     }
 
@@ -364,14 +359,9 @@ public:
     {
 #if __has_builtin(__builtin_sub_overflow_p)
         return __builtin_sub_overflow_p(u, v, (T)0);
-#elif __has_builtin(__builtin_sub_overflow)
+#else
         T result;
         return __builtin_sub_overflow(u, v, &result);
-#else
-        Checked checked;
-        checked = u;
-        checked -= v;
-        return checked.has_overflow();
 #endif
     }
 
@@ -404,25 +394,10 @@ public:
     {
 #if __has_builtin(__builtin_mul_overflow_p)
         return __builtin_mul_overflow_p(u, v, (T)0);
-#elif __has_builtin(__builtin_mul_overflow)
+#else
         T result;
         return __builtin_mul_overflow(u, v, &result);
-#else
-        Checked checked;
-        checked = u;
-        checked *= v;
-        return checked.has_overflow();
 #endif
-    }
-
-    template<typename U, typename V, typename X>
-    [[nodiscard]] static constexpr bool multiplication_would_overflow(U u, V v, X x)
-    {
-        Checked checked;
-        checked = u;
-        checked *= v;
-        checked *= x;
-        return checked.has_overflow();
     }
 
 private:

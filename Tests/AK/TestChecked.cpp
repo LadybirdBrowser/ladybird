@@ -374,7 +374,6 @@ TEST_CASE(should_constexpr_check_for_overflow_addition)
 TEST_CASE(should_constexpr_check_for_overflow_multiplication)
 {
     static_assert(Checked<int>::multiplication_would_overflow(NumericLimits<int>::max(), 2));
-    static_assert(Checked<int>::multiplication_would_overflow(NumericLimits<int>::max(), 1, 2));
 }
 
 TEST_CASE(should_constexpr_add_checked_values)
