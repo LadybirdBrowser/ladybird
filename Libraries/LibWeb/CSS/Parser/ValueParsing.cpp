@@ -4188,7 +4188,7 @@ RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const&
     if (auto maybe_function = parse_math_function(function, context)) {
         // NOTE: We have to simplify manually here, since parse_math_function() is a helper for calc() parsing
         //       that doesn't do it directly by itself.
-        return simplify_a_calculation_tree(*maybe_function, context, CalculationResolutionContext {}, nullptr);
+        return simplify_a_calculation_tree(*maybe_function, context, CalculationResolutionContext {});
     }
 
     return nullptr;
@@ -4468,7 +4468,7 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue>
         return nullptr;
 
     // 6. Return the result of simplifying a calculation tree from values.
-    return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {}, nullptr);
+    return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {});
 }
 
 // https://drafts.csswg.org/css-values-5/#tree-counting

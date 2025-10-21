@@ -76,7 +76,7 @@ private:
     {
     }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     struct Properties {
         ShadowType shadow_type;
         ValueComparingRefPtr<StyleValue const> color;

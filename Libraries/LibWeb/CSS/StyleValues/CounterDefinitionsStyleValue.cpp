@@ -29,7 +29,7 @@ String CounterDefinitionsStyleValue::to_string(SerializationMode mode) const
     return stb.to_string_without_validation();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
+ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     Vector<CounterDefinition> computed_definitions;
 
@@ -41,7 +41,7 @@ ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::abso
         };
 
         if (specified_definition.value)
-            computed_definition.value = specified_definition.value->absolutized(computation_context, property_computation_dependencies);
+            computed_definition.value = specified_definition.value->absolutized(computation_context);
 
         computed_definitions.append(computed_definition);
     }

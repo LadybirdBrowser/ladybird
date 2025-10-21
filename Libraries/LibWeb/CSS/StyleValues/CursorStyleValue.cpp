@@ -30,18 +30,18 @@ String CursorStyleValue::to_string(SerializationMode mode) const
     return builder.to_string_without_validation();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
+ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     RefPtr<StyleValue const> absolutized_x;
     RefPtr<StyleValue const> absolutized_y;
 
     if (m_properties.x)
-        absolutized_x = m_properties.x->absolutized(computation_context, property_computation_dependencies);
+        absolutized_x = m_properties.x->absolutized(computation_context);
 
     if (m_properties.y)
-        absolutized_y = m_properties.y->absolutized(computation_context, property_computation_dependencies);
+        absolutized_y = m_properties.y->absolutized(computation_context);
 
-    return CursorStyleValue::create(m_properties.image->absolutized(computation_context, property_computation_dependencies)->as_abstract_image(), absolutized_x, absolutized_y);
+    return CursorStyleValue::create(m_properties.image->absolutized(computation_context)->as_abstract_image(), absolutized_x, absolutized_y);
 }
 
 Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const

@@ -1294,7 +1294,7 @@ static RefPtr<StyleValue const> interpolate_mixed_value(CalculationContext const
         });
 
         return CalculatedStyleValue::create(
-            simplify_a_calculation_tree(SumCalculationNode::create({ from_contribution, to_contribution }), calculation_context, {}, nullptr),
+            simplify_a_calculation_tree(SumCalculationNode::create({ from_contribution, to_contribution }), calculation_context, {}),
             *from_node->numeric_type()->added_to(*to_node->numeric_type()),
             calculation_context);
     }

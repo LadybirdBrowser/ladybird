@@ -56,12 +56,12 @@ ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::spread_distance(
     return *m_properties.spread_distance;
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
+ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto absolutized_offset_x = offset_x()->absolutized(computation_context, property_computation_dependencies);
-    auto absolutized_offset_y = offset_y()->absolutized(computation_context, property_computation_dependencies);
-    auto absolutized_blur_radius = blur_radius()->absolutized(computation_context, property_computation_dependencies);
-    auto absolutized_spread_distance = spread_distance()->absolutized(computation_context, property_computation_dependencies);
+    auto absolutized_offset_x = offset_x()->absolutized(computation_context);
+    auto absolutized_offset_y = offset_y()->absolutized(computation_context);
+    auto absolutized_blur_radius = blur_radius()->absolutized(computation_context);
+    auto absolutized_spread_distance = spread_distance()->absolutized(computation_context);
     return create(m_properties.shadow_type, color(), absolutized_offset_x, absolutized_offset_y, absolutized_blur_radius, absolutized_spread_distance, placement());
 }
 

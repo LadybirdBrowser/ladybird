@@ -139,11 +139,10 @@ public:
                 };
 
                 // FIXME: Should font be recomputed on canvas element style change?
-                CSS::PropertyComputationDependencies property_computation_dependencies;
-                auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context, property_computation_dependencies);
-                auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, computation_context, property_computation_dependencies);
-                auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context, property_computation_dependencies);
-                auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, computation_context, property_computation_dependencies);
+                auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context);
+                auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, computation_context);
+                auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context);
+                auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, computation_context);
 
                 return document->style_computer().compute_font_for_style_values(
                     font_family,

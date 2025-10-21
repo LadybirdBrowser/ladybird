@@ -130,7 +130,7 @@ DimensionStyleValue const& StyleValue::as_dimension() const
 ENUMERATE_CSS_STYLE_VALUE_TYPES
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
-ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const&, PropertyComputationDependencies&) const
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const&) const
 {
     return *this;
 }
