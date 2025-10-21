@@ -53,7 +53,16 @@ constexpr static dispatch_instruction_table_t dispatch_for_op(Instruction::Type 
 
 struct InterpreterPrivate {
     using HandleExceptionResponse = Interpreter::HandleExceptionResponse;
-    [[nodiscard]] static HandleExceptionResponse handle_exception(Interpreter& interpreter, size_t& program_counter, Value exception) { return interpreter.handle_exception(program_counter, exception); }
+    NEVER_INLINE static HandleExceptionResponse handle_exception(Interpreter& interpreter, size_t& program_counter, auto exception)
+    {
+        if constexpr (IsSame<RemoveCVReference<decltype(exception)>, Value>) {
+            return interpreter.handle_exception(program_counter, exception);
+        } else {
+            if (exception.is_error()) [[unlikely]]
+                return interpreter.handle_exception(program_counter, exception.error_value());
+            return HandleExceptionResponse::DoNothing;
+        }
+    }
 
     static Optional<size_t>& scheduled_jump(Interpreter& interpreter) { return interpreter.m_scheduled_jump; }
     static Optional<size_t> const& scheduled_jump(Interpreter const& interpreter) { return interpreter.m_scheduled_jump; }
@@ -378,14 +387,17 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
         TAILCALL return dispatch_for_op(next_instruction.type())(interpreter, bytecode, program_counter); \
     } while (0)
 
-#define HANDLE_EXCEPTION(result, interpreter)                                                                                                                                \
-    do {                                                                                                                                                                     \
-        ASSERT(interpreter.running_execution_context()->program_counter == program_counter); /*Exception causing instructions need up to date program counters*/             \
-        if (result.is_error()) [[unlikely]] {                                                                                                                                \
-            if (InterpreterPrivate::handle_exception(interpreter, program_counter, result.error_value()) == InterpreterPrivate::HandleExceptionResponse::ExitFromExecutable) \
-                return program_counter;                                                                                                                                      \
-            DISPATCH_NEXT(interpreter);                                                                                                                                      \
-        }                                                                                                                                                                    \
+#define HANDLE_EXCEPTION(result, interpreter)                                                                                                                    \
+    do {                                                                                                                                                         \
+        ASSERT(interpreter.running_execution_context()->program_counter == program_counter); /*Exception causing instructions need up to date program counters*/ \
+        switch (InterpreterPrivate::handle_exception(interpreter, program_counter, result)) {                                                                    \
+        case InterpreterPrivate::HandleExceptionResponse::ExitFromExecutable:                                                                                    \
+            return program_counter;                                                                                                                              \
+        case InterpreterPrivate::HandleExceptionResponse::ContinueInThisExecutable:                                                                              \
+            DISPATCH_NEXT(interpreter);                                                                                                                          \
+        default:                                                                                                                                                 \
+            break;                                                                                                                                               \
+        }                                                                                                                                                        \
     } while (0)
 
 template<typename OP>
@@ -523,9 +535,14 @@ size_t handle<Op::ContinuePendingUnwind>(Interpreter& interpreter, u8 const* byt
 {
     auto& instruction = *reinterpret_cast<Op::ContinuePendingUnwind const*>(&bytecode[program_counter]);
     if (auto exception = interpreter.reg(Register::exception()); !exception.is_special_empty_value()) {
-        if (InterpreterPrivate::handle_exception(interpreter, program_counter, exception) == InterpreterPrivate::HandleExceptionResponse::ExitFromExecutable)
+        switch (InterpreterPrivate::handle_exception(interpreter, program_counter, exception)) {
+        case InterpreterPrivate::HandleExceptionResponse::ExitFromExecutable:
             return program_counter;
+        case InterpreterPrivate::HandleExceptionResponse::ContinueInThisExecutable:
         DISPATCH_NEXT(interpreter);
+        default:
+            break;
+        }
     }
     if (!interpreter.saved_return_value().is_special_empty_value()) {
         interpreter.do_return(interpreter.saved_return_value());

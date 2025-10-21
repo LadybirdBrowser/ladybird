@@ -95,6 +95,7 @@ private:
     enum class HandleExceptionResponse {
         ExitFromExecutable,
         ContinueInThisExecutable,
+        DoNothing,
     };
     [[nodiscard]] HandleExceptionResponse handle_exception(size_t& program_counter, Value exception);
 
