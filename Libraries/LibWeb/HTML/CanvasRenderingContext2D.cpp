@@ -774,19 +774,22 @@ void CanvasRenderingContext2D::clip(Path2D& path, StringView fill_rule)
     clip_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
-static bool is_point_in_path_internal(Gfx::Path path, double x, double y, StringView fill_rule)
+static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, StringView fill_rule)
 {
-    return path.contains(Gfx::FloatPoint(x, y), parse_fill_rule(fill_rule));
+    auto point = Gfx::FloatPoint(x, y);
+    if (auto inverse_transform = transform.inverse(); inverse_transform.has_value())
+        point = inverse_transform->map(point);
+    return path.contains(point, parse_fill_rule(fill_rule));
 }
 
 bool CanvasRenderingContext2D::is_point_in_path(double x, double y, StringView fill_rule)
 {
-    return is_point_in_path_internal(path(), x, y, fill_rule);
+    return is_point_in_path_internal(path(), drawing_state().transform, x, y, fill_rule);
 }
 
 bool CanvasRenderingContext2D::is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule)
 {
-    return is_point_in_path_internal(path.path(), x, y, fill_rule);
+    return is_point_in_path_internal(path.path(), drawing_state().transform, x, y, fill_rule);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
