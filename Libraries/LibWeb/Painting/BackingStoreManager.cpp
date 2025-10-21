@@ -59,6 +59,10 @@ BackingStoreManager::BackingStore BackingStoreManager::acquire_store_for_next_fr
 void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 {
     auto skia_backend_context = m_navigable->skia_backend_context();
+
+    m_front_store = nullptr;
+    m_back_store = nullptr;
+
 #ifdef AK_OS_MACOS
     if (skia_backend_context && s_browser_mach_port.has_value()) {
         auto back_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
