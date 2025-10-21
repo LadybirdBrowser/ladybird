@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/MappedFile.h>
+#include <LibMedia/Containers/Matroska/Utilities.h>
 
 #include "Reader.h"
 
@@ -548,7 +549,94 @@ DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
 
         return IterationDecision::Continue;
     }));
+
+    TRY(segment_information());
+    fix_track_quirks();
+
     return {};
+}
+
+void Reader::fix_track_quirks()
+{
+    fix_ffmpeg_webm_quirk();
+}
+
+void Reader::fix_ffmpeg_webm_quirk()
+{
+    VERIFY(m_segment_information.has_value());
+
+    // In libavformat versions <= 59.30.100, blocks were not allowed to have negative timestamps. This means that
+    // all blocks were shifted forward until any negative timestamps became zero.
+    //
+    // Additionally, the pre-skip value for Opus tracks was incorrectly scaled based on the audio sample rate when
+    // it was written to the CodecDelay element.
+    //
+    // In order to get the correct timestamps, we must shift all tracks' timestamps back by the maximum of all the
+    // tracks' codec-inherent delays, corrected based on the sample rate in the case of Opus.
+    auto& segment_information = m_segment_information.value();
+    auto muxing_app = segment_information.muxing_app();
+    auto libavformatPrefix = "Lavf"sv;
+
+    if (muxing_app.starts_with(libavformatPrefix)) {
+        auto versionString = muxing_app.substring_view(libavformatPrefix.length());
+        auto split = versionString.split_view('.');
+
+        if (split.size() < 3)
+            return;
+
+        auto is_affected_version = [&] {
+            constexpr uint final_major_version = 59;
+            constexpr uint final_minor_version = 30;
+            constexpr uint final_micro_version = 100;
+
+            auto major_version = split[0].to_number<uint>();
+            if (!major_version.has_value() || major_version.value() > final_major_version)
+                return false;
+            if (major_version.value() < final_major_version)
+                return true;
+
+            auto minor_version = split[1].to_number<uint>();
+            if (!minor_version.has_value() || minor_version.value() > final_minor_version)
+                return false;
+            if (minor_version.value() < final_minor_version)
+                return true;
+
+            auto micro_version = split[2].to_number<uint>();
+            return micro_version.has_value() && micro_version.value() <= final_micro_version;
+        }();
+        if (!is_affected_version)
+            return;
+
+        u64 max_codec_delay = 0;
+        for (auto& [id, track] : m_tracks) {
+            auto delay = track->codec_delay();
+
+            if (codec_id_from_matroska_id_string(track->codec_id()) == CodecID::Opus && track->audio_track().has_value()) {
+                auto sampling_frequency = AK::clamp_to<u64>(track->audio_track()->sampling_frequency);
+                if (sampling_frequency == 0)
+                    return;
+                delay = delay * 48'000 / sampling_frequency;
+            }
+
+            max_codec_delay = max(max_codec_delay, delay);
+        }
+
+        auto timestamp_scale = segment_information.timestamp_scale();
+        max_codec_delay = ((max_codec_delay + (timestamp_scale / 2)) / timestamp_scale) * timestamp_scale;
+
+        for (auto& [id, track] : m_tracks) {
+            if (track->codec_delay() != 0)
+                continue;
+            track->set_codec_delay(max_codec_delay);
+        }
+
+        auto duration = segment_information.duration_unscaled();
+
+        if (duration.has_value()) {
+            auto max_codec_delay_in_duration_units = static_cast<double>(max_codec_delay) / static_cast<double>(segment_information.timestamp_scale());
+            segment_information.set_duration_unscaled(duration.value() - max_codec_delay_in_duration_units);
+        }
+    }
 }
 
 DecoderErrorOr<void> Reader::for_each_track(TrackEntryCallback callback)
