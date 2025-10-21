@@ -56,6 +56,8 @@ private:
 
     DecoderErrorOr<void> ensure_tracks_are_parsed();
     DecoderErrorOr<void> parse_tracks(Streamer&);
+    void fix_track_quirks();
+    void fix_ffmpeg_webm_quirk();
 
     DecoderErrorOr<void> parse_cues(Streamer&);
     DecoderErrorOr<void> ensure_cues_are_parsed();
