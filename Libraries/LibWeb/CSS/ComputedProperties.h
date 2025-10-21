@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/Important.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/Export.h>
@@ -35,16 +36,26 @@ public:
 
     virtual ~ComputedProperties() override;
 
+    enum class IncludeCustomProperties : u8 {
+        No,
+        Yes,
+    };
+
     template<typename Callback>
-    inline void for_each_property(Callback callback) const
+    void for_each_property(IncludeCustomProperties include_custom_properties, Callback callback) const
     {
         for (size_t i = 0; i < m_property_values.size(); ++i) {
             if (m_property_values[i])
-                callback(static_cast<PropertyID>(i + to_underlying(first_longhand_property_id)), *m_property_values[i]);
+                callback(PropertyNameAndID::from_id(static_cast<PropertyID>(i + to_underlying(first_longhand_property_id))), *m_property_values[i]);
+        }
+
+        if (include_custom_properties == IncludeCustomProperties::Yes) {
+            for (auto const& [name, value] : m_custom_properties)
+                callback(PropertyNameAndID::from_name(name).value(), *value.value);
         }
     }
 
-    enum class Inherited {
+    enum class Inherited : u8 {
         No,
         Yes
     };
@@ -52,13 +63,16 @@ public:
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
     void reset_animated_properties(Badge<Animations::KeyframeEffect>);
 
-    bool is_property_important(PropertyID property_id) const;
-    bool is_property_inherited(PropertyID property_id) const;
+    bool is_property_important(PropertyNameAndID const&) const;
+    bool is_property_important(PropertyID) const;
+    bool is_property_inherited(PropertyNameAndID const&) const;
+    bool is_property_inherited(PropertyID) const;
     bool is_animated_property_inherited(PropertyID property_id) const;
     void set_property_important(PropertyID, Important);
     void set_property_inherited(PropertyID, Inherited);
     void set_animated_property_inherited(PropertyID, Inherited);
 
+    void set_property(PropertyNameAndID const&, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
     void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No);
@@ -67,7 +81,10 @@ public:
         No,
         Yes,
     };
-    StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+
+    StyleValue const& property(PropertyNameAndID const&, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    StyleValue const& property(PropertyID id, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    RefPtr<StyleValue const> custom_property(FlyString const& name, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
     GC::Ptr<CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
     void set_transition_property_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
@@ -276,6 +293,18 @@ public:
         m_attempted_pseudo_class_matches = results;
     }
 
+    struct CustomProperty {
+        NonnullRefPtr<StyleValue const> value;
+        Important important;
+        Inherited inherited;
+        bool operator==(CustomProperty const&) const = default;
+    };
+    HashMap<FlyString, CustomProperty> const& custom_properties() const { return m_custom_properties; }
+    void set_custom_properties(HashMap<FlyString, CustomProperty> custom_properties)
+    {
+        m_custom_properties = move(custom_properties);
+    }
+
 private:
     ComputedProperties();
 
@@ -290,6 +319,8 @@ private:
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_important {};
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_inherited {};
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_animated_property_inherited {};
+
+    HashMap<FlyString, CustomProperty> m_custom_properties;
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 

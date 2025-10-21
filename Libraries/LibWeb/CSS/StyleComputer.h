@@ -198,6 +198,7 @@ public:
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
     static NonnullRefPtr<StyleValue const> compute_value_of_custom_property(DOM::AbstractElement, FlyString const& custom_property, Optional<Parser::GuardedSubstitutionContexts&> = {});
+    static NonnullRefPtr<StyleValue const> resolve_custom_property_value(PropertyNameAndID const&, StyleValue const& cascaded_value, DOM::AbstractElement const&, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts = {});
 
     static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, ComputationContext const&, double device_pixels_per_css_pixel);
     static NonnullRefPtr<StyleValue const> compute_animation_name(NonnullRefPtr<StyleValue const> const& absolutized_value);
@@ -241,7 +242,7 @@ private:
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
-    void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
+    void compute_custom_properties(CascadedProperties const&, ComputedProperties&, DOM::AbstractElement const&) const;
     void compute_math_depth(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;

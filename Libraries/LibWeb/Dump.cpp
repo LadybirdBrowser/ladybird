@@ -420,8 +420,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             String value;
         };
         Vector<NameAndValue> properties;
-        as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property([&](auto property_id, auto& value) {
-            properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::SerializationMode::Normal) });
+        as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property(CSS::ComputedProperties::IncludeCustomProperties::Yes, [&](auto const& property, auto& value) {
+            properties.append({ property.name(), value.to_string(CSS::SerializationMode::Normal) });
         });
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
 

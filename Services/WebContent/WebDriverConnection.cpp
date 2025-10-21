@@ -1381,11 +1381,8 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
 
             // computed value of parameter URL variables["property name"] from element's style declarations.
             if (auto property = Web::CSS::PropertyNameAndID::from_name(name); property.has_value()) {
-                if (property->is_custom_property()) {
-                    if (auto style_property = element->custom_properties({}).get(property->name()); style_property.has_value())
-                        computed_value = style_property->value->to_string(Web::CSS::SerializationMode::Normal);
-                } else if (auto computed_properties = element->computed_properties()) {
-                    computed_value = computed_properties->property(property->id()).to_string(Web::CSS::SerializationMode::Normal);
+                if (auto computed_properties = element->computed_properties()) {
+                    computed_value = computed_properties->property(property.value()).to_string(Web::CSS::SerializationMode::Normal);
                 }
             }
         }

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 43 tests
 
-28 Pass
-15 Fail
+29 Pass
+14 Fail
 Pass	'--x: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'background-image: image-set("https://does-not-exist.test/404.png")' with data-foo="https://does-not-exist.test/404.png"
@@ -26,7 +26,7 @@ Pass	'--x: image-set(var(--some-string))' with data-foo="https://does-not-exist.
 Pass	'background-image: image-set(var(--some-string))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'--x: image-set(var(--some-string-list))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(var(--some-string-list))' with data-foo="https://does-not-exist.test/404.png"
-Fail	'--registered-url: attr(data-foo type(<url>))' with data-foo="https://does-not-exist.test/404.png"
+Pass	'--registered-url: attr(data-foo type(<url>))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'--registered-color: attr(data-foo type(<color>))' with data-foo="blue"
 Pass	'--x: image-set(var(--some-other-url))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(var(--some-other-url))' with data-foo="https://does-not-exist.test/404.png"
