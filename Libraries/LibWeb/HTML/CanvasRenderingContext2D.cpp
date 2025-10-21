@@ -634,8 +634,10 @@ void CanvasRenderingContext2D::reset_to_default_state()
     // 4. Reset everything that drawing state consists of to their initial values.
     reset_drawing_state();
 
-    if (surface)
+    if (surface) {
+        painter()->reset();
         did_draw(surface->rect().to_type<float>());
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext
