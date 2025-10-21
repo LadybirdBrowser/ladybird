@@ -78,6 +78,8 @@ constexpr u32 BIT_DEPTH_ID = 0x6264;
 // Clusters
 constexpr u32 SIMPLE_BLOCK_ID = 0xA3;
 constexpr u32 TIMESTAMP_ID = 0xE7;
+constexpr u32 BLOCK_GROUP_ID = 0xA0;
+constexpr u32 BLOCK_ID = 0xA1;
 
 // Cues
 constexpr u32 CUES_ID = 0x1C53BB6B;
@@ -613,15 +615,8 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
     return cluster;
 }
 
-static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
+static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track, i16 timestamp_offset)
 {
-    Block block;
-
-    auto content_size = TRY_READ(streamer.read_variable_size_integer());
-
-    auto position_before_track_number = streamer.position();
-    block.set_track_number(TRY_READ(streamer.read_variable_size_integer()));
-
     // https://www.matroska.org/technical/notes.html
     // Block Timestamps:
     //     The Block Element and SimpleBlock Element store their timestamps as signed integers,
@@ -633,26 +628,19 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
     //     of that track. To get the timestamp in nanoseconds of the first frame in a Block or
     //     SimpleBlock, the formula becomes:
     //         `( ( Cluster\Timestamp + ( block timestamp * TrackTimestampScale ) ) * TimestampScale ) - CodecDelay`
-    auto raw_timestamp_offset = TRY_READ(streamer.read_i16());
-    Checked<i64> timestamp_offset_ns = AK::clamp_to<i64>(static_cast<double>(raw_timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * track.timestamp_scale());
-    timestamp_offset_ns.saturating_sub(AK::clamp_to<i64>(track.codec_delay()));
+    Checked<i64> timestamp_offset_in_cluster_offset = AK::clamp_to<i64>(static_cast<double>(timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * track.timestamp_scale());
+    timestamp_offset_in_cluster_offset.saturating_sub(AK::clamp_to<i64>(track.codec_delay()));
     // This is only mentioned in the elements specification under TrackOffset.
     // https://www.matroska.org/technical/elements.html
-    timestamp_offset_ns.saturating_add(AK::clamp_to<i64>(track.timestamp_offset()));
-    AK::Duration timestamp_offset = AK::Duration::from_nanoseconds(timestamp_offset_ns.value());
-    block.set_timestamp(cluster_timestamp + timestamp_offset);
+    timestamp_offset_in_cluster_offset.saturating_add(AK::clamp_to<i64>(track.timestamp_offset()));
+    return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset.value());
+}
 
-    auto flags = TRY_READ(streamer.read_octet());
-    block.set_only_keyframes((flags & (1u << 7u)) != 0);
-    block.set_invisible((flags & (1u << 3u)) != 0);
-    block.set_lacing(static_cast<Block::Lacing>((flags & 0b110u) >> 1u));
-    block.set_discardable((flags & 1u) != 0);
-
-    auto total_frame_content_size = content_size - (streamer.position() - position_before_track_number);
-
+static DecoderErrorOr<Vector<ReadonlyBytes>> parse_frames(Streamer& streamer, Block::Lacing lacing, size_t content_size)
+{
     Vector<ReadonlyBytes> frames;
 
-    if (block.lacing() == Block::Lacing::EBML) {
+    if (lacing == Block::Lacing::EBML) {
         auto octets_read_before_frame_sizes = streamer.octets_read();
         auto frame_count = TRY_READ(streamer.read_octet()) + 1;
         Vector<u64> frame_sizes;
@@ -677,22 +665,83 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
             frame_size_sum += frame_size;
             previous_frame_size = frame_size;
         }
-        frame_sizes.append(total_frame_content_size - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
+        frame_sizes.append(content_size - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
 
         for (int i = 0; i < frame_count; i++) {
             // FIXME: ReadonlyBytes instead of copying the frame data?
             auto current_frame_size = frame_sizes.at(i);
             frames.append(TRY_READ(streamer.read_raw_octets(current_frame_size)));
         }
-    } else if (block.lacing() == Block::Lacing::FixedSize) {
+    } else if (lacing == Block::Lacing::FixedSize) {
         auto frame_count = TRY_READ(streamer.read_octet()) + 1;
-        auto individual_frame_size = total_frame_content_size / frame_count;
+        auto individual_frame_size = content_size / frame_count;
         for (int i = 0; i < frame_count; i++)
             frames.append(TRY_READ(streamer.read_raw_octets(individual_frame_size)));
     } else {
-        frames.append(TRY_READ(streamer.read_raw_octets(total_frame_content_size)));
+        frames.append(TRY_READ(streamer.read_raw_octets(content_size)));
     }
-    block.set_frames(move(frames));
+
+    return frames;
+}
+
+static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
+{
+    Block block;
+
+    auto content_size = TRY_READ(streamer.read_variable_size_integer());
+
+    auto position_before_track_number = streamer.position();
+    block.set_track_number(TRY_READ(streamer.read_variable_size_integer()));
+
+    auto timestamp_offset = TRY_READ(streamer.read_i16());
+    block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, track, timestamp_offset));
+
+    auto flags = TRY_READ(streamer.read_octet());
+    block.set_only_keyframes((flags & (1u << 7u)) != 0);
+    block.set_invisible((flags & (1u << 3u)) != 0);
+    block.set_lacing(static_cast<Block::Lacing>((flags & 0b110u) >> 1u));
+    block.set_discardable((flags & 1u) != 0);
+
+    auto remaining_size = content_size - (streamer.position() - position_before_track_number);
+    block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+    return block;
+}
+
+static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
+{
+    Block block;
+    auto parsed_a_block = false;
+
+    TRY(parse_master_element(streamer, "BlockGroup"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+        switch (element_id) {
+        case BLOCK_ID: {
+            if (parsed_a_block)
+                return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Block group contained multiple blocks"sv);
+
+            auto content_size = TRY_READ(streamer.read_variable_size_integer());
+
+            auto position_before_track_number = streamer.position();
+            block.set_track_number(TRY_READ(streamer.read_variable_size_integer()));
+
+            auto timestamp_offset = TRY_READ(streamer.read_i16());
+            block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, track, timestamp_offset));
+
+            auto flags = TRY_READ(streamer.read_octet());
+            block.set_invisible((flags & (1u << 3)) != 0);
+            block.set_lacing(static_cast<Block::Lacing>((flags & 0b110) >> 1u));
+
+            auto remaining_size = content_size - (streamer.position() - position_before_track_number);
+            block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+            break;
+        }
+        default:
+            TRY_READ(streamer.read_unknown_element());
+            break;
+        }
+
+        return IterationDecision::Continue;
+    }));
+
     return block;
 }
 
@@ -972,8 +1021,13 @@ DecoderErrorOr<Block> SampleIterator::next_block()
             dbgln_if(MATROSKA_DEBUG, "  Iterator is parsing new cluster.");
             m_current_cluster = TRY(parse_cluster(streamer, m_segment_timestamp_scale));
         } else if (element_id == SIMPLE_BLOCK_ID) {
-            dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing new block.");
+            dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new simple block.");
             auto candidate_block = TRY(parse_simple_block(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track));
+            if (candidate_block.track_number() == m_track->track_number())
+                block = move(candidate_block);
+        } else if (element_id == BLOCK_GROUP_ID) {
+            dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new block group.");
+            auto candidate_block = TRY(parse_block_group(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track));
             if (candidate_block.track_number() == m_track->track_number())
                 block = move(candidate_block);
         } else {
