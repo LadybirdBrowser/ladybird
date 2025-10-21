@@ -1084,6 +1084,7 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
+    transform.multiply(state.transform);
     painter->set_transform(transform);
     painter->fill_path(path, state.shadow_color.with_opacity(alpha), winding_rule, state.shadow_blur, state.current_compositing_and_blending_operator);
 
@@ -1120,6 +1121,7 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
+    transform.multiply(state.transform);
     painter->set_transform(transform);
     painter->stroke_path(path, state.shadow_color.with_opacity(alpha), state.line_width, state.shadow_blur, state.current_compositing_and_blending_operator);
 
