@@ -8,7 +8,6 @@
 
 #include <AK/Span.h>
 #include <AK/Vector.h>
-#include <LibGfx/Color.h>
 #include <LibGfx/Gradients.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Forward.h>
