@@ -279,8 +279,27 @@ u16 FFmpegLoaderPlugin::num_channels()
 
 PcmSampleFormat FFmpegLoaderPlugin::pcm_format()
 {
-    // FIXME: pcm_format() is unused, always return Float for now
-    return PcmSampleFormat::Float32;
+    VERIFY(m_codec_context != nullptr);
+
+    // Map FFmpeg sample format to our PcmSampleFormat enum
+    // Note: We only support the formats that extract_samples_from_frame() can handle
+    auto format = m_codec_context->sample_fmt;
+    auto packed_format = av_get_packed_sample_fmt(format);
+
+    switch (packed_format) {
+    case AV_SAMPLE_FMT_U8:
+        return PcmSampleFormat::Uint8;
+    case AV_SAMPLE_FMT_S16:
+        return PcmSampleFormat::Int16;
+    case AV_SAMPLE_FMT_S32:
+        return PcmSampleFormat::Int32;
+    case AV_SAMPLE_FMT_FLT:
+        return PcmSampleFormat::Float32;
+    default:
+        // For unsupported formats, fall back to Float32 since that's what
+        // extract_samples_from_frame() converts everything to anyway
+        return PcmSampleFormat::Float32;
+    }
 }
 
 ByteString FFmpegLoaderPlugin::format_name()
