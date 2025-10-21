@@ -1395,14 +1395,15 @@ void Element::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Node::children_changed(metadata);
     set_needs_style_update(true);
-    for_each_child([&](DOM::Node& child) {
-        if (auto* element = as_if<DOM::Element>(child); element && element->style_uses_tree_counting_function()) {
-            element->set_needs_style_update(true);
-            set_child_needs_style_update(true);
-        }
 
-        return IterationDecision::Continue;
-    });
+    if (child_style_uses_tree_counting_function()) {
+        for_each_child_of_type<Element>([&](Element& element) {
+            element.set_needs_style_update(true);
+            set_child_needs_style_update(true);
+
+            return IterationDecision::Continue;
+        });
+    }
 }
 
 void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)
