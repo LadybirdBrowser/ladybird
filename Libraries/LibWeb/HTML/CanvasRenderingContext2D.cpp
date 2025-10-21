@@ -136,10 +136,14 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
 
     auto bitmap = image.visit(
         [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->immutable_bitmap();
+            auto width = source->intrinsic_width().value_or({}).to_int();
+            auto height = source->intrinsic_height().value_or({}).to_int();
+            return source->default_image_bitmap_sized({ width, height });
         },
         [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->current_image_bitmap();
+            auto width = source->intrinsic_width().value_or({}).to_int();
+            auto height = source->intrinsic_height().value_or({}).to_int();
+            return source->default_image_bitmap_sized({ width, height });
         },
         [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
