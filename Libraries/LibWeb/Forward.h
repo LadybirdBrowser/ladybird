@@ -402,7 +402,6 @@ struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
 struct GridRepeatParams;
 struct StyleSheetIdentifier;
-struct TreeCountingFunctionResolutionContext;
 
 }
 

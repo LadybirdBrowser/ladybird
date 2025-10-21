@@ -116,7 +116,7 @@ public:
                 // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
                 //        a font-size of 10px) for OffscreenCanvas
                 auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
-                Optional<CSS::TreeCountingFunctionResolutionContext> tree_counting_function_resolution_context;
+                Optional<DOM::AbstractElement> abstract_element;
 
                 if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
                     // NOTE: The canvas itself is considered the inheritance parent
@@ -127,16 +127,15 @@ public:
                         inherited_font_size = canvas_element.computed_properties()->font_size();
                         inherited_font_weight = canvas_element.computed_properties()->font_weight();
 
-                        DOM::AbstractElement abstract_element { canvas_element };
+                        abstract_element = DOM::AbstractElement { canvas_element };
 
-                        length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element);
-                        tree_counting_function_resolution_context = abstract_element.tree_counting_function_resolution_context();
+                        length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element.value());
                     }
                 }
 
                 CSS::ComputationContext computation_context {
                     .length_resolution_context = length_resolution_context,
-                    .tree_counting_function_resolution_context = tree_counting_function_resolution_context
+                    .abstract_element = abstract_element
                 };
 
                 // FIXME: Should font be recomputed on canvas element style change?

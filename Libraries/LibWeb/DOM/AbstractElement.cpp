@@ -27,7 +27,7 @@ Document& AbstractElement::document() const
     return m_element->document();
 }
 
-CSS::TreeCountingFunctionResolutionContext AbstractElement::tree_counting_function_resolution_context() const
+AbstractElement::TreeCountingFunctionResolutionContext AbstractElement::tree_counting_function_resolution_context() const
 {
     // FIXME: When used on an element-backed pseudo-element which is also a real element, the tree counting functions
     //        resolve for that real element. For other pseudo elements, they resolve as if they were resolved against
