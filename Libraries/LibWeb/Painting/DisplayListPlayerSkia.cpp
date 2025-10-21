@@ -311,7 +311,7 @@ static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, 
 
     for (auto repeat_count = 1; repeat_count <= negative_repeat_count; repeat_count++) {
         for (auto stop : color_stop_list.in_reverse()) {
-            stop.position += repeat_length * static_cast<float>(-repeat_count);
+            stop.position -= repeat_length * static_cast<float>(repeat_count);
             if (stop.position < 0) {
                 stop.color = get_color_between_stops(0.0f, stop, color_stop_list_with_expanded_repeat.first());
                 color_stop_list_with_expanded_repeat.prepend(stop);
@@ -321,7 +321,7 @@ static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, 
         }
     }
 
-    for (auto repeat_count = 0; repeat_count < positive_repeat_count; repeat_count++) {
+    for (auto repeat_count = 1; repeat_count < positive_repeat_count; repeat_count++) {
         for (auto stop : color_stop_list) {
             stop.position += repeat_length * static_cast<float>(repeat_count);
             if (stop.position > 1) {
