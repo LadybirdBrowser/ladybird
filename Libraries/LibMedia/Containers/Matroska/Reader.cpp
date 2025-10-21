@@ -57,6 +57,7 @@ constexpr u32 TRACK_LANGUAGE_BCP_47_ID = 0x22B59D;
 constexpr u32 TRACK_CODEC_ID = 0x86;
 constexpr u32 TRACK_CODEC_PRIVATE_ID = 0x63A2;
 constexpr u32 TRACK_CODEC_DELAY_ID = 0x56AA;
+constexpr u32 TRACK_SEEK_PRE_ROLL_ID = 0x56BB;
 constexpr u32 TRACK_TIMESTAMP_SCALE_ID = 0x23314F;
 constexpr u32 TRACK_OFFSET_ID = 0x537F;
 constexpr u32 TRACK_VIDEO_ID = 0xE0;
@@ -511,6 +512,10 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
         case TRACK_CODEC_DELAY_ID:
             track_entry->set_codec_delay(TRY_READ(streamer.read_u64()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecDelay attribute: {}", track_entry->codec_delay());
+            break;
+        case TRACK_SEEK_PRE_ROLL_ID:
+            track_entry->set_seek_pre_roll(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's SeekPreRoll attribute: {}", track_entry->seek_pre_roll());
             break;
         case TRACK_TIMESTAMP_SCALE_ID:
             track_entry->set_timestamp_scale(TRY_READ(streamer.read_float()));
@@ -1090,6 +1095,8 @@ DecoderErrorOr<bool> Reader::has_cues_for_track(u64 track_number)
 
 DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, AK::Duration timestamp)
 {
+    timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(iterator.m_track->seek_pre_roll()));
+
     if (TRY(has_cues_for_track(iterator.m_track->track_number()))) {
         TRY(seek_to_cue_for_timestamp(iterator, timestamp));
         VERIFY(iterator.last_timestamp().has_value());

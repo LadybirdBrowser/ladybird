@@ -135,6 +135,8 @@ public:
     void set_timestamp_scale(double timestamp_scale) { m_timestamp_scale = timestamp_scale; }
     u64 codec_delay() const { return m_codec_delay; }
     void set_codec_delay(u64 codec_delay) { m_codec_delay = codec_delay; }
+    u64 seek_pre_roll() const { return m_seek_pre_roll; }
+    void set_seek_pre_roll(u64 seek_pre_roll) { m_seek_pre_roll = seek_pre_roll; }
     u64 timestamp_offset() const { return m_timestamp_offset; }
     void set_timestamp_offset(u64 timestamp_offset) { m_timestamp_offset = timestamp_offset; }
     Optional<VideoTrack> video_track() const { return m_video_track; }
@@ -153,6 +155,7 @@ private:
     FixedArray<u8> m_codec_private_data;
     double m_timestamp_scale { 1 };
     u64 m_codec_delay { 0 };
+    u64 m_seek_pre_roll { 0 };
     u64 m_timestamp_offset { 0 };
     Optional<VideoTrack> m_video_track;
     Optional<AudioTrack> m_audio_track;
