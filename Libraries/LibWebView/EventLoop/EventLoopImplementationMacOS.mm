@@ -202,6 +202,40 @@ static void post_application_event()
     [NSApp postEvent:event atStart:NO];
 }
 
+struct EventLoopImplementationMacOS::Impl {
+    Impl(EventLoopImplementationMacOS& event_loop_implementation)
+        : run_loop(CFRunLoopGetCurrent())
+    {
+        CFRunLoopSourceContext context {};
+        context.info = &event_loop_implementation;
+        context.perform = [](void* info) {
+            auto& self = *static_cast<EventLoopImplementationMacOS*>(info);
+            self.m_impl->deferred_source_pending = false;
+            self.m_thread_event_queue.process();
+        };
+
+        deferred_source = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
+        CFRunLoopAddSource(run_loop, deferred_source, kCFRunLoopCommonModes);
+    }
+
+    ~Impl()
+    {
+        CFRunLoopRemoveSource(run_loop, deferred_source, kCFRunLoopCommonModes);
+        CFRelease(deferred_source);
+    }
+
+    CFRunLoopRef run_loop { nullptr };
+    CFRunLoopSourceRef deferred_source { nullptr };
+    Atomic<bool> deferred_source_pending { false };
+};
+
+EventLoopImplementationMacOS::EventLoopImplementationMacOS()
+    : m_impl(make<Impl>(*this))
+{
+}
+
+EventLoopImplementationMacOS::~EventLoopImplementationMacOS() = default;
+
 NonnullOwnPtr<Core::EventLoopImplementation> EventLoopManagerMacOS::make_implementation()
 {
     return EventLoopImplementationMacOS::create();
@@ -306,7 +340,7 @@ void EventLoopManagerMacOS::unregister_notifier(Core::Notifier& notifier)
 
 void EventLoopManagerMacOS::did_post_event()
 {
-    post_application_event();
+    CFRunLoopWakeUp(CFRunLoopGetCurrent());
 }
 
 static void handle_signal(CFFileDescriptorRef f, CFOptionFlags callback_types, void* info)
@@ -407,8 +441,10 @@ void EventLoopImplementationMacOS::post_event(Core::EventReceiver& receiver, Non
 {
     m_thread_event_queue.post_event(receiver, move(event));
 
-    if (&m_thread_event_queue != &Core::ThreadEventQueue::current())
-        wake();
+    bool expected = false;
+    if (m_impl->deferred_source && m_impl->deferred_source_pending.compare_exchange_strong(expected, true)) {
+        CFRunLoopSourceSignal(m_impl->deferred_source);
+    }
 }
 
 }
