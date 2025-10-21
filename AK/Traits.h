@@ -83,15 +83,6 @@ struct Traits<T> : public DefaultTraits<T> {
     static constexpr bool is_trivially_serializable() { return Traits<UnderlyingType<T>>::is_trivially_serializable(); }
 };
 
-template<typename T>
-requires(Detail::IsPointerOfType<char, T>) struct Traits<T> : public DefaultTraits<T> {
-    static unsigned hash(T const value) { return string_hash(value, strlen(value)); }
-    static constexpr bool equals(T const a, T const b) { return strcmp(a, b); }
-    static constexpr bool is_trivial() { return true; }
-    // NOTE: Trivial types always have fast equality checks.
-    static constexpr bool may_have_slow_equality_check() { return false; }
-};
-
 }
 
 #if USING_AK_GLOBALLY
