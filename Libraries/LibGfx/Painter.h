@@ -43,6 +43,8 @@ public:
     virtual void restore() = 0;
 
     virtual void clip(Gfx::Path const&, Gfx::WindingRule) = 0;
+
+    virtual void reset() = 0;
 };
 
 }
