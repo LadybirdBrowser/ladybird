@@ -12,8 +12,9 @@
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Font/UnicodeRange.h>
-#include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/CSS/Important.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 

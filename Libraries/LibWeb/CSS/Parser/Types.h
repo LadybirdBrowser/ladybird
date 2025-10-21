@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,8 +10,8 @@
 #include <AK/Function.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/Important.h>
 #include <LibWeb/CSS/Parser/Token.h>
-#include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
