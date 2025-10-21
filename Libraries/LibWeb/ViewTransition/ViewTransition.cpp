@@ -23,7 +23,7 @@ GC_DEFINE_ALLOCATOR(CapturedElement);
 GC_DEFINE_ALLOCATOR(ViewTransition);
 
 NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name)
-    : m_type(type)
+    : PseudoElementTreeNode(type)
     , m_view_transition_name(view_transition_name)
 {
 }
@@ -32,6 +32,38 @@ ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoEleme
     : NamedViewTransitionPseudoElement(type, view_transition_name)
 {
     m_content = content;
+}
+
+bool ReplacedNamedViewTransitionPseudoElement::is_image_available() const
+{
+    return m_content != nullptr;
+}
+
+// FIXME: m_content might be larger than the instrinsic size because it may include ink overflow from the original element.
+Optional<CSSPixels> ReplacedNamedViewTransitionPseudoElement::intrinsic_width() const
+{
+    if (m_content)
+        return m_content->height();
+    return {};
+}
+
+Optional<CSSPixels> ReplacedNamedViewTransitionPseudoElement::intrinsic_height() const
+{
+    if (m_content)
+        return m_content->width();
+    return {};
+}
+
+Optional<CSSPixelFraction> ReplacedNamedViewTransitionPseudoElement::intrinsic_aspect_ratio() const
+{
+    if (m_content)
+        return m_content->width() / m_content->height();
+    return {};
+}
+
+RefPtr<Gfx::ImmutableBitmap> ReplacedNamedViewTransitionPseudoElement::current_image_bitmap_sized(Gfx::IntSize) const
+{
+    return m_content;
 }
 
 GC::Ref<ViewTransition> ViewTransition::create(JS::Realm& realm)
@@ -46,7 +78,7 @@ ViewTransition::ViewTransition(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_
     , m_ready_promise(ready_promise)
     , m_update_callback_done_promise(update_callback_done_promise)
     , m_finished_promise(finished_promise)
-    , m_transition_root_pseudo_element(heap().allocate<DOM::PseudoElementTreeNode>())
+    , m_transition_root_pseudo_element(heap().allocate<DOM::PseudoElementTreeNode>(CSS::PseudoElement::ViewTransition))
 
 {
 }
@@ -979,7 +1011,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             // 1. Let new be the ::view-transition-new() with the view transition name transitionName.
             ReplacedNamedViewTransitionPseudoElement* new_;
             m_transition_root_pseudo_element->for_each_in_inclusive_subtree_of_type<ReplacedNamedViewTransitionPseudoElement>([&](auto& element) {
-                if (element.m_type == CSS::PseudoElement::ViewTransitionNew && element.m_view_transition_name == transition_name) {
+                if (element.type() == CSS::PseudoElement::ViewTransitionNew && element.m_view_transition_name == transition_name) {
                     new_ = &element;
                     return TraversalDecision::Break;
                 }

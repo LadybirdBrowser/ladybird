@@ -679,6 +679,21 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                         update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                     }
                 }
+
+                // https://drafts.csswg.org/css-view-transitions/#view-transition-stacking-layer
+                // The ::view-transition pseudo-element generates a new stacking context, called the view transition layer,
+                // which paints after all other content of the document (including any content rendered in the top layer),
+                // after any filters and effects that are applied to such content. (It is not subject to such filters or effects,
+                // except insofar as they affect the rendered contents of the ::view-transition-old() and ::view-transition-
+                // new() pseudo-elements.)
+                if (document.show_view_transition_tree()) {
+                    if (auto element = as_if<DOM::Element>(dom_node)) {
+                        // https://drafts.csswg.org/css-view-transitions-1/#document-show-view-transition-tree
+                        // When this is true, this’s active view transition’s transition root pseudo-element renders as a child of
+                        // this’s document element, with this’s document element being its originating element.
+                        build_tree_of_pseudo_elements(*element, document.active_view_transition()->transition_root_pseudo_element());
+                    }
+                }
             }
             pop_parent();
         }
@@ -725,6 +740,34 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     dom_node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
     dom_node.set_child_needs_layout_tree_update(false);
+}
+
+void TreeBuilder::build_tree_of_pseudo_elements(DOM::Element& element, DOM::PseudoElementTreeNode* root)
+{
+    auto& document = element.document();
+
+    auto pseudo_element_style = element.computed_properties(root->type());
+    auto pseudo_element_display = pseudo_element_style->display();
+    GC::Ptr<Layout::NodeWithStyle> pseudo_element_node;
+    switch (root->type()) {
+        case CSS::PseudoElement::ViewTransitionNew:
+        case CSS::PseudoElement::ViewTransitionOld:
+            pseudo_element_node = document.heap().allocate<Layout::ImageBox>(document, element, *pseudo_element_style, as<ImageProvider const>(*root));
+            break;
+        default:
+            pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
+    }
+    if (!pseudo_element_node)
+        return;
+
+    pseudo_element_node->set_generated_for(root->type(), element);
+
+    element.set_pseudo_element_node({}, root->type(), pseudo_element_node);
+    m_ancestor_stack.last()->append_child(*pseudo_element_node);
+
+    push_parent(*pseudo_element_node);
+    for (auto* child = root->first_child(); child; child = child->next_sibling())
+        build_tree_of_pseudo_elements(element, child);
 }
 
 void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, GC::Ref<Layout::Node> layout_node)

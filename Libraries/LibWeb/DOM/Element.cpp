@@ -3032,7 +3032,7 @@ PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
 
     if (!m_pseudo_element_data->get(type).has_value()) {
         if (is_pseudo_element_root(type)) {
-            m_pseudo_element_data->set(type, heap().allocate<PseudoElementTreeNode>());
+            m_pseudo_element_data->set(type, heap().allocate<PseudoElementTreeNode>(type));
         } else {
             m_pseudo_element_data->set(type, heap().allocate<PseudoElement>());
         }

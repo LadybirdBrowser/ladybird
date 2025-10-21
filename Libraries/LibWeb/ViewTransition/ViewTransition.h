@@ -15,8 +15,10 @@
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/Transformation.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::ViewTransition {
@@ -29,8 +31,6 @@ class NamedViewTransitionPseudoElement
 
     NamedViewTransitionPseudoElement(CSS::PseudoElement, FlyString);
 
-    CSS::PseudoElement m_type;
-
     // Several of the view transition pseudo-elements are named view transition pseudo-elements, which are
     // functional tree-abiding view transition pseudo-elements associated with a view transition name.
     FlyString m_view_transition_name;
@@ -39,11 +39,21 @@ class NamedViewTransitionPseudoElement
 // https://drafts.csswg.org/css-view-transitions-1/#::view-transition-old
 // https://drafts.csswg.org/css-view-transitions-1/#::view-transition-new
 class ReplacedNamedViewTransitionPseudoElement
-    : public NamedViewTransitionPseudoElement {
+    : public NamedViewTransitionPseudoElement
+    , public Layout::ImageProvider {
     GC_CELL(ReplacedNamedViewTransitionPseudoElement, NamedViewTransitionPseudoElement);
     GC_DECLARE_ALLOCATOR(ReplacedNamedViewTransitionPseudoElement);
 
     ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement, FlyString, RefPtr<Gfx::ImmutableBitmap>);
+
+    // ^Layout::ImageProvider
+    virtual bool is_image_available() const override;
+    virtual Optional<CSSPixels> intrinsic_width() const override;
+    virtual Optional<CSSPixels> intrinsic_height() const override;
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
+    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize) const override;
+    virtual void set_visible_in_viewport(bool) override { }
+    virtual GC::Ptr<DOM::Element const> to_html_element() const override { return nullptr; }
 
     RefPtr<Gfx::ImmutableBitmap> m_content;
 };
@@ -138,6 +148,8 @@ public:
     };
     Phase phase() const { return m_phase; }
     void set_update_callback(ViewTransitionUpdateCallback callback) { m_update_callback = callback; }
+
+    GC::Ref<DOM::PseudoElementTreeNode> transition_root_pseudo_element() { return m_transition_root_pseudo_element; }
 
 private:
     ViewTransition(JS::Realm&, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>);

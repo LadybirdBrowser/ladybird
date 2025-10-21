@@ -876,6 +876,7 @@ public:
     void set_rendering_suppression_for_view_transitions(bool value) { m_rendering_suppression_for_view_transitions = value; }
     GC::Ptr<CSS::CSSStyleSheet> dynamic_view_transition_style_sheet() const { return m_dynamic_view_transition_style_sheet; }
     void set_show_view_transition_tree(bool value) { m_show_view_transition_tree = value; }
+    bool show_view_transition_tree() { return m_show_view_transition_tree; }
     Vector<GC::Ptr<ViewTransition::ViewTransition>>& update_callback_queue() { return m_update_callback_queue; }
 
     void reset_cursor_blink_cycle();
