@@ -616,7 +616,7 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
     TRY_READ(streamer.seek_to_position(first_element_position));
 
     Cluster cluster;
-    cluster.set_timestamp(AK::Duration::from_nanoseconds(timestamp.release_value() * timestamp_scale));
+    cluster.set_timestamp(AK::Duration::from_nanoseconds(AK::clamp_to<i64>(timestamp.release_value() * timestamp_scale)));
     return cluster;
 }
 
