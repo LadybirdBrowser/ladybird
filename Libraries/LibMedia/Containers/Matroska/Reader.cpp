@@ -586,7 +586,7 @@ DecoderErrorOr<size_t> Reader::track_count()
     return m_tracks.size();
 }
 
-constexpr size_t get_element_id_size(u32 element_id)
+static constexpr size_t get_element_id_size(u32 element_id)
 {
     return sizeof(element_id) - (count_leading_zeroes(element_id) / 8);
 }
