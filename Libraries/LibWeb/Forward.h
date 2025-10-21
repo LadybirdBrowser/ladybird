@@ -1217,6 +1217,7 @@ class WebGLShader;
 class WebGLShaderPrecisionFormat;
 class WebGLSync;
 class WebGLTexture;
+class WebGLTransformFeedback;
 class WebGLUniformLocation;
 class WebGLVertexArrayObject;
 
