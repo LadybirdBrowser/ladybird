@@ -29,7 +29,7 @@ public:
     FlyString const& tag() const { return m_tag; }
     ValueComparingNonnullRefPtr<StyleValue const> const& value() const { return m_value; }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual String to_string(SerializationMode) const override;
 

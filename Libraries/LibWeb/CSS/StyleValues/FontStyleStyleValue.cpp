@@ -56,12 +56,12 @@ String FontStyleStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> FontStyleStyleValue::absolutized(ComputationContext const& computation_context, PropertyComputationDependencies& property_computation_dependencies) const
+ValueComparingNonnullRefPtr<StyleValue const> FontStyleStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     ValueComparingRefPtr<StyleValue const> absolutized_angle;
 
     if (m_angle_value)
-        absolutized_angle = m_angle_value->absolutized(computation_context, property_computation_dependencies);
+        absolutized_angle = m_angle_value->absolutized(computation_context);
 
     if (absolutized_angle == m_angle_value)
         return *this;

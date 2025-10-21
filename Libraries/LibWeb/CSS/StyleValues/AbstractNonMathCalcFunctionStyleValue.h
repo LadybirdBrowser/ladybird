@@ -14,7 +14,7 @@ class AbstractNonMathCalcFunctionStyleValue : public StyleValue {
     using StyleValue::StyleValue;
 
 public:
-    virtual RefPtr<CalculationNode const> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&, PropertyComputationDependencies*) const = 0;
+    virtual RefPtr<CalculationNode const> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const = 0;
 };
 
 }

@@ -80,7 +80,7 @@ public:
 
     virtual String to_string(SerializationMode mode) const override { return m_function.to_string(mode); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 

@@ -157,10 +157,6 @@ struct ColorResolutionContext {
     [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
 };
 
-struct PropertyComputationDependencies {
-    bool tree_counting_function : 1 { false };
-};
-
 class WEB_API StyleValue : public RefCounted<StyleValue> {
 public:
     virtual ~StyleValue() = default;
@@ -208,7 +204,7 @@ public:
     bool has_auto() const;
     virtual bool has_color() const { return false; }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
