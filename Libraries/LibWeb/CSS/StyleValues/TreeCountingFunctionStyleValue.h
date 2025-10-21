@@ -30,7 +30,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    size_t resolve(TreeCountingFunctionResolutionContext const&, PropertyComputationDependencies&) const;
+    size_t resolve(DOM::AbstractElement const&, PropertyComputationDependencies&) const;
 
     virtual RefPtr<CalculationNode const> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&, PropertyComputationDependencies*) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&, PropertyComputationDependencies&) const override;

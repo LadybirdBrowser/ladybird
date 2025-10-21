@@ -19,14 +19,14 @@ struct CalculationResolutionContext {
 
     PercentageBasis percentage_basis {};
     Optional<Length::ResolutionContext> length_resolution_context {};
-    Optional<TreeCountingFunctionResolutionContext> tree_counting_function_resolution_context {};
+    Optional<DOM::AbstractElement> abstract_element {};
 
     static CalculationResolutionContext from_computation_context(ComputationContext const& computation_context, PercentageBasis percentage_basis = {})
     {
         return {
             .percentage_basis = percentage_basis,
             .length_resolution_context = computation_context.length_resolution_context,
-            .tree_counting_function_resolution_context = computation_context.tree_counting_function_resolution_context
+            .abstract_element = computation_context.abstract_element
         };
     }
 };
