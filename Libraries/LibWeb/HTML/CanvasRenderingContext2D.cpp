@@ -989,10 +989,13 @@ float CanvasRenderingContext2D::shadow_offset_x() const
     return drawing_state().shadow_offset_x;
 }
 
-void CanvasRenderingContext2D::set_shadow_offset_x(float offsetX)
+void CanvasRenderingContext2D::set_shadow_offset_x(float offset_x)
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsetx
-    drawing_state().shadow_offset_x = offsetX;
+    if (!isfinite(offset_x))
+        return;
+
+    drawing_state().shadow_offset_x = offset_x;
 }
 
 float CanvasRenderingContext2D::shadow_offset_y() const
@@ -1000,10 +1003,13 @@ float CanvasRenderingContext2D::shadow_offset_y() const
     return drawing_state().shadow_offset_y;
 }
 
-void CanvasRenderingContext2D::set_shadow_offset_y(float offsetY)
+void CanvasRenderingContext2D::set_shadow_offset_y(float offset_y)
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsety
-    drawing_state().shadow_offset_y = offsetY;
+    if (!isfinite(offset_y))
+        return;
+
+    drawing_state().shadow_offset_y = offset_y;
 }
 
 float CanvasRenderingContext2D::shadow_blur() const
