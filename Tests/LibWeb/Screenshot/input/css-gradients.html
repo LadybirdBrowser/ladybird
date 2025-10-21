@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <link rel="match" href="../expected/css-gradients-ref.html" />
-<meta name="fuzzy" content="maxDifference=0-63;totalPixels=0-215">
+<meta name="fuzzy" content="maxDifference=0-63;totalPixels=0-167">
 <style>
   body {
     background-color: white;
@@ -145,6 +145,10 @@
     background-image: -webkit-repeating-linear-gradient(left, red 10%, blue 30%);
   }
 
+  .grad-repeat-4 {
+    background-image: repeating-linear-gradient(to bottom, blue 0 2px, red 2px 4px);
+  }
+
   .grad-double-position {
     background-image: linear-gradient(to right, red 20%, orange 20% 40%, yellow 40% 60%, green 60% 80%, blue 80%)
   }
@@ -246,6 +250,7 @@
   <div class="box grad-conic-6"></div>
   <div class="box grad-conic-repeat-1"></div>
   <div class="box grad-conic-repeat-2"></div>
+  <div class="box grad-repeat-4"></div>
 </section>
 <section class="rects">
   <div class="rect grad-7"></div>
