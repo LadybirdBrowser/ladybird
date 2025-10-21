@@ -103,8 +103,68 @@ void WebGLRenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL:
 {
     m_context->make_current();
 
-    auto span = MUST(get_offset_span<u8>(*pixels, /* src_offset= */ 0));
-    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, span.size(), span.data());
+    if (pixels) {
+        auto span = MUST(get_offset_span<u8>(*pixels, /* src_offset= */ 0));
+        glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, span.size(), span.data());
+        return;
+    }
+
+    Checked<size_t> bytes = 0;
+    if (type == GL_UNSIGNED_SHORT_5_6_5 && format != GL_RGB) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    if ((type == GL_UNSIGNED_SHORT_4_4_4_4 || type == GL_UNSIGNED_SHORT_5_5_5_1) && format != GL_RGBA) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    switch (format) {
+    case GL_ALPHA:
+    case GL_LUMINANCE:
+    case GL_LUMINANCE_ALPHA: {
+        if (type != GL_UNSIGNED_BYTE) {
+            set_error(GL_INVALID_ENUM);
+            return;
+        }
+
+        bytes = format == GL_LUMINANCE_ALPHA ? 2 : 1;
+        break;
+    }
+    case GL_RGB:
+    case GL_RGBA: {
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            bytes = format == GL_RGB ? 3 : 4;
+            break;
+        case GL_UNSIGNED_SHORT_4_4_4_4:
+        case GL_UNSIGNED_SHORT_5_5_5_1:
+        case GL_UNSIGNED_SHORT_5_6_5:
+            bytes = 2;
+            break;
+        default:
+            set_error(GL_INVALID_ENUM);
+            return;
+        }
+
+        break;
+    }
+    default:
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    bytes *= width;
+    bytes *= height;
+
+    if (bytes.has_overflow()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    auto byte_buffer = MUST(ByteBuffer::create_zeroed(bytes.value_unchecked()));
+    glTexImage2DRobustANGLE(target, level, internalformat, width, height, border, format, type, byte_buffer.size(), byte_buffer.data());
 }
 
 void WebGLRenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
