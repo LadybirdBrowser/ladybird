@@ -2,19 +2,19 @@ Harness status: OK
 
 Found 15 tests
 
-8 Pass
-7 Fail
+12 Pass
+3 Fail
 Pass	globalCompositeOperation clear
 Pass	globalCompositeOperation copy
 Fail	globalCompositeOperation destination
 Pass	globalCompositeOperation source-over
 Pass	globalCompositeOperation destination-over
-Fail	globalCompositeOperation source-in
-Fail	globalCompositeOperation destination-in
-Fail	globalCompositeOperation source-out
+Pass	globalCompositeOperation source-in
+Pass	globalCompositeOperation destination-in
+Pass	globalCompositeOperation source-out
 Pass	globalCompositeOperation destination-out
 Pass	globalCompositeOperation source-atop
-Fail	globalCompositeOperation destination-atop
+Pass	globalCompositeOperation destination-atop
 Pass	globalCompositeOperation xor
 Fail	globalCompositeOperation lighter
 Fail	globalCompositeOperation plus-darker

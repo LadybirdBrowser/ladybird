@@ -1064,6 +1064,8 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
         return;
 
     auto& state = this->drawing_state();
+    if (state.shadow_blur == 0.0f && state.shadow_offset_x == 0.0f && state.shadow_offset_y == 0.0f)
+        return;
 
     if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
         return;
@@ -1096,6 +1098,9 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
     auto& state = drawing_state();
 
     if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
+        return;
+
+    if (state.shadow_blur == 0.0f && state.shadow_offset_x == 0.0f && state.shadow_offset_y == 0.0f)
         return;
 
     auto alpha = state.global_alpha * (state.shadow_color.alpha() / 255.0f);
