@@ -1,6 +1,7 @@
 include(audio)
 
 set(TEST_SOURCES
+    TestFFmpegLoader.cpp
     TestH264Decode.cpp
     TestParseMatroska.cpp
     TestPlaybackStream.cpp
