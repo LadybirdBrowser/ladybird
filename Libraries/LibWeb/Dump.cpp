@@ -828,7 +828,7 @@ void dump_style_properties(StringBuilder& builder, CSS::CSSStyleProperties const
     builder.appendff("Declarations ({}):\n", declaration.length());
     for (auto& property : declaration.properties()) {
         indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::SerializationMode::Normal));
+        builder.appendff("  {}: '{}'", property.name_and_id.name(), property.value->to_string(CSS::SerializationMode::Normal));
         if (property.important == CSS::Important::Yes)
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');

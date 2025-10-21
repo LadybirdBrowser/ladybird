@@ -2388,7 +2388,7 @@ bool is_simple_indentation_element(GC::Ref<DOM::Node> node)
             if (!inline_style)
                 return;
             for (auto& style_property : inline_style->properties()) {
-                switch (style_property.property_id) {
+                switch (style_property.name_and_id.id()) {
                 case CSS::PropertyID::Border:
                 case CSS::PropertyID::BorderBottom:
                 case CSS::PropertyID::BorderLeft:
