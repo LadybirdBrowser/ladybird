@@ -80,6 +80,7 @@ public:
     Executable const& current_executable() const { return *m_running_execution_context->executable; }
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
+    ExecutionContext const& running_execution_context() const { return *m_running_execution_context; }
 
     [[nodiscard]] Utf16FlyString const& get_identifier(IdentifierTableIndex) const;
     [[nodiscard]] Optional<Utf16FlyString const&> get_identifier(Optional<IdentifierTableIndex> index) const
@@ -101,15 +102,7 @@ private:
     VM& m_vm;
     ExecutionContext* m_running_execution_context { nullptr };
 
-    template<typename OP>
-    friend u32 handle(Interpreter& interpreter, u8 const* bytecode, u32 program_counter);
-    template<typename OP>
-    friend u32 handle_generic(Interpreter& interpreter, u8 const* bytecode, u32 program_counter);
-    template<typename OP>
-    friend u32 handle_jump(Interpreter& interpreter, u8 const* bytecode, u32 program_counter);
-
-    typedef u32 (*dispatch_instruction_table_t)(Interpreter&, u8 const*, u32);
-    static AK::Array<dispatch_instruction_table_t, to_underlying(Instruction::Type::__Last)> const dispatch_instruction_table;
+    friend struct InterpreterPrivate;
 };
 
 JS_API extern bool g_dump_bytecode;
