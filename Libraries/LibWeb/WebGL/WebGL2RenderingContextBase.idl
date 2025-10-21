@@ -403,16 +403,16 @@ interface mixin WebGL2RenderingContextBase {
     any getSyncParameter(WebGLSync sync, GLenum pname);
 
     // Transform Feedback
-    [FIXME] WebGLTransformFeedback createTransformFeedback();
-    [FIXME] undefined deleteTransformFeedback(WebGLTransformFeedback? tf);
+    WebGLTransformFeedback createTransformFeedback();
+    undefined deleteTransformFeedback(WebGLTransformFeedback? tf);
     [FIXME] GLboolean isTransformFeedback(WebGLTransformFeedback? tf); // [WebGLHandlesContextLoss]
-    [FIXME] undefined bindTransformFeedback (GLenum target, WebGLTransformFeedback? tf);
-    [FIXME] undefined beginTransformFeedback(GLenum primitiveMode);
-    [FIXME] undefined endTransformFeedback();
-    [FIXME] undefined transformFeedbackVaryings(WebGLProgram program, sequence<DOMString> varyings, GLenum bufferMode);
+    undefined bindTransformFeedback(GLenum target, WebGLTransformFeedback? tf);
+    undefined beginTransformFeedback(GLenum primitiveMode);
+    undefined endTransformFeedback();
+    undefined transformFeedbackVaryings(WebGLProgram program, sequence<DOMString> varyings, GLenum bufferMode);
     [FIXME] WebGLActiveInfo? getTransformFeedbackVarying(WebGLProgram program, GLuint index);
-    [FIXME] undefined pauseTransformFeedback();
-    [FIXME] undefined resumeTransformFeedback();
+    undefined pauseTransformFeedback();
+    undefined resumeTransformFeedback();
 
     // Uniform Buffer Objects and Transform Feedback Buffers
     undefined bindBufferBase(GLenum target, GLuint index, WebGLBuffer? buffer);

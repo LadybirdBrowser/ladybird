@@ -30,6 +30,7 @@ extern "C" {
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
+#include <LibWeb/WebGL/WebGLTransformFeedback.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -823,6 +824,102 @@ JS::Value WebGL2RenderingContextImpl::get_sync_parameter(GC::Root<WebGLSync> syn
     return JS::Value(result);
 }
 
+GC::Root<WebGLTransformFeedback> WebGL2RenderingContextImpl::create_transform_feedback()
+{
+    m_context->make_current();
+
+    GLuint handle = 0;
+    glGenTransformFeedbacks(1, &handle);
+    return WebGLTransformFeedback::create(m_realm, *this, handle);
+}
+
+void WebGL2RenderingContextImpl::delete_transform_feedback(GC::Root<WebGLTransformFeedback> transform_feedback)
+{
+    m_context->make_current();
+
+    GLuint transform_feedback_handle = 0;
+    if (transform_feedback) {
+        auto handle_or_error = transform_feedback->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        transform_feedback_handle = handle_or_error.release_value();
+    }
+
+    glDeleteTransformFeedbacks(1, &transform_feedback_handle);
+}
+
+void WebGL2RenderingContextImpl::bind_transform_feedback(WebIDL::UnsignedLong target, GC::Root<WebGLTransformFeedback> transform_feedback)
+{
+    m_context->make_current();
+
+    GLuint transform_feedback_handle = 0;
+    if (transform_feedback) {
+        auto handle_or_error = transform_feedback->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        transform_feedback_handle = handle_or_error.release_value();
+    }
+
+    glBindTransformFeedback(target, transform_feedback_handle);
+}
+
+void WebGL2RenderingContextImpl::begin_transform_feedback(WebIDL::UnsignedLong primitive_mode)
+{
+    m_context->make_current();
+    glBeginTransformFeedback(primitive_mode);
+}
+
+void WebGL2RenderingContextImpl::end_transform_feedback()
+{
+    m_context->make_current();
+    glEndTransformFeedback();
+}
+
+void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Root<WebGLProgram> program, Vector<String> const& varyings, WebIDL::UnsignedLong buffer_mode)
+{
+    m_context->make_current();
+
+    GLuint program_handle = 0;
+    if (program) {
+        auto handle_or_error = program->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
+        program_handle = handle_or_error.release_value();
+    }
+
+    Vector<Vector<GLchar>> varying_strings;
+    varying_strings.ensure_capacity(varyings.size());
+    for (auto const& varying : varyings) {
+        varying_strings.unchecked_append(null_terminated_string(varying));
+    }
+
+    Vector<GLchar const*> varying_strings_characters;
+    varying_strings.ensure_capacity(varying_strings.size());
+    for (auto const& varying_string : varying_strings) {
+        varying_strings_characters.append(varying_string.data());
+    }
+
+    glTransformFeedbackVaryings(program_handle, varying_strings_characters.size(), varying_strings_characters.data(), buffer_mode);
+}
+
+void WebGL2RenderingContextImpl::pause_transform_feedback()
+{
+    m_context->make_current();
+    glPauseTransformFeedback();
+}
+
+void WebGL2RenderingContextImpl::resume_transform_feedback()
+{
+    m_context->make_current();
+    glResumeTransformFeedback();
+}
+
 void WebGL2RenderingContextImpl::bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer)
 {
     m_context->make_current();
@@ -1510,7 +1607,9 @@ void WebGL2RenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Ro
     case GL_COPY_WRITE_BUFFER:
         m_copy_write_buffer_binding = buffer;
         break;
-
+    case GL_TRANSFORM_FEEDBACK_BUFFER:
+        m_transform_feedback_buffer_binding = buffer;
+        break;
     default:
         dbgln("Unknown WebGL buffer object binding target for storing current binding: 0x{:04x}", target);
         set_error(GL_INVALID_ENUM);
@@ -2730,6 +2829,26 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         set_error(GL_INVALID_ENUM);
         return JS::js_null();
     }
+    case GL_TRANSFORM_FEEDBACK_ACTIVE: {
+        GLboolean result { GL_FALSE };
+        glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_ACTIVE, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    case GL_TRANSFORM_FEEDBACK_BINDING: {
+        if (!m_transform_feedback_binding)
+            return JS::js_null();
+        return JS::Value(m_transform_feedback_binding);
+    }
+    case GL_TRANSFORM_FEEDBACK_BUFFER_BINDING: {
+        if (!m_transform_feedback_buffer_binding)
+            return JS::js_null();
+        return JS::Value(m_transform_feedback_buffer_binding);
+    }
+    case GL_TRANSFORM_FEEDBACK_PAUSED: {
+        GLboolean result { GL_FALSE };
+        glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_PAUSED, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -3300,8 +3419,10 @@ void WebGL2RenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_uniform_buffer_binding);
     visitor.visit(m_copy_read_buffer_binding);
     visitor.visit(m_copy_write_buffer_binding);
+    visitor.visit(m_transform_feedback_buffer_binding);
     visitor.visit(m_texture_binding_2d_array);
     visitor.visit(m_texture_binding_3d);
+    visitor.visit(m_transform_feedback_binding);
 }
 
 }

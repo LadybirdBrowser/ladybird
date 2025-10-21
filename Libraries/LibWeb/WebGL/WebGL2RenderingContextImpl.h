@@ -84,6 +84,14 @@ public:
     WebIDL::UnsignedLong client_wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout);
     void wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout);
     JS::Value get_sync_parameter(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong pname);
+    GC::Root<WebGLTransformFeedback> create_transform_feedback();
+    void delete_transform_feedback(GC::Root<WebGLTransformFeedback> transform_feedback);
+    void bind_transform_feedback(WebIDL::UnsignedLong target, GC::Root<WebGLTransformFeedback> transform_feedback);
+    void begin_transform_feedback(WebIDL::UnsignedLong primitive_mode);
+    void end_transform_feedback();
+    void transform_feedback_varyings(GC::Root<WebGLProgram> program, Vector<String> const& varyings, WebIDL::UnsignedLong buffer_mode);
+    void pause_transform_feedback();
+    void resume_transform_feedback();
     void bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer);
     void bind_buffer_range(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer, WebIDL::LongLong offset, WebIDL::LongLong size);
     JS::Value get_active_uniforms(GC::Root<WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname);
@@ -248,8 +256,10 @@ private:
     GC::Ptr<WebGLBuffer> m_uniform_buffer_binding;
     GC::Ptr<WebGLBuffer> m_copy_read_buffer_binding;
     GC::Ptr<WebGLBuffer> m_copy_write_buffer_binding;
+    GC::Ptr<WebGLBuffer> m_transform_feedback_buffer_binding;
     GC::Ptr<WebGLTexture> m_texture_binding_2d_array;
     GC::Ptr<WebGLTexture> m_texture_binding_3d;
+    GC::Ptr<WebGLTransformFeedback> m_transform_feedback_binding;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 };
