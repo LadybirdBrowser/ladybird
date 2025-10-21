@@ -329,11 +329,11 @@ static DecoderErrorOr<SegmentInformation> parse_information(Streamer& streamer)
             break;
         case MUXING_APP_ID:
             segment_information.set_muxing_app(TRY_READ(streamer.read_string()));
-            dbgln_if(MATROSKA_DEBUG, "Read MuxingApp attribute: {}", segment_information.muxing_app().as_string());
+            dbgln_if(MATROSKA_DEBUG, "Read MuxingApp attribute: {}", segment_information.muxing_app());
             break;
         case WRITING_APP_ID:
             segment_information.set_writing_app(TRY_READ(streamer.read_string()));
-            dbgln_if(MATROSKA_DEBUG, "Read WritingApp attribute: {}", segment_information.writing_app().as_string());
+            dbgln_if(MATROSKA_DEBUG, "Read WritingApp attribute: {}", segment_information.writing_app());
             break;
         case DURATION_ID:
             segment_information.set_duration_unscaled(TRY_READ(streamer.read_float()));
@@ -481,19 +481,19 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry->track_type()));
             break;
         case TRACK_NAME_ID:
-            track_entry->set_name(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_name(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Name attribute: {}", track_entry->name());
             break;
         case TRACK_LANGUAGE_ID:
-            track_entry->set_language(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_language(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Language attribute: {}", track_entry->language());
             break;
         case TRACK_LANGUAGE_BCP_47_ID:
-            track_entry->set_language_bcp_47(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_language_bcp_47(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's LanguageBCP47 attribute: {}", track_entry->language());
             break;
         case TRACK_CODEC_ID:
-            track_entry->set_codec_id(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_codec_id(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
             break;
         case TRACK_CODEC_PRIVATE_ID: {
@@ -1088,13 +1088,13 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point
     return {};
 }
 
-ErrorOr<ByteString> Streamer::read_string()
+ErrorOr<String> Streamer::read_string()
 {
     auto string_length = TRY(read_variable_size_integer());
     if (remaining() < string_length)
         return Error::from_string_literal("String length extends past the end of the stream");
-    auto string_data = data_as_chars();
-    auto string_value = ByteString(string_data, strnlen(string_data, string_length));
+    auto const* string_data = data_as_chars();
+    auto string_value = String::from_utf8(ReadonlyBytes(string_data, strnlen(string_data, string_length)));
     TRY(read_raw_octets(string_length));
     return string_value;
 }
