@@ -10,6 +10,7 @@
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/Mutex.h>
+#include <LibThreading/Once.h>
 #include <errno.h>
 #include <pthread.h>
 
@@ -46,11 +47,11 @@ struct ThreadEventQueue::Private {
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
-static pthread_once_t s_current_thread_event_queue_key_once = PTHREAD_ONCE_INIT;
+static Threading::OnceFlag s_current_thread_event_queue_key_once {};
 
 ThreadEventQueue* ThreadEventQueue::current_or_null()
 {
-    pthread_once(&s_current_thread_event_queue_key_once, [] {
+    call_once(s_current_thread_event_queue_key_once, [] {
         pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
             if (value)
                 delete static_cast<ThreadEventQueue*>(value);
