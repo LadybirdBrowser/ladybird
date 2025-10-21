@@ -43,8 +43,13 @@ public:
     virtual bool was_exit_requested() const override;
     virtual void post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&&) override;
 
+    virtual ~EventLoopImplementationMacOS() override;
+
 private:
-    EventLoopImplementationMacOS() = default;
+    EventLoopImplementationMacOS();
+
+    struct Impl;
+    NonnullOwnPtr<Impl> m_impl;
 
     int m_exit_code { 0 };
 };
