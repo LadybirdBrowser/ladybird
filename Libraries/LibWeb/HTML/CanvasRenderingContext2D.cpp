@@ -21,6 +21,8 @@
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
@@ -135,31 +137,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     if (usability == CanvasImageSourceUsability::Bad)
         return {};
 
-    auto bitmap = image.visit(
-        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto width = source->intrinsic_width().value_or({}).to_int();
-            auto height = source->intrinsic_height().value_or({}).to_int();
-            return source->default_image_bitmap_sized({ width, height });
-        },
-        [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto width = source->intrinsic_width().value_or({}).to_int();
-            auto height = source->intrinsic_height().value_or({}).to_int();
-            return source->default_image_bitmap_sized({ width, height });
-        },
-        [](GC::Root<OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
-        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto surface = source->surface();
-            if (!surface)
-                return {};
-            return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
-        },
-        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
-        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto* bitmap = source->bitmap();
-            if (!bitmap)
-                return {};
-            return Gfx::ImmutableBitmap::create(*bitmap);
-        });
+    auto bitmap = canvas_image_source_bitmap(image);
     if (!bitmap)
         return {};
 

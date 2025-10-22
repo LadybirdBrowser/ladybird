@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Pavel Shliak <shlyakpavel@gmail.com>
  * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/PaintStyle.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
@@ -20,7 +22,6 @@
 #include <core/SkImageFilter.h>
 #include <core/SkPaint.h>
 #include <core/SkPath.h>
-#include <core/SkPathEffect.h>
 #include <core/SkSamplingOptions.h>
 
 namespace Gfx {

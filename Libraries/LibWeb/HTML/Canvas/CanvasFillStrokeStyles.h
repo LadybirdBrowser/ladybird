@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 
 namespace Web::HTML {
 

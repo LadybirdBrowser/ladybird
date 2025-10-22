@@ -2,26 +2,30 @@
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #define AK_DONT_REPLACE_STD
 
+#include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <AK/TypeCasts.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
 
-#include <AK/TypeCasts.h>
 #include <core/SkCanvas.h>
 #include <core/SkPath.h>
+#include <core/SkPathEffect.h>
 #include <effects/SkBlurMaskFilter.h>
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
+#include <include/core/SkImage.h>
 
 namespace Gfx {
 
@@ -43,14 +47,12 @@ struct PainterSkia::Impl {
     }
 };
 
-static void apply_paint_style(SkPaint& paint, Gfx::PaintStyle const& style)
+static void apply_paint_style(SkPaint& paint, PaintStyle const& style)
 {
-    if (is<Gfx::SolidColorPaintStyle>(style)) {
-        auto const& solid_color = static_cast<Gfx::SolidColorPaintStyle const&>(style);
-        paint.setColor(to_skia_color(solid_color.color()));
-    } else if (is<Gfx::CanvasLinearGradientPaintStyle>(style)) {
-        auto const& linear_gradient = static_cast<Gfx::CanvasLinearGradientPaintStyle const&>(style);
-        auto const& color_stops = linear_gradient.color_stops();
+    if (auto const& solid_color = as_if<SolidColorPaintStyle>(style)) {
+        paint.setColor(to_skia_color(solid_color->color()));
+    } else if (auto const& linear_gradient = as_if<Gfx::CanvasLinearGradientPaintStyle>(style)) {
+        auto const& color_stops = linear_gradient->color_stops();
 
         Vector<SkColor> colors;
         colors.ensure_capacity(color_stops.size());
@@ -61,16 +63,13 @@ static void apply_paint_style(SkPaint& paint, Gfx::PaintStyle const& style)
             positions.append(color_stop.position);
         }
 
-        Array<SkPoint, 2> points;
-        points[0] = to_skia_point(linear_gradient.start_point());
-        points[1] = to_skia_point(linear_gradient.end_point());
+        Array points { to_skia_point(linear_gradient->start_point()), to_skia_point(linear_gradient->end_point()) };
 
         SkMatrix matrix;
         auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
         paint.setShader(shader);
-    } else if (is<Gfx::CanvasRadialGradientPaintStyle>(style)) {
-        auto const& radial_gradient = static_cast<Gfx::CanvasRadialGradientPaintStyle const&>(style);
-        auto const& color_stops = radial_gradient.color_stops();
+    } else if (auto const* radial_gradient = as_if<CanvasRadialGradientPaintStyle>(style)) {
+        auto const& color_stops = radial_gradient->color_stops();
 
         Vector<SkColor> colors;
         colors.ensure_capacity(color_stops.size());
@@ -81,10 +80,10 @@ static void apply_paint_style(SkPaint& paint, Gfx::PaintStyle const& style)
             positions.append(color_stop.position);
         }
 
-        auto start_center = radial_gradient.start_center();
-        auto end_center = radial_gradient.end_center();
-        auto start_radius = radial_gradient.start_radius();
-        auto end_radius = radial_gradient.end_radius();
+        auto start_center = radial_gradient->start_center();
+        auto end_center = radial_gradient->end_center();
+        auto start_radius = radial_gradient->start_radius();
+        auto end_radius = radial_gradient->end_radius();
 
         auto start_sk_point = to_skia_point(start_center);
         auto end_sk_point = to_skia_point(end_center);
@@ -92,6 +91,26 @@ static void apply_paint_style(SkPaint& paint, Gfx::PaintStyle const& style)
         SkMatrix matrix;
         auto shader = SkGradientShader::MakeTwoPointConical(start_sk_point, start_radius, end_sk_point, end_radius, colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
         paint.setShader(shader);
+    } else if (auto const* canvas_pattern = as_if<CanvasPatternPaintStyle>(style)) {
+        auto image = canvas_pattern->image();
+        if (!image)
+            return;
+        auto const* sk_image = image->sk_image();
+
+        auto repetition = canvas_pattern->repetition();
+        auto repeat_x = first_is_one_of(repetition, CanvasPatternPaintStyle::Repetition::Repeat, CanvasPatternPaintStyle::Repetition::RepeatX);
+        auto repeat_y = first_is_one_of(repetition, CanvasPatternPaintStyle::Repetition::Repeat, CanvasPatternPaintStyle::Repetition::RepeatY);
+
+        // FIXME: Implement sampling configuration.
+        SkSamplingOptions sk_sampling_options { SkFilterMode::kLinear };
+
+        auto shader = sk_image->makeShader(
+            repeat_x ? SkTileMode::kRepeat : SkTileMode::kDecal,
+            repeat_y ? SkTileMode::kRepeat : SkTileMode::kDecal,
+            sk_sampling_options);
+        paint.setShader(shader);
+    } else {
+        dbgln("FIXME: Unsupported PaintStyle");
     }
 }
 

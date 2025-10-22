@@ -50,7 +50,7 @@ public:
     String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
 
     RefPtr<Gfx::ImmutableBitmap> immutable_bitmap() const;
-    RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const;
+    virtual RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const override;
 
     WebIDL::UnsignedLong width() const;
     WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);

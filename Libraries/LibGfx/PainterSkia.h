@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/PaintingSurface.h>

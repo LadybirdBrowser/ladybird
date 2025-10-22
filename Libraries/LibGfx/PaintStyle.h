@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Rect.h>
 
 namespace Gfx {
@@ -76,6 +78,34 @@ public:
 private:
     Vector<ColorStop, 4> m_color_stops;
     Optional<float> m_repeat_length;
+};
+
+class CanvasPatternPaintStyle : public PaintStyle {
+public:
+    enum class Repetition : u8 {
+        Repeat,
+        RepeatX,
+        RepeatY,
+        NoRepeat
+    };
+
+    static ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> create(RefPtr<ImmutableBitmap> image, Repetition repetition)
+    {
+        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(image, repetition));
+    }
+
+    RefPtr<ImmutableBitmap> image() const { return m_image; }
+    Repetition repetition() const { return m_repetition; }
+
+private:
+    CanvasPatternPaintStyle(RefPtr<ImmutableBitmap> image, Repetition repetition)
+        : m_image(image)
+        , m_repetition(repetition)
+    {
+    }
+
+    RefPtr<ImmutableBitmap> m_image;
+    Repetition m_repetition { Repetition::Repeat };
 };
 
 // The following paint styles implement the gradients required for the HTML canvas.
