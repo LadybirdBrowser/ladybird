@@ -78,6 +78,18 @@ public:
         return to_px_slow_case(node);
     }
 
+    ALWAYS_INLINE double to_px_without_rounding(ResolutionContext const& context) const
+    {
+        if (is_absolute())
+            return absolute_length_to_px_without_rounding();
+        if (is_font_relative())
+            return font_relative_length_to_px_without_rounding(context.font_metrics, context.root_font_metrics);
+        if (is_viewport_relative())
+            return viewport_relative_length_to_px_without_rounding(context.viewport_rect);
+
+        VERIFY_NOT_REACHED();
+    }
+
     ALWAYS_INLINE CSSPixels to_px(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
     {
         if (is_absolute())
@@ -108,7 +120,9 @@ public:
     }
 
     CSSPixels font_relative_length_to_px(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
+    double font_relative_length_to_px_without_rounding(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
     CSSPixels viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const;
+    double viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const;
 
     // Returns empty optional if it's already absolute.
     Optional<Length> absolutize(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;

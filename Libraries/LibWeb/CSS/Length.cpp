@@ -39,33 +39,38 @@ Length Length::percentage_of(Percentage const& percentage) const
 
 CSSPixels Length::font_relative_length_to_px(Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
+    return CSSPixels::nearest_value_for(font_relative_length_to_px_without_rounding(font_metrics, root_font_metrics));
+}
+
+double Length::font_relative_length_to_px_without_rounding(Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+{
     switch (m_unit) {
     case LengthUnit::Em:
-        return CSSPixels::nearest_value_for(m_value * font_metrics.font_size.to_double());
+        return m_value * font_metrics.font_size.to_double();
     case LengthUnit::Rem:
-        return CSSPixels::nearest_value_for(m_value * root_font_metrics.font_size.to_double());
+        return m_value * root_font_metrics.font_size.to_double();
     case LengthUnit::Ex:
-        return CSSPixels::nearest_value_for(m_value * font_metrics.x_height.to_double());
+        return m_value * font_metrics.x_height.to_double();
     case LengthUnit::Rex:
-        return CSSPixels::nearest_value_for(m_value * root_font_metrics.x_height.to_double());
+        return m_value * root_font_metrics.x_height.to_double();
     case LengthUnit::Cap:
-        return CSSPixels::nearest_value_for(m_value * font_metrics.cap_height.to_double());
+        return m_value * font_metrics.cap_height.to_double();
     case LengthUnit::Rcap:
-        return CSSPixels::nearest_value_for(m_value * root_font_metrics.cap_height.to_double());
+        return m_value * root_font_metrics.cap_height.to_double();
     case LengthUnit::Ch:
-        return CSSPixels::nearest_value_for(m_value * font_metrics.zero_advance.to_double());
+        return m_value * font_metrics.zero_advance.to_double();
     case LengthUnit::Rch:
-        return CSSPixels::nearest_value_for(m_value * root_font_metrics.zero_advance.to_double());
+        return m_value * root_font_metrics.zero_advance.to_double();
     case LengthUnit::Ic:
         // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
-        return CSSPixels::nearest_value_for(m_value * font_metrics.font_size.to_double());
+        return m_value * font_metrics.font_size.to_double();
     case LengthUnit::Ric:
         // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
-        return CSSPixels::nearest_value_for(m_value * root_font_metrics.font_size.to_double());
+        return m_value * root_font_metrics.font_size.to_double();
     case LengthUnit::Lh:
-        return CSSPixels::nearest_value_for(m_value * font_metrics.line_height.to_double());
+        return m_value * font_metrics.line_height.to_double();
     case LengthUnit::Rlh:
-        return CSSPixels::nearest_value_for(m_value * root_font_metrics.line_height.to_double());
+        return m_value * root_font_metrics.line_height.to_double();
     default:
         VERIFY_NOT_REACHED();
     }
@@ -73,39 +78,44 @@ CSSPixels Length::font_relative_length_to_px(Length::FontMetrics const& font_met
 
 CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const
 {
+    return CSSPixels::nearest_value_for(viewport_relative_length_to_px_without_rounding(viewport_rect));
+}
+
+double Length::viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const
+{
     switch (m_unit) {
     case LengthUnit::Vw:
     case LengthUnit::Svw:
     case LengthUnit::Lvw:
     case LengthUnit::Dvw:
-        return viewport_rect.width() * (CSSPixels::nearest_value_for(m_value) / 100);
+        return viewport_rect.width() * m_value / 100;
     case LengthUnit::Vh:
     case LengthUnit::Svh:
     case LengthUnit::Lvh:
     case LengthUnit::Dvh:
-        return viewport_rect.height() * (CSSPixels::nearest_value_for(m_value) / 100);
+        return viewport_rect.height() * m_value / 100;
     case LengthUnit::Vi:
     case LengthUnit::Svi:
     case LengthUnit::Lvi:
     case LengthUnit::Dvi:
         // FIXME: Select the width or height based on which is the inline axis.
-        return viewport_rect.width() * (CSSPixels::nearest_value_for(m_value) / 100);
+        return viewport_rect.width() * m_value / 100;
     case LengthUnit::Vb:
     case LengthUnit::Svb:
     case LengthUnit::Lvb:
     case LengthUnit::Dvb:
         // FIXME: Select the width or height based on which is the block axis.
-        return viewport_rect.height() * (CSSPixels::nearest_value_for(m_value) / 100);
+        return viewport_rect.height() * m_value / 100;
     case LengthUnit::Vmin:
     case LengthUnit::Svmin:
     case LengthUnit::Lvmin:
     case LengthUnit::Dvmin:
-        return min(viewport_rect.width(), viewport_rect.height()) * (CSSPixels::nearest_value_for(m_value) / 100);
+        return min(viewport_rect.width(), viewport_rect.height()) * m_value / 100;
     case LengthUnit::Vmax:
     case LengthUnit::Svmax:
     case LengthUnit::Lvmax:
     case LengthUnit::Dvmax:
-        return max(viewport_rect.width(), viewport_rect.height()) * (CSSPixels::nearest_value_for(m_value) / 100);
+        return max(viewport_rect.width(), viewport_rect.height()) * m_value / 100;
     default:
         VERIFY_NOT_REACHED();
     }

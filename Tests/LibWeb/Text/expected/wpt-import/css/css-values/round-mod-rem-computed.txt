@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 229 tests
 
-217 Pass
-12 Fail
+219 Pass
+10 Fail
 Pass	round(10,10) should be used-value-equivalent to 10
 Pass	mod(1,1) should be used-value-equivalent to 0
 Pass	rem(1,1) should be used-value-equivalent to 0
@@ -61,8 +61,8 @@ Pass	calc(rem(mod(18,5),mod(17,5))) should be used-value-equivalent to 1
 Pass	calc(mod(-140,-90)) should be used-value-equivalent to -50
 Pass	calc(mod(rem(1,18)* -1,5)) should be used-value-equivalent to 4
 Pass	round(10px,6px) should be used-value-equivalent to 12px
-Fail	round(10cm,6cm) should be used-value-equivalent to 12cm
-Fail	round(10mm,6mm) should be used-value-equivalent to 12mm
+Pass	round(10cm,6cm) should be used-value-equivalent to 12cm
+Pass	round(10mm,6mm) should be used-value-equivalent to 12mm
 Pass	round(10Q, 6Q) should be used-value-equivalent to 12Q
 Pass	round(10in,6in) should be used-value-equivalent to 12in
 Pass	round(10pc,6pc) should be used-value-equivalent to 12pc
