@@ -601,6 +601,13 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
     // 5. Set transaction’s error to error.
     transaction->set_error(error);
 
+    // FIXME: https://github.com/w3c/IndexedDB/issues/473
+    // x. If transaction is an upgrade transaction:
+    if (transaction->is_upgrade_transaction()) {
+        // 1. Set transaction's associated request's error to a newly created "AbortError" DOMException.
+        transaction->associated_request()->set_error(WebIDL::AbortError::create(transaction->realm(), "Upgrade transaction was aborted"_utf16));
+    }
+
     // 6. For each request of transaction’s request list,
     for (auto const& request : transaction->request_list()) {
         // FIXME: abort the steps to asynchronously execute a request for request,
