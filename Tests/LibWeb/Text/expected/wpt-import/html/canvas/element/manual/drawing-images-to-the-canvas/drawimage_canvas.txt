@@ -1,0 +1,167 @@
+Harness status: OK
+
+Found 151 tests
+
+151 Pass
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 0,0 should be blue.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 0,49 should be blue.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 49,0 should be blue.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 49,49 should be blue.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 5,5 should be black.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 5,44 should be black.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 44,5 should be black.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 44,44 should be black.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 50,0 should be red.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 0,50 should be red.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 50,50 should be red.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel 99,99 should be red.
+Pass	Test scenario 1: dx = 0, dy = 0 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 25,25 should be blue.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 25,74 should be blue.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 74,25 should be blue.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 74,74 should be blue.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 30,30 should be black.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 30,69 should be black.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 69,30 should be black.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 69,69 should be black.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 24,24 should be red.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 24,75 should be red.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 75,24 should be red.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel 75,75 should be red.
+Pass	Test scenario 2: dx = 25, dy = 25 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 50,50 should be blue.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 50,99 should be blue.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 99,50 should be blue.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 99,99 should be blue.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 55,55 should be black.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 55,94 should be black.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 94,55 should be black.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 94,94 should be black.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 0,0 should be red.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 49,49 should be red.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 49,99 should be red.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel 99,49 should be red.
+Pass	Test scenario 3: dx = 50, dy = 50, dw = 50, dh = 50 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 50,50 should be blue.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 50,69 should be blue.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 69,50 should be blue.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 69,69 should be blue.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 52,52 should be black.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 52,67 should be black.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 67,52 should be black.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 67,67 should be black.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 49,49 should be red.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 49,70 should be red.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 70,49 should be red.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel 70,70 should be red.
+Pass	Test scenario 4: dx = 50, dy = 50, dw = 20, dh = 20 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 50,50 should be blue.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 50,69 should be blue.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 99,50 should be blue.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 99,69 should be blue.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 55,52 should be black.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 55,67 should be black.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 94,52 should be black.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 94,67 should be black.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 49,49 should be red.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 49,69 should be red.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 99,49 should be red.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel 99,70 should be red.
+Pass	Test scenario 5: dx = 50, dy = 50, dw = 50, dh = 20 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 0,0 should be blue.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 4,4 should be blue.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 0,24 should be blue.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 24,0 should be blue.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 5,5 should be black.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 5,24 should be black.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 24,5 should be black.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 24,24 should be black.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 25,25 should be red.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 25,99 should be red.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 99,25 should be red.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel 99,99 should be red.
+Pass	Test scenario 6: sx = 0, sy = 0, sw = 25, sh = 25, dx = 0, dy = 0, dw = 25, dh = 25 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 25,25 should be blue.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 25,49 should be blue.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 49,25 should be blue.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 29,29 should be blue.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 30,30 should be black.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 30,49 should be black.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 49,30 should be black.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 49,49 should be black.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 24,24 should be red.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 24,50 should be red.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 50,24 should be red.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel 50,50 should be red.
+Pass	Test scenario 7: sx = 0, sy = 0, sw = 25, sh = 25, dx = 25, dy = 25, dw = 25, dh = 25 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 0,20 should be blue.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 20,0 should be blue.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 20,20 should be blue.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 24,24 should be blue.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 0,0 should be black.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 0,19 should be black.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 19,0 should be black.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 19,19 should be black.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 0,25 should be red.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 25,0 should be red.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 25,25 should be red.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 99,99 should be red.
+Pass	Test scenario 8: sx = 25, sy = 25, sw = 50, sh = 50, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 50,50 should be blue.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 50,99 should be blue.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 99,50 should be blue.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 99,99 should be blue.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 55,55 should be black.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 55,94 should be black.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 94,55 should be black.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 94,94 should be black.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 0,0 should be red.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 49,49 should be red.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 0,99 should be red.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel 99,0 should be red.
+Pass	Test scenario 9: sx = 0, sy = 0, sw = 50, sh = 50, dx = 100, dy = 100, dw = -50, dh = -50 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 0,0 should be blue.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 0,99 should be blue.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 99,0 should be blue.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 19,19 should be blue.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 20,20 should be black.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 20,99 should be black.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 99,20 should be black.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel 99,99 should be black.
+Pass	Test scenario 10: sx = 0, sy = 0, sw = 50, sh = 50, dx = 0, dy = 0, dw = 200, dh = 200 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 0,0 should be blue.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 1,1 should be blue.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 23,23 should be blue.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 24,24 should be blue.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 3,3 should be black.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 3,21 should be black.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 21,3 should be black.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 21,21 should be black.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 0,25 should be red.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 25,0 should be red.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 25,25 should be red.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel 99,99 should be red.
+Pass	Test scenario 11: sx = 0, sy = 0, sw = 100, sh = 100, dx = 0, dy = 0, dw = 50, dh = 50 --- Pixel outside canvas should be transparent black.
+
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 70,70 should be blue.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 70,99 should be blue.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 99,70 should be blue.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 82,82 should be blue.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 84,84 should be black.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 84,99 should be black.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 99,84 should be black.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 99,99 should be black.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 0,69 should be red.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 69,0 should be red.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel 69,69 should be red.
+Pass	Test scenario 12: sx = -20, sy = -20, sw = 50, sh = 50, dx = 20, dy = 20, dw = 125, dh = 125 --- Pixel outside canvas should be transparent black.

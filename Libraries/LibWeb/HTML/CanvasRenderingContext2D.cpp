@@ -171,6 +171,22 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     //    The source rectangle is the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     //    The destination rectangle is the rectangle whose corners are the four points (dx, dy), (dx+dw, dy), (dx+dw, dy+dh), (dx, dy+dh).
     // NOTE: Implemented in drawImage() overloads
+    if (source_width < 0) {
+        source_x += source_width;
+        source_width = abs(source_width);
+    }
+    if (source_height < 0) {
+        source_y += source_height;
+        source_height = abs(source_height);
+    }
+    if (destination_width < 0) {
+        destination_x += destination_width;
+        destination_width = abs(destination_width);
+    }
+    if (destination_height < 0) {
+        destination_y += destination_height;
+        destination_height = abs(destination_height);
+    }
 
     //    The source rectangle is the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::FloatRect { source_x, source_y, source_width, source_height };
