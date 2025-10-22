@@ -156,3 +156,37 @@ test("Unicode properties of strings", () => {
         expect(re.test(str)).toBeFalse();
     }
 });
+
+test("Unicode matching with u and v flags", () => {
+    const text = "𠮷a𠮷b𠮷";
+    const complexText = "a\u{20BB7}b\u{10FFFF}c";
+
+    const cases = [
+        { pattern: /𠮷/, match: text, expected: ["𠮷"] },
+        { pattern: /𠮷/u, match: text, expected: ["𠮷"] },
+        { pattern: /𠮷/v, match: text, expected: ["𠮷"] },
+        { pattern: /\p{Script=Han}/u, match: text, expected: ["𠮷"] },
+        { pattern: /\p{Script=Han}/v, match: text, expected: ["𠮷"] },
+        { pattern: /./u, match: text, expected: ["𠮷"] },
+        { pattern: /./v, match: text, expected: ["𠮷"] },
+        { pattern: /\p{ASCII}/u, match: text, expected: ["a"] },
+        { pattern: /\p{ASCII}/v, match: text, expected: ["a"] },
+        { pattern: /x/u, match: text, expected: null },
+        { pattern: /x/v, match: text, expected: null },
+        { pattern: /\p{Script=Han}(.)/gu, match: text, expected: ["𠮷a", "𠮷b"] },
+        { pattern: /\p{Script=Han}(.)/gv, match: text, expected: ["𠮷a", "𠮷b"] },
+        { pattern: /\P{ASCII}/u, match: complexText, expected: ["\u{20BB7}"] },
+        { pattern: /\P{ASCII}/v, match: complexText, expected: ["\u{20BB7}"] },
+        { pattern: /\P{ASCII}/gu, match: complexText, expected: ["\u{20BB7}", "\u{10FFFF}"] },
+        { pattern: /\P{ASCII}/gv, match: complexText, expected: ["\u{20BB7}", "\u{10FFFF}"] },
+        { pattern: /./gu, match: text, expected: ["𠮷", "a", "𠮷", "b", "𠮷"] },
+        { pattern: /./gv, match: text, expected: ["𠮷", "a", "𠮷", "b", "𠮷"] },
+        { pattern: /(?:)/gu, match: text, expected: ["", "", "", "", "", ""] },
+        { pattern: /(?:)/gv, match: text, expected: ["", "", "", "", "", ""] },
+    ];
+
+    for (const test of cases) {
+        const result = test.match.match(test.pattern);
+        expect(result).toEqual(test.expected);
+    }
+});
