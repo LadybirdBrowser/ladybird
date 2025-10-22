@@ -826,18 +826,19 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             // and m33, m44 are equal to 1.
             // NB: We only care about 4x4 matrices here.
             // NB: Our elements are 0-indexed not 1-indexed, and in the opposite order.
-            if (matrix[0, 2] != 0     // m31
-                || matrix[1, 2] != 0  // m32
-                || matrix[2, 0] != 0  // m13
-                || matrix[2, 1] != 0  // m23
-                || matrix[2, 3] != 0  // m43
-                || matrix[3, 0] != 0  // m14
-                || matrix[3, 1] != 0  // m24
-                || matrix[3, 2] != 0) // m34
+            // NB: We use epsilon comparisons here to account for inaccuracies when doing trigonometric calculations.
+            if (abs(matrix[0, 2]) > AK::NumericLimits<float>::epsilon()     // m31
+                || abs(matrix[1, 2]) > AK::NumericLimits<float>::epsilon()  // m32
+                || abs(matrix[2, 0]) > AK::NumericLimits<float>::epsilon()  // m13
+                || abs(matrix[2, 1]) > AK::NumericLimits<float>::epsilon()  // m23
+                || abs(matrix[2, 3]) > AK::NumericLimits<float>::epsilon()  // m43
+                || abs(matrix[3, 0]) > AK::NumericLimits<float>::epsilon()  // m14
+                || abs(matrix[3, 1]) > AK::NumericLimits<float>::epsilon()  // m24
+                || abs(matrix[3, 2]) > AK::NumericLimits<float>::epsilon()) // m34
                 return false;
 
-            if (matrix[2, 2] != 1     // m33
-                || matrix[3, 3] != 1) // m44
+            if (abs(matrix[2, 2]) - 1 > AK::NumericLimits<float>::epsilon()     // m33
+                || abs(matrix[3, 3]) - 1 > AK::NumericLimits<float>::epsilon()) // m44
                 return false;
 
             return true;
