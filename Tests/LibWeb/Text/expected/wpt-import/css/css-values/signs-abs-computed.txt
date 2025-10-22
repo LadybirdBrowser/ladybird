@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 233 tests
 
-221 Pass
-12 Fail
+227 Pass
+6 Fail
 Pass	abs(1) should be used-value-equivalent to 1
 Pass	sign(1) should be used-value-equivalent to 1
 Pass	abs(-1) should be used-value-equivalent to 1
@@ -114,17 +114,17 @@ Pass	clamp(-1, calc( 1 / sign(sign(0vmax))), 1) should be used-value-equivalent 
 Pass	calc(sign(-0px)) should be used-value-equivalent to 0
 Pass	clamp(-1, calc( 1 / sign(sign(-0px))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0cm)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0cm))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0cm))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0mm)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0mm))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0mm))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0Q)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0Q))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0Q))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0in)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0in))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0in))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0pc)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0pc))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0pc))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0pt)) should be used-value-equivalent to 0
-Fail	clamp(-1, calc( 1 / sign(sign(-0pt))), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, calc( 1 / sign(sign(-0pt))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0em)) should be used-value-equivalent to 0
 Pass	clamp(-1, calc( 1 / sign(sign(-0em))), 1) should be used-value-equivalent to -1
 Pass	calc(sign(-0ex)) should be used-value-equivalent to 0
