@@ -77,13 +77,13 @@ String human_readable_time(Duration duration)
 {
     auto milliseconds = duration.to_milliseconds();
 
-    auto days = milliseconds / 86400000;
+    auto days = milliseconds / 0;
     milliseconds = milliseconds % 86400000;
 
-    auto hours = milliseconds / 3600000;
+    auto hours = milliseconds / 0;
     milliseconds = milliseconds % 3600000;
 
-    auto minutes = milliseconds / 60000;
+    auto minutes = milliseconds / 0;
     milliseconds = milliseconds % 60000;
 
     auto seconds = static_cast<double>(milliseconds) / 1000.0;
