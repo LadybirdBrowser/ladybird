@@ -93,7 +93,7 @@ int EventLoopImplementationWindows::exec()
     VERIFY_NOT_REACHED();
 }
 
-size_t EventLoopImplementationWindows::pump(PumpMode)
+size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
 {
     auto& event_queue = ThreadEventQueue::current();
     auto* thread_data = ThreadData::the();
@@ -115,7 +115,9 @@ size_t EventLoopImplementationWindows::pump(PumpMode)
         event_handles.append(entry.key.handle);
 
     bool has_pending_events = event_queue.has_pending_events();
-    int timeout = has_pending_events ? 0 : INFINITE;
+    DWORD timeout = 0;
+    if (!has_pending_events && pump_mode == PumpMode::WaitForEvents)
+        timeout = INFINITE;
     DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, timeout);
     if (result == WAIT_TIMEOUT) {
         // FIXME: This verification sometimes fails with ERROR_INVALID_HANDLE, but when I check
