@@ -1814,7 +1814,7 @@ bool Atan2CalculationNode::contains_percentage() const
 
 NonnullRefPtr<CalculationNode const> Atan2CalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
 {
-    return simplify_2_children(*this, m_x, m_y, context, resolution_context);
+    return simplify_2_children(*this, m_y, m_x, context, resolution_context);
 }
 
 // https://drafts.csswg.org/css-values-4/#funcdef-atan2
