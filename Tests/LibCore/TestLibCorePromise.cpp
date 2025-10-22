@@ -115,9 +115,6 @@ TEST_CASE(promise_map_already_resolved)
     EXPECT_EQ(result.value(), 42);
 }
 
-// FIXME: Support EventLoop::WaitMode::PollForEvents on Windows, otherwise ThreadedPromise::await() blocks forever
-
-#if !defined(AK_OS_WINDOWS)
 TEST_CASE(threaded_promise_instantly_resolved)
 {
     Core::EventLoop loop;
@@ -222,5 +219,3 @@ TEST_CASE(threaded_promise_synchronously_resolved)
     EXPECT(resolved);
     EXPECT(!rejected);
 }
-
-#endif
