@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "WebSocketImplCurl.h"
-
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/ElapsedTimer.h>
@@ -16,13 +14,13 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
-#include <LibTLS/TLSv12.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/RequestClientEndpoint.h>
+#include <RequestServer/Resolver.h>
+#include <RequestServer/WebSocketImplCurl.h>
 
 #ifdef AK_OS_WINDOWS
 // needed because curl.h includes winsock2.h
@@ -33,58 +31,12 @@
 
 namespace RequestServer {
 
-ByteString g_default_certificate_path;
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
+
 static long s_connect_timeout_seconds = 90L;
-static struct {
-    Optional<Core::SocketAddress> server_address;
-    Optional<ByteString> server_hostname;
-    u16 port;
-    bool use_dns_over_tls = true;
-    bool validate_dnssec_locally = false;
-} g_dns_info;
 
 Optional<DiskCache> g_disk_cache;
-
-static WeakPtr<Resolver> s_resolver {};
-static NonnullRefPtr<Resolver> default_resolver()
-{
-    if (auto resolver = s_resolver.strong_ref())
-        return *resolver;
-    auto resolver = make_ref_counted<Resolver>([] -> ErrorOr<DNS::Resolver::SocketResult> {
-        if (!g_dns_info.server_address.has_value()) {
-            if (!g_dns_info.server_hostname.has_value())
-                return Error::from_string_literal("No DNS server configured");
-
-            auto resolved = TRY(default_resolver()->dns.lookup(*g_dns_info.server_hostname)->await());
-            if (!resolved->has_cached_addresses())
-                return Error::from_string_literal("Failed to resolve DNS server hostname");
-            auto address = resolved->cached_addresses().first().visit([](auto& addr) -> Core::SocketAddress { return { addr, g_dns_info.port }; });
-            g_dns_info.server_address = address;
-        }
-
-        if (g_dns_info.use_dns_over_tls) {
-            TLS::Options options;
-
-            if (!g_default_certificate_path.is_empty())
-                options.root_certificates_path = g_default_certificate_path;
-
-            return DNS::Resolver::SocketResult {
-                MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(*g_dns_info.server_address, *g_dns_info.server_hostname, move(options)))),
-                DNS::Resolver::ConnectionMode::TCP,
-            };
-        }
-
-        return DNS::Resolver::SocketResult {
-            MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*g_dns_info.server_address))))),
-            DNS::Resolver::ConnectionMode::UDP,
-        };
-    });
-
-    s_resolver = resolver;
-    return resolver;
-}
 
 ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port)
 {
@@ -385,7 +337,7 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
-    , m_resolver(default_resolver())
+    , m_resolver(Resolver::default_resolver())
 {
     s_connections.set(client_id(), *this);
 
@@ -492,7 +444,9 @@ Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_su
 
 void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally)
 {
-    if (host_or_address == g_dns_info.server_hostname && port == g_dns_info.port && use_tls == g_dns_info.use_dns_over_tls && validate_dnssec_locally == g_dns_info.validate_dnssec_locally)
+    auto& dns_info = DNSInfo::the();
+
+    if (host_or_address == dns_info.server_hostname && port == dns_info.port && use_tls == dns_info.use_dns_over_tls && validate_dnssec_locally == dns_info.validate_dnssec_locally)
         return;
 
     auto result = [&] -> ErrorOr<void> {
@@ -502,27 +456,29 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
         else if (auto v6 = IPv6Address::from_string(host_or_address); v6.has_value())
             addr = { v6.value(), port };
         else
-            TRY(default_resolver()->dns.lookup(host_or_address)->await())->cached_addresses().first().visit([&](auto& address) { addr = { address, port }; });
+            TRY(m_resolver->dns.lookup(host_or_address)->await())->cached_addresses().first().visit([&](auto& address) { addr = { address, port }; });
 
-        g_dns_info.server_address = addr;
-        g_dns_info.server_hostname = host_or_address;
-        g_dns_info.port = port;
-        g_dns_info.use_dns_over_tls = use_tls;
-        g_dns_info.validate_dnssec_locally = validate_dnssec_locally;
+        dns_info.server_address = addr;
+        dns_info.server_hostname = host_or_address;
+        dns_info.port = port;
+        dns_info.use_dns_over_tls = use_tls;
+        dns_info.validate_dnssec_locally = validate_dnssec_locally;
         return {};
     }();
 
     if (result.is_error())
         dbgln("Failed to set DNS server: {}", result.error());
     else
-        default_resolver()->dns.reset_connection();
+        m_resolver->dns.reset_connection();
 }
 
 void ConnectionFromClient::set_use_system_dns()
 {
-    g_dns_info.server_hostname = {};
-    g_dns_info.server_address = {};
-    default_resolver()->dns.reset_connection();
+    auto& dns_info = DNSInfo::the();
+    dns_info.server_hostname = {};
+    dns_info.server_address = {};
+
+    m_resolver->dns.reset_connection();
 }
 
 #ifdef AK_OS_WINDOWS
@@ -576,8 +532,9 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, Optional<ResumeRequestForFailedCacheEntry> resume_request)
 {
     auto host = url.serialized_host().to_byte_string();
+    auto const& dns_info = DNSInfo::the();
 
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = dns_info.validate_dnssec_locally })
         ->when_rejected([this, request_id, resume_request](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
             // FIXME: Implement timing info for DNS lookup failure.
@@ -632,8 +589,8 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
 
             set_option(CURLOPT_PRIVATE, request.ptr());
 
-            if (!g_default_certificate_path.is_empty())
-                set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
+            if (auto const& path = default_certificate_path(); !path.is_empty())
+                set_option(CURLOPT_CAINFO, path.characters());
 
             set_option(CURLOPT_ACCEPT_ENCODING, ""); // empty string lets curl define the accepted encodings
             set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
@@ -927,7 +884,9 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     }
 
     if (cache_level == CacheLevel::ResolveOnly) {
-        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally });
+        auto const& dns_info = DNSInfo::the();
+
+        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = dns_info.validate_dnssec_locally });
         if constexpr (REQUESTSERVER_DEBUG) {
             Core::ElapsedTimer timer;
             timer.start();
@@ -969,8 +928,8 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
             connection_info.set_headers(move(additional_request_headers));
             connection_info.set_dns_result(move(dns_result));
 
-            if (!g_default_certificate_path.is_empty())
-                connection_info.set_root_certificates_path(g_default_certificate_path);
+            if (auto const& path = default_certificate_path(); !path.is_empty())
+                connection_info.set_root_certificates_path(path);
 
             auto impl = WebSocketImplCurl::create(m_curl_multi);
             auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));

@@ -8,6 +8,7 @@ set(SOURCES
     Cache/DiskCache.cpp
     Cache/Utilities.cpp
     ConnectionFromClient.cpp
+    Resolver.cpp
     WebSocketImplCurl.cpp
 )
 
