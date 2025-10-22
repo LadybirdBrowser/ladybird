@@ -14,4 +14,7 @@ class CacheEntryWriter;
 class CacheIndex;
 class DiskCache;
 
+struct DNSInfo;
+struct Resolver;
+
 }
