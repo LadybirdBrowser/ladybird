@@ -1405,6 +1405,13 @@ Optional<CalculatedStyleValue::CalculationResult> SignCalculationNode::run_opera
         [](Percentage const& percentage) { return percentage.as_fraction(); },
         [](auto const& dimension) { return dimension.raw_value(); });
 
+    auto return_type = NumericType {}.made_consistent_with(numeric_child.numeric_type().value_or({}));
+
+    // https://drafts.csswg.org/css-values-4/#calc-ieee
+    // Any operation with at least one NaN argument produces NaN.
+    if (isnan(raw_value))
+        return CalculatedStyleValue::CalculationResult { AK::NaN<double>, return_type };
+
     double sign = 0;
     if (raw_value < 0) {
         sign = -1;
@@ -1415,7 +1422,7 @@ Optional<CalculatedStyleValue::CalculationResult> SignCalculationNode::run_opera
         sign = extractor.sign ? -0.0 : 0.0;
     }
 
-    return CalculatedStyleValue::CalculationResult { sign, NumericType {}.made_consistent_with(numeric_child.numeric_type().value_or({})) };
+    return CalculatedStyleValue::CalculationResult { sign, return_type };
 }
 
 void SignCalculationNode::dump(StringBuilder& builder, int indent) const
