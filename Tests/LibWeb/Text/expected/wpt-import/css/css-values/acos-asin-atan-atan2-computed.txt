@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 45 tests
 
-39 Pass
-6 Fail
+45 Pass
 Pass	acos(1) should be used-value-equivalent to 0deg
 Pass	atan(0) should be used-value-equivalent to 0deg
 Pass	asin(0) should be used-value-equivalent to 0deg
@@ -35,14 +34,14 @@ Pass	atan2(1Q, -1Q) should be used-value-equivalent to 135deg
 Pass	atan2(1in, -1in) should be used-value-equivalent to 135deg
 Pass	atan2(1pc, -1pc) should be used-value-equivalent to 135deg
 Pass	atan2(1pt, -1pt) should be used-value-equivalent to 135deg
-Fail	atan2(1em, -1em) should be used-value-equivalent to 135deg
-Fail	atan2(1ex, -1ex) should be used-value-equivalent to 135deg
-Fail	atan2(1ch, -1ch) should be used-value-equivalent to 135deg
-Fail	atan2(1rem, -1rem) should be used-value-equivalent to 135deg
+Pass	atan2(1em, -1em) should be used-value-equivalent to 135deg
+Pass	atan2(1ex, -1ex) should be used-value-equivalent to 135deg
+Pass	atan2(1ch, -1ch) should be used-value-equivalent to 135deg
+Pass	atan2(1rem, -1rem) should be used-value-equivalent to 135deg
 Pass	atan2(1rem + 1px - 1px, -1rem) should be used-value-equivalent to 135deg
-Fail	atan2(1vh, -1vh) should be used-value-equivalent to 135deg
+Pass	atan2(1vh, -1vh) should be used-value-equivalent to 135deg
 Pass	atan2(1vh + 0px, -1vh + 0px) should be used-value-equivalent to 135deg
-Fail	atan2(1vw, -1vw) should be used-value-equivalent to 135deg
+Pass	atan2(1vw, -1vw) should be used-value-equivalent to 135deg
 Pass	atan2(1deg, -1deg) should be used-value-equivalent to 135deg
 Pass	atan2(1grad, -1grad) should be used-value-equivalent to 135deg
 Pass	atan2(1turn, -1turn) should be used-value-equivalent to 135deg
