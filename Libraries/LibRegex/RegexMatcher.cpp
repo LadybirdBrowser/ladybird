@@ -237,10 +237,17 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
         input.view = view;
         dbgln_if(REGEX_DEBUG, "[match] Starting match with view ({}): _{}_", view.length(), view);
 
-        auto view_length = view.length_in_code_units();
+        auto view_length = view.length();
         size_t view_index = m_pattern->start_offset;
         state.string_position = view_index;
-        state.string_position_in_code_units = view_index;
+        if (view.unicode()) {
+            if (view_index < view_length)
+                state.string_position_in_code_units = view.code_unit_offset_of(view_index);
+            else
+                state.string_position_in_code_units = view.length_in_code_units();
+        } else {
+            state.string_position_in_code_units = view_index;
+        }
         bool succeeded = false;
 
         if (view_index == view_length && m_pattern->parser_result.match_length_minimum == 0) {
@@ -303,7 +310,14 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             input.match_index = match_count;
 
             state.string_position = view_index;
-            state.string_position_in_code_units = view_index;
+            if (input.view.unicode()) {
+                if (view_index < view_length)
+                    state.string_position_in_code_units = input.view.code_unit_offset_of(view_index);
+                else
+                    state.string_position_in_code_units = input.view.length_in_code_units();
+            } else {
+                state.string_position_in_code_units = view_index;
+            }
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
