@@ -61,6 +61,11 @@ elseif (ENABLE_CI_BASELINE_CPU)
     elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         add_cxx_compile_options(-march=x86-64-v3)
     endif()
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+    # On RISC-V the generic -march=native is not yet supported and both gcc and clang require an explicit
+    # ISA or target string. Unfortunately hardware probing is also neither easy nor reliable at the moment.
+    # For the time being use the defaults for the best compatibility with existing hardware and toolchains.
+    # FIXME: Remove this branch once -march=native is supported.
 else()
     # In all other cases, compile for the native architecture of the host system.
     add_cxx_compile_options(-march=native)
