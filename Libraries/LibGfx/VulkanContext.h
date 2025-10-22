@@ -7,15 +7,13 @@
 #pragma once
 
 #ifdef USE_VULKAN
-
-#    include <AK/Assertions.h>
-#    include <AK/NonnullRefPtr.h>
-#    include <AK/RefCounted.h>
 #    include <vulkan/vulkan.h>
-#    ifdef AK_OS_LINUX
+
+#    ifdef USE_VULKAN_IMAGES
+#        include <AK/Assertions.h>
+#        include <AK/NonnullRefPtr.h>
+#        include <AK/RefCounted.h>
 #        include <libdrm/drm_fourcc.h>
-// Sharable Vulkan images are currently only implemented on Linux
-#        define USE_VULKAN_IMAGES 1
 #    endif
 
 namespace Gfx {
