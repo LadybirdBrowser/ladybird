@@ -417,6 +417,10 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 parameter_index++;
             });
 
+            function_generator.append(R"~~~(
+        if (argument_index < arguments.size())
+            return nullptr;
+)~~~");
             // Generate the call to the constructor
             function_generator.append("        return @name:titlecase@CalculationNode::create("sv);
             parameter_index = 0;
