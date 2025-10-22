@@ -21,10 +21,15 @@ public:
 
     virtual Optional<CSSPixels> intrinsic_width() const = 0;
     virtual Optional<CSSPixels> intrinsic_height() const = 0;
+    Optional<CSSPixelSize> intrinsic_size() const;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const = 0;
 
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap() const;
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize) const = 0;
+
+    virtual RefPtr<Gfx::ImmutableBitmap> default_image_bitmap() const;
+    virtual RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const;
+
     virtual void set_visible_in_viewport(bool) = 0;
 
     virtual void image_provider_visit_edges(GC::Cell::Visitor& visitor) const

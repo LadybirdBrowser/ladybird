@@ -29,7 +29,7 @@ public:
 
     Gfx::FloatRect bounding_box() const;
 
-    RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const;
+    virtual RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const override;
 
     // ^Layout::ImageProvider
     virtual bool is_image_available() const override;

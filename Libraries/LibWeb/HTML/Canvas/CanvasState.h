@@ -16,9 +16,8 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
-#include <LibGfx/WindingRule.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 
