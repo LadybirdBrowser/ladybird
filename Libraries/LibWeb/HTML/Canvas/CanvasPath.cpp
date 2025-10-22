@@ -93,6 +93,7 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
         Gfx::FloatPoint { cp1x, cp1y }, Gfx::FloatPoint { cp2x, cp2y }, Gfx::FloatPoint { x, y });
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arc
 WebIDL::ExceptionOr<void> CanvasPath::arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise)
 {
     if (radius < 0 && isfinite(radius))
@@ -112,6 +113,18 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, 
         return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The major-axis radius provided ({}) is negative.", radius_x));
     if (radius_y < 0)
         return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The minor-axis radius provided ({}) is negative.", radius_y));
+
+    auto add_line_to_start_point = [this](Gfx::FloatPoint const& start_point) {
+        if (!m_path.is_empty())
+            m_path.line_to(start_point);
+        else
+            m_path.move_to(start_point);
+    };
+
+    if (radius_x == 0 || radius_y == 0) {
+        add_line_to_start_point(Gfx::FloatPoint { x, y });
+        return {};
+    }
 
     // "If counterclockwise is false and endAngle − startAngle is greater than or equal to 2π,
     // or, if counterclockwise is true and startAngle − endAngle is greater than or equal to 2π,
@@ -177,10 +190,7 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, 
         delta_theta += AK::Pi<float> * 2;
 
     // 3. If canvasPath's path has any subpaths, then add a straight line from the last point in the subpath to the start point of the arc.
-    if (!m_path.is_empty())
-        m_path.line_to(start_point);
-    else
-        m_path.move_to(start_point);
+    add_line_to_start_point(start_point);
 
     // 4. Add the start and end points of the arc to the subpath, and connect them with an arc.
     m_path.elliptical_arc_to(
