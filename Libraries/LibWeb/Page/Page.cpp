@@ -574,12 +574,9 @@ void Page::toggle_page_mute_state()
 {
     m_mute_state = HTML::invert_mute_state(m_mute_state);
 
-    for (auto media_id : m_media_elements) {
-        if (auto* node = DOM::Node::from_unique_id(media_id)) {
-            auto& media_element = as<HTML::HTMLMediaElement>(*node);
-            media_element.page_mute_state_changed({});
-        }
-    }
+    for_each_media_element([&](auto& media_element) {
+        media_element.page_mute_state_changed({});
+    });
 }
 
 GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
