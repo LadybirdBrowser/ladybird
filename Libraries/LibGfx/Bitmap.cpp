@@ -127,6 +127,16 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat
     return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, move(buffer), size));
 }
 
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_raw_data(BitmapFormat format, AlphaType alpha_type, ReadonlyBytes raw_data, IntSize size)
+{
+    if (size_would_overflow(format, size))
+        return Error::from_string_literal("Gfx::Bitmap::create_with_raw_data size overflow");
+
+    auto backing_store = TRY(Bitmap::allocate_backing_store(format, size, InitializeBackingStore::No));
+    raw_data.copy_to(Bytes { backing_store.data, backing_store.size_in_bytes });
+    return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, backing_store));
+}
+
 Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
     : m_size(size)
     , m_data(buffer.data<void>())
@@ -242,7 +252,7 @@ Gfx::ShareableBitmap Bitmap::to_shareable_bitmap() const
     return Gfx::ShareableBitmap { bitmap_or_error.release_value_but_fixme_should_propagate_errors(), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
 }
 
-ErrorOr<BackingStore> Bitmap::allocate_backing_store(BitmapFormat format, IntSize size)
+ErrorOr<BackingStore> Bitmap::allocate_backing_store(BitmapFormat format, IntSize size, InitializeBackingStore initialize_backing_store)
 {
     if (size.is_empty())
         return Error::from_string_literal("Gfx::Bitmap backing store size is empty");
@@ -253,7 +263,11 @@ ErrorOr<BackingStore> Bitmap::allocate_backing_store(BitmapFormat format, IntSiz
     auto const pitch = minimum_pitch(size.width(), format);
     auto const data_size_in_bytes = size_in_bytes(pitch, size.height());
 
-    void* data = kcalloc(1, data_size_in_bytes);
+    void* data;
+    if (initialize_backing_store == InitializeBackingStore::Yes)
+        data = kcalloc(1, data_size_in_bytes);
+    else
+        data = kmalloc(data_size_in_bytes);
     if (data == nullptr)
         return Error::from_errno(errno);
     return BackingStore { data, pitch, data_size_in_bytes };

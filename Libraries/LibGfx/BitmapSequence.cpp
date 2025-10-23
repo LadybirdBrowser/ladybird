@@ -128,14 +128,9 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
             if (size_check.has_overflow() || size_check.value() > bytes.size())
                 return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence buffer data");
 
-            auto buffer = TRY(Core::AnonymousBuffer::create_with_size(size_in_bytes));
-            auto buffer_bytes = Bytes { buffer.data<u8>(), buffer.size() };
-
-            bytes.slice(bytes_read, size_in_bytes).copy_to(buffer_bytes);
-
+            auto slice = bytes.slice(bytes_read, size_in_bytes);
             bytes_read += size_in_bytes;
-
-            bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(buffer), metadata.size));
+            bitmap = TRY(Gfx::Bitmap::create_with_raw_data(metadata.format, metadata.alpha_type, slice, metadata.size));
         }
 
         bitmaps.append(bitmap);
