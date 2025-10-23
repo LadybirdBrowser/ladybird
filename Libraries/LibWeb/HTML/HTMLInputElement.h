@@ -251,6 +251,7 @@ public:
 
     virtual bool is_mutable() const override;
     virtual bool uses_button_layout() const override;
+    bool is_allowed_to_be_readonly() const;
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);

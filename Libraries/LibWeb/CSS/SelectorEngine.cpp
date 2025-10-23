@@ -461,23 +461,12 @@ static bool matches_read_write_pseudo_class(DOM::Element const& element)
     // which for the purposes of Selectors are thus considered user-alterable: [SELECTORS]
     // - input elements to which the readonly attribute applies, and that are mutable
     //   (i.e. that do not have the readonly attribute specified and that are not disabled)
-    if (is<HTML::HTMLInputElement>(element)) {
-        auto& input_element = static_cast<HTML::HTMLInputElement const&>(element);
-        if (input_element.has_attribute(HTML::AttributeNames::readonly))
-            return false;
-        if (!input_element.enabled())
-            return false;
-        return true;
-    }
+    if (auto const* input_element = as_if<HTML::HTMLInputElement>(element))
+        return input_element->is_allowed_to_be_readonly()
+            && !input_element->has_attribute(HTML::AttributeNames::readonly) && input_element->enabled();
     // - textarea elements that do not have a readonly attribute, and that are not disabled
-    if (is<HTML::HTMLTextAreaElement>(element)) {
-        auto& input_element = static_cast<HTML::HTMLTextAreaElement const&>(element);
-        if (input_element.has_attribute(HTML::AttributeNames::readonly))
-            return false;
-        if (!input_element.enabled())
-            return false;
-        return true;
-    }
+    if (auto const* input_element = as_if<HTML::HTMLTextAreaElement>(element))
+        return !input_element->has_attribute(HTML::AttributeNames::readonly) && input_element->enabled();
     // - elements that are editing hosts or editable and are neither input elements nor textarea elements
     return element.is_editable_or_editing_host();
 }
