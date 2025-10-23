@@ -31,6 +31,7 @@ All properties associated with getComputedStyle(document.body):
     "font-variation-settings",
     "font-weight",
     "font-width",
+    "image-orientation",
     "image-rendering",
     "letter-spacing",
     "line-height",
