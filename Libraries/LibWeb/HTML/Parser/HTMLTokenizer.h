@@ -135,19 +135,12 @@ public:
     void insert_eof();
     bool is_eof_inserted();
 
-    bool is_insertion_point_defined() const { return m_insertion_point.defined; }
-    bool is_insertion_point_reached()
-    {
-        return m_insertion_point.defined && m_current_offset >= m_insertion_point.position;
-    }
-    void undefine_insertion_point() { m_insertion_point.defined = false; }
+    bool is_insertion_point_defined() const { return m_insertion_point.has_value(); }
+    bool is_insertion_point_reached() { return m_insertion_point.has_value() && m_current_offset >= *m_insertion_point; }
+    void undefine_insertion_point() { m_insertion_point = {}; }
     void store_insertion_point() { m_old_insertion_point = m_insertion_point; }
-    void restore_insertion_point() { m_insertion_point = m_old_insertion_point; }
-    void update_insertion_point()
-    {
-        m_insertion_point.defined = true;
-        m_insertion_point.position = m_current_offset;
-    }
+    void restore_insertion_point() { m_insertion_point = move(m_old_insertion_point); }
+    void update_insertion_point() { m_insertion_point = m_current_offset; }
 
     // This permanently cuts off the tokenizer input stream.
     void abort() { m_aborted = true; }
@@ -199,12 +192,8 @@ private:
     String m_source;
     Vector<u32> m_decoded_input;
 
-    struct InsertionPoint {
-        ssize_t position { 0 };
-        bool defined { false };
-    };
-    InsertionPoint m_insertion_point {};
-    InsertionPoint m_old_insertion_point {};
+    Optional<ssize_t> m_insertion_point;
+    Optional<ssize_t> m_old_insertion_point;
 
     ssize_t m_current_offset { 0 };
     ssize_t m_prev_offset { 0 };

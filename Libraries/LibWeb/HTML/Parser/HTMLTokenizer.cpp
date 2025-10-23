@@ -243,8 +243,8 @@ Optional<u32> HTMLTokenizer::peek_code_point(ssize_t offset, StopAtInsertionPoin
     if (it >= static_cast<ssize_t>(m_decoded_input.size()))
         return {};
     if (stop_at_insertion_point == StopAtInsertionPoint::Yes
-        && m_insertion_point.defined
-        && it >= m_insertion_point.position) {
+        && m_insertion_point.has_value()
+        && it >= *m_insertion_point) {
         return {};
     }
     return m_decoded_input[it];
@@ -2900,7 +2900,7 @@ void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
     Vector<u32> new_decoded_input;
     new_decoded_input.ensure_capacity(m_decoded_input.size() + input.length());
 
-    auto before = m_decoded_input.span().slice(0, m_insertion_point.position);
+    auto before = m_decoded_input.span().slice(0, *m_insertion_point);
     new_decoded_input.append(before.data(), before.size());
 
     auto utf8_to_insert = MUST(String::from_utf8(input));
@@ -2910,11 +2910,11 @@ void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
         ++code_points_inserted;
     }
 
-    auto after = m_decoded_input.span().slice(m_insertion_point.position);
+    auto after = m_decoded_input.span().slice(*m_insertion_point);
     new_decoded_input.append(after.data(), after.size());
     m_decoded_input = move(new_decoded_input);
 
-    m_insertion_point.position += code_points_inserted;
+    m_insertion_point.value() += code_points_inserted;
 }
 
 void HTMLTokenizer::insert_eof()
