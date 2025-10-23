@@ -98,6 +98,10 @@ A number of tree fix-ups are also performed:
 - To maintain the invariant that block containers only have all block-level children or all inline-level children, inline-level boxes with block-level siblings are wrapped in anonymous wrapper boxes.
 - If an individual table component box is found outside the context of a full table, a set of anonymous table boxes are generated to compensate and ensure that there's always a fully-formed table. (FIXME: This is currently buggy..)
 - For list item boxes (`display: list-item`), a box representing the marker is inserted if needed.
+- The final value of each occurrence of every `reversed` counter is fixed-up by adding the originating counter value.
+  This is necessary since the values for uninitialized `reversed` counters cannot be calculated in one pass (they depend on the number of `counter-increment` occurrences).
+  A temporary originating value for a `reversed` counter is updated on each occurrence of the counter by following the [algorithm for instantiating counters](https://drafts.csswg.org/css-lists-3/#instantiating-counters).
+
 
 ### Layout
 
