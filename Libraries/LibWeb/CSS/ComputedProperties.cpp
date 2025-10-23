@@ -360,20 +360,15 @@ Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContex
 Position ComputedProperties::position_value(PropertyID id) const
 {
     auto const& position = property(id).as_position();
-    Position position_value;
-    auto const& edge_x = position.edge_x();
-    auto const& edge_y = position.edge_y();
-    if (edge_x->is_edge()) {
-        auto const& edge = edge_x->as_edge();
-        position_value.edge_x = edge.edge().value_or(PositionEdge::Left);
-        position_value.offset_x = edge.offset();
-    }
-    if (edge_y->is_edge()) {
-        auto const& edge = edge_y->as_edge();
-        position_value.edge_y = edge.edge().value_or(PositionEdge::Top);
-        position_value.offset_y = edge.offset();
-    }
-    return position_value;
+    auto const& edge_x = position.edge_x()->as_edge();
+    auto const& edge_y = position.edge_y()->as_edge();
+
+    return {
+        .edge_x = edge_x.edge().value_or(PositionEdge::Left),
+        .offset_x = LengthPercentage::from_style_value(edge_x.offset()),
+        .edge_y = edge_y.edge().value_or(PositionEdge::Top),
+        .offset_y = LengthPercentage::from_style_value(edge_y.offset()),
+    };
 }
 
 // https://drafts.csswg.org/css-values-4/#linked-properties
@@ -678,10 +673,10 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
         layer.origin = keyword_to_background_box(background_origin_value->to_keyword()).value();
 
         layer.position_edge_x = background_position_x_value->as_edge().edge().value_or(PositionEdge::Left);
-        layer.position_offset_x = background_position_x_value->as_edge().offset();
+        layer.position_offset_x = LengthPercentage::from_style_value(background_position_x_value->as_edge().offset());
 
         layer.position_edge_y = background_position_y_value->as_edge().edge().value_or(PositionEdge::Top);
-        layer.position_offset_y = background_position_y_value->as_edge().offset();
+        layer.position_offset_y = LengthPercentage::from_style_value(background_position_y_value->as_edge().offset());
 
         layer.repeat_x = background_repeat_value->as_repeat_style().repeat_x();
         layer.repeat_y = background_repeat_value->as_repeat_style().repeat_y();

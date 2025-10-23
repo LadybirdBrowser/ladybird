@@ -7,14 +7,14 @@
 #pragma once
 
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 class EdgeStyleValue final : public StyleValueWithDefaultOperators<EdgeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<EdgeStyleValue const> create(Optional<PositionEdge> edge, Optional<LengthPercentage> const& offset)
+    static ValueComparingNonnullRefPtr<EdgeStyleValue const> create(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
     {
         return adopt_ref(*new (nothrow) EdgeStyleValue(edge, offset));
     }
@@ -28,15 +28,15 @@ public:
         return m_properties.edge;
     }
 
-    LengthPercentage offset() const
+    NonnullRefPtr<StyleValue const> offset() const
     {
         if (m_properties.edge == PositionEdge::Center)
-            return Percentage(50);
+            return PercentageStyleValue::create(Percentage(50));
 
-        if (!m_properties.offset.has_value())
-            return Percentage(0);
+        if (!m_properties.offset)
+            return PercentageStyleValue::create(Percentage(0));
 
-        return m_properties.offset.value();
+        return *m_properties.offset;
     }
 
     virtual String to_string(SerializationMode) const override;
@@ -46,7 +46,7 @@ public:
     bool properties_equal(EdgeStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    EdgeStyleValue(Optional<PositionEdge> edge, Optional<LengthPercentage> const& offset)
+    EdgeStyleValue(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
         : StyleValueWithDefaultOperators(Type::Edge)
         , m_properties { .edge = edge, .offset = offset }
     {
@@ -54,7 +54,7 @@ private:
 
     struct Properties {
         Optional<PositionEdge> edge;
-        Optional<LengthPercentage> offset;
+        ValueComparingRefPtr<StyleValue const> offset;
         bool operator==(Properties const&) const = default;
     } m_properties;
 };

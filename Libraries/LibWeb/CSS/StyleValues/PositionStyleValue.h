@@ -31,8 +31,8 @@ public:
     static ValueComparingNonnullRefPtr<PositionStyleValue const> create_computed_center()
     {
         return adopt_ref(*new (nothrow) PositionStyleValue(
-            EdgeStyleValue::create({}, LengthPercentage { Percentage { 50 } }),
-            EdgeStyleValue::create({}, LengthPercentage { Percentage { 50 } })));
+            EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 })),
+            EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 }))));
     }
     virtual ~PositionStyleValue() override = default;
 
