@@ -17,17 +17,11 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
+#include <RequestServer/CURL.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
-
-#ifdef AK_OS_WINDOWS
-// needed because curl.h includes winsock2.h
-#    include <AK/Windows.h>
-#endif
-
-#include <curl/curl.h>
 
 namespace RequestServer {
 
@@ -37,26 +31,6 @@ static IDAllocator s_client_ids;
 static long s_connect_timeout_seconds = 90L;
 
 Optional<DiskCache> g_disk_cache;
-
-ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port)
-{
-    StringBuilder resolve_opt_builder;
-    resolve_opt_builder.appendff("{}:{}:", host, port);
-    auto first = true;
-    for (auto& addr : dns_result.cached_addresses()) {
-        auto formatted_address = addr.visit(
-            [&](IPv4Address const& ipv4) { return ipv4.to_byte_string(); },
-            [&](IPv6Address const& ipv6) { return MUST(ipv6.to_string()).to_byte_string(); });
-        if (!first)
-            resolve_opt_builder.append(',');
-        first = false;
-        resolve_opt_builder.append(formatted_address);
-    }
-
-    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Resolve list: {}", resolve_opt_builder.string_view());
-
-    return resolve_opt_builder.to_byte_string();
-}
 
 struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     CURLM* multi { nullptr };
@@ -673,32 +647,6 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
         });
 }
 #endif
-
-static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
-{
-    switch (code) {
-    case CURLE_COULDNT_RESOLVE_HOST:
-        return Requests::NetworkError::UnableToResolveHost;
-    case CURLE_COULDNT_RESOLVE_PROXY:
-        return Requests::NetworkError::UnableToResolveProxy;
-    case CURLE_COULDNT_CONNECT:
-        return Requests::NetworkError::UnableToConnect;
-    case CURLE_OPERATION_TIMEDOUT:
-        return Requests::NetworkError::TimeoutReached;
-    case CURLE_TOO_MANY_REDIRECTS:
-        return Requests::NetworkError::TooManyRedirects;
-    case CURLE_SSL_CONNECT_ERROR:
-        return Requests::NetworkError::SSLHandshakeFailed;
-    case CURLE_PEER_FAILED_VERIFICATION:
-        return Requests::NetworkError::SSLVerificationFailed;
-    case CURLE_URL_MALFORMAT:
-        return Requests::NetworkError::MalformedUrl;
-    case CURLE_BAD_CONTENT_ENCODING:
-        return Requests::NetworkError::InvalidContentEncoding;
-    default:
-        return Requests::NetworkError::Unknown;
-    }
-}
 
 static Requests::RequestTimingInfo get_timing_info_from_curl_easy_handle(CURL* easy_handle)
 {
