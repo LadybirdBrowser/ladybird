@@ -1405,17 +1405,6 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         StyleValueList::create(move(background_clips), StyleValueList::Separator::Comma));
 }
 
-static Optional<LengthPercentage> style_value_to_length_percentage(auto value)
-{
-    if (value->is_percentage())
-        return LengthPercentage { value->as_percentage().percentage() };
-    if (value->is_length())
-        return LengthPercentage { value->as_length().length() };
-    if (value->is_calculated())
-        return LengthPercentage { value->as_calculated() };
-    return {};
-}
-
 RefPtr<StyleValue const> Parser::parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>& tokens, PropertyID property)
 {
     Optional<PositionEdge> relative_edge {};
@@ -1439,38 +1428,16 @@ RefPtr<StyleValue const> Parser::parse_single_background_position_x_or_y_value(T
         } else {
             return nullptr;
         }
-        if (tokens.has_next_token()) {
-            value = parse_css_value_for_property(property, tokens);
-            if (!value) {
-                transaction.commit();
-                return EdgeStyleValue::create(relative_edge, {});
-            }
-            if (value->is_keyword())
-                return {};
+
+        value = parse_length_percentage_value(tokens);
+        if (!value) {
+            transaction.commit();
+            return EdgeStyleValue::create(relative_edge, {});
         }
     }
 
-    auto offset = style_value_to_length_percentage(value);
-    if (offset.has_value()) {
-        transaction.commit();
-        return EdgeStyleValue::create(relative_edge, *offset);
-    }
-
-    if (!relative_edge.has_value()) {
-        if (property == PropertyID::BackgroundPositionX) {
-            // [ center | [ [ left | right | x-start | x-end ]? <length-percentage>? ]! ]#
-            relative_edge = PositionEdge::Left;
-        } else if (property == PropertyID::BackgroundPositionY) {
-            // [ center | [ [ top | bottom | y-start | y-end ]? <length-percentage>? ]! ]#
-            relative_edge = PositionEdge::Top;
-        } else {
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    // If no offset is provided create this element but with an offset of default value of zero
     transaction.commit();
-    return EdgeStyleValue::create(relative_edge, {});
+    return EdgeStyleValue::create(relative_edge, LengthPercentage::from_style_value(value.release_nonnull()));
 }
 
 RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID property, TokenStream<ComponentValue>& tokens)
