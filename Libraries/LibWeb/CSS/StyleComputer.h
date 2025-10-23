@@ -189,7 +189,7 @@ public:
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 
-    [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&) const;
+    [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&, LogicalAliasMappingContext const&) const;
 
     void compute_property_values(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void compute_font(ComputedProperties&, Optional<DOM::AbstractElement>) const;

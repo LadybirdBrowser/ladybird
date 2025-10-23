@@ -26,26 +26,28 @@ public:
     [[nodiscard]] GC::Ptr<CSSStyleDeclaration const> property_source(PropertyID) const;
     [[nodiscard]] bool is_property_important(PropertyID) const;
 
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source);
+    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source);
     void set_property_from_presentational_hint(PropertyID, NonnullRefPtr<StyleValue const>);
 
     void revert_property(PropertyID, Important, CascadeOrigin);
     void revert_layer_property(PropertyID, Important, Optional<FlyString> layer_name);
 
-    void resolve_unresolved_properties(DOM::AbstractElement);
+    struct Entry {
+        StyleProperty property;
+        CascadeOrigin origin;
+        Optional<FlyString> layer_name;
+        GC::Ptr<CSSStyleDeclaration const> source;
+    };
+    OrderedHashMap<PropertyID, Entry> const& unresolved_shorthands() const { return m_unresolved_shorthands; }
+    void set_unresolved_shorthand(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source);
 
 private:
     CascadedProperties();
 
     virtual void visit_edges(Visitor&) override;
 
-    struct Entry {
-        StyleProperty property;
-        CascadeOrigin origin;
-        Optional<FlyString> layer_name;
-        GC::Ptr<CSS::CSSStyleDeclaration const> source;
-    };
     HashMap<PropertyID, Vector<Entry>> m_properties;
+    OrderedHashMap<PropertyID, Entry> m_unresolved_shorthands;
 };
 
 }
