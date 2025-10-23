@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Selector: pseudo-classes (:read-write, :read-only)</title>
+<link rel=help href="https://html.spec.whatwg.org/multipage/#pseudo-classes" id=link2>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="utils.js"></script>
+<script>
+  class CustomElement extends HTMLElement {
+    static formAssociated = true;
+
+    constructor() {
+      super();
+    }
+  }
+
+  window.customElements.define("custom-element", CustomElement);
+</script>
+<div id="log"></div>
+
+<div id=set0>
+<!-- The readonly attribute does not apply to the following input types -->
+<input id=checkbox1 type=checkbox>
+<input id=hidden1 type=hidden value=abc>
+<input id=range1 type=range>
+<input id=color1 type=color>
+<input id=radio1 type=radio>
+<input id=file1 type=file>
+<input id=submit1 type=submit>
+<input id=image1 type=image>
+<input id=button1 type=button value="Button">
+<input id=reset1 type=reset>
+</div>
+
+<div id=set1>
+<input id=input1>
+<input id=input2 readonly>
+<input id=input3 disabled>
+<input id=input4 type=checkbox>
+<input id=input5 type=checkbox readonly>
+</div>
+
+<div id=set2>
+<textarea id=textarea1>textarea1</textarea>
+<textarea readonly id=textarea2>textarea2</textarea>
+</div>
+
+<div id=set3>
+<textarea id=textarea3>textarea3</textarea>
+<textarea disabled id=textarea4>textarea4</textarea>
+</div>
+
+<div id=set4>
+<p id=p1>paragraph1.</p>
+<p id=p2 contenteditable>paragraph2.</p>
+</div>
+
+<div id=set5>
+  <div id=cd1 contenteditable>
+    <p id=p3></p>
+    <input id=ci1 readonly>
+    <input id=ci2 disabled>
+    <input id=ci3>
+    <input id=ci4>
+    <textarea id=ct1 readonly></textarea>
+    <textarea id=ct2 disabled></textarea>
+    <textarea id=ct3></textarea>
+    <textarea id=ct4></textarea>
+  </div>
+</div>
+
+<div id=set6>
+  <custom-element id=ce1>content</custom-element>
+  <custom-element id=ce2 contenteditable>content</custom-element>
+  <custom-element id=ce3 contenteditable readonly>content</custom-element>
+  <custom-element id=ce4 contenteditable disabled>content</custom-element>
+  <custom-element id=ce5 contenteditable readonly disabled>content</custom-element>
+</div>
+
+<script>
+  testSelectorIdsMatch("#set0 :read-write", [], "The :read-write pseudo-class must not match input elements to which the readonly attribute does not apply");
+
+  testSelectorIdsMatch("#set0 :read-only", ["checkbox1", "hidden1", "range1", "color1", "radio1", "file1", "submit1", "image1", "button1", "reset1"], "The :read-only pseudo-class must match input elements to which the readonly attribute does not apply");
+
+  testSelectorIdsMatch("#set1 :read-write", ["input1"], "The :read-write pseudo-class must match input elements to which the readonly attribute applies, and that are mutable");
+
+  testSelectorIdsMatch("#set1 :read-only", ["input2", "input3", "input4", "input5"], "The :read-only pseudo-class must not match input elements to which the readonly attribute applies, and that are mutable");
+
+  document.getElementById("input1").setAttribute("readonly", "readonly");
+  testSelectorIdsMatch("#set1 :read-write", [], "The :read-write pseudo-class must not match input elements after the readonly attribute has been added");
+
+  testSelectorIdsMatch("#set1 :read-only", ["input1", "input2", "input3", "input4", "input5"], "The :read-only pseudo-class must match input elements after the readonly attribute has been added");
+
+  document.getElementById("input1").removeAttribute("readonly");
+  testSelectorIdsMatch("#set1 :read-write", ["input1"], "The :read-write pseudo-class must not match input elements after the readonly attribute has been removed");
+
+  testSelectorIdsMatch("#set1 :read-only", ["input2", "input3", "input4", "input5"], "The :read-only pseudo-class must match input elements after the readonly attribute has been removed");
+
+  document.getElementById("input1").disabled = true;
+  testSelectorIdsMatch("#set1 :read-write", [], "The :read-write pseudo-class must not match input elements after the disabled attribute has been added");
+
+  testSelectorIdsMatch("#set1 :read-only", ["input1", "input2", "input3", "input4", "input5"], "The :read-only pseudo-class must match input elements after the disabled attribute has been added");
+
+  document.getElementById("input1").disabled = false;
+
+  testSelectorIdsMatch("#set1 :read-write", ["input1"], "The :read-write pseudo-class must match input elements after the disabled attribute has been removed");
+
+  testSelectorIdsMatch("#set1 :read-only", ["input2", "input3", "input4", "input5"], "The :read-only pseudo-class must not match input elements after the disabled attribute has been removed");
+
+  testSelectorIdsMatch("#set2 :read-write", ["textarea1"], "The :read-write pseudo-class must match textarea elements that do not have a readonly attribute, and that are not disabled");
+
+  testSelectorIdsMatch("#set2 :read-only", ["textarea2"], "The :read-only pseudo-class must match textarea elements that have a readonly attribute, or that are disabled");
+
+  document.getElementById("textarea1").setAttribute("readonly", "readonly");
+  testSelectorIdsMatch("#set2 :read-write", [], "The :read-write pseudo-class must match textarea elements after the readonly attribute has been added");
+
+  testSelectorIdsMatch("#set2 :read-only", ["textarea1", "textarea2"], "The :read-only pseudo-class must match textarea elements after the readonly attribute has been added");
+
+  testSelectorIdsMatch("#set3 :read-write", ["textarea3"], "The :read-write pseudo-class must not match textarea elements that are disabled");
+
+  testSelectorIdsMatch("#set3 :read-only", ["textarea4"], "The :read-only pseudo-class must match textarea elements that are disabled");
+
+  testSelectorIdsMatch("#set4 :read-write", ["p2"], "The :read-write pseudo-class must match elements that are editable");
+
+  testSelectorIdsMatch("#set4 :read-only", ["p1"], "The :read-only pseudo-class must not match elements that are editable");
+
+  document.designMode = "on";
+
+  testSelectorIdsMatch("#set4 :read-write", ["p1", "p2"], "The :read-write pseudo-class must match elements that are editing hosts");
+
+  testSelectorIdsMatch("#set4 :read-only", [], "The :read-only pseudo-class must not match elements that are editing hosts");
+
+  document.designMode = "off";
+
+  testSelectorIdsMatch("#set5 :read-write", ["cd1", "p3", "ci3", "ci4", "ct3", "ct4"], "The :read-write pseudo-class must match elements that are inside editing hosts, but not match inputs and textareas inside that aren't");
+
+  testSelectorIdsMatch("#set6 :read-only", ["ce1"], "The :read-only pseudo-class must match form-associated custom elements");
+
+  testSelectorIdsMatch("#set6 :read-write", ["ce2", "ce3", "ce4", "ce5"], "The :read-write pseudo-class must match form-associated contenteditable custom elements");
+
+
+</script>
