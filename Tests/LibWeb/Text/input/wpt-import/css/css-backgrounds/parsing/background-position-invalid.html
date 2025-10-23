@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing background-position with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#background-position">
+<meta name="assert" content="background-position supports only the grammar '<bg-position>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("background-position", "left right");
+test_invalid_value("background-position", "top bottom");
+test_invalid_value("background-position", "1% center 2px");
+test_invalid_value("background-position", "right 7% 50%");
+test_invalid_value("background-position", "50% top 8px");
+test_invalid_value("background-position", "left 10px 50%");
+test_invalid_value("background-position", "right 11% 100%");
+test_invalid_value("background-position", "100% top 14%");
+test_invalid_value("background-position", "50% top 15px");
+test_invalid_value("background-position", "0% bottom 16%");
+test_invalid_value("background-position", "right 19% 100%");
+</script>
+</body>
+</html>

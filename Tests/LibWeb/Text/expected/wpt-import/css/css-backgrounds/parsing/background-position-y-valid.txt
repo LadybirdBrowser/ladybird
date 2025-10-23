@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+12 Pass
+3 Fail
+Pass	e.style['background-position-y'] = "center" should set the property value
+Pass	e.style['background-position-y'] = "top" should set the property value
+Pass	e.style['background-position-y'] = "bottom" should set the property value
+Fail	e.style['background-position-y'] = "y-start" should set the property value
+Fail	e.style['background-position-y'] = "y-end" should set the property value
+Pass	e.style['background-position-y'] = "-20%" should set the property value
+Pass	e.style['background-position-y'] = "10px" should set the property value
+Pass	e.style['background-position-y'] = "0.5em" should set the property value
+Pass	e.style['background-position-y'] = "calc(10px - 0.5em)" should set the property value
+Pass	e.style['background-position-y'] = "top -20%" should set the property value
+Pass	e.style['background-position-y'] = "bottom 10px" should set the property value
+Pass	e.style['background-position-y'] = "-20%, 10px" should set the property value
+Pass	e.style['background-position-y'] = "center, top, bottom" should set the property value
+Fail	e.style['background-position-y'] = "0.5em, y-start, y-end" should set the property value
+Pass	e.style['background-position-y'] = "calc(10px - 0.5em), top -20%, bottom 10px" should set the property value

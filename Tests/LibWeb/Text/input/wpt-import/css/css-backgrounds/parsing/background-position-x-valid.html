@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 4: parsing background-position-x with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-4/#propdef-background-position-x">
+<meta name="assert" content="background-position-x supports the full grammar '[ center | [ left | right | x-start | x-end ]? <length-percentage>? ]#'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("background-position-x", "center");
+test_valid_value("background-position-x", "left");
+test_valid_value("background-position-x", "right");
+test_valid_value("background-position-x", "x-start");
+test_valid_value("background-position-x", "x-end");
+test_valid_value("background-position-x", "-20%");
+test_valid_value("background-position-x", "10px");
+test_valid_value("background-position-x", "0.5em");
+test_valid_value("background-position-x", "calc(10px - 0.5em)", "calc(-0.5em + 10px)");
+test_valid_value("background-position-x", "left -20%");
+test_valid_value("background-position-x", "right 10px");
+test_valid_value("background-position-x", "-20%, 10px");
+test_valid_value("background-position-x", "center, left, right");
+test_valid_value("background-position-x", "0.5em, x-start, x-end");
+test_valid_value("background-position-x", "calc(10px - 0.5em), left -20%, right 10px", "calc(-0.5em + 10px), left -20%, right 10px");
+</script>
+</body>
+</html>
