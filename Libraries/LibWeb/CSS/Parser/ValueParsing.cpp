@@ -2848,9 +2848,9 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
         }
 
         // [ <length-percentage> ]
-        if (auto maybe_percentage = parse_length_percentage(tokens); maybe_percentage.has_value()) {
+        if (auto maybe_percentage = parse_length_percentage_value(tokens)) {
             transaction.commit();
-            return PositionStyleValue::create(EdgeStyleValue::create({}, *maybe_percentage), EdgeStyleValue::create(PositionEdge::Center, {}));
+            return PositionStyleValue::create(EdgeStyleValue::create({}, maybe_percentage), EdgeStyleValue::create(PositionEdge::Center, {}));
         }
 
         return nullptr;
@@ -2907,8 +2907,8 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
                 return EdgeStyleValue::create(position, {});
             }
 
-            auto maybe_length = parse_length_percentage(tokens);
-            if (!maybe_length.has_value())
+            auto maybe_length = parse_length_percentage_value(tokens);
+            if (!maybe_length)
                 return nullptr;
 
             return EdgeStyleValue::create({}, maybe_length);
@@ -2933,7 +2933,7 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
     auto alternative_4 = [&]() -> RefPtr<PositionStyleValue const> {
         struct PositionAndLength {
             PositionEdge position;
-            LengthPercentage length;
+            NonnullRefPtr<StyleValue const> length;
         };
 
         auto parse_position_and_length = [&]() -> Optional<PositionAndLength> {
@@ -2945,13 +2945,13 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
 
             tokens.discard_whitespace();
 
-            auto maybe_length = parse_length_percentage(tokens);
-            if (!maybe_length.has_value())
+            auto maybe_length = parse_length_percentage_value(tokens);
+            if (!maybe_length)
                 return {};
 
             return PositionAndLength {
                 .position = maybe_position.release_value(),
-                .length = maybe_length.release_value(),
+                .length = maybe_length.release_nonnull(),
             };
         };
 
@@ -2991,7 +2991,7 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
 
         struct PositionAndMaybeLength {
             PositionEdge position;
-            Optional<LengthPercentage> length;
+            RefPtr<StyleValue const> length;
         };
 
         // [ <position> <length-percentage>? ]
@@ -3005,17 +3005,17 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
 
             tokens.discard_whitespace();
 
-            auto maybe_length = parse_length_percentage(tokens);
-            if (maybe_length.has_value()) {
+            auto maybe_length = parse_length_percentage_value(tokens);
+            if (maybe_length) {
                 // 'center' cannot be followed by a <length-percentage>
-                if (maybe_position.value() == PositionEdge::Center && maybe_length.has_value())
+                if (maybe_position.value() == PositionEdge::Center && maybe_length)
                     return {};
             }
 
             inner_transaction.commit();
             return PositionAndMaybeLength {
                 .position = maybe_position.release_value(),
-                .length = move(maybe_length),
+                .length = maybe_length,
             };
         };
 
@@ -3031,7 +3031,7 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
         auto group2 = maybe_group2.release_value();
 
         // 2-value or 4-value if both <length-percentage>s are present or missing.
-        if (group1.length.has_value() == group2.length.has_value())
+        if ((group1.length && group2.length) || (!group1.length && !group2.length))
             return nullptr;
 
         // If 'left' or 'right' is given, that position is X and the other is Y.

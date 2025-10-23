@@ -1437,7 +1437,7 @@ RefPtr<StyleValue const> Parser::parse_single_background_position_x_or_y_value(T
     }
 
     transaction.commit();
-    return EdgeStyleValue::create(relative_edge, LengthPercentage::from_style_value(value.release_nonnull()));
+    return EdgeStyleValue::create(relative_edge, value);
 }
 
 RefPtr<StyleValue const> Parser::parse_single_background_size_value(PropertyID property, TokenStream<ComponentValue>& tokens)

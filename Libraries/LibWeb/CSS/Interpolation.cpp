@@ -1728,8 +1728,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& edge = delta >= 0.5f ? resolved_to->edge() : resolved_from->edge();
         auto const& from_offset = resolved_from->offset();
         auto const& to_offset = resolved_to->offset();
-        if (auto interpolated_value = interpolate_length_percentage(calculation_context, from_offset, to_offset, delta); interpolated_value.has_value())
-            return EdgeStyleValue::create(edge, *interpolated_value);
+        if (auto interpolated_value = interpolate_value_impl(element, calculation_context, from_offset, to_offset, delta, allow_discrete))
+            return EdgeStyleValue::create(edge, interpolated_value);
 
         return {};
     }
