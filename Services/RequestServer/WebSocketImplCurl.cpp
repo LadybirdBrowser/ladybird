@@ -4,12 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "ConnectionFromClient.h"
-
-#include <AK/Windows.h>
+#include <RequestServer/CURL.h>
+#include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/WebSocketImplCurl.h>
-
-#include <curl/curl.h>
 
 namespace RequestServer {
 
