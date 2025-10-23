@@ -72,6 +72,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -4799,11 +4800,40 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
 
 NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::AbstractElement abstract_element, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
-    auto parser = Parser::create(context, ""sv);
-    if (existing_guarded_contexts.has_value())
-        return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), property, unresolved);
-    GuardedSubstitutionContexts guarded_contexts;
-    return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, property, unresolved);
+    auto resolved_value = [&]() {
+        auto parser = Parser::create(context, ""sv);
+        if (existing_guarded_contexts.has_value())
+            return parser.resolve_unresolved_style_value(abstract_element, existing_guarded_contexts.value(), property, unresolved);
+        GuardedSubstitutionContexts guarded_contexts;
+        return parser.resolve_unresolved_style_value(abstract_element, guarded_contexts, property, unresolved);
+    }();
+
+    if (resolved_value->is_guaranteed_invalid()) {
+        // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+        // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
+        // declaration invalid at computed-value time. When this happens, the computed value is one of the
+        // following depending on the property’s type:
+
+        // -> The property is a non-registered custom property
+        // -> The property is a registered custom property with universal syntax
+        //    The computed value is the guaranteed-invalid value.
+        if (property.is_custom_property()) {
+            // The computed value is the guaranteed-invalid value.
+            auto maybe_registered_custom_property = abstract_element.document().registered_custom_properties().get(property.name());
+            if (!maybe_registered_custom_property.has_value())
+                return resolved_value;
+            auto& registered_custom_property = maybe_registered_custom_property.value();
+            if (registered_custom_property->syntax().equals_ignoring_ascii_case("*"sv))
+                return resolved_value;
+        }
+
+        // -> Otherwise
+        //    Either the property’s inherited value or its initial value depending on whether the property is
+        //    inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
+        resolved_value = KeywordStyleValue::create(Keyword::Unset);
+    }
+
+    return resolved_value;
 }
 
 // https://drafts.csswg.org/css-values-5/#property-replacement

@@ -736,12 +736,11 @@ void StyleComputer::cascade_declarations(
     Optional<LogicalAliasMappingContext> logical_alias_mapping_context,
     ReadonlySpan<PropertyID> properties_to_cascade) const
 {
-    auto seen_properties = MUST(Bitmap::create(to_underlying(last_property_id) + 1, false));
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
-        seen_properties.fill(false);
         for (auto const& property : declaration.properties()) {
 
             // OPTIMIZATION: If we've been asked to only cascade a specific set of properties, skip the rest.
+            // FIXME: This skips shorthands whose longhands are in properties_to_cascade. However, we don't need that functionality (yet?)
             if (!properties_to_cascade.is_empty()) {
                 if (!properties_to_cascade.contains_slow(property.property_id))
                     continue;
@@ -753,38 +752,12 @@ void StyleComputer::cascade_declarations(
             if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property.property_id))
                 continue;
 
-            auto property_value = property.value;
-
-            if (property_value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
-
-            if (property_value->is_guaranteed_invalid()) {
-                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
-                // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
-                // declaration invalid at computed-value time. When this happens, the computed value is one of the
-                // following depending on the property’s type:
-
-                // -> The property is a non-registered custom property
-                // -> The property is a registered custom property with universal syntax
-                // FIXME: Process custom properties here?
-                if (false) {
-                    // The computed value is the guaranteed-invalid value.
-                }
-                // -> Otherwise
-                else {
-                    // Either the property’s inherited value or its initial value depending on whether the property is
-                    // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
-                    property_value = KeywordStyleValue::create(Keyword::Unset);
-                }
+            // Record any UnresolvedStyleValues in shorthands, so that we can expand them after custom properties are computed.
+            if (property_is_shorthand(property.property_id) && property.value->is_unresolved()) {
+                cascaded_properties.set_unresolved_shorthand(property.property_id, property.value, important, cascade_origin, layer_name, declaration);
             }
 
-            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
-                // If we're a PSV that's already been seen, that should mean that our shorthand already got
-                // resolved and gave us a value, so we don't want to overwrite it with a PSV.
-                if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
-                    return;
-                seen_properties.set(to_underlying(longhand_id), true);
-
+            for_each_property_expanding_shorthands(property.property_id, property.value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 PropertyID physical_property_id;
 
                 if (property_is_logical_alias(longhand_id)) {
@@ -1601,13 +1574,9 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
         auto& element = abstract_element.element();
         element.apply_presentational_hints(cascaded_properties);
         if (element.supports_dimension_attributes()) {
-            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::width, CSS::PropertyID::Width);
-            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::height, CSS::PropertyID::Height);
+            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::width, PropertyID::Width);
+            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::height, PropertyID::Height);
         }
-
-        // SVG presentation attributes are parsed as CSS values, so we need to handle potential custom properties here.
-        if (element.is_svg_element())
-            cascaded_properties->resolve_unresolved_properties(abstract_element);
     }
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
@@ -2048,6 +2017,8 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
         {},
         properties_to_cascade);
 
+    // FIXME: Actually compute these values, not just cascade them.
+
     auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyID::WritingMode));
     auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyID::Direction));
 
@@ -2404,7 +2375,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
         }
     }
 
-    auto computed_properties = compute_properties(abstract_element, cascaded_properties);
+    auto computed_properties = compute_properties(abstract_element, cascaded_properties, logical_alias_mapping_context);
     computed_properties->set_attempted_pseudo_class_matches(attempted_pseudo_class_matches);
 
     if (did_change_custom_properties.has_value() && abstract_element.custom_properties() != old_custom_properties) {
@@ -2505,17 +2476,56 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, LogicalAliasMappingContext const& logical_alias_mapping_context) const
 {
-    auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
+    auto computed_style = document().heap().allocate<ComputedProperties>();
+
+    // FIXME: Compute custom properties first.
+
+    // Resolve any UnresolvedStyleValue shorthands, to get the final cascaded longhand values.
+    for (auto const& [shorthand_id, unresolved_shorthand_entry] : cascaded_properties.unresolved_shorthands()) {
+        auto const& unresolved_shorthand_value = unresolved_shorthand_entry.property.value;
+        auto const important = unresolved_shorthand_entry.property.important;
+        auto const cascade_origin = unresolved_shorthand_entry.origin;
+        auto const& layer_name = unresolved_shorthand_entry.layer_name;
+        auto const& declaration = unresolved_shorthand_entry.source;
+
+        auto resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(shorthand_id), unresolved_shorthand_value->as_unresolved());
+
+        for_each_property_expanding_shorthands(shorthand_id, resolved_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
+            PropertyID physical_property_id;
+
+            if (property_is_logical_alias(longhand_id)) {
+                physical_property_id = map_logical_alias_to_physical_property(longhand_id, logical_alias_mapping_context);
+            } else {
+                physical_property_id = longhand_id;
+            }
+
+            // We only want to overwrite pending-substitution values.
+            auto existing_longhand_value = cascaded_properties.property(physical_property_id);
+            if (existing_longhand_value && !existing_longhand_value->is_pending_substitution())
+                return;
+
+            if (longhand_value.is_revert()) {
+                cascaded_properties.revert_property(physical_property_id, important, cascade_origin);
+            } else if (longhand_value.is_revert_layer()) {
+                cascaded_properties.revert_layer_property(physical_property_id, important, layer_name);
+            } else {
+                cascaded_properties.set_property(physical_property_id, longhand_value, important, cascade_origin, layer_name, declaration);
+            }
+        });
+    }
 
     auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties);
     if (new_font_size)
         computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
+        auto property_id = static_cast<PropertyID>(i);
         auto value = cascaded_properties.property(property_id);
+        if (value && value->is_unresolved()) {
+            value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, abstract_element, PropertyNameAndID::from_id(property_id), value->as_unresolved());
+        }
         auto inherited = ComputedProperties::Inherited::No;
         Optional<NonnullRefPtr<StyleValue const>> animated_value;
 

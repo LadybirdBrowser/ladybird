@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
 
@@ -60,17 +59,6 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
         m_properties.remove(it);
 }
 
-void CascadedProperties::resolve_unresolved_properties(DOM::AbstractElement abstract_element)
-{
-    for (auto& [property_id, entries] : m_properties) {
-        for (auto& entry : entries) {
-            if (!entry.property.value->is_unresolved())
-                continue;
-            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), entry.property.value->as_unresolved());
-        }
-    }
-}
-
 void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source)
 {
     auto& entries = m_properties.ensure(property_id);
@@ -98,6 +86,21 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
         .layer_name = move(layer_name),
         .source = source,
     });
+}
+
+void CascadedProperties::set_unresolved_shorthand(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source)
+{
+    m_unresolved_shorthands.set(property_id,
+        Entry {
+            .property = StyleProperty {
+                .important = important,
+                .property_id = property_id,
+                .value = value,
+            },
+            .origin = origin,
+            .layer_name = move(layer_name),
+            .source = source,
+        });
 }
 
 void CascadedProperties::set_property_from_presentational_hint(PropertyID property_id, NonnullRefPtr<StyleValue const> value)
