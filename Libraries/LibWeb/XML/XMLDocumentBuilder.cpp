@@ -39,7 +39,9 @@ ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> resolve_xml_resourc
             "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN",
             "-//W3C//DTD XHTML 1.1 plus MathML 2.0 plus SVG 1.1//EN",
             "-//W3C//DTD MathML 2.0//EN",
-            "-//WAPFORUM//DTD XHTML Mobile 1.0//EN"))
+            "-//WAPFORUM//DTD XHTML Mobile 1.0//EN",
+            "-//WAPFORUM//DTD XHTML Mobile 1.1//EN",
+            "-//WAPFORUM//DTD XHTML Mobile 1.2//EN"))
         return Error::from_string_literal("Refusing to load disallowed external entity");
 
     if (!s_parsed_xhtml_unified_dtd.has_value()) {
