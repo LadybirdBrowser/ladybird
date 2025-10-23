@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders: getComputedStyle().backgroundPosition</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#background-position">
+<meta name="assert" content="background-position computed value is a list, each item a pair of offsets (horizontal and vertical) from the top left origin each given as a computed <length-percentage> value.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("background-position", "1px", "1px 50%");
+test_computed_value("background-position", "1px center", "1px 50%");
+test_computed_value("background-position", "-2% -3%");
+test_computed_value("background-position", "5% top", "5% 0%");
+test_computed_value("background-position", "center", "50% 50%");
+test_computed_value("background-position", "center center", "50% 50%");
+test_computed_value("background-position", "center 6px", "50% 6px");
+test_computed_value("background-position", "center left", "0% 50%");
+test_computed_value("background-position", "center right 7%", "93% 50%");
+test_computed_value("background-position", "center bottom", "50% 100%");
+test_computed_value("background-position", "center top 8px", "50% 8px");
+test_computed_value("background-position", "left", "0% 50%");
+test_computed_value("background-position", "right 9%", "100% 9%");
+test_computed_value("background-position", "left 10px center", "10px 50%");
+test_computed_value("background-position", "right 11% bottom", "89% 100%");
+test_computed_value("background-position", "left 12px top 13px", "12px 13px");
+test_computed_value("background-position", "right center", "100% 50%");
+test_computed_value("background-position", "left bottom", "0% 100%");
+test_computed_value("background-position", "right top 14%", "100% 14%");
+test_computed_value("background-position", "bottom", "50% 100%");
+test_computed_value("background-position", "top 15px center", "50% 15px");
+test_computed_value("background-position", "bottom 16% left", "0% 84%");
+test_computed_value("background-position", "top 17px right -18px", "calc(100% + 18px) 17px");
+test_computed_value("background-position", "bottom center", "50% 100%");
+test_computed_value("background-position", "top left", "0% 0%");
+test_computed_value("background-position", "bottom right 19%", "81% 100%");
+test_computed_value("background-position", "calc(10px + 0.5em) calc(10px - 0.5em)", "30px -10px");
+test_computed_value("background-position", "calc(10px - 0.5em) calc(10px + 0.5em)", "-10px 30px");
+
+// See background-computed.html for a test with multiple background images.
+test_computed_value("background-position", "12px 13px, 50% 6px, 30px -10px", "12px 13px");
+</script>
+</body>
+</html>

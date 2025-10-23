@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 4: getComputedStyle().backgroundPositionX</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-4/#propdef-background-position-x">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("background-position-x", "center", "50%");
+test_computed_value("background-position-x", "left", "0%");
+test_computed_value("background-position-x", "right", "100%");
+test_computed_value("background-position-x", "x-start");
+test_computed_value("background-position-x", "x-end");
+test_computed_value("background-position-x", "-20%");
+test_computed_value("background-position-x", "10px");
+test_computed_value("background-position-x", "0.5em", "20px");
+test_computed_value("background-position-x", "calc(10px - 0.5em)", "-10px");
+test_computed_value("background-position-x", "left -20%", "-20%");
+test_computed_value("background-position-x", "right -10px", "calc(100% + 10px)");
+test_computed_value("background-position-x", "-20%, 10px", "-20%");
+test_computed_value("background-position-x", "center, left, right", "50%");
+test_computed_value("background-position-x", "0.5em, x-start, x-end", "20px");
+
+// See background-computed.html for a test with multiple background images.
+test_computed_value("background-position-x", "calc(10px - 0.5em), -20%, 10px", "-10px");
+test_computed_value("background-position-x", "calc(10px - 0.5em), left -20%, right 10px", "-10px");
+</script>
+</body>
+</html>

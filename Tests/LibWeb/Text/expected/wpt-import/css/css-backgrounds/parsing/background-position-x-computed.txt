@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+8 Pass
+8 Fail
+Pass	Property background-position-x value 'center'
+Pass	Property background-position-x value 'left'
+Pass	Property background-position-x value 'right'
+Fail	Property background-position-x value 'x-start'
+Fail	Property background-position-x value 'x-end'
+Pass	Property background-position-x value '-20%'
+Pass	Property background-position-x value '10px'
+Fail	Property background-position-x value '0.5em'
+Fail	Property background-position-x value 'calc(10px - 0.5em)'
+Pass	Property background-position-x value 'left -20%'
+Fail	Property background-position-x value 'right -10px'
+Pass	Property background-position-x value '-20%, 10px'
+Pass	Property background-position-x value 'center, left, right'
+Fail	Property background-position-x value '0.5em, x-start, x-end'
+Fail	Property background-position-x value 'calc(10px - 0.5em), -20%, 10px'
+Fail	Property background-position-x value 'calc(10px - 0.5em), left -20%, right 10px'
