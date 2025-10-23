@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Timothy Slater <tslater2006@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -70,6 +70,7 @@ public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_raw_data(BitmapFormat, AlphaType, ReadonlyBytes, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
@@ -172,7 +173,11 @@ private:
     Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
     Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
 
-    static ErrorOr<BackingStore> allocate_backing_store(BitmapFormat format, IntSize size);
+    enum class InitializeBackingStore {
+        No,
+        Yes,
+    };
+    static ErrorOr<BackingStore> allocate_backing_store(BitmapFormat format, IntSize size, InitializeBackingStore = InitializeBackingStore::Yes);
 
     IntSize m_size;
     void* m_data { nullptr };
