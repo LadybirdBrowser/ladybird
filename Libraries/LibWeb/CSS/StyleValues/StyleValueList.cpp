@@ -27,8 +27,17 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(Comput
     StyleValueVector absolutized_style_values;
     absolutized_style_values.ensure_capacity(m_properties.values.size());
 
-    for (auto const& value : m_properties.values)
+    bool any_absolutized = false;
+
+    for (auto const& value : m_properties.values) {
+        auto absolutized_style_value = value->absolutized(computation_context);
+        if (absolutized_style_value != value)
+            any_absolutized = true;
         absolutized_style_values.append(value->absolutized(computation_context));
+    }
+
+    if (!any_absolutized)
+        return *this;
 
     return StyleValueList::create(move(absolutized_style_values), m_properties.separator);
 }
