@@ -41,3 +41,4 @@ Note that all events are registered, and therefore happen, on the event loop of 
 -   DO NOT store an event loop in a global variable. Because the event loop itself relies on global variable initialization, UBSAN will catch an initialization order fiasco. DO create your main event loop in `main` and pass it to classes which need it.
 -   DO NOT access the current event loop if you don't know on which thread you are running. If there is no event loop on your thread, the program will crash. DO receive the specific event loop you need to talk to as an initializer variable.
 -   DO NOT `pump()` and/or `exec()` the event loop of another thread. While handling events is fine, going to sleep and waking up relies on thread-local variables. DO signal events to event loops on other threads.
+-   DO NOT register or unregister notifiers, timers, or signals for event loops of other threads. DO deferred_invoke event loops of other threads.
