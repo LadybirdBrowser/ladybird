@@ -259,6 +259,8 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
     }
 
     flush_character_insertions();
+
+    m_tokenizer.parser_did_run({});
 }
 
 void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)

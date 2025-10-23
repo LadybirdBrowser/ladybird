@@ -145,6 +145,8 @@ public:
     // This permanently cuts off the tokenizer input stream.
     void abort() { m_aborted = true; }
 
+    void parser_did_run(Badge<HTMLParser>);
+
 private:
     void skip(size_t count);
     Optional<u32> next_code_point(StopAtInsertionPoint);

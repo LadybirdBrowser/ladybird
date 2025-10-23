@@ -2895,6 +2895,20 @@ HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding)
     m_source_positions.empend(0u, 0u);
 }
 
+void HTMLTokenizer::parser_did_run(Badge<HTMLParser>)
+{
+    // OPTIMIZATION: If we've consumed all input and the insertion point is at the start,
+    //               we can throw away the decoded input buffer to save memory.
+    if (m_current_offset > 0
+        && static_cast<size_t>(m_current_offset) == m_decoded_input.size()
+        && (!m_insertion_point.has_value() || *m_insertion_point == 0)
+        && (!m_old_insertion_point.has_value() || *m_old_insertion_point == 0)) {
+        m_decoded_input.clear();
+        m_current_offset = 0;
+        m_prev_offset = 0;
+    }
+}
+
 void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
 {
     Vector<u32> new_decoded_input;
