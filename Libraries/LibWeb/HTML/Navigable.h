@@ -203,6 +203,8 @@ public:
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
 
+    [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
+
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const;
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }

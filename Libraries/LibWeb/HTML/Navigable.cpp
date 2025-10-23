@@ -2766,4 +2766,19 @@ void Navigable::reset_zoom()
     document->visual_viewport()->reset();
 }
 
+bool Navigable::has_inclusive_ancestor_with_visibility_hidden() const
+{
+    if (auto container = this->container()) {
+        if (auto container_computed_properties = container->computed_properties()) {
+            if (container_computed_properties->visibility() == CSS::Visibility::Hidden)
+                return true;
+        }
+        if (auto ancestor_navigable = container->document().navigable()) {
+            if (auto ancestor_container = ancestor_navigable->container())
+                return ancestor_navigable->has_inclusive_ancestor_with_visibility_hidden();
+        }
+    }
+    return false;
+}
+
 }

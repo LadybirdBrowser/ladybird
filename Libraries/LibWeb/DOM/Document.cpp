@@ -6445,6 +6445,12 @@ void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList shou
     // FIXME: Ignore updates outside the visible viewport rect.
     //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
 
+    // OPTIMIZATION: Ignore set_needs_display() inside navigable containers (i.e frames) with visibility: hidden.
+    if (auto navigable = this->navigable()) {
+        if (navigable->has_inclusive_ancestor_with_visibility_hidden())
+            return;
+    }
+
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
         invalidate_display_list();
     }
