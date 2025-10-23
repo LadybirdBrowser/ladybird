@@ -30,32 +30,30 @@ extern "C" {
 
 namespace Web::WebGL {
 
-static constexpr Optional<int> opengl_format_number_of_components(WebIDL::UnsignedLong format)
+static constexpr Optional<int> opengl_format_and_type_number_of_bytes(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
 {
     switch (format) {
     case GL_LUMINANCE:
     case GL_ALPHA:
+        if (type != GL_UNSIGNED_BYTE)
+            return OptionalNone {};
+
         return 1;
     case GL_LUMINANCE_ALPHA:
+        if (type != GL_UNSIGNED_BYTE)
+            return OptionalNone {};
+
         return 2;
     case GL_RGB:
-        return 3;
-    case GL_RGBA:
-        return 4;
-    default:
-        return OptionalNone {};
-    }
-}
+        if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT_5_6_5)
+            return OptionalNone {};
 
-static constexpr Optional<int> opengl_type_size_in_bytes(WebIDL::UnsignedLong type)
-{
-    switch (type) {
-    case GL_UNSIGNED_BYTE:
-        return 1;
-    case GL_UNSIGNED_SHORT_5_6_5:
-    case GL_UNSIGNED_SHORT_4_4_4_4:
-    case GL_UNSIGNED_SHORT_5_5_5_1:
-        return 2;
+        return type == GL_UNSIGNED_BYTE ? 3 : 2;
+    case GL_RGBA:
+        if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT_4_4_4_4 && type != GL_UNSIGNED_SHORT_5_5_5_1)
+            return OptionalNone {};
+
+        return type == GL_UNSIGNED_BYTE ? 4 : 2;
     default:
         return OptionalNone {};
     }
@@ -155,17 +153,11 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
 
     Checked<size_t> buffer_pitch = width;
 
-    auto number_of_components = opengl_format_number_of_components(format);
-    if (!number_of_components.has_value())
+    auto number_of_bytes = opengl_format_and_type_number_of_bytes(format, type);
+    if (!number_of_bytes.has_value())
         return OptionalNone {};
 
-    buffer_pitch *= number_of_components.value();
-
-    auto type_size = opengl_type_size_in_bytes(type);
-    if (!type_size.has_value())
-        return OptionalNone {};
-
-    buffer_pitch *= type_size.value();
+    buffer_pitch *= number_of_bytes.value();
 
     if (buffer_pitch.has_overflow())
         return OptionalNone {};
