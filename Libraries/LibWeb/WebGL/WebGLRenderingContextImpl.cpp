@@ -1501,6 +1501,8 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         set_error(GL_INVALID_ENUM);
         return JS::js_null();
     }
+    case UNPACK_FLIP_Y_WEBGL:
+        return JS::Value(m_unpack_flip_y);
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -1793,6 +1795,13 @@ void WebGLRenderingContextImpl::link_program(GC::Root<WebGLProgram> program)
 void WebGLRenderingContextImpl::pixel_storei(WebIDL::UnsignedLong pname, WebIDL::Long param)
 {
     m_context->make_current();
+
+    switch (pname) {
+    case UNPACK_FLIP_Y_WEBGL:
+        m_unpack_flip_y = param != GL_FALSE;
+        return;
+    }
+
     glPixelStorei(pname, param);
 }
 

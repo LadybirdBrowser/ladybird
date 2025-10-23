@@ -2849,6 +2849,8 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_PAUSED, 1, nullptr, &result);
         return JS::Value(result == GL_TRUE);
     }
+    case UNPACK_FLIP_Y_WEBGL:
+        return JS::Value(m_unpack_flip_y);
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -3145,6 +3147,13 @@ void WebGL2RenderingContextImpl::link_program(GC::Root<WebGLProgram> program)
 void WebGL2RenderingContextImpl::pixel_storei(WebIDL::UnsignedLong pname, WebIDL::Long param)
 {
     m_context->make_current();
+
+    switch (pname) {
+    case UNPACK_FLIP_Y_WEBGL:
+        m_unpack_flip_y = param != GL_FALSE;
+        return;
+    }
+
     glPixelStorei(pname, param);
 }
 

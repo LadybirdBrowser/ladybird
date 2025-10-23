@@ -14,6 +14,8 @@
 
 namespace Web::WebGL {
 
+static constexpr int UNPACK_FLIP_Y_WEBGL = 0x9240;
+
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::ImageData>, GC::Root<HTML::HTMLImageElement>, GC::Root<HTML::HTMLCanvasElement>, GC::Root<HTML::OffscreenCanvas>, GC::Root<HTML::HTMLVideoElement>>;
 
@@ -107,7 +109,14 @@ public:
         int width { 0 };
         int height { 0 };
     };
-    static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
+    Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
+
+protected:
+    // UNPACK_FLIP_Y_WEBGL of type boolean
+    //      If set, then during any subsequent calls to texImage2D or texSubImage2D, the source data is flipped along
+    //      the vertical axis, so that conceptually the last row is the first one transferred. The initial value is false.
+    //      Any non-zero value is interpreted as true.
+    bool m_unpack_flip_y { false };
 };
 
 }
