@@ -209,13 +209,11 @@ header, hr, legend, listing, main, p, plaintext, pre, search, xmp {
 }
 
 blockquote, figure, listing, p, plaintext, pre, xmp {
-    margin-top: 1em;
-    margin-bottom: 1em;
+    margin-block: 1em;
 }
 
 blockquote, figure {
-    margin-left: 40px;
-    margin-right: 40px;
+    margin-inline: 40px;
 }
 
 address {
@@ -449,43 +447,37 @@ article, aside, :heading, hgroup, nav, section {
 }
 
 h1 {
-    margin-top: 0.67em;
-    margin-bottom: 0.67em;
+    margin-block: 0.67em;
     font-size: 2.00em;
     font-weight: bold;
 }
 
 h2 {
-    margin-top: 0.83em;
-    margin-bottom: 0.83em;
+    margin-block: 0.83em;
     font-size: 1.50em;
     font-weight: bold;
 }
 
 h3 {
-    margin-top: 1.00em;
-    margin-bottom: 1.00em;
+    margin-block: 1.00em;
     font-size: 1.17em;
     font-weight: bold;
 }
 
 h4 {
-    margin-top: 1.33em;
-    margin-bottom: 1.33em;
+    margin-block: 1.33em;
     font-size: 1.00em;
     font-weight: bold;
 }
 
 h5 {
-    margin-top: 1.67em;
-    margin-bottom: 1.67em;
+    margin-block: 1.67em;
     font-size: 0.83em;
     font-weight: bold;
 }
 
 h6 {
-    margin-top: 2.33em;
-    margin-bottom: 2.33em;
+    margin-block: 2.33em;
     font-size: 0.67em;
     font-weight: bold;
 }
@@ -724,8 +716,7 @@ fieldset {
 }
 
 legend {
-    padding-left: 2px;
-    padding-right: 2px;
+    padding-inline: 2px;
 }
 
 legend[align=left i] {

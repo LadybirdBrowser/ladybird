@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/rendering.html#the-css-user-agent-style-sheet-and-presentational-hints">
+<link rel=help href="https://issues.chromium.org/issues/407315792">
+<link rel=match href="../../../../../expected/wpt-import/html/rendering/the-css-user-agent-style-sheet-and-presentational-hints/pre-margin-block-ref.html">
+
+<!--
+This is a test for the following UA style rule in the HTML spec:
+
+blockquote, figure, listing, p, plaintext, pre, xmp {
+  margin-block: 1em;
+}
+-->
+
+<style>
+html {
+  writing-mode: vertical-rl;
+}
+</style>
+
+<pre>pre</pre>
+<xmp>xmp</xmp>
+<listing>listing</listing>
+<blockquote>blockquote</blockquote>
+<figure>figure</figure>
+<p>p</p>
+<plaintext>plaintext
