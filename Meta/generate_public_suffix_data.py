@@ -38,8 +38,6 @@ public:
     bool is_public_suffix(StringView host);
     Optional<String> get_public_suffix(StringView string);
 
-private:
-    Trie<char, Empty> m_dictionary;
 };
 
 }
@@ -52,6 +50,7 @@ private:
 
 def generate_implementation_file(input_path: Path, output_path: Path) -> None:
     content = """#include <AK/String.h>
+#include <AK/BinarySearch.h>
 #include <AK/Vector.h>
 #include <LibURL/PublicSuffixData.h>
 
@@ -59,6 +58,7 @@ namespace URL {
 
 static constexpr auto s_public_suffixes = Array {"""
 
+    reversed_lines = []
     with open(input_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -67,25 +67,23 @@ static constexpr auto s_public_suffixes = Array {"""
                 continue
 
             reversed_line = ".".join(line.split(".")[::-1])
-            content += f'\n    "{reversed_line}"sv,'
+            reversed_lines.append(reversed_line)
+
+    reversed_lines.sort()
+
+    for item in reversed_lines:
+        content += f'\n    "{item}"sv,'
 
     content += """
 };
 
-PublicSuffixData::PublicSuffixData()
-    : m_dictionary('/')
-{
-    // FIXME: Reduce the depth of this trie
-    for (auto str : s_public_suffixes) {
-        MUST(m_dictionary.insert(str.begin(), str.end(), Empty {}, [](auto const&, auto const&) -> Optional<Empty> { return {}; }));
-    }
+PublicSuffixData::PublicSuffixData()   
+{    
 }
 
 bool PublicSuffixData::is_public_suffix(StringView host)
 {
-    auto it = host.begin();
-    auto& node = m_dictionary.traverse_until_last_accessible_node(it, host.end());
-    return it.is_end() && node.has_metadata();
+    return binary_search(s_public_suffixes, host);
 }
 
 Optional<String> PublicSuffixData::get_public_suffix(StringView string)
