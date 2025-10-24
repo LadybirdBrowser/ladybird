@@ -280,6 +280,12 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
     return stream_wrapper;
 }
 
+PulseAudioStream::PulseAudioStream(NonnullRefPtr<PulseAudioContext>&& context, pa_stream* stream)
+    : m_context(context)
+    , m_stream(stream)
+{
+}
+
 PulseAudioStream::~PulseAudioStream()
 {
     auto locker = m_context->main_loop_locker();
