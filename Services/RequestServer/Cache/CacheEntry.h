@@ -80,9 +80,10 @@ protected:
 
 class CacheEntryWriter : public CacheEntry {
 public:
-    static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&, UnixDateTime request_time);
+    static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, UnixDateTime request_time);
     virtual ~CacheEntryWriter() override = default;
 
+    ErrorOr<void> write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&);
     ErrorOr<void> write_data(ReadonlyBytes);
     ErrorOr<void> flush();
 

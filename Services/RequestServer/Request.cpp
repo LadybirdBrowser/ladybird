@@ -172,6 +172,8 @@ void Request::handle_initial_state()
             transition_to_state(State::ReadCache);
             return;
         }
+
+        m_cache_entry_writer = m_disk_cache->create_entry(m_url, m_method, m_request_start_time);
     }
 
     transition_to_state(State::DNSLookup);
@@ -486,8 +488,10 @@ void Request::transfer_headers_to_client_if_needed()
     m_status_code = acquire_status_code();
     m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
 
-    if (m_disk_cache.has_value())
-        m_cache_entry_writer = m_disk_cache->create_entry(m_url, m_method, m_status_code, m_reason_phrase, m_response_headers, m_request_start_time);
+    if (m_cache_entry_writer.has_value()) {
+        if (m_cache_entry_writer->write_headers(m_status_code, m_reason_phrase, m_response_headers).is_error())
+            m_cache_entry_writer.clear();
+    }
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()
