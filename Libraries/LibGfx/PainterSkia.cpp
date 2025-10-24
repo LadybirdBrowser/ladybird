@@ -20,12 +20,12 @@
 #include <LibGfx/SkiaUtils.h>
 
 #include <core/SkCanvas.h>
+#include <core/SkImage.h>
 #include <core/SkPath.h>
 #include <core/SkPathEffect.h>
 #include <effects/SkBlurMaskFilter.h>
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
-#include <include/core/SkImage.h>
 
 namespace Gfx {
 
