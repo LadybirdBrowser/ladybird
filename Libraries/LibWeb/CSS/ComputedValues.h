@@ -130,8 +130,6 @@ using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefin
 
 using ListStyleType = Variant<CounterStyleNameKeyword, String>;
 
-using PaintOrderList = Array<PaintOrder, 3>;
-
 class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
