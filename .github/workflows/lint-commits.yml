@@ -24,11 +24,11 @@ jobs:
                 error: "Commit message contains CRLF line breaks (only unix-style LF linebreaks are allowed)",
               },
               {
-                pattern: /^.+(\r?\n(\r?\n.*)*)?$/,
+                pattern: /^.+(\n(\n.*)*)?$/,
                 error: "Empty line between commit title and body is missing",
               },
               {
-                pattern: /^.{0,72}(?:\r?\n(?:(.{0,72})|(.*?([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&/=]|-)+).*?))*$/,
+                pattern: /^.{0,72}(?:\n(?:(.{0,72})|(.*?([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&/=]|-)+).*?))*$/,
                 error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs)",
               },
               {
@@ -44,7 +44,7 @@ jobs:
                 error: "First word of commit after the subsystem is not capitalized",
               },
               {
-                pattern: /^.+[^.\n](\r?\n.*)*$/,
+                pattern: /^.+[^.\n](\n.*)*$/,
                 error: "Commit title ends in a period",
               },
               {
