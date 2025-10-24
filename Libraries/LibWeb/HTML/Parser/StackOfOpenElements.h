@@ -39,7 +39,6 @@ public:
     bool has_in_button_scope(FlyString const& tag_name) const;
     bool has_in_table_scope(FlyString const& tag_name) const;
     bool has_in_list_item_scope(FlyString const& tag_name) const;
-    bool has_in_select_scope(FlyString const& tag_name) const;
 
     bool has_in_scope(DOM::Element const&) const;
 
@@ -49,7 +48,7 @@ public:
     auto const& elements() const { return m_elements; }
     auto& elements() { return m_elements; }
 
-    void pop_until_an_element_with_tag_name_has_been_popped(FlyString const& local_name);
+    void pop_until_an_element_with_tag_name_has_been_popped(FlyString const& tag_name);
 
     GC::Ptr<DOM::Element> topmost_special_node_below(DOM::Element const&);
 
