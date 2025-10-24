@@ -170,8 +170,6 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     m_cache_footer.data_size += data.size();
 
     // FIXME: Update the crc.
-
-    dbgln("\033[36;1mSaved {} bytes for\033[0m {}", data.size(), m_url);
     return {};
 }
 
