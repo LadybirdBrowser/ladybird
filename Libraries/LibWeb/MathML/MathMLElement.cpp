@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MathMLElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>

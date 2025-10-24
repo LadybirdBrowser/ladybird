@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/CanvasGradientPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

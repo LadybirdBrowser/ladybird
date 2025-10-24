@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibWeb/CSS/AcceptedTypeRange.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Flex.h>

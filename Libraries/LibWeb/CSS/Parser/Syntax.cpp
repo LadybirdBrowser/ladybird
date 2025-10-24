@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS::Parser {
 

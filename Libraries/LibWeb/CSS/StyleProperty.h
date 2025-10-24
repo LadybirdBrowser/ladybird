@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
