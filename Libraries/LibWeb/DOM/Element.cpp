@@ -4002,6 +4002,35 @@ Optional<String> Element::lang() const
     return maybe_lang.release_value();
 }
 
+template<typename Callback>
+void Element::for_each_numbered_item_owned_by_list_owner(Callback callback)
+{
+    for (auto* node = this->first_child(); node != nullptr; node = node->next_in_pre_order(this)) {
+        auto* element = as_if<Element>(node);
+        if (!element)
+            continue;
+
+        element->m_is_contained_in_list_subtree = true;
+
+        if (node->is_html_ol_ul_menu_element()) {
+            // Skip list nodes and their descendents. They have their own, unrelated ordinals.
+            while (node->last_child() != nullptr) // Find the last node (preorder) in the subtree headed by node. O(1).
+                node = node->last_child();
+
+            continue;
+        }
+
+        if (!node->layout_node())
+            continue; // Skip nodes that do not participate in the layout.
+
+        if (!element->computed_properties()->display().is_list_item())
+            continue; // Skip nodes that are not list items.
+
+        if (callback(element) == IterationDecision::Break)
+            return;
+    }
+}
+
 // https://drafts.csswg.org/css-images-4/#element-not-rendered
 bool Element::not_rendered() const
 {

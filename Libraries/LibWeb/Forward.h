@@ -394,6 +394,7 @@ class VisualViewport;
 enum class Keyword : u16;
 enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
+enum class PaintOrder : u8;
 
 struct BackgroundLayerData;
 struct CalculationContext;
@@ -401,6 +402,8 @@ struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
 struct GridRepeatParams;
 struct StyleSheetIdentifier;
+
+using PaintOrderList = Array<PaintOrder, 3>;
 
 }
 
