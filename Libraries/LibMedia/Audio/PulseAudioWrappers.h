@@ -36,11 +36,10 @@ using PulseAudioDataRequestCallback = Function<ReadonlyBytes(PulseAudioStream&, 
 // A wrapper around the PulseAudio main loop and context structs.
 // Generally, only one instance of this should be needed for a single process.
 class MEDIA_API PulseAudioContext
-    : public AtomicRefCounted<PulseAudioContext>
-    , public Weakable<PulseAudioContext> {
+    : public AtomicRefCounted<PulseAudioContext> {
 public:
-    static AK::WeakPtr<PulseAudioContext> weak_instance();
     static ErrorOr<NonnullRefPtr<PulseAudioContext>> the();
+    static bool is_connected();
 
     explicit PulseAudioContext(pa_threaded_mainloop*, pa_mainloop_api*, pa_context*);
     PulseAudioContext(PulseAudioContext const& other) = delete;
@@ -68,6 +67,8 @@ public:
 
 private:
     friend class PulseAudioStream;
+
+    PulseAudioContext*& nullable_instance();
 
     pa_threaded_mainloop* m_main_loop { nullptr };
     pa_mainloop_api* m_api { nullptr };
