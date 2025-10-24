@@ -67,6 +67,8 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
     MUST(options->create_data_property_or_throw(vm.names.locale, PrimitiveString::create(vm, plural_rules->locale())));
     MUST(options->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, plural_rules->type_string())));
     MUST(options->create_data_property_or_throw(vm.names.notation, PrimitiveString::create(vm, plural_rules->notation_string())));
+    if (plural_rules->has_compact_display())
+        MUST(options->create_data_property_or_throw(vm.names.compactDisplay, PrimitiveString::create(vm, plural_rules->compact_display_string())));
     MUST(options->create_data_property_or_throw(vm.names.minimumIntegerDigits, Value(plural_rules->min_integer_digits())));
     if (plural_rules->has_min_fraction_digits())
         MUST(options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value(plural_rules->min_fraction_digits())));

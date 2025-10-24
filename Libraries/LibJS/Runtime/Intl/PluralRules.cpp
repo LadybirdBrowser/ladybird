@@ -46,8 +46,9 @@ Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value nu
     // 4. Let locale be pluralRules.[[Locale]].
     // 5. Let type be pluralRules.[[Type]].
     // 6. Let notation be pluralRules.[[Notation]].
-    // 7. Let p be PluralRuleSelect(locale, type, notation, s).
-    // 8. Return the Record { [[PluralCategory]]: p, [[FormattedString]]: s }.
+    // 7. Let compactDisplay be pluralRules.[[CompactDisplay]].
+    // 8. Let p be PluralRuleSelect(locale, type, notation, compactDisplay, s).
+    // 9. Return the Record { [[PluralCategory]]: p, [[FormattedString]]: s }.
     return plural_rules.formatter().select_plural(number.as_double());
 }
 
@@ -67,7 +68,8 @@ ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRu
     // 5. Let locale be pluralRules.[[Locale]].
     // 6. Let type be pluralRules.[[Type]].
     // 7. Let notation be pluralRules.[[Notation]].
-    // 8. Return PluralRuleSelectRange(locale, type, notation, xp.[[PluralCategory]], yp.[[PluralCategory]]).
+    // 8. Let compactDisplay be pluralRules.[[CompactDisplay]].
+    // 9. Return PluralRuleSelectRange(locale, type, notation, compactDisplay, xp.[[PluralCategory]], yp.[[PluralCategory]]).
     return plural_rules.formatter().select_plural_range(start.as_double(), end.as_double());
 }
 
