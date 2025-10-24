@@ -19,12 +19,15 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
-    auto atexit_result = atexit([]() {
-        s_pulse_audio_context_mutex.lock();
-        s_pulse_audio_context_mutex.unlock();
-    });
-    if (atexit_result) {
-        return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
+    static bool registered_atexit_callback = false;
+    if (!registered_atexit_callback) {
+        auto atexit_result = atexit([]() {
+            s_pulse_audio_context_mutex.lock();
+            s_pulse_audio_context_mutex.unlock();
+        });
+        if (atexit_result)
+            return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
+        registered_atexit_callback = true;
     }
 
     RefPtr<PulseAudioContext> strong_instance_pointer = RefPtr<PulseAudioContext>(s_pulse_audio_context);
