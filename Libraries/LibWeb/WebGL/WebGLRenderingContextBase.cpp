@@ -128,10 +128,8 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
         [](GC::Root<HTML::HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto surface = source->surface();
             if (!surface)
-                return {};
-            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
-            surface->read_into_bitmap(*bitmap);
-            return Gfx::ImmutableBitmap::create(*bitmap);
+                return Gfx::ImmutableBitmap::create(*source->get_bitmap_from_surface());
+            return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
         },
         [](GC::Root<HTML::OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return Gfx::ImmutableBitmap::create(*source->bitmap());
