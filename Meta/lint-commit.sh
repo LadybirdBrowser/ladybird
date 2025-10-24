@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # the file containing the commit message is passed as the first argument
 commit_file="$1"
@@ -53,14 +54,13 @@ while read -r line; do
     error "Commit title ends in a period"
   fi
 
-  url_pattern="([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&\/=]|-)+"
+  url_pattern='^\s*[a-z]+:\/\/([a-z0-9\-]+\.)+[a-z]{2,}(:\d+)?(\/[a-zA-Z_0-9@:%+.~?&=\-]+)*$'
   if [[ $line_length -gt 72 ]] && (echo "$line" | grep -E -v -q "$url_pattern"); then
-    error "Commit message lines are too long (maximum allowed is 72 characters)"
+    error "Commit message lines are too long (maximum allowed is 72 characters, except for URLs on their own line)"
   fi
 
   if [[ "$line" == "Signed-off-by: "* ]]; then
     error "Commit body contains a Signed-off-by tag"
   fi
-
 done <"$commit_file"
 exit 0

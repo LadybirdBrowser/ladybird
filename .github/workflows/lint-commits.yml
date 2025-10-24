@@ -24,31 +24,36 @@ jobs:
                 error: "Commit message contains CRLF line breaks (only unix-style LF linebreaks are allowed)",
               },
               {
-                pattern: /^.+(\n(\n.*)*)?$/,
+                line: 2,
+                pattern: /^$/,
                 error: "Empty line between commit title and body is missing",
               },
               {
-                pattern: /^((?!^Merge branch )[\s\S])*$/,
+                line: 1,
+                pattern: /^(?!Merge branch )/,
                 error: "Commit is a git merge commit, use the rebase command instead",
               },
               {
-                pattern: /^\S.*?\S: .+/,
+                line: 1,
+                pattern: /^(Revert "|\S+: )/,
                 error: "Missing category in commit title (if this is a fix up of a previous commit, it should be squashed)",
               },
               {
+                line: 1,
                 pattern: /^\S.*?: [A-Z0-9]/,
                 error: "First word of commit after the subsystem is not capitalized",
               },
               {
-                pattern: /^.+[^.\n](\n.*)*$/,
+                line: 1,
+                pattern: /[^.]$/,
                 error: "Commit title ends in a period",
               },
               {
-                pattern: /^.{0,72}(?:\n(?:(.{0,72})|(.*?([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&/=]|-)+).*?))*$/,
-                error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs)",
+                pattern: /^(.{0,72}|\s*[a-z]+:\/\/([a-z0-9\-]+\.)+[a-z]{2,}(:\d+)?(\/[a-zA-Z_0-9@:%+.~?&=\-]+)*)$/,
+                error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs on their own line)",
               },
               {
-                pattern: /^((?!Signed-off-by: )[\s\S])*$/,
+                pattern: /^(?!Signed-off-by: )/,
                 error: "Commit body contains a Signed-off-by tag",
               },
             ];
@@ -69,14 +74,20 @@ jobs:
               if (author !== null && excludedBotIds.includes(author.id)) {
                 continue;
               }
-              const commitErrors = [];
-              for (const { pattern, error } of rules) {
-                if (!pattern.test(message)) {
-                  commitErrors.push(error);
+              let commitErrors = [];
+              message.split("\n").forEach((line, index) => {
+                for (const { line: ruleLine, pattern, error } of rules) {
+                  if (ruleLine !== undefined && ruleLine !== index + 1) {
+                    continue;
+                  }
+                  if (!pattern.test(line)) {
+                    commitErrors.push(error);
+                  }
                 }
-              }
+              });
               if (commitErrors.length > 0) {
                 const title = message.split("\n")[0];
+                commitErrors = [...new Set(commitErrors)];  // remove duplicates
                 errors.push([`${title} (${sha}):`, ...commitErrors].join("\n  "));
               }
             }
