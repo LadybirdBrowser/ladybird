@@ -338,10 +338,6 @@ Optional<LogicalPropertyGroup> logical_property_group_for_property(PropertyID);
 } // namespace Web::CSS
 
 namespace AK {
-template<>
-struct Traits<Web::CSS::PropertyID> : public DefaultTraits<Web::CSS::PropertyID> {
-    static unsigned hash(Web::CSS::PropertyID property_id) { return int_hash((unsigned)property_id); }
-};
 
 template<>
 struct Formatter<Web::CSS::PropertyID> : Formatter<StringView> {
