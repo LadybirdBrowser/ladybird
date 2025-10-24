@@ -88,6 +88,32 @@ describe("correct behavior", () => {
         });
     });
 
+    test("compact display only defined when notation is compact", () => {
+        ["standard", "scientific", "engineering"].forEach(notation => {
+            const en1 = new Intl.PluralRules("en", { notation: notation });
+            expect(en1.resolvedOptions().compactDisplay).toBeUndefined();
+
+            const en2 = new Intl.PluralRules("en", {
+                notation: notation,
+                compactDisplay: "short",
+            });
+            expect(en2.resolvedOptions().notation).toBe(notation);
+            expect(en2.resolvedOptions().compactDisplay).toBeUndefined();
+        });
+
+        const en3 = new Intl.PluralRules("en", { notation: "compact" });
+        expect(en3.resolvedOptions().compactDisplay).toBe("short");
+
+        ["short", "long"].forEach(compactDisplay => {
+            const en4 = new Intl.PluralRules("en", {
+                notation: "compact",
+                compactDisplay: compactDisplay,
+            });
+            expect(en4.resolvedOptions().notation).toBe("compact");
+            expect(en4.resolvedOptions().compactDisplay).toBe(compactDisplay);
+        });
+    });
+
     test("plural categories", () => {
         const enCardinal = new Intl.PluralRules("en", { type: "cardinal" }).resolvedOptions();
         expect(enCardinal.pluralCategories).toEqual(["one", "other"]);

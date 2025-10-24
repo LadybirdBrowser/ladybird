@@ -52,7 +52,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     auto locales_value = vm.argument(0);
     auto options_value = vm.argument(1);
 
-    // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.PluralRules.prototype%", « [[InitializedPluralRules]], [[Locale]], [[Type]], [[Notation]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[RoundingIncrement]], [[RoundingMode]], [[ComputedRoundingPriority]], [[TrailingZeroDisplay]] »).
+    // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.PluralRules.prototype%", « [[InitializedPluralRules]], [[Locale]], [[Type]], [[Notation]], [[CompactDisplay]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[RoundingIncrement]], [[RoundingMode]], [[ComputedRoundingPriority]], [[TrailingZeroDisplay]] »).
     auto plural_rules = TRY(ordinary_create_from_constructor<PluralRules>(vm, new_target, &Intrinsics::intl_plural_rules_prototype));
 
     // 3. Let optionsResolution be ? ResolveOptions(%Intl.PluralRules%, %Intl.PluralRules%.[[LocaleData]], locales, options, « COERCE-OPTIONS »).
@@ -75,15 +75,17 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     // 10. Set pluralRules.[[Notation]] to notation.
     plural_rules->set_notation(notation.as_string().utf8_string_view());
 
-    // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, "standard").
-    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, Unicode::Notation::Standard));
+    // 11. Let compactDisplay be ? GetOption(options, "compactDisplay", string, « "short", "long" », "short").
+    auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, "short"sv));
 
-    // FIXME: Spec issue: The patch which added `notation` to Intl.PluralRules neglected to also add `compactDisplay`
-    //        for when the notation is compact. TC39 is planning to add this option soon. We default to `short` for now
-    //        to match the Intl.NumberFormat default, as LibUnicode requires the compact display to be set. See:
-    //        https://github.com/tc39/ecma402/pull/989#issuecomment-2906752480
-    if (plural_rules->notation() == Unicode::Notation::Compact)
-        plural_rules->set_compact_display("short"sv);
+    // 12. If notation is "compact", then
+    if (plural_rules->notation() == Unicode::Notation::Compact) {
+        // a. Set pluralRules.[[CompactDisplay]] to compactDisplay.
+        plural_rules->set_compact_display(compact_display.as_string().utf8_string_view());
+    }
+
+    // 13. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, notation).
+    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, plural_rules->notation()));
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(
@@ -94,7 +96,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     formatter->create_plural_rules(plural_rules->type());
     plural_rules->set_formatter(move(formatter));
 
-    // 10. Return pluralRules.
+    // 14. Return pluralRules.
     return plural_rules;
 }
 
