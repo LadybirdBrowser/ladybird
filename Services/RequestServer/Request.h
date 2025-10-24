@@ -54,6 +54,7 @@ public:
     ByteString const& method() const { return m_method; }
     UnixDateTime request_start_time() const { return m_request_start_time; }
 
+    void notify_request_unblocked(Badge<DiskCache>);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
 private:
@@ -63,13 +64,14 @@ private:
     };
 
     enum class State : u8 {
-        Init,      // Decide whether to service this request from cache or the network.
-        ReadCache, // Read the cached response from disk.
-        DNSLookup, // Resolve the URL's host.
-        Connect,   // Issue a network request to connect to the URL.
-        Fetch,     // Issue a network request to fetch the URL.
-        Complete,  // Finalize the request with the client.
-        Error,     // Any error occured during the request's lifetime.
+        Init,         // Decide whether to service this request from cache or the network.
+        ReadCache,    // Read the cached response from disk.
+        WaitForCache, // Wait for an existing cache entry to complete before proceeding.
+        DNSLookup,    // Resolve the URL's host.
+        Connect,      // Issue a network request to connect to the URL.
+        Fetch,        // Issue a network request to fetch the URL.
+        Complete,     // Finalize the request with the client.
+        Error,        // Any error occured during the request's lifetime.
     };
 
     Request(

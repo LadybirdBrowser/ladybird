@@ -55,6 +55,8 @@ class CacheEntry {
 public:
     virtual ~CacheEntry() = default;
 
+    u64 cache_key() const { return m_cache_key; }
+
     void remove();
 
     void mark_for_deletion(Badge<DiskCache>) { m_marked_for_deletion = true; }
