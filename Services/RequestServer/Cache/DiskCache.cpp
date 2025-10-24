@@ -32,18 +32,15 @@ DiskCache::DiskCache(NonnullRefPtr<Database::Database> database, LexicalPath cac
 {
 }
 
-Optional<CacheEntryWriter&> DiskCache::create_entry(URL::URL const& url, StringView method, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers, UnixDateTime request_time)
+Optional<CacheEntryWriter&> DiskCache::create_entry(URL::URL const& url, StringView method, UnixDateTime request_time)
 {
-    if (!is_cacheable(method, status_code, headers))
-        return {};
-
-    if (auto freshness = calculate_freshness_lifetime(headers); freshness.is_negative() || freshness.is_zero())
+    if (!is_cacheable(method))
         return {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
 
-    auto cache_entry = CacheEntryWriter::create(*this, m_index, cache_key, move(serialized_url), status_code, move(reason_phrase), headers, request_time);
+    auto cache_entry = CacheEntryWriter::create(*this, m_index, cache_key, move(serialized_url), request_time);
     if (cache_entry.is_error()) {
         dbgln("\033[31;1mUnable to create cache entry for\033[0m {}: {}", url, cache_entry.error());
         return {};
@@ -59,6 +56,9 @@ Optional<CacheEntryWriter&> DiskCache::create_entry(URL::URL const& url, StringV
 
 Optional<CacheEntryReader&> DiskCache::open_entry(URL::URL const& url, StringView method)
 {
+    if (!is_cacheable(method))
+        return {};
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
 

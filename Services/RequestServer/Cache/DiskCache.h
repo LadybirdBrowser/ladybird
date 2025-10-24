@@ -13,7 +13,6 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <LibDatabase/Database.h>
-#include <LibHTTP/HeaderMap.h>
 #include <LibURL/Forward.h>
 #include <RequestServer/Cache/CacheEntry.h>
 #include <RequestServer/Cache/CacheIndex.h>
@@ -24,7 +23,7 @@ class DiskCache {
 public:
     static ErrorOr<DiskCache> create();
 
-    Optional<CacheEntryWriter&> create_entry(URL::URL const&, StringView method, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&, UnixDateTime request_time);
+    Optional<CacheEntryWriter&> create_entry(URL::URL const&, StringView method, UnixDateTime request_time);
     Optional<CacheEntryReader&> open_entry(URL::URL const&, StringView method);
     void clear_cache();
 
