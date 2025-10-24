@@ -40,7 +40,7 @@ class MEDIA_API PulseAudioContext
     , public Weakable<PulseAudioContext> {
 public:
     static AK::WeakPtr<PulseAudioContext> weak_instance();
-    static ErrorOr<NonnullRefPtr<PulseAudioContext>> instance();
+    static ErrorOr<NonnullRefPtr<PulseAudioContext>> the();
 
     explicit PulseAudioContext(pa_threaded_mainloop*, pa_mainloop_api*, pa_context*);
     PulseAudioContext(PulseAudioContext const& other) = delete;

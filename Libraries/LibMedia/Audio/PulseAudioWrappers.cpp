@@ -18,7 +18,7 @@ WeakPtr<PulseAudioContext> PulseAudioContext::weak_instance()
     return the_instance;
 }
 
-ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::instance()
+ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
     static Threading::Mutex instantiation_mutex;
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
