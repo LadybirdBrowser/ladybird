@@ -1,0 +1,60 @@
+endpoint RequestServer
+{
+    // Example 1: Full validation with all attributes
+    [RateLimited]
+    start_request(
+        i32 request_id,
+        [MaxLength=256, NoCRLF] ByteString method,
+        [AllowedSchemes("http","https"), MaxLength=8192] URL::URL url,
+        [MaxSize=10000, NoCRLF] HTTP::HeaderMap request_headers,
+        [MaxLength=104857600] ByteBuffer request_body,
+        Core::ProxyData proxy_data
+    ) =|
+
+    // Example 2: WebSocket with vector size validation
+    [RateLimited]
+    websocket_connect(
+        i32 websocket_id,
+        [AllowedSchemes("ws","wss"), MaxLength=8192] URL::URL url,
+        [MaxLength=256] ByteString origin,
+        [MaxSize=100] Vector<ByteString> protocols,
+        [MaxSize=100] Vector<ByteString> extensions,
+        [MaxSize=10000, NoCRLF] HTTP::HeaderMap request_headers
+    ) =|
+
+    // Example 3: Simple string validation
+    [RateLimited]
+    set_dns_server(
+        [MaxLength=256] ByteString dns_server
+    ) =|
+
+    // Example 4: URL-only validation
+    ensure_connection(
+        [AllowedSchemes("http","https"), MaxLength=8192] URL::URL url,
+        Core::ProxyData proxy_data
+    ) =|
+
+    // Example 5: No rate limiting, just parameter validation
+    stop_request(
+        i32 request_id
+    ) =|
+
+    // Example 6: Certificate validation with buffer size
+    [RateLimited]
+    set_certificate(
+        i32 request_id,
+        [MaxLength=16384] ByteString certificate,
+        [MaxLength=16384] ByteString key
+    ) =|
+
+    // Example 7: Multiple clients with count validation
+    [RateLimited]
+    connect_new_clients(
+        [MaxSize=100] size_t count
+    ) => (Vector<IPC::File> files)
+
+    // Example 8: Protocol check with simple string
+    is_supported_protocol(
+        [MaxLength=256] ByteString protocol
+    ) => (bool supported)
+}

@@ -1,0 +1,132 @@
+# String Safety CI Check for Ladybird Browser
+# This workflow prevents introduction of unsafe C string functions
+#
+# Copy to .github/workflows/string-safety.yml to activate
+
+name: String Safety Check
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - 'Meta/check-string-safety.sh'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**.cpp'
+      - '**.h'
+
+jobs:
+  check-unsafe-strings:
+    name: Check for Unsafe C String Functions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive check
+
+      - name: Make script executable
+        run: chmod +x Meta/check-string-safety.sh
+
+      - name: Run string safety check
+        run: |
+          ./Meta/check-string-safety.sh --strict
+        continue-on-error: false  # Fail build on violations
+
+      - name: Report results
+        if: success()
+        run: |
+          echo "✅ String safety check passed!"
+          echo "No unsafe C string functions found in codebase."
+          echo ""
+          echo "Ladybird uses AK::String, AK::StringBuilder, and AK::Format"
+          echo "for all string operations, eliminating buffer overflow risks."
+
+      - name: Show violation details
+        if: failure()
+        run: |
+          echo "❌ String safety check failed!"
+          echo ""
+          echo "Unsafe C string functions were detected in the codebase."
+          echo "Please replace with safe AK alternatives before merging."
+          echo ""
+          echo "See claudedocs/security-hardening/String-Safety-Status-Report.md"
+          echo "for migration guide and safe alternatives."
+
+  check-delta:
+    name: Check Modified Files Only
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed C/C++ files
+        id: changed-files
+        uses: tj-actions/changed-files@v40
+        with:
+          files: |
+            **.cpp
+            **.h
+
+      - name: Check changed files for unsafe functions
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Checking ${steps.changed-files.outputs.all_changed_files} for unsafe string functions..."
+
+          UNSAFE_PATTERN="\\b(strcpy|strcat|sprintf|gets|strncpy|strncat)\\s*\\("
+          VIOLATIONS=0
+
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            if grep -n -E "$UNSAFE_PATTERN" "$file" 2>/dev/null; then
+              echo "❌ Unsafe function found in: $file"
+              ((VIOLATIONS++))
+            fi
+          done
+
+          if [[ $VIOLATIONS -gt 0 ]]; then
+            echo ""
+            echo "❌ Found $VIOLATIONS files with unsafe C string functions"
+            echo ""
+            echo "Please use safe AK alternatives:"
+            echo "  strcpy() → String::from_utf8()"
+            echo "  strcat() → String::formatted()"
+            echo "  sprintf() → String::formatted()"
+            echo "  gets() → NEVER USE"
+            exit 1
+          else
+            echo "✅ No unsafe string functions in changed files"
+          fi
+
+  # Optional: Add comment to PR with results
+  comment-pr:
+    name: Comment on PR
+    runs-on: ubuntu-latest
+    needs: [check-unsafe-strings, check-delta]
+    if: github.event_name == 'pull_request' && failure()
+
+    steps:
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **String Safety Check Failed**\n\n' +
+                    'This PR introduces unsafe C string functions.\n\n' +
+                    '**Please replace with safe alternatives:**\n' +
+                    '- `strcpy()` → `String::from_utf8()`\n' +
+                    '- `strcat()` → `String::formatted("{}{}", a, b)`\n' +
+                    '- `sprintf()` → `String::formatted("fmt: {}", value)`\n' +
+                    '- `gets()` → **NEVER USE** (use `String::from_stream()`)\n\n' +
+                    'See [String Safety Report](../claudedocs/security-hardening/String-Safety-Status-Report.md) for details.'
+            })

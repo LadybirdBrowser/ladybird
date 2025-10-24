@@ -19,11 +19,19 @@
 
 namespace {
 
+struct ValidationConfig {
+    Optional<size_t> max_length;
+    Optional<size_t> max_size;
+    Vector<ByteString> allowed_schemes;
+    bool no_crlf { false };
+};
+
 struct Parameter {
     Vector<ByteString> attributes;
     ByteString type;
     ByteString type_for_encoding;
     ByteString name;
+    ValidationConfig validation;
 };
 
 static ByteString pascal_case(ByteString const& identifier)
@@ -49,6 +57,7 @@ struct Message {
     bool is_synchronous { false };
     Vector<Parameter> inputs;
     Vector<Parameter> outputs;
+    bool rate_limited { false };
 
     ByteString response_name() const
     {
@@ -159,6 +168,34 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
         return parameter_type;
     };
 
+    auto parse_validation_attributes = [](Vector<ByteString> const& attributes, ValidationConfig& config) {
+        for (auto const& attribute : attributes) {
+            if (attribute.starts_with("MaxLength="sv)) {
+                auto value_str = attribute.substring_view(10);
+                auto value = value_str.to_number<size_t>();
+                if (value.has_value())
+                    config.max_length = value.value();
+            } else if (attribute.starts_with("MaxSize="sv)) {
+                auto value_str = attribute.substring_view(8);
+                auto value = value_str.to_number<size_t>();
+                if (value.has_value())
+                    config.max_size = value.value();
+            } else if (attribute.starts_with("AllowedSchemes("sv) && attribute.ends_with(")"sv)) {
+                auto schemes_str = attribute.substring_view(15, attribute.length() - 16);
+                auto schemes = schemes_str.split_view(',');
+                for (auto scheme : schemes) {
+                    // Remove quotes and whitespace
+                    scheme = scheme.trim_whitespace();
+                    if (scheme.starts_with('"') && scheme.ends_with('"'))
+                        scheme = scheme.substring_view(1, scheme.length() - 2);
+                    config.allowed_schemes.append(ByteString(scheme));
+                }
+            } else if (attribute == "NoCRLF"sv) {
+                config.no_crlf = true;
+            }
+        }
+    };
+
     auto parse_parameter = [&](Vector<Parameter>& storage, StringView message_name) {
         for (auto parameter_index = 1;; ++parameter_index) {
             Parameter parameter;
@@ -183,6 +220,9 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
                     consume_whitespace();
                 }
             }
+
+            // Parse validation attributes
+            parse_validation_attributes(parameter.attributes, parameter.validation);
 
             parameter.type = parse_parameter_type();
             if (parameter.type.ends_with(',') || parameter.type.ends_with(')')) {
@@ -229,6 +269,25 @@ Vector<Endpoint> parse(ByteBuffer const& file_contents)
     auto parse_message = [&] {
         Message message;
         consume_whitespace();
+
+        // Parse message-level attributes
+        if (lexer.consume_specific('[')) {
+            for (;;) {
+                if (lexer.consume_specific(']')) {
+                    consume_whitespace();
+                    break;
+                }
+                if (lexer.consume_specific(',')) {
+                    consume_whitespace();
+                }
+                auto attribute = lexer.consume_until([](char ch) { return ch == ']' || ch == ','; });
+                if (attribute == "RateLimited"sv) {
+                    message.rate_limited = true;
+                }
+                consume_whitespace();
+            }
+        }
+
         message.name = lexer.consume_until([](char ch) { return isspace(ch) || ch == '('; });
         consume_whitespace();
         assert_specific('(');
@@ -428,6 +487,77 @@ public:)~~~");
             parameter_generator.appendln(R"~~~(
         if (!Utf8View(@parameter.name@).validate())
             return Error::from_string_literal("Decoded @parameter.name@ is invalid UTF-8");)~~~");
+        }
+
+        // Generate validation code based on ValidationConfig
+        if (parameter.validation.max_length.has_value()) {
+            parameter_generator.set("validation.max_length", ByteString::number(parameter.validation.max_length.value()));
+            // For string types (String, ByteString, Utf16String)
+            if (parameter.type.is_one_of("String"sv, "ByteString"sv)) {
+                parameter_generator.appendln(R"~~~(
+        if (@parameter.name@.bytes_as_string_view().length() > @validation.max_length@)
+            return Error::from_string_literal("Decoded @parameter.name@ exceeds maximum length");)~~~");
+            } else if (parameter.type == "Utf16String"sv) {
+                parameter_generator.appendln(R"~~~(
+        if (@parameter.name@.to_utf8().bytes_as_string_view().length() > @validation.max_length@)
+            return Error::from_string_literal("Decoded @parameter.name@ exceeds maximum length");)~~~");
+            }
+        }
+
+        if (parameter.validation.max_size.has_value()) {
+            parameter_generator.set("validation.max_size", ByteString::number(parameter.validation.max_size.value()));
+            // For Vector types
+            if (parameter.type.starts_with("Vector<"sv)) {
+                parameter_generator.appendln(R"~~~(
+        if (@parameter.name@.size() > @validation.max_size@)
+            return Error::from_string_literal("Decoded @parameter.name@ exceeds maximum size");)~~~");
+            }
+            // For ByteBuffer
+            else if (parameter.type == "ByteBuffer"sv) {
+                parameter_generator.appendln(R"~~~(
+        if (@parameter.name@.size() > @validation.max_size@)
+            return Error::from_string_literal("Decoded @parameter.name@ exceeds maximum buffer size");)~~~");
+            }
+            // For HTTP::HeaderMap
+            else if (parameter.type == "HTTP::HeaderMap"sv) {
+                parameter_generator.appendln(R"~~~(
+        if (@parameter.name@.headers().size() > @validation.max_size@)
+            return Error::from_string_literal("Decoded @parameter.name@ exceeds maximum header count");)~~~");
+            }
+        }
+
+        if (!parameter.validation.allowed_schemes.is_empty()) {
+            // For URL types
+            if (parameter.type == "URL::URL"sv) {
+                StringBuilder schemes_builder;
+                for (size_t i = 0; i < parameter.validation.allowed_schemes.size(); ++i) {
+                    schemes_builder.appendff("\"{}\"sv", parameter.validation.allowed_schemes[i]);
+                    if (i != parameter.validation.allowed_schemes.size() - 1)
+                        schemes_builder.append(", "sv);
+                }
+                parameter_generator.set("validation.allowed_schemes", schemes_builder.to_byte_string());
+                parameter_generator.appendln(R"~~~(
+        if (!@parameter.name@.scheme().is_one_of(@validation.allowed_schemes@))
+            return Error::from_string_literal("Decoded @parameter.name@ has disallowed URL scheme");)~~~");
+            }
+        }
+
+        if (parameter.validation.no_crlf) {
+            // For string types
+            if (parameter.type.is_one_of("String"sv, "ByteString"sv)) {
+                parameter_generator.appendln(R"~~~(
+        if (@parameter.name@.contains('\r') || @parameter.name@.contains('\n'))
+            return Error::from_string_literal("Decoded @parameter.name@ contains CRLF characters");)~~~");
+            }
+            // For HTTP::HeaderMap
+            else if (parameter.type == "HTTP::HeaderMap"sv) {
+                parameter_generator.appendln(R"~~~(
+        for (auto const& header : @parameter.name@.headers()) {
+            if (header.name.contains('\r') || header.name.contains('\n') ||
+                header.value.contains('\r') || header.value.contains('\n'))
+                return Error::from_string_literal("Decoded @parameter.name@ contains CRLF in headers");
+        })~~~");
+            }
         }
     }
 
@@ -816,6 +946,14 @@ public:
             message_generator.set("arguments", argument_generator.to_byte_string());
             message_generator.append(R"~~~(
         case (int)Messages::@endpoint.name@::MessageID::@message.pascal_name@: {)~~~");
+
+            // Inject rate limiting check if message is rate-limited
+            if (message.rate_limited) {
+                message_generator.append(R"~~~(
+            if (!check_rate_limit())
+                return Error::from_string_literal("Rate limit exceeded for @handler_name@");)~~~");
+            }
+
             if (returns_something) {
                 if (message.outputs.is_empty()) {
                     message_generator.append(R"~~~(

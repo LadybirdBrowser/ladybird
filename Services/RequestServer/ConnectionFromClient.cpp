@@ -442,6 +442,10 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
 
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return IPC::File {};
+
     auto client_socket = create_client_socket();
     if (client_socket.is_error()) {
         dbgln("Failed to create client socket: {}", client_socket.error());
@@ -453,6 +457,14 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
 
 Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return Vector<IPC::File> {};
+
+    // Security: Count validation (DoS prevention)
+    if (!validate_count(count, 100, "client count"sv))
+        return Vector<IPC::File> {};
+
     Vector<IPC::File> files;
     files.ensure_capacity(count);
 
@@ -491,11 +503,27 @@ ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
 
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: Protocol string validation
+    if (!validate_string_length(protocol, "protocol"sv))
+        return false;
+
     return protocol == "http"sv || protocol == "https"sv;
 }
 
 void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: Host/address string validation
+    if (!validate_string_length(host_or_address, "host_or_address"sv))
+        return;
+
     if (host_or_address == g_dns_info.server_hostname && port == g_dns_info.port && use_tls == g_dns_info.use_dns_over_tls && validate_dnssec_locally == g_dns_info.validate_dnssec_locally)
         return;
 
@@ -524,6 +552,10 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
 
 void ConnectionFromClient::set_use_system_dns()
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
     g_dns_info.server_hostname = {};
     g_dns_info.server_address = {};
     default_resolver()->dns.reset_connection();
@@ -542,6 +574,26 @@ void ConnectionFromClient::issue_network_request(i32, ByteString, URL::URL, HTTP
 #else
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: URL validation (SSRF prevention)
+    if (!validate_url(url))
+        return;
+
+    // Security: Method string validation
+    if (!validate_string_length(method, "method"sv))
+        return;
+
+    // Security: Header validation (CRLF injection prevention)
+    if (!validate_header_map(request_headers))
+        return;
+
+    // Security: Request body size validation (buffer exhaustion prevention)
+    if (!validate_buffer_size(request_body.size(), "request_body"sv))
+        return;
+
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
     if (g_disk_cache.has_value()) {
@@ -875,6 +927,14 @@ void ConnectionFromClient::check_active_requests()
 
 Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(i32 request_id)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: Request ID validation
+    if (!validate_request_id(request_id))
+        return false;
+
     auto request = m_active_requests.take(request_id);
     if (!request.has_value()) {
         dbgln("StopRequest: Request ID {} not found", request_id);
@@ -886,6 +946,18 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
 
 Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: Certificate string validation
+    if (!validate_string_length(certificate, "certificate"sv))
+        return false;
+
+    // Security: Key string validation
+    if (!validate_string_length(key, "key"sv))
+        return false;
+
     (void)request_id;
     (void)certificate;
     (void)key;
@@ -894,6 +966,14 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: URL validation (SSRF prevention)
+    if (!validate_url(url))
+        return;
+
     if (cache_level == CacheLevel::CreateConnection) {
         auto* easy = curl_easy_init();
         if (!easy) {
@@ -946,12 +1026,40 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
 
 void ConnectionFromClient::clear_cache()
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
     if (g_disk_cache.has_value())
         g_disk_cache->clear_cache();
 }
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: URL validation (SSRF prevention)
+    if (!validate_url(url))
+        return;
+
+    // Security: Origin string validation
+    if (!validate_string_length(origin, "origin"sv))
+        return;
+
+    // Security: Protocols vector validation (DoS prevention)
+    if (!validate_vector_size(protocols, "protocols"sv))
+        return;
+
+    // Security: Extensions vector validation (DoS prevention)
+    if (!validate_vector_size(extensions, "extensions"sv))
+        return;
+
+    // Security: Header validation (CRLF injection prevention)
+    if (!validate_header_map(additional_request_headers))
+        return;
+
     auto host = url.serialized_host().to_byte_string();
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
@@ -1002,18 +1110,58 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
 
 void ConnectionFromClient::websocket_send(i64 websocket_id, bool is_text, ByteBuffer data)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: WebSocket ID validation
+    if (!validate_websocket_id(websocket_id))
+        return;
+
+    // Security: Data buffer size validation (buffer exhaustion prevention)
+    if (!validate_buffer_size(data.size(), "websocket data"sv))
+        return;
+
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->send(WebSocket::Message { move(data), is_text });
 }
 
 void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteString reason)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: WebSocket ID validation
+    if (!validate_websocket_id(websocket_id))
+        return;
+
+    // Security: Reason string validation
+    if (!validate_string_length(reason, "close reason"sv))
+        return;
+
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->close(code, reason);
 }
 
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString)
+Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString certificate, ByteString key)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: WebSocket ID validation
+    if (!validate_websocket_id(websocket_id))
+        return false;
+
+    // Security: Certificate string validation
+    if (!validate_string_length(certificate, "certificate"sv))
+        return false;
+
+    // Security: Key string validation
+    if (!validate_string_length(key, "key"sv))
+        return false;
+
     auto success = false;
     if (auto connection = m_websockets.get(websocket_id).value_or({}); connection) {
         // NO OP here

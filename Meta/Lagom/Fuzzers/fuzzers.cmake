@@ -9,6 +9,7 @@ set(FUZZER_TARGETS
     GzipDecompression
     GzipRoundtrip
     ICOLoader
+    IPC
     JPEGLoader
     Js
     JsonParser
@@ -29,6 +30,7 @@ set(FUZZER_TARGETS
     TinyVGLoader
     URL
     WasmParser
+    WebContentIPC
     WebPLoader
     WOFF
     WOFF2
@@ -77,3 +79,5 @@ set(FUZZER_DEPENDENCIES_WOFF LibGfx)
 set(FUZZER_DEPENDENCIES_WOFF2 LibGfx)
 set(FUZZER_DEPENDENCIES_XML LibXML)
 set(FUZZER_DEPENDENCIES_ZlibDecompression LibCompress)
+set(FUZZER_DEPENDENCIES_IPC LibIPC)
+set(FUZZER_DEPENDENCIES_WebContentIPC LibIPC LibURL LibWeb)

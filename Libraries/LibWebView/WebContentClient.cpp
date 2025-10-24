@@ -83,12 +83,26 @@ void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
 
 void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->create_new_process_for_cross_site_navigation(url);
 }
 
 void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redirect)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
 
@@ -102,6 +116,13 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
 
 void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         if (auto web_ui = WebUI::create(*this, url.paths().first()); web_ui.is_error())
             warnln("Could not create WebUI for {}: {}", url, web_ui.error());
@@ -171,6 +192,19 @@ void WebContentClient::did_request_cursor_change(u64 page_id, Gfx::Cursor cursor
 
 void WebContentClient::did_change_title(u64 page_id, Utf16String title)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: Page ID validation (UXSS prevention)
+    if (!validate_page_id(page_id))
+        return;
+
+    // Security: Title length validation
+    auto title_view = title.to_utf8();
+    if (!validate_string_length(title_view, "title"sv))
+        return;
+
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(title);
 
@@ -187,6 +221,18 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
 
 void WebContentClient::did_change_url(u64 page_id, URL::URL url)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: Page ID validation (UXSS prevention)
+    if (!validate_page_id(page_id))
+        return;
+
+    // Security: URL length validation
+    if (!validate_url_length(url))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->set_url({}, url);
 
@@ -229,6 +275,13 @@ void WebContentClient::did_leave_tooltip_area(u64 page_id)
 
 void WebContentClient::did_hover_link(u64 page_id, URL::URL url)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_link_hover)
             view->on_link_hover(url);
@@ -245,6 +298,15 @@ void WebContentClient::did_unhover_link(u64 page_id)
 
 void WebContentClient::did_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+    if (!validate_string_length(target, "target"sv))
+        return;
+
     if (modifiers == Web::UIEvents::Mod_PlatformCtrl)
         Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
     else if (target == "_blank"sv)
@@ -253,8 +315,17 @@ void WebContentClient::did_click_link(u64 page_id, URL::URL url, ByteString targ
         view->load(url);
 }
 
-void WebContentClient::did_middle_click_link(u64, URL::URL url, ByteString, unsigned)
+void WebContentClient::did_middle_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+    if (!validate_string_length(target, "target"sv))
+        return;
+
     Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
 }
 
@@ -264,14 +335,32 @@ void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint conte
         view->did_request_page_context_menu({}, content_position);
 }
 
-void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned)
+void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+    if (!validate_string_length(target, "target"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_request_link_context_menu({}, content_position, move(url));
 }
 
-void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
+void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+    if (!validate_string_length(target, "target"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_request_image_context_menu({}, content_position, move(url), move(bitmap));
 }
@@ -282,8 +371,19 @@ void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint
         view->did_request_media_context_menu({}, content_position, move(menu));
 }
 
-void WebContentClient::did_get_source(u64, URL::URL url, URL::URL base_url, String source)
+void WebContentClient::did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(url))
+        return;
+    if (!validate_url_length(base_url))
+        return;
+    if (!validate_string_length(source, "source"sv))
+        return;
+
     if (auto view = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); view.has_value()) {
         auto html = highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
         view->load_html(html);
@@ -308,6 +408,13 @@ static JsonObject parse_json(StringView json, StringView name)
 
 void WebContentClient::did_inspect_dom_tree(u64 page_id, String dom_tree)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(dom_tree, "dom_tree"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_tree)
             view->on_received_dom_tree(parse_json(dom_tree, "DOM tree"sv));
@@ -324,6 +431,13 @@ void WebContentClient::did_inspect_dom_node(u64 page_id, DOMNodeProperties prope
 
 void WebContentClient::did_inspect_accessibility_tree(u64 page_id, String accessibility_tree)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(accessibility_tree, "accessibility_tree"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_accessibility_tree)
             view->on_received_accessibility_tree(parse_json(accessibility_tree, "accessibility tree"sv));
@@ -356,6 +470,13 @@ void WebContentClient::did_mutate_dom(u64 page_id, Mutation mutation)
 
 void WebContentClient::did_get_dom_node_html(u64 page_id, String html)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(html, "html"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_node_html)
             view->on_received_dom_node_html(move(html));
@@ -364,6 +485,13 @@ void WebContentClient::did_get_dom_node_html(u64 page_id, String html)
 
 void WebContentClient::did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> stylesheets)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_vector_size(stylesheets, "stylesheets"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_style_sheet_list)
             view->on_received_style_sheet_list(stylesheets);
@@ -372,6 +500,15 @@ void WebContentClient::did_list_style_sheets(u64 page_id, Vector<Web::CSS::Style
 
 void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, String source)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_url_length(base_url))
+        return;
+    if (!validate_string_length(source, "source"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_style_sheet_source)
             view->on_received_style_sheet_source(identifier, base_url, source);
@@ -386,6 +523,13 @@ void WebContentClient::did_take_screenshot(u64 page_id, Gfx::ShareableBitmap scr
 
 void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String info)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(info, "info"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_receive_internal_page_info({}, type, info);
 }
@@ -408,6 +552,13 @@ void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_in
 
 void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ConsoleOutput> console_output)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_vector_size(console_output, "console_output"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_console_messages)
             view->on_received_console_messages(start_index, move(console_output));
@@ -416,6 +567,13 @@ void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index,
 
 void WebContentClient::did_request_alert(u64 page_id, String message)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(message, "alert_message"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_alert)
             view->on_request_alert(message);
@@ -424,6 +582,13 @@ void WebContentClient::did_request_alert(u64 page_id, String message)
 
 void WebContentClient::did_request_confirm(u64 page_id, String message)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(message, "confirm_message"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_confirm)
             view->on_request_confirm(message);
@@ -432,6 +597,15 @@ void WebContentClient::did_request_confirm(u64 page_id, String message)
 
 void WebContentClient::did_request_prompt(u64 page_id, String message, String default_)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(message, "prompt_message"sv))
+        return;
+    if (!validate_string_length(default_, "prompt_default"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_prompt)
             view->on_request_prompt(message, default_);
@@ -440,6 +614,13 @@ void WebContentClient::did_request_prompt(u64 page_id, String message, String de
 
 void WebContentClient::did_request_set_prompt_text(u64 page_id, String message)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_page_id(page_id))
+        return;
+    if (!validate_string_length(message, "prompt_text"sv))
+        return;
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_set_prompt_text)
             view->on_request_set_prompt_text(message);
@@ -477,26 +658,53 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
 
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url)
 {
+    if (!check_rate_limit())
+        return Vector<Web::Cookie::Cookie> {};
+    if (!validate_url_length(url))
+        return Vector<Web::Cookie::Cookie> {};
+
     return Application::cookie_jar().get_all_cookies_webdriver(url);
 }
 
 Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentClient::did_request_all_cookies_cookiestore(URL::URL url)
 {
+    if (!check_rate_limit())
+        return Vector<Web::Cookie::Cookie> {};
+    if (!validate_url_length(url))
+        return Vector<Web::Cookie::Cookie> {};
+
     return Application::cookie_jar().get_all_cookies_cookiestore(url);
 }
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
 {
+    if (!check_rate_limit())
+        return Optional<Web::Cookie::Cookie> {};
+    if (!validate_url_length(url))
+        return Optional<Web::Cookie::Cookie> {};
+    if (!validate_string_length(name, "cookie_name"sv))
+        return Optional<Web::Cookie::Cookie> {};
+
     return Application::cookie_jar().get_named_cookie(url, name);
 }
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(URL::URL url, Web::Cookie::Source source)
 {
+    if (!check_rate_limit())
+        return String {};
+    if (!validate_url_length(url))
+        return String {};
+
     return Application::cookie_jar().get_cookie(url, source);
 }
 
 void WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source)
 {
+    if (!check_rate_limit())
+        return;
+    if (!validate_url_length(url))
+        return;
+
     Application::cookie_jar().set_cookie(url, cookie, source);
 }
 

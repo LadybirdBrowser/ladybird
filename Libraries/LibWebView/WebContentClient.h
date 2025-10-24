@@ -9,6 +9,8 @@
 #include <AK/HashMap.h>
 #include <AK/SourceLocation.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/Limits.h>
+#include <LibIPC/RateLimiter.h>
 #include <LibIPC/Transport.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
@@ -143,12 +145,88 @@ private:
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
+    // Security validation helpers
+    [[nodiscard]] bool validate_page_id(u64 page_id, SourceLocation location = SourceLocation::current())
+    {
+        if (!m_views.contains(page_id)) {
+            dbgln("Security: WebContent[{}] attempted access to invalid page_id {} at {}:{}",
+                pid(), page_id, location.filename(), location.line_number());
+            track_validation_failure();
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool validate_string_length(StringView string, StringView field_name, SourceLocation location = SourceLocation::current())
+    {
+        if (string.length() > IPC::Limits::MaxStringLength) {
+            dbgln("Security: WebContent[{}] sent oversized {} ({} bytes, max {}) at {}:{}",
+                pid(), field_name, string.length(), IPC::Limits::MaxStringLength,
+                location.filename(), location.line_number());
+            track_validation_failure();
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool validate_url_length(URL::URL const& url, SourceLocation location = SourceLocation::current())
+    {
+        auto url_string = url.to_string();
+        if (url_string.bytes_as_string_view().length() > IPC::Limits::MaxURLLength) {
+            dbgln("Security: WebContent[{}] sent oversized URL ({} bytes, max {}) at {}:{}",
+                pid(), url_string.bytes_as_string_view().length(), IPC::Limits::MaxURLLength,
+                location.filename(), location.line_number());
+            track_validation_failure();
+            return false;
+        }
+        return true;
+    }
+
+    template<typename T>
+    [[nodiscard]] bool validate_vector_size(Vector<T> const& vector, StringView field_name, SourceLocation location = SourceLocation::current())
+    {
+        if (vector.size() > IPC::Limits::MaxVectorSize) {
+            dbgln("Security: WebContent[{}] sent oversized {} ({} elements, max {}) at {}:{}",
+                pid(), field_name, vector.size(), IPC::Limits::MaxVectorSize,
+                location.filename(), location.line_number());
+            track_validation_failure();
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool check_rate_limit(SourceLocation location = SourceLocation::current())
+    {
+        if (!m_rate_limiter.try_consume()) {
+            dbgln("Security: WebContent[{}] exceeded rate limit at {}:{}",
+                pid(), location.filename(), location.line_number());
+            track_validation_failure();
+            return false;
+        }
+        return true;
+    }
+
+    void track_validation_failure()
+    {
+        m_validation_failures++;
+        if (m_validation_failures >= s_max_validation_failures) {
+            dbgln("Security: WebContent[{}] exceeded validation failure limit ({}), terminating connection",
+                pid(), s_max_validation_failures);
+            async_close_server();
+        }
+    }
+
     // FIXME: Does a HashMap holding references make sense?
     HashMap<u64, ViewImplementation*> m_views;
 
     ProcessHandle m_process_handle;
 
     RefPtr<WebUI> m_web_ui;
+
+    // Security infrastructure
+    IPC::RateLimiter m_rate_limiter { 1000, Duration::from_milliseconds(10) }; // 1000 messages/second
+    size_t m_validation_failures { 0 };
+    static constexpr size_t s_max_validation_failures = 100;
 
     static HashTable<WebContentClient*> s_clients;
 };

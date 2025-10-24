@@ -71,6 +71,14 @@ ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
 
 Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return Vector<IPC::File> {};
+
+    // Security: Count validation (DoS prevention)
+    if (!validate_count(count, 100, "client count"sv))
+        return Vector<IPC::File> {};
+
     Vector<IPC::File> files;
     files.ensure_capacity(count);
     for (size_t i = 0; i < count; ++i) {
@@ -166,6 +174,36 @@ Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_i
 {
     auto image_id = m_next_image_id++;
 
+    // Security: Rate limiting
+    if (!check_rate_limit()) {
+        async_did_fail_to_decode_image(image_id, "Rate limit exceeded"_string);
+        return image_id;
+    }
+
+    // Security: Concurrent decode limit (DoS prevention)
+    if (!check_concurrent_decode_limit()) {
+        async_did_fail_to_decode_image(image_id, "Too many concurrent decode operations"_string);
+        return image_id;
+    }
+
+    // Security: Buffer size validation (memory exhaustion prevention)
+    if (!validate_buffer_size(encoded_buffer.size())) {
+        async_did_fail_to_decode_image(image_id, "Image buffer too large"_string);
+        return image_id;
+    }
+
+    // Security: Dimension validation (integer overflow prevention)
+    if (!validate_dimensions(ideal_size)) {
+        async_did_fail_to_decode_image(image_id, "Invalid image dimensions"_string);
+        return image_id;
+    }
+
+    // Security: MIME type validation
+    if (!validate_mime_type(mime_type)) {
+        async_did_fail_to_decode_image(image_id, "Invalid MIME type"_string);
+        return image_id;
+    }
+
     if (!encoded_buffer.is_valid()) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Encoded data is invalid");
         async_did_fail_to_decode_image(image_id, "Encoded data is invalid"_string);
@@ -179,6 +217,14 @@ Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_i
 
 void ConnectionFromClient::cancel_decoding(i64 image_id)
 {
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: Image ID validation
+    if (!validate_image_id(image_id))
+        return;
+
     if (auto job = m_pending_jobs.take(image_id); job.has_value()) {
         job.value()->cancel();
     }
