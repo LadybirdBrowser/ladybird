@@ -206,7 +206,7 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
         },
         this);
 
-    auto stream_wrapper = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PulseAudioStream(NonnullRefPtr(*this), stream)));
+    auto stream_wrapper = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PulseAudioStream(*this, stream)));
 
     stream_wrapper->m_write_callback = move(write_callback);
     pa_stream_set_write_callback(
