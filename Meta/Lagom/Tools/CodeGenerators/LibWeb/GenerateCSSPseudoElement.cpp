@@ -58,7 +58,7 @@ ErrorOr<void> generate_header_file(JsonObject& pseudo_elements_data, Core::File&
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
-#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
@@ -115,6 +115,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& pseudo_elements_data, Cor
 
     generator.append(R"~~~(
 #include <LibWeb/CSS/PseudoElement.h>
+#include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {

@@ -10,7 +10,9 @@
 #include "NumberStyleValue.h"
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {
 

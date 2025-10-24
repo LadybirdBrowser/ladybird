@@ -7,6 +7,7 @@
 #include "IntegerStyleValue.h"
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 
