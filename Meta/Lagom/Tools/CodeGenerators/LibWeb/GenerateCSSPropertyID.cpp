@@ -164,6 +164,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 #include <AK/Traits.h>
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/CSS/AcceptedTypeRange.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/Export.h>
@@ -259,11 +260,6 @@ bool property_is_single_valued(PropertyID);
 bool property_is_list_valued(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
-struct AcceptedTypeRange {
-    float min;
-    float max;
-};
-using AcceptedTypeRangeMap = HashMap<ValueType, AcceptedTypeRange>;
 AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);

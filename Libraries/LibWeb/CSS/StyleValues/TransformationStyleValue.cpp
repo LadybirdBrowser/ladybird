@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/CSSTranslate.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>

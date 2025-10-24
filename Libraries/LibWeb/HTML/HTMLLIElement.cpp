@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLLIElementPrototype.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/Numbers.h>

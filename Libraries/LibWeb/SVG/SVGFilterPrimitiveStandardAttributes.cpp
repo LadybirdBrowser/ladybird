@@ -6,6 +6,7 @@
  */
 
 #include "SVGFilterPrimitiveStandardAttributes.h"
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>

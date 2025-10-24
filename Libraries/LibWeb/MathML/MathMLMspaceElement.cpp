@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/MathML/AttributeNames.h>
 #include <LibWeb/MathML/MathMLMspaceElement.h>

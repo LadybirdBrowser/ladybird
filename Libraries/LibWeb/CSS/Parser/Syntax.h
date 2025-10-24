@@ -10,8 +10,8 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
-#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
 

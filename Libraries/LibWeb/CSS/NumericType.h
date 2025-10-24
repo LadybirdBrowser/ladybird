@@ -9,7 +9,7 @@
 #include <AK/Array.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
