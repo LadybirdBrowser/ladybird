@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,15 +23,15 @@ class CascadedProperties final : public JS::Cell {
 public:
     virtual ~CascadedProperties() override;
 
-    [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
-    [[nodiscard]] GC::Ptr<CSSStyleDeclaration const> property_source(PropertyID) const;
-    [[nodiscard]] bool is_property_important(PropertyID) const;
+    [[nodiscard]] RefPtr<StyleValue const> property(PropertyNameAndID const&) const;
+    [[nodiscard]] GC::Ptr<CSSStyleDeclaration const> property_source(PropertyNameAndID const&) const;
+    [[nodiscard]] bool is_property_important(PropertyNameAndID const&) const;
 
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source);
+    void set_property(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source);
     void set_property_from_presentational_hint(PropertyID, NonnullRefPtr<StyleValue const>);
 
-    void revert_property(PropertyID, Important, CascadeOrigin);
-    void revert_layer_property(PropertyID, Important, Optional<FlyString> layer_name);
+    void revert_property(PropertyNameAndID const&, Important, CascadeOrigin);
+    void revert_layer_property(PropertyNameAndID const&, Important, Optional<FlyString> layer_name);
 
     struct Entry {
         StyleProperty property;
@@ -41,12 +42,20 @@ public:
     OrderedHashMap<PropertyID, Entry> const& unresolved_shorthands() const { return m_unresolved_shorthands; }
     void set_unresolved_shorthand(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source);
 
+    OrderedHashMap<FlyString, StyleProperty> custom_properties() const;
+
 private:
     CascadedProperties();
 
     virtual void visit_edges(Visitor&) override;
 
+    Optional<Vector<Entry>&> get_entries(PropertyNameAndID const&);
+    Optional<Vector<Entry> const&> get_entries(PropertyNameAndID const&) const;
+    Vector<Entry>& ensure_entry(PropertyNameAndID const&);
+    void remove_entry(PropertyNameAndID const&);
+
     HashMap<PropertyID, Vector<Entry>> m_properties;
+    OrderedHashMap<FlyString, Vector<Entry>> m_custom_properties;
     OrderedHashMap<PropertyID, Entry> m_unresolved_shorthands;
 };
 

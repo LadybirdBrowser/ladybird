@@ -835,7 +835,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         auto property_id = static_cast<CSS::PropertyID>(i);
         // FIXME: We should use the specified value rather than the cascaded value as the cascaded value may include
         //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
-        auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
+        auto const& preabsolutized_value = m_cascaded_properties->property(CSS::PropertyNameAndID::from_id(property_id));
         RefPtr old_value = computed_properties->property(property_id);
         // FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue, StyleValues which contain lengths (e.g. StyleValueList))
         // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
@@ -4178,7 +4178,7 @@ void Element::play_or_cancel_animations_after_display_property_change()
                 animation->cancel();
             } else {
                 auto play_state { CSS::AnimationPlayState::Running };
-                if (auto play_state_property = cascaded_properties(pseudo_element)->property(CSS::PropertyID::AnimationPlayState);
+                if (auto play_state_property = cascaded_properties(pseudo_element)->property(CSS::PropertyNameAndID::from_id(CSS::PropertyID::AnimationPlayState));
                     play_state_property && play_state_property->is_keyword()) {
                     if (auto play_state_value = keyword_to_animation_play_state(
                             play_state_property->to_keyword());
