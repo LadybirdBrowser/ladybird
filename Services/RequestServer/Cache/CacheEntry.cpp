@@ -90,7 +90,7 @@ void CacheEntry::close_and_destroy_cache_entry()
     m_disk_cache.cache_entry_closed({}, *this);
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers, UnixDateTime request_time)
+ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, UnixDateTime request_time)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
 
@@ -98,8 +98,41 @@ ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& dis
     auto file = TRY(Core::OutputBufferedFile::create(move(unbuffered_file)));
 
     CacheHeader cache_header;
+    cache_header.url_size = url.byte_count();
+    cache_header.url_hash = url.hash();
+
+    return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), move(path), move(file), cache_header, request_time });
+}
+
+CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::OutputBufferedFile> file, CacheHeader cache_header, UnixDateTime request_time)
+    : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
+    , m_file(move(file))
+    , m_request_time(request_time)
+    , m_response_time(UnixDateTime::now())
+{
+}
+
+ErrorOr<void> CacheEntryWriter::write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers)
+{
+    if (m_marked_for_deletion) {
+        close_and_destroy_cache_entry();
+        return Error::from_string_literal("Cache entry has been deleted");
+    }
+
+    m_cache_header.status_code = status_code;
+
+    if (reason_phrase.has_value()) {
+        m_cache_header.reason_phrase_size = reason_phrase->byte_count();
+        m_cache_header.reason_phrase_hash = reason_phrase->hash();
+    }
 
     auto result = [&]() -> ErrorOr<void> {
+        if (!is_cacheable(status_code, headers))
+            return Error::from_string_literal("Response is not cacheable");
+
+        if (auto freshness = calculate_freshness_lifetime(headers); freshness.is_negative() || freshness.is_zero())
+            return Error::from_string_literal("Response has already expired");
+
         StringBuilder builder;
         auto headers_serializer = TRY(JsonArraySerializer<>::try_create(builder));
 
@@ -114,41 +147,29 @@ ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& dis
         }
 
         TRY(headers_serializer.finish());
-
-        cache_header.url_size = url.byte_count();
-        cache_header.url_hash = url.hash();
-
-        cache_header.status_code = status_code;
-        cache_header.reason_phrase_size = reason_phrase.has_value() ? reason_phrase->byte_count() : 0;
-        cache_header.reason_phrase_hash = reason_phrase.has_value() ? reason_phrase->hash() : 0;
-
         auto serialized_headers = builder.string_view();
-        cache_header.headers_size = serialized_headers.length();
-        cache_header.headers_hash = serialized_headers.hash();
+        m_cache_header.headers_size = serialized_headers.length();
+        m_cache_header.headers_hash = serialized_headers.hash();
 
-        TRY(file->write_value(cache_header));
-        TRY(file->write_until_depleted(url));
+        TRY(m_file->write_value(m_cache_header));
+        TRY(m_file->write_until_depleted(m_url));
         if (reason_phrase.has_value())
-            TRY(file->write_until_depleted(*reason_phrase));
-        TRY(file->write_until_depleted(serialized_headers));
+            TRY(m_file->write_until_depleted(*reason_phrase));
+        TRY(m_file->write_until_depleted(serialized_headers));
 
         return {};
     }();
 
     if (result.is_error()) {
-        (void)FileSystem::remove(path.string(), FileSystem::RecursionMode::Disallowed);
+        dbgln("\033[31;1mUnable to write headers to cache entry for\033[0m {}: {}", m_url, result.error());
+
+        remove();
+        close_and_destroy_cache_entry();
+
         return result.release_error();
     }
 
-    return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), path, move(file), cache_header, request_time });
-}
-
-CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::OutputBufferedFile> file, CacheHeader cache_header, UnixDateTime request_time)
-    : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
-    , m_file(move(file))
-    , m_request_time(request_time)
-    , m_response_time(UnixDateTime::now())
-{
+    return {};
 }
 
 ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
@@ -159,7 +180,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     }
 
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
-        dbgln("\033[31;1mUnable to write to cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln("\033[31;1mUnable to write data to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
         close_and_destroy_cache_entry();
