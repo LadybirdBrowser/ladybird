@@ -947,7 +947,8 @@ public:
     Optional<Vector<CSS::Parser::ComponentValue>> environment_variable_value(CSS::EnvironmentVariable, Span<i64> indices = {}) const;
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
-    HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& registered_custom_properties();
+    HashMap<FlyString, GC::Ref<CSS::CSSPropertyRule>>& registered_custom_properties() { return m_registered_custom_properties; }
+    HashMap<FlyString, GC::Ref<CSS::CSSPropertyRule>> const& registered_custom_properties() const { return m_registered_custom_properties; }
 
     NonnullRefPtr<CSS::StyleValue const> custom_property_initial_value(FlyString const& name) const;
 
