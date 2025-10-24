@@ -13,7 +13,18 @@
 
 namespace Web::HTML {
 
-static Vector<FlyString> s_base_list { "applet"_fly_string, "caption"_fly_string, "html"_fly_string, "table"_fly_string, "td"_fly_string, "th"_fly_string, "marquee"_fly_string, "object"_fly_string, "template"_fly_string };
+static Vector<FlyString> s_base_list {
+    "applet"_fly_string,
+    "caption"_fly_string,
+    "html"_fly_string,
+    "table"_fly_string,
+    "td"_fly_string,
+    "th"_fly_string,
+    "marquee"_fly_string,
+    "object"_fly_string,
+    "select"_fly_string,
+    "template"_fly_string
+};
 
 StackOfOpenElements::~StackOfOpenElements() = default;
 
@@ -22,6 +33,7 @@ void StackOfOpenElements::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_elements);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-the-specific-scope
 bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list, CheckMathAndSVG check_math_and_svg) const
 {
     for (auto const& element : m_elements.in_reverse()) {
@@ -37,11 +49,13 @@ bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<Fl
     VERIFY_NOT_REACHED();
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
 bool StackOfOpenElements::has_in_scope(FlyString const& tag_name) const
 {
     return has_in_scope_impl(tag_name, s_base_list, CheckMathAndSVG::Yes);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-the-specific-scope
 bool StackOfOpenElements::has_in_scope_impl(DOM::Element const& target_node, Vector<FlyString> const& list) const
 {
     for (auto& element : m_elements.in_reverse()) {
@@ -57,11 +71,13 @@ bool StackOfOpenElements::has_in_scope_impl(DOM::Element const& target_node, Vec
     VERIFY_NOT_REACHED();
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
 bool StackOfOpenElements::has_in_scope(DOM::Element const& target_node) const
 {
     return has_in_scope_impl(target_node, s_base_list);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-button-scope
 bool StackOfOpenElements::has_in_button_scope(FlyString const& tag_name) const
 {
     auto list = s_base_list;
@@ -69,42 +85,19 @@ bool StackOfOpenElements::has_in_button_scope(FlyString const& tag_name) const
     return has_in_scope_impl(tag_name, list, CheckMathAndSVG::Yes);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-table-scope
 bool StackOfOpenElements::has_in_table_scope(FlyString const& tag_name) const
 {
     return has_in_scope_impl(tag_name, { "html"_fly_string, "table"_fly_string, "template"_fly_string }, CheckMathAndSVG::No);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-list-item-scope
 bool StackOfOpenElements::has_in_list_item_scope(FlyString const& tag_name) const
 {
     auto list = s_base_list;
     list.append("ol"_fly_string);
     list.append("ul"_fly_string);
     return has_in_scope_impl(tag_name, list, CheckMathAndSVG::Yes);
-}
-
-// https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-select-scope
-// The stack of open elements is said to have a particular element in select scope
-// when it has that element in the specific scope consisting of all element types except the following:
-// - optgroup in the HTML namespace
-// - option in the HTML namespace
-// NOTE: In this case it's "all element types _except_"
-bool StackOfOpenElements::has_in_select_scope(FlyString const& tag_name) const
-{
-    // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-the-specific-scope
-    // 1. Initialize node to be the current node (the bottommost node of the stack).
-    for (auto& node : m_elements.in_reverse()) {
-        // 2. If node is target node, terminate in a match state.
-        if (node->local_name() == tag_name)
-            return true;
-        // 3. Otherwise, if node is one of the element types in list, terminate in a failure state.
-        // NOTE: Here "list" refers to all elements except option and optgroup
-        if (node->local_name() != HTML::TagNames::option && node->local_name() != HTML::TagNames::optgroup)
-            return false;
-        // 4. Otherwise, set node to the previous entry in the stack of open elements and return to step 2.
-    }
-    // NOTE: This will never fail, since the loop will always terminate in the previous step if the top of the stack
-    //       — an html element — is reached.
-    VERIFY_NOT_REACHED();
 }
 
 bool StackOfOpenElements::contains(DOM::Element const& element) const

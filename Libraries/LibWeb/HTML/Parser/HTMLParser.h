@@ -27,29 +27,27 @@ class SpeculativeHTMLParser;
 
 namespace Web::HTML {
 
-#define ENUMERATE_INSERTION_MODES               \
-    __ENUMERATE_INSERTION_MODE(Initial)         \
-    __ENUMERATE_INSERTION_MODE(BeforeHTML)      \
-    __ENUMERATE_INSERTION_MODE(BeforeHead)      \
-    __ENUMERATE_INSERTION_MODE(InHead)          \
-    __ENUMERATE_INSERTION_MODE(InHeadNoscript)  \
-    __ENUMERATE_INSERTION_MODE(AfterHead)       \
-    __ENUMERATE_INSERTION_MODE(InBody)          \
-    __ENUMERATE_INSERTION_MODE(Text)            \
-    __ENUMERATE_INSERTION_MODE(InTable)         \
-    __ENUMERATE_INSERTION_MODE(InTableText)     \
-    __ENUMERATE_INSERTION_MODE(InCaption)       \
-    __ENUMERATE_INSERTION_MODE(InColumnGroup)   \
-    __ENUMERATE_INSERTION_MODE(InTableBody)     \
-    __ENUMERATE_INSERTION_MODE(InRow)           \
-    __ENUMERATE_INSERTION_MODE(InCell)          \
-    __ENUMERATE_INSERTION_MODE(InSelect)        \
-    __ENUMERATE_INSERTION_MODE(InSelectInTable) \
-    __ENUMERATE_INSERTION_MODE(InTemplate)      \
-    __ENUMERATE_INSERTION_MODE(AfterBody)       \
-    __ENUMERATE_INSERTION_MODE(InFrameset)      \
-    __ENUMERATE_INSERTION_MODE(AfterFrameset)   \
-    __ENUMERATE_INSERTION_MODE(AfterAfterBody)  \
+#define ENUMERATE_INSERTION_MODES              \
+    __ENUMERATE_INSERTION_MODE(Initial)        \
+    __ENUMERATE_INSERTION_MODE(BeforeHTML)     \
+    __ENUMERATE_INSERTION_MODE(BeforeHead)     \
+    __ENUMERATE_INSERTION_MODE(InHead)         \
+    __ENUMERATE_INSERTION_MODE(InHeadNoscript) \
+    __ENUMERATE_INSERTION_MODE(AfterHead)      \
+    __ENUMERATE_INSERTION_MODE(InBody)         \
+    __ENUMERATE_INSERTION_MODE(Text)           \
+    __ENUMERATE_INSERTION_MODE(InTable)        \
+    __ENUMERATE_INSERTION_MODE(InTableText)    \
+    __ENUMERATE_INSERTION_MODE(InCaption)      \
+    __ENUMERATE_INSERTION_MODE(InColumnGroup)  \
+    __ENUMERATE_INSERTION_MODE(InTableBody)    \
+    __ENUMERATE_INSERTION_MODE(InRow)          \
+    __ENUMERATE_INSERTION_MODE(InCell)         \
+    __ENUMERATE_INSERTION_MODE(InTemplate)     \
+    __ENUMERATE_INSERTION_MODE(AfterBody)      \
+    __ENUMERATE_INSERTION_MODE(InFrameset)     \
+    __ENUMERATE_INSERTION_MODE(AfterFrameset)  \
+    __ENUMERATE_INSERTION_MODE(AfterAfterBody) \
     __ENUMERATE_INSERTION_MODE(AfterAfterFrameset)
 
 class WEB_API HTMLParser final : public JS::Cell {
@@ -129,8 +127,6 @@ private:
     void handle_in_row(HTMLToken&);
     void handle_in_cell(HTMLToken&);
     void handle_in_table_text(HTMLToken&);
-    void handle_in_select_in_table(HTMLToken&);
-    void handle_in_select(HTMLToken&);
     void handle_in_caption(HTMLToken&);
     void handle_in_column_group(HTMLToken&);
     void handle_in_template(HTMLToken&);
