@@ -123,6 +123,13 @@ Request::~Request()
         (void)m_cache_entry_writer->flush();
 }
 
+void Request::notify_request_unblocked(Badge<DiskCache>)
+{
+    // FIXME: We may want a timer to limit how long we are waiting for a request before proceeding with a network
+    //        request that skips the disk cache.
+    transition_to_state(State::Init);
+}
+
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
     m_curl_result_code = result_code;
@@ -146,6 +153,9 @@ void Request::process()
     case State::ReadCache:
         handle_read_cache_state();
         break;
+    case State::WaitForCache:
+        // Do nothing; we are waiting for the disk cache to notify us to proceed.
+        break;
     case State::DNSLookup:
         handle_dns_lookup_state();
         break;
@@ -167,13 +177,33 @@ void Request::process()
 void Request::handle_initial_state()
 {
     if (m_disk_cache.has_value()) {
-        m_cache_entry_reader = m_disk_cache->open_entry(*this);
-        if (m_cache_entry_reader.has_value()) {
-            transition_to_state(State::ReadCache);
-            return;
-        }
+        m_disk_cache->open_entry(*this).visit(
+            [&](Optional<CacheEntryReader&> cache_entry_reader) {
+                m_cache_entry_reader = cache_entry_reader;
+                if (m_cache_entry_reader.has_value())
+                    transition_to_state(State::ReadCache);
+            },
+            [&](DiskCache::CacheHasOpenEntry) {
+                // If an existing entry is open for writing, we must wait for it to complete.
+                transition_to_state(State::WaitForCache);
+            });
 
-        m_cache_entry_writer = m_disk_cache->create_entry(*this);
+        if (m_state != State::Init)
+            return;
+
+        m_disk_cache->create_entry(*this).visit(
+            [&](Optional<CacheEntryWriter&> cache_entry_writer) {
+                m_cache_entry_writer = cache_entry_writer;
+            },
+            [&](DiskCache::CacheHasOpenEntry) {
+                // If an existing entry is open for reading or writing, we must wait for it to complete. An entry being
+                // open for reading is a rare case, but may occur if a cached response expired between the existing
+                // entry's cache validation and the attempted reader validation when this request was created.
+                transition_to_state(State::WaitForCache);
+            });
+
+        if (m_state != State::Init)
+            return;
     }
 
     transition_to_state(State::DNSLookup);

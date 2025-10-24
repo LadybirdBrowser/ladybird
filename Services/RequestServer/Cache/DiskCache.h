@@ -23,8 +23,10 @@ class DiskCache {
 public:
     static ErrorOr<DiskCache> create();
 
-    Optional<CacheEntryWriter&> create_entry(Request&);
-    Optional<CacheEntryReader&> open_entry(Request&);
+    struct CacheHasOpenEntry { };
+    Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(Request&);
+    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(Request&);
+
     void clear_cache();
 
     LexicalPath const& cache_directory() { return m_cache_directory; }
@@ -34,9 +36,16 @@ public:
 private:
     DiskCache(NonnullRefPtr<Database::Database>, LexicalPath cache_directory, CacheIndex);
 
+    enum class CheckReaderEntries {
+        No,
+        Yes,
+    };
+    bool check_if_cache_has_open_entry(Request&, u64 cache_key, CheckReaderEntries);
+
     NonnullRefPtr<Database::Database> m_database;
 
-    HashMap<FlatPtr, NonnullOwnPtr<CacheEntry>> m_open_cache_entries;
+    HashMap<u64, Vector<NonnullOwnPtr<CacheEntry>, 1>> m_open_cache_entries;
+    HashMap<u64, Vector<WeakPtr<Request>, 1>> m_requests_waiting_completion;
 
     LexicalPath m_cache_directory;
     CacheIndex m_index;
