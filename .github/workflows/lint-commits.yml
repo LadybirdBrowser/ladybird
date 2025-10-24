@@ -28,10 +28,6 @@ jobs:
                 error: "Empty line between commit title and body is missing",
               },
               {
-                pattern: /^.{0,72}(?:\n(?:(.{0,72})|(.*?([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&/=]|-)+).*?))*$/,
-                error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs)",
-              },
-              {
                 pattern: /^((?!^Merge branch )[\s\S])*$/,
                 error: "Commit is a git merge commit, use the rebase command instead",
               },
@@ -46,6 +42,10 @@ jobs:
               {
                 pattern: /^.+[^.\n](\n.*)*$/,
                 error: "Commit title ends in a period",
+              },
+              {
+                pattern: /^.{0,72}(?:\n(?:(.{0,72})|(.*?([a-z]+:\/\/)?(([a-zA-Z0-9_]|-)+\.)+[a-z]{2,}(:\d+)?([a-zA-Z_0-9@:%\+.~\?&/=]|-)+).*?))*$/,
+                error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs)",
               },
               {
                 pattern: /^((?!Signed-off-by: )[\s\S])*$/,
