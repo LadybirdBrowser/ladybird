@@ -10,27 +10,30 @@ import Foundation
 extension Swift.String {
     public init?(akString: AK.String) {
         let bytes = akString.__bytes_as_string_viewUnsafe().bytes()
-        let data = Foundation.Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes.data()), count: bytes.size(), deallocator: .none)
-
+        let data = Data(bytes: bytes.data(), count: bytes.size())
         self.init(data: data, encoding: .utf8)
     }
 
     public init?(akStringView: AK.StringView) {
         let bytes = akStringView.bytes()
-        let data = Foundation.Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes.data()), count: bytes.size(), deallocator: .none)
-
+        let data = Data(bytes: bytes.data(), count: bytes.size())
         self.init(data: data, encoding: .utf8)
     }
 }
 
 extension AK.String {
     public init(swiftString: consuming Swift.String) {
-        self.init()  // Create empty string first, using default constructor
+        self.init()
         swiftString.withUTF8 { buffer in
-            self = AK.String.from_utf8_without_validation(AK.ReadonlyBytes(buffer.baseAddress!, buffer.count))
+            if let base = buffer.baseAddress, buffer.count > 0 {
+                self = AK.String.from_utf8_without_validation(AK.ReadonlyBytes(base, buffer.count))
+            } else {
+                self = AK.String()
+            }
         }
     }
 }
+
 extension AK.StringView: ExpressibleByStringLiteral {
     public typealias StringLiteralType = Swift.StaticString
 
