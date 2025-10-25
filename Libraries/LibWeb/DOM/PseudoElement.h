@@ -59,6 +59,13 @@ class PseudoElementTreeNode
     , public TreeNode<PseudoElementTreeNode> {
     GC_CELL(PseudoElementTreeNode, PseudoElement);
     GC_DECLARE_ALLOCATOR(PseudoElementTreeNode);
+
+    PseudoElementTreeNode(CSS::PseudoElement);
+
+    CSS::PseudoElement type() const { return m_type; }
+
+private:
+    CSS::PseudoElement m_type;
 };
 
 }
