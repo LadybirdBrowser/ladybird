@@ -23,6 +23,7 @@
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/RequestClientEndpoint.h>
+#include <RequestServer/RequestPipe.h>
 
 #ifdef AK_OS_WINDOWS
 // needed because curl.h includes winsock2.h
@@ -76,14 +77,10 @@ static NonnullRefPtr<Resolver> default_resolver()
             };
         }
 
-#if !defined(AK_OS_WINDOWS)
         return DNS::Resolver::SocketResult {
             MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*g_dns_info.server_address))))),
             DNS::Resolver::ConnectionMode::UDP,
         };
-#else
-        return Error::from_string_literal("Core::UDPSocket::connect() and Core::BufferedUDPSocket::create() are not implemented on Windows");
-#endif
     });
 
     s_resolver = resolver;
@@ -116,7 +113,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     Vector<curl_slist*> curl_string_lists;
     i32 request_id { 0 };
     WeakPtr<ConnectionFromClient> client;
-    int writer_fd { 0 };
+    RefPtr<RequestPipe> pipe;
     bool is_connect_only { false };
     size_t downloaded_so_far { 0 };
     URL::URL url;
@@ -138,13 +135,13 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     Optional<CacheEntryWriter&> cache_entry;
     UnixDateTime request_start_time;
 
-    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
+    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, RefPtr<RequestPipe> pipe)
         : multi(multi)
         , easy(easy)
         , request_id(request_id)
         , client(client)
-        , writer_fd(writer_fd)
-        , write_notifier(Core::Notifier::construct(writer_fd, Core::NotificationType::Write))
+        , pipe(pipe)
+        , write_notifier(Core::Notifier::construct(pipe ? pipe->writer_fd() : -1, Core::NotificationType::Write))
         , request_start_time(UnixDateTime::now())
     {
         write_notifier->set_enabled(false);
@@ -203,7 +200,8 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         bytes_to_send.resize(available_bytes);
         send_buffer.peek_some(bytes_to_send);
 
-        auto result = Core::System::write(this->writer_fd, bytes_to_send);
+        VERIFY(pipe);
+        auto result = pipe->write(bytes_to_send);
         if (result.is_error()) {
             if (result.error().code() != EAGAIN) {
                 return result.release_error();
@@ -241,9 +239,6 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
         if (!send_buffer.is_eof()) {
             dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
         }
-
-        if (writer_fd > 0)
-            MUST(Core::System::close(writer_fd));
 
         auto result = curl_multi_remove_handle(multi, easy);
         VERIFY(result == CURLM_OK);
@@ -529,42 +524,30 @@ void ConnectionFromClient::set_use_system_dns()
     default_resolver()->dns.reset_connection();
 }
 
-#ifdef AK_OS_WINDOWS
-void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData)
-{
-    VERIFY(0 && "RequestServer::ConnectionFromClient::start_request is not implemented");
-}
-
-void ConnectionFromClient::issue_network_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry>)
-{
-    VERIFY(0 && "RequestServer::ConnectionFromClient::issue_network_request is not implemented");
-}
-#else
 void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
+    // FIXME: Support HTTP disk cache on Windows
+#if !defined(AK_OS_WINDOWS)
     if (g_disk_cache.has_value()) {
         if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
-            auto fds = MUST(Core::System::pipe2(O_NONBLOCK));
-            auto writer_fd = fds[1];
-            auto reader_fd = fds[0];
+            auto pipe = MUST(RequestPipe::try_create());
 
-            async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+            async_request_started(request_id, IPC::File::adopt_fd(pipe->reader_fd()));
             async_headers_became_available(request_id, cache_entry->headers(), cache_entry->status_code(), cache_entry->reason_phrase());
 
             cache_entry->pipe_to(
-                writer_fd,
-                [this, request_id, writer_fd](auto bytes_sent) {
+                pipe->writer_fd(),
+                [this, request_id](auto bytes_sent) {
                     // FIXME: Implement timing info for cache hits.
                     async_request_finished(request_id, bytes_sent, {}, {});
-                    MUST(Core::System::close(writer_fd));
                 },
-                [this, request_id, writer_fd, method = move(method), url = move(url), request_headers = move(request_headers), request_body = move(request_body), proxy_data](auto bytes_sent) mutable {
+                [this, request_id, pipe, method = move(method), url = move(url), request_headers = move(request_headers), request_body = move(request_body), proxy_data](auto bytes_sent) mutable {
                     // FIXME: We should really also have a way to validate the data once CacheEntry is storing its crc.
                     ResumeRequestForFailedCacheEntry resume_request {
                         .start_offset = bytes_sent,
-                        .writer_fd = writer_fd,
+                        .pipe = pipe,
                     };
 
                     issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request);
@@ -573,6 +556,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
             return;
         }
     }
+#endif
 
     issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data);
 }
@@ -586,9 +570,6 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
             dbgln("StartRequest: DNS lookup failed: {}", error);
             // FIXME: Implement timing info for DNS lookup failure.
             async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
-
-            if (resume_request.has_value())
-                MUST(Core::System::close(resume_request->writer_fd));
         })
         .when_resolved([this, request_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data, resume_request](auto const& dns_result) mutable {
             if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
@@ -606,25 +587,22 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
                 return;
             }
 
-            int writer_fd = 0;
+            RefPtr<RequestPipe> pipe { nullptr };
 
             if (resume_request.has_value()) {
-                writer_fd = resume_request->writer_fd;
+                pipe = resume_request->pipe;
             } else {
-                auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
-                if (fds_or_error.is_error()) {
-                    dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
+                auto pipe_or_error = RequestPipe::try_create();
+                if (pipe_or_error.is_error()) {
+                    dbgln("StartRequest: Failed to create pipe: {}", pipe_or_error.error());
                     return;
                 }
 
-                auto fds = fds_or_error.release_value();
-                auto reader_fd = fds[0];
-                writer_fd = fds[1];
-
-                async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+                pipe = pipe_or_error.release_value();
+                async_request_started(request_id, IPC::File::adopt_fd(pipe->reader_fd()));
             }
 
-            auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
+            auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, move(pipe));
             request->url = url;
             request->method = method;
 
@@ -648,6 +626,11 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
 
             set_option(CURLOPT_CUSTOMREQUEST, method.characters());
             set_option(CURLOPT_FOLLOWLOCATION, 0);
+
+#if defined(AK_OS_WINDOWS)
+            // Without explicitly using the OS Native CA cert store on Windows, https requests timeout with CURLE_PEER_FAILED_VERIFICATION
+            set_option(CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+#endif
 
             bool did_set_body = false;
             if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
@@ -719,7 +702,6 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
             m_active_requests.set(request_id, move(request));
         });
 }
-#endif
 
 static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
 {
@@ -912,7 +894,7 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
 
         auto connect_only_request_id = get_random<i32>();
 
-        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0);
+        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, nullptr);
         request->url = url;
         request->is_connect_only = true;
 
