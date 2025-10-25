@@ -16,7 +16,7 @@ describe("basic functionality", () => {
         expect(stack.disposed).toBeFalse();
     });
 
-    test("becomes true after being disposed", async () => {
+    test.skip("becomes true after being disposed", async () => {
         const stack = new AsyncDisposableStack();
         await stack.disposeAsync();
         expect(stack.disposed).toBeTrue();

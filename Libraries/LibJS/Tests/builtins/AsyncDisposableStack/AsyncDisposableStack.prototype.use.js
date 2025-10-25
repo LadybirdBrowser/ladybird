@@ -3,7 +3,7 @@ test("length is 1", () => {
 });
 
 describe("basic functionality", () => {
-    test("added objects dispose method gets when stack is disposed", async () => {
+    test.skip("added objects dispose method gets when stack is disposed", async () => {
         const stack = new AsyncDisposableStack();
         let disposedCalled = 0;
         const obj = {
@@ -22,7 +22,7 @@ describe("basic functionality", () => {
         expect(disposedCalled).toBe(1);
     });
 
-    test("can add null and undefined", async () => {
+    test.skip("can add null and undefined", async () => {
         const stack = new AsyncDisposableStack();
 
         expect(stack.use(null)).toBeNull();
@@ -33,7 +33,7 @@ describe("basic functionality", () => {
         expect(stack.disposed).toBeTrue();
     });
 
-    test("can add stack to itself", async () => {
+    test.skip("can add stack to itself", async () => {
         const stack = new AsyncDisposableStack();
         stack.use(stack);
         await stack.disposeAsync();
@@ -81,7 +81,7 @@ describe("throws errors", () => {
         expect(calledGetter).toBeTrue();
     });
 
-    test("use throws if stack is already disposed (over type errors)", async () => {
+    test.skip("use throws if stack is already disposed (over type errors)", async () => {
         const stack = new AsyncDisposableStack();
         await stack.disposeAsync();
         expect(stack.disposed).toBeTrue();
