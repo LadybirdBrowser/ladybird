@@ -12,7 +12,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
-GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable)
+GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<GC::Function<NonnullRefPtr<Core::Promise<Empty>>()>> steps, GC::Ptr<HTML::Navigable> target_navigable)
 {
     return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
 }
@@ -31,12 +31,20 @@ SessionHistoryTraversalQueue::SessionHistoryTraversalQueue()
             m_timer->start();
             return;
         }
+
         while (m_queue.size() > 0) {
+            if (m_current_promise && !m_current_promise->is_resolved() && !m_current_promise->is_rejected()) {
+                m_timer->start();
+                return;
+            }
+
             m_is_task_running = true;
             auto entry = m_queue.take_first();
-            entry->execute_steps();
+            m_current_promise = entry->execute_steps();
             m_is_task_running = false;
         }
+
+        m_current_promise = {};
     });
 }
 
@@ -46,7 +54,7 @@ void SessionHistoryTraversalQueue::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_queue);
 }
 
-void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps)
+void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<NonnullRefPtr<Core::Promise<Empty>>()>> steps)
 {
     m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
     if (!m_timer->is_active()) {
@@ -54,7 +62,7 @@ void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps)
     }
 }
 
-void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable)
+void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<NonnullRefPtr<Core::Promise<Empty>>()>> steps, GC::Ptr<Navigable> target_navigable)
 {
     m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
     if (!m_timer->is_active()) {

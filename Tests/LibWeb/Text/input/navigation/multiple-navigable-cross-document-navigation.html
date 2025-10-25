@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="a"></iframe>
+<iframe id="b"></iframe>
+<iframe id="c"></iframe>
+<iframe id="d"></iframe>
+<script>
+    asyncTest(done => {
+        let doneA = false, doneB = false, doneC = false, doneD = false;
+        function check() {if (doneA && doneB && doneC && doneD) done();}
+        function makeContent(id, n) {
+            let html = `<h3>${id} ${n}</h3>`;
+            if (n % 3 === 0) html += `<iframe id="nest1+${id}" srcdoc="${id} ${n}"></iframe>`;
+            if (n % 5 === 0) html += `<frame id="nest2${id} srcdoc="${id} ${n}"/>`;
+            return html;
+        }
+        function run(iframe, id, n, max, finish) {
+            if (n >= max) {println('PASS'); finish(); return;}
+            const blob = new Blob([makeContent(id, n)], {type: 'text/html'});
+            const url = URL.createObjectURL(blob);
+            iframe.onload = () => {
+                try {
+                    iframe.contentDocument;
+                    URL.revokeObjectURL(url);
+                } catch {println('FAIL'); finish(); return;}
+                run(iframe, id, n + 1, max, finish);
+            };
+            iframe.src = url;
+        }
+        run(document.getElementById('a'), 'a', 0, 101, () => {doneA = true; check();});
+        run(document.getElementById('b'), 'b', 0, 101, () => {doneB = true; check();});
+        run(document.getElementById('c'), 'c', 0, 101, () => {doneC = true; check();});
+        run(document.getElementById('d'), 'd', 0, 101, () => {doneD = true; check();});
+    });
+</script>
