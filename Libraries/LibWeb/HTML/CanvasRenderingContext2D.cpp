@@ -373,6 +373,9 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
         return;
 
     auto& state = drawing_state();
+    auto paint_style = state.stroke_style.to_gfx_paint_style();
+    if (!paint_style->is_visible())
+        return;
 
     auto line_cap = to_gfx_cap(state.line_cap);
     auto line_join = to_gfx_join(state.line_join);
@@ -384,7 +387,7 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
         dash_array.append(static_cast<float>(dash));
     }
     paint_shadow_for_stroke_internal(path, line_cap, line_join, dash_array);
-    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filter, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
+    painter->stroke_path(path, paint_style, state.filter, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
 
     did_draw(path.bounding_box());
 }
@@ -415,10 +418,14 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
     if (!painter)
         return;
 
+    auto& state = this->drawing_state();
+    auto paint_style = state.fill_style.to_gfx_paint_style();
+    if (!paint_style->is_visible())
+        return;
+
     paint_shadow_for_fill_internal(path, winding_rule);
 
-    auto& state = this->drawing_state();
-    painter->fill_path(path, state.fill_style.to_gfx_paint_style(), state.filter, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
+    painter->fill_path(path, paint_style, state.filter, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
 
     did_draw(path.bounding_box());
 }
@@ -1072,9 +1079,6 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
         return;
 
-    if (!state.fill_style.to_gfx_paint_style()->is_visible())
-        return;
-
     auto alpha = state.global_alpha * (state.shadow_color.alpha() / 255.0f);
     auto fill_style_color = state.fill_style.as_color();
     if (fill_style_color.has_value() && fill_style_color->alpha() > 0)
@@ -1107,9 +1111,6 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
         return;
 
     if (state.shadow_blur == 0.0f && state.shadow_offset_x == 0.0f && state.shadow_offset_y == 0.0f)
-        return;
-
-    if (!state.stroke_style.to_gfx_paint_style()->is_visible())
         return;
 
     auto alpha = state.global_alpha * (state.shadow_color.alpha() / 255.0f);
