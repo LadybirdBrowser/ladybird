@@ -8,6 +8,7 @@
 
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Random.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
