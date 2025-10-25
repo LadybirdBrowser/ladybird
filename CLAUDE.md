@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ladybird is a truly independent web browser with a novel engine based on web standards. It uses a multi-process architecture with separate processes for UI, WebContent rendering, ImageDecoder, and RequestServer. The project is in pre-alpha state and is built with C++23.
 
+## Fork Information
+
+**This is a personal fork with experimental IPC security enhancements for learning and research purposes.**
+
+The fork includes:
+- **LibIPC Security Utilities**: RateLimiter, ValidatedDecoder, SafeMath, Limits
+- **IPC Fuzzing Framework**: Automated security testing for IPC messages
+- **Enhanced Service Hardening**: Additional validation in WebContent, ImageDecoder, and RequestServer
+- **Fork Documentation**: See `claudedocs/` for detailed implementation guides and Windows build instructions
+
+**Important**: These experimental features are for educational purposes only and are not intended for upstream contribution.
+
+For upstream Ladybird documentation, see the official repository at https://github.com/LadybirdBrowser/ladybird
+
 ## Build System & Commands
 
 ### Building and Running
@@ -71,6 +85,13 @@ CTEST_OUTPUT_ON_FAILURE=1 ninja test
 
 # Import WPT tests
 ./Meta/WPT.sh import html/dom/aria-attribute-reflection.html
+
+# Run IPC security tests (fork-specific)
+./Meta/ladybird.py test LibIPC
+
+# Run IPC fuzzing tests (if built with Fuzzers preset)
+./Build/fuzzers/bin/FuzzIPC
+./Build/fuzzers/bin/FuzzWebContentIPC
 ```
 
 ### Linting and Code Style
@@ -124,15 +145,68 @@ Ladybird uses separate processes for security and stability:
   - **LibGfx**: 2D graphics, image decoding
   - **LibHTTP**: HTTP/1.1 client
   - **LibCore**: Event loop, OS abstraction
-  - **LibIPC**: Inter-process communication
+  - **LibIPC**: Inter-process communication (includes fork-specific security utilities)
   - **LibUnicode**: Unicode and locale support
   - **LibMedia**: Audio/video playback
   - **LibCrypto/LibTLS**: Cryptography and TLS
 - **Services/**: Out-of-process services (WebContent, RequestServer, ImageDecoder, WebDriver, WebWorker)
 - **UI/**: Platform-specific UI code (Qt, AppKit, Android)
-- **Tests/**: Test suites (LibWeb tests, unit tests)
-- **Meta/**: Build scripts, code generation tools, linters
+- **Tests/**: Test suites (LibWeb tests, unit tests, IPC security tests)
+- **Meta/**: Build scripts, code generation tools, linters, IPC compiler
 - **Documentation/**: Comprehensive documentation
+- **claudedocs/**: Fork-specific documentation (IPC security guides, Windows build instructions)
+
+## Fork-Specific Security Components
+
+### LibIPC Security Utilities
+
+Located in `Libraries/LibIPC/`:
+
+- **Limits.h**: Constants for IPC message size and rate limits (MAX_MESSAGE_SIZE, MAX_RATE_LIMIT, etc.)
+- **RateLimiter.h**: Per-connection rate limiting with sliding window algorithm
+- **SafeMath.h**: Overflow-safe arithmetic for dimension/size calculations
+- **ValidatedDecoder.h**: Bounds-checked IPC message decoding with validation
+
+### Usage Patterns
+
+```cpp
+// Rate limiting IPC handlers
+RateLimiter m_rate_limiter{100, std::chrono::seconds(1)}; // 100 messages per second
+if (!m_rate_limiter.check_and_update()) {
+    return {}; // Rate limit exceeded, reject message
+}
+
+// Validated decoding with bounds checking
+ValidatedDecoder validated(decoder);
+auto page_id = TRY(validated.decode_validated<i32>(0, MAX_PAGE_ID));
+auto url = TRY(validated.decode_validated_string(0, MAX_URL_LENGTH));
+
+// Safe arithmetic to prevent overflows
+using namespace IPC::SafeMath;
+auto result = safe_multiply(width, height);
+if (result.has_overflow()) {
+    return Error::from_string_literal("Dimension overflow");
+}
+auto total_size = TRY(safe_add(base_size, header_size));
+```
+
+### IPC Fuzzing Framework
+
+Located in `Meta/Lagom/Fuzzers/`:
+
+- **FuzzIPC.cpp**: General IPC message fuzzing
+- **FuzzWebContentIPC.cpp**: WebContent-specific IPC fuzzing
+- Automated malformed message testing for security validation
+
+### Fork Documentation
+
+See `claudedocs/security-hardening/` for detailed implementation guides:
+- **IPC-Security-Implementation.md**: Implementation details for IPC security features
+- **Security-Guidelines.md**: Security best practices for this fork
+- **Phase1-Implementation-Summary.md**: Summary of initial security enhancements
+- **Windows-Build-Setup-Guide.md**: Detailed Windows-specific build instructions
+
+See `claudedocs/` root for general build troubleshooting and solutions.
 
 ## Coding Standards
 
@@ -192,6 +266,7 @@ Detailed explanation if needed. Wrap at 72 characters.
 - Create tests using: `./Tests/LibWeb/add_libweb_test.py your-test-name test_type`
 - Import relevant Web Platform Tests when applicable
 - CI runs with Address Sanitizer and Undefined Sanitizer
+- For IPC security features: add tests in `Tests/LibIPC/` and fuzzers in `Meta/Lagom/Fuzzers/`
 
 ## Important Development Notes
 
@@ -208,6 +283,16 @@ Detailed explanation if needed. Wrap at 72 characters.
 - WebContent spawns its own RequestServer and ImageDecoder processes
 - All processes are sandboxed (pledge/unveil mechanisms)
 - IPC is handled via LibIPC
+- **Fork enhancement**: IPC messages include rate limiting and validated decoding
+
+### IPC Security (Fork-Specific)
+
+When working with IPC in this fork:
+- Use `RateLimiter` for frequently-called handlers (e.g., mouse move, scroll events)
+- Use `ValidatedDecoder` for decoding untrusted input from other processes
+- Use `SafeMath` functions for any arithmetic on IPC-provided dimensions/sizes
+- Consult `Limits.h` for appropriate constants (message sizes, rate limits, etc.)
+- Add fuzzing tests for new IPC message handlers
 
 ### Human Language Policy
 
@@ -225,6 +310,7 @@ All user-facing strings, code comments, and commit messages:
 - Qt6 development packages (except on macOS with AppKit)
 - nasm, ninja, and various build tools
 - See `Documentation/BuildInstructionsLadybird.md` for platform-specific requirements
+- **For Windows/WSL**: See `claudedocs/HOW_TO_BUILD_LADYBIRD_WINDOWS.md` and `claudedocs/LADYBIRD_BUILD_SOLUTIONS.md`
 
 ### What Not to Do
 
@@ -235,3 +321,4 @@ All user-facing strings, code comments, and commit messages:
 - Don't write in C style; use C++ features and AK containers
 - Don't add jokes to user-facing parts
 - Don't attempt large architectural changes without familiarity with the codebase
+- **Fork-specific**: Don't propose fork-specific security features for upstream contribution (they are experimental only)
