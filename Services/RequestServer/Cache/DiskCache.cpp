@@ -10,6 +10,7 @@
 #include <LibURL/URL.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/Cache/Utilities.h>
+#include <RequestServer/Request.h>
 
 namespace RequestServer {
 
@@ -32,21 +33,21 @@ DiskCache::DiskCache(NonnullRefPtr<Database::Database> database, LexicalPath cac
 {
 }
 
-Optional<CacheEntryWriter&> DiskCache::create_entry(URL::URL const& url, StringView method, UnixDateTime request_time)
+Optional<CacheEntryWriter&> DiskCache::create_entry(Request& request)
 {
-    if (!is_cacheable(method))
+    if (!is_cacheable(request.method()))
         return {};
 
-    auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto serialized_url = serialize_url_for_cache_storage(request.url());
+    auto cache_key = create_cache_key(serialized_url, request.method());
 
-    auto cache_entry = CacheEntryWriter::create(*this, m_index, cache_key, move(serialized_url), request_time);
+    auto cache_entry = CacheEntryWriter::create(*this, m_index, cache_key, move(serialized_url), request.request_start_time());
     if (cache_entry.is_error()) {
-        dbgln("\033[31;1mUnable to create cache entry for\033[0m {}: {}", url, cache_entry.error());
+        dbgln("\033[31;1mUnable to create cache entry for\033[0m {}: {}", request.url(), cache_entry.error());
         return {};
     }
 
-    dbgln("\033[32;1mCreated disk cache entry for\033[0m {}", url);
+    dbgln("\033[32;1mCreated disk cache entry for\033[0m {}", request.url());
 
     auto address = reinterpret_cast<FlatPtr>(cache_entry.value().ptr());
     m_open_cache_entries.set(address, cache_entry.release_value());
@@ -54,23 +55,23 @@ Optional<CacheEntryWriter&> DiskCache::create_entry(URL::URL const& url, StringV
     return static_cast<CacheEntryWriter&>(**m_open_cache_entries.get(address));
 }
 
-Optional<CacheEntryReader&> DiskCache::open_entry(URL::URL const& url, StringView method)
+Optional<CacheEntryReader&> DiskCache::open_entry(Request& request)
 {
-    if (!is_cacheable(method))
+    if (!is_cacheable(request.method()))
         return {};
 
-    auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto serialized_url = serialize_url_for_cache_storage(request.url());
+    auto cache_key = create_cache_key(serialized_url, request.method());
 
     auto index_entry = m_index.find_entry(cache_key);
     if (!index_entry.has_value()) {
-        dbgln("\033[35;1mNo disk cache entry for\033[0m {}", url);
+        dbgln("\033[35;1mNo disk cache entry for\033[0m {}", request.url());
         return {};
     }
 
     auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->data_size);
     if (cache_entry.is_error()) {
-        dbgln("\033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
+        dbgln("\033[31;1mUnable to open cache entry for\033[0m {}: {}", request.url(), cache_entry.error());
         m_index.remove_entry(cache_key);
         return {};
     }
@@ -79,12 +80,12 @@ Optional<CacheEntryReader&> DiskCache::open_entry(URL::URL const& url, StringVie
     auto current_age = calculate_age(cache_entry.value()->headers(), index_entry->request_time, index_entry->response_time);
 
     if (!is_response_fresh(freshness_lifetime, current_age)) {
-        dbgln("\033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+        dbgln("\033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", request.url(), freshness_lifetime.to_seconds(), current_age.to_seconds());
         cache_entry.value()->remove();
         return {};
     }
 
-    dbgln("\033[32;1mOpened disk cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+    dbgln("\033[32;1mOpened disk cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", request.url(), freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
 
     auto address = reinterpret_cast<FlatPtr>(cache_entry.value().ptr());
     m_open_cache_entries.set(address, cache_entry.release_value());
