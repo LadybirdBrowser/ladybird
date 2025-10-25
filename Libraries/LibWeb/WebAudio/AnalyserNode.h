@@ -73,7 +73,7 @@ private:
     Vector<f32> apply_a_blackman_window(Vector<f32> const& x) const;
 
     // https://webaudio.github.io/web-audio-api/#smoothing-over-time
-    Vector<f32> smoothing_over_time(Vector<f32> const& current_block);
+    Vector<f32> smoothing_over_time(Vector<Array<f32, 2>> const& current_block);
 
     // https://webaudio.github.io/web-audio-api/#previous-block
     Vector<f32> m_previous_block;
