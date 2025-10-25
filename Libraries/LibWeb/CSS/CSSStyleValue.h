@@ -26,14 +26,14 @@ public:
     Optional<FlyString> const& associated_property() const { return m_associated_property; }
     RefPtr<StyleValue const> const& source_value() const { return m_source_value; }
 
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, FlyString const& property, String css_text);
-    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, FlyString const& property, String css_text);
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, FlyString const& property, String const& css_text);
+    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, FlyString const& property, String const& css_text);
 
     enum class ParseMultiple : u8 {
         No,
         Yes,
     };
-    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, FlyString property, String css_text, ParseMultiple);
+    static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, FlyString const& property, String const& css_text, ParseMultiple);
 
     virtual WebIDL::ExceptionOr<String> to_string() const;
 

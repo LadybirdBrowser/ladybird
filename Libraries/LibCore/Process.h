@@ -63,8 +63,8 @@ public:
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
     static Process current();
 
-    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
-    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString const& working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString const& working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
 
     static ErrorOr<String> get_name();
     enum class SetThreadName {

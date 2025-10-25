@@ -64,11 +64,11 @@ public:
                 // 5. Return.
                 return;
             },
-            [&](auto fill_or_stroke_style) {
+            [&](auto const& fill_or_stroke_style) {
                 // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
 
                 // 3. Set this's fill style to the given value.
-                my_drawing_state().fill_style = fill_or_stroke_style;
+                my_drawing_state().fill_style = move(fill_or_stroke_style);
             });
     }
 
@@ -116,11 +116,11 @@ public:
                 // 5. Return.
                 return;
             },
-            [&](auto fill_or_stroke_style) {
+            [&](auto const& fill_or_stroke_style) {
                 // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
 
                 // 3. Set this's stroke style to the given value.
-                my_drawing_state().fill_style = fill_or_stroke_style;
+                my_drawing_state().fill_style = move(fill_or_stroke_style);
             });
     }
 

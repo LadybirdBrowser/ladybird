@@ -15,7 +15,7 @@ namespace Web::EncryptedMediaExtensions {
 
 class NavigatorEncryptedMediaExtensionsPartial {
 public:
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_media_key_system_access(Utf16String, Vector<Bindings::MediaKeySystemConfiguration>);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_media_key_system_access(Utf16String const&, Vector<Bindings::MediaKeySystemConfiguration> const&);
 
 private:
     virtual ~NavigatorEncryptedMediaExtensionsPartial() = default;

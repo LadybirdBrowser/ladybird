@@ -80,7 +80,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
 
-    Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
+    Web::Platform::AudioCodecPlugin::install_creation_hook([](auto const& loader) {
 #if defined(HAVE_QT_MULTIMEDIA)
         return Ladybird::AudioCodecPluginQt::create(move(loader));
 #else

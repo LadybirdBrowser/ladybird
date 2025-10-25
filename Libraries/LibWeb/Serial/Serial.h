@@ -31,7 +31,7 @@ class Serial : public DOM::EventTarget {
 
 public:
     // https://wicg.github.io/serial/#requestport-method
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_port(SerialPortRequestOptions = {});
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_port(SerialPortRequestOptions const& = {});
     // https://wicg.github.io/serial/#getports-method
     GC::Ref<WebIDL::Promise> get_ports();
 

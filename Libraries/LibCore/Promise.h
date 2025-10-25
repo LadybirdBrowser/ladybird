@@ -33,7 +33,7 @@ public:
     Function<void(ErrorType&)> on_rejection;
 
     template<typename U>
-    static NonnullRefPtr<Promise> after(Vector<NonnullRefPtr<Promise<U>>> promises)
+    static NonnullRefPtr<Promise> after(Vector<NonnullRefPtr<Promise<U>>> const& promises)
     {
         auto promise = Promise::construct();
         struct Resolved : RefCounted<Resolved> {

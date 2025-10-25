@@ -157,11 +157,11 @@ struct SECPxxxr1Signature {
 class SECPxxxr1 {
 public:
     ErrorOr<UnsignedBigInteger> generate_private_key();
-    ErrorOr<SECPxxxr1Point> generate_public_key(UnsignedBigInteger scalar);
-    ErrorOr<SECPxxxr1Point> compute_coordinate(UnsignedBigInteger scalar, SECPxxxr1Point point);
-    ErrorOr<bool> verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature);
-    ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, UnsignedBigInteger private_key);
-    ErrorOr<bool> is_valid_point(SECPxxxr1Point pubkey, Optional<UnsignedBigInteger> private_key = {});
+    ErrorOr<SECPxxxr1Point> generate_public_key(UnsignedBigInteger const& scalar);
+    ErrorOr<SECPxxxr1Point> compute_coordinate(UnsignedBigInteger const& scalar, SECPxxxr1Point const& point);
+    ErrorOr<bool> verify(ReadonlyBytes hash, SECPxxxr1Point const& pubkey, SECPxxxr1Signature const& signature);
+    ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, UnsignedBigInteger const& private_key);
+    ErrorOr<bool> is_valid_point(SECPxxxr1Point const& pubkey, Optional<UnsignedBigInteger> private_key = {});
 
 protected:
     SECPxxxr1(char const* curve_name, size_t scalar_size)

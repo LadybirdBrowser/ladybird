@@ -25,7 +25,7 @@ static HashMap<String, NonnullRefPtr<Session>> s_sessions;
 static HashMap<String, NonnullRefPtr<Session>> s_http_sessions;
 
 // https://w3c.github.io/webdriver/#dfn-create-a-session
-ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags)
+ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> const& client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags)
 {
     // 1. Let session id be the result of generating a UUID.
     auto session_id = MUST(Web::Crypto::generate_random_uuid());
@@ -192,7 +192,7 @@ void Session::close()
     // 5. If an error has occurred in any of the steps above, return the error, otherwise return success with data null.
 }
 
-ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)
+ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> const& promise)
 {
 #if defined(AK_OS_WINDOWS)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocketWindows>, "Need to handle other IPC transports here");

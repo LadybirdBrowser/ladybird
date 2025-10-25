@@ -18,7 +18,7 @@ String GridTrackSizeListStyleValue::to_string(SerializationMode mode) const
 
 ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::create(CSS::GridTrackSizeList grid_track_size_list)
 {
-    return adopt_ref(*new (nothrow) GridTrackSizeListStyleValue(grid_track_size_list));
+    return adopt_ref(*new (nothrow) GridTrackSizeListStyleValue(move(grid_track_size_list)));
 }
 
 ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::make_auto()

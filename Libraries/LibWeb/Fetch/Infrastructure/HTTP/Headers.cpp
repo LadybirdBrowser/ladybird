@@ -744,7 +744,7 @@ bool is_forbidden_request_header(Header const& header)
 
         // 2. For each method of parsedValues: if the isomorphic encoding of method is a forbidden method, then return true.
         // Note: The values returned from get_decode_and_split_header_value have already been decoded.
-        if (parsed_values.has_value() && any_of(*parsed_values, [](auto method) { return is_forbidden_method(method.bytes()); }))
+        if (parsed_values.has_value() && any_of(*parsed_values, [](auto const& method) { return is_forbidden_method(method.bytes()); }))
             return true;
     }
 

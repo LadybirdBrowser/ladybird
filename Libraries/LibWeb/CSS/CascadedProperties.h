@@ -27,8 +27,8 @@ public:
     [[nodiscard]] GC::Ptr<CSSStyleDeclaration const> property_source(PropertyID) const;
     [[nodiscard]] bool is_property_important(PropertyID) const;
 
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source);
-    void set_property_from_presentational_hint(PropertyID, NonnullRefPtr<StyleValue const>);
+    void set_property(PropertyID, NonnullRefPtr<StyleValue const> const&, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source);
+    void set_property_from_presentational_hint(PropertyID, NonnullRefPtr<StyleValue const> const&);
 
     void revert_property(PropertyID, Important, CascadeOrigin);
     void revert_layer_property(PropertyID, Important, Optional<FlyString> layer_name);

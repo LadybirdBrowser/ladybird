@@ -16,7 +16,7 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGEllipseElement);
 
 SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGeometryElement(document, qualified_name)
+    : SVGGeometryElement(document, move(qualified_name))
 {
 }
 

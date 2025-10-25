@@ -22,7 +22,7 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGSymbolElement);
 
 SVGSymbolElement::SVGSymbolElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGraphicsElement(document, qualified_name)
+    : SVGGraphicsElement(document, move(qualified_name))
 {
 }
 

@@ -14,7 +14,7 @@ class BorderImageSliceStyleValue final : public StyleValueWithDefaultOperators<B
 public:
     static ValueComparingNonnullRefPtr<BorderImageSliceStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left, bool fill)
     {
-        return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(top, right, bottom, left, fill));
+        return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(move(top), move(right), move(bottom), move(left), fill));
     }
 
     virtual ~BorderImageSliceStyleValue() override = default;

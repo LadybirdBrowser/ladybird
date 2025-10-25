@@ -231,7 +231,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#reject-pending-play-promises
     template<typename ErrorType>
-    void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, Utf16String message)
+    void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, Utf16String const& message)
     {
         auto& realm = this->realm();
 

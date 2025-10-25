@@ -42,7 +42,7 @@ struct ArgvList {
     Vector<char const*, 10> m_argv;
 
     ArgvList(ByteString path, size_t size)
-        : m_path { path }
+        : m_path { move(path) }
     {
         m_argv.ensure_capacity(size + 2);
         m_argv.append(m_path.characters());
@@ -143,7 +143,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process { pid };
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString const& working_directory, KeepAsChild keep_as_child)
 {
     auto process = TRY(spawn({
         .executable = path,
@@ -157,7 +157,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> argume
     return process;
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString const& working_directory, KeepAsChild keep_as_child)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());

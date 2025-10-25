@@ -238,7 +238,7 @@ ParsedFontFace::ParsedFontFace(GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyStr
     , m_descent_override(move(descent_override))
     , m_line_gap_override(move(line_gap_override))
     , m_font_display(font_display)
-    , m_font_language_override(font_language_override)
+    , m_font_language_override(move(font_language_override))
     , m_font_feature_settings(move(font_feature_settings))
     , m_font_variation_settings(move(font_variation_settings))
 {

@@ -34,7 +34,7 @@ class FontFace final : public Bindings::PlatformObject {
 public:
     using FontFaceSource = Variant<String, GC::Root<WebIDL::BufferSource>>;
 
-    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, FontFaceDescriptors const& descriptors);
+    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String const& family, FontFaceSource source, FontFaceDescriptors const& descriptors);
     virtual ~FontFace() override;
 
     String family() const { return m_family; }

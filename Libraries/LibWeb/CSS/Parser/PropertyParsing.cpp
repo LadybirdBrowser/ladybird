@@ -488,7 +488,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     }
 
     if (property_id == PropertyID::Custom || substitution_presence.has_any())
-        return UnresolvedStyleValue::create(move(component_values), substitution_presence, original_source_text);
+        return UnresolvedStyleValue::create(move(component_values), substitution_presence, move(original_source_text));
 
     if (component_values.is_empty())
         return ParseError::SyntaxError;
@@ -1605,7 +1605,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         background_clip.release_nonnull());
 }
 
-static Optional<LengthPercentage> style_value_to_length_percentage(auto value)
+static Optional<LengthPercentage> style_value_to_length_percentage(auto const& value)
 {
     if (value->is_percentage())
         return LengthPercentage { value->as_percentage().percentage() };
@@ -5876,7 +5876,7 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
         return static_cast<Gfx::ColorFilterType>(filter);
     };
 
-    auto parse_filter_function_name = [&](auto name) -> Optional<FilterToken> {
+    auto parse_filter_function_name = [&](auto const& name) -> Optional<FilterToken> {
         if (name.equals_ignoring_ascii_case("blur"sv))
             return FilterToken::Blur;
         if (name.equals_ignoring_ascii_case("brightness"sv))

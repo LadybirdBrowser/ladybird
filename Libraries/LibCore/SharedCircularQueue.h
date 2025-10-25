@@ -84,7 +84,7 @@ public:
         if (!can_enqueue())
             return QueueStatus::Full;
         auto our_tail = m_queue->m_queue->m_tail.load() % Size;
-        m_queue->m_queue->m_data[our_tail] = to_insert;
+        m_queue->m_queue->m_data[our_tail] = move(to_insert);
         m_queue->m_queue->m_tail.fetch_add(1);
 
         return {};
@@ -178,14 +178,14 @@ private:
 
     private:
         RefCountedSharedMemorySPCQ(AnonymousBuffer anon_buf, SharedMemorySPCQ* shared_queue, ByteString name)
-            : AnonymousBuffer(anon_buf)
+            : AnonymousBuffer(move(anon_buf))
             , m_queue(shared_queue)
             , m_name(move(name))
         {
         }
     };
 
-    static ErrorOr<SharedSingleProducerCircularQueue<T, Size>> create_internal(AnonymousBuffer anon_buf, SharedMemorySPCQ* shared_queue)
+    static ErrorOr<SharedSingleProducerCircularQueue<T, Size>> create_internal(AnonymousBuffer const& anon_buf, SharedMemorySPCQ* shared_queue)
     {
         if (!shared_queue)
             return Error::from_string_literal("Unexpected error when creating shared queue from raw memory");
@@ -196,7 +196,7 @@ private:
     }
 
     SharedSingleProducerCircularQueue(RefPtr<RefCountedSharedMemorySPCQ> queue)
-        : m_queue(queue)
+        : m_queue(move(queue))
     {
     }
 

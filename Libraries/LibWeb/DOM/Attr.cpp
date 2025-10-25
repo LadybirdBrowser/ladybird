@@ -18,7 +18,7 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Attr);
 
-GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, FlyString const& local_name, String value, Element* owner_element)
 {
     return document.realm().create<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
 }

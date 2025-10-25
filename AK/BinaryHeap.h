@@ -137,7 +137,7 @@ public:
 
     void insert(K key, V value)
     {
-        m_heap.insert({ key, value });
+        m_heap.insert({ key, move(value) });
     }
 
     V pop_min()

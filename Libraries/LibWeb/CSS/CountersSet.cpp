@@ -53,7 +53,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, DOM::AbstractElement
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue value)
+void CountersSet::set_a_counter(FlyString const& name, DOM::AbstractElement const& element, CounterValue value)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         existing_counter->value = value;
@@ -68,7 +68,7 @@ void CountersSet::set_a_counter(FlyString name, DOM::AbstractElement const& elem
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const& element, CounterValue amount)
+void CountersSet::increment_a_counter(FlyString const& name, DOM::AbstractElement const& element, CounterValue amount)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         // FIXME: How should we handle existing counters with no value? Can that happen?

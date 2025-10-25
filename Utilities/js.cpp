@@ -611,7 +611,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
     });
 
     s_editor->on_display_refresh = [syntax_highlight](Line::Editor& editor) {
-        auto stylize = [&](Line::Span span, Line::Style styles) {
+        auto stylize = [&](Line::Span span, Line::Style const& styles) {
             if (syntax_highlight)
                 editor.stylize(span, styles);
         };

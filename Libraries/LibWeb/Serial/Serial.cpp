@@ -31,7 +31,7 @@ void Serial::initialize(JS::Realm& realm)
 }
 
 // https://wicg.github.io/serial/#requestport-method
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(SerialPortRequestOptions const)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(SerialPortRequestOptions const&)
 {
     auto& realm = this->realm();
 

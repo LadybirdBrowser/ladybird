@@ -4130,7 +4130,7 @@ void Document::destroy()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-document-unsalvageable
-void Document::make_unsalvageable([[maybe_unused]] String reason)
+void Document::make_unsalvageable([[maybe_unused]] String const& reason)
 {
     // FIXME: 1. Let details be a new not restored reason details whose reason is reason.
     // FIXME: 2. Append details to document's bfcache blocking details.

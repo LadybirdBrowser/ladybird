@@ -239,7 +239,7 @@ String BigFraction::to_string(unsigned rounding_threshold) const
     if (m_numerator.is_negative() && m_numerator != "0"_bigint)
         builder.append('-');
 
-    auto const number_of_digits = [](auto integer) {
+    auto const number_of_digits = [](auto const& integer) {
         unsigned size = 1;
         UnsignedBigInteger const ten { 10 };
 

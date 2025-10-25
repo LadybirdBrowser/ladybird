@@ -704,7 +704,7 @@ struct Ed448Params : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
-ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
+ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger const&);
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, String const& base64_url_string);
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, String const& base64_url_string);
 

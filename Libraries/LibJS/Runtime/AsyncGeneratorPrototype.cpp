@@ -34,7 +34,7 @@ void AsyncGeneratorPrototype::initialize(Realm& realm)
 }
 
 // 27.6.3.3 AsyncGeneratorValidate ( generator, generatorBrand ), https://tc39.es/ecma262/#sec-asyncgeneratorvalidate
-static ThrowCompletionOr<GC::Ref<AsyncGenerator>> async_generator_validate(VM& vm, Value generator, Optional<String> generator_brand)
+static ThrowCompletionOr<GC::Ref<AsyncGenerator>> async_generator_validate(VM& vm, Value generator, Optional<String> const& generator_brand)
 {
     // 1. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorContext]]).
     // 2. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorState]]).

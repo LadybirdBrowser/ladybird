@@ -743,7 +743,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
     };
 }
 
-CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand value)
+CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const& node, ScopedOperand const& value)
 {
     if (is<Identifier>(node)) {
         auto& identifier = static_cast<Identifier const&>(node);
@@ -796,7 +796,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
     };
 }
 
-CodeGenerationErrorOr<void> Generator::emit_store_to_reference(ReferenceOperands const& reference, ScopedOperand value)
+CodeGenerationErrorOr<void> Generator::emit_store_to_reference(ReferenceOperands const& reference, ScopedOperand const& value)
 {
     if (reference.referenced_private_identifier.has_value()) {
         emit<Bytecode::Op::PutPrivateById>(*reference.base, *reference.referenced_private_identifier, value);
@@ -1071,7 +1071,7 @@ void Generator::generate_continue(FlyString const& continue_label)
     generate_labelled_jump(JumpType::Continue, continue_label);
 }
 
-void Generator::push_home_object(ScopedOperand object)
+void Generator::push_home_object(ScopedOperand const& object)
 {
     m_home_objects.append(object);
 }
@@ -1081,7 +1081,7 @@ void Generator::pop_home_object()
     m_home_objects.take_last();
 }
 
-void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name)
+void Generator::emit_new_function(ScopedOperand const& dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> const& lhs_name)
 {
     if (m_home_objects.is_empty()) {
         emit<Op::NewFunction>(dst, function_node, lhs_name);
@@ -1090,7 +1090,7 @@ void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& f
     }
 }
 
-CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst)
+CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> const& lhs_name, Optional<ScopedOperand> preferred_dst)
 {
     if (is<FunctionExpression>(expression)) {
         auto const& function_expression = static_cast<FunctionExpression const&>(expression);
@@ -1109,7 +1109,7 @@ CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymo
     return TRY(expression.generate_bytecode(*this, preferred_dst)).value();
 }
 
-void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier)
+void Generator::emit_get_by_id(ScopedOperand const& dst, ScopedOperand const& base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier)
 {
     if (m_identifier_table->get(property_identifier) == "length"sv) {
         m_length_identifier = property_identifier;
@@ -1119,7 +1119,7 @@ void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, Identifier
     emit<Op::GetById>(dst, base, property_identifier, move(base_identifier), m_next_property_lookup_cache++);
 }
 
-void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex id, ScopedOperand this_value)
+void Generator::emit_get_by_id_with_this(ScopedOperand const& dst, ScopedOperand const& base, IdentifierTableIndex id, ScopedOperand const& this_value)
 {
     if (m_identifier_table->get(id) == "length"sv) {
         m_length_identifier = id;
@@ -1129,7 +1129,7 @@ void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, 
     emit<Op::GetByIdWithThis>(dst, base, id, this_value, m_next_property_lookup_cache++);
 }
 
-void Generator::emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedOperand property, Optional<IdentifierTableIndex> base_identifier)
+void Generator::emit_get_by_value(ScopedOperand const& dst, ScopedOperand const& base, ScopedOperand property, Optional<IdentifierTableIndex> const& base_identifier)
 {
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
@@ -1141,7 +1141,7 @@ void Generator::emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedO
     emit<Op::GetByValue>(dst, base, property, base_identifier);
 }
 
-void Generator::emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand base, ScopedOperand property, ScopedOperand this_value)
+void Generator::emit_get_by_value_with_this(ScopedOperand const& dst, ScopedOperand const& base, ScopedOperand property, ScopedOperand const& this_value)
 {
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
@@ -1184,7 +1184,7 @@ void Generator::emit_put_by_id(Operand base, IdentifierTableIndex property, Oper
 #undef EMIT_PUT_BY_ID
 }
 
-void Generator::emit_put_by_value(ScopedOperand base, ScopedOperand property, ScopedOperand src, Bytecode::PutKind kind, Optional<IdentifierTableIndex> base_identifier)
+void Generator::emit_put_by_value(ScopedOperand const& base, ScopedOperand property, ScopedOperand const& src, Bytecode::PutKind kind, Optional<IdentifierTableIndex> const& base_identifier)
 {
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
@@ -1205,7 +1205,7 @@ void Generator::emit_put_by_value(ScopedOperand base, ScopedOperand property, Sc
 #undef EMIT_PUT_BY_VALUE
 }
 
-void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand property, ScopedOperand this_value, ScopedOperand src, Bytecode::PutKind kind)
+void Generator::emit_put_by_value_with_this(ScopedOperand const& base, ScopedOperand property, ScopedOperand const& this_value, ScopedOperand const& src, Bytecode::PutKind kind)
 {
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
@@ -1235,14 +1235,14 @@ void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand pr
 #undef EMIT_PUT_BY_VALUE_WITH_THIS
 }
 
-void Generator::emit_iterator_value(ScopedOperand dst, ScopedOperand result)
+void Generator::emit_iterator_value(ScopedOperand const& dst, ScopedOperand const& result)
 {
-    emit_get_by_id(dst, result, intern_identifier("value"_utf16_fly_string));
+    emit_get_by_id(move(dst), move(result), intern_identifier("value"_utf16_fly_string));
 }
 
-void Generator::emit_iterator_complete(ScopedOperand dst, ScopedOperand result)
+void Generator::emit_iterator_complete(ScopedOperand const& dst, ScopedOperand const& result)
 {
-    emit_get_by_id(dst, result, intern_identifier("done"_utf16_fly_string));
+    emit_get_by_id(move(dst), move(result), intern_identifier("done"_utf16_fly_string));
 }
 
 bool Generator::is_local_initialized(u32 local_index) const

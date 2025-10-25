@@ -35,7 +35,7 @@ class JS_API Error : public Object {
 
 public:
     static GC::Ref<Error> create(Realm&);
-    static GC::Ref<Error> create(Realm&, Utf16String message);
+    static GC::Ref<Error> create(Realm&, Utf16String const& message);
     static GC::Ref<Error> create(Realm&, StringView message);
 
     virtual ~Error() override = default;
@@ -44,7 +44,7 @@ public:
 
     ThrowCompletionOr<void> install_error_cause(Value options);
 
-    void set_message(Utf16String);
+    void set_message(Utf16String const&);
 
     Vector<TracebackFrame, 32> const& traceback() const { return m_traceback; }
 

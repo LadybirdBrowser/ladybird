@@ -107,7 +107,7 @@ TEST_CASE(parse_unicode_locale_id)
         auto locale_id = Unicode::parse_unicode_locale_id(locale);
         EXPECT(!locale_id.has_value());
     };
-    auto pass = [](StringView locale, Optional<StringView> expected_language, Optional<StringView> expected_script, Optional<StringView> expected_region, Vector<StringView> expected_variants) {
+    auto pass = [](StringView locale, Optional<StringView> expected_language, Optional<StringView> expected_script, Optional<StringView> expected_region, Vector<StringView> const& expected_variants) {
         auto locale_id = Unicode::parse_unicode_locale_id(locale);
         VERIFY(locale_id.has_value());
 

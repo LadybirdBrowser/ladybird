@@ -71,7 +71,7 @@ static GC::Ref<Array> create_array_from_list_or_restricted(VM& vm, Vector<String
     }
 
     // 2. Return CreateArrayFromList( list ).
-    return Array::create_from<String>(realm, list, [&vm](auto value) {
+    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, move(value));
     });
 }
@@ -163,7 +163,7 @@ GC::Ref<Array> time_zones_of_locale(VM& vm, Locale const& locale_object)
     auto list = Unicode::available_time_zones_in_region(*region);
 
     // 4. Return CreateArrayFromList( list ).
-    return Array::create_from<String>(realm, list, [&vm](auto value) {
+    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, move(value));
     });
 }

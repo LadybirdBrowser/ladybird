@@ -1565,7 +1565,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-default-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source_value, UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source_value, UnderlyingSource const& underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
     auto& realm = stream.realm();
 

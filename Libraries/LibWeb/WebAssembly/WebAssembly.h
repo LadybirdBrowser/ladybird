@@ -45,7 +45,7 @@ struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> 
 
 class WebAssemblyCache {
 public:
-    void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
+    void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> const& module) { m_compiled_modules.append(module); }
     void add_function_instance(Wasm::FunctionAddress address, GC::Ptr<JS::NativeFunction> function) { m_function_instances.set(address, function); }
     void add_imported_object(GC::Ptr<JS::Object> object) { m_imported_objects.set(object); }
     void add_extern_value(Wasm::ExternAddress address, JS::Value value)
