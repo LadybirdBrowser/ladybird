@@ -30,6 +30,12 @@ Credential::Credential(JS::Realm& realm)
 {
 }
 
+Credential::Credential(JS::Realm& realm, String id)
+    : PlatformObject(realm)
+    , m_id(move(id))
+{
+}
+
 void Credential::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Credential);
