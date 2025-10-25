@@ -167,13 +167,13 @@ void Request::process()
 void Request::handle_initial_state()
 {
     if (m_disk_cache.has_value()) {
-        m_cache_entry_reader = m_disk_cache->open_entry(m_url, m_method);
+        m_cache_entry_reader = m_disk_cache->open_entry(*this);
         if (m_cache_entry_reader.has_value()) {
             transition_to_state(State::ReadCache);
             return;
         }
 
-        m_cache_entry_writer = m_disk_cache->create_entry(m_url, m_method, m_request_start_time);
+        m_cache_entry_writer = m_disk_cache->create_entry(*this);
     }
 
     transition_to_state(State::DNSLookup);

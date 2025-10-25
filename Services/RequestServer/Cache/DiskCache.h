@@ -23,8 +23,8 @@ class DiskCache {
 public:
     static ErrorOr<DiskCache> create();
 
-    Optional<CacheEntryWriter&> create_entry(URL::URL const&, StringView method, UnixDateTime request_time);
-    Optional<CacheEntryReader&> open_entry(URL::URL const&, StringView method);
+    Optional<CacheEntryWriter&> create_entry(Request&);
+    Optional<CacheEntryReader&> open_entry(Request&);
     void clear_cache();
 
     LexicalPath const& cache_directory() { return m_cache_directory; }

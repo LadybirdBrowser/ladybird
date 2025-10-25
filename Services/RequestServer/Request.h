@@ -50,6 +50,10 @@ public:
 
     ~Request();
 
+    URL::URL const& url() const { return m_url; }
+    ByteString const& method() const { return m_method; }
+    UnixDateTime request_start_time() const { return m_request_start_time; }
+
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
 private:
