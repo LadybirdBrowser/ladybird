@@ -11,6 +11,7 @@
 #include <LibDNS/Resolver.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Limits.h>
+#include <LibIPC/NetworkIdentity.h>
 #include <LibIPC/RateLimiter.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/RequestClientEndpoint.h>
@@ -36,6 +37,13 @@ public:
     ~ConnectionFromClient() override;
 
     virtual void die() override;
+
+    // Network identity management
+    [[nodiscard]] RefPtr<IPC::NetworkIdentity> network_identity() const { return m_network_identity; }
+    void set_network_identity(RefPtr<IPC::NetworkIdentity> identity) { m_network_identity = move(identity); }
+    void enable_tor(ByteString circuit_id = {});
+    void disable_tor();
+    void rotate_tor_circuit();
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -86,6 +94,9 @@ private:
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
     NonnullRefPtr<Resolver> m_resolver;
     ByteString m_alt_svc_cache_path;
+
+    // Network identity for per-tab routing and audit
+    RefPtr<IPC::NetworkIdentity> m_network_identity;
 
     // Security validation helpers
     [[nodiscard]] bool validate_request_id(i32 request_id, SourceLocation location = SourceLocation::current())

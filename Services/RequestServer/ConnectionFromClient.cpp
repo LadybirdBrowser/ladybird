@@ -393,6 +393,9 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 {
     s_connections.set(client_id(), *this);
 
+    // TEMPORARY TEST: Auto-enable Tor for all connections
+    enable_tor();
+
     m_alt_svc_cache_path = ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::user_data_directory());
 
     m_curl_multi = curl_multi_init();
@@ -429,6 +432,55 @@ void ConnectionFromClient::die()
 
     if (s_connections.is_empty())
         Core::EventLoop::current().quit(0);
+}
+
+void ConnectionFromClient::enable_tor(ByteString circuit_id)
+{
+    // Create network identity with Tor circuit if not already present
+    if (!m_network_identity) {
+        // Use client_id as page_id for now (will be properly set when integrated with WebContent)
+        m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(client_id()));
+    }
+
+    // Generate circuit ID if not provided
+    if (circuit_id.is_empty())
+        circuit_id = m_network_identity->identity_id();
+
+    // Configure Tor proxy
+    auto tor_proxy = IPC::ProxyConfig::tor_proxy(move(circuit_id));
+    m_network_identity->set_proxy_config(move(tor_proxy));
+
+    dbgln("RequestServer: Tor enabled for client {} with circuit {}", client_id(), m_network_identity->tor_circuit_id().value_or("default"));
+}
+
+void ConnectionFromClient::disable_tor()
+{
+    if (!m_network_identity)
+        return;
+
+    m_network_identity->clear_proxy_config();
+    dbgln("RequestServer: Tor disabled for client {}", client_id());
+}
+
+void ConnectionFromClient::rotate_tor_circuit()
+{
+    if (!m_network_identity) {
+        dbgln("RequestServer: Cannot rotate circuit - no network identity");
+        return;
+    }
+
+    if (!m_network_identity->has_tor_circuit()) {
+        dbgln("RequestServer: Cannot rotate circuit - Tor not enabled");
+        return;
+    }
+
+    auto result = m_network_identity->rotate_tor_circuit();
+    if (result.is_error()) {
+        dbgln("RequestServer: Failed to rotate Tor circuit: {}", result.error());
+        return;
+    }
+
+    dbgln("RequestServer: Tor circuit rotated for client {} to {}", client_id(), m_network_identity->tor_circuit_id().value_or("unknown"));
 }
 
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
@@ -698,6 +750,31 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
             set_option(CURLOPT_PIPEWAIT, 1L);
             set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
 
+            // Apply proxy configuration from NetworkIdentity (Tor/VPN support)
+            if (m_network_identity && m_network_identity->has_proxy()) {
+                auto const& proxy = m_network_identity->proxy_config().value();
+
+                // Set proxy URL (e.g., "socks5h://localhost:9050" for Tor)
+                set_option(CURLOPT_PROXY, proxy.to_curl_proxy_url().characters());
+
+                // Set proxy type for libcurl
+                if (proxy.type == IPC::ProxyType::SOCKS5H)
+                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);  // DNS via proxy (leak prevention)
+                else if (proxy.type == IPC::ProxyType::SOCKS5)
+                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+                else if (proxy.type == IPC::ProxyType::HTTP)
+                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+                else if (proxy.type == IPC::ProxyType::HTTPS)
+                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+
+                // Set SOCKS5 authentication for stream isolation (each tab gets unique Tor circuit)
+                if (auto auth = proxy.to_curl_auth_string(); auth.has_value())
+                    set_option(CURLOPT_PROXYUSERPWD, auth->characters());
+
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using proxy {} for request to {}",
+                    proxy.to_curl_proxy_url(), url);
+            }
+
             set_option(CURLOPT_CUSTOMREQUEST, method.characters());
             set_option(CURLOPT_FOLLOWLOCATION, 0);
 
@@ -749,7 +826,7 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
                 request->start_offset_of_resumed_response = resume_request->start_offset;
             }
 
-            // FIXME: Set up proxy if applicable
+            // NOTE: proxy_data parameter is legacy and unused - proxy configuration now comes from NetworkIdentity
             (void)proxy_data;
 
             set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
@@ -764,6 +841,10 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
                 request->curl_string_lists.append(resolve_list);
             } else
                 VERIFY_NOT_REACHED();
+
+            // Log request in NetworkIdentity audit trail
+            if (m_network_identity)
+                m_network_identity->log_request(url, method);
 
             auto result = curl_multi_add_handle(m_curl_multi, easy);
             VERIFY(result == CURLM_OK);
