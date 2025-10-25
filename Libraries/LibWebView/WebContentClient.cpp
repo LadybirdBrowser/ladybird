@@ -535,6 +535,11 @@ void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType st
     Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
 }
 
+Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    return Application::storage_jar().usage(storage_endpoint, storage_key);
+}
+
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
