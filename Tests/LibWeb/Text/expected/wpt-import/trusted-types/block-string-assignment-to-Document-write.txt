@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+15 Pass
+5 Fail
+Pass	document.write with html assigned via policy (successful URL transformation).
+Pass	document.write with multiple trusted arguments.
+Fail	document.writeln with html assigned via policy (successful URL transformation).
+Fail	document.writeln with multiple trusted arguments.
+Pass	`document.write(string)` throws
+Pass	`document.write(string, string)` throws
+Pass	`document.write(string, TrustedHTML)` throws
+Pass	`document.writeln(string)` throws
+Pass	`document.writeln(string, string)` throws
+Pass	`document.writeln(string, TrustedHTML)` throws
+Pass	`document.write(null)` throws
+Pass	`document.writeln(null)` throws
+Pass	`document.write(string)` observes default policy
+Pass	`document.write(string, string)` observes default policy
+Pass	`document.write(string, TrustedHTML)` observes default policy
+Pass	`document.write` passes the correct sink string to the default policy
+Fail	`document.writeln(string)` observes default policy
+Fail	`document.writeln(string, string)` observes default policy
+Fail	`document.writeln(string, TrustedHTML)` observes default policy
+Pass	`document.writeln` passes the correct sink string to the default policy

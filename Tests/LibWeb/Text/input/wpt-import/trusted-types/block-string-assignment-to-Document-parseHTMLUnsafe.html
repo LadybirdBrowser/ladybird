@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="author" title="Luke Warlow" href="mailto:lwarlow@igalia.com">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+
+  <link rel="help" href="https://html.spec.whatwg.org/#dom-parsehtmlunsafe">
+</head>
+<body>
+<script>
+  test(t => {
+    let p = createHTML_policy(window, 1);
+    let html = p.createHTML(INPUTS.HTML);
+    let doc = Document.parseHTMLUnsafe(html);
+    assert_equals(doc.body.innerText, RESULTS.HTML);
+  }, "Document.parseHTMLUnsafe assigned via policy (successful HTML transformation).");
+
+  // String assignments throw.
+  test(t => {
+    assert_throws_js(TypeError, _ => {
+      var doc = Document.parseHTMLUnsafe("Fail");
+    });
+  }, "`Document.parseHTMLUnsafe(string)` throws.");
+
+  // Null assignment throws.
+  test(t => {
+    assert_throws_js(TypeError, _ => {
+      var doc = Document.parseHTMLUnsafe(null);
+    });
+  }, "'Document.parseHTMLUnsafe(null)' throws");
+
+  // After default policy creation string assignment implicitly calls createHTML.
+  test(t => {
+    let p = window.trustedTypes.createPolicy("default", { createHTML:
+      (value, _, sink) => {
+        assert_equals(sink, "Document parseHTMLUnsafe");
+        return createHTMLJS(value);
+      }
+    });
+    let doc = Document.parseHTMLUnsafe(INPUTS.HTML);
+    assert_equals(doc.body.innerText, RESULTS.HTML);
+  }, "'Document.parseHTMLUnsafe(string)' assigned via default policy (successful HTML transformation).");
+
+  // After default policy creation null assignment implicitly calls createHTML.
+  test(t => {
+    var doc = Document.parseHTMLUnsafe(null);
+    assert_equals(doc.body.innerText, "null");
+  }, "'Document.parseHTMLUnsafe(null)' assigned via default policy does not throw");
+</script>
+</body>
+</html>

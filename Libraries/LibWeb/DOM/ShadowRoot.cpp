@@ -13,6 +13,8 @@
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::DOM {
 
@@ -63,22 +65,29 @@ EventTarget* ShadowRoot::get_parent(Event const& event)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
-WebIDL::ExceptionOr<String> ShadowRoot::inner_html() const
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> ShadowRoot::inner_html() const
 {
-    return serialize_fragment(HTML::RequireWellFormed::Yes);
+    return TRY(serialize_fragment(HTML::RequireWellFormed::Yes));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
-WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView value)
+WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
 {
-    // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, the given value, "ShadowRoot innerHTML", and "script".
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "ShadowRoot innerHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        value,
+        TrustedTypes::InjectionSink::ShadowRootinnerHTML,
+        TrustedTypes::Script.to_string()));
 
     // 2. Let context be this's host.
     auto context = this->host();
     VERIFY(context);
 
-    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString. FIXME: Use compliantString instead of markup.
-    auto fragment = TRY(context->parse_fragment(value));
+    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
+    auto fragment = TRY(context->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);
@@ -110,12 +119,19 @@ WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) 
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-sethtmlunsafe
-WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(StringView html)
+WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
 {
-    // FIXME: 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
+    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
+    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        html,
+        TrustedTypes::InjectionSink::ShadowRootsetHTMLUnsafe,
+        TrustedTypes::Script.to_string()));
 
-    // 3. Unsafe set HTML given this, this's shadow host, and compliantHTML. FIXME: Use compliantHTML.
-    TRY(unsafely_set_html(*this->host(), html));
+    // 2. Unsafely set HTML given this, this's shadow host, and compliantHTML.
+    TRY(unsafely_set_html(*this->host(), compliant_html.to_utf8_but_should_be_ported_to_utf16()));
 
     return {};
 }

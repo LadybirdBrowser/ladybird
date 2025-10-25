@@ -199,7 +199,7 @@ Optional<Utf16String> Node::text_content() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dom-node-textcontent%E2%91%A0
-void Node::set_text_content(Optional<Utf16String> const& maybe_content)
+WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& maybe_content)
 {
     // The textContent setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
@@ -209,19 +209,19 @@ void Node::set_text_content(Optional<Utf16String> const& maybe_content)
     if (is<DocumentFragment>(this) || is<Element>(this)) {
         // OPTIMIZATION: Replacing nothing with nothing is a no-op. Avoid all invalidation in this case.
         if (!first_child() && content.is_empty()) {
-            return;
+            return {};
         }
         string_replace_all(content);
     }
 
     // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
     else if (auto* character_data = as_if<CharacterData>(*this)) {
-        MUST(character_data->replace_data(0, character_data->length_in_utf16_code_units(), content));
+        TRY(character_data->replace_data(0, character_data->length_in_utf16_code_units(), content));
     }
 
     // If Attr, set an existing attribute value with this and the given value.
     else if (auto* attribute = as_if<Attr>(*this)) {
-        attribute->set_value(content.to_utf8_but_should_be_ported_to_utf16());
+        TRY(attribute->set_value(content.to_utf8_but_should_be_ported_to_utf16()));
     }
 
     // Otherwise, do nothing.
@@ -232,6 +232,7 @@ void Node::set_text_content(Optional<Utf16String> const& maybe_content)
     }
 
     document().bump_dom_tree_version();
+    return {};
 }
 
 // https://dom.spec.whatwg.org/#dom-node-normalize
@@ -368,7 +369,7 @@ Optional<String> Node::node_value() const
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dom-node-nodevalue%E2%91%A0
-void Node::set_node_value(Optional<String> const& maybe_value)
+WebIDL::ExceptionOr<void> Node::set_node_value(Optional<String> const& maybe_value)
 {
     // The nodeValue setter steps are to, if the given value is null, act as if it was the empty string instead,
     // and then do as described below, switching on the interface this implements:
@@ -376,13 +377,14 @@ void Node::set_node_value(Optional<String> const& maybe_value)
 
     // If Attr, set an existing attribute value with this and the given value.
     if (auto* attr = as_if<Attr>(this)) {
-        attr->set_value(move(value));
+        TRY(attr->set_value(move(value)));
     } else if (auto* character_data = as_if<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
         character_data->set_data(Utf16String::from_utf8(value));
     }
 
     // Otherwise, do nothing.
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
@@ -2089,14 +2091,14 @@ void Node::string_replace_all(Utf16String string)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-serializing-algorithm-steps
-WebIDL::ExceptionOr<String> Node::serialize_fragment(HTML::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
+WebIDL::ExceptionOr<Utf16String> Node::serialize_fragment(HTML::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
 {
     // 1. Let context document be the value of node's node document.
     auto const& context_document = document();
 
     // 2. If context document is an HTML document, return the result of HTML fragment serialization algorithm with node, false, and « ».
     if (context_document.is_html_document())
-        return HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode);
+        return Utf16String::from_utf8(HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode));
 
     // 3. Return the XML serialization of node given require well-formed.
     // AD-HOC: XML serialization algorithm returns the "outer" XML serialization of the node.
@@ -2107,9 +2109,9 @@ WebIDL::ExceptionOr<String> Node::serialize_fragment(HTML::RequireWellFormed req
             auto child_markup = TRY(HTML::serialize_node_to_xml_string(*child, require_well_formed));
             markup.append(child_markup.bytes_as_string_view());
         }
-        return MUST(markup.to_string());
+        return Utf16String::from_utf8(MUST(markup.to_string()));
     }
-    return HTML::serialize_node_to_xml_string(*this, require_well_formed);
+    return Utf16String::from_utf8(TRY(HTML::serialize_node_to_xml_string(*this, require_well_formed)));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#unsafely-set-html
