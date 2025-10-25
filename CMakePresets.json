@@ -83,6 +83,18 @@
       }
     },
     {
+      "name": "All_Debug",
+      "inherits": "unix_base",
+      "displayName": "All Debug Config",
+      "description": "All Debug Unix build",
+      "binaryDir": "${fileDir}/Build/alldebug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
+        "ENABLE_ALL_THE_DEBUG_MACROS": "ON"
+      }
+    },
+    {
       "name": "Windows_Experimental",
       "inherits": "windows_base",
       "displayName": "Windows Experimental Config",
