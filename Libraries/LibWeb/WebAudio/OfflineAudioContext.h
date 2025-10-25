@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,12 +43,18 @@ public:
     void set_oncomplete(GC::Ptr<WebIDL::CallbackType>);
 
 private:
-    OfflineAudioContext(JS::Realm&, WebIDL::UnsignedLong length, float sample_rate);
+    OfflineAudioContext(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     WebIDL::UnsignedLong m_length {};
+    WebIDL::UnsignedLong m_number_of_channels {};
+    bool m_rendering_started { false };
+
+    GC::Ptr<AudioBuffer> m_rendered_buffer;
+
+    void begin_offline_rendering(GC::Ref<WebIDL::Promise> promise);
 };
 
 }

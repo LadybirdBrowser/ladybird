@@ -1,0 +1,24 @@
+<!doctype html>
+<title>Test for rejected promise from startRendering() on an
+  OfflineAudioContext in a discarded browsing context</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<body></body>
+<script>
+let context;
+let childDOMException;
+setup(() => {
+  const frame = document.createElement('iframe');
+  document.body.appendChild(frame);
+  context = new frame.contentWindow.OfflineAudioContext(
+    {length: 1, sampleRate: 48000});
+  childDOMException = frame.contentWindow.DOMException;
+  frame.remove();
+});
+
+promise_test((t) => promise_rejects_dom(
+  t, 'InvalidStateError', childDOMException, context.startRendering()),
+             'startRendering()');
+// decodeAudioData() is tested in
+// offlineaudiocontext-detached-execution-context.html
+</script>

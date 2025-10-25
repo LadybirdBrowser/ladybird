@@ -1,11 +1,22 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-
-    // Once the ctor‑offlineaudiocontext WPT test is updated to check
-    // renderQuantumSize and renderSizeHint, this test is not needed.
-    test(() => {
+    asyncTest(async done => {
+        // Once the ctor‑offlineaudiocontext WPT test is updated to check
+        // renderQuantumSize and renderSizeHint, this test is not needed.
         const audioContext = new OfflineAudioContext(1, 1, 44100)
         println(`${audioContext.renderQuantumSize}`);
+
+        // Second call must reject with InvalidStateError
+        await audioContext.startRendering();
+
+        try {
+            await audioContext.startRendering();
+            println('FAIL: started rendering on repeated call');
+        } catch (e) {
+            println(`${e}`);
+        }
+
+        done();
     });
 </script>
