@@ -11,6 +11,7 @@
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>

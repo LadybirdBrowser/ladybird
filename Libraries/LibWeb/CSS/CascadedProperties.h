@@ -9,7 +9,6 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
-#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

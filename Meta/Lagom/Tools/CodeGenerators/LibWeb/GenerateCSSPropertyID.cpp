@@ -164,6 +164,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 #include <AK/Traits.h>
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/CSS/AcceptedTypeRange.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/Export.h>
@@ -259,11 +260,6 @@ bool property_is_single_valued(PropertyID);
 bool property_is_list_valued(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
-struct AcceptedTypeRange {
-    float min;
-    float max;
-};
-using AcceptedTypeRangeMap = HashMap<ValueType, AcceptedTypeRange>;
 AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
@@ -338,10 +334,6 @@ Optional<LogicalPropertyGroup> logical_property_group_for_property(PropertyID);
 } // namespace Web::CSS
 
 namespace AK {
-template<>
-struct Traits<Web::CSS::PropertyID> : public DefaultTraits<Web::CSS::PropertyID> {
-    static unsigned hash(Web::CSS::PropertyID property_id) { return int_hash((unsigned)property_id); }
-};
 
 template<>
 struct Formatter<Web::CSS::PropertyID> : Formatter<StringView> {

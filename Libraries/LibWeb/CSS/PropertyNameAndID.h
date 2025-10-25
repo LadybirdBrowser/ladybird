@@ -8,7 +8,6 @@
 
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
-#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
 

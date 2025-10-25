@@ -434,9 +434,11 @@ set(SOURCES
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
     HTML/Canvas/CanvasDrawImage.cpp
+    HTML/Canvas/CanvasFillStrokeStyles.cpp
     HTML/Canvas/CanvasPath.cpp
     HTML/Canvas/CanvasSettings.cpp
     HTML/Canvas/CanvasState.cpp
+    HTML/Canvas/CanvasTextDrawingStyles.cpp
     HTML/Canvas/SerializeBitmap.cpp
     HTML/CanvasGradient.cpp
     HTML/CanvasPattern.cpp
@@ -921,6 +923,7 @@ set(SOURCES
     SVG/SVGFEMergeNodeElement.cpp
     SVG/SVGFEOffsetElement.cpp
     SVG/SVGFilterElement.cpp
+    SVG/SVGFilterPrimitiveStandardAttributes.cpp
     SVG/SVGFitToViewBox.cpp
     SVG/SVGForeignObjectElement.cpp
     SVG/SVGGElement.cpp
