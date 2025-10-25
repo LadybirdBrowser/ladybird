@@ -247,7 +247,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
 
         // 4. Fetch request.
         m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input));
-        m_fetch_controller = MUST(Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms));
+        m_fetch_controller = Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms);
     } else {
         track_failed_to_load();
         return;
