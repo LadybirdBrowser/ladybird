@@ -13,7 +13,6 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <LibDatabase/Database.h>
-#include <LibHTTP/HeaderMap.h>
 #include <LibURL/Forward.h>
 #include <RequestServer/Cache/CacheEntry.h>
 #include <RequestServer/Cache/CacheIndex.h>
@@ -24,8 +23,10 @@ class DiskCache {
 public:
     static ErrorOr<DiskCache> create();
 
-    Optional<CacheEntryWriter&> create_entry(URL::URL const&, StringView method, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&, UnixDateTime request_time);
-    Optional<CacheEntryReader&> open_entry(URL::URL const&, StringView method);
+    struct CacheHasOpenEntry { };
+    Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(Request&);
+    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(Request&);
+
     void clear_cache();
 
     LexicalPath const& cache_directory() { return m_cache_directory; }
@@ -35,9 +36,16 @@ public:
 private:
     DiskCache(NonnullRefPtr<Database::Database>, LexicalPath cache_directory, CacheIndex);
 
+    enum class CheckReaderEntries {
+        No,
+        Yes,
+    };
+    bool check_if_cache_has_open_entry(Request&, u64 cache_key, CheckReaderEntries);
+
     NonnullRefPtr<Database::Database> m_database;
 
-    HashMap<FlatPtr, NonnullOwnPtr<CacheEntry>> m_open_cache_entries;
+    HashMap<u64, Vector<NonnullOwnPtr<CacheEntry>, 1>> m_open_cache_entries;
+    HashMap<u64, Vector<WeakPtr<Request>, 1>> m_requests_waiting_completion;
 
     LexicalPath m_cache_directory;
     CacheIndex m_index;

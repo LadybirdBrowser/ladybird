@@ -17,7 +17,8 @@ namespace RequestServer {
 String serialize_url_for_cache_storage(URL::URL const&);
 u64 create_cache_key(StringView url, StringView method);
 
-bool is_cacheable(StringView method, u32 status_code, HTTP::HeaderMap const&);
+bool is_cacheable(StringView method);
+bool is_cacheable(u32 status_code, HTTP::HeaderMap const&);
 bool is_header_exempted_from_storage(StringView name);
 
 AK::Duration calculate_freshness_lifetime(HTTP::HeaderMap const&);

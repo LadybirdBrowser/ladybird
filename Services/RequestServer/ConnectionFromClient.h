@@ -6,24 +6,15 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/HashMap.h>
-#include <LibDNS/Resolver.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibWebSocket/WebSocket.h>
+#include <RequestServer/Forward.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
 namespace RequestServer {
-
-struct Resolver : public RefCounted<Resolver>
-    , Weakable<Resolver> {
-    Resolver(Function<ErrorOr<DNS::Resolver::SocketResult>()> create_socket)
-        : dns(move(create_socket))
-    {
-    }
-
-    DNS::Resolver dns;
-};
 
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint> {
@@ -33,6 +24,8 @@ public:
     ~ConnectionFromClient() override;
 
     virtual void die() override;
+
+    void request_complete(Badge<Request>, int request_id);
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -56,37 +49,25 @@ private:
     virtual void websocket_close(i64 websocket_id, u16, ByteString) override;
     virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i64, ByteString, ByteString) override;
 
-    struct ResumeRequestForFailedCacheEntry {
-        size_t start_offset { 0 };
-        int writer_fd { 0 };
-    };
-    void issue_network_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry> = {});
-
-    HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
-
-    struct ActiveRequest;
-    friend struct ActiveRequest;
+    static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
+    static int on_timeout_callback(void*, long timeout_ms, void* user_data);
+    void check_active_requests();
 
     static ErrorOr<IPC::File> create_client_socket();
 
-    static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
-    static int on_timeout_callback(void*, long timeout_ms, void* user_data);
-    static size_t on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data);
-    static size_t on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data);
-
-    HashMap<i32, NonnullOwnPtr<ActiveRequest>> m_active_requests;
-
-    void check_active_requests();
     void* m_curl_multi { nullptr };
+
+    HashMap<i32, NonnullOwnPtr<Request>> m_active_requests;
+    HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
+
     RefPtr<Core::Timer> m_timer;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
+
     NonnullRefPtr<Resolver> m_resolver;
     ByteString m_alt_svc_cache_path;
 };
 
-// FIXME: Find a good home for this
-ByteString build_curl_resolve_list(DNS::LookupResult const&, StringView host, u16 port);
 constexpr inline uintptr_t websocket_private_tag = 0x1;
 
 }

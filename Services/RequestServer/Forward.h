@@ -12,6 +12,11 @@ class CacheEntry;
 class CacheEntryReader;
 class CacheEntryWriter;
 class CacheIndex;
+class ConnectionFromClient;
 class DiskCache;
+class Request;
+
+struct DNSInfo;
+struct Resolver;
 
 }

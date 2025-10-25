@@ -71,13 +71,18 @@ u64 create_cache_key(StringView url, StringView method)
 }
 
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
-bool is_cacheable(StringView method, u32 status_code, HTTP::HeaderMap const& headers)
+bool is_cacheable(StringView method)
 {
     // A cache MUST NOT store a response to a request unless:
 
     // * the request method is understood by the cache;
-    if (!method.is_one_of("GET"sv, "HEAD"sv))
-        return false;
+    return method.is_one_of("GET"sv, "HEAD"sv);
+}
+
+// https://httpwg.org/specs/rfc9111.html#response.cacheability
+bool is_cacheable(u32 status_code, HTTP::HeaderMap const& headers)
+{
+    // A cache MUST NOT store a response to a request unless:
 
     // * the response status code is final (see Section 15 of [HTTP]);
     if (status_code < 200)
