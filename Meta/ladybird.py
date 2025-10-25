@@ -271,6 +271,7 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
 
     known_presets = {
         "Debug": build_root_dir / "debug",
+        "All_Debug": build_root_dir / "alldebug",
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
