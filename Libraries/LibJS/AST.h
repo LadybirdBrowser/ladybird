@@ -9,9 +9,11 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/EnumBits.h>
 #include <AK/FlyString.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
@@ -54,6 +56,38 @@ create_ast_node(SourceRange range, Args&&... args)
     return adopt_ref(*new T(move(range), forward<Args>(args)...));
 }
 
+#define FOR_EACH_AST_NODE_TYPE_WITH_FAST_IS(X) \
+    X(NewExpression)                           \
+    X(MemberExpression)                        \
+    X(SuperExpression)                         \
+    X(FunctionExpression)                      \
+    X(ClassExpression)                         \
+    X(ExpressionStatement)                     \
+    X(Identifier)                              \
+    X(PrivateIdentifier)                       \
+    X(ScopeNode)                               \
+    X(Program)                                 \
+    X(ClassDeclaration)                        \
+    X(FunctionDeclaration)                     \
+    X(VariableDeclaration)                     \
+    X(ImportCall)                              \
+    X(ArrayExpression)                         \
+    X(ObjectExpression)                        \
+    X(NumericLiteral)                          \
+    X(StringLiteral)                           \
+    X(BooleanLiteral)                          \
+    X(NullLiteral)                             \
+    X(UpdateExpression)                        \
+    X(CallExpression)                          \
+    X(LabelledStatement)                       \
+    X(IterationStatement)                      \
+    X(ClassMethod)                             \
+    X(SpreadExpression)                        \
+    X(FunctionBody)                            \
+    X(BlockStatement)                          \
+    X(PrimitiveLiteral)                        \
+    X(OptionalChain)
+
 class JS_API ASTNode : public RefCounted<ASTNode> {
 public:
     virtual ~ASTNode() = default;
@@ -81,38 +115,20 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    virtual bool is_new_expression() const { return false; }
-    virtual bool is_member_expression() const { return false; }
-    virtual bool is_super_expression() const { return false; }
-    virtual bool is_function_expression() const { return false; }
-    virtual bool is_class_expression() const { return false; }
-    virtual bool is_expression_statement() const { return false; }
-    virtual bool is_identifier() const { return false; }
-    virtual bool is_private_identifier() const { return false; }
-    virtual bool is_scope_node() const { return false; }
-    virtual bool is_program() const { return false; }
-    virtual bool is_class_declaration() const { return false; }
-    virtual bool is_function_declaration() const { return false; }
-    virtual bool is_variable_declaration() const { return false; }
-    virtual bool is_import_call() const { return false; }
-    virtual bool is_array_expression() const { return false; }
-    virtual bool is_object_expression() const { return false; }
-    virtual bool is_numeric_literal() const { return false; }
-    virtual bool is_string_literal() const { return false; }
-    virtual bool is_boolean_literal() const { return false; }
-    virtual bool is_null_literal() const { return false; }
-    virtual bool is_update_expression() const { return false; }
-    virtual bool is_call_expression() const { return false; }
-    virtual bool is_labelled_statement() const { return false; }
-    virtual bool is_iteration_statement() const { return false; }
-    virtual bool is_class_method() const { return false; }
-    virtual bool is_spread_expression() const { return false; }
-    virtual bool is_function_body() const { return false; }
-    virtual bool is_block_statement() const { return false; }
-    virtual bool is_primitive_literal() const { return false; }
-    virtual bool is_optional_chain() const { return false; }
-
 protected:
+#define X(NodeType) \
+    NodeType = 1 << __COUNTER__,
+    enum class NodeType : u64 {
+        AstNode = 0,
+        FOR_EACH_AST_NODE_TYPE_WITH_FAST_IS(X)
+    };
+#undef X
+    AK_ENUM_BITWISE_FRIEND_OPERATORS(ASTNode::NodeType);
+    // FIXME: it would be nice if we could make the accessor a deducing-this function,
+    //        but that is not supported by the c++ standard yet (maybe with some more template shenanigans though).
+    static constexpr NodeType s_node_type = NodeType::AstNode;
+    virtual NodeType node_type() const { return s_node_type; }
+
     explicit ASTNode(SourceRange);
 
 private:
@@ -122,6 +138,16 @@ private:
     RefPtr<SourceCode const> m_source_code;
     u32 m_end_offset { 0 };
 };
+
+#define AST_NODE_ADD_FAST_IS(klass, parent...)                                     \
+protected:                                                                         \
+    constexpr static NodeType s_node_type = parent::s_node_type | NodeType::klass; \
+    virtual NodeType node_type() const override                                    \
+    {                                                                              \
+        static_assert(IsBaseOf<parent, klass>);                                    \
+        static_assert(IsSame<decltype(this), klass const*>);                       \
+        return s_node_type;                                                        \
+    }
 
 // This is a helper class that packs an array of T after the AST node, all in the same allocation.
 template<typename Derived, typename Base, typename T>
@@ -186,6 +212,7 @@ private:
 
 // 14.13 Labelled Statements, https://tc39.es/ecma262/#sec-labelled-statements
 class LabelledStatement final : public Statement {
+    AST_NODE_ADD_FAST_IS(LabelledStatement, Statement)
 public:
     LabelledStatement(SourceRange source_range, FlyString label, NonnullRefPtr<Statement const> labelled_item)
         : Statement(move(source_range))
@@ -203,8 +230,6 @@ public:
     NonnullRefPtr<Statement const> const& labelled_item() const { return m_labelled_item; }
 
 private:
-    virtual bool is_labelled_statement() const final { return true; }
-
     FlyString m_label;
     NonnullRefPtr<Statement const> m_labelled_item;
 };
@@ -221,13 +246,11 @@ protected:
 };
 
 class IterationStatement : public Statement {
+    AST_NODE_ADD_FAST_IS(IterationStatement, Statement)
 public:
     using Statement::Statement;
 
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_labelled_evaluation(Bytecode::Generator&, Vector<FlyString> const&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const = 0;
-
-private:
-    virtual bool is_iteration_statement() const final { return true; }
 };
 
 class EmptyStatement final : public Statement {
@@ -248,6 +271,7 @@ public:
 };
 
 class ExpressionStatement final : public Statement {
+    AST_NODE_ADD_FAST_IS(ExpressionStatement, Statement)
 public:
     ExpressionStatement(SourceRange source_range, NonnullRefPtr<Expression const> expression)
         : Statement(move(source_range))
@@ -261,8 +285,6 @@ public:
     Expression const& expression() const { return m_expression; }
 
 private:
-    virtual bool is_expression_statement() const override { return true; }
-
     NonnullRefPtr<Expression const> m_expression;
 };
 
@@ -296,6 +318,7 @@ public:
 };
 
 class JS_API ScopeNode : public Statement {
+    AST_NODE_ADD_FAST_IS(ScopeNode, Statement)
 public:
     template<typename T, typename... Args>
     T& append(SourceRange range, Args&&... args)
@@ -359,8 +382,6 @@ protected:
     }
 
 private:
-    virtual bool is_scope_node() const final { return true; }
-
     Vector<NonnullRefPtr<Statement const>> m_children;
     Vector<NonnullRefPtr<Declaration const>> m_lexical_declarations;
     Vector<NonnullRefPtr<Declaration const>> m_var_declarations;
@@ -532,6 +553,7 @@ private:
 };
 
 class Program final : public ScopeNode {
+    AST_NODE_ADD_FAST_IS(Program, ScopeNode)
 public:
     enum class Type {
         Script,
@@ -573,8 +595,6 @@ public:
     ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&) const;
 
 private:
-    virtual bool is_program() const override { return true; }
-
     bool m_is_strict_mode { false };
     Type m_type { Type::Script };
 
@@ -584,17 +604,16 @@ private:
 };
 
 class BlockStatement final : public ScopeNode {
+    AST_NODE_ADD_FAST_IS(BlockStatement, ScopeNode)
 public:
     explicit BlockStatement(SourceRange source_range)
         : ScopeNode(move(source_range))
     {
     }
-
-private:
-    virtual bool is_block_statement() const override { return true; }
 };
 
 class FunctionBody final : public ScopeNode {
+    AST_NODE_ADD_FAST_IS(FunctionBody, ScopeNode)
 public:
     explicit FunctionBody(SourceRange source_range)
         : ScopeNode(move(source_range))
@@ -606,8 +625,6 @@ public:
     bool in_strict_mode() const { return m_in_strict_mode; }
 
 private:
-    virtual bool is_function_body() const override { return true; }
-
     bool m_in_strict_mode { false };
 };
 
@@ -677,6 +694,7 @@ struct BindingPattern : RefCounted<BindingPattern> {
 };
 
 class Identifier final : public Expression {
+    AST_NODE_ADD_FAST_IS(Identifier, Expression)
 public:
     explicit Identifier(SourceRange source_range, Utf16FlyString string)
         : Expression(move(source_range))
@@ -720,8 +738,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    virtual bool is_identifier() const override { return true; }
-
     Utf16FlyString m_string;
 
     Optional<Local> m_local_index;
@@ -830,6 +846,7 @@ private:
 class FunctionDeclaration final
     : public Declaration
     , public FunctionNode {
+    AST_NODE_ADD_FAST_IS(FunctionDeclaration, Declaration)
 public:
     static bool must_have_name() { return true; }
 
@@ -843,8 +860,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
     ThrowCompletionOr<void> for_each_bound_identifier(ThrowCompletionOrVoidCallback<Identifier const&>&&) const override;
-
-    virtual bool is_function_declaration() const override { return true; }
 
     void set_should_do_additional_annexB_steps() { m_is_hoisted = true; }
 
@@ -860,6 +875,7 @@ private:
 class FunctionExpression final
     : public Expression
     , public FunctionNode {
+    AST_NODE_ADD_FAST_IS(FunctionExpression, Expression)
 public:
     static bool must_have_name() { return false; }
 
@@ -879,9 +895,6 @@ public:
     Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const override;
 
     virtual ~FunctionExpression() { }
-
-private:
-    virtual bool is_function_expression() const override { return true; }
 };
 
 class ErrorExpression final : public Expression {
@@ -1237,6 +1250,7 @@ private:
 };
 
 class PrimitiveLiteral : public Expression {
+    AST_NODE_ADD_FAST_IS(PrimitiveLiteral, Expression)
 public:
     virtual Value value() const = 0;
 
@@ -1245,12 +1259,10 @@ protected:
         : Expression(move(source_range))
     {
     }
-
-private:
-    virtual bool is_primitive_literal() const override { return true; }
 };
 
 class BooleanLiteral final : public PrimitiveLiteral {
+    AST_NODE_ADD_FAST_IS(BooleanLiteral, PrimitiveLiteral)
 public:
     explicit BooleanLiteral(SourceRange source_range, bool value)
         : PrimitiveLiteral(move(source_range))
@@ -1264,12 +1276,11 @@ public:
     virtual Value value() const override { return Value(m_value); }
 
 private:
-    virtual bool is_boolean_literal() const override { return true; }
-
     bool m_value { false };
 };
 
 class NumericLiteral final : public PrimitiveLiteral {
+    AST_NODE_ADD_FAST_IS(NumericLiteral, PrimitiveLiteral)
 public:
     explicit NumericLiteral(SourceRange source_range, double value)
         : PrimitiveLiteral(move(source_range))
@@ -1283,8 +1294,6 @@ public:
     virtual Value value() const override { return m_value; }
 
 private:
-    virtual bool is_numeric_literal() const override { return true; }
-
     Value m_value;
 };
 
@@ -1304,6 +1313,7 @@ private:
 };
 
 class StringLiteral final : public Expression {
+    AST_NODE_ADD_FAST_IS(StringLiteral, Expression)
 public:
     explicit StringLiteral(SourceRange source_range, Utf16String value)
         : Expression(move(source_range))
@@ -1317,12 +1327,11 @@ public:
     Utf16String const& value() const { return m_value; }
 
 private:
-    virtual bool is_string_literal() const override { return true; }
-
     Utf16String m_value;
 };
 
 class NullLiteral final : public PrimitiveLiteral {
+    AST_NODE_ADD_FAST_IS(NullLiteral, PrimitiveLiteral)
 public:
     explicit NullLiteral(SourceRange source_range)
         : PrimitiveLiteral(move(source_range))
@@ -1333,9 +1342,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
     virtual Value value() const override { return js_null(); }
-
-private:
-    virtual bool is_null_literal() const override { return true; }
 };
 
 class RegExpLiteral final : public Expression {
@@ -1368,6 +1374,7 @@ private:
 };
 
 class PrivateIdentifier final : public Expression {
+    AST_NODE_ADD_FAST_IS(PrivateIdentifier, Expression)
 public:
     explicit PrivateIdentifier(SourceRange source_range, Utf16FlyString string)
         : Expression(move(source_range))
@@ -1378,8 +1385,6 @@ public:
     Utf16FlyString const& string() const { return m_string; }
 
     virtual void dump(int indent) const override;
-
-    virtual bool is_private_identifier() const override { return true; }
 
 private:
     Utf16FlyString m_string;
@@ -1413,6 +1418,7 @@ private:
 };
 
 class ClassMethod final : public ClassElement {
+    AST_NODE_ADD_FAST_IS(ClassMethod, ClassElement)
 public:
     enum class Kind {
         Method,
@@ -1437,7 +1443,6 @@ public:
     virtual Optional<Utf16FlyString> private_bound_identifier() const override;
 
 private:
-    virtual bool is_class_method() const override { return true; }
     NonnullRefPtr<Expression const> m_key;
     NonnullRefPtr<FunctionExpression const> m_function;
     Kind m_kind;
@@ -1485,6 +1490,7 @@ private:
 };
 
 class SuperExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(SuperExpression, Expression)
 public:
     explicit SuperExpression(SourceRange source_range)
         : Expression(move(source_range))
@@ -1493,11 +1499,10 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
-
-    virtual bool is_super_expression() const override { return true; }
 };
 
 class ClassExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(ClassExpression, Expression)
 public:
     ClassExpression(SourceRange source_range, RefPtr<Identifier const> name, ByteString source_text, RefPtr<FunctionExpression const> constructor, RefPtr<Expression const> super_class, Vector<NonnullRefPtr<ClassElement const>> elements)
         : Expression(move(source_range))
@@ -1523,8 +1528,6 @@ public:
     ThrowCompletionOr<ECMAScriptFunctionObject*> create_class_constructor(VM&, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<Utf16FlyString> const& binding_name = {}, Utf16FlyString const& class_name = {}) const;
 
 private:
-    virtual bool is_class_expression() const override { return true; }
-
     friend ClassDeclaration;
 
     RefPtr<Identifier const> m_name;
@@ -1535,6 +1538,7 @@ private:
 };
 
 class ClassDeclaration final : public Declaration {
+    AST_NODE_ADD_FAST_IS(ClassDeclaration, Declaration)
 public:
     ClassDeclaration(SourceRange source_range, NonnullRefPtr<ClassExpression const> class_expression)
         : Declaration(move(source_range))
@@ -1552,8 +1556,6 @@ public:
     Utf16FlyString name() const { return m_class_expression->name(); }
 
 private:
-    virtual bool is_class_declaration() const override { return true; }
-
     friend ExportStatement;
 
     NonnullRefPtr<ClassExpression const> m_class_expression;
@@ -1579,6 +1581,7 @@ private:
 };
 
 class SpreadExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(SpreadExpression, Expression)
 public:
     explicit SpreadExpression(SourceRange source_range, NonnullRefPtr<Expression const> target)
         : Expression(move(source_range))
@@ -1590,8 +1593,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    virtual bool is_spread_expression() const override { return true; }
-
     NonnullRefPtr<Expression const> m_target;
 };
 
@@ -1626,6 +1627,7 @@ class CallExpression : public ASTNodeWithTailArray<CallExpression, Expression, C
     InvocationStyleEnum m_invocation_style;
     InsideParenthesesEnum m_inside_parentheses;
 
+    AST_NODE_ADD_FAST_IS(CallExpression, ASTNodeWithTailArray<CallExpression, Expression, CallExpressionArgument>)
 public:
     using Argument = CallExpressionArgument;
 
@@ -1650,9 +1652,6 @@ protected:
         , m_callee(move(callee))
     {
     }
-
-    virtual bool is_call_expression() const override { return true; }
-
     Optional<Utf16String> expression_string() const;
 
     NonnullRefPtr<Expression const> m_callee;
@@ -1661,10 +1660,9 @@ protected:
 class NewExpression final : public CallExpression {
     friend class ASTNodeWithTailArray;
 
+    AST_NODE_ADD_FAST_IS(NewExpression, CallExpression)
 public:
     static NonnullRefPtr<NewExpression> create(SourceRange, NonnullRefPtr<Expression const> callee, ReadonlySpan<Argument> arguments, InvocationStyleEnum invocation_style, InsideParenthesesEnum inside_parens);
-
-    virtual bool is_new_expression() const override { return true; }
 
 private:
     NewExpression(SourceRange source_range, NonnullRefPtr<Expression const> callee, ReadonlySpan<Argument> arguments, InvocationStyleEnum invocation_style, InsideParenthesesEnum inside_parens)
@@ -1759,6 +1757,7 @@ enum class UpdateOp {
 };
 
 class UpdateExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(UpdateExpression, Expression)
 public:
     UpdateExpression(SourceRange source_range, UpdateOp op, NonnullRefPtr<Expression const> argument, bool prefixed = false)
         : Expression(move(source_range))
@@ -1772,8 +1771,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    virtual bool is_update_expression() const override { return true; }
-
     UpdateOp m_op;
     NonnullRefPtr<Expression const> m_argument;
     bool m_prefixed;
@@ -1812,6 +1809,7 @@ private:
 };
 
 class VariableDeclaration final : public Declaration {
+    AST_NODE_ADD_FAST_IS(VariableDeclaration, Declaration)
 public:
     VariableDeclaration(SourceRange source_range, DeclarationKind declaration_kind, Vector<NonnullRefPtr<VariableDeclarator const>> declarations)
         : Declaration(move(source_range))
@@ -1834,8 +1832,6 @@ public:
     virtual bool is_lexical_declaration() const override { return m_declaration_kind != DeclarationKind::Var; }
 
 private:
-    virtual bool is_variable_declaration() const override { return true; }
-
     DeclarationKind m_declaration_kind;
     Vector<NonnullRefPtr<VariableDeclarator const>> m_declarations;
 };
@@ -1901,6 +1897,7 @@ private:
 };
 
 class ObjectExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(ObjectExpression, Expression)
 public:
     explicit ObjectExpression(SourceRange source_range, Vector<NonnullRefPtr<ObjectProperty>> properties = {})
         : Expression(move(source_range))
@@ -1912,12 +1909,11 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    virtual bool is_object_expression() const override { return true; }
-
     Vector<NonnullRefPtr<ObjectProperty>> m_properties;
 };
 
 class ArrayExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(ArrayExpression, Expression)
 public:
     ArrayExpression(SourceRange source_range, Vector<RefPtr<Expression const>> elements)
         : Expression(move(source_range))
@@ -1931,8 +1927,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    virtual bool is_array_expression() const override { return true; }
-
     Vector<RefPtr<Expression const>> m_elements;
 };
 
@@ -1980,6 +1974,7 @@ private:
 };
 
 class MemberExpression final : public Expression {
+    AST_NODE_ADD_FAST_IS(MemberExpression, Expression)
 public:
     MemberExpression(SourceRange source_range, NonnullRefPtr<Expression const> object, NonnullRefPtr<Expression const> property, bool computed = false)
         : Expression(move(source_range))
@@ -2001,14 +1996,13 @@ public:
     bool ends_in_private_name() const;
 
 private:
-    virtual bool is_member_expression() const override { return true; }
-
     bool m_computed { false };
     NonnullRefPtr<Expression const> m_object;
     NonnullRefPtr<Expression const> m_property;
 };
 
 class OptionalChain final : public Expression {
+    AST_NODE_ADD_FAST_IS(OptionalChain, Expression)
 public:
     enum class Mode {
         Optional,
@@ -2048,8 +2042,6 @@ public:
     Vector<Reference> const& references() const { return m_references; }
 
 private:
-    virtual bool is_optional_chain() const override { return true; }
-
     NonnullRefPtr<Expression const> m_base;
     Vector<Reference> m_references;
 };
@@ -2075,6 +2067,7 @@ private:
 };
 
 class ImportCall final : public Expression {
+    AST_NODE_ADD_FAST_IS(ImportCall, Expression)
 public:
     ImportCall(SourceRange source_range, NonnullRefPtr<Expression const> specifier, RefPtr<Expression const> options)
         : Expression(move(source_range))
@@ -2087,8 +2080,6 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
 private:
-    virtual bool is_import_call() const override { return true; }
-
     NonnullRefPtr<Expression const> m_specifier;
     RefPtr<Expression const> m_options;
 };
@@ -2275,94 +2266,11 @@ private:
     Value m_value;
 };
 
-template<>
-inline bool ASTNode::fast_is<NewExpression>() const { return is_new_expression(); }
+#define MAKE_FAST_IS(type) \
+    template<>             \
+    inline bool ASTNode::fast_is<type>() const { return (node_type() & NodeType::type) == NodeType::type; }
 
-template<>
-inline bool ASTNode::fast_is<MemberExpression>() const { return is_member_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<SuperExpression>() const { return is_super_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<FunctionExpression>() const { return is_function_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<ClassExpression>() const { return is_class_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<Identifier>() const { return is_identifier(); }
-
-template<>
-inline bool ASTNode::fast_is<PrivateIdentifier>() const { return is_private_identifier(); }
-
-template<>
-inline bool ASTNode::fast_is<ExpressionStatement>() const { return is_expression_statement(); }
-
-template<>
-inline bool ASTNode::fast_is<ScopeNode>() const { return is_scope_node(); }
-
-template<>
-inline bool ASTNode::fast_is<Program>() const { return is_program(); }
-
-template<>
-inline bool ASTNode::fast_is<ClassDeclaration>() const { return is_class_declaration(); }
-
-template<>
-inline bool ASTNode::fast_is<FunctionDeclaration>() const { return is_function_declaration(); }
-
-template<>
-inline bool ASTNode::fast_is<VariableDeclaration>() const { return is_variable_declaration(); }
-
-template<>
-inline bool ASTNode::fast_is<ArrayExpression>() const { return is_array_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<ObjectExpression>() const { return is_object_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<ImportCall>() const { return is_import_call(); }
-
-template<>
-inline bool ASTNode::fast_is<NumericLiteral>() const { return is_numeric_literal(); }
-
-template<>
-inline bool ASTNode::fast_is<BooleanLiteral>() const { return is_boolean_literal(); }
-
-template<>
-inline bool ASTNode::fast_is<NullLiteral>() const { return is_null_literal(); }
-
-template<>
-inline bool ASTNode::fast_is<StringLiteral>() const { return is_string_literal(); }
-
-template<>
-inline bool ASTNode::fast_is<UpdateExpression>() const { return is_update_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<CallExpression>() const { return is_call_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<LabelledStatement>() const { return is_labelled_statement(); }
-
-template<>
-inline bool ASTNode::fast_is<IterationStatement>() const { return is_iteration_statement(); }
-
-template<>
-inline bool ASTNode::fast_is<ClassMethod>() const { return is_class_method(); }
-
-template<>
-inline bool ASTNode::fast_is<SpreadExpression>() const { return is_spread_expression(); }
-
-template<>
-inline bool ASTNode::fast_is<FunctionBody>() const { return is_function_body(); }
-
-template<>
-inline bool ASTNode::fast_is<BlockStatement>() const { return is_block_statement(); }
-
-template<>
-inline bool ASTNode::fast_is<PrimitiveLiteral>() const { return is_primitive_literal(); }
-
-template<>
-inline bool ASTNode::fast_is<OptionalChain>() const { return is_optional_chain(); }
+FOR_EACH_AST_NODE_TYPE_WITH_FAST_IS(MAKE_FAST_IS)
+#undef MAKE_FAST_IS
 
 }
