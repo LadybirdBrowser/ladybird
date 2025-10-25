@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Pass
+Pass	The :read-write pseudo-class must not match input elements to which the readonly attribute does not apply
+Pass	The :read-only pseudo-class must match input elements to which the readonly attribute does not apply
+Pass	The :read-write pseudo-class must match input elements to which the readonly attribute applies, and that are mutable
+Pass	The :read-only pseudo-class must not match input elements to which the readonly attribute applies, and that are mutable
+Pass	The :read-write pseudo-class must not match input elements after the readonly attribute has been added
+Pass	The :read-only pseudo-class must match input elements after the readonly attribute has been added
+Pass	The :read-write pseudo-class must not match input elements after the readonly attribute has been removed
+Pass	The :read-only pseudo-class must match input elements after the readonly attribute has been removed
+Pass	The :read-write pseudo-class must not match input elements after the disabled attribute has been added
+Pass	The :read-only pseudo-class must match input elements after the disabled attribute has been added
+Pass	The :read-write pseudo-class must match input elements after the disabled attribute has been removed
+Pass	The :read-only pseudo-class must not match input elements after the disabled attribute has been removed
+Pass	The :read-write pseudo-class must match textarea elements that do not have a readonly attribute, and that are not disabled
+Pass	The :read-only pseudo-class must match textarea elements that have a readonly attribute, or that are disabled
+Pass	The :read-write pseudo-class must match textarea elements after the readonly attribute has been added
+Pass	The :read-only pseudo-class must match textarea elements after the readonly attribute has been added
+Pass	The :read-write pseudo-class must not match textarea elements that are disabled
+Pass	The :read-only pseudo-class must match textarea elements that are disabled
+Pass	The :read-write pseudo-class must match elements that are editable
+Pass	The :read-only pseudo-class must not match elements that are editable
+Pass	The :read-write pseudo-class must match elements that are editing hosts
+Pass	The :read-only pseudo-class must not match elements that are editing hosts
+Pass	The :read-write pseudo-class must match elements that are inside editing hosts, but not match inputs and textareas inside that aren't
+Pass	The :read-only pseudo-class must match form-associated custom elements
+Pass	The :read-write pseudo-class must match form-associated contenteditable custom elements

@@ -12,6 +12,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibGfx/SkiaUtils.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
@@ -20,39 +21,39 @@ extern "C" {
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
+#include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>
 #include <core/SkColorType.h>
 #include <core/SkImage.h>
 #include <core/SkPixmap.h>
+#include <core/SkSurface.h>
 
 namespace Web::WebGL {
 
-static constexpr Optional<int> opengl_format_number_of_components(WebIDL::UnsignedLong format)
+static constexpr Optional<int> opengl_format_and_type_number_of_bytes(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
 {
     switch (format) {
     case GL_LUMINANCE:
     case GL_ALPHA:
+        if (type != GL_UNSIGNED_BYTE)
+            return OptionalNone {};
+
         return 1;
     case GL_LUMINANCE_ALPHA:
+        if (type != GL_UNSIGNED_BYTE)
+            return OptionalNone {};
+
         return 2;
     case GL_RGB:
-        return 3;
-    case GL_RGBA:
-        return 4;
-    default:
-        return OptionalNone {};
-    }
-}
+        if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT_5_6_5)
+            return OptionalNone {};
 
-static constexpr Optional<int> opengl_type_size_in_bytes(WebIDL::UnsignedLong type)
-{
-    switch (type) {
-    case GL_UNSIGNED_BYTE:
-        return 1;
-    case GL_UNSIGNED_SHORT_5_6_5:
-    case GL_UNSIGNED_SHORT_4_4_4_4:
-    case GL_UNSIGNED_SHORT_5_5_5_1:
-        return 2;
+        return type == GL_UNSIGNED_BYTE ? 3 : 2;
+    case GL_RGBA:
+        if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT_4_4_4_4 && type != GL_UNSIGNED_SHORT_5_5_5_1)
+            return OptionalNone {};
+
+        return type == GL_UNSIGNED_BYTE ? 4 : 2;
     default:
         return OptionalNone {};
     }
@@ -127,10 +128,8 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
         [](GC::Root<HTML::HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto surface = source->surface();
             if (!surface)
-                return {};
-            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
-            surface->read_into_bitmap(*bitmap);
-            return Gfx::ImmutableBitmap::create(*bitmap);
+                return Gfx::ImmutableBitmap::create(*source->get_bitmap_from_surface());
+            return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
         },
         [](GC::Root<HTML::OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return Gfx::ImmutableBitmap::create(*source->bitmap());
@@ -152,17 +151,11 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
 
     Checked<size_t> buffer_pitch = width;
 
-    auto number_of_components = opengl_format_number_of_components(format);
-    if (!number_of_components.has_value())
+    auto number_of_bytes = opengl_format_and_type_number_of_bytes(format, type);
+    if (!number_of_bytes.has_value())
         return OptionalNone {};
 
-    buffer_pitch *= number_of_components.value();
-
-    auto type_size = opengl_type_size_in_bytes(type);
-    if (!type_size.has_value())
-        return OptionalNone {};
-
-    buffer_pitch *= type_size.value();
+    buffer_pitch *= number_of_bytes.value();
 
     if (buffer_pitch.has_overflow())
         return OptionalNone {};
@@ -178,8 +171,20 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
     // FIXME: Respect unpackColorSpace
     auto color_space = SkColorSpace::MakeSRGB();
     auto image_info = SkImageInfo::Make(width, height, skia_format, SkAlphaType::kPremul_SkAlphaType, color_space);
-    SkPixmap const pixmap(image_info, buffer.data(), buffer_pitch.value());
-    bitmap->sk_image()->readPixels(pixmap, 0, 0);
+    auto surface = SkSurfaces::WrapPixels(image_info, buffer.data(), buffer_pitch.value());
+    auto surface_canvas = surface->getCanvas();
+    auto dst_rect = Gfx::to_skia_rect(Gfx::Rect { 0, 0, width, height });
+
+    // The first pixel transferred from the source to the WebGL implementation corresponds to the upper left corner of
+    // the source. This behavior is modified by the UNPACK_FLIP_Y_WEBGL pixel storage parameter, except for ImageBitmap
+    // arguments, as described in the abovementioned section.
+    if (m_unpack_flip_y && !source.has<GC::Root<HTML::ImageBitmap>>()) {
+        surface_canvas->translate(0, dst_rect.height());
+        surface_canvas->scale(1, -1);
+    }
+
+    surface_canvas->drawImageRect(bitmap->sk_image(), dst_rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor));
+
     return ConvertedTexture {
         .buffer = move(buffer),
         .width = width,

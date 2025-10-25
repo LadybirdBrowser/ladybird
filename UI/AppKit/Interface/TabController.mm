@@ -94,7 +94,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setDelegate:self];
         [self.toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
         if (@available(macOS 15, *)) {
-            [self.toolbar setAllowsDisplayModeCustomization:NO];
+            if ([self.toolbar respondsToSelector:@selector(setAllowsDisplayModeCustomization:)]) {
+                [self.toolbar performSelector:@selector(setAllowsDisplayModeCustomization:) withObject:nil];
+            }
         }
         [self.toolbar setAllowsUserCustomization:NO];
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];

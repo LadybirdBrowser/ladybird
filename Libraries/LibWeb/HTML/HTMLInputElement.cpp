@@ -873,9 +873,9 @@ void HTMLInputElement::update_text_input_shadow_tree()
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:attr-input-readonly-3
-static bool is_allowed_to_be_readonly(HTML::HTMLInputElement::TypeAttributeState state)
+bool HTMLInputElement::is_allowed_to_be_readonly() const
 {
-    switch (state) {
+    switch (m_type) {
     case HTML::HTMLInputElement::TypeAttributeState::Text:
     case HTML::HTMLInputElement::TypeAttributeState::Search:
     case HTML::HTMLInputElement::TypeAttributeState::Telephone:
@@ -3676,7 +3676,7 @@ bool HTMLInputElement::is_mutable() const
 
         // https://html.spec.whatwg.org/multipage/input.html#the-readonly-attribute:concept-fe-mutable
         // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
-        && !(has_attribute(AttributeNames::readonly) && is_allowed_to_be_readonly(m_type));
+        && !(has_attribute(AttributeNames::readonly) && is_allowed_to_be_readonly());
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#button-layout

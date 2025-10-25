@@ -2849,6 +2849,8 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_PAUSED, 1, nullptr, &result);
         return JS::Value(result == GL_TRUE);
     }
+    case UNPACK_FLIP_Y_WEBGL:
+        return JS::Value(m_unpack_flip_y);
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -3001,7 +3003,15 @@ GC::Root<WebGLUniformLocation> WebGL2RenderingContextImpl::get_uniform_location(
     }
 
     auto name_null_terminated = null_terminated_string(name);
-    return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program_handle, name_null_terminated.data()));
+
+    // "This function returns -1 if name does not correspond to an active uniform variable in program or if name starts
+    //  with the reserved prefix "gl_"."
+    // WebGL Spec: The return value is null if name does not correspond to an active uniform variable in the passed program.
+    auto location = glGetUniformLocation(program_handle, name_null_terminated.data());
+    if (location == -1)
+        return nullptr;
+
+    return WebGLUniformLocation::create(m_realm, location);
 }
 
 void WebGL2RenderingContextImpl::hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode)
@@ -3137,6 +3147,13 @@ void WebGL2RenderingContextImpl::link_program(GC::Root<WebGLProgram> program)
 void WebGL2RenderingContextImpl::pixel_storei(WebIDL::UnsignedLong pname, WebIDL::Long param)
 {
     m_context->make_current();
+
+    switch (pname) {
+    case UNPACK_FLIP_Y_WEBGL:
+        m_unpack_flip_y = param != GL_FALSE;
+        return;
+    }
+
     glPixelStorei(pname, param);
 }
 

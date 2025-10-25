@@ -97,3 +97,96 @@ test("Unicode non-ASCII matching", () => {
         expect(result).toEqual(test.expected);
     }
 });
+
+// Test from https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-property-of-strings-escape.js
+test("Unicode properties of strings", () => {
+    const regexes = [
+        /\p{Basic_Emoji}/v,
+        /\p{Emoji_Keycap_Sequence}/v,
+        /\p{RGI_Emoji_Modifier_Sequence}/v,
+        /\p{RGI_Emoji_Flag_Sequence}/v,
+        /\p{RGI_Emoji_Tag_Sequence}/v,
+        /\p{RGI_Emoji_ZWJ_Sequence}/v,
+        /\p{RGI_Emoji}/v,
+    ];
+
+    for (const re of regexes) {
+        expect(() => {
+            re.test("test");
+        }).not.toThrow();
+    }
+
+    const matchStrings = [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "8",
+        "A",
+        "B",
+        "D",
+        "E",
+        "F",
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+    ];
+
+    const nonMatchStrings = [
+        "6\uFE0F\u20E3",
+        "7\uFE0F\u20E3",
+        "9\uFE0F\u20E3",
+        "\u2603",
+        "\u{1D306}",
+        "\u{1F1E7}\u{1F1EA}",
+    ];
+
+    const re = /^[\p{ASCII_Hex_Digit}--\p{Emoji_Keycap_Sequence}]+$/v;
+
+    for (const str of matchStrings) {
+        expect(re.test(str)).toBeTrue();
+    }
+
+    for (const str of nonMatchStrings) {
+        expect(re.test(str)).toBeFalse();
+    }
+});
+
+test("Unicode matching with u and v flags", () => {
+    const text = "𠮷a𠮷b𠮷";
+    const complexText = "a\u{20BB7}b\u{10FFFF}c";
+
+    const cases = [
+        { pattern: /𠮷/, match: text, expected: ["𠮷"] },
+        { pattern: /𠮷/u, match: text, expected: ["𠮷"] },
+        { pattern: /𠮷/v, match: text, expected: ["𠮷"] },
+        { pattern: /\p{Script=Han}/u, match: text, expected: ["𠮷"] },
+        { pattern: /\p{Script=Han}/v, match: text, expected: ["𠮷"] },
+        { pattern: /./u, match: text, expected: ["𠮷"] },
+        { pattern: /./v, match: text, expected: ["𠮷"] },
+        { pattern: /\p{ASCII}/u, match: text, expected: ["a"] },
+        { pattern: /\p{ASCII}/v, match: text, expected: ["a"] },
+        { pattern: /x/u, match: text, expected: null },
+        { pattern: /x/v, match: text, expected: null },
+        { pattern: /\p{Script=Han}(.)/gu, match: text, expected: ["𠮷a", "𠮷b"] },
+        { pattern: /\p{Script=Han}(.)/gv, match: text, expected: ["𠮷a", "𠮷b"] },
+        { pattern: /\P{ASCII}/u, match: complexText, expected: ["\u{20BB7}"] },
+        { pattern: /\P{ASCII}/v, match: complexText, expected: ["\u{20BB7}"] },
+        { pattern: /\P{ASCII}/gu, match: complexText, expected: ["\u{20BB7}", "\u{10FFFF}"] },
+        { pattern: /\P{ASCII}/gv, match: complexText, expected: ["\u{20BB7}", "\u{10FFFF}"] },
+        { pattern: /./gu, match: text, expected: ["𠮷", "a", "𠮷", "b", "𠮷"] },
+        { pattern: /./gv, match: text, expected: ["𠮷", "a", "𠮷", "b", "𠮷"] },
+        { pattern: /(?:)/gu, match: text, expected: ["", "", "", "", "", ""] },
+        { pattern: /(?:)/gv, match: text, expected: ["", "", "", "", "", ""] },
+    ];
+
+    for (const test of cases) {
+        const result = test.match.match(test.pattern);
+        expect(result).toEqual(test.expected);
+    }
+});
