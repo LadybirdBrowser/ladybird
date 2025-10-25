@@ -59,8 +59,8 @@ private:
     [[nodiscard]] bool validate_image_id(i64 image_id, SourceLocation location = SourceLocation::current())
     {
         if (!m_pending_jobs.contains(image_id)) {
-            dbgln("Security: WebContent[{}] attempted access to invalid image_id {} at {}:{}",
-                m_transport->peer_pid(), image_id, location.filename(), location.line_number());
+            dbgln("Security: ImageDecoder attempted access to invalid image_id {} at {}:{}",
+                image_id, location.filename(), location.line_number());
             track_validation_failure();
             return false;
         }
@@ -72,8 +72,8 @@ private:
         // 100MB maximum for image buffers
         static constexpr size_t MaxImageBufferSize = 100 * 1024 * 1024;
         if (size > MaxImageBufferSize) {
-            dbgln("Security: WebContent[{}] sent oversized image buffer ({} bytes, max {}) at {}:{}",
-                m_transport->peer_pid(), size, MaxImageBufferSize,
+            dbgln("Security: ImageDecoder sent oversized image buffer ({} bytes, max {}) at {}:{}",
+                size, MaxImageBufferSize,
                 location.filename(), location.line_number());
             track_validation_failure();
             return false;
@@ -89,8 +89,8 @@ private:
         // Maximum 32768x32768 to prevent integer overflow
         static constexpr int MaxDimension = 32768;
         if (size->width() > MaxDimension || size->height() > MaxDimension) {
-            dbgln("Security: WebContent[{}] sent invalid ideal_size ({}x{}, max {}) at {}:{}",
-                m_transport->peer_pid(), size->width(), size->height(), MaxDimension,
+            dbgln("Security: ImageDecoder sent invalid ideal_size ({}x{}, max {}) at {}:{}",
+                size->width(), size->height(), MaxDimension,
                 location.filename(), location.line_number());
             track_validation_failure();
             return false;
@@ -98,8 +98,8 @@ private:
 
         // Prevent zero/negative dimensions
         if (size->width() <= 0 || size->height() <= 0) {
-            dbgln("Security: WebContent[{}] sent invalid ideal_size ({}x{}) at {}:{}",
-                m_transport->peer_pid(), size->width(), size->height(),
+            dbgln("Security: ImageDecoder sent invalid ideal_size ({}x{}) at {}:{}",
+                size->width(), size->height(),
                 location.filename(), location.line_number());
             track_validation_failure();
             return false;
@@ -115,8 +115,8 @@ private:
 
         // Maximum 256 bytes for MIME type
         if (mime_type->length() > 256) {
-            dbgln("Security: WebContent[{}] sent oversized MIME type ({} bytes, max 256) at {}:{}",
-                m_transport->peer_pid(), mime_type->length(),
+            dbgln("Security: ImageDecoder sent oversized MIME type ({} bytes, max 256) at {}:{}",
+                mime_type->length(),
                 location.filename(), location.line_number());
             track_validation_failure();
             return false;
@@ -128,8 +128,8 @@ private:
     [[nodiscard]] bool validate_count(size_t count, size_t max_count, StringView field_name, SourceLocation location = SourceLocation::current())
     {
         if (count > max_count) {
-            dbgln("Security: WebContent[{}] sent excessive {} ({}, max {}) at {}:{}",
-                m_transport->peer_pid(), field_name, count, max_count,
+            dbgln("Security: ImageDecoder sent excessive {} ({}, max {}) at {}:{}",
+                field_name, count, max_count,
                 location.filename(), location.line_number());
             track_validation_failure();
             return false;
@@ -140,8 +140,8 @@ private:
     [[nodiscard]] bool check_rate_limit(SourceLocation location = SourceLocation::current())
     {
         if (!m_rate_limiter.try_consume()) {
-            dbgln("Security: WebContent[{}] exceeded rate limit at {}:{}",
-                m_transport->peer_pid(), location.filename(), location.line_number());
+            dbgln("Security: ImageDecoder exceeded rate limit at {}:{}",
+                location.filename(), location.line_number());
             track_validation_failure();
             return false;
         }
@@ -153,8 +153,8 @@ private:
         // Maximum 100 concurrent decode jobs per client
         static constexpr size_t MaxConcurrentDecodes = 100;
         if (m_pending_jobs.size() >= MaxConcurrentDecodes) {
-            dbgln("Security: WebContent[{}] exceeded concurrent decode limit ({}, max {}) at {}:{}",
-                m_transport->peer_pid(), m_pending_jobs.size(), MaxConcurrentDecodes,
+            dbgln("Security: ImageDecoder exceeded concurrent decode limit ({}, max {}) at {}:{}",
+                m_pending_jobs.size(), MaxConcurrentDecodes,
                 location.filename(), location.line_number());
             track_validation_failure();
             return false;
@@ -166,14 +166,14 @@ private:
     {
         m_validation_failures++;
         if (m_validation_failures >= s_max_validation_failures) {
-            dbgln("Security: WebContent[{}] exceeded validation failure limit ({}), terminating connection",
-                m_transport->peer_pid(), s_max_validation_failures);
+            dbgln("Security: ImageDecoder exceeded validation failure limit ({}), terminating connection",
+                s_max_validation_failures);
             die();
         }
     }
 
     // Security infrastructure
-    IPC::RateLimiter m_rate_limiter { 1000, Duration::from_milliseconds(10) }; // 1000 messages/second
+    IPC::RateLimiter m_rate_limiter { 1000, AK::Duration::from_milliseconds(10) }; // 1000 messages/second
     size_t m_validation_failures { 0 };
     static constexpr size_t s_max_validation_failures = 100;
 };

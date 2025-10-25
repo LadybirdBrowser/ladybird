@@ -315,7 +315,7 @@ void WebContentClient::did_click_link(u64 page_id, URL::URL url, ByteString targ
         view->load(url);
 }
 
-void WebContentClient::did_middle_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers)
+void WebContentClient::did_middle_click_link(u64 page_id, URL::URL url, ByteString target, [[maybe_unused]] unsigned modifiers)
 {
     if (!check_rate_limit())
         return;
@@ -335,7 +335,7 @@ void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint conte
         view->did_request_page_context_menu({}, content_position);
 }
 
-void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers)
+void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, [[maybe_unused]] unsigned modifiers)
 {
     if (!check_rate_limit())
         return;
@@ -350,7 +350,7 @@ void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint 
         view->did_request_link_context_menu({}, content_position, move(url));
 }
 
-void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap)
+void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap)
 {
     if (!check_rate_limit())
         return;

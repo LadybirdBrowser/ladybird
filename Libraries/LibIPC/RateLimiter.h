@@ -26,7 +26,7 @@ public:
     // Create rate limiter with maximum tokens and refill interval
     // Example: RateLimiter(1000, Duration::from_milliseconds(10))
     //   -> 1000 messages per second (100 tokens refilled every 10ms)
-    RateLimiter(size_t max_tokens, Duration refill_interval)
+    RateLimiter(size_t max_tokens, AK::Duration refill_interval)
         : m_max_tokens(max_tokens)
         , m_tokens(max_tokens)
         , m_refill_interval(refill_interval)
@@ -68,13 +68,13 @@ public:
     }
 
     // Get time until next token refill
-    [[nodiscard]] Duration time_until_refill() const
+    [[nodiscard]] AK::Duration time_until_refill() const
     {
         auto now = MonotonicTime::now();
         auto elapsed = now - m_last_refill;
 
         if (elapsed >= m_refill_interval)
-            return Duration::zero();
+            return AK::Duration::zero();
 
         return m_refill_interval - elapsed;
     }
@@ -99,7 +99,7 @@ private:
 
     size_t m_max_tokens;
     size_t m_tokens;
-    Duration m_refill_interval;
+    AK::Duration m_refill_interval;
     MonotonicTime m_last_refill;
 };
 
@@ -107,7 +107,7 @@ private:
 // Starts permissive but becomes stricter if abuse is detected
 class AdaptiveRateLimiter {
 public:
-    AdaptiveRateLimiter(size_t initial_max_tokens, Duration refill_interval)
+    AdaptiveRateLimiter(size_t initial_max_tokens, AK::Duration refill_interval)
         : m_base_limiter(initial_max_tokens, refill_interval)
         , m_initial_max_tokens(initial_max_tokens)
         , m_consecutive_violations(0)
@@ -132,7 +132,7 @@ public:
             // Reduce to 50% capacity
             auto new_max = m_initial_max_tokens / 2;
             if (new_max > 0) {
-                m_base_limiter = RateLimiter(new_max, Duration::from_milliseconds(10));
+                m_base_limiter = RateLimiter(new_max, AK::Duration::from_milliseconds(10));
             }
         }
 
@@ -141,7 +141,7 @@ public:
 
     void reset()
     {
-        m_base_limiter = RateLimiter(m_initial_max_tokens, Duration::from_milliseconds(10));
+        m_base_limiter = RateLimiter(m_initial_max_tokens, AK::Duration::from_milliseconds(10));
         m_consecutive_violations = 0;
     }
 

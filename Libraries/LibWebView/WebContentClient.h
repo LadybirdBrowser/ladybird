@@ -224,7 +224,7 @@ private:
     RefPtr<WebUI> m_web_ui;
 
     // Security infrastructure
-    IPC::RateLimiter m_rate_limiter { 1000, Duration::from_milliseconds(10) }; // 1000 messages/second
+    IPC::RateLimiter m_rate_limiter { 1000, AK::Duration::from_milliseconds(10) }; // 1000 messages/second
     size_t m_validation_failures { 0 };
     static constexpr size_t s_max_validation_failures = 100;
 
