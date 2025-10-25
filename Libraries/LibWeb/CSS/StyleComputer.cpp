@@ -1844,7 +1844,7 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, float font_size, int slope, double font_weight, Percentage const& font_width) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto width = round_to<int>(font_width.value());
@@ -2008,7 +2008,16 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width());
+    auto const& font_size_adjust_specified_value = style.property(PropertyID::FontSizeAdjust, ComputedProperties::WithAnimationsApplied::No);
+    style.set_property(
+        PropertyID::FontSizeAdjust,
+        compute_font_size_adjust(font_size_adjust_specified_value, font_computation_context),
+        style.is_property_inherited(PropertyID::FontSizeAdjust) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+
+    auto font_size = adjusted_font_size(style.font_size().to_float(), style.font_size_adjust(), m_root_element_font_metrics);
+    style.set_adjusted_font_size(font_size);
+
+    auto font_list = compute_font_for_style_values(font_family, font_size, style.font_slope(), style.font_weight(), style.font_width());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
@@ -3199,6 +3208,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::CornerTopLeftShape:
     case PropertyID::CornerTopRightShape:
         return compute_corner_shape(absolutized_value);
+    case PropertyID::FontSizeAdjust:
+        return compute_font_size_adjust(absolutized_value, computation_context);
     case PropertyID::FontVariationSettings:
         return compute_font_variation_settings(absolutized_value);
     case PropertyID::LetterSpacing:
@@ -3333,6 +3344,36 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     VERIFY_NOT_REACHED();
 }
 
+float StyleComputer::adjusted_font_size(float unadjusted_font_size, FontSizeAdjust const& font_size_adjust, Length::FontMetrics const& font_metrics)
+{
+    if (font_size_adjust.is_none())
+        return unadjusted_font_size;
+
+    auto adjusted_font_size_value = [](float unadjusted_size, float metric, float font_size, float size_adjust) -> float {
+        if (unadjusted_size == 0.0f)
+            return 0.0f;
+
+        float aspect = metric / font_size;
+        return unadjusted_size * (size_adjust / aspect);
+    };
+
+    float size_adjust = font_size_adjust.number.value();
+    float font_size = font_metrics.font_size.to_float();
+
+    switch (font_size_adjust.font_metric.value()) {
+    case FontMetric::ExHeight:
+        return adjusted_font_size_value(unadjusted_font_size, font_metrics.x_height.to_float(), font_size, size_adjust);
+    case FontMetric::CapHeight:
+        return adjusted_font_size_value(unadjusted_font_size, font_metrics.cap_height.to_float(), font_size, size_adjust);
+    case FontMetric::ChWidth:
+        return adjusted_font_size_value(unadjusted_font_size, font_metrics.zero_advance.to_float(), font_size, size_adjust);
+    case FontMetric::IcHeight:
+    case FontMetric::IcWidth:
+        return adjusted_font_size_value(unadjusted_font_size, 1, font_size, size_adjust);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& specified_value, int computed_math_depth, CSSPixels inherited_font_size, int inherited_math_depth, ComputationContext const& computation_context)
 {
     // https://drafts.csswg.org/css-fonts/#font-size-prop
@@ -3402,6 +3443,70 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     }
 
     VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size_adjust(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+{
+    // https://drafts.csswg.org/css-fonts-5/#font-size-adjust-prop
+    // the keyword none, or a pair of a metric keyword and a <number>
+
+    if (specified_value->is_keyword() && specified_value->to_keyword() == Keyword::None)
+        return specified_value;
+
+    auto resolve_number_from_font = [&](FontMetric font_metric) -> Optional<float> {
+        auto const& font_metrics = computation_context.length_resolution_context.font_metrics;
+        switch (font_metric) {
+        case FontMetric::ExHeight:
+            return font_metrics.x_height.to_float() / font_metrics.font_size.to_float();
+        case FontMetric::CapHeight:
+            return font_metrics.cap_height.to_float() / font_metrics.font_size.to_float();
+        case FontMetric::ChWidth:
+            return font_metrics.zero_advance.to_float() / font_metrics.font_size.to_float();
+        case FontMetric::IcWidth:
+        case FontMetric::IcHeight:
+            // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
+            return 1.0f;
+        }
+        return {};
+    };
+
+    double number { 0.0 };
+    Keyword font_metric_keyword { Keyword::ExHeight };
+    if (specified_value->is_keyword()) {
+        if (auto keyword = specified_value->as_keyword().keyword(); keyword == Keyword::FromFont) {
+            auto font_metric = keyword_to_font_metric(font_metric_keyword).value();
+            auto resolved_metric = resolve_number_from_font(font_metric);
+            if (!resolved_metric.has_value())
+                return KeywordStyleValue::create(Keyword::None);
+            number = *resolved_metric;
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+    } else if (specified_value->is_number()) {
+        number = specified_value->as_number().number();
+    } else if (specified_value->is_calculated()) {
+        number = specified_value->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value();
+    } else if (specified_value->is_value_list()) {
+        auto const& value_list = specified_value->as_value_list().values();
+        VERIFY(value_list.size() == 2);
+        font_metric_keyword = value_list.at(0)->as_keyword().keyword();
+        if (auto number_value = value_list.at(1); number_value->is_number()) {
+            number = value_list.at(1)->as_number().number();
+        } else if (number_value->is_calculated()) {
+            number = value_list.at(1)->as_calculated().resolve_number({ .length_resolution_context = computation_context.length_resolution_context }).value();
+        } else if (number_value->is_keyword() && number_value->as_keyword().keyword() == Keyword::FromFont) {
+            auto font_metric = keyword_to_font_metric(font_metric_keyword).value();
+            auto resolved_metric = resolve_number_from_font(font_metric);
+            if (!resolved_metric.has_value())
+                return KeywordStyleValue::create(Keyword::None);
+            number = *resolved_metric;
+        }
+    }
+
+    if (font_metric_keyword == Keyword::ExHeight)
+        return NumberStyleValue::create(number);
+
+    return StyleValueList::create({ KeywordStyleValue::create(font_metric_keyword), NumberStyleValue::create(number) }, StyleValueList::Separator::Space);
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)

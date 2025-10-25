@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Fonts Test: font-size-adjust - 0 value implies a 0px used font-size</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/css-fonts-3/#font-size-adjust-prop" title="3.6 Relative sizing: the font-size-adjust property" />
+  <link rel="bookmark" href="https://lists.w3.org/Archives/Public/www-style/2015Mar/0282.html" title="[css-fonts] What does font-size-adjust for '0' look like?" />
+  <link rel="bookmark" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1144885" title="Bug 1144885: font-size-adjust:0 interpreted as font-size-adjust:none " />
+  <link rel="match" href="../../../../expected/wpt-import/css/css-fonts/../CSS2/reference/ref-if-there-is-no-red.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="This test checks that a 0 value implies that used font-size must be 0px." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#zero-value-test
+  {
+  color: red;
+  font: 100px/1 Ahem; /* computes to 100px/100px */
+  font-size-adjust: 0;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is <strong>no red</strong>.</p>
+
+  <div id="zero-value-test">FAIL</div>
+
+ </body>
+</html>

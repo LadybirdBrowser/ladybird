@@ -29,6 +29,9 @@ struct FontPixelMetrics {
     // Number of pixels the font extends above the baseline.
     float ascent { 0 };
 
+    // Height of an uppercase letter.
+    float cap_height { 0 };
+
     // Number of pixels the font descends below the baseline.
     float descent { 0 };
 
