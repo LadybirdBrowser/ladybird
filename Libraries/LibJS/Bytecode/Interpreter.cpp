@@ -558,7 +558,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(BitwiseNot);
             HANDLE_INSTRUCTION(BitwiseOr);
             HANDLE_INSTRUCTION(BitwiseXor);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(BlockDeclarationInstantiation);
             HANDLE_INSTRUCTION(Call);
             HANDLE_INSTRUCTION(CallBuiltin);
             HANDLE_INSTRUCTION(CallConstruct);
@@ -569,6 +568,8 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Catch);
             HANDLE_INSTRUCTION(ConcatString);
             HANDLE_INSTRUCTION(CopyObjectExcludingProperties);
+            HANDLE_INSTRUCTION(CreateImmutableBinding);
+            HANDLE_INSTRUCTION(CreateMutableBinding);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateLexicalEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateVariableEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreatePrivateEnvironment);
@@ -2433,6 +2434,8 @@ void CreateLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) 
     };
     auto& running_execution_context = interpreter.running_execution_context();
     running_execution_context.saved_lexical_environments.append(make_and_swap_envs(running_execution_context.lexical_environment));
+    if (m_dst.has_value())
+        interpreter.set(*m_dst, running_execution_context.lexical_environment);
 }
 
 void CreatePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3433,16 +3436,6 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
     return {};
 }
 
-void BlockDeclarationInstantiation::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto old_environment = interpreter.running_execution_context().lexical_environment;
-    auto& running_execution_context = interpreter.running_execution_context();
-    running_execution_context.saved_lexical_environments.append(old_environment);
-    running_execution_context.lexical_environment = new_declarative_environment(*old_environment);
-    m_scope_node.block_declaration_instantiation(vm, running_execution_context.lexical_environment);
-}
-
 ByteString Mov::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     return ByteString::formatted("Mov {}, {}",
@@ -3565,8 +3558,10 @@ ByteString DeleteVariable::to_byte_string_impl(Bytecode::Executable const& execu
     return ByteString::formatted("DeleteVariable {}", executable.identifier_table->get(m_identifier));
 }
 
-ByteString CreateLexicalEnvironment::to_byte_string_impl(Bytecode::Executable const&) const
+ByteString CreateLexicalEnvironment::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
+    if (m_dst.has_value())
+        return ByteString::formatted("CreateLexicalEnvironment {}", format_operand("dst"sv, *m_dst, executable));
     return "CreateLexicalEnvironment"sv;
 }
 
@@ -4151,11 +4146,6 @@ ByteString TypeofBinding::to_byte_string_impl(Bytecode::Executable const& execut
         executable.identifier_table->get(m_identifier));
 }
 
-ByteString BlockDeclarationInstantiation::to_byte_string_impl(Bytecode::Executable const&) const
-{
-    return "BlockDeclarationInstantiation"sv;
-}
-
 ByteString ImportCall::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     return ByteString::formatted("ImportCall {}, {}, {}",
@@ -4232,6 +4222,34 @@ ByteString SetCompletionType::to_byte_string_impl(Bytecode::Executable const& ex
     return ByteString::formatted("SetCompletionType {}, type={}",
         format_operand("completion"sv, m_completion, executable),
         to_underlying(m_type));
+}
+
+ByteString CreateImmutableBinding::to_byte_string_impl(Executable const& executable) const
+{
+    return ByteString::formatted("CreateImmutableBinding {} {} (strict: {})",
+        format_operand("environment"sv, m_environment, executable),
+        executable.get_identifier(m_identifier),
+        m_strict);
+}
+
+ThrowCompletionOr<void> CreateImmutableBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& environment = as<Environment>(interpreter.get(m_environment).as_cell());
+    return environment.create_immutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_strict);
+}
+
+ByteString CreateMutableBinding::to_byte_string_impl(Executable const& executable) const
+{
+    return ByteString::formatted("CreateMutableBinding {} {} (can_be_deleted: {})",
+        format_operand("environment"sv, m_environment, executable),
+        executable.get_identifier(m_identifier),
+        m_can_be_deleted);
+}
+
+ThrowCompletionOr<void> CreateMutableBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& environment = as<Environment>(interpreter.get(m_environment).as_cell());
+    return environment.create_mutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_can_be_deleted);
 }
 
 }

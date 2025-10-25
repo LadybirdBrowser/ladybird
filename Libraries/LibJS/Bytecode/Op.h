@@ -546,8 +546,9 @@ enum class BindingInitializationMode {
 
 class CreateLexicalEnvironment final : public Instruction {
 public:
-    explicit CreateLexicalEnvironment(u32 capacity = 0)
+    explicit CreateLexicalEnvironment(Optional<Operand> dst = {}, u32 capacity = 0)
         : Instruction(Type::CreateLexicalEnvironment)
+        , m_dst(dst)
         , m_capacity(capacity)
     {
     }
@@ -556,6 +557,7 @@ public:
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
 
 private:
+    Optional<Operand> m_dst;
     u32 m_capacity { 0 };
 };
 
@@ -678,6 +680,44 @@ private:
     bool m_is_immutable : 4 { false };
     bool m_is_global : 4 { false };
     bool m_is_strict { false };
+};
+
+class CreateImmutableBinding final : public Instruction {
+public:
+    CreateImmutableBinding(Operand environment, IdentifierTableIndex identifier, bool strict)
+        : Instruction(Type::CreateImmutableBinding)
+        , m_environment(environment)
+        , m_identifier(identifier)
+        , m_strict(strict)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+
+private:
+    Operand m_environment;
+    IdentifierTableIndex m_identifier;
+    bool m_strict { false };
+};
+
+class CreateMutableBinding final : public Instruction {
+public:
+    CreateMutableBinding(Operand environment, IdentifierTableIndex identifier, bool can_be_deleted)
+        : Instruction(Type::CreateMutableBinding)
+        , m_environment(environment)
+        , m_identifier(identifier)
+        , m_can_be_deleted(can_be_deleted)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+
+private:
+    Operand m_environment;
+    IdentifierTableIndex m_identifier;
+    bool m_can_be_deleted { false };
 };
 
 class InitializeLexicalBinding final : public Instruction {
@@ -2246,23 +2286,6 @@ private:
     FunctionNode const& m_function_node;
     Optional<IdentifierTableIndex> m_lhs_name;
     Optional<Operand> m_home_object;
-};
-
-class BlockDeclarationInstantiation final : public Instruction {
-public:
-    explicit BlockDeclarationInstantiation(ScopeNode const& scope_node)
-        : Instruction(Type::BlockDeclarationInstantiation)
-        , m_scope_node(scope_node)
-    {
-    }
-
-    void execute_impl(Bytecode::Interpreter&) const;
-    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
-
-    ScopeNode const& scope_node() const { return m_scope_node; }
-
-private:
-    ScopeNode const& m_scope_node;
 };
 
 class Return final : public Instruction {

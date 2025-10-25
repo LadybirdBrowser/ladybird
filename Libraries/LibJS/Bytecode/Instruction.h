@@ -24,7 +24,6 @@
     O(BitwiseNot)                      \
     O(BitwiseOr)                       \
     O(BitwiseXor)                      \
-    O(BlockDeclarationInstantiation)   \
     O(Call)                            \
     O(CallBuiltin)                     \
     O(CallConstruct)                   \
@@ -38,6 +37,8 @@
     O(CopyObjectExcludingProperties)   \
     O(CreateArguments)                 \
     O(CreateLexicalEnvironment)        \
+    O(CreateImmutableBinding)          \
+    O(CreateMutableBinding)            \
     O(CreatePrivateEnvironment)        \
     O(CreateRestParams)                \
     O(CreateVariable)                  \
