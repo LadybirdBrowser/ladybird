@@ -159,7 +159,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     }
 
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
-        dbgln("\033[31;1mUnable to write to cache entry for{}\033[0m {}: {}", m_url, result.error());
+        dbgln("\033[31;1mUnable to write to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
         close_and_destory_cache_entry();
@@ -183,7 +183,7 @@ ErrorOr<void> CacheEntryWriter::flush()
         return Error::from_string_literal("Cache entry has been deleted");
 
     if (auto result = m_file->write_value(m_cache_footer); result.is_error()) {
-        dbgln("\033[31;1mUnable to flush cache entry for{}\033[0m {}: {}", m_url, result.error());
+        dbgln("\033[31;1mUnable to flush cache entry for\033[0m {}: {}", m_url, result.error());
         remove();
 
         return result.release_error();
