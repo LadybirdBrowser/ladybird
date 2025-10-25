@@ -2,6 +2,8 @@
 <script src="include.js"></script>
 <script>
     test(() => {
+        // Clear all localStorage before test to prevent race conditions
+        localStorage.clear();
 
         println(localStorage["test"])
         println(localStorage.getItem("test"))

@@ -8,3 +8,6 @@ add_test(
     NAME Wasm
     COMMAND test-wasm --show-progress=false "${wasm_test_root}/Libraries/LibWasm/Tests"
 )
+set_tests_properties(Wasm PROPERTIES
+    ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_PROJECT_ROOT}"
+)
