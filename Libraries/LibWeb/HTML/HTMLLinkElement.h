@@ -131,10 +131,10 @@ private:
     void fetch_and_process_linked_resource();
 
     // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer>);
+    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer>, bool added_to_script_blocking_set);
 
     // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer>);
+    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer>, bool added_to_script_blocking_set);
 
     // https://html.spec.whatwg.org/multipage/semantics.html#default-fetch-and-process-the-linked-resource
     void default_fetch_and_process_linked_resource();
