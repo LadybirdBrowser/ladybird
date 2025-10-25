@@ -59,8 +59,13 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
             picked_device = device;
     }
 
-    if (picked_device != VK_NULL_HANDLE)
+    if (picked_device != VK_NULL_HANDLE) {
+        VkPhysicalDeviceProperties device_properties;
+        vkGetPhysicalDeviceProperties(picked_device, &device_properties);
+
+        dbgln("Selected Vulkan graphical device: {}", device_properties.deviceName);
         return picked_device;
+    }
 
     VERIFY_NOT_REACHED();
 }
