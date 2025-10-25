@@ -116,7 +116,9 @@ static GC::Ptr<Box> nearest_ancestor_capable_of_forming_a_containing_block(Node&
             || ancestor->display().is_flex_inside()
             || ancestor->display().is_grid_inside()
             || ancestor->is_svg_svg_box()) {
-            return as<Box>(ancestor);
+            // NOTE: Not all nodes with these properties are boxes, so we need to check.
+            if (is<Box>(*ancestor))
+                return as<Box>(ancestor);
         }
     }
     return nullptr;
