@@ -123,7 +123,7 @@ void PlaybackStreamOboe::set_underrun_callback(Function<void()>)
 NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamOboe::resume()
 {
     auto promise = Core::ThreadedPromise<AK::Duration>::create();
-    auto time = MUST(total_time_played());
+    auto time = total_time_played();
     m_storage->stream()->start();
     promise->resolve(move(time));
     return promise;
@@ -146,7 +146,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamOboe::discard_buffer_an
     return promise;
 }
 
-ErrorOr<AK::Duration> PlaybackStreamOboe::total_time_played()
+AK::Duration PlaybackStreamOboe::total_time_played() const
 {
     return m_storage->oboe_callback()->last_sample_time();
 }

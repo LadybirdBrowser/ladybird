@@ -566,6 +566,7 @@ set(SOURCES
     HTML/ListOfAvailableImages.cpp
     HTML/Location.cpp
     HTML/MediaError.cpp
+    HTML/MediaTrackBase.cpp
     HTML/MessageChannel.cpp
     HTML/MessageEvent.cpp
     HTML/MessagePort.cpp
@@ -833,8 +834,6 @@ set(SOURCES
     PerformanceTimeline/PerformanceObserverEntryList.cpp
     PermissionsPolicy/AutoplayAllowlist.cpp
     PixelUnits.cpp
-    Platform/AudioCodecPlugin.cpp
-    Platform/AudioCodecPluginAgnostic.cpp
     Platform/EventLoopPlugin.cpp
     Platform/EventLoopPluginSerenity.cpp
     Platform/FontPlugin.cpp

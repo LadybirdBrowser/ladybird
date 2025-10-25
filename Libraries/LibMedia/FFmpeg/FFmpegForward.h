@@ -8,6 +8,8 @@
 
 extern "C" {
 struct AVCodecContext;
+struct AVFormatContext;
+struct AVIOContext;
 struct AVPacket;
 struct AVFrame;
 }

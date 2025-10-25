@@ -60,7 +60,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg codec context for codec {}", codec_id);
 
     codec_context->get_format = negotiate_output_format;
-
+    codec_context->time_base = { 1, 1'000'000 };
     codec_context->thread_count = static_cast<int>(min(Core::System::hardware_concurrency(), 4));
 
     if (!codec_initialization_data.is_empty()) {

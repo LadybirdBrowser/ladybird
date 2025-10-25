@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <math.h>
 
 #ifdef AK_OS_WINDOWS
 #    include <time.h>
@@ -213,6 +214,19 @@ private:
 
 public:
     [[nodiscard]] constexpr static Duration from_seconds(i64 seconds) { return Duration(seconds, 0); }
+    [[nodiscard]] constexpr static Duration from_seconds_f64(f64 seconds)
+    {
+        VERIFY(!isnan(seconds));
+        if (seconds >= static_cast<f64>(NumericLimits<i64>::max()))
+            return from_seconds(NumericLimits<i64>::max());
+        if (seconds <= static_cast<f64>(NumericLimits<i64>::min()))
+            return from_seconds(NumericLimits<i64>::min());
+        i64 integer_seconds = static_cast<i64>(seconds);
+        if (static_cast<f64>(integer_seconds) > seconds)
+            integer_seconds--;
+        u32 integer_nanoseconds = static_cast<u32>((seconds - static_cast<f64>(integer_seconds)) * 1'000'000'000);
+        return Duration(integer_seconds, integer_nanoseconds);
+    }
     [[nodiscard]] constexpr static Duration from_nanoseconds(i64 nanoseconds)
     {
         i64 seconds = sane_mod(nanoseconds, 1'000'000'000);
