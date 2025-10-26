@@ -514,7 +514,7 @@
         {
           "type": "git",
           "url": "https://github.com/libsdl-org/SDL.git",
-          "tag": "release-3.2.20"
+          "tag": "release-3.2.26"
         }
       ],
       "config-opts": [
