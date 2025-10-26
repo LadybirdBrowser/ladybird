@@ -98,7 +98,7 @@ void fetch_external_module_script_graph(JS::Realm&, URL::URL const&, Environment
 void fetch_inline_module_script_graph(JS::Realm&, ByteString const& filename, ByteString const& source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete);
 void fetch_single_imported_module_script(JS::Realm&, URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, ScriptFetchOptions const&, JS::Realm& module_map_realm, Fetch::Infrastructure::Request::ReferrerType, JS::ModuleRequest const&, PerformTheFetchHook, OnFetchScriptComplete on_complete);
 
-void fetch_descendants_of_and_link_a_module_script(JS::Realm&, JavaScriptModuleScript&, EnvironmentSettingsObject&, Fetch::Infrastructure::Request::Destination, PerformTheFetchHook, OnFetchScriptComplete on_complete);
+void fetch_descendants_of_and_link_a_module_script(JS::Realm&, ModuleScript&, EnvironmentSettingsObject&, Fetch::Infrastructure::Request::Destination, PerformTheFetchHook, OnFetchScriptComplete on_complete);
 
 Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination, ByteString const&);
 
