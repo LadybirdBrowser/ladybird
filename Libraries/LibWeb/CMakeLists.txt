@@ -775,6 +775,9 @@ set(SOURCES
     MediaSourceExtensions/MediaSourceHandle.cpp
     MediaSourceExtensions/SourceBuffer.cpp
     MediaSourceExtensions/SourceBufferList.cpp
+    MediaSession/Utils.cpp
+    MediaSession/ChapterInformation.cpp
+    MediaSession/MediaMetadata.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
     MixedContent/AbstractOperations.cpp

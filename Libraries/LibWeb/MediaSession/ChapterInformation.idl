@@ -1,0 +1,21 @@
+
+// https://www.w3.org/TR/mediasession/#dictdef-mediaimage
+dictionary MediaImage {
+    required USVString src;
+    DOMString sizes = "";
+    DOMString type = "";
+};
+
+// https://w3c.github.io/mediasession/#the-chapterinformation-interface
+[Exposed=Window]
+interface ChapterInformation {
+  readonly attribute DOMString title;
+  readonly attribute double startTime;
+  [SameObject] readonly attribute FrozenArray<MediaImage> artwork;
+};
+
+dictionary ChapterInformationInit {
+  DOMString title = "";
+  double startTime = 0;
+  sequence<MediaImage> artwork = [];
+};

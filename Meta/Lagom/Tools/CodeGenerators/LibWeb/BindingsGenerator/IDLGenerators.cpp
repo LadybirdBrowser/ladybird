@@ -95,6 +95,10 @@ static bool is_platform_object(Type const& type)
         "KeyframeEffect"sv,
         "MediaKeySystemAccess"sv,
         "MediaList"sv,
+
+        "ChapterInformation"sv,
+        "MediaMetadata"sv,
+
         "Memory"sv,
         "MessagePort"sv,
         "Module"sv,
@@ -4955,6 +4959,7 @@ using namespace Web::Internals;
 using namespace Web::IntersectionObserver;
 using namespace Web::MediaCapabilitiesAPI;
 using namespace Web::MediaSourceExtensions;
+using namespace Web::MediaSession;
 using namespace Web::NavigationTiming;
 using namespace Web::NotificationsAPI;
 using namespace Web::PerformanceTimeline;
