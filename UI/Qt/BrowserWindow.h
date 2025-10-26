@@ -118,6 +118,10 @@ private:
     QAction* m_new_window_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
 
+    // Page ID counter for generating unique IDs
+    // Page ID 0 is reserved for the first/primary view
+    size_t m_next_page_id { 1 };
+
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 };
 

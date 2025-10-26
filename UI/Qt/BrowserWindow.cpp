@@ -345,7 +345,10 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& par
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
 {
-    auto* tab = new Tab(this);
+    // Generate unique page_id for this tab
+    // Page ID 0 is reserved for the initial/primary view
+    auto page_id = m_next_page_id++;
+    auto* tab = new Tab(this, nullptr, page_id);
 
     if (m_current_tab == nullptr) {
         set_current_tab(tab);
