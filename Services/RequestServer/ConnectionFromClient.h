@@ -74,6 +74,7 @@ private:
         int writer_fd { 0 };
     };
     void issue_network_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry> = {});
+    void issue_network_request_with_optional_dns(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry>, Optional<NonnullRefPtr<DNS::LookupResult>>);
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 

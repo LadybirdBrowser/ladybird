@@ -730,6 +730,18 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
 {
     auto host = url.serialized_host().to_byte_string();
 
+    // Check if using SOCKS5H proxy (hostname resolution via proxy)
+    // If so, skip DNS lookup - let Tor/proxy handle DNS resolution
+    bool using_socks5h_proxy = m_network_identity && m_network_identity->has_proxy()
+        && m_network_identity->proxy_config()->type == IPC::ProxyType::SOCKS5H;
+
+    if (using_socks5h_proxy) {
+        dbgln("RequestServer: Skipping DNS lookup for {} (using SOCKS5H proxy - DNS via Tor)", host);
+        // Proceed directly to curl setup without DNS lookup
+        issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request, {});
+        return;
+    }
+
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
         ->when_rejected([this, request_id, resume_request](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
@@ -748,158 +760,172 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
             }
 
             dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: DNS lookup successful");
-
-            auto* easy = curl_easy_init();
-            if (!easy) {
-                dbgln("StartRequest: Failed to initialize curl easy handle");
-                return;
-            }
-
-            int writer_fd = 0;
-
-            if (resume_request.has_value()) {
-                writer_fd = resume_request->writer_fd;
-            } else {
-                auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
-                if (fds_or_error.is_error()) {
-                    dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
-                    return;
-                }
-
-                auto fds = fds_or_error.release_value();
-                auto reader_fd = fds[0];
-                writer_fd = fds[1];
-
-                async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
-            }
-
-            auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
-            request->url = url;
-            request->method = method;
-
-            auto set_option = [easy](auto option, auto value) {
-                auto result = curl_easy_setopt(easy, option, value);
-                if (result != CURLE_OK)
-                    dbgln("StartRequest: Failed to set curl option: {}", curl_easy_strerror(result));
-            };
-
-            set_option(CURLOPT_PRIVATE, request.ptr());
-
-            if (!g_default_certificate_path.is_empty())
-                set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
-
-            set_option(CURLOPT_ACCEPT_ENCODING, ""); // empty string lets curl define the accepted encodings
-            set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
-            set_option(CURLOPT_PORT, url.port_or_default());
-            set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
-            set_option(CURLOPT_PIPEWAIT, 1L);
-            set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
-
-            // Apply proxy configuration from NetworkIdentity (Tor/VPN support)
-            if (m_network_identity && m_network_identity->has_proxy()) {
-                auto const& proxy = m_network_identity->proxy_config().value();
-
-                // Set proxy URL (e.g., "socks5h://localhost:9050" for Tor)
-                set_option(CURLOPT_PROXY, proxy.to_curl_proxy_url().characters());
-
-                // Set proxy type for libcurl
-                if (proxy.type == IPC::ProxyType::SOCKS5H)
-                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);  // DNS via proxy (leak prevention)
-                else if (proxy.type == IPC::ProxyType::SOCKS5)
-                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
-                else if (proxy.type == IPC::ProxyType::HTTP)
-                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
-                else if (proxy.type == IPC::ProxyType::HTTPS)
-                    set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
-
-                // Set SOCKS5 authentication for stream isolation (each tab gets unique Tor circuit)
-                if (auto auth = proxy.to_curl_auth_string(); auth.has_value())
-                    set_option(CURLOPT_PROXYUSERPWD, auth->characters());
-
-                dbgln("RequestServer: Using {} proxy {} for request to {}",
-                    proxy.type == IPC::ProxyType::SOCKS5H ? "SOCKS5H" : "other",
-                    proxy.to_curl_proxy_url(), url);
-            } else {
-                dbgln("RequestServer: NO proxy configured for request to {} (identity={}, has_proxy={})",
-                    url, m_network_identity != nullptr, m_network_identity ? m_network_identity->has_proxy() : false);
-            }
-
-            set_option(CURLOPT_CUSTOMREQUEST, method.characters());
-            set_option(CURLOPT_FOLLOWLOCATION, 0);
-
-            bool did_set_body = false;
-            if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
-                request->body = move(request_body);
-                set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
-                set_option(CURLOPT_POSTFIELDS, request->body.data());
-                did_set_body = true;
-            } else if (method == "HEAD"sv) {
-                set_option(CURLOPT_NOBODY, 1L);
-            }
-
-            struct curl_slist* curl_headers = nullptr;
-
-            // NOTE: CURLOPT_POSTFIELDS automatically sets the Content-Type header.
-            //       Tell curl to remove it by setting a blank value if the headers passed in don't contain a content type.
-            if (did_set_body && !request_headers.contains("Content-Type"))
-                curl_headers = curl_slist_append(curl_headers, "Content-Type:");
-
-            for (auto const& header : request_headers.headers()) {
-                if (header.value.is_empty()) {
-                    // Special case for headers with an empty value. curl will discard the header unless we pass the
-                    // header name followed by a semicolon.
-                    //
-                    // i.e. we need to pass "Content-Type;" instead of "Content-Type: "
-                    //
-                    // See: https://curl.se/libcurl/c/httpcustomheader.html
-                    auto header_string = ByteString::formatted("{};", header.name);
-                    curl_headers = curl_slist_append(curl_headers, header_string.characters());
-                    continue;
-                }
-
-                auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
-                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request header: {}", header_string);
-                curl_headers = curl_slist_append(curl_headers, header_string.characters());
-            }
-
-            if (curl_headers) {
-                set_option(CURLOPT_HTTPHEADER, curl_headers);
-                request->curl_string_lists.append(curl_headers);
-            }
-
-            if (resume_request.has_value()) {
-                auto range = ByteString::formatted("{}-", resume_request->start_offset);
-                set_option(CURLOPT_RANGE, range.characters());
-
-                request->got_all_headers = true; // Don't re-send the headers for resumed requests.
-                request->start_offset_of_resumed_response = resume_request->start_offset;
-            }
-
-            // NOTE: proxy_data parameter is legacy and unused - proxy configuration now comes from NetworkIdentity
-            (void)proxy_data;
-
-            set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
-            set_option(CURLOPT_WRITEDATA, reinterpret_cast<void*>(request.ptr()));
-
-            set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
-            set_option(CURLOPT_HEADERDATA, reinterpret_cast<void*>(request.ptr()));
-
-            auto formatted_address = build_curl_resolve_list(*dns_result, host, url.port_or_default());
-            if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-                set_option(CURLOPT_RESOLVE, resolve_list);
-                request->curl_string_lists.append(resolve_list);
-            } else
-                VERIFY_NOT_REACHED();
-
-            // Log request in NetworkIdentity audit trail
-            if (m_network_identity)
-                m_network_identity->log_request(url, method);
-
-            auto result = curl_multi_add_handle(m_curl_multi, easy);
-            VERIFY(result == CURLM_OK);
-
-            m_active_requests.set(request_id, move(request));
+            // dns_result is const, but we need non-const for Optional - use const_cast
+            auto non_const_result = const_cast<DNS::LookupResult*>(dns_result.ptr());
+            issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request, Optional<NonnullRefPtr<DNS::LookupResult>>(NonnullRefPtr<DNS::LookupResult>(*non_const_result)));
         });
+}
+
+void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, Optional<ResumeRequestForFailedCacheEntry> resume_request, Optional<NonnullRefPtr<DNS::LookupResult>> dns_result)
+{
+    auto host = url.serialized_host().to_byte_string();
+
+    auto* easy = curl_easy_init();
+    if (!easy) {
+        dbgln("StartRequest: Failed to initialize curl easy handle");
+        return;
+    }
+
+    int writer_fd = 0;
+
+    if (resume_request.has_value()) {
+        writer_fd = resume_request->writer_fd;
+    } else {
+        auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
+        if (fds_or_error.is_error()) {
+            dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
+            return;
+        }
+
+        auto fds = fds_or_error.release_value();
+        auto reader_fd = fds[0];
+        writer_fd = fds[1];
+
+        async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+    }
+
+    auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
+    request->url = url;
+    request->method = method;
+
+    auto set_option = [easy](auto option, auto value) {
+        auto result = curl_easy_setopt(easy, option, value);
+        if (result != CURLE_OK)
+            dbgln("StartRequest: Failed to set curl option: {}", curl_easy_strerror(result));
+    };
+
+    set_option(CURLOPT_PRIVATE, request.ptr());
+
+    if (!g_default_certificate_path.is_empty())
+        set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
+
+    set_option(CURLOPT_ACCEPT_ENCODING, ""); // empty string lets curl define the accepted encodings
+    set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
+    set_option(CURLOPT_PORT, url.port_or_default());
+    set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
+    set_option(CURLOPT_PIPEWAIT, 1L);
+    set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
+
+    // Apply proxy configuration from NetworkIdentity (Tor/VPN support)
+    if (m_network_identity && m_network_identity->has_proxy()) {
+        auto const& proxy = m_network_identity->proxy_config().value();
+
+        // Set proxy URL (e.g., "socks5h://localhost:9050" for Tor)
+        set_option(CURLOPT_PROXY, proxy.to_curl_proxy_url().characters());
+
+        // Set proxy type for libcurl
+        if (proxy.type == IPC::ProxyType::SOCKS5H)
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);  // DNS via proxy (leak prevention)
+        else if (proxy.type == IPC::ProxyType::SOCKS5)
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+        else if (proxy.type == IPC::ProxyType::HTTP)
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+        else if (proxy.type == IPC::ProxyType::HTTPS)
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+
+        // Set SOCKS5 authentication for stream isolation (each tab gets unique Tor circuit)
+        if (auto auth = proxy.to_curl_auth_string(); auth.has_value())
+            set_option(CURLOPT_PROXYUSERPWD, auth->characters());
+
+        dbgln("RequestServer: Using {} proxy {} for request to {}",
+            proxy.type == IPC::ProxyType::SOCKS5H ? "SOCKS5H" : "other",
+            proxy.to_curl_proxy_url(), url);
+    } else {
+        dbgln("RequestServer: NO proxy configured for request to {} (identity={}, has_proxy={})",
+            url, m_network_identity != nullptr, m_network_identity ? m_network_identity->has_proxy() : false);
+    }
+
+    set_option(CURLOPT_CUSTOMREQUEST, method.characters());
+    set_option(CURLOPT_FOLLOWLOCATION, 0);
+
+    bool did_set_body = false;
+    if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
+        request->body = move(request_body);
+        set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
+        set_option(CURLOPT_POSTFIELDS, request->body.data());
+        did_set_body = true;
+    } else if (method == "HEAD"sv) {
+        set_option(CURLOPT_NOBODY, 1L);
+    }
+
+    struct curl_slist* curl_headers = nullptr;
+
+    // NOTE: CURLOPT_POSTFIELDS automatically sets the Content-Type header.
+    //       Tell curl to remove it by setting a blank value if the headers passed in don't contain a content type.
+    if (did_set_body && !request_headers.contains("Content-Type"))
+        curl_headers = curl_slist_append(curl_headers, "Content-Type:");
+
+    for (auto const& header : request_headers.headers()) {
+        if (header.value.is_empty()) {
+            // Special case for headers with an empty value. curl will discard the header unless we pass the
+            // header name followed by a semicolon.
+            //
+            // i.e. we need to pass "Content-Type;" instead of "Content-Type: "
+            //
+            // See: https://curl.se/libcurl/c/httpcustomheader.html
+            auto header_string = ByteString::formatted("{};", header.name);
+            curl_headers = curl_slist_append(curl_headers, header_string.characters());
+            continue;
+        }
+
+        auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
+        dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request header: {}", header_string);
+        curl_headers = curl_slist_append(curl_headers, header_string.characters());
+    }
+
+    if (curl_headers) {
+        set_option(CURLOPT_HTTPHEADER, curl_headers);
+        request->curl_string_lists.append(curl_headers);
+    }
+
+    if (resume_request.has_value()) {
+        auto range = ByteString::formatted("{}-", resume_request->start_offset);
+        set_option(CURLOPT_RANGE, range.characters());
+
+        request->got_all_headers = true; // Don't re-send the headers for resumed requests.
+        request->start_offset_of_resumed_response = resume_request->start_offset;
+    }
+
+    // NOTE: proxy_data parameter is legacy and unused - proxy configuration now comes from NetworkIdentity
+    (void)proxy_data;
+
+    set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
+    set_option(CURLOPT_WRITEDATA, reinterpret_cast<void*>(request.ptr()));
+
+    set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
+    set_option(CURLOPT_HEADERDATA, reinterpret_cast<void*>(request.ptr()));
+
+    // Only set CURLOPT_RESOLVE if we have DNS results
+    // For SOCKS5H proxy, skip this to let proxy handle DNS resolution
+    if (dns_result.has_value()) {
+        auto formatted_address = build_curl_resolve_list(*dns_result.value(), host, url.port_or_default());
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            request->curl_string_lists.append(resolve_list);
+        } else
+            VERIFY_NOT_REACHED();
+    } else {
+        dbgln("RequestServer: Skipping CURLOPT_RESOLVE for {} (DNS resolution via proxy)", host);
+    }
+
+    // Log request in NetworkIdentity audit trail
+    if (m_network_identity)
+        m_network_identity->log_request(url, method);
+
+    auto result = curl_multi_add_handle(m_curl_multi, easy);
+    VERIFY(result == CURLM_OK);
+
+    m_active_requests.set(request_id, move(request));
 }
 #endif
 
