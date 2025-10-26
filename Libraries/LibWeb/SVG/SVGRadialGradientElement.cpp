@@ -169,15 +169,23 @@ Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGP
     Gfx::FloatPoint end_center;
     float end_radius = 0.0f;
 
+    // FIXME: Where in the spec does it say what axis the radius is relative to?
     if (units == GradientUnits::ObjectBoundingBox) {
         // If gradientUnits="objectBoundingBox", the user coordinate system for attributes ‘cx’, ‘cy’, ‘r’, ‘fx’, ‘fy’, and ‘fr’
         // is established using the bounding box of the element to which the gradient is applied (see Object bounding box units)
         // and then applying the transform specified by attribute ‘gradientTransform’. Percentages represent values relative
         // to the bounding box for the object.
-        start_center = Gfx::FloatPoint { start_circle_x().value(), start_circle_y().value() };
-        start_radius = start_circle_radius().value();
-        end_center = Gfx::FloatPoint { end_circle_x().value(), end_circle_y().value() };
-        end_radius = end_circle_radius().value();
+        auto const& bounding_box = paint_context.path_bounding_box;
+        start_center = {
+            bounding_box.location().x() + start_circle_x().value() * bounding_box.width(),
+            bounding_box.location().y() + start_circle_y().value() * bounding_box.height(),
+        };
+        start_radius = start_circle_radius().value() * bounding_box.width();
+        end_center = {
+            bounding_box.location().x() + end_circle_x().value() * bounding_box.width(),
+            bounding_box.location().y() + end_circle_y().value() * bounding_box.height(),
+        };
+        end_radius = end_circle_radius().value() * bounding_box.width();
     } else {
         // GradientUnits::UserSpaceOnUse
         // If gradientUnits="userSpaceOnUse", ‘cx’, ‘cy’, ‘r’, ‘fx’, ‘fy’, and ‘fr’ represent values in the coordinate system
@@ -191,7 +199,6 @@ Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGP
             start_circle_x().resolve_relative_to(paint_context.viewport.width()),
             start_circle_y().resolve_relative_to(paint_context.viewport.height()),
         };
-        // FIXME: Where in the spec does it say what axis the radius is relative to?
         start_radius = start_circle_radius().resolve_relative_to(paint_context.viewport.width());
         end_center = Gfx::FloatPoint {
             end_circle_x().resolve_relative_to(paint_context.viewport.width()),
