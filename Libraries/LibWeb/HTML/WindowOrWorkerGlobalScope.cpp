@@ -416,11 +416,25 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     }));
                 },
                 // -> ImageBitmap
-                [&](GC::Root<ImageBitmap> const&) {
-                    dbgln("(STUBBED) createImageBitmap() for ImageBitmap");
-                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for ImageBitmap"sv);
-                    TemporaryExecutionContext const context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(realm, *p, error);
+                [&](GC::Root<ImageBitmap> const& source_image_bitmap) {
+                    // 1. Set imageBitmap's bitmap data to a copy of image's bitmap data, cropped to the source rectangle with formatting.
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(source_image_bitmap->bitmap(), sx, sy, sw, sh, options);
+                    // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
+                    // Spec issue: https://github.com/whatwg/html/issues/3323
+                    if (cropped_bitmap_or_error.is_error()) {
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
+                        return;
+                    }
+                    image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
+
+                    // FIXME: 2. Set the origin-clean flag of imageBitmap's bitmap to the same value as the origin-clean flag of image's bitmap.
+
+                    // 3. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                    queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(image_bitmap);
+                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                        WebIDL::resolve_promise(realm, *p, image_bitmap);
+                    }));
                 },
                 [&](GC::Root<OffscreenCanvas> const&) {
                     dbgln("(STUBBED) createImageBitmap() for OffscreenCanvas");
