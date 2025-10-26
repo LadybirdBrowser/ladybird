@@ -66,6 +66,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
         set(os windows)
     elseif (os_name MATCHES "FreeBSD")
         set(os freebsd)
+    elseif (os_name MATCHES "OpenBSD")
+        set(os openbsd)
     else()
         message(FATAL_ERROR "Unable to automatically detect os name for vcpkg, please set VCPKG_TARGET_TRIPLET manually")
     endif()
@@ -77,7 +79,9 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
     string(REPLACE "-triplets" "" triplet_path ${triplet_path})
     string(TOLOWER ${triplet_path} triplet_path)
     if (NOT triplet_path STREQUAL "distribution")
-        if (NOT os_name MATCHES "Windows") #NOTE: Windows defaults to dynamic linking
+        # NOTE: Windows defaults to dynamic linking
+        # NOTE: OpenBSD doesn't work with dynamic libraries
+        if (NOT os_name MATCHES "Windows" AND NOT os_name MATCHES "openbsd")
             set(full_triplet "${full_triplet}-dynamic")
         endif()
     elseif (os_name MATCHES "Windows")
