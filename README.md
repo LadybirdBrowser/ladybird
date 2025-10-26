@@ -8,10 +8,11 @@
 
 ## About This Fork
 
-This fork maintains sync with upstream Ladybird while adding experimental IPC security features for educational purposes:
+This fork maintains sync with upstream Ladybird while adding experimental features for educational purposes:
 
 - **IPC Security Enhancements**: Rate limiting, validated decoding, overflow protection
 - **Fuzzing Framework**: Automated IPC message testing infrastructure
+- **Per-Tab Tor Integration**: Privacy-focused network isolation with stream isolation ✨ **NEW**
 - **Development Documentation**: Comprehensive guides for AI-assisted development
 
 See [FORK_README.md](FORK_README.md) for detailed documentation of custom additions.
@@ -33,7 +34,7 @@ Ladybird aims to build a complete, usable browser for the modern web.
 - Main UI process (Qt/AppKit/Android UI)
 - WebContent renderer processes (one per tab, sandboxed)
 - ImageDecoder process (sandboxed image decoding)
-- RequestServer process (network isolation)
+- RequestServer process (network isolation with Tor support ✨)
 
 Image decoding and network connections are done out of process to be more robust against malicious content.
 Each tab has its own renderer process, which is sandboxed from the rest of the system.
