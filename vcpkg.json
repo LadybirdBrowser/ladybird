@@ -10,7 +10,7 @@
     },
     {
       "name": "angle",
-      "platform": "linux | windows | android | freebsd"
+      "platform": "linux | windows | android | bsd"
     },
     {
       "name": "cpptrace",
