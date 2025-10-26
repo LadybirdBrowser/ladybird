@@ -853,14 +853,14 @@ FunctionNode::FunctionNode(RefPtr<Identifier const> name, ByteString source_text
 
 FunctionNode::~FunctionNode() = default;
 
-void FunctionNode::set_shared_data(RefPtr<SharedFunctionInstanceData> shared_data) const
+void FunctionNode::set_shared_data(GC::Ptr<SharedFunctionInstanceData> shared_data) const
 {
     m_shared_data = move(shared_data);
 }
 
-RefPtr<SharedFunctionInstanceData> FunctionNode::shared_data() const
+GC::Ptr<SharedFunctionInstanceData> FunctionNode::shared_data() const
 {
-    return m_shared_data;
+    return m_shared_data.ptr();
 }
 
 void FunctionNode::dump(int indent, ByteString const& class_name) const
