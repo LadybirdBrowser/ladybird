@@ -398,11 +398,10 @@ GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_body()
 GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
 {
     HTMLTableElement* table_node = this;
-    // FIXME:  The elements in the collection must be ordered such that those elements whose parent is a thead are
-    //         included first, in tree order, followed by those elements whose parent is either a table or tbody
-    //         element, again in tree order, followed finally by those elements whose parent is a tfoot element,
-    //         still in tree order.
-    // How do you sort HTMLCollection?
+    // The elements in the collection must be ordered such that those elements whose parent is a thead are
+    // included first, in tree order, followed by those elements whose parent is either a table or tbody
+    // element, again in tree order, followed finally by those elements whose parent is a tfoot element,
+    // still in tree order.
 
     if (!m_rows) {
         m_rows = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [table_node](DOM::Element const& element) {
@@ -415,13 +414,28 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
             if (element.parent_element() == table_node)
                 return true;
 
-            if (element.parent_element() && (element.parent_element()->local_name() == TagNames::thead || element.parent_element()->local_name() == TagNames::tbody || element.parent_element()->local_name() == TagNames::tfoot)
-                && element.parent()->parent() == table_node) {
+            if (element.parent_element() && element.parent_element()->local_name().is_one_of(TagNames::thead, TagNames::tbody, TagNames::tfoot) && element.parent()->parent() == table_node)
                 return true;
-            }
 
-            return false;
-        });
+            return false; }, [](Element const& a, Element const& b) -> bool {
+                auto static sort_prio = [](Element const& element) {
+                    auto const& parentTag = element.parent_element()->local_name();
+                    if (parentTag == TagNames::thead)
+                        return 1;
+                    if (parentTag == TagNames::table || parentTag == TagNames::tbody)
+                        return 2;
+                    if (parentTag == TagNames::tfoot)
+                        return 3;
+                    VERIFY_NOT_REACHED();
+                };
+                
+                auto prio_a = sort_prio(a);
+                auto prio_b = sort_prio(b);
+
+                if (prio_a != prio_b)
+                    return prio_a < prio_b;
+
+                return false; });
     }
     return *m_rows;
 }
