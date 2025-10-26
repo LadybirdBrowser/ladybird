@@ -1,0 +1,83 @@
+<!doctype html>
+<head>
+    <script src="../../../../../resources/testharness.js"></script>
+    <script src="../../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="test">I am a test div.</div>
+    <div id="test2">I am a test div.</div>
+    <div id="test3">I am a test div.</div>
+    <div id="test3b">I am a test div.</div>
+    <div id="test4">I am a test div.</div>
+    <div id="test4b">I am a test div.</div>
+    <script>
+        window.errorCount = 0;
+        window.onerror = (errorMsg, url, lineNumber, column, errorObj) => {
+            window.errorCount++;
+        };
+    </script>
+    <script type="module" onerror="unreachable()">
+        import sheet from "./resources/basic.css" with { type: "css" };
+        test(() => {
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            assert_equals(getComputedStyle(document.querySelector('#test'))
+                    .backgroundColor, "rgb(255, 0, 0)", "CSS module import should succeed");
+        }, "A CSS Module should load");
+    </script>
+    <script type="module" onerror="unreachable()">
+        import sheet from "./resources/basic-large.css" with { type: "css" };
+        test(() => {
+            // This tests potential streaming compilation of modules in
+            // Chromium that is triggered only for large (32>KiB) files in older
+            // versions.
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            assert_equals(getComputedStyle(document.querySelector('#test2'))
+                    .backgroundColor, "rgb(255, 0, 0)",
+                    "CSS module import should succeed");
+        }, "A large CSS Module should load");
+    </script>
+    <script type="module" onerror="unreachable()">
+        import sheet from "./resources/bad-import.css" with { type: "css" };
+        test(() => {
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            assert_equals(window.errorCount, 0);
+            assert_equals(sheet.cssRules.length, 1, "Parser should skip @import rule");
+            assert_equals(getComputedStyle(document.querySelector('#test3b'))
+                .backgroundColor, "rgba(0, 0, 0, 0)",
+                "CSS module @import should not succeed");
+            assert_equals(getComputedStyle(document.querySelector('#test3'))
+                .backgroundColor, "rgb(0, 255, 0)",
+                "Rule after @import should still be applied");
+        }, "An @import CSS Module should not load, but should not throw an exception");
+    </script>
+    <script type="module" onerror="unreachable()">
+        import sheet from "./resources/malformed.css" with { type: "css" };
+        test(() => {
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            assert_equals(window.errorCount, 0);
+            assert_equals(sheet.cssRules.length, 1, "Import of malformed CSS should succeed and rules after the parse error should still be parsed");
+            assert_equals(getComputedStyle(document.querySelector('#test4'))
+                .backgroundColor, "rgba(0, 0, 0, 0)",
+                "Malformed CSS rule should not be applied");
+            assert_equals(getComputedStyle(document.querySelector('#test4b'))
+                .backgroundColor, "rgb(0, 255, 0)",
+                "Parsing should recover and rules after malformed rules should be applied");
+        }, "A parse error should not prevent subsequent rules from being included in a CSS module");
+    </script>
+    <script type="module">
+        promise_test(function (test) {
+            const iframe = document.createElement("iframe");
+            iframe.src = "resources/css-module-without-attribute-iframe.html";
+            return new Promise(resolve => {
+                iframe.onload = resolve;
+                document.body.appendChild(iframe);
+            }).then(event => {
+                assert_equals(iframe.contentDocument.window_onerror, undefined);
+                assert_equals(iframe.contentDocument.script_onerror.type, "error");
+                assert_equals(getComputedStyle(iframe.contentDocument.querySelector('#test'))
+                    .backgroundColor, "rgba(0, 0, 0, 0)",
+                    "CSS module without type attribute should result in a fetch error");
+            });
+        }, "CSS module without type attribute should result in a fetch error");
+    </script>
+</body>

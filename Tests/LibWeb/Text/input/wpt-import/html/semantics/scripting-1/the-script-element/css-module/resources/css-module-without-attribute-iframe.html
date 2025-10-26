@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<body>
+    <script>
+        window.onerror = function (errorMsg, url, lineNumber, column, errorObj)
+        {
+            document.window_onerror = errorObj.name;
+            return true;
+        };
+
+        function scriptErrorHandler(e) {
+            document.script_onerror = e;
+        }
+    </script>
+    <script type="module" onerror="scriptErrorHandler(event)">
+        import v from "./basic.css";
+        document.adoptedStyleSheets = [v];
+    </script>
+
+    <div id="test">
+        I am a test div.
+    </div>
+</body>
