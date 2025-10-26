@@ -426,6 +426,7 @@ GC_DEFINE_ALLOCATOR(SharedFunctionInstanceData);
 void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_executable);
 }
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
@@ -498,17 +499,15 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
 
 ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count)
 {
-    if (!m_bytecode_executable) {
-        if (!ecmascript_code().bytecode_executable()) {
-            if (is_module_wrapper()) {
-                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm(), ecmascript_code(), kind(), name())));
-            } else {
-                const_cast<Statement&>(ecmascript_code()).set_bytecode_executable(TRY(Bytecode::compile(vm(), *this)));
-            }
+    auto& executable = shared_data().m_executable;
+    if (!executable) {
+        if (is_module_wrapper()) {
+            executable = TRY(Bytecode::compile(vm(), ecmascript_code(), kind(), name()));
+        } else {
+            executable = TRY(Bytecode::compile(vm(), *this));
         }
-        m_bytecode_executable = ecmascript_code().bytecode_executable();
     }
-    registers_and_constants_and_locals_count = m_bytecode_executable->number_of_registers + m_bytecode_executable->constants.size() + m_bytecode_executable->local_variable_names.size();
+    registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
     argument_count = max(argument_count, formal_parameters().size());
     return {};
 }
@@ -518,7 +517,7 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
 {
     auto& vm = this->vm();
 
-    ASSERT(m_bytecode_executable);
+    ASSERT(bytecode_executable());
 
     // 1. Let callerContext be the running execution context.
     // NOTE: No-op, kept by the VM in its execution context stack.
@@ -563,7 +562,7 @@ FLATTEN ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_co
 {
     auto& vm = this->vm();
 
-    ASSERT(m_bytecode_executable);
+    ASSERT(bytecode_executable());
 
     // 1. Let callerContext be the running execution context.
     // NOTE: No-op, kept by the VM in its execution context stack.
@@ -652,7 +651,6 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
     visitor.visit(m_home_object);
     visitor.visit(m_name_string);
     visitor.visit(m_shared_data);
-    visitor.visit(m_bytecode_executable);
 
     if (m_class_data) {
         for (auto& field : m_class_data->fields) {
@@ -892,7 +890,7 @@ template void async_function_start(VM&, PromiseCapability const&, GC::Function<C
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
 ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
 {
-    auto result_and_frame = vm.bytecode_interpreter().run_executable(*m_bytecode_executable, {});
+    auto result_and_frame = vm.bytecode_interpreter().run_executable(*bytecode_executable(), {});
 
     if (result_and_frame.value.is_error()) [[unlikely]] {
         return result_and_frame.value.release_error();

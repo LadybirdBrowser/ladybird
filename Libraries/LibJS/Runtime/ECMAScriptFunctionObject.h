@@ -54,6 +54,8 @@ public:
         FunctionParsingInsights const&,
         Vector<LocalVariable> local_variables_names);
 
+    mutable GC::Ptr<Bytecode::Executable> m_executable;
+
     RefPtr<FunctionParameters const> m_formal_parameters; // [[FormalParameters]]
     RefPtr<Statement const> m_ecmascript_code;            // [[ECMAScriptCode]]
 
@@ -142,7 +144,7 @@ public:
 
     void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_class_constructor = true; }
 
-    auto& bytecode_executable() const { return m_bytecode_executable; }
+    auto& bytecode_executable() const { return shared_data().m_executable; }
 
     Environment* environment() { return m_environment; }
     virtual Realm* realm() const override { return &shape().realm(); }
@@ -213,8 +215,6 @@ private:
     GC::Ref<SharedFunctionInstanceData> m_shared_data;
 
     GC::Ptr<PrimitiveString> m_name_string;
-
-    GC::Ptr<Bytecode::Executable> m_bytecode_executable;
 
     // Internal Slots of ECMAScript Function Objects, https://tc39.es/ecma262/#table-internal-slots-of-ecmascript-function-objects
     GC::Ptr<Environment> m_environment;                // [[Environment]]
