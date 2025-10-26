@@ -358,6 +358,11 @@
       "configurePreset": "Debug"
     },
     {
+      "name": "All_Debug",
+      "inherits": "unix_base",
+      "configurePreset": "All_Debug"
+    },
+    {
       "name": "Windows_Experimental",
       "inherits": "windows_base",
       "configurePreset": "Windows_Experimental"
