@@ -302,20 +302,75 @@ connection->disable_tor();
 
 ---
 
-### ⏳ Milestone 1.4: VPN Integration (Todo 13 - PENDING)
+### ✅ Milestone 1.4: VPN Integration (COMPLETE - 2025-10-26)
+
+**Status**: ✅ COMPLETE
+**Completion Date**: 2025-10-26
+**Files Modified**: 15 files (4 new, 11 modified)
+**Git Commit**: 53bc3c829d - "LibIPC+RequestServer+WebContent+UI: Add VPN/proxy integration"
 
 **Goal**: Extend Tor integration to support generic VPN/proxy configurations
 
-**Features**:
-1. VPN toggle button (separate from Tor)
-2. Support HTTP/HTTPS/SOCKS5 proxies
-3. Per-tab VPN configuration
-4. Proxy settings dialog
+**Implementation**:
 
-**Reusable Components**:
-- ProxyConfig already supports HTTP/HTTPS/SOCKS5
-- NetworkIdentity already has set_proxy_config()
-- IPC infrastructure already in place
+**ProxyValidator** - Connection Testing:
+- Created `Libraries/LibIPC/ProxyValidator.h` - Interface for proxy testing
+- Created `Libraries/LibIPC/ProxyValidator.cpp` - SOCKS5/HTTP proxy validation
+- SOCKS5 handshake testing (version check, authentication negotiation)
+- HTTP/HTTPS proxy connectivity verification
+- Error reporting with descriptive messages
+
+**ProxySettingsDialog** - Qt UI:
+- Created `UI/Qt/ProxySettingsDialog.h` - Dialog interface
+- Created `UI/Qt/ProxySettingsDialog.cpp` - UI implementation
+- Proxy type selection (SOCKS5H, SOCKS5, HTTP, HTTPS)
+- Host/port configuration with defaults (1080 for SOCKS5, 3128 for HTTP)
+- Optional authentication (username/password)
+- "Test Connection" button with visual feedback (green/red status)
+- Form validation before save
+
+**IPC Integration**:
+- Modified `Services/RequestServer/RequestServer.ipc` - Added set_proxy/clear_proxy messages
+- Modified `Services/WebContent/WebContentServer.ipc` - Added messages with page_id
+- Modified `Services/RequestServer/ConnectionFromClient.{h,cpp}` - Implemented handlers
+- Modified `Services/WebContent/ConnectionFromClient.{h,cpp}` - Implemented forwarding
+
+**UI Integration**:
+- Modified `UI/Qt/Tab.{h,cpp}` - VPN toggle button and proxy configuration storage
+- Visual indicators: Blue border for VPN, Purple for Tor+VPN
+- Proxy settings dialog integration
+- Toggle state management
+
+**Build Integration**:
+- Modified `Libraries/LibIPC/CMakeLists.txt` - Added ProxyValidator.cpp
+- Modified `UI/Qt/CMakeLists.txt` - Added ProxySettingsDialog.cpp
+
+**Features Implemented**:
+1. ✅ VPN toggle button (separate from Tor)
+2. ✅ Support HTTP/HTTPS/SOCKS5/SOCKS5H proxies
+3. ✅ Per-tab VPN configuration
+4. ✅ Proxy settings dialog with connection testing
+5. ✅ Visual indicators (blue/purple borders)
+6. ✅ Optional authentication support
+
+**Files Modified**:
+1. Libraries/LibIPC/ProxyValidator.h (NEW)
+2. Libraries/LibIPC/ProxyValidator.cpp (NEW)
+3. Libraries/LibIPC/CMakeLists.txt
+4. UI/Qt/ProxySettingsDialog.h (NEW)
+5. UI/Qt/ProxySettingsDialog.cpp (NEW)
+6. UI/Qt/CMakeLists.txt
+7. Services/RequestServer/RequestServer.ipc
+8. Services/RequestServer/ConnectionFromClient.h
+9. Services/RequestServer/ConnectionFromClient.cpp
+10. Services/WebContent/WebContentServer.ipc
+11. Services/WebContent/ConnectionFromClient.h
+12. Services/WebContent/ConnectionFromClient.cpp
+13. UI/Qt/Tab.h
+14. UI/Qt/Tab.cpp
+15. claudedocs/TOR_INTEGRATION_PROGRESS.md
+
+**Build Status**: ✅ All files compiled successfully, no errors
 
 ---
 
