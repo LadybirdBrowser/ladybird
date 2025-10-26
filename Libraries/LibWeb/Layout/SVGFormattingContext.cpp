@@ -235,10 +235,10 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
         auto viewbox_offset_and_scale = scale_and_align_viewbox_content(preserve_aspect_ratio, *active_view_box, { scale_width, scale_height }, svg_box_state);
 
         CSSPixelPoint offset = viewbox_offset_and_scale.offset;
-        m_current_viewbox_transform = Gfx::AffineTransform { m_current_viewbox_transform }.multiply(Gfx::AffineTransform {}
-                .translate(offset.to_type<float>())
-                .scale(viewbox_offset_and_scale.scale_factor_x, viewbox_offset_and_scale.scale_factor_y)
-                .translate({ -active_view_box->min_x, -active_view_box->min_y }));
+        m_current_viewbox_transform
+            .translate(offset.to_type<float>())
+            .scale(viewbox_offset_and_scale.scale_factor_x, viewbox_offset_and_scale.scale_factor_y)
+            .translate({ -active_view_box->min_x, -active_view_box->min_y });
     }
 
     if (svg_box_state.has_definite_width() && svg_box_state.has_definite_height()) {
