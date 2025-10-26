@@ -13,6 +13,7 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/ProxySettingsDialog.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -126,6 +127,81 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         }
     });
 
+    // Create VPN toggle button
+    m_vpn_toggle_action = new QAction(this);
+    m_vpn_toggle_action->setCheckable(true);
+    m_vpn_toggle_action->setChecked(false);
+    m_vpn_toggle_action->setText("VPN");
+    m_vpn_toggle_action->setToolTip("Enable VPN/Proxy for this tab");
+    QObject::connect(m_vpn_toggle_action, &QAction::triggered, this, [this](bool checked) {
+        if (checked) {
+            // Check if proxy is configured
+            if (!m_proxy_config.has_value()) {
+                // No proxy configured - open settings dialog
+                open_proxy_settings_dialog();
+
+                // Revert toggle if dialog was cancelled
+                if (!m_proxy_config.has_value()) {
+                    m_vpn_toggle_action->setChecked(false);
+                    return;
+                }
+            }
+
+            // Apply proxy configuration
+            m_vpn_enabled = true;
+            dbgln("Tab: Enabling VPN for page_id {}", view().page_id());
+            m_vpn_toggle_action->setToolTip("Disable VPN for this tab (currently using proxy)");
+
+            // Apply border color based on Tor+VPN state
+            if (m_tor_enabled) {
+                // Both Tor + VPN active - purple border
+                m_location_edit->setStyleSheet("QLineEdit { border: 2px solid #9C27B0; }");
+            } else {
+                // VPN only - blue border
+                m_location_edit->setStyleSheet("QLineEdit { border: 2px solid #2196F3; }");
+            }
+
+            // Send IPC message to apply proxy
+            auto const& config = *m_proxy_config;
+            ByteString proxy_type_str;
+            switch (config.type) {
+            case IPC::ProxyType::SOCKS5H:
+                proxy_type_str = "SOCKS5H";
+                break;
+            case IPC::ProxyType::SOCKS5:
+                proxy_type_str = "SOCKS5";
+                break;
+            case IPC::ProxyType::HTTP:
+                proxy_type_str = "HTTP";
+                break;
+            case IPC::ProxyType::HTTPS:
+                proxy_type_str = "HTTPS";
+                break;
+            default:
+                proxy_type_str = "SOCKS5H";
+                break;
+            }
+            view().client().async_set_proxy(view().page_id(), config.host, config.port, proxy_type_str, config.username, config.password);
+        } else {
+            // Disable VPN
+            m_vpn_enabled = false;
+            dbgln("Tab: Disabling VPN for page_id {}", view().page_id());
+            m_vpn_toggle_action->setToolTip("Enable VPN/Proxy for this tab");
+
+            // Update border color
+            if (m_tor_enabled) {
+                // Tor still active - revert to green border
+                m_location_edit->setStyleSheet("QLineEdit { border: 2px solid #00C851; }");
+            } else {
+                // Neither active - remove border
+                m_location_edit->setStyleSheet("");
+            }
+
+            // Send IPC message to clear proxy
+            view().client().async_clear_proxy(view().page_id());
+        }
+    });
+
     recreate_toolbar_icons();
 
     m_favicon = default_favicon();
@@ -139,6 +215,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar->addAction(m_navigate_forward_action);
     m_toolbar->addAction(m_reload_action);
     m_toolbar->addAction(m_tor_toggle_action);  // Add Tor toggle button
+    m_toolbar->addAction(m_vpn_toggle_action);  // Add VPN toggle button
     m_toolbar->addWidget(m_location_edit);
     m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
@@ -556,6 +633,29 @@ void Tab::find_previous()
 void Tab::find_next()
 {
     m_find_in_page->find_next();
+}
+
+void Tab::open_proxy_settings_dialog()
+{
+    // Create proxy settings dialog
+    auto* dialog = new ProxySettingsDialog(this);
+
+    // If we already have a proxy config, pre-populate the dialog
+    if (m_proxy_config.has_value()) {
+        dialog->set_proxy_config(*m_proxy_config);
+    }
+
+    // Show dialog and wait for result
+    if (dialog->exec() == QDialog::Accepted) {
+        // User clicked Save - get the proxy configuration
+        m_proxy_config = dialog->get_proxy_config();
+        dbgln("Tab: Proxy configuration saved for page_id {}", view().page_id());
+    } else {
+        // User clicked Cancel or closed dialog
+        dbgln("Tab: Proxy configuration cancelled");
+    }
+
+    delete dialog;
 }
 
 }

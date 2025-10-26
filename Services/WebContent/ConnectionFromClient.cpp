@@ -1412,4 +1412,46 @@ void ConnectionFromClient::rotate_tor_circuit(u64 page_id)
     dbgln("WebContent: Rotated Tor circuit for page {}", page_id);
 }
 
+void ConnectionFromClient::set_proxy(u64 page_id, ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password)
+{
+    // Validate the page exists
+    if (!this->page(page_id).has_value()) {
+        dbgln("WebContent::ConnectionFromClient::set_proxy: Invalid page_id {}", page_id);
+        return;
+    }
+
+    // Forward the proxy configuration to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::set_proxy: No RequestClient available");
+        return;
+    }
+
+    // Call set_proxy on RequestServer via IPC
+    request_client->async_set_proxy(move(host), port, move(proxy_type), move(username), move(password));
+
+    dbgln("WebContent: Set proxy for page {} ({}:{})", page_id, host, port);
+}
+
+void ConnectionFromClient::clear_proxy(u64 page_id)
+{
+    // Validate the page exists
+    if (!this->page(page_id).has_value()) {
+        dbgln("WebContent::ConnectionFromClient::clear_proxy: Invalid page_id {}", page_id);
+        return;
+    }
+
+    // Forward the proxy clear request to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::clear_proxy: No RequestClient available");
+        return;
+    }
+
+    // Call clear_proxy on RequestServer via IPC
+    request_client->async_clear_proxy();
+
+    dbgln("WebContent: Cleared proxy for page {}", page_id);
+}
+
 }

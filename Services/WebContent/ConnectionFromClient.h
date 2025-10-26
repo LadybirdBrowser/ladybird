@@ -150,6 +150,10 @@ private:
     virtual void disable_tor(u64 page_id) override;
     virtual void rotate_tor_circuit(u64 page_id) override;
 
+    // VPN/Proxy control IPC handlers
+    virtual void set_proxy(u64 page_id, ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password) override;
+    virtual void clear_proxy(u64 page_id) override;
+
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 

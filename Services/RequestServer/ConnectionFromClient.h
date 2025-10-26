@@ -64,6 +64,10 @@ private:
     virtual void disable_tor() override;
     virtual void rotate_tor_circuit() override;
 
+    // VPN/Proxy control IPC handlers
+    virtual void set_proxy(ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password) override;
+    virtual void clear_proxy() override;
+
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;
     virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_close(i64 websocket_id, u16, ByteString) override;

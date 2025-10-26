@@ -3,6 +3,7 @@ set(SOURCES
     Decoder.cpp
     Encoder.cpp
     NetworkIdentity.cpp
+    ProxyValidator.cpp
 )
 
 if (UNIX)

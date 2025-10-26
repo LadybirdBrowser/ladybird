@@ -135,6 +135,10 @@ endpoint WebContentServer
     disable_tor(u64 page_id) =|
     rotate_tor_circuit(u64 page_id) =|
 
+    // VPN/Proxy control
+    set_proxy(u64 page_id, ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password) =|
+    clear_proxy(u64 page_id) =|
+
     system_time_zone_changed() =|
     cookies_changed(Vector<Web::Cookie::Cookie> cookies) =|
 }

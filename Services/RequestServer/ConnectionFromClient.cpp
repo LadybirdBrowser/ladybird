@@ -528,6 +528,80 @@ void ConnectionFromClient::rotate_tor_circuit()
     }
 }
 
+void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password)
+{
+    dbgln("RequestServer: set_proxy() called on client {} ({}:{})", client_id(), host, port);
+
+    // Create network identity if not already present
+    if (!m_network_identity) {
+        m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(client_id()));
+        dbgln("RequestServer: Created new NetworkIdentity for client {}", client_id());
+    }
+
+    // Build ProxyConfig from parameters
+    IPC::ProxyConfig config;
+    config.host = move(host);
+    config.port = port;
+
+    // Parse proxy type string
+    if (proxy_type == "SOCKS5H"sv)
+        config.type = IPC::ProxyType::SOCKS5H;
+    else if (proxy_type == "SOCKS5"sv)
+        config.type = IPC::ProxyType::SOCKS5;
+    else if (proxy_type == "HTTP"sv)
+        config.type = IPC::ProxyType::HTTP;
+    else if (proxy_type == "HTTPS"sv)
+        config.type = IPC::ProxyType::HTTPS;
+    else {
+        dbgln("RequestServer: Unknown proxy type '{}', defaulting to SOCKS5H", proxy_type);
+        config.type = IPC::ProxyType::SOCKS5H;
+    }
+
+    config.username = move(username);
+    config.password = move(password);
+
+    // Set proxy configuration on this connection
+    m_network_identity->set_proxy_config(config);
+
+    dbgln("RequestServer: Proxy ENABLED for client {} ({}:{})", client_id(), config.host, config.port);
+
+    // Apply proxy configuration to ALL connections from this process
+    for (auto& [id, connection] : s_connections) {
+        if (id == client_id())
+            continue;
+
+        if (!connection->m_network_identity) {
+            connection->m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(id));
+            dbgln("RequestServer: Created NetworkIdentity for sibling client {}", id);
+        }
+
+        connection->m_network_identity->set_proxy_config(config);
+        dbgln("RequestServer: Also enabled proxy for sibling client {}", id);
+    }
+}
+
+void ConnectionFromClient::clear_proxy()
+{
+    if (!m_network_identity) {
+        dbgln("RequestServer: Cannot clear proxy - no network identity");
+        return;
+    }
+
+    m_network_identity->clear_proxy_config();
+    dbgln("RequestServer: Proxy disabled for client {}", client_id());
+
+    // Also disable proxy on all sibling connections
+    for (auto& [id, connection] : s_connections) {
+        if (id == client_id())
+            continue;
+
+        if (connection->m_network_identity) {
+            connection->m_network_identity->clear_proxy_config();
+            dbgln("RequestServer: Also disabled proxy for sibling client {}", id);
+        }
+    }
+}
+
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS

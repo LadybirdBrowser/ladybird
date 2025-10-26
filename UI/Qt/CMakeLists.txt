@@ -7,6 +7,7 @@ target_sources(ladybird PRIVATE
     Icon.cpp
     LocationEdit.cpp
     Menu.cpp
+    ProxySettingsDialog.cpp
     Settings.cpp
     StringUtils.cpp
     Tab.cpp

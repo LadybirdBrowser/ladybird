@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibIPC/ProxyConfig.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
@@ -115,6 +116,13 @@ private:
     // Tor controls
     QAction* m_tor_toggle_action { nullptr };
     bool m_tor_enabled { false };
+
+    // VPN/Proxy controls
+    QAction* m_vpn_toggle_action { nullptr };
+    bool m_vpn_enabled { false };
+    Optional<IPC::ProxyConfig> m_proxy_config;
+
+    void open_proxy_settings_dialog();
 
     QPointer<QDialog> m_dialog;
 };

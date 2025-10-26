@@ -242,6 +242,66 @@ connection->disable_tor();
 
 ---
 
+### ✅ Milestone 1.3B: Critical Bug Fixes (COMPLETE - 2025-10-26)
+
+**Status**: ✅ COMPLETE
+**Completion Date**: 2025-10-26
+**Files Modified**: 4 files
+**Documentation**: `claudedocs/PAGE_ID_BUG_FIX.md`
+
+**Bug Fix 1: Page ID Initialization (Commit c81832544c)**
+
+**Problem**:
+- New tabs defaulted to page_id 0 (reserved for initial/primary view)
+- Security validation failed: "attempted access to invalid page_id 0"
+- Navigation completely broken for 2nd, 3rd, etc. tabs until Tor enabled
+
+**Root Cause**:
+- BrowserWindow::create_new_tab() called `new Tab(this)` without page_index
+- Tab constructor defaulted to page_index = 0
+- Page ID 0 reserved by WebContentClient VERIFY check
+
+**Solution**:
+- Added `size_t m_next_page_id { 1 };` counter to BrowserWindow
+- Generate unique page_id for each tab: `auto page_id = m_next_page_id++;`
+- Pass to Tab constructor: `new Tab(this, nullptr, page_id)`
+
+**Testing**: User confirmed second tab navigation works immediately
+
+**Files Modified**:
+1. UI/Qt/BrowserWindow.h - Added m_next_page_id counter
+2. UI/Qt/BrowserWindow.cpp - Generate unique page_id in create_new_tab()
+
+---
+
+**Bug Fix 2: DNS Bypass for SOCKS5H Proxy (Commit fbfe63b239)**
+
+**Problem**:
+- .onion sites failed with "DNS lookup failed: Temporary failure in name resolution"
+- HTTPS sites failed with "SSL handshake failed" when using Tor
+- DNS lookup happened BEFORE proxy configuration
+- CURLOPT_RESOLVE forced DNS results, defeating SOCKS5H hostname resolution
+
+**Root Cause**:
+- Line 733: DNS lookup executed unconditionally before checking proxy type
+- Lines 887-892: CURLOPT_RESOLVE bypassed Tor for hostname resolution
+- For .onion: DNS fails (doesn't exist in DNS) → request aborted
+- For HTTPS: DNS forced direct connection → SSL handshake failed
+
+**Solution**:
+- Check for SOCKS5H proxy BEFORE DNS lookup
+- Skip DNS lookup if using SOCKS5H (let Tor handle DNS)
+- Skip CURLOPT_RESOLVE if no DNS results available
+- Split function into two: issue_network_request() and issue_network_request_with_optional_dns()
+
+**Testing**: User confirmed DuckDuckGo .onion site loads successfully
+
+**Files Modified**:
+1. Services/RequestServer/ConnectionFromClient.h - Added new function declaration
+2. Services/RequestServer/ConnectionFromClient.cpp - Split DNS handling, conditional DNS lookup/CURLOPT_RESOLVE
+
+---
+
 ### ⏳ Milestone 1.4: VPN Integration (Todo 13 - PENDING)
 
 **Goal**: Extend Tor integration to support generic VPN/proxy configurations
@@ -377,9 +437,10 @@ Browser UI Process
 - **Week 3, Day 1**: Tor process management research and design ✅ COMPLETE
 - **Week 3, Day 2**: Tor availability detection implementation ✅ COMPLETE
 - **Week 3, Day 3**: Tor UI integration and build verification ✅ COMPLETE
-- **Week 3, Day 4+**: Manual testing, VPN integration, audit UI ⏳ PENDING
+- **Week 3, Day 4**: Critical bug fixes (page_id, DNS bypass) ✅ COMPLETE
+- **Week 3, Day 5+**: Manual testing, VPN integration, audit UI ⏳ PENDING
 
-**Current Status**: Milestone 1.3 IMPLEMENTATION COMPLETE - 85% of core functionality done
+**Current Status**: Milestone 1.3B COMPLETE - 90% of Phase 1 done, .onion sites working
 
 ---
 
@@ -419,4 +480,17 @@ Browser UI Process
 
 **Milestone 1.3 Status**: ✅ IMPLEMENTATION COMPLETE, ⏳ TESTING PENDING
 
-**Next Milestone**: VPN integration (generic proxy configuration)
+### Milestone 1.3B - Critical Bug Fixes
+- [x] Investigate page_id 0 security validation failures
+- [x] Fix page_id initialization for new tabs (unique counter)
+- [x] Verify multi-tab navigation works correctly
+- [x] Investigate .onion DNS resolution failures
+- [x] Fix DNS bypass defeating SOCKS5H proxy
+- [x] Verify .onion sites load successfully
+- [x] Test with DuckDuckGo .onion hidden service
+- [x] Build verification with all fixes
+- [x] Commit and push both bug fixes
+
+**Milestone 1.3B Status**: ✅ COMPLETE
+
+**Next Milestone**: Phase 2 - P2P Protocol Integration OR Milestone 1.4 - VPN Integration
