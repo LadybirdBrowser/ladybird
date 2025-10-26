@@ -5,6 +5,8 @@
  */
 
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
@@ -13,25 +15,16 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(JavaScriptModuleScript);
-
 ModuleScript::~ModuleScript() = default;
 
-ModuleScript::ModuleScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
+ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, JS::Realm& realm)
     : Script(move(base_url), move(filename), realm)
-{
-}
-
-JavaScriptModuleScript::~JavaScriptModuleScript() = default;
-
-JavaScriptModuleScript::JavaScriptModuleScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
-    : ModuleScript(move(base_url), move(filename), realm)
 {
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
 // https://whatpr.org/html/9893/webappapis.html#creating-a-javascript-module-script
-WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_module_script(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url)
 {
     // 1. If scripting is disabled for realm, then set source to the empty string.
     if (HTML::is_scripting_disabled(realm))
@@ -40,7 +33,7 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     // 3. Set script's realm to realm.
     // 4. Set script's base URL to baseURL.
-    auto script = realm.create<JavaScriptModuleScript>(move(base_url), filename, realm);
+    auto script = realm.create<ModuleScript>(move(base_url), filename, realm);
 
     // FIXME: 5. Set script's fetch options to options.
 
@@ -70,9 +63,40 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
     return script;
 }
 
+// https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-css-module-script
+// https://whatpr.org/html/9893/webappapis.html#creating-a-css-module-script
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_script(ByteString const& filename, StringView source, JS::Realm& realm)
+{
+    // 1. Let script be a new module script that this algorithm will subsequently initialize.
+    // 2. Set script's realm to realm.
+    // 3. Set script's base URL and fetch options to null.
+    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, realm);
+
+    // 4. Set script's parse error and error to rethrow to null.
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    // 5. Let sheet be the result of running the steps to create a constructed CSSStyleSheet with an empty dictionary as
+    //    the argument.
+    auto sheet = TRY(CSS::CSSStyleSheet::construct_impl(realm));
+
+    // 6. Run the steps to synchronously replace the rules of a CSSStyleSheet on sheet given source.
+    //    If this throws an exception, catch it, and set script's parse error to that exception, and return script.
+    if (auto result = sheet->replace_sync(source); result.is_error()) {
+        auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), result.exception());
+        script->set_parse_error(throw_completion.value());
+        return script;
+    }
+
+    // 7. Set script's record to the result of CreateDefaultExportSyntheticModule(sheet).
+    script->m_record = JS::SyntheticModule::create_default_export_synthetic_module(realm, sheet, filename.view());
+
+    // 8. Return script.
+    return script;
+}
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
 // https://whatpr.org/html/9893/webappapis.html#run-a-module-script
-JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
+JS::Promise* ModuleScript::run(PreventErrorReporting)
 {
     // 1. Let realm be the realm of script.
     auto& realm = this->realm();
@@ -84,28 +108,31 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         return promise;
     }
 
-    // 3. Prepare to run script given realm.
+    // FIXME: 3. Record module script execution start time given script.
+
+    // 4. Prepare to run script given realm.
     prepare_to_run_script(realm);
 
-    // 4. Let evaluationPromise be null.
+    // 5. Let evaluationPromise be null.
     JS::Promise* evaluation_promise = nullptr;
 
-    // 5. If script's error to rethrow is not null, then set evaluationPromise to a promise rejected with script's error to rethrow.
+    // 6. If script's error to rethrow is not null, then set evaluationPromise to a promise rejected with script's error to rethrow.
     if (!error_to_rethrow().is_null()) {
         evaluation_promise = JS::Promise::create(realm);
         evaluation_promise->reject(error_to_rethrow());
     }
-    // 6. Otherwise:
+    // 7. Otherwise:
     else {
         // 1. Let record be script's record.
-        auto record = m_record;
-        VERIFY(record);
+        auto record = m_record.visit(
+            [](Empty) -> GC::Ref<JS::Module> { VERIFY_NOT_REACHED(); },
+            [](auto& module) -> GC::Ref<JS::Module> { return module; });
 
         // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
         JS::ExecutionContext* module_execution_context = nullptr;
         ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_execution_context, 0, 0);
         module_execution_context->realm = &realm;
-        module_execution_context->script_or_module = GC::Ref<JS::Module> { *record };
+        module_execution_context->script_or_module = record;
         vm().push_execution_context(*module_execution_context);
 
         // 2. Set evaluationPromise to record.Evaluate().
@@ -127,19 +154,21 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         vm().pop_execution_context();
     }
 
-    // FIXME: 7. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
+    // FIXME: 8. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
 
-    // 8. Clean up after running script with realm.
+    // 9. Clean up after running script with realm.
     clean_up_after_running_script(realm);
 
-    // 9. Return evaluationPromise.
+    // 10. Return evaluationPromise.
     return evaluation_promise;
 }
 
-void JavaScriptModuleScript::visit_edges(Cell::Visitor& visitor)
+void ModuleScript::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_record);
+    m_record.visit(
+        [&](Empty) {},
+        [&](auto record) { visitor.visit(record); });
 }
 
 }
