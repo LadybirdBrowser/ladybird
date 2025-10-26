@@ -53,7 +53,7 @@ bool HWBColorStyleValue::equals(StyleValue const& other) const
 String HWBColorStyleValue::to_string(SerializationMode mode) const
 {
     if (auto color = to_color({}); color.has_value())
-        return serialize_a_srgb_value(color.value());
+        return color->serialize_a_srgb_value();
 
     StringBuilder builder;
     builder.append("hwb("sv);

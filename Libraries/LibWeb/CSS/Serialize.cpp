@@ -127,66 +127,6 @@ void serialize_unicode_ranges(StringBuilder& builder, Vector<Gfx::UnicodeRange> 
     });
 }
 
-namespace {
-
-char nth_digit(u32 value, u8 digit)
-{
-    // This helper is used to format integers.
-    // nth_digit(745, 1) -> '5'
-    // nth_digit(745, 2) -> '4'
-    // nth_digit(745, 3) -> '7'
-
-    VERIFY(value < 1000);
-    VERIFY(digit <= 3);
-    VERIFY(digit > 0);
-
-    while (digit > 1) {
-        value /= 10;
-        digit--;
-    }
-
-    return '0' + value % 10;
-}
-
-Array<char, 4> format_to_8bit_compatible(u8 value)
-{
-    // This function formats to the shortest string that roundtrips at 8 bits.
-    // As an example:
-    //      127 / 255 = 0.498 ± 0.001
-    //      128 / 255 = 0.502 ± 0.001
-    // But round(.5 * 255) == 128, so this function returns (note that it's only the fractional part):
-    //      127 -> "498"
-    //      128 -> "5"
-
-    u32 const three_digits = (value * 1000u + 127) / 255;
-    u32 const rounded_to_two_digits = (three_digits + 5) / 10 * 10;
-
-    if ((rounded_to_two_digits * 255 / 100 + 5) / 10 != value)
-        return { nth_digit(three_digits, 3), nth_digit(three_digits, 2), nth_digit(three_digits, 1), '\0' };
-
-    u32 const rounded_to_one_digit = (three_digits + 50) / 100 * 100;
-    if ((rounded_to_one_digit * 255 / 100 + 5) / 10 != value)
-        return { nth_digit(rounded_to_two_digits, 3), nth_digit(rounded_to_two_digits, 2), '\0', '\0' };
-
-    return { nth_digit(rounded_to_one_digit, 3), '\0', '\0', '\0' };
-}
-
-}
-
-// https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-void serialize_a_srgb_value(StringBuilder& builder, Color color)
-{
-    // The serialized form is derived from the computed value and thus, uses either the rgb() or rgba() form
-    // (depending on whether the alpha is exactly 1, or not), with lowercase letters for the function name.
-    // NOTE: Since we use Gfx::Color, having an "alpha of 1" means its value is 255.
-    if (color.alpha() == 0)
-        builder.appendff("rgba({}, {}, {}, 0)", color.red(), color.green(), color.blue());
-    else if (color.alpha() == 255)
-        builder.appendff("rgb({}, {}, {})", color.red(), color.green(), color.blue());
-    else
-        builder.appendff("rgba({}, {}, {}, 0.{})", color.red(), color.green(), color.blue(), format_to_8bit_compatible(color.alpha()).data());
-}
-
 // https://drafts.csswg.org/cssom/#serialize-a-css-value
 void serialize_a_number(StringBuilder& builder, double value)
 {
@@ -215,13 +155,6 @@ String serialize_a_url(StringView url)
 {
     StringBuilder builder;
     serialize_a_url(builder, url);
-    return builder.to_string_without_validation();
-}
-
-String serialize_a_srgb_value(Color color)
-{
-    StringBuilder builder;
-    serialize_a_srgb_value(builder, color);
     return builder.to_string_without_validation();
 }
 

@@ -502,6 +502,9 @@ public:
     String to_string_without_alpha() const;
     Utf16String to_utf16_string_without_alpha() const;
 
+    void serialize_a_srgb_value(StringBuilder&) const;
+    String serialize_a_srgb_value() const;
+
     ByteString to_byte_string() const;
     ByteString to_byte_string_without_alpha() const;
     static Optional<Color> from_string(StringView);
