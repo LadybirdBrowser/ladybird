@@ -785,6 +785,48 @@ ErrorOr<ByteString> current_executable_path()
     size_t len = sizeof(path);
     if (sysctl(mib, 4, path, &len, nullptr, 0) < 0)
         return Error::from_syscall("sysctl"sv, errno);
+#elif defined(AK_OS_OPENBSD)
+    // OpenBSD doesn't have a proper way to read the executable path,
+    // so the best solution is to try to guess it
+    int mib[4] = { CTL_KERN, KERN_PROC_ARGS, getpid(), KERN_PROC_ARGV };
+
+    size_t argv_length;
+    if (sysctl(mib, 4, nullptr, &argv_length, nullptr, 0) < 0)
+        return Error::from_syscall("sysctl"sv, errno);
+
+    Vector<char*> argv;
+    argv.resize(argv_length);
+
+    if (sysctl(mib, 4, argv.data(), &argv_length, nullptr, 0) < 0)
+        return Error::from_syscall("sysctl"sv, errno);
+
+    StringView argv0 = { argv[0], strlen(argv[0]) };
+
+    if (argv0.contains('/')) {
+        realpath(argv[0], path);
+    } else {
+        auto maybe_path = Environment::get("PATH"sv);
+        if (!maybe_path.has_value())
+            return Error::from_string_literal("Failed to find the executable path");
+
+        auto global_path = maybe_path.release_value();
+        for (auto const path_entry : global_path.split_view(':')) {
+            StringBuilder builder;
+            builder.append(path_entry);
+            builder.append('/');
+            builder.append(argv0);
+
+            auto stat_or_error = stat(builder.string_view());
+            if (stat_or_error.is_error())
+                continue;
+            auto st = stat_or_error.release_value();
+
+            if (st.st_mode & S_IXUSR)
+                return ByteString { builder.string_view() };
+        }
+
+        return Error::from_string_literal("Failed to find the executable path");
+    }
 #elif defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     u32 size = sizeof(path);
     auto ret = _NSGetExecutablePath(path, &size);
@@ -801,7 +843,6 @@ ErrorOr<ByteString> current_executable_path()
     strlcpy(path, info.name, sizeof(path) - 1);
 #else
 #    warning "Not sure how to get current_executable_path on this platform!"
-    // GetModuleFileName on Windows, unsure about OpenBSD.
     return Error::from_string_literal("current_executable_path unknown");
 #endif
     path[sizeof(path) - 1] = '\0';
