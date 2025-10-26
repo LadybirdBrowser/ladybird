@@ -103,12 +103,20 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style)
 
         // FIXME: Implement sampling configuration.
         SkSamplingOptions sk_sampling_options { SkFilterMode::kLinear };
+        Optional<SkMatrix> transformation_matrix;
 
+        if (canvas_pattern->transform().has_value()) {
+            auto const& transform = canvas_pattern->transform().value();
+            transformation_matrix = SkMatrix::MakeAll(
+                transform.a(), transform.c(), transform.e(),
+                transform.b(), transform.d(), transform.f(),
+                0, 0, 1);
+        }
         auto shader = sk_image->makeShader(
             repeat_x ? SkTileMode::kRepeat : SkTileMode::kDecal,
             repeat_y ? SkTileMode::kRepeat : SkTileMode::kDecal,
-            sk_sampling_options);
-        paint.setShader(shader);
+            sk_sampling_options, transformation_matrix.has_value() ? &transformation_matrix.value() : nullptr);
+        paint.setShader(move(shader));
     } else {
         dbgln("FIXME: Unsupported PaintStyle");
     }

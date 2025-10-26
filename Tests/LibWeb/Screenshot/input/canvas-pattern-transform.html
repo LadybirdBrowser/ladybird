@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-93; totalPixels=0-2396">
+<link rel="match" href="../expected/canvas-pattern-transform-ref.html" />
+<style>
+    * {
+        margin: 0;
+    }
+
+    body {
+        background-color: white;
+    }
+
+    canvas {
+        border: 2px solid black;
+        margin: 5px;
+        padding: 5px;
+    }
+</style>
+
+<canvas data-type="img" data-repeat="repeat" width="250" height="250"></canvas>
+<canvas data-type="img" data-repeat="repeat-x" width="250" height="250"></canvas>
+<canvas data-type="img" data-repeat="repeat-y" width="250" height="250"></canvas>
+<canvas data-type="img" data-repeat="no-repeat" width="250" height="250"></canvas>
+
+<script>
+    const img = new Image();
+    img.onload = () => {
+        for (const canvas of document.querySelectorAll('canvas[data-type=img]')) {
+            const ctx = canvas.getContext('2d');
+            const pattern = ctx.createPattern(img, canvas.getAttribute('data-repeat'));
+            const matrix = new DOMMatrix([1, 0.2, 0.8, 1, 0, 0]);
+            pattern.setTransform(matrix);
+            ctx.fillStyle = pattern;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    };
+    img.src = '../data/car.png';
+</script>
