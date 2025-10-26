@@ -1,4 +1,4 @@
-# Contributing to Ladybird
+# Contributing to Ladybird,
 
 When contributing to Ladybird, make sure that the changes you wish to make are in line with the project direction. If you are not sure about this, open an issue first, so we can discuss it.
 
