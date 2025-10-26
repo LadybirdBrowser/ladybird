@@ -176,12 +176,6 @@ public:
         : ASTNode(move(source_range))
     {
     }
-
-    Bytecode::Executable* bytecode_executable() const { return m_bytecode_executable; }
-    void set_bytecode_executable(Bytecode::Executable* bytecode_executable) { m_bytecode_executable = make_root(bytecode_executable); }
-
-private:
-    GC::Root<Bytecode::Executable> m_bytecode_executable;
 };
 
 // 14.13 Labelled Statements, https://tc39.es/ecma262/#sec-labelled-statements
