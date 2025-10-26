@@ -24,6 +24,7 @@ public:
     ~CanvasPattern();
 
     NonnullRefPtr<Gfx::PaintStyle> to_gfx_paint_style() { return m_pattern; }
+    WebIDL::ExceptionOr<void> set_transform(Geometry::DOMMatrix2DInit& transform);
 
 private:
     CanvasPattern(JS::Realm&, Gfx::CanvasPatternPaintStyle&);

@@ -96,6 +96,8 @@ public:
 
     RefPtr<ImmutableBitmap> image() const { return m_image; }
     Repetition repetition() const { return m_repetition; }
+    Optional<AffineTransform> const& transform() const { return m_transform; }
+    void set_transform(AffineTransform const& transform) { m_transform = transform; }
 
 private:
     CanvasPatternPaintStyle(RefPtr<ImmutableBitmap> image, Repetition repetition)
@@ -106,6 +108,7 @@ private:
 
     RefPtr<ImmutableBitmap> m_image;
     Repetition m_repetition { Repetition::Repeat };
+    Optional<AffineTransform> m_transform;
 };
 
 // The following paint styles implement the gradients required for the HTML canvas.
