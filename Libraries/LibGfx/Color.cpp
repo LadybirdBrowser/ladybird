@@ -112,9 +112,7 @@ String Color::to_string(HTMLCompatibleSerialization html_compatible_serializatio
     }
 
     // Otherwise, for sRGB the CSS serialization of sRGB values is used and for other color spaces, the relevant serialization of the <color> value.
-    if (alpha() < 255)
-        return MUST(String::formatted("rgba({}, {}, {}, {})", red(), green(), blue(), alpha() / 255.0));
-    return MUST(String::formatted("rgb({}, {}, {})", red(), green(), blue()));
+    return serialize_a_srgb_value();
 }
 
 String Color::to_string_without_alpha() const
