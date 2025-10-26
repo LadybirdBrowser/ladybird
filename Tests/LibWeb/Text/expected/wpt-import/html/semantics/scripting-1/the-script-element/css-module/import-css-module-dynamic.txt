@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Load a CSS module with dynamic import()
+Pass	Ensure that loading a CSS module with dymnamic import() fails without a type attribute
