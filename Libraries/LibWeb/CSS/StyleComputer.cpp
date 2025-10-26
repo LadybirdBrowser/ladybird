@@ -2547,7 +2547,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (!value || value->is_initial() || value->is_unset())
             value = property_initial_value(property_id);
 
-        computed_style->set_property(property_id, value.release_nonnull(), inherited);
+        computed_style->set_property(property_id, value.release_nonnull(), inherited, cascaded_properties.is_property_important(property_id) ? Important::Yes : Important::No);
         if (animated_value.has_value())
             computed_style->set_animated_property(property_id, animated_value.value(), inherited);
 
