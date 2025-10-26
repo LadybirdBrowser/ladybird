@@ -56,11 +56,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "linux | freebsd | openbsd | osx"
+      "platform": "linux | bsd | osx"
     },
     {
       "name": "harfbuzz",
-      "platform": "linux | freebsd | openbsd | windows",
+      "platform": "linux | bsd | windows",
       "features": [
         "freetype",
         "icu"
@@ -185,7 +185,7 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd",
+      "platform": "linux | bsd",
       "features": [
         "freetype",
         "fontconfig",
