@@ -72,7 +72,10 @@ class LinkedResourceFinder(HTMLParser):
         self._match_css_url_ = re.compile(r"url\(['\"]?(?P<url>[^'\")]+)['\"]?\)")
         self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
         self._match_fetch_import_path = re.compile(r"fetch\((\"|\')(?P<url>.*)(\"|\')\)")
-        self._match_worker_import_path = re.compile(r"Worker\(\"(?P<url>.*)\"\)")
+        self._match_import_call = re.compile(r"import\(['\"](?P<url>.*?)['\"].*\)")
+        self._match_import_statement = re.compile(r"import (.*? from )?['\"](?P<url>.*?)['\"]")
+        self._match_src_assignment = re.compile(r"\.src ?= ?['\"](?P<url>.*?)['\"]")
+        self._match_worker_import_path = re.compile(r"Worker\(['\"](?P<url>.*)['\"]\)")
         self._resources = set()
 
     @property
@@ -113,6 +116,21 @@ class LinkedResourceFinder(HTMLParser):
             # Look for uses of fetch()
             fetch_iterator = self._match_fetch_import_path.finditer(data)
             for match in fetch_iterator:
+                self._resources.add(match.group("url"))
+
+            # Look for uses of import()
+            import_call_iterator = self._match_import_call.finditer(data)
+            for match in import_call_iterator:
+                self._resources.add(match.group("url"))
+
+            # Look for uses of import statements
+            import_statement_iterator = self._match_import_statement.finditer(data)
+            for match in import_statement_iterator:
+                self._resources.add(match.group("url"))
+
+            # Look for uses of .src = "..."
+            src_assignment_iterator = self._match_src_assignment.finditer(data)
+            for match in src_assignment_iterator:
                 self._resources.add(match.group("url"))
 
             # Look for uses of Worker()
