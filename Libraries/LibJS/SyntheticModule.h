@@ -13,7 +13,7 @@
 namespace JS {
 
 // 16.2.1.8 Synthetic Module Records, https://tc39.es/ecma262/#sec-synthetic-module-records
-class SyntheticModule final : public Module {
+class JS_API SyntheticModule final : public Module {
     GC_CELL(SyntheticModule, Module);
     GC_DECLARE_ALLOCATOR(SyntheticModule);
 
