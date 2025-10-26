@@ -801,8 +801,8 @@ public:
     virtual bool has_name() const = 0;
     virtual Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const = 0;
 
-    RefPtr<SharedFunctionInstanceData> shared_data() const;
-    void set_shared_data(RefPtr<SharedFunctionInstanceData>) const;
+    GC::Ptr<SharedFunctionInstanceData> shared_data() const;
+    void set_shared_data(GC::Ptr<SharedFunctionInstanceData>) const;
 
     virtual ~FunctionNode();
 
@@ -824,7 +824,7 @@ private:
 
     Vector<LocalVariable> m_local_variables_names;
 
-    mutable RefPtr<SharedFunctionInstanceData> m_shared_data;
+    mutable GC::Root<SharedFunctionInstanceData> m_shared_data;
 };
 
 class FunctionDeclaration final
