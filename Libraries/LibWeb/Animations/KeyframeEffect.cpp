@@ -936,4 +936,18 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
     target->document().style_computer().collect_animation_into(abstract_element, *this, *computed_properties);
 }
 
+Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition)
+{
+    switch (composition) {
+    case CSS::AnimationComposition::Accumulate:
+        return Bindings::CompositeOperation::Accumulate;
+    case CSS::AnimationComposition::Add:
+        return Bindings::CompositeOperation::Add;
+    case CSS::AnimationComposition::Replace:
+        return Bindings::CompositeOperation::Replace;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 }

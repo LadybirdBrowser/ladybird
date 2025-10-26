@@ -71,6 +71,11 @@
     "self-inline",
     "width"
   ],
+  "animation-composition": [
+    "replace",
+    "add",
+    "accumulate"
+  ],
   "animation-direction": [
     "alternate",
     "alternate-reverse",
