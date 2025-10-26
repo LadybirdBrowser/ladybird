@@ -199,6 +199,9 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     swiftc: Optional[str] = None
     validate_cmake_version()
 
+    if platform.host_system == HostSystem.OpenBSD:
+        validate_openbsd_pkgconfig()
+
     if "Swift" in preset:
         compilers = pick_swift_compilers(platform, ladybird_source_dir)
         (cc, cxx, swiftc) = tuple(map(str, compilers))
@@ -318,6 +321,18 @@ def validate_cmake_version():
     if major < 3 or (major == 3 and minor < 25):
         print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
         sys.exit(1)
+
+
+def validate_openbsd_pkgconfig():
+    pkg_config_location = run_command(["whereis", "pkg-config"], return_output=True, exit_on_failure=True)
+    assert pkg_config_location
+
+    with open(pkg_config_location, "rb") as f:
+        if b"perl" in f.read(50):
+            print(
+                "Detected the use of the OpenBSD pkg-config Perl script. The old pkg-config provided by OpenBSD causes issues when compiling dependencies. Please build a pkg-config from source or update to OpenBSD 7.8"
+            )
+            sys.exit(1)
 
 
 def ensure_ladybird_source_dir() -> Path:
