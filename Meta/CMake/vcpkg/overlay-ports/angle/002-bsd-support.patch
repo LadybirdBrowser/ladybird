@@ -1,0 +1,145 @@
+diff --git a/src/common/platform.h b/src/common/platform.h
+index 48d6c5dfa7..c0d7eb1845 100644
+--- a/src/common/platform.h
++++ b/src/common/platform.h
+@@ -23,7 +23,15 @@
+ #elif defined(__linux__) || defined(EMSCRIPTEN)
+ #    define ANGLE_PLATFORM_LINUX 1
+ #    define ANGLE_PLATFORM_POSIX 1
+-#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) ||              \
++#elif defined(__OpenBSD__)
++#    define ANGLE_PLATFORM_OPENBSD 1
++#    define ANGLE_PLATFORM_POSIX 1
++#    define ANGLE_PLATFORM_BSD 1
++#elif defined(__FreeBSD__)
++#    define ANGLE_PLATFORM_FREEBSD 1
++#    define ANGLE_PLATFORM_POSIX 1
++#    define ANGLE_PLATFORM_BSD 1
++#elif defined(__NetBSD__) ||              \
+     defined(__DragonFly__) || defined(__sun) || defined(__GLIBC__) || defined(__GNU__) || \
+     defined(__QNX__) || defined(__Fuchsia__) || defined(__HAIKU__)
+ #    define ANGLE_PLATFORM_POSIX 1
+diff --git a/src/common/platform_helpers.h b/src/common/platform_helpers.h
+index d078be1365..d63bfc3f0d 100644
+--- a/src/common/platform_helpers.h
++++ b/src/common/platform_helpers.h
+@@ -62,7 +62,7 @@ inline constexpr bool IsIOS()
+ 
+ inline constexpr bool IsLinux()
+ {
+-#if defined(ANGLE_PLATFORM_LINUX)
++#if defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+     return true;
+ #else
+     return false;
+diff --git a/src/common/system_utils.cpp b/src/common/system_utils.cpp
+index 740384eaf0..aba4e36dec 100644
+--- a/src/common/system_utils.cpp
++++ b/src/common/system_utils.cpp
+@@ -25,7 +25,7 @@ namespace angle
+ {
+ std::string GetExecutableName()
+ {
+-#if defined(ANGLE_PLATFORM_ANDROID) && __ANDROID_API__ >= 21
++#if (defined(ANGLE_PLATFORM_ANDROID) && __ANDROID_API__ >= 21) || defined(ANGLE_PLATFORM_BSD)
+     // Support for "getprogname" function in bionic was introduced in L (API level 21)
+     const char *executableName = getprogname();
+     return (executableName) ? std::string(executableName) : "ANGLE";
+diff --git a/src/common/system_utils_linux.cpp b/src/common/system_utils_linux.cpp
+index 7dd681d2c2..e200b2c155 100644
+--- a/src/common/system_utils_linux.cpp
++++ b/src/common/system_utils_linux.cpp
+@@ -15,6 +15,10 @@
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
++#ifdef ANGLE_PLATFORM_OPENBSD
++#include <pthread_np.h>
++#endif
++
+ #include <array>
+ 
+ namespace angle
+@@ -59,6 +63,10 @@ void SetCurrentThreadName(const char *name)
+     // There's a 15-character (16 including '\0') limit.  If the name is too big (and ERANGE is
+     // returned), name will be ignored.
+     ASSERT(strlen(name) < 16);
++#ifdef ANGLE_PLATFORM_OPENBSD
++    pthread_set_name_np(pthread_self(), name);
++#else
+     pthread_setname_np(pthread_self(), name);
++#endif
+ }
+ }  // namespace angle
+diff --git a/src/libANGLE/Display.cpp b/src/libANGLE/Display.cpp
+index 739f3ca4c3..e697e3cd64 100644
+--- a/src/libANGLE/Display.cpp
++++ b/src/libANGLE/Display.cpp
+@@ -58,7 +58,7 @@
+ #        include "libANGLE/renderer/gl/wgl/DisplayWGL.h"
+ #    elif ANGLE_ENABLE_CGL
+ #        include "libANGLE/renderer/gl/cgl/DisplayCGL.h"
+-#    elif defined(ANGLE_PLATFORM_LINUX)
++#    elif defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+ #        include "libANGLE/renderer/gl/egl/DisplayEGL.h"
+ #        if defined(ANGLE_USE_X11)
+ #            include "libANGLE/renderer/gl/glx/DisplayGLX_api.h"
+@@ -422,7 +422,7 @@ rx::DisplayImpl *CreateDisplayFromAttribs(EGLAttrib displayType,
+             impl = new rx::DisplayCGL(state);
+             break;
+ 
+-#    elif defined(ANGLE_PLATFORM_LINUX)
++#    elif defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+ #        if defined(ANGLE_USE_GBM)
+             if (platformType == 0)
+             {
+@@ -468,7 +468,7 @@ rx::DisplayImpl *CreateDisplayFromAttribs(EGLAttrib displayType,
+ #if defined(ANGLE_ENABLE_OPENGL)
+ #    if defined(ANGLE_PLATFORM_WINDOWS)
+             impl = new rx::DisplayWGL(state);
+-#    elif defined(ANGLE_PLATFORM_LINUX)
++#    elif defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+ #        if defined(ANGLE_USE_GBM)
+             if (platformType == 0)
+             {
+@@ -519,7 +519,7 @@ rx::DisplayImpl *CreateDisplayFromAttribs(EGLAttrib displayType,
+                 impl = rx::CreateVulkanWin32Display(state);
+             }
+             break;
+-#    elif defined(ANGLE_PLATFORM_LINUX)
++#    elif defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+ #        if defined(ANGLE_USE_GBM)
+             if (platformType == EGL_PLATFORM_GBM_KHR && rx::IsVulkanGbmDisplayAvailable())
+             {
+@@ -2136,7 +2136,7 @@ static ClientExtensions GenerateClientExtensions()
+     extensions.platformWaylandEXT = true;
+ #endif
+ 
+-#if defined(ANGLE_PLATFORM_LINUX) && (defined(ANGLE_ENABLE_OPENGL) || defined(ANGLE_ENABLE_VULKAN))
++#if (defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)) && (defined(ANGLE_ENABLE_OPENGL) || defined(ANGLE_ENABLE_VULKAN))
+     extensions.platformSurfacelessMESA = true;
+ #endif
+ 
+@@ -2183,7 +2183,7 @@ static ClientExtensions GenerateClientExtensions()
+     extensions.x11Visual = true;
+ #endif
+ 
+-#if defined(ANGLE_PLATFORM_LINUX)
++#if defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+     extensions.platformANGLEDeviceTypeEGLANGLE = true;
+ #endif
+ 
+diff --git a/src/libANGLE/renderer/vulkan/DisplayVk_api.h b/src/libANGLE/renderer/vulkan/DisplayVk_api.h
+index 56a818c8ee..ca158faf93 100644
+--- a/src/libANGLE/renderer/vulkan/DisplayVk_api.h
++++ b/src/libANGLE/renderer/vulkan/DisplayVk_api.h
+@@ -23,7 +23,7 @@ bool IsVulkanWin32DisplayAvailable();
+ DisplayImpl *CreateVulkanWin32Display(const egl::DisplayState &state);
+ #endif  // defined(ANGLE_PLATFORM_WINDOWS)
+ 
+-#if defined(ANGLE_PLATFORM_LINUX)
++#if defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_BSD)
+ bool IsVulkanWaylandDisplayAvailable();
+ DisplayImpl *CreateVulkanWaylandDisplay(const egl::DisplayState &state);
+ 
+

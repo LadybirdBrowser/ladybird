@@ -51,7 +51,7 @@ vcpkg_from_github(
     # On update check headers against opengl-registry
     PATCHES
         001-fix-builder-error.patch
-        fix-freebsd.patch
+        002-bsd-support.patch
 )
 
 # Generate angle_commit.h
@@ -131,6 +131,14 @@ vcpkg_download_distfile(WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS
     FILENAME "WebKitCompilerFlags.cmake"
     SHA512 8b281ffcf9209c845a5fdae48a4e05f08ca677c37a7fb00d9270de81bd103160d26e091724ce8df8d428ad604900b5202b221fed5bafffd4bf00025718ef9d8e
 )
+
+if (VCPKG_TARGET_IS_BSD)
+    # Ladybird: Remove -Wl,--no-undefined as it breaks the build on OpenBSD
+    file(READ "${WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS}" _wk_compilerflags_content)
+    string(REPLACE "-Wl,--no-undefined" "" _wk_compilerflags_content "${_wk_compilerflags_content}")
+    file(WRITE "${WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS}" "${_wk_compilerflags_content}")
+endif()
+
 file(COPY "${WK_ANGLE_CMAKE_WEBKITCOMPILERFLAGS}" DESTINATION "${SOURCE_PATH}/cmake")
 
 vcpkg_download_distfile(WK_ANGLE_CMAKE_DETECTSSE2
