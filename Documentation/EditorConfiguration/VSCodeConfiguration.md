@@ -36,12 +36,6 @@ Run ``./Meta/ladybird.py run ladybird`` at least once to generate the ``compile_
 
 - clangd has a tendency to crash when stressing bleeding edge compiler features. You can usually just restart it via the command palette. If that doesn't help, close currently open C++ files and/or switch branches before restarting, which helps sometimes.
 
-### DSL syntax highlighting
-
-There's a syntax highlighter extension for domain specific language files (.idl, .ipc) called "SerenityOS DSL Syntax Highlight", available [here](https://marketplace.visualstudio.com/items?itemName=kleinesfilmroellchen.serenity-dsl-syntaxhighlight) or [here](https://open-vsx.org/extension/kleinesfilmroellchen/serenity-dsl-syntaxhighlight).
-The extension provides syntax highlighting for these files, [Web IDL](https://webidl.spec.whatwg.org/), and LibJS's
-serialization format (no extension) as output by js with the -d option.
-
 ### Microsoft C/C++ tools
 
 Note that enabling the extension in the same workspace as the  clangd and clang-format extensions will cause conflicts.
