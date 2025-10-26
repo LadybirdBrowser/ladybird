@@ -208,6 +208,18 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libdrm libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base unzip zip
 ```
 
+### OpenBSD
+
+#### pkg-config
+
+In OpenBSD versions 7.7 and earlier the default pkg-config is a custom Perl script which is very rudimentary and can't
+handle vcpkg in all cases. To solve this you either need to build your own pkg-config from source or use OpenBSD 7.8
+which replaced the script with pkgconf.
+
+```
+pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libtool nasm ninja patchelf pkgconf python3 qt6-base qt6-multimedia unzip zip
+```
+
 ## Build steps
 
 ### Using ladybird.py
