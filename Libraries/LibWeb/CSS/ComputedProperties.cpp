@@ -169,7 +169,8 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
 
-    if (return_animated_value == WithAnimationsApplied::Yes) {
+    // Important properties override animated properties
+    if (!is_property_important(property_id) && return_animated_value == WithAnimationsApplied::Yes) {
         if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
             return *animated_value.value();
     }
