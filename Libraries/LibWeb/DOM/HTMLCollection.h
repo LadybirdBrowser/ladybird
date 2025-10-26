@@ -30,7 +30,7 @@ public:
         Children,
         Descendants,
     };
-    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr);
 
     virtual ~HTMLCollection() override;
 
@@ -46,7 +46,7 @@ public:
     virtual bool is_supported_property_name(FlyString const&) const override;
 
 protected:
-    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);
+    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr);
 
     virtual void initialize(JS::Realm&) override;
 
@@ -65,6 +65,7 @@ private:
 
     GC::Ref<ParentNode> m_root;
     Function<bool(Element const&)> m_filter;
+    Function<bool(Element const&, Element const&)> m_sort;
 
     Scope m_scope { Scope::Descendants };
 };

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<title>HTMLTableElement.rows</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+function assert_nodelist_equals(actual, expected) {
+  assert_equals(actual.length, expected.length);
+
+  for (var i = 0; i < actual.length; ++i) {
+    assert_true(i in actual);
+    assert_true(actual.hasOwnProperty(i),
+                "property " + i + " expected to be present on the object");
+    assert_equals(actual.item(i), expected[i]);
+    assert_equals(actual[i], expected[i]);
+  }
+}
+
+function test_table_simple(group, table) {
+  var foo1 = group.appendChild(document.createElement("tr"));
+  foo1.id = "foo";
+  var bar1 = group.appendChild(document.createElement("tr"));
+  bar1.id = "bar";
+  var foo2 = group.appendChild(document.createElement("tr"));
+  foo2.id = "foo";
+  var bar2 = group.appendChild(document.createElement("tr"));
+  bar2.id = "bar";
+
+  assert_true(table.rows instanceof HTMLCollection, "table.rows should be a HTMLCollection.");
+  assert_nodelist_equals(table.rows, [foo1, bar1, foo2, bar2]);
+  assert_equals(table.rows.foo, foo1);
+  assert_equals(table.rows["foo"], foo1);
+  assert_equals(table.rows.namedItem("foo"), foo1);
+  assert_equals(table.rows.bar, bar1);
+  assert_equals(table.rows["bar"], bar1);
+  assert_equals(table.rows.namedItem("bar"), bar1);
+  assert_array_equals(Object.getOwnPropertyNames(table.rows), [
+    "0",
+    "1",
+    "2",
+    "3",
+    "foo",
+    "bar"
+  ]);
+}
+test(function() {
+  var table = document.createElement("table");
+  test_table_simple(table, table);
+}, "Children of table");
+test(function() {
+  var table = document.createElement("table");
+  var group = table.appendChild(document.createElement("thead"));
+  test_table_simple(group, table);
+}, "Children of thead");
+test(function() {
+  var table = document.createElement("table");
+  var group = table.appendChild(document.createElement("tbody"));
+  test_table_simple(group, table);
+}, "Children of tbody");
+test(function() {
+  var table = document.createElement("table");
+  var group = table.appendChild(document.createElement("tfoot"));
+  test_table_simple(group, table);
+}, "Children of tfoot");
+test(function() {
+  var table = document.createElement("table");
+  var orphan1 = table.appendChild(document.createElement("tr"));
+  orphan1.id = "orphan1";
+  var foot1 = table.appendChild(document.createElement("tfoot"));
+  var orphan2 = table.appendChild(document.createElement("tr"));
+  orphan2.id = "orphan2";
+  var foot2 = table.appendChild(document.createElement("tfoot"));
+  var orphan3 = table.appendChild(document.createElement("tr"));
+  orphan3.id = "orphan3";
+  var body1 = table.appendChild(document.createElement("tbody"));
+  var orphan4 = table.appendChild(document.createElement("tr"));
+  orphan4.id = "orphan4";
+  var body2 = table.appendChild(document.createElement("tbody"));
+  var orphan5 = table.appendChild(document.createElement("tr"));
+  orphan5.id = "orphan5";
+  var head1 = table.appendChild(document.createElement("thead"));
+  var orphan6 = table.appendChild(document.createElement("tr"));
+  orphan6.id = "orphan6";
+  var head2 = table.appendChild(document.createElement("thead"));
+  var orphan7 = table.appendChild(document.createElement("tr"));
+  orphan7.id = "orphan7";
+
+  var foot1row1 = foot1.appendChild(document.createElement("tr"));
+  foot1row1.id = "foot1row1";
+  var foot1row2 = foot1.appendChild(document.createElement("tr"));
+  foot1row2.id = "foot1row2";
+  var foot2row1 = foot2.appendChild(document.createElement("tr"));
+  foot2row1.id = "foot2row1";
+  var foot2row2 = foot2.appendChild(document.createElement("tr"));
+  foot2row2.id = "foot2row2";
+
+  var body1row1 = body1.appendChild(document.createElement("tr"));
+  body1row1.id = "body1row1";
+  var body1row2 = body1.appendChild(document.createElement("tr"));
+  body1row2.id = "body1row2";
+  var body2row1 = body2.appendChild(document.createElement("tr"));
+  body2row1.id = "body2row1";
+  var body2row2 = body2.appendChild(document.createElement("tr"));
+  body2row2.id = "body2row2";
+
+  var head1row1 = head1.appendChild(document.createElement("tr"));
+  head1row1.id = "head1row1";
+  var head1row2 = head1.appendChild(document.createElement("tr"));
+  head1row2.id = "head1row2";
+  var head2row1 = head2.appendChild(document.createElement("tr"));
+  head2row1.id = "head2row1";
+  var head2row2 = head2.appendChild(document.createElement("tr"));
+  head2row2.id = "head2row2";
+
+  // These elements should not end up in any collection.
+  table.appendChild(document.createElement("div"))
+       .appendChild(document.createElement("tr"));
+  foot1.appendChild(document.createElement("div"))
+       .appendChild(document.createElement("tr"));
+  body1.appendChild(document.createElement("div"))
+       .appendChild(document.createElement("tr"));
+  head1.appendChild(document.createElement("div"))
+       .appendChild(document.createElement("tr"));
+  table.appendChild(document.createElementNS("http://example.com/test", "tr"));
+  foot1.appendChild(document.createElementNS("http://example.com/test", "tr"));
+  body1.appendChild(document.createElementNS("http://example.com/test", "tr"));
+  head1.appendChild(document.createElementNS("http://example.com/test", "tr"));
+
+  assert_true(table.rows instanceof HTMLCollection, "table.rows should be a HTMLCollection.");
+  assert_nodelist_equals(table.rows, [
+    // thead
+    head1row1,
+    head1row2,
+    head2row1,
+    head2row2,
+
+    // tbody + table
+    orphan1,
+    orphan2,
+    orphan3,
+    body1row1,
+    body1row2,
+    orphan4,
+    body2row1,
+    body2row2,
+    orphan5,
+    orphan6,
+    orphan7,
+
+    // tfoot
+    foot1row1,
+    foot1row2,
+    foot2row1,
+    foot2row2
+  ]);
+  assert_array_equals(Object.getOwnPropertyNames(table.rows), [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "18",
+    "head1row1",
+    "head1row2",
+    "head2row1",
+    "head2row2",
+    "orphan1",
+    "orphan2",
+    "orphan3",
+    "body1row1",
+    "body1row2",
+    "orphan4",
+    "body2row1",
+    "body2row2",
+    "orphan5",
+    "orphan6",
+    "orphan7",
+    "foot1row1",
+    "foot1row2",
+    "foot2row1",
+    "foot2row2"
+  ]);
+
+  var ids = [
+    "orphan1",
+    "orphan2",
+    "orphan3",
+    "orphan4",
+    "orphan5",
+    "orphan6",
+    "orphan7",
+    "foot1row1",
+    "foot1row2",
+    "foot2row1",
+    "foot2row2",
+    "body1row1",
+    "body1row2",
+    "body2row1",
+    "body2row2",
+    "head1row1",
+    "head1row2",
+    "head2row1",
+    "head2row2"
+  ];
+  ids.forEach(function(id) {
+    assert_equals(table.rows.namedItem(id).id, id);
+    assert_true(id in table.rows);
+    assert_equals(table.rows[id].id, id);
+    assert_true(id in table.rows);
+  });
+  while (table.firstChild) {
+    table.removeChild(table.firstChild);
+  }
+  ids.forEach(function(id) {
+    assert_equals(table.rows.namedItem(id), null);
+    assert_false(id in table.rows);
+    assert_equals(table.rows[id], undefined);
+    assert_false(id in table.rows);
+  });
+}, "Complicated case");
+</script>
