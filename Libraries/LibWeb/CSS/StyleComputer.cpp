@@ -1247,18 +1247,10 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
     if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && (timing_property->is_easing() || (timing_property->is_keyword() && !timing_property->is_css_wide_keyword())))
         timing_function = EasingFunction::from_style_value(timing_property.release_nonnull());
 
-    Bindings::CompositeOperation composite_operation { Bindings::CompositeOperation::Replace };
+    AnimationComposition animation_composition { AnimationComposition::Replace };
     if (auto composite_property = cascaded_properties.property(PropertyID::AnimationComposition); composite_property) {
-        switch (composite_property->to_keyword()) {
-        case Keyword::Add:
-            composite_operation = Bindings::CompositeOperation::Add;
-            break;
-        case Keyword::Accumulate:
-            composite_operation = Bindings::CompositeOperation::Accumulate;
-            break;
-        default:
-            break;
-        }
+        if (auto animation_composition_value = keyword_to_animation_composition(composite_property->to_keyword()); animation_composition_value.has_value())
+            animation_composition = *animation_composition_value;
     }
 
     auto iteration_duration = duration.has_value()
@@ -1270,7 +1262,7 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
     effect.set_timing_function(move(timing_function));
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(fill_mode));
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(direction));
-    effect.set_composite(composite_operation);
+    effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_composition));
 
     if (play_state != effect.last_css_animation_play_state()) {
         if (play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {

@@ -237,10 +237,8 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "replace",
-    "valid-identifiers": [
-      "replace",
-      "add",
-      "accumulate"
+    "valid-types": [
+      "animation-composition"
     ]
   },
   "animation-delay": {
