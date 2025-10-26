@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 55 tests
 
-35 Pass
-20 Fail
+40 Pass
+15 Fail
 Pass	createImageBitmap from an HTMLCanvasElement, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an HTMLCanvasElement scaled down, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an HTMLCanvasElement scaled up, and drawImage on the created ImageBitmap
@@ -49,11 +49,11 @@ Pass	createImageBitmap from an ImageData scaled down, and drawImage on the creat
 Pass	createImageBitmap from an ImageData scaled up, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an ImageData resized, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an ImageData with negative sw/sh, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an ImageBitmap, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an ImageBitmap scaled down, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an ImageBitmap scaled up, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an ImageBitmap resized, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an ImageBitmap with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageBitmap, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageBitmap scaled down, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageBitmap scaled up, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageBitmap resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageBitmap with negative sw/sh, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from a Blob, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from a Blob scaled down, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from a Blob scaled up, and drawImage on the created ImageBitmap

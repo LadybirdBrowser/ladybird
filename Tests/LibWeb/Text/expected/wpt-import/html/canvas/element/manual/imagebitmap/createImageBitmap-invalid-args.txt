@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 93 tests
 
-87 Pass
-6 Fail
+88 Pass
+5 Fail
 Pass	createImageBitmap with an HTMLCanvasElement source and sw set to 0
 Pass	createImageBitmap with an HTMLCanvasElement source and sh set to 0
 Pass	createImageBitmap with an HTMLCanvasElement source and oversized (unallocatable) crop region
@@ -69,7 +69,7 @@ Pass	createImageBitmap with an ImageData source and a value between 0 and 1 in r
 Pass	createImageBitmap with an ImageData source and a value between 0 and 1 in resizeHeight
 Pass	createImageBitmap with an ImageBitmap source and sw set to 0
 Pass	createImageBitmap with an ImageBitmap source and sh set to 0
-Fail	createImageBitmap with an ImageBitmap source and oversized (unallocatable) crop region
+Pass	createImageBitmap with an ImageBitmap source and oversized (unallocatable) crop region
 Pass	createImageBitmap with an ImageBitmap source and a value of 0 int resizeWidth
 Pass	createImageBitmap with an ImageBitmap source and a value of 0 in resizeHeight
 Pass	createImageBitmap with an ImageBitmap source and a value between 0 and 1 in resizeWidth
