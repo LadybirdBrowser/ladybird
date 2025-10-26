@@ -6,6 +6,7 @@
 
 #include <AK/Hex.h>
 #include <AK/Random.h>
+#include <LibCore/Socket.h>
 #include <LibIPC/NetworkIdentity.h>
 
 namespace IPC {
@@ -130,6 +131,32 @@ size_t NetworkIdentity::total_bytes_received() const
     for (auto const& entry : m_audit_log)
         total += entry.bytes_received;
     return total;
+}
+
+// TorAvailability implementation
+
+ErrorOr<void> TorAvailability::check_socks5_available(ByteString host, u16 port)
+{
+    // Try to connect to Tor SOCKS5 proxy using LibCore::TCPSocket
+    // This will attempt to connect and return an error if Tor is not running
+    auto socket_result = Core::TCPSocket::connect(host, port);
+
+    if (socket_result.is_error()) {
+        // Connection failed - Tor is not available
+        dbgln("TorAvailability: Cannot connect to Tor SOCKS5 proxy at {}:{} - {}",
+            host, port, socket_result.error());
+        return Error::from_string_literal("Cannot connect to Tor SOCKS5 proxy. Is Tor running?");
+    }
+
+    // Successfully connected - Tor is available
+    dbgln("TorAvailability: Tor SOCKS5 proxy is available at {}:{}", host, port);
+    return {};
+}
+
+bool TorAvailability::is_tor_running()
+{
+    auto result = check_socks5_available();
+    return !result.is_error();
 }
 
 }

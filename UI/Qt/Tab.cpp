@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/NetworkIdentity.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
@@ -89,9 +90,26 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_tor_toggle_action->setText("Tor");  // Show "Tor" text on button
     m_tor_toggle_action->setToolTip("Enable Tor for this tab");
     QObject::connect(m_tor_toggle_action, &QAction::triggered, this, [this](bool checked) {
-        m_tor_enabled = checked;
         if (checked) {
-            // Enable Tor for this tab
+            // Check if Tor is available BEFORE enabling
+            if (!IPC::TorAvailability::is_tor_running()) {
+                // Tor not available - show error and revert toggle
+                QMessageBox::warning(this, "Tor Not Available",
+                    "Cannot enable Tor: The Tor service is not running.\n\n"
+                    "Please start Tor first:\n"
+                    "  Linux:   sudo systemctl start tor\n"
+                    "  macOS:   brew services start tor\n"
+                    "  Windows: Start Tor Browser or tor.exe\n\n"
+                    "Need help? Visit: https://www.torproject.org/download/");
+
+                // Revert toggle state
+                m_tor_toggle_action->setChecked(false);
+                m_tor_enabled = false;
+                return;
+            }
+
+            // Tor is available - proceed with enabling
+            m_tor_enabled = true;
             dbgln("Tab: Enabling Tor for page_id {}", view().page_id());
             m_tor_toggle_action->setToolTip("Disable Tor for this tab (currently using Tor)");
             // Apply green border to location edit to indicate Tor is active
@@ -99,6 +117,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             view().client().async_enable_tor(view().page_id(), {});
         } else {
             // Disable Tor for this tab
+            m_tor_enabled = false;
             dbgln("Tab: Disabling Tor for page_id {}", view().page_id());
             m_tor_toggle_action->setToolTip("Enable Tor for this tab");
             // Remove green border when Tor is disabled

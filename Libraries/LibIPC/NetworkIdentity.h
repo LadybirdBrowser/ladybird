@@ -143,4 +143,15 @@ private:
     static constexpr size_t MaxAuditEntries = 1000;  // Limit audit log size
 };
 
+// Tor availability checker
+// Checks if Tor is running and accessible before attempting to use it
+class TorAvailability {
+public:
+    // Check if Tor SOCKS5 proxy is available
+    [[nodiscard]] static ErrorOr<void> check_socks5_available(ByteString host = "127.0.0.1"sv, u16 port = 9050);
+
+    // Convenience wrapper - returns true if Tor is running
+    [[nodiscard]] static bool is_tor_running();
+};
+
 }
