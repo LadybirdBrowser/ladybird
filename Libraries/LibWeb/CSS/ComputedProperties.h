@@ -59,6 +59,7 @@ public:
     void set_animated_property_inherited(PropertyID, Inherited);
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
+    void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
     void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No);
     void remove_animated_property(PropertyID);
     enum class WithAnimationsApplied {

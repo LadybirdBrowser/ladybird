@@ -118,9 +118,16 @@ void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
-    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
+    set_property_without_modifying_flags(id, move(value));
     set_property_important(id, important);
     set_property_inherited(id, inherited);
+}
+
+void ComputedProperties::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
 }
 
 void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)

@@ -1978,33 +1978,29 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& font_size_specified_value = style.property(PropertyID::FontSize, ComputedProperties::WithAnimationsApplied::No);
 
-    style.set_property(
+    style.set_property_without_modifying_flags(
         PropertyID::FontSize,
-        compute_font_size(font_size_specified_value, style.math_depth(), inherited_font_size, inherited_math_depth, font_computation_context),
-        style.is_property_inherited(PropertyID::FontSize) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+        compute_font_size(font_size_specified_value, style.math_depth(), inherited_font_size, inherited_math_depth, font_computation_context));
 
     auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
 
     auto const& font_weight_specified_value = style.property(PropertyID::FontWeight, ComputedProperties::WithAnimationsApplied::No);
 
-    style.set_property(
+    style.set_property_without_modifying_flags(
         PropertyID::FontWeight,
-        compute_font_weight(font_weight_specified_value, inherited_font_weight, font_computation_context),
-        style.is_property_inherited(PropertyID::FontWeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+        compute_font_weight(font_weight_specified_value, inherited_font_weight, font_computation_context));
 
     auto const& font_width_specified_value = style.property(PropertyID::FontWidth, ComputedProperties::WithAnimationsApplied::No);
 
-    style.set_property(
+    style.set_property_without_modifying_flags(
         PropertyID::FontWidth,
-        compute_font_width(font_width_specified_value, font_computation_context),
-        style.is_property_inherited(PropertyID::FontWidth) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+        compute_font_width(font_width_specified_value, font_computation_context));
 
     auto const& font_style_specified_value = style.property(PropertyID::FontStyle, ComputedProperties::WithAnimationsApplied::No);
 
-    style.set_property(
+    style.set_property_without_modifying_flags(
         PropertyID::FontStyle,
-        compute_font_style(font_style_specified_value, font_computation_context),
-        style.is_property_inherited(PropertyID::FontStyle) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+        compute_font_style(font_style_specified_value, font_computation_context));
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
@@ -2033,10 +2029,9 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& line_height_specified_value = style.property(CSS::PropertyID::LineHeight, ComputedProperties::WithAnimationsApplied::No);
 
-    style.set_property(
+    style.set_property_without_modifying_flags(
         PropertyID::LineHeight,
-        compute_line_height(line_height_specified_value, line_height_computation_context),
-        style.is_property_inherited(PropertyID::LineHeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+        compute_line_height(line_height_specified_value, line_height_computation_context));
 
     if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element())) {
         const_cast<StyleComputer&>(*this).m_root_element_font_metrics = calculate_root_element_font_metrics(style);
@@ -2115,9 +2110,7 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
     style.for_each_property([&](PropertyID property_id, auto& specified_value) {
         auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel());
 
-        auto const& is_inherited = style.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No;
-
-        style.set_property(property_id, computed_value, is_inherited);
+        style.set_property_without_modifying_flags(property_id, computed_value);
     });
 
     style.set_display_before_box_type_transformation(style.display());
