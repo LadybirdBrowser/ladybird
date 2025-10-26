@@ -105,8 +105,7 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     if (!display_list)
         return {};
 
-    auto painting_command_executor_type = m_page_client->display_list_player_type();
-    switch (painting_command_executor_type) {
+    switch (m_page_client->display_list_player_type()) {
     case DisplayListPlayerType::SkiaGPUIfAvailable:
     case DisplayListPlayerType::SkiaCPU: {
         auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
