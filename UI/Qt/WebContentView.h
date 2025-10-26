@@ -72,6 +72,7 @@ public:
     void update_palette(PaletteMode = PaletteMode::Default);
 
     using ViewImplementation::client;
+    using ViewImplementation::page_id;
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 

@@ -130,6 +130,11 @@ endpoint WebContentServer
 
     set_user_style(u64 page_id, String source) =|
 
+    // Tor network control
+    enable_tor(u64 page_id, ByteString circuit_id) =|
+    disable_tor(u64 page_id) =|
+    rotate_tor_circuit(u64 page_id) =|
+
     system_time_zone_changed() =|
     cookies_changed(Vector<Web::Cookie::Cookie> cookies) =|
 }

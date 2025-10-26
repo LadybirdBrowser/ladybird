@@ -433,21 +433,44 @@ void ConnectionFromClient::die()
 
 void ConnectionFromClient::enable_tor(ByteString circuit_id)
 {
+    dbgln("RequestServer: enable_tor() called on client {} with circuit_id='{}'", client_id(), circuit_id);
+
     // Create network identity with Tor circuit if not already present
     if (!m_network_identity) {
         // Use client_id as page_id for now (will be properly set when integrated with WebContent)
         m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(client_id()));
+        dbgln("RequestServer: Created new NetworkIdentity for client {}", client_id());
     }
 
     // Generate circuit ID if not provided
     if (circuit_id.is_empty())
         circuit_id = m_network_identity->identity_id();
 
-    // Configure Tor proxy
-    auto tor_proxy = IPC::ProxyConfig::tor_proxy(move(circuit_id));
-    m_network_identity->set_proxy_config(move(tor_proxy));
+    // Configure Tor proxy on this connection
+    auto tor_proxy = IPC::ProxyConfig::tor_proxy(circuit_id);
+    m_network_identity->set_proxy_config(tor_proxy);
 
-    dbgln("RequestServer: Tor enabled for client {} with circuit {}", client_id(), m_network_identity->tor_circuit_id().value_or("default"));
+    dbgln("RequestServer: Tor ENABLED for client {} with circuit {} (has_proxy={})",
+        client_id(),
+        m_network_identity->tor_circuit_id().value_or("default"),
+        m_network_identity->has_proxy());
+
+    // IMPORTANT: Apply Tor configuration to ALL connections from this process
+    // This ensures that any connection in the pool will use Tor, not just this one
+    for (auto& [id, connection] : s_connections) {
+        if (id == client_id())
+            continue; // Already configured above
+
+        if (!connection->m_network_identity) {
+            connection->m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(id));
+        }
+
+        // Use the same circuit ID for all connections to maintain stream isolation per-tab
+        auto proxy_for_connection = IPC::ProxyConfig::tor_proxy(circuit_id);
+        connection->m_network_identity->set_proxy_config(move(proxy_for_connection));
+
+        dbgln("RequestServer: Also enabled Tor for sibling client {} with same circuit", id);
+    }
 }
 
 void ConnectionFromClient::disable_tor()
@@ -457,6 +480,17 @@ void ConnectionFromClient::disable_tor()
 
     m_network_identity->clear_proxy_config();
     dbgln("RequestServer: Tor disabled for client {}", client_id());
+
+    // Also disable Tor on all sibling connections
+    for (auto& [id, connection] : s_connections) {
+        if (id == client_id())
+            continue;
+
+        if (connection->m_network_identity) {
+            connection->m_network_identity->clear_proxy_config();
+            dbgln("RequestServer: Also disabled Tor for sibling client {}", id);
+        }
+    }
 }
 
 void ConnectionFromClient::rotate_tor_circuit()
@@ -477,7 +511,21 @@ void ConnectionFromClient::rotate_tor_circuit()
         return;
     }
 
-    dbgln("RequestServer: Tor circuit rotated for client {} to {}", client_id(), m_network_identity->tor_circuit_id().value_or("unknown"));
+    auto new_circuit_id = m_network_identity->tor_circuit_id().value_or("unknown");
+    dbgln("RequestServer: Tor circuit rotated for client {} to {}", client_id(), new_circuit_id);
+
+    // Also rotate circuit on all sibling connections
+    for (auto& [id, connection] : s_connections) {
+        if (id == client_id())
+            continue;
+
+        if (connection->m_network_identity && connection->m_network_identity->has_tor_circuit()) {
+            // Use the same new circuit ID for all connections to maintain stream isolation
+            auto proxy_for_connection = IPC::ProxyConfig::tor_proxy(new_circuit_id);
+            connection->m_network_identity->set_proxy_config(move(proxy_for_connection));
+            dbgln("RequestServer: Also rotated circuit for sibling client {} to {}", id, new_circuit_id);
+        }
+    }
 }
 
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
@@ -768,8 +816,12 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
                 if (auto auth = proxy.to_curl_auth_string(); auth.has_value())
                     set_option(CURLOPT_PROXYUSERPWD, auth->characters());
 
-                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using proxy {} for request to {}",
+                dbgln("RequestServer: Using {} proxy {} for request to {}",
+                    proxy.type == IPC::ProxyType::SOCKS5H ? "SOCKS5H" : "other",
                     proxy.to_curl_proxy_url(), url);
+            } else {
+                dbgln("RequestServer: NO proxy configured for request to {} (identity={}, has_proxy={})",
+                    url, m_network_identity != nullptr, m_network_identity ? m_network_identity->has_proxy() : false);
             }
 
             set_option(CURLOPT_CUSTOMREQUEST, method.characters());

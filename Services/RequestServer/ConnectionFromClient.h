@@ -41,9 +41,6 @@ public:
     // Network identity management
     [[nodiscard]] RefPtr<IPC::NetworkIdentity> network_identity() const { return m_network_identity; }
     void set_network_identity(RefPtr<IPC::NetworkIdentity> identity) { m_network_identity = move(identity); }
-    void enable_tor(ByteString circuit_id = {});
-    void disable_tor();
-    void rotate_tor_circuit();
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -61,6 +58,11 @@ private:
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void clear_cache() override;
+
+    // Tor network control IPC handlers
+    virtual void enable_tor(ByteString circuit_id) override;
+    virtual void disable_tor() override;
+    virtual void rotate_tor_circuit() override;
 
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;
     virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;

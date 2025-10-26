@@ -82,6 +82,31 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
     m_reload_action = create_application_action(*this, WebView::Application::the().reload_action());
 
+    // Create Tor toggle button
+    m_tor_toggle_action = new QAction(this);
+    m_tor_toggle_action->setCheckable(true);
+    m_tor_toggle_action->setChecked(false);
+    m_tor_toggle_action->setText("Tor");  // Show "Tor" text on button
+    m_tor_toggle_action->setToolTip("Enable Tor for this tab");
+    QObject::connect(m_tor_toggle_action, &QAction::triggered, this, [this](bool checked) {
+        m_tor_enabled = checked;
+        if (checked) {
+            // Enable Tor for this tab
+            dbgln("Tab: Enabling Tor for page_id {}", view().page_id());
+            m_tor_toggle_action->setToolTip("Disable Tor for this tab (currently using Tor)");
+            // Apply green border to location edit to indicate Tor is active
+            m_location_edit->setStyleSheet("QLineEdit { border: 2px solid #00C851; }");
+            view().client().async_enable_tor(view().page_id(), {});
+        } else {
+            // Disable Tor for this tab
+            dbgln("Tab: Disabling Tor for page_id {}", view().page_id());
+            m_tor_toggle_action->setToolTip("Enable Tor for this tab");
+            // Remove green border when Tor is disabled
+            m_location_edit->setStyleSheet("");
+            view().client().async_disable_tor(view().page_id());
+        }
+    });
+
     recreate_toolbar_icons();
 
     m_favicon = default_favicon();
@@ -94,6 +119,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar->addAction(m_navigate_back_action);
     m_toolbar->addAction(m_navigate_forward_action);
     m_toolbar->addAction(m_reload_action);
+    m_toolbar->addAction(m_tor_toggle_action);  // Add Tor toggle button
     m_toolbar->addWidget(m_location_edit);
     m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);

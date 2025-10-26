@@ -166,6 +166,21 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(m_find_in_page_action, &QAction::triggered, this, &BrowserWindow::show_find_in_page);
 
     edit_menu->addSeparator();
+
+    // Tor "New Identity" menu item
+    auto* new_identity_action = new QAction("New &Identity (Rotate Tor Circuit)", this);
+    new_identity_action->setIcon(QIcon::fromTheme("view-refresh"));
+    new_identity_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
+    edit_menu->addAction(new_identity_action);
+    QObject::connect(new_identity_action, &QAction::triggered, this, [this] {
+        if (m_current_tab) {
+            // Rotate the Tor circuit for the current tab
+            dbgln("BrowserWindow: Rotating Tor circuit for page_id {}", m_current_tab->view().page_id());
+            m_current_tab->view().client().async_rotate_tor_circuit(m_current_tab->view().page_id());
+        }
+    });
+
+    edit_menu->addSeparator();
     edit_menu->addAction(create_application_action(*edit_menu, Application::the().open_settings_page_action()));
 
     auto* view_menu = m_hamburger_menu->addMenu("&View");

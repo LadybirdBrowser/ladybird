@@ -46,6 +46,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
+#include <LibRequests/RequestClient.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
@@ -1345,6 +1346,70 @@ void ConnectionFromClient::cookies_changed(Vector<Web::Cookie::Cookie> cookies)
             return;
         window->cookie_store()->process_cookie_changes(cookies);
     }
+}
+
+void ConnectionFromClient::enable_tor(u64 page_id, ByteString circuit_id)
+{
+    // Validate the page exists
+    if (!this->page(page_id).has_value()) {
+        dbgln("WebContent::ConnectionFromClient::enable_tor: Invalid page_id {}", page_id);
+        return;
+    }
+
+    // Forward the Tor enable request to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::enable_tor: No RequestClient available");
+        return;
+    }
+
+    // Call enable_tor on RequestServer via IPC
+    // The RequestServerEndpoint interface (inherited by RequestClient) has this method
+    request_client->async_enable_tor(move(circuit_id));
+
+    dbgln("WebContent: Enabled Tor for page {} with circuit {}", page_id, circuit_id);
+}
+
+void ConnectionFromClient::disable_tor(u64 page_id)
+{
+    // Validate the page exists
+    if (!this->page(page_id).has_value()) {
+        dbgln("WebContent::ConnectionFromClient::disable_tor: Invalid page_id {}", page_id);
+        return;
+    }
+
+    // Forward the Tor disable request to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::disable_tor: No RequestClient available");
+        return;
+    }
+
+    // Call disable_tor on RequestServer via IPC
+    request_client->async_disable_tor();
+
+    dbgln("WebContent: Disabled Tor for page {}", page_id);
+}
+
+void ConnectionFromClient::rotate_tor_circuit(u64 page_id)
+{
+    // Validate the page exists
+    if (!this->page(page_id).has_value()) {
+        dbgln("WebContent::ConnectionFromClient::rotate_tor_circuit: Invalid page_id {}", page_id);
+        return;
+    }
+
+    // Forward the Tor circuit rotation request to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::rotate_tor_circuit: No RequestClient available");
+        return;
+    }
+
+    // Call rotate_tor_circuit on RequestServer via IPC
+    request_client->async_rotate_tor_circuit();
+
+    dbgln("WebContent: Rotated Tor circuit for page {}", page_id);
 }
 
 }

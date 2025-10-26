@@ -145,6 +145,11 @@ private:
 
     virtual void set_user_style(u64 page_id, String) override;
 
+    // Tor network control IPC handlers
+    virtual void enable_tor(u64 page_id, ByteString circuit_id) override;
+    virtual void disable_tor(u64 page_id) override;
+    virtual void rotate_tor_circuit(u64 page_id) override;
+
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 

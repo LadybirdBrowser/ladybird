@@ -112,6 +112,10 @@ private:
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
 
+    // Tor controls
+    QAction* m_tor_toggle_action { nullptr };
+    bool m_tor_enabled { false };
+
     QPointer<QDialog> m_dialog;
 };
 
