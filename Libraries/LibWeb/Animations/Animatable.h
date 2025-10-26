@@ -52,11 +52,9 @@ public:
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> cached_animation_name_source(Optional<CSS::PseudoElement>) const;
-    void set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::PseudoElement>);
-
-    GC::Ptr<Animations::Animation> cached_animation_name_animation(Optional<CSS::PseudoElement>) const;
-    void set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement>);
+    HashMap<FlyString, GC::Ref<Animation>>* css_defined_animations(Optional<CSS::PseudoElement>);
+    void add_css_animation(FlyString name, Optional<CSS::PseudoElement>, GC::Ref<Animation>);
+    void remove_css_animation(FlyString name, Optional<CSS::PseudoElement>);
 
     GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source(Optional<CSS::PseudoElement>) const;
     void set_cached_transition_property_source(Optional<CSS::PseudoElement>, GC::Ptr<CSS::CSSStyleDeclaration const> value);
@@ -80,9 +78,7 @@ private:
         Vector<GC::Ref<Animation>> associated_animations;
         bool is_sorted_by_composite_order { true };
 
-        Array<GC::Ptr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> cached_animation_name_source;
-        Array<GC::Ptr<Animation>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> cached_animation_name_animation;
-
+        mutable Array<OwnPtr<HashMap<FlyString, GC::Ref<Animation>>>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> css_defined_animations;
         mutable Array<OwnPtr<Transition>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> transitions;
 
         ~Impl();

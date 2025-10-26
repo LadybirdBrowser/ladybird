@@ -1177,103 +1177,92 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     }
 }
 
-static void apply_animation_properties(DOM::Document& document, CascadedProperties& cascaded_properties, Animations::Animation& animation)
+static void apply_animation_properties(DOM::Document const& document, ComputedProperties::AnimationProperties const& animation_properties, Animations::Animation& animation)
 {
-    if (!animation.effect())
-        return;
+    VERIFY(animation.effect());
 
     auto& effect = as<Animations::KeyframeEffect>(*animation.effect());
 
-    Optional<CSS::Time> duration;
-    if (auto duration_value = cascaded_properties.property(PropertyID::AnimationDuration); duration_value) {
-        if (duration_value->is_time()) {
-            duration = duration_value->as_time().time();
-        } else if (duration_value->is_keyword() && duration_value->as_keyword().keyword() == Keyword::Auto) {
-            // We use empty optional to represent "auto".
-            duration = {};
-        } else if (duration_value->is_calculated() && duration_value->as_calculated().resolves_to_time()) {
-            auto resolved_time = duration_value->as_calculated().resolve_time({});
-            if (resolved_time.has_value()) {
-                duration = resolved_time.value();
-            }
-        }
-    }
+    effect.set_iteration_duration(animation_properties.duration);
+    effect.set_start_delay(animation_properties.delay);
+    effect.set_iteration_count(animation_properties.iteration_count);
+    effect.set_timing_function(animation_properties.timing_function);
+    effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
+    effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
+    effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));
 
-    auto delay = Time::make_seconds(0);
-    if (auto delay_value = cascaded_properties.property(PropertyID::AnimationDelay); delay_value) {
-        if (delay_value->is_time()) {
-            delay = delay_value->as_time().time();
-        } else if (delay_value->is_calculated() && delay_value->as_calculated().resolves_to_time()) {
-            auto resolved_time = delay_value->as_calculated().resolve_time({});
-            if (resolved_time.has_value()) {
-                delay = resolved_time.value();
-            }
-        }
-    }
-
-    double iteration_count = 1.0;
-    if (auto iteration_count_value = cascaded_properties.property(PropertyID::AnimationIterationCount); iteration_count_value) {
-        if (iteration_count_value->is_keyword() && iteration_count_value->to_keyword() == Keyword::Infinite)
-            iteration_count = HUGE_VAL;
-        else if (iteration_count_value->is_number())
-            iteration_count = iteration_count_value->as_number().number();
-        else if (iteration_count_value->is_calculated() && iteration_count_value->as_calculated().resolves_to_number()) {
-            auto resolved_number = iteration_count_value->as_calculated().resolve_number({});
-            if (resolved_number.has_value()) {
-                iteration_count = resolved_number.value();
-            }
-        }
-    }
-
-    CSS::AnimationFillMode fill_mode { CSS::AnimationFillMode::None };
-    if (auto fill_mode_property = cascaded_properties.property(PropertyID::AnimationFillMode); fill_mode_property && fill_mode_property->is_keyword()) {
-        if (auto fill_mode_value = keyword_to_animation_fill_mode(fill_mode_property->to_keyword()); fill_mode_value.has_value())
-            fill_mode = *fill_mode_value;
-    }
-
-    CSS::AnimationDirection direction { CSS::AnimationDirection::Normal };
-    if (auto direction_property = cascaded_properties.property(PropertyID::AnimationDirection); direction_property && direction_property->is_keyword()) {
-        if (auto direction_value = keyword_to_animation_direction(direction_property->to_keyword()); direction_value.has_value())
-            direction = *direction_value;
-    }
-
-    CSS::AnimationPlayState play_state { CSS::AnimationPlayState::Running };
-    if (auto play_state_property = cascaded_properties.property(PropertyID::AnimationPlayState); play_state_property && play_state_property->is_keyword()) {
-        if (auto play_state_value = keyword_to_animation_play_state(play_state_property->to_keyword()); play_state_value.has_value())
-            play_state = *play_state_value;
-    }
-
-    EasingFunction timing_function = EasingFunction::ease();
-    if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && (timing_property->is_easing() || (timing_property->is_keyword() && !timing_property->is_css_wide_keyword())))
-        timing_function = EasingFunction::from_style_value(timing_property.release_nonnull());
-
-    AnimationComposition animation_composition { AnimationComposition::Replace };
-    if (auto composite_property = cascaded_properties.property(PropertyID::AnimationComposition); composite_property) {
-        if (auto animation_composition_value = keyword_to_animation_composition(composite_property->to_keyword()); animation_composition_value.has_value())
-            animation_composition = *animation_composition_value;
-    }
-
-    auto iteration_duration = duration.has_value()
-        ? Variant<double, String> { duration.release_value().to_milliseconds() }
-        : "auto"_string;
-    effect.set_iteration_duration(iteration_duration);
-    effect.set_start_delay(delay.to_milliseconds());
-    effect.set_iteration_count(iteration_count);
-    effect.set_timing_function(move(timing_function));
-    effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(fill_mode));
-    effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(direction));
-    effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_composition));
-
-    if (play_state != effect.last_css_animation_play_state()) {
-        if (play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {
+    if (animation_properties.play_state != effect.last_css_animation_play_state()) {
+        if (animation_properties.play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {
             HTML::TemporaryExecutionContext context(document.realm());
             animation.play().release_value_but_fixme_should_propagate_errors();
-        } else if (play_state == CSS::AnimationPlayState::Paused && animation.play_state() != Bindings::AnimationPlayState::Paused) {
+        } else if (animation_properties.play_state == CSS::AnimationPlayState::Paused && animation.play_state() != Bindings::AnimationPlayState::Paused) {
             HTML::TemporaryExecutionContext context(document.realm());
             animation.pause().release_value_but_fixme_should_propagate_errors();
         }
 
-        effect.set_last_css_animation_play_state(play_state);
+        effect.set_last_css_animation_play_state(animation_properties.play_state);
+    }
+}
+
+// https://drafts.csswg.org/css-animations-1/#animations
+void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, DOM::AbstractElement& abstract_element) const
+{
+    auto const& animation_definitions = computed_properties.animations();
+
+    // FIXME: Add some animation helpers to AbstractElement once pseudo-elements are animatable.
+    auto& element = abstract_element.element();
+    auto const& pseudo_element = abstract_element.pseudo_element();
+    auto& document = abstract_element.document();
+
+    auto* element_animations = element.css_defined_animations(pseudo_element);
+
+    // If we have a nullptr for element_animations it means that the pseudo element was invalid and thus we shouldn't apply animations
+    if (!element_animations)
+        return;
+
+    HashTable<FlyString> defined_animation_names;
+
+    for (auto const& animation_properties : animation_definitions) {
+        defined_animation_names.set(animation_properties.name);
+
+        // Changes to the values of animation properties while the animation is running apply as if the animation had
+        // those values from when it began
+        if (auto const& existing_animation = element_animations->get(animation_properties.name); existing_animation.has_value()) {
+            apply_animation_properties(document, animation_properties, existing_animation.value());
+            return;
+        }
+
+        // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
+        // animation-name property and the animation uses a valid @keyframes rule
+        auto animation = CSSAnimation::create(document.realm());
+        animation->set_id(animation_properties.name);
+        animation->set_timeline(document.timeline());
+        animation->set_owning_element(element);
+
+        auto effect = Animations::KeyframeEffect::create(document.realm());
+        animation->set_effect(effect);
+
+        apply_animation_properties(document, animation_properties, animation);
+
+        if (pseudo_element.has_value())
+            effect->set_pseudo_element(Selector::PseudoElementSelector { pseudo_element.value() });
+
+        if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
+            if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
+                effect->set_key_frame_set(keyframe_set.value());
+        }
+
+        effect->set_target(&element);
+        element_animations->set(animation_properties.name, animation);
+    }
+
+    // Once an animation has started it continues until it ends or the animation-name is removed
+    for (auto const& existing_animation_name : element_animations->keys()) {
+        if (defined_animation_names.contains(existing_animation_name))
+            continue;
+
+        element_animations->get(existing_animation_name).value()->cancel(Animations::Animation::ShouldInvalidate::No);
+        element_animations->remove(existing_animation_name);
     }
 }
 
@@ -2569,9 +2558,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (animated_value.has_value())
             computed_style->set_animated_property(property_id, animated_value.value(), inherited);
 
-        if (property_id == PropertyID::AnimationName) {
-            computed_style->set_animation_name_source(cascaded_properties.property_source(property_id));
-        }
         if (property_id == PropertyID::TransitionProperty) {
             computed_style->set_transition_property_source(cascaded_properties.property_source(property_id));
         }
@@ -2589,6 +2575,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // 4. Convert properties into their computed forms
     compute_property_values(computed_style, abstract_element);
 
+    // 5. Add or modify CSS-defined animations
+    process_animation_definitions(computed_style, abstract_element);
+
     // FIXME: Support multiple entries for `animation` properties
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
@@ -2600,76 +2589,30 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         return animation_name.to_string(SerializationMode::Normal);
     }();
 
-    // FIXME: Add some animation helpers to AbstractElement once pseudo-elements are animatable.
-    auto& element = abstract_element.element();
-    auto pseudo_element = abstract_element.pseudo_element();
-
-    if (animation_name.has_value()) {
-        if (auto source_declaration = computed_style->animation_name_source()) {
-            auto& realm = element.realm();
-
-            if (source_declaration != element.cached_animation_name_source(pseudo_element)) {
-                // This animation name is new, so we need to create a new animation for it.
-                if (auto existing_animation = element.cached_animation_name_animation(pseudo_element))
-                    existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
-                element.set_cached_animation_name_source(source_declaration, pseudo_element);
-
-                auto effect = Animations::KeyframeEffect::create(realm);
-                auto animation = CSSAnimation::create(realm);
-                animation->set_id(animation_name.release_value());
-                animation->set_timeline(m_document->timeline());
-                animation->set_owning_element(element);
-                animation->set_effect(effect);
-                apply_animation_properties(m_document, cascaded_properties, animation);
-                if (pseudo_element.has_value())
-                    effect->set_pseudo_element(Selector::PseudoElementSelector { pseudo_element.value() });
-
-                if (auto* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
-                    if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation->id()); keyframe_set.has_value())
-                        effect->set_key_frame_set(keyframe_set.value());
-                }
-
-                effect->set_target(&element);
-                element.set_cached_animation_name_animation(animation, pseudo_element);
-            } else {
-                // The animation hasn't changed, but some properties of the animation may have
-                if (auto animation = element.cached_animation_name_animation(pseudo_element); animation)
-                    apply_animation_properties(m_document, cascaded_properties, *animation);
-            }
-        }
-    } else {
-        // If the element had an existing animation, cancel it
-        if (auto existing_animation = element.cached_animation_name_animation(pseudo_element)) {
-            existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
-            element.set_cached_animation_name_animation({}, pseudo_element);
-            element.set_cached_animation_name_source({}, pseudo_element);
-        }
-    }
-
-    auto animations = element.get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
+    auto animations = abstract_element.element().get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
-        dbgln("Error getting animations for element {}", element.debug_description());
+        dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {
         for (auto& animation : animations.value()) {
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
-                if (keyframe_effect.pseudo_element_type() == pseudo_element)
+                if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element())
                     collect_animation_into(abstract_element, keyframe_effect, computed_style);
             }
         }
     }
 
-    // 5. Run automatic box type transformations
+    // 6. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, abstract_element);
 
-    // 6. Apply any property-specific computed value logic
+    // 7. Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
     compute_text_align(computed_style, abstract_element);
 
-    // 7. Let the element adjust computed style
-    element.adjust_computed_style(computed_style);
+    // 8. Let the element adjust computed style
+    abstract_element.element().adjust_computed_style(computed_style);
 
-    // 8. Transition declarations [css-transitions-1]
+    // 9. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, abstract_element);
     if (auto previous_style = abstract_element.computed_properties()) {
