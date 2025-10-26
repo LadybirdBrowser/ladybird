@@ -197,7 +197,10 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         return build_preset_dir
 
     swiftc: Optional[str] = None
-    validate_cmake_version()
+    validate_cmake_version(platform)
+
+    if platform.host_system == HostSystem.OpenBSD:
+        validate_openbsd_pkgconfig()
 
     if "Swift" in preset:
         compilers = pick_swift_compilers(platform, ladybird_source_dir)
@@ -298,7 +301,7 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
     return ladybird_source_dir, build_preset_dir
 
 
-def validate_cmake_version():
+def validate_cmake_version(platform: Platform):
     # FIXME: This 3.25+ CMake version check may not be needed anymore due to vcpkg downloading a newer version
     cmake_install_message = "Please install CMake version 3.25 or newer."
 
@@ -317,6 +320,34 @@ def validate_cmake_version():
     if major < 3 or (major == 3 and minor < 25):
         print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
         sys.exit(1)
+
+    if platform.host_system == HostSystem.OpenBSD:
+        pkg_info_output = run_command(["pkg_info"], return_output=True, exit_on_failure=True)
+        assert pkg_info_output
+
+        cmake_location = run_command(["whereis", "cmake"], return_output=True, exit_on_failure=True)
+        assert cmake_location
+
+        if (
+            re.search(rf"cmake-core-{major}.{minor}.{patch}", pkg_info_output)
+            and cmake_location == "/usr/local/bin/cmake"
+        ):
+            print(
+                "Detected the usage of the OpenBSD ports CMake install. This CMake version was patched in a way that makes it unsuitable to compile Ladybird. Please build a custom CMake version from source."
+            )
+            sys.exit(1)
+
+
+def validate_openbsd_pkgconfig():
+    pkg_config_location = run_command(["whereis", "pkg-config"], return_output=True, exit_on_failure=True)
+    assert pkg_config_location
+
+    with open(pkg_config_location, "rb") as f:
+        if b"perl" in f.read(50):
+            print(
+                "Detected the use of the OpenBSD pkg-config Perl script. The old pkg-config provided by OpenBSD causes issues when compiling dependencies. Please build a pkg-config from source or update to OpenBSD 7.8"
+            )
+            sys.exit(1)
 
 
 def ensure_ladybird_source_dir() -> Path:
