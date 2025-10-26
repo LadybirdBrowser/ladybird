@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/NonnullOwnPtr.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 
 namespace Web::Painting {

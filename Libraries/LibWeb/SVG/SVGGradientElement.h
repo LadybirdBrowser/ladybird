@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/IterationDecision.h>
-#include <LibGfx/PaintStyle.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGElement.h>

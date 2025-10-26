@@ -114,13 +114,12 @@ NumberPercentage SVGLinearGradientElement::end_y_impl(HashTable<SVGGradientEleme
 
 Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGPaintContext const& paint_context) const
 {
-    auto units = gradient_units();
     // FIXME: Resolve percentages properly
     Gfx::FloatPoint start_point {};
     Gfx::FloatPoint end_point {};
 
     // https://svgwg.org/svg2-draft/pservers.html#LinearGradientElementGradientUnitsAttribute
-    if (units == GradientUnits::ObjectBoundingBox) {
+    if (gradient_units() == GradientUnits::ObjectBoundingBox) {
         // If gradientUnits="objectBoundingBox", the user coordinate system for attributes ‘x1’, ‘y1’, ‘x2’ and ‘y2’
         // is established using the bounding box of the element to which the gradient is applied (see Object bounding
         // box units) and then applying the transform specified by attribute ‘gradientTransform’. Percentages represent
