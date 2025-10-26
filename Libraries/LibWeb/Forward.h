@@ -918,6 +918,16 @@ class SourceBufferList;
 
 }
 
+namespace Web::MediaSession {
+
+struct ChapterInformationInit;
+class ChapterInformation;
+
+struct MediaMetadataInit;
+class MediaMetadata;
+
+}
+
 namespace Web::MimeSniff {
 
 class MimeType;
