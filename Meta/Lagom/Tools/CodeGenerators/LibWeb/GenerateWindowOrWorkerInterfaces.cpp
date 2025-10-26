@@ -10,6 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibIDL/ExposedTo.h>
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
@@ -436,6 +437,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     VERIFY(!paths.is_empty());
     VERIFY(!base_paths.is_empty());
+
+#if defined(AK_OS_OPENBSD)
+    // Increase the memory limit, because on OpenBSD the default limit is to low
+    // FIXME: Figure out why when building with sanitizers this requires ridiculous limits, as it fails even with 64GiB
+    if (auto result = Core::System::set_resource_limits(RLIMIT_DATA, 64 * TiB); result.is_error())
+        warnln("Unable to increase memory limit: {}", result.error());
+#endif
 
     if (paths.first().starts_with("@"sv)) {
         // Response file
