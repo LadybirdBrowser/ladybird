@@ -1,0 +1,55 @@
+[Exposed=Window]
+partial interface Navigator {
+  [SameObject] readonly attribute MediaSession mediaSession;
+};
+
+enum MediaSessionPlaybackState {
+  "none",
+  "paused",
+  "playing"
+};
+
+enum MediaSessionAction {
+  "play",
+  "pause",
+  "seekbackward",
+  "seekforward",
+  "previoustrack",
+  "nexttrack",
+  "skipad",
+  "stop",
+  "seekto",
+  "togglemicrophone",
+  "togglecamera",
+  "togglescreenshare",
+  "hangup",
+  "previousslide",
+  "nextslide",
+  "enterpictureinpicture",
+  "voiceactivity"
+};
+
+enum MediaSessionEnterPictureInPictureReason {
+  "other",
+  "useraction",
+  "contentoccluded"
+};
+
+callback MediaSessionActionHandler = undefined(MediaSessionActionDetails details);
+
+[Exposed=Window]
+interface MediaSession {
+  attribute MediaMetadata? metadata;
+
+  attribute MediaSessionPlaybackState playbackState;
+
+  undefined setActionHandler(MediaSessionAction action, MediaSessionActionHandler? handler);
+
+  undefined setPositionState(optional MediaPositionState state = {});
+
+  Promise<undefined> setMicrophoneActive(boolean active);
+
+  Promise<undefined> setCameraActive(boolean active);
+
+  Promise<undefined> setScreenshareActive(boolean active);
+};
