@@ -12,9 +12,9 @@
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
 #    include <vulkan/vulkan.h>
-#    if defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+#    if defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD) || defined(AK_OS_OPENBSD)
 #        include <libdrm/drm_fourcc.h>
-// Sharable Vulkan images are currently only implemented on Linux and FreeBSD
+// Sharable Vulkan images are currently only implemented on Linux and BSDs
 #        define USE_VULKAN_IMAGES 1
 #    endif
 
