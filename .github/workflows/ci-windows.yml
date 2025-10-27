@@ -19,7 +19,7 @@ jobs:
   CI:
     # Only run this job if the PR has the 'windows' label.
     if: |
-      github.repository == 'LadybirdBrowser/ladybird'
+      github.repository == 'quanticsoul4772/ladybird'
       && contains(github.event.pull_request.labels.*.name, 'windows')
     name: 'Windows, x86_64, Windows_Sanitizer_CI, ClangCL'
     secrets: inherit

@@ -12,7 +12,7 @@ concurrency:
 jobs:
   # CI matrix - runs the job in lagom-template.yml with different configurations.
   Lagom:
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, ${{ matrix.build_preset }}, ${{ matrix.toolchain }}
 
     strategy:
@@ -79,7 +79,7 @@ jobs:
       clang_plugins: ${{ matrix.clang_plugins }}
 
   flatpak:
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
     name: Flatpak ${{ matrix.arch }}
 
     # FIXME: Temporarily run on GitHub runners until Blacksmith runners have overlay redirect_dir enabled.

@@ -18,7 +18,7 @@ env:
 jobs:
   build-and-package:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}
 
     strategy:
@@ -44,7 +44,7 @@ jobs:
             runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
 
     steps:
-      - name: Checkout LadybirdBrowser/ladybird
+      - name: Checkout quanticsoul4772/ladybird
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.reference_to_build }}

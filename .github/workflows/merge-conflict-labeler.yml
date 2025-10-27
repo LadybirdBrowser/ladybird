@@ -13,7 +13,7 @@ on:
 jobs:
   auto-labeler:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
 
     permissions:
       contents: read
