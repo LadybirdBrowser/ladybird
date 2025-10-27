@@ -14,6 +14,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibIPC/Limits.h>
+#include <LibIPC/ProxyValidator.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
@@ -467,6 +468,20 @@ void ConnectionFromClient::enable_tor(ByteString circuit_id)
 
     // Configure Tor proxy on this connection ONLY
     auto tor_proxy = IPC::ProxyConfig::tor_proxy(circuit_id);
+
+    // SECURITY: Verify Tor proxy is reachable before applying configuration
+    auto validation_result = IPC::ProxyValidator::test_proxy(tor_proxy);
+    if (validation_result.is_error()) {
+        dbgln("RequestServer: SECURITY: Tor proxy validation failed: {}", validation_result.error());
+        dbgln("RequestServer: Tor proxy at {}:{} is not reachable - rejecting configuration",
+            tor_proxy.host, tor_proxy.port);
+        // TODO: Send error IPC message back to WebContent to notify user
+        // For now, we fail silently to prevent privacy leak via direct connection
+        return;
+    }
+
+    dbgln("RequestServer: Tor proxy validated successfully at {}:{}", tor_proxy.host, tor_proxy.port);
+
     m_network_identity->set_proxy_config(tor_proxy);
 
     dbgln("RequestServer: Tor ENABLED for client {} ONLY with circuit {} (has_proxy={})",
@@ -598,6 +613,20 @@ void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy
     config.type = validated_type;
     config.username = move(username);
     config.password = move(password);
+
+    // SECURITY: Verify proxy is reachable before applying configuration
+    auto validation_result = IPC::ProxyValidator::test_proxy(config);
+    if (validation_result.is_error()) {
+        dbgln("RequestServer: SECURITY: Proxy validation failed: {}", validation_result.error());
+        dbgln("RequestServer: Proxy at {}:{} (type {}) is not reachable - rejecting configuration",
+            config.host, config.port, static_cast<int>(config.type));
+        // TODO: Send error IPC message back to WebContent to notify user
+        // For now, we fail silently to prevent privacy leak via direct connection
+        return;
+    }
+
+    dbgln("RequestServer: Proxy validated successfully at {}:{} (type {})",
+        config.host, config.port, static_cast<int>(config.type));
 
     // Set proxy configuration on this connection ONLY
     m_network_identity->set_proxy_config(config);

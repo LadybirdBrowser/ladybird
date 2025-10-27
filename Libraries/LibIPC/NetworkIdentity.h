@@ -91,6 +91,10 @@ public:
     }
     void clear_proxy_config()
     {
+        // SECURITY: Clear credentials from memory before resetting config
+        if (m_proxy_config.has_value())
+            m_proxy_config->clear_credentials();
+
         m_proxy_config = {};
         m_tor_circuit_id = {};
     }
@@ -115,6 +119,11 @@ public:
             explicit_bzero(const_cast<char*>(m_private_key->characters()), m_private_key->length());
             m_private_key = {};
         }
+
+        // SECURITY: Clear proxy credentials from memory
+        if (m_proxy_config.has_value())
+            m_proxy_config->clear_credentials();
+
         m_proxy_config = {};
         m_tor_circuit_id = {};
     }
