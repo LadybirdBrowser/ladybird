@@ -42,12 +42,16 @@ String SubstitutionContext::to_string() const
 
 void GuardedSubstitutionContexts::guard(SubstitutionContext& context)
 {
-    for (auto& existing_context : m_contexts) {
-        if (existing_context == context) {
-            existing_context.is_cyclic = true;
-            context.is_cyclic = true;
-            return;
-        }
+    // https://drafts.csswg.org/css-values-5/#guarded
+    // When a substitution context is guarded, it means that, for the duration of the guard, an attempt to guard a
+    // matching substitution context again will mark all substitution contexts involved in the cycle as cyclic
+    // substitution contexts.
+    if (auto existing_context = m_contexts.find_first_index(context); existing_context.has_value()) {
+        // Mark all contexts from this index onwards as cyclic
+        for (auto i = existing_context.value(); i < m_contexts.size(); ++i)
+            m_contexts[i].is_cyclic = true;
+        context.is_cyclic = true;
+        return;
     }
 
     m_contexts.append(context);
