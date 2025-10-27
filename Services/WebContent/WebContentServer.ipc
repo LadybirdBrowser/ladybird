@@ -139,6 +139,9 @@ endpoint WebContentServer
     set_proxy(u64 page_id, ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password) =|
     clear_proxy(u64 page_id) =|
 
+    // Network audit log retrieval
+    get_network_audit(u64 page_id) => (Vector<ByteString> audit_entries, size_t total_bytes_sent, size_t total_bytes_received)
+
     system_time_zone_changed() =|
     cookies_changed(Vector<Web::Cookie::Cookie> cookies) =|
 }

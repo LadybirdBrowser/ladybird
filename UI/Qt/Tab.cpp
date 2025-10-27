@@ -13,6 +13,7 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/NetworkAuditDialog.h>
 #include <UI/Qt/ProxySettingsDialog.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
@@ -202,6 +203,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         }
     });
 
+    // Create Network Audit button
+    m_network_audit_action = new QAction(this);
+    m_network_audit_action->setIcon(load_icon_from_uri("resource://icons/16x16/network.png"sv));
+    m_network_audit_action->setText("Network Activity");
+    m_network_audit_action->setToolTip("View network activity audit log");
+    QObject::connect(m_network_audit_action, &QAction::triggered, this, &Tab::open_network_audit_dialog);
+
     recreate_toolbar_icons();
 
     m_favicon = default_favicon();
@@ -216,6 +224,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar->addAction(m_reload_action);
     m_toolbar->addAction(m_tor_toggle_action);  // Add Tor toggle button
     m_toolbar->addAction(m_vpn_toggle_action);  // Add VPN toggle button
+    m_toolbar->addAction(m_network_audit_action);  // Add Network Audit button
     m_toolbar->addWidget(m_location_edit);
     m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
@@ -654,6 +663,19 @@ void Tab::open_proxy_settings_dialog()
         // User clicked Cancel or closed dialog
         dbgln("Tab: Proxy configuration cancelled");
     }
+
+    delete dialog;
+}
+
+void Tab::open_network_audit_dialog()
+{
+    // Get audit data via IPC
+    auto response = view().client().get_network_audit(view().page_id());
+
+    // Create and show dialog
+    auto* dialog = new NetworkAuditDialog(this);
+    dialog->set_audit_data(response.audit_entries(), response.total_bytes_sent(), response.total_bytes_received());
+    dialog->exec();
 
     delete dialog;
 }

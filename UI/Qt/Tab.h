@@ -124,6 +124,11 @@ private:
 
     void open_proxy_settings_dialog();
 
+    // Network audit controls
+    QAction* m_network_audit_action { nullptr };
+
+    void open_network_audit_dialog();
+
     QPointer<QDialog> m_dialog;
 };
 

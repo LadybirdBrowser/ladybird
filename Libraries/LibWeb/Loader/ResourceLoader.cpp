@@ -552,7 +552,12 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), headers, request.body(), proxy);
+    // Extract page_id from LoadRequest's Page for per-tab network identity
+    u64 page_id = 0;
+    if (auto page = request.page())
+        page_id = page->client().id();
+
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), headers, request.body(), proxy, page_id);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

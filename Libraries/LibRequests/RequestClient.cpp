@@ -32,7 +32,7 @@ void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::Cach
     async_ensure_connection(url, cache_level);
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ReadonlyBytes request_body, Core::ProxyData const& proxy_data)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ReadonlyBytes request_body, Core::ProxyData const& proxy_data, u64 page_id)
 {
     auto body_result = ByteBuffer::copy(request_body);
     if (body_result.is_error())
@@ -41,7 +41,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     static i32 s_next_request_id = 0;
     auto request_id = s_next_request_id++;
 
-    IPCProxy::async_start_request(request_id, method, url, request_headers, body_result.release_value(), proxy_data);
+    IPCProxy::async_start_request(request_id, method, url, request_headers, body_result.release_value(), proxy_data, page_id);
     auto request = Request::create_from_id({}, *this, request_id);
     m_requests.set(request_id, request);
     return request;

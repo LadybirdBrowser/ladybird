@@ -117,6 +117,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     CURL* easy { nullptr };
     Vector<curl_slist*> curl_string_lists;
     i32 request_id { 0 };
+    u64 page_id { 0 };
     WeakPtr<ConnectionFromClient> client;
     int writer_fd { 0 };
     bool is_connect_only { false };
@@ -140,10 +141,11 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     Optional<CacheEntryWriter&> cache_entry;
     UnixDateTime request_start_time;
 
-    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
+    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, u64 page_id, int writer_fd)
         : multi(multi)
         , easy(easy)
         , request_id(request_id)
+        , page_id(page_id)
         , client(client)
         , writer_fd(writer_fd)
         , write_notifier(Core::Notifier::construct(writer_fd, Core::NotificationType::Write))
@@ -660,6 +662,50 @@ void ConnectionFromClient::clear_proxy(u64 page_id)
     // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
+Messages::RequestServer::GetNetworkAuditResponse ConnectionFromClient::get_network_audit()
+{
+    Vector<ByteString> audit_entries;
+    size_t total_bytes_sent = 0;
+    size_t total_bytes_received = 0;
+
+    // SECURITY NOTE: This retrieves audit data for the DEFAULT network identity only.
+    // In a per-tab implementation, this would need a page_id parameter.
+    // For now, we get the first available network identity from the map.
+    RefPtr<IPC::NetworkIdentity> network_identity;
+    if (!m_page_network_identities.is_empty()) {
+        network_identity = m_page_network_identities.begin()->value;
+    }
+
+    if (!network_identity) {
+        dbgln("RequestServer: Cannot get audit - no network identity");
+        return { move(audit_entries), total_bytes_sent, total_bytes_received };
+    }
+
+    // Serialize audit log entries as pipe-delimited strings for easy parsing
+    for (auto const& entry : network_identity->audit_log()) {
+        auto timestamp_ms = entry.timestamp.milliseconds();
+        auto response_code = entry.response_code.has_value() ? ByteString::number(*entry.response_code) : ByteString("0");
+
+        auto serialized = ByteString::formatted("{}|{}|{}|{}|{}|{}",
+            timestamp_ms,
+            entry.method,
+            entry.url.to_byte_string(),
+            response_code,
+            entry.bytes_sent,
+            entry.bytes_received);
+
+        audit_entries.append(move(serialized));
+    }
+
+    total_bytes_sent = network_identity->total_bytes_sent();
+    total_bytes_received = network_identity->total_bytes_received();
+
+    dbgln("RequestServer: Returning {} audit entries, {} bytes sent, {} bytes received",
+        audit_entries.size(), total_bytes_sent, total_bytes_received);
+
+    return { move(audit_entries), total_bytes_sent, total_bytes_received };
+}
+
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
@@ -791,17 +837,17 @@ void ConnectionFromClient::set_use_system_dns()
 }
 
 #ifdef AK_OS_WINDOWS
-void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData)
+void ConnectionFromClient::start_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64)
 {
     VERIFY(0 && "RequestServer::ConnectionFromClient::start_request is not implemented");
 }
 
-void ConnectionFromClient::issue_network_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, Optional<ResumeRequestForFailedCacheEntry>)
+void ConnectionFromClient::issue_network_request(i32, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64, Optional<ResumeRequestForFailedCacheEntry>)
 {
     VERIFY(0 && "RequestServer::ConnectionFromClient::issue_network_request is not implemented");
 }
 #else
-void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
+void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id)
 {
     // Security: Rate limiting
     if (!check_rate_limit())
@@ -823,7 +869,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
     if (!validate_buffer_size(request_body.size(), "request_body"sv))
         return;
 
-    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {}, page_id={})", request_id, url, page_id);
 
     if (g_disk_cache.has_value()) {
         if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
@@ -841,36 +887,38 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
                     async_request_finished(request_id, bytes_sent, {}, {});
                     MUST(Core::System::close(writer_fd));
                 },
-                [this, request_id, writer_fd, method = move(method), url = move(url), request_headers = move(request_headers), request_body = move(request_body), proxy_data](auto bytes_sent) mutable {
+                [this, request_id, writer_fd, page_id, method = move(method), url = move(url), request_headers = move(request_headers), request_body = move(request_body), proxy_data](auto bytes_sent) mutable {
                     // FIXME: We should really also have a way to validate the data once CacheEntry is storing its crc.
                     ResumeRequestForFailedCacheEntry resume_request {
                         .start_offset = bytes_sent,
                         .writer_fd = writer_fd,
                     };
 
-                    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request);
+                    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id, resume_request);
                 });
 
             return;
         }
     }
 
-    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data);
+    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
 }
 
-void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, Optional<ResumeRequestForFailedCacheEntry> resume_request)
+void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> resume_request)
 {
     auto host = url.serialized_host().to_byte_string();
 
     // Check if using SOCKS5H proxy (hostname resolution via proxy)
     // If so, skip DNS lookup - let Tor/proxy handle DNS resolution
-    bool using_socks5h_proxy = m_network_identity && m_network_identity->has_proxy()
-        && m_network_identity->proxy_config()->type == IPC::ProxyType::SOCKS5H;
+    auto network_identity = network_identity_for_page(page_id);
+    bool using_socks5h_proxy = network_identity && network_identity->has_proxy()
+        && network_identity->proxy_config().has_value()
+        && network_identity->proxy_config()->type == IPC::ProxyType::SOCKS5H;
 
     if (using_socks5h_proxy) {
         dbgln("RequestServer: Skipping DNS lookup for {} (using SOCKS5H proxy - DNS via Tor)", host);
         // Proceed directly to curl setup without DNS lookup
-        issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request, {});
+        issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id, resume_request, {});
         return;
     }
 
@@ -883,7 +931,7 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
             if (resume_request.has_value())
                 MUST(Core::System::close(resume_request->writer_fd));
         })
-        .when_resolved([this, request_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data, resume_request](auto const& dns_result) mutable {
+        .when_resolved([this, request_id, page_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data, resume_request](auto const& dns_result) mutable {
             if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
                 dbgln("StartRequest: DNS lookup failed for '{}'", host);
                 // FIXME: Implement timing info for DNS lookup failure.
@@ -894,11 +942,11 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
             dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: DNS lookup successful");
             // dns_result is const, but we need non-const for Optional - use const_cast
             auto non_const_result = const_cast<DNS::LookupResult*>(dns_result.ptr());
-            issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, resume_request, Optional<NonnullRefPtr<DNS::LookupResult>>(NonnullRefPtr<DNS::LookupResult>(*non_const_result)));
+            issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id, resume_request, Optional<NonnullRefPtr<DNS::LookupResult>>(NonnullRefPtr<DNS::LookupResult>(*non_const_result)));
         });
 }
 
-void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, Optional<ResumeRequestForFailedCacheEntry> resume_request, Optional<NonnullRefPtr<DNS::LookupResult>> dns_result)
+void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> resume_request, Optional<NonnullRefPtr<DNS::LookupResult>> dns_result)
 {
     auto host = url.serialized_host().to_byte_string();
 
@@ -926,7 +974,7 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
         async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
     }
 
-    auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
+    auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, page_id, writer_fd);
     request->url = url;
     request->method = method;
 
@@ -949,8 +997,9 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
     set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
 
     // Apply proxy configuration from NetworkIdentity (Tor/VPN support)
-    if (m_network_identity && m_network_identity->has_proxy()) {
-        auto const& proxy = m_network_identity->proxy_config().value();
+    auto network_identity = network_identity_for_page(page_id);
+    if (network_identity && network_identity->has_proxy()) {
+        auto const& proxy = network_identity->proxy_config().value();
 
         // Set proxy URL (e.g., "socks5h://localhost:9050" for Tor)
         set_option(CURLOPT_PROXY, proxy.to_curl_proxy_url().characters());
@@ -969,12 +1018,12 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
         if (auto auth = proxy.to_curl_auth_string(); auth.has_value())
             set_option(CURLOPT_PROXYUSERPWD, auth->characters());
 
-        dbgln("RequestServer: Using {} proxy {} for request to {}",
+        dbgln("RequestServer: Using {} proxy {} for request to {} (page_id={})",
             proxy.type == IPC::ProxyType::SOCKS5H ? "SOCKS5H" : "other",
-            proxy.to_curl_proxy_url(), url);
+            proxy.to_curl_proxy_url(), url, page_id);
     } else {
-        dbgln("RequestServer: NO proxy configured for request to {} (identity={}, has_proxy={})",
-            url, m_network_identity != nullptr, m_network_identity ? m_network_identity->has_proxy() : false);
+        dbgln("RequestServer: NO proxy configured for request to {} (page_id={}, has_identity={}, has_proxy={})",
+            url, page_id, network_identity != nullptr, network_identity ? network_identity->has_proxy() : false);
     }
 
     set_option(CURLOPT_CUSTOMREQUEST, method.characters());
@@ -1051,8 +1100,8 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
     }
 
     // Log request in NetworkIdentity audit trail
-    if (m_network_identity)
-        m_network_identity->log_request(url, method);
+    if (network_identity)
+        network_identity->log_request(url, method);
 
     auto result = curl_multi_add_handle(m_curl_multi, easy);
     VERIFY(result == CURLM_OK);
@@ -1280,7 +1329,7 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
 
         auto connect_only_request_id = get_random<i32>();
 
-        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0);
+        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0, 0); // page_id=0 for connection test
         request->url = url;
         request->is_connect_only = true;
 

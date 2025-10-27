@@ -1458,4 +1458,27 @@ void ConnectionFromClient::clear_proxy(u64 page_id)
     dbgln("WebContent: Cleared proxy for page {}", page_id);
 }
 
+Messages::WebContentServer::GetNetworkAuditResponse ConnectionFromClient::get_network_audit(u64 page_id)
+{
+    // Validate the page exists
+    if (!this->page(page_id).has_value()) {
+        dbgln("WebContent::ConnectionFromClient::get_network_audit: Invalid page_id {}", page_id);
+        return { {}, 0, 0 };
+    }
+
+    // Forward the audit request to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::get_network_audit: No RequestClient available");
+        return { {}, 0, 0 };
+    }
+
+    // Call get_network_audit on RequestServer via IPC (synchronous call)
+    auto response = request_client->get_network_audit();
+
+    dbgln("WebContent: Retrieved {} audit entries for page {}", response.audit_entries().size(), page_id);
+
+    return { response.audit_entries(), response.total_bytes_sent(), response.total_bytes_received() };
+}
+
 }

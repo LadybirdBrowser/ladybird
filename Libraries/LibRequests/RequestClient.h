@@ -30,7 +30,7 @@ public:
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {}, u64 page_id = 0);
 
     RefPtr<WebSocket> websocket_connect(URL::URL const&, ByteString const& origin = {}, Vector<ByteString> const& protocols = {}, Vector<ByteString> const& extensions = {}, HTTP::HeaderMap const& request_headers = {});
 
