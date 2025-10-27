@@ -152,7 +152,12 @@ void ProxySettingsDialog::on_test_button_clicked()
     auto config = get_proxy_config();
 
     // Test the connection using ProxyValidator
-    m_status_label->setText("Testing connection...");
+    // NOTE: This validation makes a synchronous TCP connection which may take several seconds
+    // This is acceptable here because:
+    // - User explicitly clicked "Test Connection" button
+    // - They expect to wait for the test result
+    // - This is a rare operation (only during proxy configuration)
+    m_status_label->setText("Testing connection (may take a few seconds)...");
     m_status_label->setStyleSheet("QLabel { color: #666; }");
     m_test_button->setEnabled(false);
 
