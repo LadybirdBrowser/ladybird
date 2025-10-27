@@ -297,7 +297,10 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                 }
             } else {
                 if (!margin_left.is_auto() && !margin_right.is_auto()) {
-                    margin_right = CSS::Length::make_px(margin_right.to_px_or_zero(box) + underflow_px);
+                    // https://drafts.csswg.org/css-align/#justify-block
+                    // In terms of CSS2.1 block-level formatting [CSS2], the rules for “over-constrained” computations
+                    // in section 10.3.3 are ignored in favor of alignment as specified here and the used value of the
+                    // margin properties are therefore not adjusted to correct for the over-constraint.
                 } else if (!margin_left.is_auto() && margin_right.is_auto()) {
                     margin_right = CSS::Length::make_px(underflow_px);
                 } else if (margin_left.is_auto() && !margin_right.is_auto()) {

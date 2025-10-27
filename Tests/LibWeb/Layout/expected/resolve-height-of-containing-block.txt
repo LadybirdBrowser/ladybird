@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 800 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,16] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div.foo> at [8,16] [0+0+0 1280 0+0+-496] [0+0+0 800 0+0+0] children: not-inline
+      BlockContainer <div.foo> at [8,16] [0+0+0 1280 0+0+0] [0+0+0 800 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,16] [0+0+0 1280 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div> at [8,16] [0+0+0 1280 0+0+0] [0+0+0 400 0+0+0] children: not-inline

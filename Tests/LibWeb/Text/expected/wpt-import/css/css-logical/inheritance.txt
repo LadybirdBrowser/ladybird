@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 68 tests
 
-61 Pass
-7 Fail
+62 Pass
+6 Fail
 Pass	Property block-size has initial value 0px
 Pass	Property block-size does not inherit
 Pass	Property border-block-end-color has initial value rgb(0, 0, 255)
@@ -53,7 +53,7 @@ Pass	Property margin-block-end does not inherit
 Pass	Property margin-block-start has initial value 0px
 Pass	Property margin-block-start does not inherit
 Pass	Property margin-inline-end has initial value 0px
-Fail	Property margin-inline-end does not inherit
+Pass	Property margin-inline-end does not inherit
 Pass	Property margin-inline-start has initial value 0px
 Pass	Property margin-inline-start does not inherit
 Pass	Property max-block-size has initial value none

@@ -10,7 +10,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 12, rect: [62,46 90.921875x18] baseline: 13.796875
               "is inherited"
           TextNode <#text> (not painted)
-      BlockContainer <div.pct-indent> at [11,83] [0+1+0 100 0+1+678] [0+1+0 72 0+1+0] children: inline
+      BlockContainer <div.pct-indent> at [11,83] [0+1+0 100 0+1+0] [0+1+0 72 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [61,83 30.34375x18] baseline: 13.796875
             "50%"
         frag 1 from TextNode start: 4, length: 11, rect: [11,101 88.15625x18] baseline: 13.796875

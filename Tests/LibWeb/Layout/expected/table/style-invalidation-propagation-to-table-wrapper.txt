@@ -2,8 +2,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 104 0+0+8] children: not-inline
       BlockContainer <center> at [8,8] [0+0+0 784 0+0+0] [0+0+0 104 0+0+0] children: not-inline
-        TableWrapper <(anonymous)> at [200,8] [0+0+0 392 0+0+384] [0+0+0 104 0+0+0] [BFC] children: not-inline
-          Box <table> at [200,8] table-box [0+0+0 392 0+0+200] [0+0+0 104 0+0+0] [TFC] children: not-inline
+        TableWrapper <(anonymous)> at [200,8] [0+0+0 392 0+0+0] [0+0+0 104 0+0+0] [BFC] children: not-inline
+          Box <table> at [200,8] table-box [0+0+0 392 0+0+0] [0+0+0 104 0+0+0] [TFC] children: not-inline
             Box <tbody> at [202,10] table-row-group [0+0+0 388 0+0+0] [0+0+0 100 0+0+0] children: not-inline
               Box <tr> at [202,10] table-row [0+0+0 388 0+0+0] [0+0+0 100 0+0+0] children: not-inline
                 BlockContainer <td> at [203,60] table-cell [0+0+1 386 1+0+0] [0+0+50 0 50+0+0] [BFC] children: inline

@@ -11,13 +11,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <div.box.green> at [8,8] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text> (not painted)
         BlockContainer <div.b> at [8,108] floating [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-          BlockContainer <div.box.blue> at [8,108] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+          BlockContainer <div.box.blue> at [8,108] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text> (not painted)
         BlockContainer <div.a> at [116,8] inline-block [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
           BlockContainer <div.box.green> at [116,8] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text> (not painted)
         BlockContainer <div.b> at [8,208] floating [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-          BlockContainer <div.box.blue> at [8,208] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+          BlockContainer <div.box.blue> at [8,208] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         TextNode <#text> (not painted)
       BlockContainer <div> at [8,120] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,112] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
