@@ -66,4 +66,28 @@ static constexpr size_t MaxFileUploadSize = 100 * 1024 * 1024;
 // Rationale: Prevents file descriptor exhaustion
 static constexpr size_t MaxFileDescriptorsPerMessage = 16;
 
+// Proxy/Network security limits
+// Hostname length limit (per RFC 1035)
+// Rationale: DNS hostname labels are max 63 bytes, full name max 255 bytes
+static constexpr size_t MaxHostnameLength = 255;
+
+// Port number limit (well-known valid range)
+// Rationale: TCP/UDP ports are 1-65535, 0 is invalid
+static constexpr u16 MinPortNumber = 1;
+static constexpr u16 MaxPortNumber = 65535;
+
+// Authentication credential limits
+// Rationale: Balance between compatibility and DoS prevention
+static constexpr size_t MaxUsernameLength = 256;
+static constexpr size_t MaxPasswordLength = 1024;
+
+// Tor circuit ID limit
+// Rationale: Tor circuit IDs are short alphanumeric strings
+static constexpr size_t MaxCircuitIDLength = 128;
+
+// Rate limiting defaults
+// Rationale: Prevent IPC message flooding from compromised processes
+static constexpr size_t DefaultRateLimit = 1000; // messages per second
+static constexpr size_t MaxRateLimit = 10000;    // maximum configurable rate
+
 }

@@ -13,6 +13,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
+#include <LibIPC/Limits.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
@@ -435,6 +436,24 @@ void ConnectionFromClient::enable_tor(ByteString circuit_id)
 {
     dbgln("RequestServer: enable_tor() called on client {} with circuit_id='{}'", client_id(), circuit_id);
 
+    // SECURITY: Validate circuit_id length to prevent DoS attacks
+    if (circuit_id.length() > IPC::Limits::MaxCircuitIDLength) {
+        dbgln("RequestServer: SECURITY: Circuit ID too long ({} bytes, max {})",
+            circuit_id.length(), IPC::Limits::MaxCircuitIDLength);
+        return;
+    }
+
+    // SECURITY: Validate circuit_id contains only safe characters (alphanumeric, dash, underscore)
+    if (!circuit_id.is_empty()) {
+        for (char c : circuit_id) {
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                  (c >= '0' && c <= '9') || c == '-' || c == '_')) {
+                dbgln("RequestServer: SECURITY: Circuit ID contains invalid character: {}", c);
+                return;
+            }
+        }
+    }
+
     // Create network identity with Tor circuit if not already present
     if (!m_network_identity) {
         // Use client_id as page_id for now (will be properly set when integrated with WebContent)
@@ -446,31 +465,19 @@ void ConnectionFromClient::enable_tor(ByteString circuit_id)
     if (circuit_id.is_empty())
         circuit_id = m_network_identity->identity_id();
 
-    // Configure Tor proxy on this connection
+    // Configure Tor proxy on this connection ONLY
     auto tor_proxy = IPC::ProxyConfig::tor_proxy(circuit_id);
     m_network_identity->set_proxy_config(tor_proxy);
 
-    dbgln("RequestServer: Tor ENABLED for client {} with circuit {} (has_proxy={})",
+    dbgln("RequestServer: Tor ENABLED for client {} ONLY with circuit {} (has_proxy={})",
         client_id(),
         m_network_identity->tor_circuit_id().value_or("default"),
         m_network_identity->has_proxy());
 
-    // IMPORTANT: Apply Tor configuration to ALL connections from this process
-    // This ensures that any connection in the pool will use Tor, not just this one
-    for (auto& [id, connection] : s_connections) {
-        if (id == client_id())
-            continue; // Already configured above
-
-        if (!connection->m_network_identity) {
-            connection->m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(id));
-        }
-
-        // Use the same circuit ID for all connections to maintain stream isolation per-tab
-        auto proxy_for_connection = IPC::ProxyConfig::tor_proxy(circuit_id);
-        connection->m_network_identity->set_proxy_config(move(proxy_for_connection));
-
-        dbgln("RequestServer: Also enabled Tor for sibling client {} with same circuit", id);
-    }
+    // SECURITY FIX: Removed global state mutation that applied Tor to ALL connections.
+    // Each connection must manage its own proxy configuration independently to prevent
+    // cross-tab privacy violations and circuit correlation attacks.
+    // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
 void ConnectionFromClient::disable_tor()
@@ -479,18 +486,11 @@ void ConnectionFromClient::disable_tor()
         return;
 
     m_network_identity->clear_proxy_config();
-    dbgln("RequestServer: Tor disabled for client {}", client_id());
+    dbgln("RequestServer: Tor disabled for client {} ONLY", client_id());
 
-    // Also disable Tor on all sibling connections
-    for (auto& [id, connection] : s_connections) {
-        if (id == client_id())
-            continue;
-
-        if (connection->m_network_identity) {
-            connection->m_network_identity->clear_proxy_config();
-            dbgln("RequestServer: Also disabled Tor for sibling client {}", id);
-        }
-    }
+    // SECURITY FIX: Removed global state mutation that disabled Tor on ALL connections.
+    // Each connection manages its own state independently.
+    // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
 void ConnectionFromClient::rotate_tor_circuit()
@@ -512,25 +512,78 @@ void ConnectionFromClient::rotate_tor_circuit()
     }
 
     auto new_circuit_id = m_network_identity->tor_circuit_id().value_or("unknown");
-    dbgln("RequestServer: Tor circuit rotated for client {} to {}", client_id(), new_circuit_id);
+    dbgln("RequestServer: Tor circuit rotated for client {} ONLY to {}", client_id(), new_circuit_id);
 
-    // Also rotate circuit on all sibling connections
-    for (auto& [id, connection] : s_connections) {
-        if (id == client_id())
-            continue;
-
-        if (connection->m_network_identity && connection->m_network_identity->has_tor_circuit()) {
-            // Use the same new circuit ID for all connections to maintain stream isolation
-            auto proxy_for_connection = IPC::ProxyConfig::tor_proxy(new_circuit_id);
-            connection->m_network_identity->set_proxy_config(move(proxy_for_connection));
-            dbgln("RequestServer: Also rotated circuit for sibling client {} to {}", id, new_circuit_id);
-        }
-    }
+    // SECURITY FIX: Removed global state mutation that rotated circuits for ALL connections.
+    // Each connection manages its own circuit independently.
+    // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
 void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password)
 {
     dbgln("RequestServer: set_proxy() called on client {} ({}:{})", client_id(), host, port);
+
+    // SECURITY: Validate port range (must be 1-65535)
+    if (port < IPC::Limits::MinPortNumber || port > IPC::Limits::MaxPortNumber) {
+        dbgln("RequestServer: SECURITY: Invalid proxy port {} (must be {}-{})",
+            port, IPC::Limits::MinPortNumber, IPC::Limits::MaxPortNumber);
+        return;
+    }
+
+    // SECURITY: Validate hostname length (RFC 1035 limit)
+    if (host.length() > IPC::Limits::MaxHostnameLength) {
+        dbgln("RequestServer: SECURITY: Proxy hostname too long ({} bytes, max {})",
+            host.length(), IPC::Limits::MaxHostnameLength);
+        return;
+    }
+
+    // SECURITY: Validate hostname contains only valid characters (no control chars)
+    // Allowed: alphanumeric, dots, dashes, colons (for IPv6), and brackets (for IPv6)
+    for (size_t i = 0; i < host.length(); ++i) {
+        char c = host[i];
+        bool is_valid = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '.' || c == '-' ||
+                        c == ':' || c == '[' || c == ']';
+        if (!is_valid) {
+            dbgln("RequestServer: SECURITY: Invalid character in hostname at position {}: 0x{:02x}", i, static_cast<u8>(c));
+            return;
+        }
+    }
+
+    // SECURITY: Validate hostname is not empty
+    if (host.is_empty()) {
+        dbgln("RequestServer: SECURITY: Proxy hostname cannot be empty");
+        return;
+    }
+
+    // SECURITY: Validate username length if provided
+    if (username.has_value() && username->length() > IPC::Limits::MaxUsernameLength) {
+        dbgln("RequestServer: SECURITY: Proxy username too long ({} bytes, max {})",
+            username->length(), IPC::Limits::MaxUsernameLength);
+        return;
+    }
+
+    // SECURITY: Validate password length if provided
+    if (password.has_value() && password->length() > IPC::Limits::MaxPasswordLength) {
+        dbgln("RequestServer: SECURITY: Proxy password too long ({} bytes, max {})",
+            password->length(), IPC::Limits::MaxPasswordLength);
+        return;
+    }
+
+    // SECURITY: Validate proxy type is one of the allowed values
+    IPC::ProxyType validated_type;
+    if (proxy_type == "SOCKS5H"sv)
+        validated_type = IPC::ProxyType::SOCKS5H;
+    else if (proxy_type == "SOCKS5"sv)
+        validated_type = IPC::ProxyType::SOCKS5;
+    else if (proxy_type == "HTTP"sv)
+        validated_type = IPC::ProxyType::HTTP;
+    else if (proxy_type == "HTTPS"sv)
+        validated_type = IPC::ProxyType::HTTPS;
+    else {
+        dbgln("RequestServer: SECURITY: Invalid proxy type '{}' (must be SOCKS5, SOCKS5H, HTTP, or HTTPS)", proxy_type);
+        return;
+    }
 
     // Create network identity if not already present
     if (!m_network_identity) {
@@ -538,46 +591,23 @@ void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy
         dbgln("RequestServer: Created new NetworkIdentity for client {}", client_id());
     }
 
-    // Build ProxyConfig from parameters
+    // Build ProxyConfig from validated parameters
     IPC::ProxyConfig config;
     config.host = move(host);
     config.port = port;
-
-    // Parse proxy type string
-    if (proxy_type == "SOCKS5H"sv)
-        config.type = IPC::ProxyType::SOCKS5H;
-    else if (proxy_type == "SOCKS5"sv)
-        config.type = IPC::ProxyType::SOCKS5;
-    else if (proxy_type == "HTTP"sv)
-        config.type = IPC::ProxyType::HTTP;
-    else if (proxy_type == "HTTPS"sv)
-        config.type = IPC::ProxyType::HTTPS;
-    else {
-        dbgln("RequestServer: Unknown proxy type '{}', defaulting to SOCKS5H", proxy_type);
-        config.type = IPC::ProxyType::SOCKS5H;
-    }
-
+    config.type = validated_type;
     config.username = move(username);
     config.password = move(password);
 
-    // Set proxy configuration on this connection
+    // Set proxy configuration on this connection ONLY
     m_network_identity->set_proxy_config(config);
 
-    dbgln("RequestServer: Proxy ENABLED for client {} ({}:{})", client_id(), config.host, config.port);
+    dbgln("RequestServer: Proxy ENABLED for client {} ONLY ({}:{})", client_id(), config.host, config.port);
 
-    // Apply proxy configuration to ALL connections from this process
-    for (auto& [id, connection] : s_connections) {
-        if (id == client_id())
-            continue;
-
-        if (!connection->m_network_identity) {
-            connection->m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(id));
-            dbgln("RequestServer: Created NetworkIdentity for sibling client {}", id);
-        }
-
-        connection->m_network_identity->set_proxy_config(config);
-        dbgln("RequestServer: Also enabled proxy for sibling client {}", id);
-    }
+    // SECURITY FIX: Removed global state mutation that applied proxy to ALL connections.
+    // Each connection must manage its own proxy configuration independently to prevent
+    // cross-tab privacy violations and network interference.
+    // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
 void ConnectionFromClient::clear_proxy()
@@ -588,18 +618,11 @@ void ConnectionFromClient::clear_proxy()
     }
 
     m_network_identity->clear_proxy_config();
-    dbgln("RequestServer: Proxy disabled for client {}", client_id());
+    dbgln("RequestServer: Proxy disabled for client {} ONLY", client_id());
 
-    // Also disable proxy on all sibling connections
-    for (auto& [id, connection] : s_connections) {
-        if (id == client_id())
-            continue;
-
-        if (connection->m_network_identity) {
-            connection->m_network_identity->clear_proxy_config();
-            dbgln("RequestServer: Also disabled proxy for sibling client {}", id);
-        }
-    }
+    // SECURITY FIX: Removed global state mutation that disabled proxy on ALL connections.
+    // Each connection manages its own state independently.
+    // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
