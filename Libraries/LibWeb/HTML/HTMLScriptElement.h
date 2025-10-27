@@ -39,9 +39,9 @@ public:
     void set_already_started(Badge<T>, bool b) { m_already_started = b; }
 
     template<OneOf<XMLDocumentBuilder, HTMLParser> T>
-    void prepare_script(Badge<T>) { prepare_script(); }
+    Coroutine<void> prepare_script(Badge<T>) { return prepare_script(); }
 
-    void execute_script();
+    Coroutine<void> execute_script();
 
     bool is_parser_inserted() const { return !!m_parser_document; }
 
@@ -93,7 +93,7 @@ private:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element
-    void prepare_script();
+    Coroutine<void> prepare_script();
 
     void begin_delaying_document_load_event(DOM::Document&);
 
@@ -105,7 +105,7 @@ private:
     using Result = Variant<ResultState::Uninitialized, ResultState::Null, GC::Ref<HTML::Script>, GC::Ref<HTML::ImportMapParseResult>>;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#mark-as-ready
-    void mark_as_ready(Result);
+    Coroutine<void> mark_as_ready(Result);
 
     // https://html.spec.whatwg.org/multipage/scripting.html#parser-document
     GC::Ptr<DOM::Document> m_parser_document;
@@ -146,7 +146,7 @@ private:
     ScriptType m_script_type { ScriptType::Null };
 
     // https://html.spec.whatwg.org/multipage/scripting.html#steps-to-run-when-the-result-is-ready
-    Function<void()> m_steps_to_run_when_the_result_is_ready;
+    Function<Coroutine<void>()> m_steps_to_run_when_the_result_is_ready;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#concept-script-result
     Result m_result { ResultState::Uninitialized {} };

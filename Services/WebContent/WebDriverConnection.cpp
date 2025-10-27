@@ -231,7 +231,7 @@ void WebDriverConnection::close_session()
     // 5. Optionally, close all top-level browsing contexts, without prompting to unload.
     for (auto navigable : Web::HTML::all_navigables()) {
         if (auto traversable = navigable->top_level_traversable())
-            traversable->close_top_level_traversable();
+            Core::EventLoop::current().adopt_coroutine(traversable->close_top_level_traversable());
     }
 }
 
@@ -402,9 +402,9 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
 
         // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
         //    timer' timeout fired flag to be set, whichever occurs first.
-        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete]() {
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete]() -> Coroutine<void> {
             if (timer->is_timed_out())
-                return;
+                co_return;
 
             if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
                 on_complete->function()();
@@ -472,9 +472,9 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
 
         // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
         //    timer' timeout fired flag to be set, whichever occurs first.
-        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete]() {
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete]() -> Coroutine<void> {
             if (timer->is_timed_out())
-                return;
+                co_return;
 
             if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
                 on_complete->function()();
@@ -558,8 +558,8 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
         //        traversable. We must also do so asynchronously, as the implementation will spin the event loop in some
         //        steps. If a user dialog is open in another window within this agent, the event loop will be paused, and
         //        those spins will hang. So we must return control to the client, who can deal with the dialog.
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_top_level_browsing_context()->heap(), [this]() {
-            current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_top_level_browsing_context()->heap(), [this]() -> Coroutine<void> {
+            co_await current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
         }));
 
         async_driver_execution_complete(JsonValue {});
@@ -633,7 +633,7 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
         VERIFY(active_window);
 
         Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->realm() };
-        auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
+        auto [target_navigable, no_opener, window_type] = MUST(Core::run_async_in_new_event_loop([&] { return active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv); }));
 
         // 6. Let handle be the associated window handle of the newly created window.
         auto handle = target_navigable->traversable_navigable()->window_handle();
@@ -1660,8 +1660,9 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
         // 8. Fire a click event at parent node.
         fire_an_event<Web::UIEvents::MouseEvent>(Web::UIEvents::EventNames::click, parent_node);
 
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [on_complete]() {
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [on_complete]() -> Coroutine<void> {
             on_complete->function()(JsonValue {});
+            co_return;
         }));
     }
     // -> Otherwise
@@ -1937,8 +1938,9 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
         //     2. change
         // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we spin
         //       the event loop once before informing the client that the action is complete.
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [this]() {
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [this]() -> Coroutine<void> {
             async_driver_execution_complete(JsonValue {});
+            co_return;
         }));
 
         // 8. Return success with data null.
@@ -2950,8 +2952,9 @@ public:
         if (m_timer->is_timed_out())
             return;
 
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() {
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() -> Coroutine<void> {
             search_for_element();
+            co_return;
         }));
     }
 

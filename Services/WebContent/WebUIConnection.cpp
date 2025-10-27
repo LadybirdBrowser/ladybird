@@ -36,8 +36,9 @@ WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::D
     auto& realm = m_document->realm();
     m_document->window()->define_direct_property(LADYBIRD_PROPERTY, realm.create<Web::Internals::WebUI>(realm), JS::default_attributes);
 
-    Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(realm.heap(), [&document = *m_document]() {
+    Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(realm.heap(), [&document = *m_document]() -> Coroutine<void> {
         document.dispatch_event(Web::DOM::Event::create(document.realm(), WEB_UI_LOADED_EVENT));
+        co_return;
     }));
 }
 

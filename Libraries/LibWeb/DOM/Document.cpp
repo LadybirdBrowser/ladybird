@@ -646,21 +646,21 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
-WebIDL::ExceptionOr<void> Document::write(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
+Coroutine<WebIDL::ExceptionOr<void>> Document::write(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
 {
     // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
     return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::Documentwrite);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
-WebIDL::ExceptionOr<void> Document::writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
+Coroutine<WebIDL::ExceptionOr<void>> Document::writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
 {
     // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
     return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::Documentwriteln);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
-WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
+Coroutine<WebIDL::ExceptionOr<void>> Document::run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
 {
     // 1. Let string be the empty string.
     StringBuilder string;
@@ -687,7 +687,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
     // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
     //    with TrustedHTML, this's relevant global object, string, sink, and "script".
     if (!is_trusted) {
-        auto const new_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        auto const new_string = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
             TrustedTypes::TrustedTypeName::TrustedHTML,
             relevant_global_object(*this),
             Utf16String::from_utf8(MUST(string.to_string())),
@@ -703,24 +703,24 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "write() called on XML document."_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "write() called on XML document."_utf16);
 
     // 7. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 8. If document's active parser was aborted is true, then return.
     if (m_active_parser_was_aborted)
-        return {};
+        co_return {};
 
     // 9. If the insertion point is undefined, then:
     if (!(m_parser && m_parser->tokenizer().is_insertion_point_defined())) {
         // 1. If document's unload counter is greater than 0 or document's ignore-destructive-writes counter is greater than 0, then return.
         if (m_unload_counter > 0 || m_ignore_destructive_writes_counter > 0)
-            return {};
+            co_return {};
 
         // 2. Run the document open steps with document.
-        TRY(open());
+        CO_TRY(co_await open());
     }
 
     // 10. Insert string into the input stream just before the insertion point.
@@ -731,49 +731,49 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
     //     the insertion point or when the processing of the tokenizer is aborted by the tree construction stage (this
     //     can happen if a script end tag token is emitted by the tokenizer).
     if (!pending_parsing_blocking_script())
-        m_parser->run(HTML::HTMLTokenizer::StopAtInsertionPoint::Yes);
+        co_await m_parser->run(HTML::HTMLTokenizer::StopAtInsertionPoint::Yes);
 
-    return {};
+    co_return {};
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open
-WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<String> const&)
+Coroutine<WebIDL::ExceptionOr<Document*>> Document::open(Optional<String> const&, Optional<String> const&)
 {
     // If document belongs to a child navigable, we need to make sure its initial navigation is done,
     // because subsequent steps will modify "initial about:blank" to false, which would cause
     // initial navigation to fail in case it was "about:blank".
     if (auto navigable = this->navigable(); navigable && navigable->container() && !navigable->container()->content_navigable_has_session_history_entry_and_ready_for_navigation()) {
-        HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, GC::create_function(heap(), [navigable_container = navigable->container()] {
+        co_await HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, GC::create_function(heap(), [navigable_container = navigable->container()] {
             return navigable_container->content_navigable_has_session_history_entry_and_ready_for_navigation();
         }));
     }
 
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // FIXME: 3. Let entryDocument be the entry global object's associated Document.
     auto& entry_document = *this;
 
     // 4. If document's origin is not same origin to entryDocument's origin, then throw a "SecurityError" DOMException.
     if (origin() != entry_document.origin())
-        return WebIDL::SecurityError::create(realm(), "Document.origin() not the same as entryDocument's."_utf16);
+        co_return WebIDL::SecurityError::create(realm(), "Document.origin() not the same as entryDocument's."_utf16);
 
     // 5. If document has an active parser whose script nesting level is greater than 0, then return document.
     if (m_parser && m_parser->script_nesting_level() > 0)
-        return this;
+        co_return this;
 
     // 6. Similarly, if document's unload counter is greater than 0, then return document.
     if (m_unload_counter > 0)
-        return this;
+        co_return this;
 
     // 7. If document's active parser was aborted is true, then return document.
     if (m_active_parser_was_aborted)
-        return this;
+        co_return this;
 
     // FIXME: 8. If document's browsing context is non-null and there is an existing attempt to navigate document's browsing context, then stop document loading given document.
 
@@ -822,49 +822,49 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     update_readiness(HTML::DocumentReadyState::Loading);
 
     // 19. Return document.
-    return this;
+    co_return this;
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open-window
-WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, StringView name, StringView features)
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>>> Document::open(StringView url, StringView name, StringView features)
 {
     // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException.
     if (!is_fully_active())
-        return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_utf16);
+        co_return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_utf16);
 
     // 2. Return the result of running the window open steps with url, name, and features.
-    return window()->window_open_steps(url, name, features);
+    co_return co_await window()->window_open_steps(url, name, features);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#closing-the-input-stream
-WebIDL::ExceptionOr<void> Document::close()
+Coroutine<WebIDL::ExceptionOr<void>> Document::close()
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "close() called on XML document."_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "close() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. If there is no script-created parser associated with the document, then return.
     if (!m_parser)
-        return {};
+        co_return {};
 
     // 4. Insert an explicit "EOF" character at the end of the parser's input stream.
     m_parser->tokenizer().insert_eof();
 
     // 5. If there is a pending parsing-blocking script, then return.
     if (pending_parsing_blocking_script())
-        return {};
+        co_return {};
 
     // 6. Run the tokenizer, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches the explicit "EOF" character or spins the event loop.
-    m_parser->run();
+    co_await m_parser->run();
 
     // AD-HOC: This ensures that a load event is fired if the node navigable's container is an iframe.
     completely_finish_loading();
 
-    return {};
+    co_return {};
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-document-defaultview
@@ -2516,11 +2516,12 @@ void Document::set_focused_area(GC::Ptr<Node> node)
 
     // Scroll the viewport if necessary to make the newly focused element visible.
     if (new_focused_element) {
-        new_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [&] {
+        new_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [&] -> Coroutine<void> {
             ScrollIntoViewOptions scroll_options;
             scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
             scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
             (void)as<Element>(*m_focused_area).scroll_into_view(scroll_options);
+            co_return;
         });
     }
 
@@ -3113,14 +3114,16 @@ void Document::completely_finish_loading()
 
     // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
     if (container && is<HTML::HTMLIFrameElement>(*container)) {
-        container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] {
+        container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] -> Coroutine<void> {
             run_iframe_load_event_steps(static_cast<HTML::HTMLIFrameElement&>(*container));
+            co_return;
         });
     }
     // 5. Otherwise, if container is non-null, then queue an element task on the DOM manipulation task source given container to fire an event named load at container.
     else if (container) {
-        container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] {
+        container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] -> Coroutine<void> {
             container->dispatch_event(DOM::Event::create(container->realm(), HTML::EventNames::load));
+            co_return;
         });
     }
 }
@@ -4187,10 +4190,11 @@ struct DocumentDestructionState : public GC::Cell {
         if (remaining_children > 0)
             return;
         timeout->stop();
-        queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(document), GC::create_function(heap(), [document = move(document), after_all = move(after_all)] {
+        queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(document), GC::create_function(heap(), [document = move(document), after_all = move(after_all)] -> Coroutine<void> {
             document->destroy();
             if (after_all)
                 after_all->function()();
+            co_return;
         }));
     }
 
@@ -4217,13 +4221,14 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
 
     // NOTE: Not in the spec but we could avoid allocating destruction state in case there's no child navigables.
     if (child_navigables.is_empty()) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [document = this, after_all_destruction] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [document = this, after_all_destruction] -> Coroutine<void> {
             // 1. Destroy document.
             document->destroy();
 
             // 2. If afterAllDestruction was given, then run it.
             if (after_all_destruction)
                 after_all_destruction->function()();
+            co_return;
         }));
         return;
     }
@@ -4234,12 +4239,13 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // 4. For each childNavigable of childNavigables, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
-        queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable] {
+        queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable] -> Coroutine<void> {
             // 1. Let incrementDestroyed be an algorithm step which increments numberDestroyed.
             auto increment_destroyed = GC::create_function(heap, [destruction_state] { destruction_state->increment_destroyed(); });
 
             // 2. Destroy a document and its descendants given childNavigable's active document and incrementDestroyed.
             child_navigable->active_document()->destroy_a_document_and_its_descendants(increment_destroyed);
+            co_return;
         }));
     }
 
@@ -4292,7 +4298,7 @@ void Document::abort_a_document_and_its_descendants()
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
     for (auto& descendant_navigable : descendant_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] -> Coroutine<void> {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711
             descendant_navigable->set_ongoing_navigation({});
@@ -4303,6 +4309,7 @@ void Document::abort_a_document_and_its_descendants()
             // 2. If descendantNavigable's active document's salvageable is false, then set document's salvageable to false.
             if (!descendant_navigable->active_document()->m_salvageable)
                 m_salvageable = false;
+            co_return;
         }));
     }
 
@@ -4409,7 +4416,7 @@ void Document::unload(GC::Ptr<Document>)
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads)
+Coroutine<void> Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads)
 {
     // Specification defines this algorithm in the following steps:
     // 1. Recursively unload (and destroy) documents in descendant navigables
@@ -4445,19 +4452,21 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
 
     IGNORE_USE_IN_ESCAPING_LAMBDA auto unloaded_documents_count = descendant_navigables.size() + 1;
 
-    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*this), GC::create_function(heap(), [&number_unloaded, this, new_document] {
+    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*this), GC::create_function(heap(), [&number_unloaded, this, new_document] -> Coroutine<void> {
         unload(new_document);
         ++number_unloaded;
+        co_return;
     }));
 
     for (auto& descendant_navigable : descendant_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_function(heap(), [&number_unloaded, descendant_navigable = descendant_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_function(heap(), [&number_unloaded, descendant_navigable = descendant_navigable.ptr()] -> Coroutine<void> {
             descendant_navigable->active_document()->unload();
             ++number_unloaded;
+            co_return;
         }));
     }
 
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
+    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
         return number_unloaded == unloaded_documents_count;
     }));
 
@@ -4696,7 +4705,7 @@ void Document::queue_intersection_observer_task()
     m_intersection_observer_task_queued = true;
 
     // 3. Queue a task on the IntersectionObserver task source associated with the document's event loop to notify intersection observers.
-    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, *window, GC::create_function(heap(), [this]() {
+    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, *window, GC::create_function(heap(), [this] -> Coroutine<void> {
         auto& realm = this->realm();
 
         // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers
@@ -4730,6 +4739,7 @@ void Document::queue_intersection_observer_task()
             // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
             (void)WebIDL::invoke_callback(callback, observer.ptr(), WebIDL::ExceptionBehavior::Report, { { wrapped_queue, observer.ptr() } });
         }
+        co_return;
     }));
 }
 
@@ -5214,8 +5224,9 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
                 hashchange_event_init.old_url = old_url.serialize();
                 hashchange_event_init.new_url = entry->url().serialize();
                 auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(heap(), [hashchange_event, &relevant_global_object]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(heap(), [hashchange_event, &relevant_global_object]() -> Coroutine<void> {
                     relevant_global_object.dispatch_event(hashchange_event);
+                    co_return;
                 }));
             }
         }
@@ -5303,7 +5314,7 @@ void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimati
 }
 
 // https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
-void Document::update_animations_and_send_events(Optional<double> const& timestamp)
+Coroutine<void> Document::update_animations_and_send_events(Optional<double> const& timestamp)
 {
     // 1. Update the current time of all timelines associated with doc passing now as the timestamp.
     //
@@ -5322,7 +5333,7 @@ void Document::update_animations_and_send_events(Optional<double> const& timesta
     remove_replaced_animations();
 
     // 3. Perform a microtask checkpoint.
-    HTML::perform_a_microtask_checkpoint();
+    co_await HTML::perform_a_microtask_checkpoint();
 
     // 4. Let events to dispatch be a copy of doc’s pending animation event queue.
     auto events_to_dispatch = GC::ConservativeVector<Document::PendingAnimationEvent> { vm().heap() };
@@ -5462,8 +5473,9 @@ void Document::remove_replaced_animations()
             //   Otherwise, queue a task to dispatch removeEvent at animation. The task source for this task is the DOM
             //   manipulation task source.
             else {
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), GC::create_function(heap(), [animation, remove_event]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), GC::create_function(heap(), [animation, remove_event]() -> Coroutine<void> {
                     animation->dispatch_event(remove_event);
+                    co_return;
                 }));
             }
         }
@@ -6347,7 +6359,7 @@ void Document::set_allow_declarative_shadow_roots(bool allow)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parse-html-from-a-string
-void Document::parse_html_from_a_string(StringView html)
+Coroutine<void> Document::parse_html_from_a_string(StringView html)
 {
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
@@ -6358,18 +6370,18 @@ void Document::parse_html_from_a_string(StringView html)
     auto parser = HTML::HTMLParser::create(*this, html, "UTF-8"sv);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
-    parser->run(as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
+    co_await parser->run(as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
-WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM& vm, TrustedTypes::TrustedHTMLOrString const& html)
+Coroutine<WebIDL::ExceptionOr<GC::Root<DOM::Document>>> Document::parse_html_unsafe(JS::VM& vm, TrustedTypes::TrustedHTMLOrString const& html)
 {
     auto& realm = *vm.current_realm();
 
     // FIXME: update description once https://github.com/whatwg/html/issues/11778 gets solved
     // 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_html = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::current_principal_global_object(),
         html,
@@ -6384,14 +6396,14 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     document->set_allow_declarative_shadow_roots(true);
 
     // 4. Parse HTML from a string given document and compliantHTML.
-    document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+    co_await document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
 
     // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
     auto& associated_document = as<HTML::Window>(realm.global_object()).associated_document();
     document->set_origin(associated_document.origin());
 
     // 5. Return document.
-    return document;
+    co_return document;
 }
 
 InputEventsTarget* Document::active_input_events_target()
@@ -6766,7 +6778,7 @@ void Document::view_transition_page_visibility_change_steps()
 
     // 1. Queue a global task on the DOM manipulation task source, given document’s relevant global object, to
     //    perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(realm().heap(), [&] {
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(realm().heap(), [&] -> Coroutine<void> {
         HTML::TemporaryExecutionContext context(realm());
         // 1. If document’s visibility state is "hidden", then:
         if (m_visibility_state == HTML::VisibilityState::Hidden) {
@@ -6780,6 +6792,7 @@ void Document::view_transition_page_visibility_change_steps()
         else {
             VERIFY(!m_active_view_transition);
         }
+        co_return;
     }));
 }
 

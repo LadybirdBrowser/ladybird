@@ -117,14 +117,14 @@ public:
     void append_resolved_module(SpecifierResolution resolution) { m_resolved_module_set.append(move(resolution)); }
     Vector<SpecifierResolution> const& resolved_module_set() const { return m_resolved_module_set; }
 
-    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
+    Coroutine<WebIDL::ExceptionOr<GC::Ptr<WindowProxy>>> window_open_steps(StringView url, StringView target, StringView features);
 
     struct OpenedWindow {
         GC::Ptr<Navigable> navigable;
         TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
         WindowType window_type { WindowType::ExistingOrNone };
     };
-    WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(StringView url, StringView target, StringView features);
+    Coroutine<WebIDL::ExceptionOr<OpenedWindow>> window_open_steps_internal(StringView url, StringView target, StringView features);
 
     DOM::Event* current_event() { return m_current_event.ptr(); }
     DOM::Event const* current_event() const { return m_current_event.ptr(); }
@@ -189,7 +189,7 @@ public:
     WebIDL::ExceptionOr<void> set_opener(JS::Value);
     GC::Ptr<WindowProxy const> parent() const;
     GC::Ptr<DOM::Element const> frame_element() const;
-    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features);
+    Coroutine<WebIDL::ExceptionOr<GC::Ptr<WindowProxy>>> open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features);
 
     [[nodiscard]] GC::Ref<Navigator> navigator();
     [[nodiscard]] GC::Ref<CloseWatcherManager> close_watcher_manager();

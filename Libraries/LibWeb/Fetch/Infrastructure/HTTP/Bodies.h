@@ -29,7 +29,7 @@ class WEB_API Body final : public JS::Cell {
 public:
     using SourceType = Variant<Empty, ByteBuffer, GC::Root<FileAPI::Blob>>;
     // processBody must be an algorithm accepting a byte sequence.
-    using ProcessBodyCallback = GC::Ref<GC::Function<void(ByteBuffer)>>;
+    using ProcessBodyCallback = GC::Ref<GC::Function<Coroutine<void>(ByteBuffer)>>;
     // processBodyError must be an algorithm optionally accepting an exception.
     using ProcessBodyErrorCallback = GC::Ref<GC::Function<void(JS::Value)>>;
     // processBodyChunk must be an algorithm accepting a byte sequence.

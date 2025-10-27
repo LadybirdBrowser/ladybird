@@ -405,7 +405,7 @@ public:
 
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
-    WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
+    Coroutine<WebIDL::ExceptionOr<void>> unsafely_set_html(Element&, StringView);
 
     void replace_all(GC::Ptr<Node>);
     void string_replace_all(Utf16String);

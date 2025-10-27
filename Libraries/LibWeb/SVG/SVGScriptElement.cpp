@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibCore/EventLoop.h"
+
 #include <LibWeb/Bindings/SVGScriptElementPrototype.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -40,7 +42,7 @@ void SVGScriptElement::attribute_changed(FlyString const& name, Optional<String>
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     if (name == SVG::AttributeNames::href || name == SVG::AttributeNames::type) {
-        process_the_script_element();
+        Core::run_async_in_new_event_loop([this] { return process_the_script_element(); });
     }
 }
 
@@ -50,7 +52,7 @@ void SVGScriptElement::inserted()
     if (m_parser_inserted)
         return;
 
-    process_the_script_element();
+    Core::run_async_in_new_event_loop([this] { return process_the_script_element(); });
 }
 
 void SVGScriptElement::children_changed(ChildrenChangedMetadata const* metadata)
@@ -59,16 +61,16 @@ void SVGScriptElement::children_changed(ChildrenChangedMetadata const* metadata)
     if (m_parser_inserted)
         return;
 
-    process_the_script_element();
+    Core::run_async_in_new_event_loop([this] { return process_the_script_element(); });
 }
 
 // https://www.w3.org/TR/SVGMobile12/script.html#ScriptContentProcessing
-void SVGScriptElement::process_the_script_element()
+Coroutine<void> SVGScriptElement::process_the_script_element()
 {
     // 1. If the 'script' element's "already processed" flag is true or if the element is not in the
     //    document tree, then no action is performed and these steps are ended.
     if (m_already_processed || !in_a_document_tree())
-        return;
+        co_return;
 
     // https://svgwg.org/svg2-draft/interact.html#ScriptElement
     // Before attempting to execute the ‘script’ element the resolved media type value for ‘type’ must be inspected.
@@ -79,7 +81,7 @@ void SVGScriptElement::process_the_script_element()
         auto script_type = MUST(maybe_script_type->to_ascii_lowercase().trim_ascii_whitespace());
         if (!MimeSniff::is_javascript_mime_type_essence_match(script_type)) {
             dbgln("SVGScriptElement: Unsupported script type: {}", *maybe_script_type);
-            return;
+            co_return;
         }
     }
 
@@ -96,7 +98,7 @@ void SVGScriptElement::process_the_script_element()
         auto maybe_script_url = document().encoding_parse_url(href_value);
         if (!maybe_script_url.has_value()) {
             dbgln("Invalid script URL: {}", href_value);
-            return;
+            co_return;
         }
         script_url = maybe_script_url.release_value();
 
@@ -122,7 +124,7 @@ void SVGScriptElement::process_the_script_element()
             auto& realm = this->realm();
             auto& global = document().realm().global_object();
 
-            auto on_data_read = GC::create_function(realm.heap(), [&script_content, &fetch_done](ByteBuffer data) {
+            auto on_data_read = GC::create_function(realm.heap(), [&script_content, &fetch_done](ByteBuffer data) -> Coroutine<void> {
                 auto content_or_error = String::from_utf8(data);
                 if (content_or_error.is_error()) {
                     dbgln("Failed to decode script content as UTF-8");
@@ -130,6 +132,7 @@ void SVGScriptElement::process_the_script_element()
                     script_content = content_or_error.release_value();
                 }
                 fetch_done = true;
+                co_return;
             });
 
             auto on_error = GC::create_function(realm.heap(), [&fetch_done](JS::Value) {
@@ -144,18 +147,18 @@ void SVGScriptElement::process_the_script_element()
         auto fetch_promise = Fetch::Fetching::fetch(realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
 
         // Block until the resource has been fetched or determined invalid
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return fetch_done; }));
+        co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return fetch_done; }));
 
         if (script_content.is_empty()) {
             // Failed to fetch or decode
-            return;
+            co_return;
         }
 
     } else {
         // Inline script content
         script_content = child_text_content().to_utf8_but_should_be_ported_to_utf16();
         if (script_content.is_empty())
-            return;
+            co_return;
     }
 
     // 3. The 'script' element's "already processed" flag is set to true.
@@ -168,7 +171,7 @@ void SVGScriptElement::process_the_script_element()
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
     if (!m_document->ready_to_run_scripts())
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+        co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
 
     m_script = HTML::ClassicScript::create(script_url.basename(), script_content, realm(), m_document->base_url(), m_source_line_number);
 

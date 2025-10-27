@@ -1328,8 +1328,9 @@ public:
         m_timer = Core::Timer::create_single_shot(static_cast<int>(tick_duration.to_milliseconds()), [this]() {
             m_timer = nullptr;
 
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() -> Coroutine<void> {
                 process_next_tick();
+                co_return;
             }));
         });
         m_timer->start();

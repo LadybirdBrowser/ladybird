@@ -310,10 +310,10 @@ private:
 
     Utf16String button_label() const;
 
-    void create_shadow_tree_if_needed();
+    Coroutine<void> create_shadow_tree_if_needed();
     void update_shadow_tree();
     void create_button_input_shadow_tree();
-    void create_text_input_shadow_tree();
+    Coroutine<void> create_text_input_shadow_tree();
     void create_color_input_shadow_tree();
     void create_file_input_shadow_tree();
     void create_range_input_shadow_tree();

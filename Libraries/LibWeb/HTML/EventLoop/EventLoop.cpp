@@ -39,8 +39,8 @@ EventLoop::EventLoop(Type type)
     m_task_queue = heap().allocate<TaskQueue>(*this);
     m_microtask_queue = heap().allocate<TaskQueue>(*this);
 
-    m_rendering_task_function = GC::create_function(heap(), [this] {
-        update_the_rendering();
+    m_rendering_task_function = GC::create_function(heap(), [this] -> Coroutine<void> {
+        co_await update_the_rendering();
     });
 }
 
@@ -62,7 +62,31 @@ void EventLoop::schedule()
 {
     if (!m_system_event_loop_timer) {
         m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, GC::create_function(heap(), [this] {
-            process();
+            class OrphanedCoroutine {
+                struct PromiseType;
+
+            public:
+                using promise_type = PromiseType;
+
+            private:
+                struct Destroyer {
+                    bool await_ready() const noexcept { return false; }
+                    void await_suspend(std::coroutine_handle<> handle) const noexcept { handle.destroy(); }
+                    void await_resume() const noexcept { }
+                };
+
+                struct PromiseType {
+                    OrphanedCoroutine get_return_object() { return {}; }
+                    AK::Detail::SuspendNever initial_suspend() { return {}; }
+                    Destroyer final_suspend() noexcept { return {}; }
+                    void return_void() { }
+                };
+            };
+
+            [](Coroutine<void>&& coroutine) mutable -> OrphanedCoroutine {
+                auto saved_coroutine = move(coroutine);
+                co_await saved_coroutine;
+            }(process());
         }));
     }
 
@@ -76,7 +100,7 @@ EventLoop& main_thread_event_loop()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop
-void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
+Coroutine<void> EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 {
     // FIXME: The spec wants us to do the rest of the enclosing algorithm (i.e. the caller)
     //    in the context of the currently running task on entry. That's not possible with this implementation.
@@ -90,7 +114,7 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     vm.clear_execution_context_stack();
 
     // 5. Perform a microtask checkpoint.
-    perform_a_microtask_checkpoint();
+    co_await perform_a_microtask_checkpoint();
 
     // 6. In parallel:
     //    1. Wait until the condition goal is met.
@@ -99,16 +123,11 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, goal_condition] {
-        if (goal_condition->function()())
-            return true;
-        if (m_task_queue->has_runnable_tasks()) {
+    while (!goal_condition->function()()) {
+        if (m_task_queue->has_runnable_tasks())
             schedule();
-            // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
-            Core::EventLoop::current().wake();
-        }
-        return goal_condition->function()();
-    }));
+        co_await Core::EventLoop::current().next_turn();
+    }
 
     vm.restore_execution_context_stack();
 
@@ -116,20 +135,18 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     // NOTE: This is achieved by returning from the function.
 }
 
-void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::Ref<GC::Function<bool()>> goal_condition)
+Coroutine<void> EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::Ref<GC::Function<bool()>> goal_condition)
 {
     auto& vm = this->vm();
     vm.save_execution_context_stack();
     vm.clear_execution_context_stack();
 
-    perform_a_microtask_checkpoint();
+    co_await perform_a_microtask_checkpoint();
 
     // NOTE: HTML event loop processing steps could run a task with arbitrary source
     m_skip_event_loop_processing_steps = true;
 
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
-        if (goal_condition->function()())
-            return true;
+    while (!goal_condition->function()()) {
         if (m_task_queue->has_runnable_tasks()) {
             auto tasks = m_task_queue->take_tasks_matching([&](auto& task) {
                 return task.source() == source && task.is_runnable();
@@ -137,15 +154,11 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
 
             for (auto& task : tasks) {
                 m_currently_running_task = task.ptr();
-                task->execute();
+                co_await task->execute();
                 m_currently_running_task = nullptr;
             }
         }
-
-        // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
-        Core::EventLoop::current().wake();
-        return goal_condition->function()();
-    }));
+    }
 
     m_skip_event_loop_processing_steps = false;
 
@@ -155,10 +168,10 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
-void EventLoop::process()
+Coroutine<void> EventLoop::process()
 {
     if (m_skip_event_loop_processing_steps)
-        return;
+        co_return;
 
     // 1. Let oldestTask and taskStartTime be null.
     GC::Ptr<Task> oldest_task;
@@ -187,13 +200,13 @@ void EventLoop::process()
         m_currently_running_task = oldest_task.ptr();
 
         // 6. Perform oldestTask's steps.
-        oldest_task->execute();
+        co_await oldest_task->execute();
 
         // 7. Set the event loop's currently running task back to null.
         m_currently_running_task = nullptr;
 
         // 8. Perform a microtask checkpoint.
-        perform_a_microtask_checkpoint();
+        co_await perform_a_microtask_checkpoint();
     }
 
     // 3. Let taskEndTime be the unsafe shared current time. [HRT]
@@ -327,7 +340,7 @@ void EventLoop::process_input_events() const
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
-void EventLoop::update_the_rendering()
+Coroutine<void> EventLoop::update_the_rendering()
 {
     VERIFY(!m_running_rendering_task);
     m_running_rendering_task = true;
@@ -399,7 +412,7 @@ void EventLoop::update_the_rendering()
 
     // 11. For each doc of docs, update animations and send events for doc, passing in relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp [WEBANIMATIONS]
     for (auto& document : docs) {
-        document->update_animations_and_send_events(HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document)));
+        co_await document->update_animations_and_send_events(HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document)));
     };
 
     // FIXME: 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
@@ -522,7 +535,7 @@ void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
-TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC::Ptr<DOM::Document> document, GC::Ref<GC::Function<void()>> steps)
+TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC::Ptr<DOM::Document> document, GC::Ref<GC::Function<Coroutine<void>()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     if (!event_loop)
@@ -547,7 +560,7 @@ TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task
-TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<void()>> steps)
+TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<Coroutine<void>()>> steps)
 {
     // 1. Let event loop be global's relevant agent's event loop.
     auto& event_loop = relevant_agent(global_object).event_loop;
@@ -561,8 +574,16 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
     return queue_a_task(source, *event_loop, document, steps);
 }
 
+TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<void()>> steps)
+{
+    return queue_global_task(source, global_object, GC::create_function(global_object.heap(), [steps = move(steps)]() -> Coroutine<void> {
+        steps->function()();
+        co_return;
+    }));
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask
-void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void()>> steps)
+void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<Coroutine<void>()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     auto& event_loop = HTML::main_thread_event_loop();
@@ -582,16 +603,16 @@ void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void(
     event_loop.microtask_queue().enqueue(microtask);
 }
 
-void perform_a_microtask_checkpoint()
+Coroutine<void> perform_a_microtask_checkpoint()
 {
-    main_thread_event_loop().perform_a_microtask_checkpoint();
+    co_await main_thread_event_loop().perform_a_microtask_checkpoint();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint
-void EventLoop::perform_a_microtask_checkpoint()
+Coroutine<void> EventLoop::perform_a_microtask_checkpoint()
 {
     if (execution_paused())
-        return;
+        co_return;
 
     // NOTE: This assertion is per requirement 9.5 of the ECMA-262 spec, see: https://tc39.es/ecma262/#sec-jobs
     // > At some future point in time, when there is no running context in the agent for which the job is scheduled and that agent's execution context stack is empty...
@@ -599,7 +620,7 @@ void EventLoop::perform_a_microtask_checkpoint()
 
     // 1. If the event loop's performing a microtask checkpoint is true, then return.
     if (m_performing_a_microtask_checkpoint)
-        return;
+        co_return;
 
     // 2. Set the event loop's performing a microtask checkpoint to true.
     m_performing_a_microtask_checkpoint = true;
@@ -613,7 +634,7 @@ void EventLoop::perform_a_microtask_checkpoint()
         m_currently_running_task = oldest_microtask;
 
         // 3. Run oldestMicrotask.
-        oldest_microtask->execute();
+        co_await oldest_microtask->execute();
 
         // 4. Set the event loop's currently running task back to null.
         m_currently_running_task = nullptr;
@@ -736,13 +757,22 @@ EventLoop::PauseHandle::PauseHandle(EventLoop& event_loop, JS::Object const& glo
 {
 }
 
+EventLoop::PauseHandle::PauseHandle(PauseHandle&& other)
+    : event_loop(other.event_loop)
+    , global(other.global)
+    , time_before_pause(other.time_before_pause)
+{
+    other.invalid = true;
+}
+
 EventLoop::PauseHandle::~PauseHandle()
 {
+    if (invalid) return;
     event_loop->unpause({}, *global, time_before_pause);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#pause
-EventLoop::PauseHandle EventLoop::pause()
+Coroutine<EventLoop::PauseHandle> EventLoop::pause()
 {
     m_execution_paused = true;
 
@@ -754,14 +784,14 @@ EventLoop::PauseHandle EventLoop::pause()
 
     // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
     if (!m_running_rendering_task)
-        update_the_rendering();
+        co_await update_the_rendering();
 
     // 4. Wait until the condition goal is met. While a user agent has a paused task, the corresponding event loop must
     //    not run further tasks, and any script in the currently running task must block. User agents should remain
     //    responsive to user input while paused, however, albeit in a reduced capacity since the event loop will not be
     //    doing anything.
 
-    return PauseHandle { *this, global, time_before_pause };
+    co_return PauseHandle { *this, global, time_before_pause };
 }
 
 void EventLoop::unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp time_before_pause)

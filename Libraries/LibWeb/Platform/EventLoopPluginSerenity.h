@@ -16,8 +16,9 @@ public:
     EventLoopPluginSerenity();
     virtual ~EventLoopPluginSerenity() override;
 
-    virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) override;
+    virtual Coroutine<void> spin_until(GC::Root<GC::Function<bool()>> goal_condition) override;
     virtual void deferred_invoke(GC::Root<GC::Function<void()>>) override;
+    virtual void deferred_invoke(GC::Root<GC::Function<Coroutine<void>()>>) override;
     virtual GC::Ref<Timer> create_timer(GC::Heap&) override;
     virtual void quit() override;
 };

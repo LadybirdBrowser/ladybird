@@ -7,6 +7,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibCore/EventLoop.h"
+
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
@@ -176,7 +178,7 @@ void clean_up_after_running_script(JS::Realm const& realm)
 
     // 3. If the JavaScript execution context stack is now empty, perform a microtask checkpoint. (If this runs scripts, these algorithms will be invoked reentrantly.)
     if (vm.execution_context_stack().is_empty())
-        main_thread_event_loop().perform_a_microtask_checkpoint();
+        Core::run_async_in_new_event_loop([&] { return main_thread_event_loop().perform_a_microtask_checkpoint(); });
 }
 
 static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm)

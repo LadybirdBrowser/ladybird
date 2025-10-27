@@ -61,21 +61,21 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#navigate-html
-static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::NavigationParams const& navigation_params)
+static Coroutine<WebIDL::ExceptionOr<GC::Ref<DOM::Document>>> load_html_document(HTML::NavigationParams const& navigation_params)
 {
     // To load an HTML document, given navigation params navigationParams:
 
     // 1. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.
-    auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
+    auto document = CO_TRY(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
 
     // 2. If document's URL is about:blank, then populate with html/head/body given document.
     // FIXME: The additional check for a non-empty body fixes issues with loading javascript urls in iframes, which
     //        default to an "about:blank" url. Is this a spec bug?
     if (document->url_string() == "about:blank"_string
         && navigation_params.response->body()->length().value_or(0) == 0) {
-        TRY(document->populate_with_html_head_and_body());
+        CO_TRY(document->populate_with_html_head_and_body());
         // Nothing else is added to the document, so mark it as loaded.
-        HTML::HTMLParser::the_end(document);
+        co_await HTML::HTMLParser::the_end(document);
     }
 
     // 3. Otherwise, create an HTML parser and associate it with the document.
@@ -92,11 +92,12 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    causes a load event to be fired.
     else {
         // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-        auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) {
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [document = document, data = move(data), url = url, mime_type] {
+        auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) -> Coroutine<void> {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [document = document, data = move(data), url = url, mime_type] -> Coroutine<void> {
                 auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
-                parser->run(url);
+                co_await parser->run(url);
             }));
+            co_return;
         });
 
         auto process_body_error = GC::create_function(document->heap(), [](JS::Value) {
@@ -108,7 +109,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     }
 
     // 4. Return document.
-    return document;
+    co_return document;
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-xml
@@ -147,7 +148,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
     if (auto maybe_encoding = type.parameters().get("charset"sv); maybe_encoding.has_value())
         content_encoding = maybe_encoding.value();
 
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) -> Coroutine<void> {
         Optional<TextCodec::Decoder&> decoder;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
@@ -166,7 +167,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
 
             // NOTE: This ensures that the `load` event gets fired for the frame loading this document.
             document->completely_finish_loading();
-            return;
+            co_return;
         }
         auto source = decoder->to_utf8(data);
         if (source.is_error()) {
@@ -176,7 +177,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
 
             // NOTE: This ensures that the `load` event gets fired for the frame loading this document.
             document->completely_finish_loading();
-            return;
+            co_return;
         }
         XML::Parser parser(source.value(), { .preserve_cdata = true, .preserve_comments = true, .resolve_external_resource = resolve_xml_resource });
         XMLDocumentBuilder builder { document };
@@ -228,7 +229,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) -> Coroutine<void> {
         auto encoding = run_encoding_sniffing_algorithm(document, data, mime);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
@@ -236,12 +237,12 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
         parser->tokenizer().update_insertion_point();
 
         parser->tokenizer().insert_input_at_insertion_point("<pre>\n"sv);
-        parser->run();
+        co_await parser->run();
 
         parser->tokenizer().switch_to(HTML::HTMLTokenizer::State::PLAINTEXT);
         parser->tokenizer().insert_input_at_insertion_point(data);
         parser->tokenizer().insert_eof();
-        parser->run(url);
+        co_await parser->run(url);
 
         document->set_encoding(MUST(String::from_byte_string(encoding)));
 
@@ -351,7 +352,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     auto& realm = document->realm();
     navigation_params.response->body()->fully_read(
         realm,
-        GC::create_function(document->heap(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document); }),
+        GC::create_function(document->heap(), [document](ByteBuffer) { return HTML::HTMLParser::the_end(document); }),
         GC::create_function(document->heap(), [](JS::Value) {}),
         GC::Ref { realm.global_object() });
 
@@ -396,7 +397,7 @@ bool can_load_document_with_type(MimeSniff::MimeType const& type)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#loading-a-document
-GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params)
+Coroutine<GC::Ptr<DOM::Document>> load_document(HTML::NavigationParams const& navigation_params)
 {
     // To load a document given navigation params navigationParams, source snapshot params sourceSnapshotParams,
     // and origin initiatorOrigin, perform the following steps. They return a Document or null.
@@ -421,14 +422,14 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     // -> an HTML MIME type
     if (type.is_html()) {
         // Return the result of loading an HTML document, given navigationParams.
-        return load_html_document(navigation_params).release_value_but_fixme_should_propagate_errors();
+        co_return (co_await load_html_document(navigation_params)).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> an XML MIME type that is not an explicitly supported XML MIME type
     //    FIXME: that is not an explicitly supported XML MIME type
     if (type.is_xml()) {
         // Return the result of loading an XML document given navigationParams and type.
-        return load_xml_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        co_return load_xml_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> a JavaScript MIME type
@@ -442,7 +443,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
         || type.essence() == "text/plain"_string
         || type.essence() == "text/vtt"_string) {
         // Return the result of loading a text document given navigationParams and type.
-        return load_text_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        co_return load_text_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> "multipart/x-mixed-replace"
@@ -455,7 +456,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     if (type.is_image()
         || type.is_audio_or_video()) {
         // Return the result of loading a media document given navigationParams and type.
-        return load_media_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        co_return load_media_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
     }
 
     // -> "application/pdf"
@@ -481,7 +482,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     //        sourceSnapshotParams's has transient activation, and initiatorOrigin.
 
     // 5. Return null.
-    return nullptr;
+    co_return nullptr;
 }
 
 }

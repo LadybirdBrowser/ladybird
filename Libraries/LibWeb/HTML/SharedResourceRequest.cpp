@@ -86,10 +86,11 @@ void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infr
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
-        auto process_body = GC::create_function(heap(), [this, request, response](ByteBuffer data) {
+        auto process_body = GC::create_function(heap(), [this, request, response](ByteBuffer data) -> Coroutine<void> {
             auto extracted_mime_type = response->header_list()->extract_mime_type();
             auto mime_type = extracted_mime_type.has_value() ? extracted_mime_type.value().essence().bytes_as_string_view() : StringView {};
             handle_successful_fetch(request->url(), mime_type, move(data));
+            co_return;
         });
         auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
             handle_failed_fetch();

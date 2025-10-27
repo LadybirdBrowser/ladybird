@@ -663,7 +663,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     auto source_snapshot_params = document.snapshot_source_snapshot_params();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, this] {
+    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, this] -> Coroutine<void> {
         // 1. Let navigableSHEs be the result of getting session history entries given navigable.
         auto navigable_shes = navigable->get_session_history_entries();
 
@@ -685,7 +685,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
             }));
 
             // 2. Abort these steps.
-            return;
+            co_return;
         }
         auto target_she = *it;
 
@@ -693,11 +693,11 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
         //       In that case the previous traversal will have dealt with apiMethodTracker already.
         if (target_she == navigable->active_session_history_entry())
-            return;
+            co_return;
 
         // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
         //    given sourceSnapshotParams, navigable, and "none".
-        auto result = traversable->apply_the_traverse_history_step(target_she->step().get<int>(), source_snapshot_params, navigable, UserNavigationInvolvement::None);
+        auto result = co_await traversable->apply_the_traverse_history_step(target_she->step().get<int>(), source_snapshot_params, navigable, UserNavigationInvolvement::None);
 
         // NOTE: When result is "canceled-by-beforeunload" or "initiator-disallowed", the navigate event was never fired,
         //       aborting the ongoing navigation would not be correct; it would result in a navigateerror event without a

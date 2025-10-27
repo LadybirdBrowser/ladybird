@@ -248,8 +248,9 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
     // 6. If total is 0, then:
     if (total == 0) {
         // 1. Queue a microtask to perform successSteps given « ».
-        HTML::queue_a_microtask(nullptr, GC::create_function(realm.heap(), [success_steps = GC::create_function(realm.heap(), move(success_steps))] {
+        HTML::queue_a_microtask(nullptr, GC::create_function(realm.heap(), [success_steps = GC::create_function(realm.heap(), move(success_steps))] -> Coroutine<void> {
             success_steps->function()({});
+            co_return;
         }));
 
         // 2. Return.

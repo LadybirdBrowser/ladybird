@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     //     reestablish the connection.
     auto process_event_source_end_of_body = [event_source](GC::Ref<Fetch::Infrastructure::Response> response) {
         if (!response->is_network_error())
-            event_source->reestablish_the_connection();
+            Core::EventLoop::current().adopt_coroutine(event_source->reestablish_the_connection());
     };
 
     // 15. Fetch request, with processResponseEndOfBody set to processEventSourceEndOfBody and processResponse set to the
@@ -119,7 +119,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
         // 2. Otherwise, if res is a network error, then reestablish the connection, unless the user agent knows that
         //    to be futile, in which case the user agent may fail the connection.
         else if (response->is_network_error()) {
-            event_source->reestablish_the_connection();
+            Core::EventLoop::current().adopt_coroutine(event_source->reestablish_the_connection());
         }
         // 3. Otherwise, if res's status is not 200, or if res's `Content-Type` is not `text/event-stream`, then fail
         //    the connection.
@@ -267,26 +267,27 @@ void EventSource::announce_the_connection()
     // When a user agent is to announce the connection, the user agent must queue a task which, if the readyState attribute
     // is set to a value other than CLOSED, sets the readyState attribute to OPEN and fires an event named open at the
     // EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() -> Coroutine<void> {
         if (m_ready_state != ReadyState::Closed) {
             m_ready_state = ReadyState::Open;
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::open));
         }
+        co_return;
     }));
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#reestablish-the-connection
-void EventSource::reestablish_the_connection()
+Coroutine<void> EventSource::reestablish_the_connection()
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA bool initial_task_has_run { false };
 
     // 1. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [&]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [&]() -> Coroutine<void> {
         ScopeGuard guard { [&]() { initial_task_has_run = true; } };
 
         // 1. If the readyState attribute is set to CLOSED, abort the task.
         if (m_ready_state == ReadyState::Closed)
-            return;
+            co_return;
 
         // 2. Set the readyState attribute to CONNECTING.
         m_ready_state = ReadyState::Connecting;
@@ -296,7 +297,7 @@ void EventSource::reestablish_the_connection()
     }));
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&, delay_start = MonotonicTime::now()]() {
+    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&, delay_start = MonotonicTime::now()]() {
         return (MonotonicTime::now() - delay_start) >= m_reconnection_time;
     }));
 
@@ -307,14 +308,14 @@ void EventSource::reestablish_the_connection()
 
     // 4. Wait until the aforementioned task has run, if it has not yet run.
     if (!initial_task_has_run) {
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() { return initial_task_has_run; }));
+        co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() { return initial_task_has_run; }));
     }
 
     // 5. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() -> Coroutine<void> {
         // 1. If the EventSource object's readyState attribute is not set to CONNECTING, then return.
         if (m_ready_state != ReadyState::Connecting)
-            return;
+            co_return;
 
         // 2. Let request be the EventSource object's request.
         GC::Ref request { *m_request };
@@ -338,11 +339,12 @@ void EventSource::fail_the_connection()
     // When a user agent is to fail the connection, the user agent must queue a task which, if the readyState attribute
     // is set to a value other than CLOSED, sets the readyState attribute to CLOSED and fires an event named error at the
     // EventSource object. Once the user agent has failed the connection, it does not attempt to reconnect.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() -> Coroutine<void> {
         if (m_ready_state != ReadyState::Closed) {
             m_ready_state = ReadyState::Closed;
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
         }
+        co_return;
     }));
 }
 
@@ -459,9 +461,10 @@ void EventSource::dispatch_the_event()
 
     // 8. Queue a task which, if the readyState attribute is set to a value other than CLOSED, dispatches the newly created
     //    event at the EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this, event]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this, event]() -> Coroutine<void> {
         if (m_ready_state != ReadyState::Closed)
             dispatch_event(event);
+        co_return;
     }));
 }
 

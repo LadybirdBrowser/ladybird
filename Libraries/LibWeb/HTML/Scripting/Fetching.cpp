@@ -42,6 +42,14 @@ OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<v
 
 PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function)
 {
+    return GC::create_function(heap, [f = move(function)](GC::Ref<Fetch::Infrastructure::Request> req, TopLevelModule module, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction consume) -> Coroutine<WebIDL::ExceptionOr<void>> {
+        CO_TRY(f.operator()(move(req), module, move(consume)));
+        co_return {};
+    });
+}
+
+PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<Coroutine<WebIDL::ExceptionOr<void>>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function)
+{
     return GC::create_function(heap, move(function));
 }
 
@@ -457,7 +465,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
 
     // 2. If performFetch was given, run performFetch with request, true, and with processResponseConsumeBody as defined below.
     if (perform_fetch != nullptr) {
-        TRY(perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)));
+        TRY(Core::run_async_in_current_event_loop([&] { return perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)); }));
     }
 
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
@@ -470,7 +478,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-worker-imported-script
-WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const& url, HTML::EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch)
+Coroutine<WebIDL::ExceptionOr<GC::Ref<ClassicScript>>> fetch_a_classic_worker_imported_script(URL::URL const& url, HTML::EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch)
 {
     auto& realm = settings_object.realm();
     auto& vm = realm.vm();
@@ -501,19 +509,19 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
 
     // 4. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     if (perform_fetch) {
-        TRY(perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)));
+        CO_TRY(co_await perform_fetch->function()(request, TopLevelModule::Yes, move(process_response_consume_body)));
     }
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
-        TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+        CO_TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
     }
 
     // 5. Pause until response is not null.
     // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
     auto& event_loop = settings_object.responsible_event_loop();
-    event_loop.spin_until(GC::create_function(vm.heap(), [&]() -> bool {
+    co_await event_loop.spin_until(GC::create_function(vm.heap(), [&]() -> bool {
         return response;
     }));
 
@@ -528,7 +536,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     if (body_bytes.template has<Empty>() || body_bytes.template has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>()
         || !Fetch::Infrastructure::is_ok_status(response->status())
         || !response->header_list()->extract_mime_type().has_value() || !response->header_list()->extract_mime_type()->is_javascript()) {
-        return WebIDL::NetworkError::create(realm, "Network error"_utf16);
+        co_return WebIDL::NetworkError::create(realm, "Network error"_utf16);
     }
 
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.
@@ -544,7 +552,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object.realm(), response_url, 1, muted_errors);
 
     // 11. Return script.
-    return script;
+    co_return script;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-worker-script-tree
@@ -724,7 +732,7 @@ void fetch_single_module_script(JS::Realm& realm,
     };
 
     if (perform_fetch != nullptr) {
-        perform_fetch->function()(request, is_top_level, move(process_response_consume_body)).release_value_but_fixme_should_propagate_errors();
+        Core::run_async_in_current_event_loop([&] { return perform_fetch->function()(request, is_top_level, move(process_response_consume_body)); }).release_value_but_fixme_should_propagate_errors();
     } else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
@@ -736,7 +744,7 @@ void fetch_single_module_script(JS::Realm& realm,
 // https://whatpr.org/html/9893/webappapis.html#fetch-a-module-script-tree
 void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, OnFetchScriptComplete on_complete)
 {
-    auto steps = create_on_fetch_script_complete(realm.heap(), [&realm, &settings_object, on_complete, url](auto result) mutable {
+    auto steps = create_on_fetch_script_complete(realm.heap(), [&realm, &settings_object, on_complete](auto result) mutable {
         // 1. If result is null, run onComplete given null, and abort these steps.
         if (!result) {
             on_complete->function()(nullptr);

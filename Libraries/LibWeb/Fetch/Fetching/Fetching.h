@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Coroutine.h>
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
@@ -40,12 +41,12 @@ ENUMERATE_BOOL_PARAMS
 #undef __ENUMERATE_BOOL_PARAM
 
 WEB_API WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm&, Infrastructure::Request&, Infrastructure::FetchAlgorithms const&, UseParallelQueue use_parallel_queue = UseParallelQueue::No);
-WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, Recursive recursive = Recursive::No);
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<PendingResponse>>> main_fetch(JS::Realm&, Infrastructure::FetchParams const&, Recursive recursive = Recursive::No);
 void populate_request_from_client(JS::Realm const&, Infrastructure::Request&);
 void fetch_response_handover(JS::Realm&, Infrastructure::FetchParams const&, Infrastructure::Response&);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm&, Infrastructure::FetchParams const&);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm&, Infrastructure::FetchParams const&, MakeCORSPreflight make_cors_preflight = MakeCORSPreflight::No);
-WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm&, Infrastructure::FetchParams const&, Infrastructure::Response&);
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<PendingResponse>>> http_redirect_fetch(JS::Realm&, Infrastructure::FetchParams const&, Infrastructure::Response&);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Realm&, Infrastructure::FetchParams const&, IsAuthenticationFetch is_authentication_fetch = IsAuthenticationFetch::No, IsNewConnectionFetch is_new_connection_fetch = IsNewConnectionFetch::No);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm&, Infrastructure::FetchParams const&, IncludeCredentials include_credentials = IncludeCredentials::No, IsNewConnectionFetch is_new_connection_fetch = IsNewConnectionFetch::No);
 WebIDL::ExceptionOr<GC::Ref<PendingResponse>> cors_preflight_fetch(JS::Realm&, Infrastructure::Request&);

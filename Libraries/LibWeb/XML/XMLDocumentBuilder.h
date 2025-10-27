@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "LibCore/EventLoop.h"
+
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -33,12 +35,15 @@ private:
     virtual ErrorOr<void> set_source(ByteString) override;
     virtual void set_doctype(XML::Doctype) override;
     virtual void element_start(XML::Name const& name, OrderedHashMap<XML::Name, ByteString> const& attributes) override;
-    virtual void element_end(XML::Name const& name) override;
+    virtual void element_end(XML::Name const& name) override { Core::run_async_in_current_event_loop([&] { return element_end_impl(name); }); }
     virtual void text(StringView data) override;
     virtual void comment(StringView data) override;
     virtual void cdata_section(StringView data) override;
     virtual void processing_instruction(StringView target, StringView data) override;
-    virtual void document_end() override;
+    virtual void document_end() override { Core::run_async_in_current_event_loop([&] { return document_end_impl(); }); }
+
+    Coroutine<void> element_end_impl(XML::Name const& name);
+    Coroutine<void> document_end_impl();
 
     Optional<FlyString> namespace_for_name(XML::Name const&);
 

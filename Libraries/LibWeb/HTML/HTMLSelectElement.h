@@ -133,7 +133,7 @@ private:
     void update_cached_list_of_options() const;
     void show_the_picker_if_applicable();
 
-    void create_shadow_tree_if_needed();
+    Coroutine<void> create_shadow_tree_if_needed();
     void update_inner_text_element();
     void queue_input_and_change_events();
 

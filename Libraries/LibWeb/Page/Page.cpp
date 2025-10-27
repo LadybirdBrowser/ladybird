@@ -288,12 +288,12 @@ void Page::did_update_window_rect()
 }
 
 template<typename ResponseType>
-static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, SourceLocation location = SourceLocation::current())
+static Coroutine<ResponseType> spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, SourceLocation location = SourceLocation::current())
 {
     auto& event_loop = Web::HTML::current_principal_settings_object().responsible_event_loop();
-    auto pause_handle = event_loop.pause();
+    auto pause_handle = co_await event_loop.pause();
 
-    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(event_loop.heap(), [&]() {
+    co_await Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(event_loop.heap(), [&]() {
         return response.has_value() || !client.is_connection_open();
     }));
 
@@ -302,7 +302,7 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
         exit(0);
     }
 
-    return response.release_value();
+    co_return response.release_value();
 }
 
 void Page::did_request_alert(String const& message)
@@ -313,7 +313,7 @@ void Page::did_request_alert(String const& message)
     if (!message.is_empty())
         m_pending_dialog_text = message;
 
-    spin_event_loop_until_dialog_closed(*m_client, m_pending_alert_response);
+    Core::EventLoop::current().adopt_coroutine_and_ignore_result(spin_event_loop_until_dialog_closed(*m_client, m_pending_alert_response));
 }
 
 void Page::alert_closed()
@@ -332,7 +332,7 @@ bool Page::did_request_confirm(String const& message)
     if (!message.is_empty())
         m_pending_dialog_text = message;
 
-    return spin_event_loop_until_dialog_closed(*m_client, m_pending_confirm_response);
+    return Core::run_async_in_new_event_loop([&] { return spin_event_loop_until_dialog_closed(*m_client, m_pending_confirm_response); });
 }
 
 void Page::confirm_closed(bool accepted)
@@ -351,7 +351,7 @@ Optional<String> Page::did_request_prompt(String const& message, String const& d
     if (!message.is_empty())
         m_pending_dialog_text = message;
 
-    return spin_event_loop_until_dialog_closed(*m_client, m_pending_prompt_response);
+    return Core::run_async_in_new_event_loop([&] { return spin_event_loop_until_dialog_closed(*m_client, m_pending_prompt_response); });
 }
 
 void Page::prompt_closed(Optional<String> response)
@@ -505,7 +505,7 @@ void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID 
 void Page::update_all_media_element_video_sinks()
 {
     for_each_media_element([](auto& media_element) {
-        media_element.update_video_frame_and_timeline();
+        Core::EventLoop::current().adopt_coroutine(media_element.update_video_frame_and_timeline());
     });
 }
 
@@ -524,10 +524,15 @@ WebIDL::ExceptionOr<void> Page::toggle_media_play_state()
     // AD-HOC: An execution context is required for Promise creation hooks.
     HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
-    if (media_element->potentially_playing())
-        TRY(media_element->pause());
-    else
-        TRY(media_element->play());
+    TRY(Core::run_async_in_new_event_loop([&] {
+        return [&] -> Coroutine<WebIDL::ExceptionOr<void>> {
+            if (media_element->potentially_playing())
+                CO_TRY(media_element->pause());
+            else
+                (void)CO_TRY(co_await media_element->play());
+            co_return {};
+        }();
+    }));
 
     return {};
 }

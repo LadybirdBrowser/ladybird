@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Coroutine.h>
 #include <AK/DistinctNumeric.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
@@ -90,26 +91,28 @@ public:
         UniqueTaskSourceStart
     };
 
+    static GC::Ref<Task> create(JS::VM&, Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<Coroutine<void>()>> steps);
     static GC::Ref<Task> create(JS::VM&, Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
 
     virtual ~Task() override;
 
     [[nodiscard]] TaskID id() const { return m_id; }
     Source source() const { return m_source; }
-    void execute();
+    Coroutine<void> execute();
 
     DOM::Document const* document() const;
 
     bool is_runnable() const;
 
 private:
+    Task(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<Coroutine<void>()>> steps);
     Task(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
 
     virtual void visit_edges(Visitor&) override;
 
     TaskID m_id {};
     Source m_source { Source::Unspecified };
-    GC::Ref<GC::Function<void()>> m_steps;
+    GC::Ref<GC::Function<Coroutine<void>()>> m_steps;
     GC::Ptr<DOM::Document const> m_document;
 };
 
@@ -123,7 +126,7 @@ struct WEB_API UniqueTaskSource {
 class WEB_API ParallelQueue : public RefCounted<ParallelQueue> {
 public:
     static NonnullRefPtr<ParallelQueue> create();
-    TaskID enqueue(GC::Ref<GC::Function<void()>>);
+    TaskID enqueue(GC::Ref<GC::Function<Coroutine<void>()>>);
 
 private:
     UniqueTaskSource m_task_source;

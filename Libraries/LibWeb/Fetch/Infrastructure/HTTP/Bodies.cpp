@@ -74,16 +74,17 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
     auto success_steps = [&realm, process_body, task_destination](ByteBuffer bytes) {
-        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable {
-            process_body->function()(move(bytes));
+        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable -> Coroutine<void> {
+            co_await process_body->function()(move(bytes));
         }));
     };
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given
     //    exception, with taskDestination.
     auto error_steps = [&realm, process_body_error, task_destination](JS::Value exception) {
-        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body_error, exception]() {
+        queue_fetch_task(task_destination, GC::create_function(realm.heap(), [process_body_error, exception]() -> Coroutine<void> {
             process_body_error->function()(exception);
+            co_return;
         }));
     };
 

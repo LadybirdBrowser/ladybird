@@ -79,6 +79,16 @@ bool g_http_cache_enabled = false;
         _temporary_result.release_value();                                                           \
     })
 
+#define CO_TRY_OR_IGNORE(expression)                                                                 \
+    ({                                                                                               \
+        auto&& _temporary_result = (expression);                                                     \
+        if (_temporary_result.is_error())                                                            \
+            co_return;                                                                               \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
+            "Do not return a reference from a fallible expression");                                 \
+        _temporary_result.release_value();                                                           \
+    })
+
 // https://fetch.spec.whatwg.org/#concept-fetch
 WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
 {
@@ -240,7 +250,9 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
     }
 
     // 15. Run main fetch given fetchParams.
-    (void)TRY(main_fetch(realm, fetch_params));
+    auto fetch_coro = main_fetch(realm, fetch_params);
+    VERIFY(fetch_coro.await_ready()); // main_fetch can only suspend if Recursive == Yes.
+    (void)TRY(fetch_coro.await_resume());
 
     // 16. Return fetchParams’s controller.
     return fetch_params->controller();
@@ -295,7 +307,7 @@ void populate_request_from_client(JS::Realm const& realm, Infrastructure::Reques
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<PendingResponse>>> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -364,14 +376,14 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         request->current_url().set_scheme("https"_string);
     }
 
-    auto get_response = GC::create_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<GC::Ref<PendingResponse>> {
+    auto get_response = GC::create_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> Coroutine<WebIDL::ExceptionOr<GC::Ref<PendingResponse>>> {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' get_response() function");
         auto const* origin = request->origin().get_pointer<URL::Origin>();
 
         // -> fetchParams’s preloaded response candidate is not null
         if (!fetch_params.preloaded_response_candidate().has<Empty>()) {
             // 1. Wait until fetchParams’s preloaded response candidate is not "pending".
-            HTML::main_thread_event_loop().spin_until(GC::create_function(vm.heap(), [&] {
+            co_await HTML::main_thread_event_loop().spin_until(GC::create_function(vm.heap(), [&] {
                 return !fetch_params.preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>();
             }));
 
@@ -379,7 +391,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             VERIFY(fetch_params.preloaded_response_candidate().has<GC::Ref<Infrastructure::Response>>());
 
             // 3. Return fetchParams’s preloaded response candidate.
-            return PendingResponse::create(vm, request, fetch_params.preloaded_response_candidate().get<GC::Ref<Infrastructure::Response>>());
+            co_return PendingResponse::create(vm, request, fetch_params.preloaded_response_candidate().get<GC::Ref<Infrastructure::Response>>());
         }
 
         // -> request’s current URL’s origin is same origin with request’s origin, and request’s response tainting is "basic"
@@ -393,7 +405,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             request->set_response_tainting(Infrastructure::Request::ResponseTainting::Basic);
 
             // 2. Return the result of running scheme fetch given fetchParams.
-            return scheme_fetch(realm, fetch_params);
+            co_return scheme_fetch(realm, fetch_params);
 
             // NOTE: HTML assigns any documents and workers created from URLs whose scheme is "data" a unique
             //       opaque origin. Service workers can only be created from URLs whose scheme is an HTTP(S) scheme.
@@ -402,20 +414,20 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         // -> request’s mode is "same-origin"
         if (request->mode() == Infrastructure::Request::Mode::SameOrigin) {
             // Return a network error.
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'same-origin' mode must have same URL and request origin"_string));
+            co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'same-origin' mode must have same URL and request origin"_string));
         }
 
         // -> request’s mode is "no-cors"
         if (request->mode() == Infrastructure::Request::Mode::NoCORS) {
             // 1. If request’s redirect mode is not "follow", then return a network error.
             if (request->redirect_mode() != Infrastructure::Request::RedirectMode::Follow)
-                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'no-cors' mode must have redirect mode set to 'follow'"_string));
+                co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'no-cors' mode must have redirect mode set to 'follow'"_string));
 
             // 2. Set request’s response tainting to "opaque".
             request->set_response_tainting(Infrastructure::Request::ResponseTainting::Opaque);
 
             // 3. Return the result of running scheme fetch given fetchParams.
-            return scheme_fetch(realm, fetch_params);
+            co_return scheme_fetch(realm, fetch_params);
         }
 
         // -> request’s current URL’s scheme is not an HTTP(S) scheme
@@ -426,7 +438,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             VERIFY(request->mode() == Infrastructure::Request::Mode::CORS);
 
             // Return a network error.
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode must have URL with HTTP or HTTPS scheme"_string));
+            co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode must have URL with HTTP or HTTPS scheme"_string));
         }
 
         // -> request’s use-CORS-preflight flag is set
@@ -443,7 +455,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             auto returned_pending_response = PendingResponse::create(vm, request);
 
             // 2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
-            auto cors_with_preflight_response = TRY(http_fetch(realm, fetch_params, MakeCORSPreflight::Yes));
+            auto cors_with_preflight_response = CO_TRY(http_fetch(realm, fetch_params, MakeCORSPreflight::Yes));
             cors_with_preflight_response->when_loaded([returned_pending_response](GC::Ref<Infrastructure::Response> cors_with_preflight_response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' cors_with_preflight_response load callback");
                 // 3. If corsWithPreflightResponse is a network error, then clear cache entries using request.
@@ -455,7 +467,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
                 returned_pending_response->resolve(cors_with_preflight_response);
             });
 
-            return returned_pending_response;
+            co_return returned_pending_response;
         }
 
         // -> Otherwise
@@ -463,29 +475,29 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         request->set_response_tainting(Infrastructure::Request::ResponseTainting::CORS);
 
         //     2. Return the result of running HTTP fetch given fetchParams.
-        return http_fetch(realm, fetch_params);
+        co_return http_fetch(realm, fetch_params);
     });
 
     if (recursive == Recursive::Yes) {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = !response
-            ? TRY(get_response->function()())
+            ? CO_TRY(co_await get_response->function()())
             : PendingResponse::create(vm, request, *response);
 
         // 13. If recursive is true, then return response.
-        return pending_response;
+        co_return pending_response;
     }
 
     // 11. If recursive is false, then run the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &vm, &fetch_params, request, response, get_response] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &vm, &fetch_params, request, response, get_response] -> Coroutine<void> {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
         if (!response) {
-            auto pending_response_or_error = get_response->function()();
+            auto pending_response_or_error = co_await get_response->function()();
             if (pending_response_or_error.is_error())
-                return;
+                co_return;
             pending_response = pending_response_or_error.release_value();
         }
         pending_response->when_loaded([&realm, &vm, &fetch_params, request, response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_response) mutable {
@@ -604,11 +616,11 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
                 }
 
                 // 3. Let processBody given bytes be these steps:
-                auto process_body = GC::create_function(vm.heap(), [&realm, request, response, &fetch_params, process_body_error](ByteBuffer bytes) {
+                auto process_body = GC::create_function(vm.heap(), [&realm, request, response, &fetch_params, process_body_error](ByteBuffer bytes) -> Coroutine<void> {
                     // 1. If bytes do not match request’s integrity metadata, then run processBodyError and abort these steps.
-                    if (!TRY_OR_IGNORE(SRI::do_bytes_match_metadata_list(bytes, request->integrity_metadata()))) {
+                    if (!CO_TRY_OR_IGNORE(SRI::do_bytes_match_metadata_list(bytes, request->integrity_metadata()))) {
                         process_body_error->function()({});
-                        return;
+                        co_return;
                     }
 
                     // 2. Set response’s body to bytes as a body.
@@ -628,7 +640,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         });
     }));
 
-    return GC::Ptr<PendingResponse> {};
+    co_return GC::Ptr<PendingResponse> {};
 }
 
 // https://fetch.spec.whatwg.org/#request-determine-the-environment
@@ -797,8 +809,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     if (fetch_params.algorithms()->process_response_consume_body()) {
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
-        auto process_body = GC::create_function(vm.heap(), [&fetch_params, &response](ByteBuffer null_or_bytes) {
+        auto process_body = GC::create_function(vm.heap(), [&fetch_params, &response](ByteBuffer null_or_bytes) -> Coroutine<void> {
             (fetch_params.algorithms()->process_response_consume_body())(response, null_or_bytes);
+            co_return;
         });
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
@@ -810,8 +823,8 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 3. If internalResponse's body is null, then queue a fetch task to run processBody given null, with
         //    fetchParams’s task destination.
         if (!internal_response->body()) {
-            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [process_body]() {
-                process_body->function()({});
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [process_body]() -> Coroutine<void> {
+                co_await process_body->function()({});
             }));
         }
         // 4. Otherwise, fully read internalResponse body given processBody, processBodyError, and fetchParams’s task
@@ -1247,7 +1260,8 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
             // -> "follow"
             case Infrastructure::Request::RedirectMode::Follow:
                 // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
-                inner_pending_response = TRY_OR_IGNORE(http_redirect_fetch(realm, fetch_params, *response));
+                // FIXME: Don't block event loop here.
+                inner_pending_response = TRY_OR_IGNORE(Core::run_async_in_new_event_loop([&] { return http_redirect_fetch(realm, fetch_params, *response); }));
                 break;
             default:
                 VERIFY_NOT_REACHED();
@@ -1270,7 +1284,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_fetch(JS::Realm& realm, Infra
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
-WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<PendingResponse>>> http_redirect_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-redirect fetch' with: fetch_params @ {}, response = {}", &fetch_params, &response);
 
@@ -1290,21 +1304,21 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& rea
 
     // 4. If locationURL is null, then return response.
     if (!location_url_or_error.is_error() && !location_url_or_error.value().has_value())
-        return PendingResponse::create(vm, request, response);
+        co_return PendingResponse::create(vm, request, response);
 
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL is invalid"_string));
+        co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL is invalid"_string));
 
     auto location_url = location_url_or_error.release_value().release_value();
 
     // 6. If locationURL’s scheme is not an HTTP(S) scheme, then return a network error.
     if (!Infrastructure::is_http_or_https_scheme(location_url.scheme()))
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL must have HTTP or HTTPS scheme"_string));
+        co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL must have HTTP or HTTPS scheme"_string));
 
     // 7. If request’s redirect count is 20, then return a network error.
     if (request->redirect_count() == 20)
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has reached maximum redirect count of 20"_string));
+        co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has reached maximum redirect count of 20"_string));
 
     // 8. Increase request’s redirect count by 1.
     request->set_redirect_count(request->redirect_count() + 1);
@@ -1315,20 +1329,20 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& rea
         && location_url.includes_credentials()
         && request->origin().has<URL::Origin>()
         && !request->origin().get<URL::Origin>().is_same_origin(location_url.origin())) {
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string));
+        co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string));
     }
 
     // 10. If request’s response tainting is "cors" and locationURL includes credentials, then return a network error.
     // NOTE: This catches a cross-origin resource redirecting to a same-origin URL.
     if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS && location_url.includes_credentials())
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' response tainting must not include credentials in redirect URL"_string));
+        co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' response tainting must not include credentials in redirect URL"_string));
 
     // 11. If internalResponse’s status is not 303, request’s body is non-null, and request’s body’s source is null, then
     //     return a network error.
     if (internal_response->status() != 303
         && !request->body().has<Empty>()
         && request->body().get<GC::Ref<Infrastructure::Body>>()->source().has<Empty>()) {
-        return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has body but no body source"_string));
+        co_return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has body but no body source"_string));
     }
 
     // 12. If one of the following is true
@@ -1411,7 +1425,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& rea
     }
 
     // 22. Return the result of running main fetch given fetchParams and recursive.
-    return main_fetch(realm, fetch_params, recursive);
+    co_return co_await main_fetch(realm, fetch_params, recursive);
 }
 
 class CachePartition : public RefCounted<CachePartition> {

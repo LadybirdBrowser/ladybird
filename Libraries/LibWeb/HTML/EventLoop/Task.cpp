@@ -20,15 +20,28 @@ static IDAllocator s_unique_task_source_allocator { static_cast<int>(Task::Sourc
     return next_task_id++;
 }
 
+GC::Ref<Task> Task::create(JS::VM& vm, Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<Coroutine<void>()>> steps)
+{
+    return vm.heap().allocate<Task>(source, document, move(steps));
+}
+
 GC::Ref<Task> Task::create(JS::VM& vm, Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
 {
     return vm.heap().allocate<Task>(source, document, move(steps));
 }
 
-Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
+Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<Coroutine<void>()>> steps)
     : m_id(allocate_task_id())
     , m_source(source)
     , m_steps(steps)
+    , m_document(document)
+{
+}
+
+Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
+    : m_id(allocate_task_id())
+    , m_source(source)
+    , m_steps(GC::create_function(steps->heap(), [steps] -> Coroutine<void> { steps->function()(); co_return; }))
     , m_document(document)
 {
 }
@@ -42,9 +55,9 @@ void Task::visit_edges(Visitor& visitor)
     visitor.visit(m_document);
 }
 
-void Task::execute()
+Coroutine<void> Task::execute()
 {
-    m_steps->function()();
+    return m_steps->function()();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-task-runnable
@@ -82,7 +95,7 @@ NonnullRefPtr<ParallelQueue> ParallelQueue::create()
     return adopt_ref(*new (nothrow) ParallelQueue);
 }
 
-TaskID ParallelQueue::enqueue(GC::Ref<GC::Function<void()>> algorithm)
+TaskID ParallelQueue::enqueue(GC::Ref<GC::Function<Coroutine<void>()>> algorithm)
 {
     auto& event_loop = HTML::main_thread_event_loop();
     auto task = HTML::Task::create(event_loop.vm(), m_task_source.source, nullptr, algorithm);

@@ -149,18 +149,18 @@ void Window::finalize()
 Window::~Window() = default;
 
 // https://html.spec.whatwg.org/multipage/window-object.html#window-open-steps
-WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(StringView url, StringView target, StringView features)
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<WindowProxy>>> Window::window_open_steps(StringView url, StringView target, StringView features)
 {
-    auto [target_navigable, no_opener, window_type] = TRY(window_open_steps_internal(url, target, features));
+    auto [target_navigable, no_opener, window_type] = CO_TRY(co_await window_open_steps_internal(url, target, features));
     if (target_navigable == nullptr)
-        return nullptr;
+        co_return nullptr;
 
     // 17. If noopener is true or windowType is "new with no opener", then return null.
     if (no_opener == TokenizedFeature::NoOpener::Yes || window_type == WindowType::NewWithNoOpener)
-        return nullptr;
+        co_return nullptr;
 
     // 18. Return targetNavigable's active WindowProxy.
-    return target_navigable->active_window_proxy();
+    co_return target_navigable->active_window_proxy();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#get-noopener-for-window-open
@@ -192,11 +192,11 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document con
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#window-open-steps
-WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(StringView url, StringView target, StringView features)
+Coroutine<WebIDL::ExceptionOr<Window::OpenedWindow>> Window::window_open_steps_internal(StringView url, StringView target, StringView features)
 {
     // 1. If the event loop's termination nesting level is nonzero, return null.
     if (main_thread_event_loop().termination_nesting_level() != 0)
-        return OpenedWindow {};
+        co_return OpenedWindow {};
 
     // 2. Let sourceDocument be the entry global object's associated Document.
     auto& source_document = as<Window>(entry_global_object()).associated_document();
@@ -211,7 +211,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.has_value())
-            return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
+            co_return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
     }
 
     // 5. If target is the empty string, then set target to "_blank".
@@ -251,7 +251,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
     // 14. If targetNavigable is null, then return null.
     if (target_navigable == nullptr)
-        return OpenedWindow {};
+        co_return OpenedWindow {};
 
     // 15. If windowType is either "new and unrestricted" or "new with no opener", then:
     if (window_type == WindowType::NewAndUnrestricted || window_type == WindowType::NewWithNoOpener) {
@@ -269,21 +269,21 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
         if (url_matches_about_blank(url_record.value())) {
             // AD-HOC: Mark the initial about:blank for the new window as load complete
             // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            HTML::HTMLParser::the_end(*target_navigable->active_document());
+            co_await HTML::HTMLParser::the_end(*target_navigable->active_document());
 
             perform_url_and_history_update_steps(*target_navigable->active_document(), url_record.release_value());
         }
 
         // 5. Otherwise, navigate targetNavigable to urlRecord using sourceDocument, with referrerPolicy set to referrerPolicy and exceptionsEnabled set to true.
         else {
-            TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
+            CO_TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
         }
     }
     // 16. Otherwise:
     else {
         // 1. If urlRecord is not null, then navigate targetNavigable to urlRecord using sourceDocument, with referrerPolicy set to referrerPolicy and exceptionsEnabled set to true.
         if (url_record.has_value())
-            TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
+            CO_TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
 
         // 2. If noopener is false, then set targetNavigable's active browsing context's opener browsing context to sourceDocument's browsing context.
         if (no_opener == TokenizedFeature::NoOpener::No)
@@ -291,7 +291,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     }
 
     // NOTE: Steps 17 and 18 are implemented in window_open_steps().
-    return OpenedWindow { target_navigable, no_opener, window_type };
+    co_return OpenedWindow { target_navigable, no_opener, window_type };
 }
 
 bool Window::dispatch_event(DOM::Event& event)
@@ -850,8 +850,8 @@ void Window::close()
         traversable->set_closing(true);
 
         // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, incumbent_global_object, GC::create_function(heap(), [traversable] {
-            as<TraversableNavigable>(*traversable).definitely_close_top_level_traversable();
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, incumbent_global_object, GC::create_function(heap(), [traversable] -> Coroutine<void> {
+            co_await as<TraversableNavigable>(*traversable).definitely_close_top_level_traversable();
         }));
     }
 }
@@ -1097,7 +1097,7 @@ GC::Ptr<DOM::Element const> Window::frame_element() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-open
-WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features)
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<WindowProxy>>> Window::open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features)
 {
     // The open(url, target, features) method steps are to run the window open steps with url, target, and features.
     return window_open_steps(*url, *target, *features);

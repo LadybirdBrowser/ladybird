@@ -298,8 +298,9 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                     response = filtered_response.internal_response();
                 }
 
-                auto on_data_read = GC::create_function(realm.heap(), [this, response](ByteBuffer data) {
+                auto on_data_read = GC::create_function(realm.heap(), [this, response](ByteBuffer data) -> Coroutine<void> {
                     resource_did_load(response, data);
+                    co_return;
                 });
                 auto on_error = GC::create_function(realm.heap(), [this](JS::Value) {
                     resource_did_fail();

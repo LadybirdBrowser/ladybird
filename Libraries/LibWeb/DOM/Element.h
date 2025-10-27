@@ -235,21 +235,21 @@ public:
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
     ElementByIdMap& document_or_shadow_root_element_by_id_map();
 
-    WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(StringView markup);
+    Coroutine<WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>>> parse_fragment(StringView markup);
 
     [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
 
     WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(TrustedTypes::TrustedHTMLOrString const&);
+    Coroutine<WebIDL::ExceptionOr<void>> set_inner_html(TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
+    Coroutine<WebIDL::ExceptionOr<void>> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
 
     WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
 
-    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const&);
+    Coroutine<WebIDL::ExceptionOr<void>> insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const&);
 
     WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html() const;
-    WebIDL::ExceptionOr<void> set_outer_html(TrustedTypes::TrustedHTMLOrString const&);
+    Coroutine<WebIDL::ExceptionOr<void>> set_outer_html(TrustedTypes::TrustedHTMLOrString const&);
 
     bool is_focused() const;
     bool is_active() const;
@@ -283,6 +283,7 @@ public:
     void set_child_style_uses_tree_counting_function() { m_child_style_uses_tree_counting_function = true; }
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
+    HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<Coroutine<void>()>);
     HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<void()>);
 
     bool is_void_element() const;

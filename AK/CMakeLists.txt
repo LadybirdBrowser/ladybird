@@ -6,6 +6,7 @@ set(SOURCES
     CircularBuffer.cpp
     ConstrainedStream.cpp
     CountingStream.cpp
+    Coroutine.cpp
     Error.cpp
     FlyString.cpp
     Format.cpp

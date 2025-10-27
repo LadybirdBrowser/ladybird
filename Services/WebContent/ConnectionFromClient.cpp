@@ -705,18 +705,20 @@ void ConnectionFromClient::set_dom_node_outer_html(u64 page_id, Web::UniqueNodeI
         return;
     }
 
-    if (dom_node->is_element()) {
-        auto& element = static_cast<Web::DOM::Element&>(*dom_node);
-        element.set_outer_html(Utf16String::from_utf8(html)).release_value_but_fixme_should_propagate_errors();
-    } else if (dom_node->is_text() || dom_node->is_comment()) {
-        auto& character_data = static_cast<Web::DOM::CharacterData&>(*dom_node);
-        character_data.set_data(Utf16String::from_utf8(html));
-    } else {
-        async_did_finish_editing_dom_node(page_id, {});
-        return;
-    }
+    Core::EventLoop::current().adopt_coroutine([this, page_id, dom_node, node_id, html] -> Coroutine<void> {
+        if (dom_node->is_element()) {
+            auto& element = static_cast<Web::DOM::Element&>(*dom_node);
+            (co_await element.set_outer_html(Utf16String::from_utf8(html))).release_value_but_fixme_should_propagate_errors();
+        } else if (dom_node->is_text() || dom_node->is_comment()) {
+            auto& character_data = static_cast<Web::DOM::CharacterData&>(*dom_node);
+            character_data.set_data(Utf16String::from_utf8(html));
+        } else {
+            async_did_finish_editing_dom_node(page_id, {});
+            co_return;
+        }
 
-    async_did_finish_editing_dom_node(page_id, node_id);
+        async_did_finish_editing_dom_node(page_id, node_id);
+    }());
 }
 
 void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text)

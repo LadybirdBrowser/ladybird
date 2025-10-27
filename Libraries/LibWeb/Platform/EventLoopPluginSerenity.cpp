@@ -14,19 +14,25 @@ namespace Web::Platform {
 EventLoopPluginSerenity::EventLoopPluginSerenity() = default;
 EventLoopPluginSerenity::~EventLoopPluginSerenity() = default;
 
-void EventLoopPluginSerenity::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
+Coroutine<void> EventLoopPluginSerenity::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
-    Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
-        if (Core::EventLoop::current().was_exit_requested())
-            ::exit(0);
-        return goal_condition->function()();
-    });
+    while (!goal_condition->function()) {
+        dbgln("Toiling away in spin_until :(");
+        co_await Core::EventLoop::current().next_turn();
+    }
 }
 
 void EventLoopPluginSerenity::deferred_invoke(GC::Root<GC::Function<void()>> function)
 {
     Core::deferred_invoke([function = move(function)]() {
         function->function()();
+    });
+}
+
+void EventLoopPluginSerenity::deferred_invoke(GC::Root<GC::Function<Coroutine<void>()>> function)
+{
+    Core::deferred_invoke([function = move(function)] {
+        Core::EventLoop::current().adopt_coroutine(function->function()());
     });
 }
 

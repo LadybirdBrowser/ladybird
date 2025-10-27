@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibCore/EventLoop.h"
+
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
@@ -89,12 +91,12 @@ void HTMLScriptElement::begin_delaying_document_load_event(DOM::Document& docume
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#execute-the-script-block
-void HTMLScriptElement::execute_script()
+Coroutine<void> HTMLScriptElement::execute_script()
 {
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
     if (!m_document->ready_to_run_scripts())
-        main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+        co_await main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
 
     // 1. Let document be el's node document.
     GC::Ref<DOM::Document> document = this->document();
@@ -102,7 +104,7 @@ void HTMLScriptElement::execute_script()
     // 2. If el's preparation-time document is not equal to document, then return.
     if (m_preparation_time_document.ptr() != document.ptr()) {
         dbgln("HTMLScriptElement: Refusing to run script because the preparation time document is not the same as the node document.");
-        return;
+        co_return;
     }
 
     // 3. Unblock rendering on el.
@@ -112,7 +114,7 @@ void HTMLScriptElement::execute_script()
     if (m_result.has<ResultState::Null>()) {
         dbgln("HTMLScriptElement: Refusing to run script because the element's result is null.");
         dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
-        return;
+        co_return;
     }
 
     // 5. If el's from an external file is true, or el's type is "module", then increment document's ignore-destructive-writes counter.
@@ -169,12 +171,12 @@ void HTMLScriptElement::execute_script()
 
 // https://html.spec.whatwg.org/multipage/scripting.html#prepare-a-script
 // https://whatpr.org/html/9893/scripting.html#prepare-a-script
-void HTMLScriptElement::prepare_script()
+Coroutine<void> HTMLScriptElement::prepare_script()
 {
     // 1. If el's already started is true, then return.
     if (m_already_started) {
         dbgln("HTMLScriptElement: Refusing to run script because it has already started.");
-        return;
+        co_return;
     }
 
     // 2. Let parser document be el's parser document.
@@ -194,13 +196,13 @@ void HTMLScriptElement::prepare_script()
 
     // 6. If el has no src attribute, and source text is the empty string, then return.
     if (!has_attribute(HTML::AttributeNames::src) && source_text.is_empty()) {
-        return;
+        co_return;
     }
 
     // 7. If el is not connected, then return.
     if (!is_connected()) {
         dbgln("HTMLScriptElement: Refusing to run script because the element is not connected.");
-        return;
+        co_return;
     }
 
     // 8. If any of the following are true:
@@ -246,7 +248,7 @@ void HTMLScriptElement::prepare_script()
     // 13. Otherwise, return. (No script is executed, and el's type is left as null.)
     else {
         VERIFY(m_script_type == ScriptType::Null);
-        return;
+        co_return;
     }
 
     // 14. If parser document is non-null, then set el's parser document back to parser document and set el's force async to false.
@@ -264,19 +266,19 @@ void HTMLScriptElement::prepare_script()
     // 17. If parser document is non-null, and parser document is not equal to el's preparation-time document, then return.
     if (parser_document != nullptr && parser_document != m_preparation_time_document) {
         dbgln("HTMLScriptElement: Refusing to run script because the parser document is not the same as the preparation time document.");
-        return;
+        co_return;
     }
 
     // 18. If scripting is disabled for el, then return.
     if (is_scripting_disabled()) {
         dbgln("HTMLScriptElement: Refusing to run script because scripting is disabled.");
-        return;
+        co_return;
     }
 
     // 19. If el has a nomodule content attribute and its type is "classic", then return.
     if (m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::nomodule)) {
         dbgln("HTMLScriptElement: Refusing to run classic script because it has the nomodule attribute.");
-        return;
+        co_return;
     }
 
     // FIXME: 20. Let cspType be "script speculationrules" if el's type is "speculationrules"; otherwise, "script".
@@ -286,7 +288,7 @@ void HTMLScriptElement::prepare_script()
     if (!has_attribute(AttributeNames::src)
         && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text_utf8) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
-        return;
+        co_return;
     }
 
     // 22. If el has an event attribute and a for attribute, and el's type is "classic", then:
@@ -304,14 +306,14 @@ void HTMLScriptElement::prepare_script()
         // 4. If for is not an ASCII case-insensitive match for the string "window", then return.
         if (!for_.equals_ignoring_ascii_case("window"sv)) {
             dbgln("HTMLScriptElement: Refusing to run classic script because the provided 'for' attribute is not equal to 'window'");
-            return;
+            co_return;
         }
 
         // 5. If event is not an ASCII case-insensitive match for either the string "onload" or the string "onload()", then return.
         if (!event.equals_ignoring_ascii_case("onload"sv)
             && !event.equals_ignoring_ascii_case("onload()"sv)) {
             dbgln("HTMLScriptElement: Refusing to run classic script because the provided 'event' attribute is not equal to 'onload' or 'onload()'");
-            return;
+            co_return;
         }
     }
 
@@ -380,10 +382,11 @@ void HTMLScriptElement::prepare_script()
         // FIXME: Add "speculationrules" support.
         if (m_script_type == ScriptType::ImportMap) {
             // then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] -> Coroutine<void> {
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+                co_return;
             });
-            return;
+            co_return;
         }
 
         // 2. Let src be the value of el's src attribute.
@@ -392,10 +395,11 @@ void HTMLScriptElement::prepare_script()
         // 3. If src is the empty string, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (src.is_empty()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src attribute is empty.");
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] -> Coroutine<void> {
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+                co_return;
             });
-            return;
+            co_return;
         }
 
         // 4. Set el's from an external file to true.
@@ -407,10 +411,11 @@ void HTMLScriptElement::prepare_script()
         // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] -> Coroutine<void> {
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+                co_return;
             });
-            return;
+            co_return;
         }
 
         // 7. If el is potentially render-blocking, then block rendering on el.
@@ -426,10 +431,7 @@ void HTMLScriptElement::prepare_script()
         // 10. Let onComplete given result be the following steps:
         OnFetchScriptComplete on_complete = create_on_fetch_script_complete(heap(), [this](auto result) {
             // 1. Mark as ready el given result.
-            if (result)
-                mark_as_ready(Result { *result });
-            else
-                mark_as_ready(ResultState::Null {});
+            Core::EventLoop::current().adopt_coroutine(mark_as_ready(result ? Result { *result } : ResultState::Null {}));
         });
 
         // 11. Switch on el's type:
@@ -462,7 +464,7 @@ void HTMLScriptElement::prepare_script()
             auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object.realm(), base_url, m_source_line_number);
 
             // 2. Mark as ready el given script.
-            mark_as_ready(Result(move(script)));
+            co_await mark_as_ready(Result(move(script)));
         }
         // -> "module"
         else if (m_script_type == ScriptType::Module) {
@@ -473,10 +475,7 @@ void HTMLScriptElement::prepare_script()
                 // 1. Queue an element task on the networking task source given el to perform the following steps:
                 queue_an_element_task(Task::Source::Networking, [this, result = move(result)] {
                     // 1. Mark as ready el given result.
-                    if (!result)
-                        mark_as_ready(ResultState::Null {});
-                    else
-                        mark_as_ready(Result(*result));
+                    Core::EventLoop::current().adopt_coroutine(mark_as_ready(result ? Result { *result } : ResultState::Null {}));
                 });
             });
 
@@ -490,7 +489,7 @@ void HTMLScriptElement::prepare_script()
             auto result = ImportMapParseResult::create(realm(), source_text.to_byte_string(), base_url);
 
             // 2. Mark as ready el given result.
-            mark_as_ready(Result(move(result)));
+            co_await mark_as_ready(Result(move(result)));
         }
         // FIXME: -> "speculationrules"
     }
@@ -507,9 +506,9 @@ void HTMLScriptElement::prepare_script()
             m_preparation_time_document->scripts_to_execute_as_soon_as_possible().append(*this);
 
             // 3. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            m_steps_to_run_when_the_result_is_ready = [this] -> Coroutine<void> {
                 // 1. Execute the script element el.
-                execute_script();
+                co_await execute_script();
 
                 // 2. Remove el from scripts.
                 m_preparation_time_document->scripts_to_execute_as_soon_as_possible().remove_first_matching([this](auto& entry) {
@@ -525,16 +524,16 @@ void HTMLScriptElement::prepare_script()
             m_preparation_time_document->scripts_to_execute_in_order_as_soon_as_possible().append(*this);
 
             // 3. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            m_steps_to_run_when_the_result_is_ready = [this] -> Coroutine<void> {
                 auto& scripts = m_preparation_time_document->scripts_to_execute_in_order_as_soon_as_possible();
                 // 1. If scripts[0] is not el, then abort these steps.
                 if (scripts[0] != this)
-                    return;
+                    co_return;
 
                 // 2. While scripts is not empty, and scripts[0]'s result is not "uninitialized":
                 while (!scripts.is_empty() && !scripts[0]->m_result.has<ResultState::Uninitialized>()) {
                     // 1. Execute the script element scripts[0].
-                    scripts[0]->execute_script();
+                    co_await scripts[0]->execute_script();
 
                     // 2. Remove scripts[0].
                     scripts.take_first();
@@ -548,9 +547,10 @@ void HTMLScriptElement::prepare_script()
             m_parser_document->add_script_to_execute_when_parsing_has_finished({}, *this);
 
             // 2. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            m_steps_to_run_when_the_result_is_ready = [this] -> Coroutine<void> {
                 // set el's ready to be parser-executed to true. (The parser will handle executing the script.)
                 m_ready_to_be_parser_executed = true;
+                co_return;
             };
         }
 
@@ -562,9 +562,10 @@ void HTMLScriptElement::prepare_script()
             // FIXME: 2. Block rendering on el.
 
             // 3. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            m_steps_to_run_when_the_result_is_ready = [this] -> Coroutine<void> {
                 // set el's ready to be parser-executed to true. (The parser will handle executing the script.)
                 m_ready_to_be_parser_executed = true;
+                co_return;
             };
         }
     }
@@ -593,7 +594,7 @@ void HTMLScriptElement::prepare_script()
         // 3. Otherwise,
         else {
             // immediately execute the script element el, even if other scripts are already executing.
-            execute_script();
+            co_await execute_script();
         }
     }
 }
@@ -619,18 +620,18 @@ void HTMLScriptElement::post_connection()
         return;
 
     // 3. Prepare the script element given insertedNode.
-    prepare_script();
+    Core::EventLoop::current().adopt_coroutine(prepare_script());
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#mark-as-ready
-void HTMLScriptElement::mark_as_ready(Result result)
+Coroutine<void> HTMLScriptElement::mark_as_ready(Result result)
 {
     // 1. Set el's result to result.
     m_result = move(result);
 
     // 2. If el's steps to run when the result is ready are not null, then run them.
     if (m_steps_to_run_when_the_result_is_ready)
-        m_steps_to_run_when_the_result_is_ready();
+        co_await m_steps_to_run_when_the_result_is_ready();
 
     // 3. Set el's steps to run when the result is ready to null.
     m_steps_to_run_when_the_result_is_ready = nullptr;

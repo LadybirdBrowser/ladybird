@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Coroutine.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibJS/Export.h>
@@ -26,7 +27,7 @@ public:
 
     CanBlock can_block() const { return m_can_block; }
 
-    virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
+    virtual Coroutine<void> spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
 
 protected:
     explicit Agent(CanBlock can_block)

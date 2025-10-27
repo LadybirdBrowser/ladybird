@@ -24,14 +24,15 @@ class WEB_API EventLoop : public JS::Cell {
 
     struct PauseHandle {
         PauseHandle(EventLoop&, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
+        PauseHandle(PauseHandle&&);
         ~PauseHandle();
 
         AK_MAKE_NONCOPYABLE(PauseHandle);
-        AK_MAKE_NONMOVABLE(PauseHandle);
 
         GC::Ref<EventLoop> event_loop;
         GC::Ref<JS::Object const> global;
         HighResolutionTime::DOMHighResTimeStamp const time_before_pause;
+        bool invalid = false;
     };
 
 public:
@@ -56,9 +57,9 @@ public:
     TaskQueue& microtask_queue() { return *m_microtask_queue; }
     TaskQueue const& microtask_queue() const { return *m_microtask_queue; }
 
-    void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
-    void spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
-    void process();
+    Coroutine<void> spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
+    Coroutine<void> spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
+    Coroutine<void> process();
     void queue_task_to_update_the_rendering();
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
@@ -70,7 +71,7 @@ public:
 
     void schedule();
 
-    void perform_a_microtask_checkpoint();
+    Coroutine<void> perform_a_microtask_checkpoint();
 
     void register_document(Badge<DOM::Document>, DOM::Document&);
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
@@ -89,7 +90,7 @@ public:
 
     double compute_deadline() const;
 
-    [[nodiscard]] PauseHandle pause();
+    [[nodiscard]] Coroutine<PauseHandle> pause();
     void unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
     bool execution_paused() const { return m_execution_paused; }
 
@@ -101,7 +102,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     void process_input_events() const;
-    void update_the_rendering();
+    Coroutine<void> update_the_rendering();
 
     Type m_type { Type::Window };
 
@@ -142,14 +143,15 @@ private:
 
     bool m_running_rendering_task { false };
 
-    GC::Ptr<GC::Function<void()>> m_rendering_task_function;
+    GC::Ptr<GC::Function<Coroutine<void>()>> m_rendering_task_function;
 };
 
 WEB_API EventLoop& main_thread_event_loop();
 WEB_API void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps);
-WEB_API TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<void()>> steps);
+WEB_API TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<Coroutine<void>()>> steps);
+WEB_API TaskID queue_global_task(HTML::Task::Source, JS::Object&, GC::Ref<GC::Function<Coroutine<void>()>> steps);
 WEB_API TaskID queue_global_task(HTML::Task::Source, JS::Object&, GC::Ref<GC::Function<void()>> steps);
-WEB_API void queue_a_microtask(DOM::Document const*, GC::Ref<GC::Function<void()>> steps);
-void perform_a_microtask_checkpoint();
+WEB_API void queue_a_microtask(DOM::Document const*, GC::Ref<GC::Function<Coroutine<void>()>> steps);
+Coroutine<void> perform_a_microtask_checkpoint();
 
 }

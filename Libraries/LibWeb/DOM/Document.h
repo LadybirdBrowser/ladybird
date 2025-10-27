@@ -476,12 +476,12 @@ public:
 
     void set_window(HTML::Window&);
 
-    WebIDL::ExceptionOr<void> write(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
-    WebIDL::ExceptionOr<void> writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
+    Coroutine<WebIDL::ExceptionOr<void>> write(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
+    Coroutine<WebIDL::ExceptionOr<void>> writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
 
-    WebIDL::ExceptionOr<Document*> open(Optional<String> const& = {}, Optional<String> const& = {});
-    WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> open(StringView url, StringView name, StringView features);
-    WebIDL::ExceptionOr<void> close();
+    Coroutine<WebIDL::ExceptionOr<Document*>> open(Optional<String> const& = {}, Optional<String> const& = {});
+    Coroutine<WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>>> open(StringView url, StringView name, StringView features);
+    Coroutine<WebIDL::ExceptionOr<void>> close();
 
     GC::Ptr<HTML::WindowProxy const> default_view() const;
     GC::Ptr<HTML::WindowProxy> default_view();
@@ -664,7 +664,7 @@ public:
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
     void unload(GC::Ptr<Document> new_document = nullptr);
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-    void unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads = {});
+    Coroutine<void> unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads = {});
 
     // https://html.spec.whatwg.org/multipage/dom.html#active-parser
     GC::Ptr<HTML::HTMLParser> active_parser();
@@ -750,7 +750,7 @@ public:
         Optional<double> scheduled_event_time;
     };
     void append_pending_animation_event(PendingAnimationEvent const&);
-    void update_animations_and_send_events(Optional<double> const& timestamp);
+    Coroutine<void> update_animations_and_send_events(Optional<double> const& timestamp);
     void remove_replaced_animations();
 
     WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
@@ -831,8 +831,8 @@ public:
 
     Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
-    void parse_html_from_a_string(StringView);
-    static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);
+    Coroutine<void> parse_html_from_a_string(StringView);
+    static Coroutine<WebIDL::ExceptionOr<GC::Root<DOM::Document>>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);
 
     void set_console_client(GC::Ptr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     GC::Ptr<JS::ConsoleClient> console_client() const { return m_console_client; }
@@ -976,7 +976,7 @@ private:
         Yes,
         No,
     };
-    WebIDL::ExceptionOr<void> run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink);
+    Coroutine<WebIDL::ExceptionOr<void>> run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink);
 
     void queue_intersection_observer_task();
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);

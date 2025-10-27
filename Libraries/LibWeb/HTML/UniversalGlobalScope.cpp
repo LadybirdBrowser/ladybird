@@ -85,8 +85,9 @@ void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
         document = &static_cast<Window&>(this_impl()).associated_document();
 
     // The queueMicrotask(callback) method must queue a microtask to invoke callback with « » and "report".
-    HTML::queue_a_microtask(document, GC::create_function(realm.heap(), [&callback] {
+    HTML::queue_a_microtask(document, GC::create_function(realm.heap(), [&callback] -> Coroutine<void> {
         (void)WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Report, {});
+        co_return;
     }));
 }
 

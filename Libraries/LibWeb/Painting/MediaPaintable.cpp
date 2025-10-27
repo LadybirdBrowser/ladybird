@@ -292,7 +292,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
 
     if (cached_layout_boxes.timeline_rect.has_value() && cached_layout_boxes.timeline_rect->contains(position_adjusted_by_scroll_offset)) {
         media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MediaComponent::Timeline);
-        set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes);
+        Core::run_async_in_new_event_loop([&] { return set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes); });
     } else if (cached_layout_boxes.volume_rect.has_value() && cached_layout_boxes.volume_rect->contains(position_adjusted_by_scroll_offset)) {
         media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MediaComponent::Volume);
         set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position_adjusted_by_scroll_offset);
@@ -315,7 +315,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
     if (auto const& mouse_tracking_component = media_element.layout_mouse_tracking_component({}); mouse_tracking_component.has_value()) {
         switch (*mouse_tracking_component) {
         case HTML::HTMLMediaElement::MediaComponent::Timeline:
-            set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::No);
+            Core::run_async_in_new_event_loop([&] { return set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::No); });
             break;
 
         case HTML::HTMLMediaElement::MediaComponent::Volume:
@@ -337,7 +337,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
 
     if (cached_layout_boxes.control_box_rect.has_value() && cached_layout_boxes.control_box_rect->contains(position_adjusted_by_scroll_offset)) {
         if (cached_layout_boxes.playback_button_rect.has_value() && cached_layout_boxes.playback_button_rect->contains(position_adjusted_by_scroll_offset)) {
-            media_element.toggle_playback().release_value_but_fixme_should_propagate_errors();
+            Core::run_async_in_new_event_loop([&] { return media_element.toggle_playback(); }).release_value_but_fixme_should_propagate_errors();
             return DispatchEventOfSameName::Yes;
         }
 
@@ -350,7 +350,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
             return DispatchEventOfSameName::No;
     }
 
-    media_element.toggle_playback().release_value_but_fixme_should_propagate_errors();
+    Core::run_async_in_new_event_loop([&] { return media_element.toggle_playback(); }).release_value_but_fixme_should_propagate_errors();
     return DispatchEventOfSameName::Yes;
 }
 
@@ -367,7 +367,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
         switch (*mouse_tracking_component) {
         case HTML::HTMLMediaElement::MediaComponent::Timeline:
             if (cached_layout_boxes.timeline_rect.has_value())
-                set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes);
+                Core::run_async_in_new_event_loop([&] { return set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes); });
             break;
 
         case HTML::HTMLMediaElement::MediaComponent::Volume:
@@ -408,7 +408,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
     return DispatchEventOfSameName::No;
 }
 
-void MediaPaintable::set_current_time(HTML::HTMLMediaElement& media_element, CSSPixelRect timeline_rect, CSSPixelPoint mouse_position, Temporary temporarily)
+Coroutine<void> MediaPaintable::set_current_time(HTML::HTMLMediaElement& media_element, CSSPixelRect timeline_rect, CSSPixelPoint mouse_position, Temporary temporarily)
 {
     auto x_offset = mouse_position.x() - timeline_rect.x();
     x_offset = max(x_offset, 0);
@@ -418,7 +418,7 @@ void MediaPaintable::set_current_time(HTML::HTMLMediaElement& media_element, CSS
     auto position = x_percentage * media_element.duration();
 
     if (position != media_element.layout_display_time({}))
-        media_element.set_current_time(position);
+        co_await media_element.set_current_time(position);
 
     switch (temporarily) {
     case Temporary::Yes:

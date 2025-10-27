@@ -68,7 +68,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     void announce_the_connection();
-    void reestablish_the_connection();
+    Coroutine<void> reestablish_the_connection();
     void fail_the_connection();
 
     void interpret_response(StringView);

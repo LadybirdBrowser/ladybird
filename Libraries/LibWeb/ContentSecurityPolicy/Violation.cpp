@@ -281,7 +281,7 @@ void Violation::report_a_violation(JS::Realm& realm)
     // 3. Queue a task to run the following steps:
     // Spec Note: We "queue a task" here to ensure that the event targeting and dispatch happens after JavaScript
     //            completes execution of the task responsible for a given violation (which might manipulate the DOM).
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, global, target, &realm] {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, global, target, &realm] -> Coroutine<void> {
         auto& vm = realm.vm();
 
         GC::Ptr<JS::Object> target_as_object = target;
@@ -471,6 +471,8 @@ void Violation::report_a_violation(JS::Realm& realm)
                 dbgln("FIXME: Implement report-to directive in violation reporting");
             }
         }
+
+        co_return;
     }));
 }
 

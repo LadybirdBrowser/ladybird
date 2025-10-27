@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/AudioTrackPrototype.h>
@@ -52,8 +53,9 @@ void AudioTrack::set_enabled(bool enabled)
         // Whenever an audio track in an AudioTrackList that was disabled is enabled, and whenever one that was enabled
         // is disabled, the user agent must queue a media element task given the media element to fire an event named
         // change at the AudioTrackList object.
-        media_element().queue_a_media_element_task([this]() {
+        media_element().queue_a_media_element_task([this]() -> Coroutine<void> {
             m_audio_track_list->dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
+            co_return;
         });
     }
 

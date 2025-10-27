@@ -123,8 +123,9 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
             // 3. If workerIsSecureContext is not callerIsSecureContext, then queue a task to fire an event named error
             //    at worker and abort these steps. [SECURE-CONTEXTS]
             if (worker_is_secure_context != caller_is_secure_context) {
-                queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(worker->heap(), [worker]() {
+                queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(worker->heap(), [worker]() -> Coroutine<void> {
                     worker->dispatch_event(DOM::Event::create(worker->realm(), HTML::EventNames::error));
+                    co_return;
                 }));
 
                 return;
@@ -142,7 +143,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
             //    scope, using MessageEvent, with the data attribute initialized to the empty string, the ports attribute
             //    initialized to a new frozen array containing only inside port, and the source attribute initialized to
             //    inside port.
-            queue_a_task(HTML::Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(worker->heap(), [worker_global_scope, inside_port]() {
+            queue_a_task(HTML::Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(worker->heap(), [worker_global_scope, inside_port]() -> Coroutine<void> {
                 auto& realm = worker_global_scope->realm();
 
                 MessageEventInit init;
@@ -151,6 +152,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
                 init.source = inside_port;
 
                 worker_global_scope->dispatch_event(MessageEvent::create(realm, HTML::EventNames::connect, init));
+                co_return;
             }));
 
             // FIXME: 8. Append the relevant owner to add given outside settings to worker global scope's owner set.

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <AK/SourceLocation.h>
+#include <AK/Coroutine.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
@@ -76,6 +78,17 @@ public:
 
     void wake();
 
+    Coroutine<void> next_turn();
+
+    void adopt_coroutine(Coroutine<void>&&, SourceLocation = SourceLocation::current());
+    template<typename T>
+    void adopt_coroutine_and_ignore_result(Coroutine<T>&& coro, SourceLocation location = SourceLocation::current())
+    {
+        adopt_coroutine([coro = move(coro)] mutable -> Coroutine<void> {
+            (void)co_await coro;
+        }(), location);
+    }
+
     void quit(int);
 
     bool was_exit_requested();
@@ -100,5 +113,28 @@ private:
 } SWIFT_UNSAFE_REFERENCE;
 
 void deferred_invoke(ESCAPING Function<void()>);
+
+template<typename T>
+requires(IsSpecializationOf<InvokeResult<T&>, Coroutine>)
+typename AK::Detail::ExtractCoroutineResult<InvokeResult<T&>>::Type run_async_in_new_event_loop(T&& function)
+{
+    EventLoop loop;
+    auto coro = function();
+    loop.spin_until([&] {
+        return coro.await_ready();
+    });
+    return coro.await_resume();
+}
+
+template<typename T>
+requires(IsSpecializationOf<InvokeResult<T&>, Coroutine>)
+typename AK::Detail::ExtractCoroutineResult<InvokeResult<T&>>::Type run_async_in_current_event_loop(T&& function)
+{
+    auto coro = function();
+    EventLoop::current().spin_until([&] {
+        return coro.await_ready();
+    });
+    return coro.await_resume();
+}
 
 }

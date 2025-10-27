@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "LibCore/EventLoop.h"
+
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
@@ -77,7 +79,7 @@ public:
 
     void set_volume(double);
 
-    Function<void()> on_playback_state_change;
+    Function<Coroutine<void>()> on_playback_state_change;
     Function<void(DecoderError&&)> on_error;
 
 private:
@@ -161,7 +163,7 @@ void PlaybackManager::replace_state_handler(Args&&... args)
 void PlaybackManager::dispatch_state_change() const
 {
     if (on_playback_state_change)
-        on_playback_state_change();
+        Core::EventLoop::current().adopt_coroutine(on_playback_state_change());
 }
 
 }

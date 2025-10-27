@@ -31,6 +31,20 @@ namespace JS {
         _temporary_result.release_value();                                                                            \
     })
 
+#define CO_TRY_OR_THROW_OOM(vm, ...)                                                                                  \
+    ({                                                                                                                \
+        /* Ignore -Wshadow to allow nesting the macro. */                                                             \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                                              \
+            auto&& _temporary_result = (__VA_ARGS__));                                                                \
+        if (_temporary_result.is_error()) {                                                                           \
+            VERIFY(_temporary_result.error().code() == ENOMEM);                                                       \
+            co_return (vm).throw_completion<JS::InternalError>((vm).error_message(::JS::VM::ErrorMessage::OutOfMemory)); \
+        }                                                                                                             \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>,                  \
+            "Do not return a reference from a fallible expression");                                                  \
+        _temporary_result.release_value();                                                                            \
+    })
+
 #define MUST_OR_THROW_INTERNAL_ERROR(...)                                                            \
     ({                                                                                               \
         /* Ignore -Wshadow to allow nesting the macro. */                                            \

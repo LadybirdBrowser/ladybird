@@ -68,7 +68,7 @@ public:
 
     GC::Ref<WorkerLocation> location() const;
     GC::Ref<WorkerNavigator> navigator() const;
-    WebIDL::ExceptionOr<void> import_scripts(Vector<String> const& urls, PerformTheFetchHook = nullptr);
+    Coroutine<WebIDL::ExceptionOr<void>> import_scripts(Vector<String> const& urls, PerformTheFetchHook = nullptr);
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \

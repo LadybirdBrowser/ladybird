@@ -116,8 +116,9 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
     auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
 
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
-        GC::Function<void()>::create(realm.heap(), [callback, data]() {
+        GC::create_function(realm.heap(), [callback, data]() -> Coroutine<void> {
             (void)WebIDL::invoke_callback(*callback, {}, { { data } });
+            co_return;
         }));
 }
 

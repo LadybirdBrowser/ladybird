@@ -248,7 +248,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
         auto matched_font_faces = result.release_value();
 
         // 4. Queue a task to run the following steps synchronously:
-        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, matched_font_faces] {
+        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, matched_font_faces] -> Coroutine<void> {
             GC::RootVector<GC::Ref<WebIDL::Promise>> promises(realm.heap());
 
             // 1. For all of the font faces in the font face list, call their load() method.
@@ -274,6 +274,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
                     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, promise, error);
                 });
+            co_return;
         }));
     }));
 

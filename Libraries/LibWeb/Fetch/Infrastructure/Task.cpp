@@ -12,7 +12,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#queue-a-fetch-task
-HTML::TaskID queue_fetch_task(TaskDestination task_destination, GC::Ref<GC::Function<void()>> algorithm)
+HTML::TaskID queue_fetch_task(TaskDestination task_destination, GC::Ref<GC::Function<Coroutine<void>()>> algorithm)
 {
     VERIFY(!task_destination.has<Empty>());
 
@@ -31,9 +31,25 @@ HTML::TaskID queue_fetch_task(GC::Ref<FetchController> fetch_controller, TaskDes
     auto fetch_task_id = fetch_controller->next_fetch_task_id();
 
     auto& heap = fetch_controller->heap();
-    auto html_task_id = queue_fetch_task(task_destination, GC::create_function(heap, [fetch_controller, fetch_task_id, algorithm]() {
+    auto html_task_id = queue_fetch_task(task_destination, GC::create_function(heap, [fetch_controller, fetch_task_id, algorithm]() -> Coroutine<void> {
         fetch_controller->fetch_task_complete(fetch_task_id);
         algorithm->function()();
+        co_return;
+    }));
+
+    fetch_controller->fetch_task_queued(fetch_task_id, html_task_id);
+    return html_task_id;
+}
+
+HTML::TaskID queue_fetch_task(GC::Ref<FetchController> fetch_controller, TaskDestination task_destination, GC::Ref<GC::Function<Coroutine<void>()>> algorithm)
+{
+    auto fetch_task_id = fetch_controller->next_fetch_task_id();
+
+    auto& heap = fetch_controller->heap();
+    auto html_task_id = queue_fetch_task(task_destination, GC::create_function(heap, [fetch_controller, fetch_task_id, algorithm]() -> Coroutine<void> {
+        fetch_controller->fetch_task_complete(fetch_task_id);
+        co_await algorithm->function()();
+        co_return;
     }));
 
     fetch_controller->fetch_task_queued(fetch_task_id, html_task_id);

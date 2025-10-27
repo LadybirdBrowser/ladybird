@@ -194,9 +194,10 @@ GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
         if (!result) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
-            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable -> Coroutine<void> {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_utf16));
+                co_return;
             }));
 
             // 2. Abort these steps.
@@ -286,7 +287,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
             }
 
             // 8. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
-            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, items = move(items)]() mutable {
+            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, items = move(items)]() mutable -> Coroutine<void> {
                 HTML::TemporaryExecutionContext execution_context { realm };
 
                 // 1. Let clipboardItems be a sequence<ClipboardItem>.
@@ -301,6 +302,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
 
                 // 2. Resolve p with clipboardItems.
                 WebIDL::resolve_promise(realm, promise, clipboard_items);
+                co_return;
             }));
         }));
     }));
@@ -327,9 +329,10 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
         if (!result) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
-            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable -> Coroutine<void> {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_utf16));
+                co_return;
             }));
 
             // 2. Abort these steps.
@@ -339,7 +342,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
         // 3. Let data be a copy of the system clipboard data.
         as<HTML::Window>(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise](Vector<SystemClipboardItem> data) mutable {
             // 4. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
-            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable -> Coroutine<void> {
                 HTML::TemporaryExecutionContext execution_context { realm };
 
                 // 1. For each systemClipboardItem in data:
@@ -382,7 +385,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
                             auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
 
                             WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), move(string)));
-                            return;
+                            co_return;
                         }
                     }
                 }
@@ -415,9 +418,10 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
         if (!result) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
-            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable -> Coroutine<void> {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_utf16));
+                co_return;
             }));
 
             // 2. Abort these steps.
@@ -425,7 +429,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
         }
 
         // 3. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
-        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable -> Coroutine<void> {
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. Let itemList and cleanItemList be an empty sequence<Blob>.
@@ -492,12 +496,12 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
                     //        https://github.com/w3c/clipboard-apis/issues/237
                     auto& reaction_promise = as<JS::Promise>(*reaction->promise());
 
-                    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.heap(), [&reaction_promise]() {
+                    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(realm.heap(), [&reaction_promise]() {
                         return reaction_promise.state() != JS::Promise::State::Pending;
                     }));
 
                     if (reaction_promise.state() == JS::Promise::State::Rejected)
-                        return;
+                        co_return;
                 }
 
                 // 2. For each blob in itemList:
@@ -509,7 +513,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>
                     //    "NotAllowedError" DOMException in realm and abort these steps.
                     if (!ClipboardItem::supports(realm.vm(), type)) {
                         WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, Utf16String::formatted("Clipboard item type {} is not allowed", type)));
-                        return;
+                        co_return;
                     }
 
                     // 3. Let cleanItem be an optionally sanitized copy of blob.
@@ -557,9 +561,10 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
         if (!result) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
-            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable -> Coroutine<void> {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_utf16));
+                co_return;
             }));
 
             // 2. Abort these steps.
@@ -567,7 +572,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
         }
 
         // 3. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
-        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable -> Coroutine<void> {
             // 1. Let itemList be an empty sequence<Blob>.
             GC::RootVector<GC::Ref<FileAPI::Blob>> item_list(realm.heap());
 
@@ -588,6 +593,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
             // 6. Resolve p.
             HTML::TemporaryExecutionContext execution_context { realm };
             WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+            co_return;
         }));
     }));
 

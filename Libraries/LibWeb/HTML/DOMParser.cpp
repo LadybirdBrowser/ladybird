@@ -39,11 +39,11 @@ void DOMParser::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
-WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(Utf16String string, Bindings::DOMParserSupportedType type)
+Coroutine<WebIDL::ExceptionOr<GC::Root<DOM::Document>>> DOMParser::parse_from_string(Utf16String string, Bindings::DOMParserSupportedType type)
 {
     // 1. Let compliantString to the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, string, "DOMParser parseFromString", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_string = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         relevant_global_object(*this),
         move(string),
@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(Utf16S
         document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString.
-        document->parse_html_from_a_string(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+        co_await document->parse_html_from_a_string(compliant_string.to_utf8_but_should_be_ported_to_utf16());
     } else {
         // -> Otherwise
         document = DOM::Document::create(realm(), associated_document.url());
@@ -94,7 +94,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(Utf16S
     document->set_origin(associated_document.origin());
 
     // 3. Return document.
-    return document;
+    co_return document;
 }
 
 }
