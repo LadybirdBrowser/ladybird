@@ -1334,15 +1334,44 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter
     return {};
 }
 
-inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<IdentifierTableIndex> const& lhs_name, Optional<Operand> const& home_object)
+// 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
+static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString given_name)
 {
+    auto own_name = function_node.name();
+    auto has_own_name = !own_name.is_empty();
+
+    auto const& used_name = has_own_name ? own_name : given_name;
+
+    auto environment = GC::Ref { *interpreter.running_execution_context().lexical_environment };
+    if (has_own_name) {
+        VERIFY(environment);
+        environment = new_declarative_environment(*environment);
+        MUST(environment->create_immutable_binding(interpreter.vm(), own_name, false));
+    }
+
+    auto private_environment = interpreter.running_execution_context().private_environment;
+
+    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
+
+    // FIXME: 6. Perform SetFunctionName(closure, name).
+    // FIXME: 7. Perform MakeConstructor(closure).
+
+    if (has_own_name)
+        MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
+
+    return closure;
+}
+
+inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const& lhs_name, Optional<Operand> const& home_object)
+{
+    auto& vm = interpreter.vm();
     Value value;
 
     if (!function_node.has_name()) {
         Utf16FlyString name;
         if (lhs_name.has_value())
-            name = vm.bytecode_interpreter().current_executable().get_identifier(lhs_name.value());
-        value = function_node.instantiate_ordinary_function_expression(vm, name);
+            name = interpreter.get_identifier(lhs_name.value());
+        value = instantiate_ordinary_function_expression(interpreter, function_node, name);
     } else {
         value = ECMAScriptFunctionObject::create_from_function_node(
             function_node,
@@ -1353,7 +1382,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     }
 
     if (home_object.has_value()) {
-        auto home_object_value = vm.bytecode_interpreter().get(home_object.value());
+        auto home_object_value = interpreter.get(home_object.value());
         static_cast<ECMAScriptFunctionObject&>(value.as_function()).set_home_object(&home_object_value.as_object());
     }
 
@@ -3067,8 +3096,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
 void NewFunction::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& vm = interpreter.vm();
-    interpreter.set(dst(), new_function(vm, m_function_node, m_lhs_name, m_home_object));
+    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object));
 }
 
 void Return::execute_impl(Bytecode::Interpreter& interpreter) const
