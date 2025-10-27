@@ -776,6 +776,7 @@ set(SOURCES
     MediaSession/Utils.cpp
     MediaSession/ChapterInformation.cpp
     MediaSession/MediaMetadata.cpp
+    MediaSession/MediaSession.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
     MixedContent/AbstractOperations.cpp
