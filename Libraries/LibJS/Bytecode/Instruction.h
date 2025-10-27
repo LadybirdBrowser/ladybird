@@ -68,8 +68,6 @@
     O(GetLengthWithThis)               \
     O(GetMethod)                       \
     O(GetNewTarget)                    \
-    O(GetNextMethodFromIteratorRecord) \
-    O(GetObjectFromIteratorRecord)     \
     O(GetObjectPropertyIterator)       \
     O(GetPrivateById)                  \
     O(GetBinding)                      \
