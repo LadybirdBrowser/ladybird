@@ -433,9 +433,28 @@ void ConnectionFromClient::die()
         Core::EventLoop::current().quit(0);
 }
 
-void ConnectionFromClient::enable_tor(ByteString circuit_id)
+// Helper method to get network identity for a specific page
+RefPtr<IPC::NetworkIdentity> ConnectionFromClient::network_identity_for_page(u64 page_id)
 {
-    dbgln("RequestServer: enable_tor() called on client {} with circuit_id='{}'", client_id(), circuit_id);
+    return m_page_network_identities.get(page_id).value_or(nullptr);
+}
+
+// Helper method to get or create network identity for a page
+RefPtr<IPC::NetworkIdentity> ConnectionFromClient::get_or_create_network_identity_for_page(u64 page_id)
+{
+    if (auto identity = network_identity_for_page(page_id))
+        return identity;
+
+    // Create new network identity for this page
+    auto identity = MUST(IPC::NetworkIdentity::create_for_page(page_id));
+    m_page_network_identities.set(page_id, identity);
+    dbgln("RequestServer: Created NetworkIdentity for page {}", page_id);
+    return identity;
+}
+
+void ConnectionFromClient::enable_tor(u64 page_id, ByteString circuit_id)
+{
+    dbgln("RequestServer: enable_tor() called on page {} with circuit_id='{}'", page_id, circuit_id);
 
     // SECURITY: Validate circuit_id length to prevent DoS attacks
     if (circuit_id.length() > IPC::Limits::MaxCircuitIDLength) {
@@ -455,16 +474,12 @@ void ConnectionFromClient::enable_tor(ByteString circuit_id)
         }
     }
 
-    // Create network identity with Tor circuit if not already present
-    if (!m_network_identity) {
-        // Use client_id as page_id for now (will be properly set when integrated with WebContent)
-        m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(client_id()));
-        dbgln("RequestServer: Created new NetworkIdentity for client {}", client_id());
-    }
+    // Get or create network identity for this page
+    auto network_identity = get_or_create_network_identity_for_page(page_id);
 
     // Generate circuit ID if not provided
     if (circuit_id.is_empty())
-        circuit_id = m_network_identity->identity_id();
+        circuit_id = network_identity->identity_id();
 
     // Configure Tor proxy on this connection ONLY
     auto tor_proxy = IPC::ProxyConfig::tor_proxy(circuit_id);
@@ -482,12 +497,12 @@ void ConnectionFromClient::enable_tor(ByteString circuit_id)
 
     dbgln("RequestServer: Tor proxy validated successfully at {}:{}", tor_proxy.host, tor_proxy.port);
 
-    m_network_identity->set_proxy_config(tor_proxy);
+    network_identity->set_proxy_config(tor_proxy);
 
-    dbgln("RequestServer: Tor ENABLED for client {} ONLY with circuit {} (has_proxy={})",
-        client_id(),
-        m_network_identity->tor_circuit_id().value_or("default"),
-        m_network_identity->has_proxy());
+    dbgln("RequestServer: Tor ENABLED for page {} ONLY with circuit {} (has_proxy={})",
+        page_id,
+        network_identity->tor_circuit_id().value_or("default"),
+        network_identity->has_proxy());
 
     // SECURITY FIX: Removed global state mutation that applied Tor to ALL connections.
     // Each connection must manage its own proxy configuration independently to prevent
@@ -495,48 +510,50 @@ void ConnectionFromClient::enable_tor(ByteString circuit_id)
     // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
-void ConnectionFromClient::disable_tor()
+void ConnectionFromClient::disable_tor(u64 page_id)
 {
-    if (!m_network_identity)
+    auto network_identity = network_identity_for_page(page_id);
+    if (!network_identity)
         return;
 
-    m_network_identity->clear_proxy_config();
-    dbgln("RequestServer: Tor disabled for client {} ONLY", client_id());
+    network_identity->clear_proxy_config();
+    dbgln("RequestServer: Tor disabled for page {} ONLY", page_id);
 
     // SECURITY FIX: Removed global state mutation that disabled Tor on ALL connections.
     // Each connection manages its own state independently.
     // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
-void ConnectionFromClient::rotate_tor_circuit()
+void ConnectionFromClient::rotate_tor_circuit(u64 page_id)
 {
-    if (!m_network_identity) {
-        dbgln("RequestServer: Cannot rotate circuit - no network identity");
+    auto network_identity = network_identity_for_page(page_id);
+    if (!network_identity) {
+        dbgln("RequestServer: Cannot rotate circuit - no network identity for page {}", page_id);
         return;
     }
 
-    if (!m_network_identity->has_tor_circuit()) {
-        dbgln("RequestServer: Cannot rotate circuit - Tor not enabled");
+    if (!network_identity->has_tor_circuit()) {
+        dbgln("RequestServer: Cannot rotate circuit - Tor not enabled for page {}", page_id);
         return;
     }
 
-    auto result = m_network_identity->rotate_tor_circuit();
+    auto result = network_identity->rotate_tor_circuit();
     if (result.is_error()) {
-        dbgln("RequestServer: Failed to rotate Tor circuit: {}", result.error());
+        dbgln("RequestServer: Failed to rotate Tor circuit for page {}: {}", page_id, result.error());
         return;
     }
 
-    auto new_circuit_id = m_network_identity->tor_circuit_id().value_or("unknown");
-    dbgln("RequestServer: Tor circuit rotated for client {} ONLY to {}", client_id(), new_circuit_id);
+    auto new_circuit_id = network_identity->tor_circuit_id().value_or("unknown");
+    dbgln("RequestServer: Tor circuit rotated for page {} ONLY to {}", page_id, new_circuit_id);
 
     // SECURITY FIX: Removed global state mutation that rotated circuits for ALL connections.
     // Each connection manages its own circuit independently.
     // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
-void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password)
+void ConnectionFromClient::set_proxy(u64 page_id, ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password)
 {
-    dbgln("RequestServer: set_proxy() called on client {} ({}:{})", client_id(), host, port);
+    dbgln("RequestServer: set_proxy() called on page {} ({}:{})", page_id, host, port);
 
     // SECURITY: Validate port range (must be 1-65535)
     if (port < IPC::Limits::MinPortNumber || port > IPC::Limits::MaxPortNumber) {
@@ -600,11 +617,8 @@ void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy
         return;
     }
 
-    // Create network identity if not already present
-    if (!m_network_identity) {
-        m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(client_id()));
-        dbgln("RequestServer: Created new NetworkIdentity for client {}", client_id());
-    }
+    // Get or create network identity for this page
+    auto network_identity = get_or_create_network_identity_for_page(page_id);
 
     // Build ProxyConfig from validated parameters
     IPC::ProxyConfig config;
@@ -628,10 +642,10 @@ void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy
     dbgln("RequestServer: Proxy validated successfully at {}:{} (type {})",
         config.host, config.port, static_cast<int>(config.type));
 
-    // Set proxy configuration on this connection ONLY
-    m_network_identity->set_proxy_config(config);
+    // Set proxy configuration for this page ONLY
+    network_identity->set_proxy_config(config);
 
-    dbgln("RequestServer: Proxy ENABLED for client {} ONLY ({}:{})", client_id(), config.host, config.port);
+    dbgln("RequestServer: Proxy ENABLED for page {} ONLY ({}:{})", page_id, config.host, config.port);
 
     // SECURITY FIX: Removed global state mutation that applied proxy to ALL connections.
     // Each connection must manage its own proxy configuration independently to prevent
@@ -639,15 +653,16 @@ void ConnectionFromClient::set_proxy(ByteString host, u16 port, ByteString proxy
     // See SECURITY_AUDIT_REPORT.md - Critical Vulnerability #1
 }
 
-void ConnectionFromClient::clear_proxy()
+void ConnectionFromClient::clear_proxy(u64 page_id)
 {
-    if (!m_network_identity) {
-        dbgln("RequestServer: Cannot clear proxy - no network identity");
+    auto network_identity = network_identity_for_page(page_id);
+    if (!network_identity) {
+        dbgln("RequestServer: Cannot clear proxy - no network identity for page {}", page_id);
         return;
     }
 
-    m_network_identity->clear_proxy_config();
-    dbgln("RequestServer: Proxy disabled for client {} ONLY", client_id());
+    network_identity->clear_proxy_config();
+    dbgln("RequestServer: Proxy disabled for page {} ONLY", page_id);
 
     // SECURITY FIX: Removed global state mutation that disabled proxy on ALL connections.
     // Each connection manages its own state independently.
