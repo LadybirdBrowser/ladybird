@@ -124,7 +124,7 @@ m_network_identity = MUST(IPC::NetworkIdentity::create_for_page(client_id()));
 
 ---
 
-### 🟡 HIGH #5: No Proxy Availability Check
+### 🟡 MEDIUM #5: No Proxy Availability Check (PARTIALLY MITIGATED)
 **Location:** `Services/RequestServer/ConnectionFromClient.cpp:434-474`
 
 **Issue:** Applies proxy config without verifying reachability
@@ -134,14 +134,28 @@ m_network_identity->set_proxy_config(tor_proxy);
 // What if Tor isn't running? Configuration silently fails.
 ```
 
-**Note:** `ProxyValidator` utility exists at `/Libraries/LibIPC/ProxyValidator.h` but is UNUSED
+**Original Status:** `ProxyValidator` utility exists at `/Libraries/LibIPC/ProxyValidator.h` but is UNUSED
 
-**Impact:**
-- Silent fallback to direct connection (privacy leak)
-- No user notification of Tor failure
-- DNS leaks when proxy unavailable
+**Fix Applied (Week 2):** ProxyValidator integrated, but has known limitations
 
-**Severity:** MEDIUM (CVSS 6.5)
+**Current Status (Week 3.5 - Fix #5 Improvement):**
+- ✅ ProxyValidator is now called before applying config
+- ⚠️ Validation is SYNCHRONOUS and can block event loop (30-120 seconds)
+- ⚠️ Validation failures are treated as WARNINGS, not ERRORS
+- ✅ Config is applied even if validation fails (prevents unencrypted fallback)
+
+**Known Limitations:**
+1. **Blocking Behavior:** Validation blocks RequestServer event loop
+2. **UI Freezes:** Can cause temporary UI hang during validation
+3. **Long Timeouts:** System TCP timeout is 30-120 seconds
+4. **No Async Support:** Requires event loop integration (future work)
+
+**Security Decision:**
+- Applying config even on validation failure is SAFER than silent fallback
+- If proxy is down, network requests will fail (correct behavior)
+- User gets explicit error (request failed) rather than privacy leak
+
+**Severity:** MEDIUM (CVSS 6.5) → ⚠️ PARTIALLY MITIGATED (blocking behavior remains)
 
 ---
 

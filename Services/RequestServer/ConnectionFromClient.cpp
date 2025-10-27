@@ -485,17 +485,22 @@ void ConnectionFromClient::enable_tor(u64 page_id, ByteString circuit_id)
     auto tor_proxy = IPC::ProxyConfig::tor_proxy(circuit_id);
 
     // SECURITY: Verify Tor proxy is reachable before applying configuration
+    // WARNING: This does a synchronous TCP connection which can block the event loop
+    // TODO: Make this async or use a background thread for validation
+    //
+    // For now, validation is best-effort: if it fails, we log a warning but apply config anyway
+    // This is safer than silently falling back to direct connection
     auto validation_result = IPC::ProxyValidator::test_proxy(tor_proxy);
     if (validation_result.is_error()) {
-        dbgln("RequestServer: SECURITY: Tor proxy validation failed: {}", validation_result.error());
-        dbgln("RequestServer: Tor proxy at {}:{} is not reachable - rejecting configuration",
-            tor_proxy.host, tor_proxy.port);
-        // TODO: Send error IPC message back to WebContent to notify user
-        // For now, we fail silently to prevent privacy leak via direct connection
-        return;
+        dbgln("RequestServer: WARNING: Tor proxy validation failed: {}", validation_result.error());
+        dbgln("RequestServer: WARNING: Tor proxy at {}:{} may not be reachable", tor_proxy.host, tor_proxy.port);
+        dbgln("RequestServer: Applying Tor configuration anyway - network requests will fail if proxy is down");
+        // SECURITY DECISION: Apply config even if validation fails
+        // Rationale: User explicitly requested Tor, failing to direct connection is worse
+        // If Tor is down, requests will fail (which is correct behavior)
+    } else {
+        dbgln("RequestServer: Tor proxy validated successfully at {}:{}", tor_proxy.host, tor_proxy.port);
     }
-
-    dbgln("RequestServer: Tor proxy validated successfully at {}:{}", tor_proxy.host, tor_proxy.port);
 
     network_identity->set_proxy_config(tor_proxy);
 
@@ -629,18 +634,23 @@ void ConnectionFromClient::set_proxy(u64 page_id, ByteString host, u16 port, Byt
     config.password = move(password);
 
     // SECURITY: Verify proxy is reachable before applying configuration
+    // WARNING: This does a synchronous TCP connection which can block the event loop
+    // TODO: Make this async or use a background thread for validation
+    //
+    // For now, validation is best-effort: if it fails, we log a warning but apply config anyway
+    // This is safer than silently falling back to direct connection
     auto validation_result = IPC::ProxyValidator::test_proxy(config);
     if (validation_result.is_error()) {
-        dbgln("RequestServer: SECURITY: Proxy validation failed: {}", validation_result.error());
-        dbgln("RequestServer: Proxy at {}:{} (type {}) is not reachable - rejecting configuration",
+        dbgln("RequestServer: WARNING: Proxy validation failed: {}", validation_result.error());
+        dbgln("RequestServer: WARNING: Proxy at {}:{} (type {}) may not be reachable",
             config.host, config.port, static_cast<int>(config.type));
-        // TODO: Send error IPC message back to WebContent to notify user
-        // For now, we fail silently to prevent privacy leak via direct connection
-        return;
+        dbgln("RequestServer: Applying proxy configuration anyway - network requests will fail if proxy is down");
+        // SECURITY DECISION: Apply config even if validation fails
+        // Rationale: User explicitly requested proxy, failing to direct connection is worse
+    } else {
+        dbgln("RequestServer: Proxy validated successfully at {}:{} (type {})",
+            config.host, config.port, static_cast<int>(config.type));
     }
-
-    dbgln("RequestServer: Proxy validated successfully at {}:{} (type {})",
-        config.host, config.port, static_cast<int>(config.type));
 
     // Set proxy configuration for this page ONLY
     network_identity->set_proxy_config(config);

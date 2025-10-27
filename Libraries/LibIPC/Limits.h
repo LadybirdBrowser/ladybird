@@ -90,4 +90,9 @@ static constexpr size_t MaxCircuitIDLength = 128;
 static constexpr size_t DefaultRateLimit = 1000; // messages per second
 static constexpr size_t MaxRateLimit = 10000;    // maximum configurable rate
 
+// Proxy validation timeout (milliseconds)
+// Rationale: Prevent blocking event loop during proxy validation
+// Short timeout prevents UI freezes while still detecting most failures
+static constexpr u32 ProxyValidationTimeoutMS = 2000; // 2 seconds
+
 }
