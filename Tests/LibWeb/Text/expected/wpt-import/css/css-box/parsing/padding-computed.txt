@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	Property padding value '10px'
+Pass	Property padding value '10px 20px 30px 40px'
+Pass	Property padding-top value '10px'
+Pass	Property padding-right value '20px'
+Pass	Property padding-bottom value '30px'
+Pass	Property padding-left value '40px'
+Pass	Property padding value '20%'
+Pass	Property padding value '10px 20% 30% 40px'
+Pass	Property padding-right value '20%'
+Pass	Property padding-top value 'calc(10% - 40px)'
+Pass	Property padding-right value 'calc(10% + 40px)'
+Pass	Property padding-bottom value 'calc(10px - 0.5em)'
+Pass	Property padding-left value 'calc(10px + 0.5em)'
