@@ -1,9 +1,7 @@
-#include <AK/StringBuilder.h>
 #include <LibWeb/MediaSession/ChapterInformation.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/Bindings/ChapterInformationPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/MediaSession/Utils.h>
 
 namespace Web::MediaSession {

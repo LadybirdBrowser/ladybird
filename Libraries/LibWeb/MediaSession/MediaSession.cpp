@@ -1,7 +1,3 @@
-#include "LibWeb/Bindings/HTMLFormElementPrototype.h"
-#include "LibWeb/DOM/Document.h"
-#include "LibWeb/HTML/Scripting/Environments.h"
-#include "LibWeb/WebIDL/Promise.h"
 #include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
