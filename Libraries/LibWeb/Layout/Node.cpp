@@ -80,27 +80,37 @@ bool Node::can_contain_boxes_with_position_absolute() const
     if (!is<Box>(*this))
         return false;
 
-    if (computed_values().position() != CSS::Positioning::Static)
+    auto const& computed_values = this->computed_values();
+
+    if (computed_values.position() != CSS::Positioning::Static)
         return true;
 
     if (is<Viewport>(*this))
         return true;
 
+    // https://drafts.csswg.org/css-will-change/#will-change
+    // If any non-initial value of a property would cause the element to generate a containing block for absolutely
+    // positioned elements, specifying that property in will-change must cause the element to generate a containing
+    // block for absolutely positioned elements.
+    auto will_change_property = [&](CSS::PropertyID property_id) {
+        return computed_values.will_change().has_property(property_id);
+    };
+
     // https://w3c.github.io/csswg-drafts/css-transforms-1/#propdef-transform
     // Any computed value other than none for the transform affects containing block and stacking context
-    if (!computed_values().transformations().is_empty())
+    if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
         return true;
-    if (computed_values().translate().has_value())
+    if (computed_values.translate().has_value() || will_change_property(CSS::PropertyID::Translate))
         return true;
-    if (computed_values().rotate().has_value())
+    if (computed_values.rotate().has_value() || will_change_property(CSS::PropertyID::Rotate))
         return true;
-    if (computed_values().scale().has_value())
+    if (computed_values.scale().has_value() || will_change_property(CSS::PropertyID::Scale))
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
     // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
     // a containing block for all descendants, just like the 'transform' property does.
-    if (computed_values().perspective().has_value())
+    if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
@@ -108,7 +118,7 @@ bool Node::can_contain_boxes_with_position_absolute() const
     //    containing block.
     // 4. The paint containment box establishes an absolute positioning containing block and a fixed positioning
     //    containing block.
-    if (has_layout_containment() || has_paint_containment())
+    if (has_layout_containment() || has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
         return true;
 
     return false;
