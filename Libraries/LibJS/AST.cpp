@@ -87,39 +87,6 @@ void LabelledStatement::dump(int indent) const
     m_labelled_item->dump(indent + 2);
 }
 
-// 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
-Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Utf16FlyString given_name) const
-{
-    auto& realm = *vm.current_realm();
-
-    if (given_name.is_empty())
-        given_name = Utf16FlyString {};
-
-    auto own_name = name();
-    auto has_own_name = !own_name.is_empty();
-
-    auto const& used_name = has_own_name ? own_name : given_name;
-
-    auto environment = GC::Ref { *vm.running_execution_context().lexical_environment };
-    if (has_own_name) {
-        VERIFY(environment);
-        environment = new_declarative_environment(*environment);
-        MUST(environment->create_immutable_binding(vm, own_name, false));
-    }
-
-    auto private_environment = vm.running_execution_context().private_environment;
-
-    auto closure = ECMAScriptFunctionObject::create_from_function_node(*this, used_name, realm, environment, private_environment);
-
-    // FIXME: 6. Perform SetFunctionName(closure, name).
-    // FIXME: 7. Perform MakeConstructor(closure).
-
-    if (has_own_name)
-        MUST(environment->initialize_binding(vm, own_name, closure, Environment::InitializeBindingHint::Normal));
-
-    return closure;
-}
-
 Optional<Utf16String> CallExpression::expression_string() const
 {
     if (is<Identifier>(*m_callee))

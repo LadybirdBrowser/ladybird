@@ -791,7 +791,6 @@ public:
     bool uses_this_from_environment() const { return m_parsing_insights.uses_this_from_environment; }
 
     virtual bool has_name() const = 0;
-    virtual Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const = 0;
 
     GC::Ptr<SharedFunctionInstanceData> shared_data() const;
     void set_shared_data(GC::Ptr<SharedFunctionInstanceData>) const;
@@ -841,7 +840,6 @@ public:
     void set_should_do_additional_annexB_steps() { m_is_hoisted = true; }
 
     bool has_name() const override { return true; }
-    Value instantiate_ordinary_function_expression(VM&, Utf16FlyString) const override { VERIFY_NOT_REACHED(); }
 
     virtual ~FunctionDeclaration() { }
 
@@ -867,8 +865,6 @@ public:
     Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     bool has_name() const override { return !name().is_empty(); }
-
-    Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const override;
 
     virtual ~FunctionExpression() { }
 
