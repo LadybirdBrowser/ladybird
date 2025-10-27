@@ -233,7 +233,7 @@ public:
 
     virtual bool eligible_for_own_property_enumeration_fast_path() const { return true; }
 
-    virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const&) { return nullptr; }
+    virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined([[maybe_unused]] Value next_method) { return nullptr; }
 
     virtual bool is_array_iterator_prototype() const { return false; }
     virtual bool is_map_iterator_prototype() const { return false; }

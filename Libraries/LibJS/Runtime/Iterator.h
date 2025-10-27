@@ -17,31 +17,27 @@
 
 namespace JS {
 
+struct IteratorRecordImpl {
+    bool done { false };      // [[Done]]
+    GC::Ptr<Object> iterator; // [[Iterator]]
+    Value next_method;        // [[NextMethod]]
+};
+
 // 7.4.1 Iterator Records, https://tc39.es/ecma262/#sec-iterator-records
-class JS_API IteratorRecord final : public Cell {
+class JS_API IteratorRecord final : public Cell
+    , public IteratorRecordImpl {
     GC_CELL(IteratorRecord, Cell);
     GC_DECLARE_ALLOCATOR(IteratorRecord);
 
 public:
     IteratorRecord(GC::Ptr<Object> iterator, Value next_method, bool done)
-        : done(done)
-        , iterator(iterator)
-        , next_method(next_method)
+        : IteratorRecordImpl(done, iterator, next_method)
     {
     }
-
-    bool done { false };      // [[Done]]
-    GC::Ptr<Object> iterator; // [[Iterator]]
-    Value next_method;        // [[NextMethod]]
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 };
-
-// msvc abi semantics about layout with inheritance differ from Sys-V
-#if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(IteratorRecord) == 32);
-#endif
 
 class Iterator : public Object {
     JS_OBJECT(Iterator, Object);
@@ -103,16 +99,18 @@ using IterationResultOrDone = Variant<IterationResult, IterationDone>;
     })
 
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM&, Object&);
+JS_API ThrowCompletionOr<IteratorRecordImpl> get_iterator_from_method_impl(VM&, Value, GC::Ref<FunctionObject>);
 JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM&, Value, GC::Ref<FunctionObject>);
+JS_API ThrowCompletionOr<IteratorRecordImpl> get_iterator_impl(VM&, Value, IteratorHint);
 JS_API ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
 ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM&, Value, PrimitiveHandling);
-JS_API ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
+JS_API ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM&, IteratorRecordImpl&, Optional<Value> = {});
 JS_API ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
 JS_API ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
-JS_API ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecord&);
-JS_API ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
-Completion iterator_close(VM&, IteratorRecord const&, Completion);
-Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
+JS_API ThrowCompletionOr<IterationResultOrDone> iterator_step(VM&, IteratorRecordImpl&);
+JS_API ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecordImpl&);
+Completion iterator_close(VM&, IteratorRecordImpl const&, Completion);
+Completion async_iterator_close(VM&, IteratorRecordImpl const&, Completion);
 JS_API GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
 JS_API ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
 ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);

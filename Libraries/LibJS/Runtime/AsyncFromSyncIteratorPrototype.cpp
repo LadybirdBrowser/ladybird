@@ -261,7 +261,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
 }
 
 // 27.1.4.1 CreateAsyncFromSyncIterator ( syncIteratorRecord ), https://tc39.es/ecma262/#sec-createasyncfromsynciterator
-GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM& vm, GC::Ref<IteratorRecord> sync_iterator_record)
+IteratorRecordImpl create_async_from_sync_iterator(VM& vm, GC::Ref<IteratorRecord> sync_iterator_record)
 {
     auto& realm = *vm.current_realm();
 
@@ -273,7 +273,7 @@ GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM& vm, GC::Ref<Iterator
     auto next_method = MUST(async_iterator->get(vm.names.next));
 
     // 4. Let iteratorRecord be the Iterator Record { [[Iterator]]: asyncIterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
-    auto iterator_record = vm.heap().allocate<IteratorRecord>(async_iterator, next_method, false);
+    IteratorRecordImpl iterator_record { .done = false, .iterator = async_iterator, .next_method = next_method };
 
     // 5. Return iteratorRecord.
     return iterator_record;

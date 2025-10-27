@@ -594,8 +594,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(GetLengthWithThis);
             HANDLE_INSTRUCTION(GetMethod);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNewTarget);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNextMethodFromIteratorRecord);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetObjectFromIteratorRecord);
             HANDLE_INSTRUCTION(GetObjectPropertyIterator);
             HANDLE_INSTRUCTION(GetPrivateById);
             HANDLE_INSTRUCTION(GetBinding);
@@ -1686,7 +1684,7 @@ class JS_API PropertyNameIterator final
 public:
     virtual ~PropertyNameIterator() override = default;
 
-    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const&) override { return this; }
+    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(Value) override { return this; }
     ThrowCompletionOr<void> next(VM& vm, bool& done, Value& value) override
     {
         while (true) {
@@ -1731,7 +1729,7 @@ private:
 GC_DEFINE_ALLOCATOR(PropertyNameIterator);
 
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
-inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interpreter, Value value)
+inline ThrowCompletionOr<IteratorRecordImpl> get_object_property_iterator(Interpreter& interpreter, Value value)
 {
     // While the spec does provide an algorithm, it allows us to implement it ourselves so long as we meet the following invariants:
     //    1- Returned property keys do not include keys that are Symbols
@@ -1798,8 +1796,7 @@ inline ThrowCompletionOr<Value> get_object_property_iterator(Interpreter& interp
     }
 
     auto iterator = interpreter.realm().create<PropertyNameIterator>(interpreter.realm(), object, move(properties));
-
-    return vm.heap().allocate<IteratorRecord>(iterator, js_undefined(), false);
+    return IteratorRecordImpl { .done = false, .iterator = iterator, .next_method = js_undefined() };
 }
 
 ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const
@@ -2169,7 +2166,25 @@ ThrowCompletionOr<void> ImportCall::execute_impl(Bytecode::Interpreter& interpre
 
 ThrowCompletionOr<void> IteratorToArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), TRY(iterator_to_array(interpreter.vm(), interpreter.get(iterator()))));
+    auto& vm = interpreter.vm();
+    auto& iterator_object = interpreter.get(m_iterator_object).as_object();
+    auto iterator_next_method = interpreter.get(m_iterator_next_method);
+    auto iterator_done_property = interpreter.get(m_iterator_done_property).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
+
+    auto array = MUST(Array::create(*vm.current_realm(), 0));
+    size_t index = 0;
+
+    while (true) {
+        auto value = TRY(iterator_step_value(vm, iterator_record));
+        if (!value.has_value())
+            break;
+
+        MUST(array->create_data_property_or_throw(index, value.release_value()));
+        index++;
+    }
+
+    interpreter.set(dst(), array);
     return {};
 }
 
@@ -3287,20 +3302,11 @@ ThrowCompletionOr<void> DeleteByValueWithThis::execute_impl(Bytecode::Interprete
 ThrowCompletionOr<void> GetIterator::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    interpreter.set(dst(), TRY(get_iterator(vm, interpreter.get(iterable()), m_hint)));
+    auto iterator_record = TRY(get_iterator_impl(vm, interpreter.get(iterable()), m_hint));
+    interpreter.set(m_dst_iterator_object, iterator_record.iterator);
+    interpreter.set(m_dst_iterator_next, iterator_record.next_method);
+    interpreter.set(m_dst_iterator_done, Value(iterator_record.done));
     return {};
-}
-
-void GetObjectFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
-    interpreter.set(m_object, iterator_record.iterator);
-}
-
-void GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
-    interpreter.set(m_next_method, iterator_record.next_method);
 }
 
 ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3314,51 +3320,69 @@ ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpret
 
 ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto iterator_record = TRY(get_object_property_iterator(interpreter, interpreter.get(object())));
-    interpreter.set(dst(), iterator_record);
+    auto iterator_record = TRY(get_object_property_iterator(interpreter, interpreter.get(m_object)));
+    interpreter.set(m_dst_iterator_object, iterator_record.iterator);
+    interpreter.set(m_dst_iterator_next, iterator_record.next_method);
+    interpreter.set(m_dst_iterator_done, Value(iterator_record.done));
     return {};
 }
 
 ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
+    auto& iterator_object = interpreter.get(m_iterator_object).as_object();
+    auto iterator_next_method = interpreter.get(m_iterator_next);
+    auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
+    TRY(iterator_close(vm, iterator_record, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
     return {};
 }
 
 ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
+    auto& iterator_object = interpreter.get(m_iterator_object).as_object();
+    auto iterator_next_method = interpreter.get(m_iterator_next);
+    auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
-    TRY(async_iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
+    TRY(async_iterator_close(vm, iterator_record, Completion { m_completion_type, m_completion_value.value_or(js_undefined()) }));
     return {};
 }
 
 ThrowCompletionOr<void> IteratorNext::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
-    interpreter.set(dst(), TRY(iterator_next(vm, iterator_record)));
+    auto& iterator_object = interpreter.get(m_iterator_object).as_object();
+    auto iterator_next_method = interpreter.get(m_iterator_next);
+    auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
+    interpreter.set(m_dst, TRY(iterator_next(vm, iterator_record)));
+    if (iterator_done_property)
+        interpreter.set(m_iterator_done, Value(true));
     return {};
 }
 
 ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator_record = static_cast<IteratorRecord&>(interpreter.get(m_iterator_record).as_cell());
+    auto& iterator_object = interpreter.get(m_iterator_object).as_object();
+    auto iterator_next_method = interpreter.get(m_iterator_next);
+    auto iterator_done_property = interpreter.get(m_iterator_done).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
     auto iteration_result_or_done = TRY(iterator_step(vm, iterator_record));
+    if (iterator_done_property)
+        interpreter.set(m_iterator_done, Value(true));
     if (iteration_result_or_done.has<IterationDone>()) {
-        interpreter.set(dst_done(), Value(true));
+        interpreter.set(m_dst_done, Value(true));
         return {};
     }
     auto& iteration_result = iteration_result_or_done.get<IterationResult>();
-    interpreter.set(dst_done(), TRY(iteration_result.done));
-    interpreter.set(dst_value(), TRY(iteration_result.value));
+    interpreter.set(m_dst_done, TRY(iteration_result.done));
+    interpreter.set(m_dst_value, TRY(iteration_result.value));
     return {};
 }
 
@@ -3456,9 +3480,11 @@ ByteString ArrayAppend::to_byte_string_impl(Bytecode::Executable const& executab
 
 ByteString IteratorToArray::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    return ByteString::formatted("IteratorToArray {}, {}",
+    return ByteString::formatted("IteratorToArray {}, {}, {}, {}",
         format_operand("dst"sv, dst(), executable),
-        format_operand("iterator"sv, iterator(), executable));
+        format_operand("iterator_object"sv, m_iterator_object, executable),
+        format_operand("iterator_next"sv, m_iterator_next_method, executable),
+        format_operand("iterator_done"sv, m_iterator_done_property, executable));
 }
 
 ByteString NewObject::to_byte_string_impl(Bytecode::Executable const& executable) const
@@ -4037,8 +4063,10 @@ ByteString DeleteByValueWithThis::to_byte_string_impl(Bytecode::Executable const
 ByteString GetIterator::to_byte_string_impl(Executable const& executable) const
 {
     auto hint = m_hint == IteratorHint::Sync ? "sync" : "async";
-    return ByteString::formatted("GetIterator {}, {}, hint:{}",
-        format_operand("dst"sv, m_dst, executable),
+    return ByteString::formatted("GetIterator {}, {}, {}, {}, hint:{}",
+        format_operand("dst_iterator_object"sv, m_dst_iterator_object, executable),
+        format_operand("dst_iterator_next"sv, m_dst_iterator_next, executable),
+        format_operand("dst_iterator_done"sv, m_dst_iterator_done, executable),
         format_operand("iterable"sv, m_iterable, executable),
         hint);
 }
@@ -4053,50 +4081,64 @@ ByteString GetMethod::to_byte_string_impl(Bytecode::Executable const& executable
 
 ByteString GetObjectPropertyIterator::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    return ByteString::formatted("GetObjectPropertyIterator {}, {}",
-        format_operand("dst"sv, dst(), executable),
-        format_operand("object"sv, object(), executable));
+    return ByteString::formatted("GetObjectPropertyIterator {}, {}, {}, {}",
+        format_operand("dst_iterator_object"sv, m_dst_iterator_object, executable),
+        format_operand("dst_iterator_next"sv, m_dst_iterator_next, executable),
+        format_operand("dst_iterator_done"sv, m_dst_iterator_done, executable),
+        format_operand("object"sv, m_object, executable));
 }
 
 ByteString IteratorClose::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     if (!m_completion_value.has_value())
-        return ByteString::formatted("IteratorClose {}, completion_type={} completion_value=<empty>",
-            format_operand("iterator_record"sv, m_iterator_record, executable),
+        return ByteString::formatted("IteratorClose {}, {}, {}, completion_type={} completion_value=<empty>",
+            format_operand("iterator_object"sv, m_iterator_object, executable),
+            format_operand("iterator_next"sv, m_iterator_next, executable),
+            format_operand("iterator_done"sv, m_iterator_done, executable),
             to_underlying(m_completion_type));
 
     auto completion_value_string = m_completion_value->to_string_without_side_effects();
-    return ByteString::formatted("IteratorClose {}, completion_type={} completion_value={}",
-        format_operand("iterator_record"sv, m_iterator_record, executable),
+    return ByteString::formatted("IteratorClose {}, {}, {} completion_type={} completion_value={}",
+        format_operand("iterator_object"sv, m_iterator_object, executable),
+        format_operand("iterator_next"sv, m_iterator_next, executable),
+        format_operand("iterator_done"sv, m_iterator_done, executable),
         to_underlying(m_completion_type), completion_value_string);
 }
 
 ByteString AsyncIteratorClose::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     if (!m_completion_value.has_value()) {
-        return ByteString::formatted("AsyncIteratorClose {}, completion_type:{} completion_value:<empty>",
-            format_operand("iterator_record"sv, m_iterator_record, executable),
+        return ByteString::formatted("AsyncIteratorClose {}, {}, {}, completion_type:{} completion_value:<empty>",
+            format_operand("iterator_object"sv, m_iterator_object, executable),
+            format_operand("iterator_next"sv, m_iterator_next, executable),
+            format_operand("iterator_done"sv, m_iterator_done, executable),
             to_underlying(m_completion_type));
     }
 
-    return ByteString::formatted("AsyncIteratorClose {}, completion_type:{}, completion_value:{}",
-        format_operand("iterator_record"sv, m_iterator_record, executable),
+    return ByteString::formatted("AsyncIteratorClose {}, {}, {}, completion_type:{}, completion_value:{}",
+        format_operand("iterator_object"sv, m_iterator_object, executable),
+        format_operand("iterator_next"sv, m_iterator_next, executable),
+        format_operand("iterator_done"sv, m_iterator_done, executable),
         to_underlying(m_completion_type), m_completion_value);
 }
 
 ByteString IteratorNext::to_byte_string_impl(Executable const& executable) const
 {
-    return ByteString::formatted("IteratorNext {}, {}",
+    return ByteString::formatted("IteratorNext {}, {}, {}, {}",
         format_operand("dst"sv, m_dst, executable),
-        format_operand("iterator_record"sv, m_iterator_record, executable));
+        format_operand("iterator_object"sv, m_iterator_object, executable),
+        format_operand("iterator_next"sv, m_iterator_next, executable),
+        format_operand("iterator_done"sv, m_iterator_done, executable));
 }
 
 ByteString IteratorNextUnpack::to_byte_string_impl(Executable const& executable) const
 {
-    return ByteString::formatted("IteratorNextUnpack {}, {}, {}",
+    return ByteString::formatted("IteratorNextUnpack {}, {}, {}, {}, {}",
         format_operand("dst_value"sv, m_dst_value, executable),
         format_operand("dst_done"sv, m_dst_done, executable),
-        format_operand("iterator_record"sv, m_iterator_record, executable));
+        format_operand("iterator_object"sv, m_iterator_object, executable),
+        format_operand("iterator_next"sv, m_iterator_next, executable),
+        format_operand("iterator_done"sv, m_iterator_done, executable));
 }
 
 ByteString ResolveThisBinding::to_byte_string_impl(Bytecode::Executable const&) const
@@ -4149,20 +4191,6 @@ ByteString LeaveFinally::to_byte_string_impl(Bytecode::Executable const&) const
 ByteString RestoreScheduledJump::to_byte_string_impl(Bytecode::Executable const&) const
 {
     return ByteString::formatted("RestoreScheduledJump");
-}
-
-ByteString GetObjectFromIteratorRecord::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    return ByteString::formatted("GetObjectFromIteratorRecord {}, {}",
-        format_operand("object"sv, m_object, executable),
-        format_operand("iterator_record"sv, m_iterator_record, executable));
-}
-
-ByteString GetNextMethodFromIteratorRecord::to_byte_string_impl(Bytecode::Executable const& executable) const
-{
-    return ByteString::formatted("GetNextMethodFromIteratorRecord {}, {}",
-        format_operand("next_method"sv, m_next_method, executable),
-        format_operand("iterator_record"sv, m_iterator_record, executable));
 }
 
 ByteString End::to_byte_string_impl(Bytecode::Executable const& executable) const

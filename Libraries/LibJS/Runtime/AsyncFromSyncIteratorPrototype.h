@@ -31,6 +31,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(throw_);
 };
 
-GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM&, GC::Ref<IteratorRecord> sync_iterator);
+IteratorRecordImpl create_async_from_sync_iterator(VM&, GC::Ref<IteratorRecord> sync_iterator);
 
 }
