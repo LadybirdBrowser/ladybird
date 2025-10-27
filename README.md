@@ -14,7 +14,7 @@ This fork maintains sync with upstream Ladybird while adding experimental featur
 - VPN/Proxy Support: Per-tab VPN and proxy configuration with NetworkIdentity management
 - Development Documentation: Comprehensive guides for development workflow
 
-See [FORK_README.md](FORK_README.md) for detailed documentation of custom additions.
+See [docs/FORK.md](docs/FORK.md) for detailed documentation of custom additions.
 
 ---
 

@@ -61,3 +61,11 @@ Meta/CMake/vcpkg/user-variables.cmake
 .DS_Store
 
 __pycache__
+
+# Build artifacts and temporary files
+CMakeCache.txt
+*.log
+*.csv
+CMakeFiles/
+Lagom/
+Testing/
