@@ -20,6 +20,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 
 namespace Web::HTML {
 
@@ -77,6 +78,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
     visitor.visit(m_battery_promise);
+    visitor.visit(m_media_session);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -149,6 +151,7 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
     return *m_media_capabilities;
 }
 
+<<<<<<< HEAD
 // https://w3c.github.io/battery/#the-getbattery-method
 GC::Ref<WebIDL::Promise> Navigator::get_battery()
 {
@@ -174,6 +177,16 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 
     // 4. Return this.[[BatteryPromise]].
     return *m_battery_promise;
+||||||| parent of 70ace2db1e (LibWeb: Initial implementation of MediaSession)
+=======
+GC::Ref<MediaSession::MediaSession> Navigator::media_session()
+{
+
+    auto& window = as<HTML::Window>(HTML::entry_global_object());
+    if (!m_media_session)
+        m_media_session = realm().create<MediaSession::MediaSession>(window);
+    return *m_media_session;
+>>>>>>> 70ace2db1e (LibWeb: Initial implementation of MediaSession)
 }
 
 }
