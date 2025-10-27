@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	currentColor is computed when the attribute is set, not when it is painted
