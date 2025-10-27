@@ -34,8 +34,13 @@ enum class ConstructorKind : u8 {
     Derived,
 };
 
-class SharedFunctionInstanceData : public RefCounted<SharedFunctionInstanceData> {
+class SharedFunctionInstanceData final : public GC::Cell {
+    GC_CELL(SharedFunctionInstanceData, GC::Cell);
+    GC_DECLARE_ALLOCATOR(SharedFunctionInstanceData);
+
 public:
+    virtual ~SharedFunctionInstanceData() override;
+
     SharedFunctionInstanceData(
         VM& vm,
         FunctionKind,
@@ -48,6 +53,8 @@ public:
         bool is_arrow_function,
         FunctionParsingInsights const&,
         Vector<LocalVariable> local_variables_names);
+
+    mutable GC::Ptr<Bytecode::Executable> m_executable;
 
     RefPtr<FunctionParameters const> m_formal_parameters; // [[FormalParameters]]
     RefPtr<Statement const> m_ecmascript_code;            // [[ECMAScriptCode]]
@@ -96,6 +103,9 @@ public:
     Variant<PropertyKey, PrivateName, Empty> m_class_field_initializer_name; // [[ClassFieldInitializerName]]
     ConstructorKind m_constructor_kind : 1 { ConstructorKind::Base };        // [[ConstructorKind]]
     bool m_is_class_constructor : 1 { false };                               // [[IsClassConstructor]]
+
+private:
+    virtual void visit_edges(Visitor&) override;
 };
 
 // 10.2 ECMAScript Function Objects, https://tc39.es/ecma262/#sec-ecmascript-function-objects
@@ -134,7 +144,7 @@ public:
 
     void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_class_constructor = true; }
 
-    auto& bytecode_executable() const { return m_bytecode_executable; }
+    auto& bytecode_executable() const { return shared_data().m_executable; }
 
     Environment* environment() { return m_environment; }
     virtual Realm* realm() const override { return &shape().realm(); }
@@ -184,7 +194,7 @@ public:
 
 private:
     ECMAScriptFunctionObject(
-        NonnullRefPtr<SharedFunctionInstanceData>,
+        GC::Ref<SharedFunctionInstanceData>,
         Environment* parent_environment,
         PrivateEnvironment* private_environment,
         Object& prototype);
@@ -202,11 +212,9 @@ private:
     void prepare_for_ordinary_call(VM&, ExecutionContext& callee_context, Object* new_target);
     void ordinary_call_bind_this(VM&, ExecutionContext&, Value this_argument);
 
-    NonnullRefPtr<SharedFunctionInstanceData> m_shared_data;
+    GC::Ref<SharedFunctionInstanceData> m_shared_data;
 
     GC::Ptr<PrimitiveString> m_name_string;
-
-    GC::Ptr<Bytecode::Executable> m_bytecode_executable;
 
     // Internal Slots of ECMAScript Function Objects, https://tc39.es/ecma262/#table-internal-slots-of-ecmascript-function-objects
     GC::Ptr<Environment> m_environment;                // [[Environment]]

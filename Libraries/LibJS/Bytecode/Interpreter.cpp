@@ -250,7 +250,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 8. Set the PrivateEnvironment of scriptContext to null.
 
     // NOTE: This isn't in the spec, but we require it.
-    script_context->is_strict_mode = script_record.parse_node().is_strict_mode();
+    script_context->is_strict_mode = script_record.is_strict_mode();
 
     // 9. Suspend the currently running execution context.
     // 10. Push scriptContext onto the execution context stack; scriptContext is now the running execution context.
@@ -558,7 +558,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(BitwiseNot);
             HANDLE_INSTRUCTION(BitwiseOr);
             HANDLE_INSTRUCTION(BitwiseXor);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(BlockDeclarationInstantiation);
             HANDLE_INSTRUCTION(Call);
             HANDLE_INSTRUCTION(CallBuiltin);
             HANDLE_INSTRUCTION(CallConstruct);
@@ -569,6 +568,8 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Catch);
             HANDLE_INSTRUCTION(ConcatString);
             HANDLE_INSTRUCTION(CopyObjectExcludingProperties);
+            HANDLE_INSTRUCTION(CreateImmutableBinding);
+            HANDLE_INSTRUCTION(CreateMutableBinding);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateLexicalEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateVariableEnvironment);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreatePrivateEnvironment);
@@ -1333,15 +1334,44 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter
     return {};
 }
 
-inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<IdentifierTableIndex> const& lhs_name, Optional<Operand> const& home_object)
+// 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
+static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString given_name)
 {
+    auto own_name = function_node.name();
+    auto has_own_name = !own_name.is_empty();
+
+    auto const& used_name = has_own_name ? own_name : given_name;
+
+    auto environment = GC::Ref { *interpreter.running_execution_context().lexical_environment };
+    if (has_own_name) {
+        VERIFY(environment);
+        environment = new_declarative_environment(*environment);
+        MUST(environment->create_immutable_binding(interpreter.vm(), own_name, false));
+    }
+
+    auto private_environment = interpreter.running_execution_context().private_environment;
+
+    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
+
+    // FIXME: 6. Perform SetFunctionName(closure, name).
+    // FIXME: 7. Perform MakeConstructor(closure).
+
+    if (has_own_name)
+        MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
+
+    return closure;
+}
+
+inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const& lhs_name, Optional<Operand> const& home_object)
+{
+    auto& vm = interpreter.vm();
     Value value;
 
     if (!function_node.has_name()) {
         Utf16FlyString name;
         if (lhs_name.has_value())
-            name = vm.bytecode_interpreter().current_executable().get_identifier(lhs_name.value());
-        value = function_node.instantiate_ordinary_function_expression(vm, name);
+            name = interpreter.get_identifier(lhs_name.value());
+        value = instantiate_ordinary_function_expression(interpreter, function_node, name);
     } else {
         value = ECMAScriptFunctionObject::create_from_function_node(
             function_node,
@@ -1352,7 +1382,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
     }
 
     if (home_object.has_value()) {
-        auto home_object_value = vm.bytecode_interpreter().get(home_object.value());
+        auto home_object_value = interpreter.get(home_object.value());
         static_cast<ECMAScriptFunctionObject&>(value.as_function()).set_home_object(&home_object_value.as_object());
     }
 
@@ -2433,6 +2463,8 @@ void CreateLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) 
     };
     auto& running_execution_context = interpreter.running_execution_context();
     running_execution_context.saved_lexical_environments.append(make_and_swap_envs(running_execution_context.lexical_environment));
+    if (m_dst.has_value())
+        interpreter.set(*m_dst, running_execution_context.lexical_environment);
 }
 
 void CreatePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3064,8 +3096,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
 void NewFunction::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& vm = interpreter.vm();
-    interpreter.set(dst(), new_function(vm, m_function_node, m_lhs_name, m_home_object));
+    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object));
 }
 
 void Return::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3433,16 +3464,6 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
     return {};
 }
 
-void BlockDeclarationInstantiation::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto& vm = interpreter.vm();
-    auto old_environment = interpreter.running_execution_context().lexical_environment;
-    auto& running_execution_context = interpreter.running_execution_context();
-    running_execution_context.saved_lexical_environments.append(old_environment);
-    running_execution_context.lexical_environment = new_declarative_environment(*old_environment);
-    m_scope_node.block_declaration_instantiation(vm, running_execution_context.lexical_environment);
-}
-
 ByteString Mov::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     return ByteString::formatted("Mov {}, {}",
@@ -3565,8 +3586,10 @@ ByteString DeleteVariable::to_byte_string_impl(Bytecode::Executable const& execu
     return ByteString::formatted("DeleteVariable {}", executable.identifier_table->get(m_identifier));
 }
 
-ByteString CreateLexicalEnvironment::to_byte_string_impl(Bytecode::Executable const&) const
+ByteString CreateLexicalEnvironment::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
+    if (m_dst.has_value())
+        return ByteString::formatted("CreateLexicalEnvironment {}", format_operand("dst"sv, *m_dst, executable));
     return "CreateLexicalEnvironment"sv;
 }
 
@@ -4151,11 +4174,6 @@ ByteString TypeofBinding::to_byte_string_impl(Bytecode::Executable const& execut
         executable.identifier_table->get(m_identifier));
 }
 
-ByteString BlockDeclarationInstantiation::to_byte_string_impl(Bytecode::Executable const&) const
-{
-    return "BlockDeclarationInstantiation"sv;
-}
-
 ByteString ImportCall::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
     return ByteString::formatted("ImportCall {}, {}, {}",
@@ -4232,6 +4250,34 @@ ByteString SetCompletionType::to_byte_string_impl(Bytecode::Executable const& ex
     return ByteString::formatted("SetCompletionType {}, type={}",
         format_operand("completion"sv, m_completion, executable),
         to_underlying(m_type));
+}
+
+ByteString CreateImmutableBinding::to_byte_string_impl(Executable const& executable) const
+{
+    return ByteString::formatted("CreateImmutableBinding {} {} (strict: {})",
+        format_operand("environment"sv, m_environment, executable),
+        executable.get_identifier(m_identifier),
+        m_strict);
+}
+
+ThrowCompletionOr<void> CreateImmutableBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& environment = as<Environment>(interpreter.get(m_environment).as_cell());
+    return environment.create_immutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_strict);
+}
+
+ByteString CreateMutableBinding::to_byte_string_impl(Executable const& executable) const
+{
+    return ByteString::formatted("CreateMutableBinding {} {} (can_be_deleted: {})",
+        format_operand("environment"sv, m_environment, executable),
+        executable.get_identifier(m_identifier),
+        m_can_be_deleted);
+}
+
+ThrowCompletionOr<void> CreateMutableBinding::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& environment = as<Environment>(interpreter.get(m_environment).as_cell());
+    return environment.create_mutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_can_be_deleted);
 }
 
 }

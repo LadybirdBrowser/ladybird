@@ -176,12 +176,6 @@ public:
         : ASTNode(move(source_range))
     {
     }
-
-    Bytecode::Executable* bytecode_executable() const { return m_bytecode_executable; }
-    void set_bytecode_executable(Bytecode::Executable* bytecode_executable) { m_bytecode_executable = make_root(bytecode_executable); }
-
-private:
-    GC::Root<Bytecode::Executable> m_bytecode_executable;
 };
 
 // 14.13 Labelled Statements, https://tc39.es/ecma262/#sec-labelled-statements
@@ -339,8 +333,6 @@ public:
 
     ThrowCompletionOr<void> for_each_var_function_declaration_in_reverse_order(ThrowCompletionOrVoidCallback<FunctionDeclaration const&>&& callback) const;
     ThrowCompletionOr<void> for_each_var_scoped_variable_declaration(ThrowCompletionOrVoidCallback<VariableDeclaration const&>&& callback) const;
-
-    void block_declaration_instantiation(VM&, Environment*) const;
 
     ThrowCompletionOr<void> for_each_function_hoistable_with_annexB_extension(ThrowCompletionOrVoidCallback<FunctionDeclaration&>&& callback) const;
 
@@ -799,10 +791,9 @@ public:
     bool uses_this_from_environment() const { return m_parsing_insights.uses_this_from_environment; }
 
     virtual bool has_name() const = 0;
-    virtual Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const = 0;
 
-    RefPtr<SharedFunctionInstanceData> shared_data() const;
-    void set_shared_data(RefPtr<SharedFunctionInstanceData>) const;
+    GC::Ptr<SharedFunctionInstanceData> shared_data() const;
+    void set_shared_data(GC::Ptr<SharedFunctionInstanceData>) const;
 
     virtual ~FunctionNode();
 
@@ -824,7 +815,7 @@ private:
 
     Vector<LocalVariable> m_local_variables_names;
 
-    mutable RefPtr<SharedFunctionInstanceData> m_shared_data;
+    mutable GC::Root<SharedFunctionInstanceData> m_shared_data;
 };
 
 class FunctionDeclaration final
@@ -849,7 +840,6 @@ public:
     void set_should_do_additional_annexB_steps() { m_is_hoisted = true; }
 
     bool has_name() const override { return true; }
-    Value instantiate_ordinary_function_expression(VM&, Utf16FlyString) const override { VERIFY_NOT_REACHED(); }
 
     virtual ~FunctionDeclaration() { }
 
@@ -875,8 +865,6 @@ public:
     Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const;
 
     bool has_name() const override { return !name().is_empty(); }
-
-    Value instantiate_ordinary_function_expression(VM&, Utf16FlyString given_name) const override;
 
     virtual ~FunctionExpression() { }
 

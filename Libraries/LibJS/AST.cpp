@@ -87,39 +87,6 @@ void LabelledStatement::dump(int indent) const
     m_labelled_item->dump(indent + 2);
 }
 
-// 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
-Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Utf16FlyString given_name) const
-{
-    auto& realm = *vm.current_realm();
-
-    if (given_name.is_empty())
-        given_name = Utf16FlyString {};
-
-    auto own_name = name();
-    auto has_own_name = !own_name.is_empty();
-
-    auto const& used_name = has_own_name ? own_name : given_name;
-
-    auto environment = GC::Ref { *vm.running_execution_context().lexical_environment };
-    if (has_own_name) {
-        VERIFY(environment);
-        environment = new_declarative_environment(*environment);
-        MUST(environment->create_immutable_binding(vm, own_name, false));
-    }
-
-    auto private_environment = vm.running_execution_context().private_environment;
-
-    auto closure = ECMAScriptFunctionObject::create_from_function_node(*this, used_name, realm, environment, private_environment);
-
-    // FIXME: 6. Perform SetFunctionName(closure, name).
-    // FIXME: 7. Perform MakeConstructor(closure).
-
-    if (has_own_name)
-        MUST(environment->initialize_binding(vm, own_name, closure, Environment::InitializeBindingHint::Normal));
-
-    return closure;
-}
-
 Optional<Utf16String> CallExpression::expression_string() const
 {
     if (is<Identifier>(*m_callee))
@@ -853,14 +820,14 @@ FunctionNode::FunctionNode(RefPtr<Identifier const> name, ByteString source_text
 
 FunctionNode::~FunctionNode() = default;
 
-void FunctionNode::set_shared_data(RefPtr<SharedFunctionInstanceData> shared_data) const
+void FunctionNode::set_shared_data(GC::Ptr<SharedFunctionInstanceData> shared_data) const
 {
     m_shared_data = move(shared_data);
 }
 
-RefPtr<SharedFunctionInstanceData> FunctionNode::shared_data() const
+GC::Ptr<SharedFunctionInstanceData> FunctionNode::shared_data() const
 {
-    return m_shared_data;
+    return m_shared_data.ptr();
 }
 
 void FunctionNode::dump(int indent, ByteString const& class_name) const
@@ -1619,80 +1586,6 @@ bool ImportStatement::has_bound_name(Utf16FlyString const& name) const
     return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
         return entry.local_name == name;
     });
-}
-
-// 14.2.3 BlockDeclarationInstantiation ( code, env ), https://tc39.es/ecma262/#sec-blockdeclarationinstantiation
-void ScopeNode::block_declaration_instantiation(VM& vm, Environment* environment) const
-{
-    // See also B.3.2.6 Changes to BlockDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-blockdeclarationinstantiation
-    auto& realm = *vm.current_realm();
-
-    VERIFY(environment);
-
-    // 1. Let declarations be the LexicallyScopedDeclarations of code.
-
-    // 2. Let privateEnv be the running execution context's PrivateEnvironment.
-    auto private_environment = vm.running_execution_context().private_environment;
-
-    // Note: All the calls here are ! and thus we do not need to TRY this callback.
-    //       We use MUST to ensure it does not throw and to avoid discarding the returned ThrowCompletionOr<void>.
-    // 3. For each element d of declarations, do
-    MUST(for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
-        auto is_constant_declaration = declaration.is_constant_declaration();
-        // NOTE: Due to the use of MUST with `create_immutable_binding` and `create_mutable_binding` below,
-        //       an exception should not result from `for_each_bound_name`.
-        // a. For each element dn of the BoundNames of d, do
-        MUST(declaration.for_each_bound_identifier([&](Identifier const& identifier) {
-            if (identifier.is_local()) {
-                // NOTE: No need to create bindings for local variables as their values are not stored in an environment.
-                return;
-            }
-
-            auto const& name = identifier.string();
-
-            // i. If IsConstantDeclaration of d is true, then
-            if (is_constant_declaration) {
-                // 1. Perform ! env.CreateImmutableBinding(dn, true).
-                MUST(environment->create_immutable_binding(vm, name, true));
-            }
-            // ii. Else,
-            else {
-                // 1. Perform ! env.CreateMutableBinding(dn, false). NOTE: This step is replaced in section B.3.2.6.
-                if (!MUST(environment->has_binding(name)))
-                    MUST(environment->create_mutable_binding(vm, name, false));
-            }
-        }));
-
-        // b. If d is either a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration, then
-        if (is<FunctionDeclaration>(declaration)) {
-            // i. Let fn be the sole element of the BoundNames of d.
-            auto& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
-
-            // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
-            auto function = ECMAScriptFunctionObject::create_from_function_node(
-                function_declaration,
-                function_declaration.name(),
-                realm,
-                environment,
-                private_environment);
-
-            // iii. Perform ! env.InitializeBinding(fn, fo). NOTE: This step is replaced in section B.3.2.6.
-            if (function_declaration.name_identifier()->is_local()) {
-                auto& running_execution_context = vm.running_execution_context();
-                auto number_of_registers = running_execution_context.executable->number_of_registers;
-                auto number_of_constants = running_execution_context.executable->constants.size();
-                auto local_index = function_declaration.name_identifier()->local_index();
-                if (local_index.is_variable()) {
-                    running_execution_context.local(local_index.index + number_of_registers + number_of_constants) = function;
-                } else {
-                    VERIFY_NOT_REACHED();
-                }
-            } else {
-                VERIFY(is<DeclarativeEnvironment>(*environment));
-                static_cast<DeclarativeEnvironment&>(*environment).initialize_or_set_mutable_binding({}, vm, function->name(), function);
-            }
-        }
-    }));
 }
 
 // 16.1.7 GlobalDeclarationInstantiation ( script, env ), https://tc39.es/ecma262/#sec-globaldeclarationinstantiation
