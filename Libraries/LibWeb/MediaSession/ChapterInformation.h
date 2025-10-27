@@ -25,6 +25,8 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<ChapterInformation>> create(JS::Realm&, ChapterInformationInit const& init);
 
     virtual ~ChapterInformation() override;
+    virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
 
     String title() const;
     double start_time() const;
@@ -32,9 +34,6 @@ public:
 
 private:
     explicit ChapterInformation(JS::Realm&, String, double, Vector<MediaImage> artwork);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void finalize() override;
 
     String m_title;
     double m_start_time;
