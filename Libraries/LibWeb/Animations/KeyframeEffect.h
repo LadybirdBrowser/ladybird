@@ -25,6 +25,8 @@ struct KeyframeEffectOptions : public EffectTiming {
     Optional<String> pseudo_element {};
 };
 
+Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition);
+
 // https://www.w3.org/TR/web-animations-1/#dictdef-basepropertyindexedkeyframe
 // Note: This is an intermediate structure used only when parsing Keyframes provided by the caller in a slightly
 //       different format. It is converted to BaseKeyframe, which is why it doesn't need to store the parsed properties

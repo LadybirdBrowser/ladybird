@@ -16,6 +16,7 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoClass.h>
@@ -59,6 +60,7 @@ public:
     void set_animated_property_inherited(PropertyID, Inherited);
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
+    void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
     void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No);
     void remove_animated_property(PropertyID);
     enum class WithAnimationsApplied {
@@ -67,9 +69,6 @@ public:
     };
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     void revert_property(PropertyID, ComputedProperties const& style_for_revert);
-
-    GC::Ptr<CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
-    void set_animation_name_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }
 
     GC::Ptr<CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
     void set_transition_property_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
@@ -187,6 +186,18 @@ public:
     ContainerType container_type() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
+    struct AnimationProperties {
+        Variant<double, String> duration;
+        EasingFunction timing_function;
+        double iteration_count;
+        AnimationDirection direction;
+        AnimationPlayState play_state;
+        double delay;
+        AnimationFillMode fill_mode;
+        AnimationComposition composition;
+        FlyString name;
+    };
+    Vector<AnimationProperties> animations() const;
 
     Display display_before_box_type_transformation() const;
     void set_display_before_box_type_transformation(Display value);
@@ -274,7 +285,6 @@ private:
     Overflow overflow(PropertyID) const;
     Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;
 
-    GC::Ptr<CSSStyleDeclaration const> m_animation_name_source;
     GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
     Array<RefPtr<StyleValue const>, number_of_longhand_properties> m_property_values;

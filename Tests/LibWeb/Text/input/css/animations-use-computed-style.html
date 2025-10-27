@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        @keyframes foo {
+            from {
+            }
+
+            to {
+            }
+        }
+
+        #bar {
+            animation-timing-function: linear;
+        }
+
+        #baz {
+            animation: foo 2s;
+            animation-iteration-count: calc(sibling-index() + sign(1em - 1px));
+            animation-timing-function: inherit;
+        }
+    </style>
+    <body>
+        <div id="bar"><div id="baz"></div></div>
+        <script src="../include.js"></script>
+        <script>
+            test(() => {
+                println(document.getAnimations()[0].effect.getComputedTiming().easing);
+                println(document.getAnimations()[0].effect.getComputedTiming().iterations);
+            });
+        </script>
+    </body>
+</html>

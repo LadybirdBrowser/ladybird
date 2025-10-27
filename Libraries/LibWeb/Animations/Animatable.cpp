@@ -246,10 +246,11 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 {
     auto& impl = ensure_impl();
     visitor.visit(impl.associated_animations);
-    for (auto const& cached_animation_source : impl.cached_animation_name_source)
-        visitor.visit(cached_animation_source);
-    for (auto const& cached_animation_name : impl.cached_animation_name_animation)
-        visitor.visit(cached_animation_name);
+    for (auto const& css_animation : impl.css_defined_animations) {
+        if (css_animation)
+            visitor.visit(*css_animation);
+    }
+
     for (auto const& transition : impl.transitions) {
         if (transition) {
             visitor.visit(transition->cached_transition_property_source);
@@ -258,61 +259,21 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
     }
 }
 
-GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    if (!m_impl)
-        return {};
-    auto& impl = *m_impl;
-    if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-            return {};
-        }
-        return impl.cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
-    }
-    return impl.cached_animation_name_source[0];
-}
-
-void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::PseudoElement> pseudo_element)
+HashMap<FlyString, GC::Ref<Animation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
 {
     auto& impl = ensure_impl();
-    if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-            return;
-        }
-        impl.cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
-    } else {
-        impl.cached_animation_name_source[0] = value;
-    }
-}
 
-GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    if (!m_impl)
-        return {};
-    auto& impl = *m_impl;
+    if (pseudo_element.has_value() && !CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+        return nullptr;
 
-    if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-            return {};
-        }
+    auto index = pseudo_element
+                     .map([](CSS::PseudoElement pseudo_element_value) { return to_underlying(pseudo_element_value) + 1; })
+                     .value_or(0);
 
-        return impl.cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1];
-    }
-    return impl.cached_animation_name_animation[0];
-}
+    if (!impl.css_defined_animations[index])
+        impl.css_defined_animations[index] = make<HashMap<FlyString, GC::Ref<Animation>>>();
 
-void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::PseudoElement> pseudo_element)
-{
-    auto& impl = ensure_impl();
-    if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-            return;
-        }
-
-        impl.cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1] = value;
-    } else {
-        impl.cached_animation_name_animation[0] = value;
-    }
+    return impl.css_defined_animations[index];
 }
 
 GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_transition_property_source(Optional<CSS::PseudoElement> pseudo_element) const

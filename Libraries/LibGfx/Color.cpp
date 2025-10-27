@@ -25,6 +25,73 @@
 
 namespace Gfx {
 
+namespace {
+
+char nth_digit(u32 value, u8 digit)
+{
+    // This helper is used to format integers.
+    // nth_digit(745, 1) -> '5'
+    // nth_digit(745, 2) -> '4'
+    // nth_digit(745, 3) -> '7'
+
+    VERIFY(value < 1000);
+    VERIFY(digit <= 3);
+    VERIFY(digit > 0);
+
+    while (digit > 1) {
+        value /= 10;
+        digit--;
+    }
+
+    return '0' + value % 10;
+}
+
+Array<char, 4> format_to_8bit_compatible(u8 value)
+{
+    // This function formats to the shortest string that roundtrips at 8 bits.
+    // As an example:
+    //      127 / 255 = 0.498 ± 0.001
+    //      128 / 255 = 0.502 ± 0.001
+    // But round(.5 * 255) == 128, so this function returns (note that it's only the fractional part):
+    //      127 -> "498"
+    //      128 -> "5"
+
+    u32 const three_digits = (value * 1000u + 127) / 255;
+    u32 const rounded_to_two_digits = (three_digits + 5) / 10 * 10;
+
+    if ((rounded_to_two_digits * 255 / 100 + 5) / 10 != value)
+        return { nth_digit(three_digits, 3), nth_digit(three_digits, 2), nth_digit(three_digits, 1), '\0' };
+
+    u32 const rounded_to_one_digit = (three_digits + 50) / 100 * 100;
+    if ((rounded_to_one_digit * 255 / 100 + 5) / 10 != value)
+        return { nth_digit(rounded_to_two_digits, 3), nth_digit(rounded_to_two_digits, 2), '\0', '\0' };
+
+    return { nth_digit(rounded_to_one_digit, 3), '\0', '\0', '\0' };
+}
+
+}
+
+// https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
+void Color::serialize_a_srgb_value(StringBuilder& builder) const
+{
+    // The serialized form is derived from the computed value and thus, uses either the rgb() or rgba() form
+    // (depending on whether the alpha is exactly 1, or not), with lowercase letters for the function name.
+    // NOTE: Since we use Gfx::Color, having an "alpha of 1" means its value is 255.
+    if (alpha() == 0)
+        builder.appendff("rgba({}, {}, {}, 0)", red(), green(), blue());
+    else if (alpha() == 255)
+        builder.appendff("rgb({}, {}, {})", red(), green(), blue());
+    else
+        builder.appendff("rgba({}, {}, {}, 0.{})", red(), green(), blue(), format_to_8bit_compatible(alpha()).data());
+}
+
+String Color::serialize_a_srgb_value() const
+{
+    StringBuilder builder;
+    serialize_a_srgb_value(builder);
+    return builder.to_string_without_validation();
+}
+
 String Color::to_string(HTMLCompatibleSerialization html_compatible_serialization) const
 {
     // If the following conditions are all true:
@@ -45,9 +112,7 @@ String Color::to_string(HTMLCompatibleSerialization html_compatible_serializatio
     }
 
     // Otherwise, for sRGB the CSS serialization of sRGB values is used and for other color spaces, the relevant serialization of the <color> value.
-    if (alpha() < 255)
-        return MUST(String::formatted("rgba({}, {}, {}, {})", red(), green(), blue(), alpha() / 255.0));
-    return MUST(String::formatted("rgb({}, {}, {})", red(), green(), blue()));
+    return serialize_a_srgb_value();
 }
 
 String Color::to_string_without_alpha() const

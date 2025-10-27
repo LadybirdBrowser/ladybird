@@ -193,6 +193,7 @@ public:
 
     void compute_property_values(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void compute_font(ComputedProperties&, Optional<DOM::AbstractElement>) const;
+    void process_animation_definitions(ComputedProperties const& computed_properties, DOM::AbstractElement& abstract_element) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 

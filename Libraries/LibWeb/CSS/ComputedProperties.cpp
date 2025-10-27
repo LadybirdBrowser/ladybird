@@ -37,6 +37,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
@@ -53,7 +54,6 @@ ComputedProperties::~ComputedProperties() = default;
 void ComputedProperties::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_animation_name_source);
     visitor.visit(m_transition_property_source);
 }
 
@@ -118,9 +118,16 @@ void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
-    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
+    set_property_without_modifying_flags(id, move(value));
     set_property_important(id, important);
     set_property_inherited(id, inherited);
+}
+
+void ComputedProperties::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
 }
 
 void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
@@ -162,7 +169,8 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
 
-    if (return_animated_value == WithAnimationsApplied::Yes) {
+    // Important properties override animated properties
+    if (!is_property_important(property_id) && return_animated_value == WithAnimationsApplied::Yes) {
         if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
             return *animated_value.value();
     }
@@ -1932,6 +1940,108 @@ Optional<FlyString> ComputedProperties::view_transition_name() const
     if (value.is_custom_ident())
         return value.as_custom_ident().custom_ident();
     return {};
+}
+
+Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations() const
+{
+    // CSS Animations are defined by binding keyframes to an element using the animation-* properties. These list-valued
+    // properties, which are all longhands of the animation shorthand, form a coordinating list property group with
+    // animation-name as the coordinating list base property and each item in the coordinated value list defining the
+    // properties of a single animation effect.
+    auto const& coordinated_properties = assemble_coordinated_value_list(
+        PropertyID::AnimationName,
+        { PropertyID::AnimationDuration,
+            PropertyID::AnimationTimingFunction,
+            PropertyID::AnimationIterationCount,
+            PropertyID::AnimationDirection,
+            PropertyID::AnimationPlayState,
+            PropertyID::AnimationDelay,
+            PropertyID::AnimationFillMode,
+            PropertyID::AnimationComposition,
+            PropertyID::AnimationName });
+
+    Vector<AnimationProperties> animations;
+
+    for (size_t i = 0; i < coordinated_properties.get(PropertyID::AnimationName)->size(); i++) {
+        // https://drafts.csswg.org/css-animations-1/#propdef-animation-name
+        // none: No keyframes are specified at all, so there will be no animation. Any other animations properties
+        //       specified for this animation have no effect.
+        if (coordinated_properties.get(PropertyID::AnimationName).value()[i]->to_keyword() == Keyword::None)
+            continue;
+
+        auto animation_name_style_value = coordinated_properties.get(PropertyID::AnimationName).value()[i];
+        auto animation_duration_style_value = coordinated_properties.get(PropertyID::AnimationDuration).value()[i];
+        auto animation_timing_function_style_value = coordinated_properties.get(PropertyID::AnimationTimingFunction).value()[i];
+        auto animation_iteration_count_style_value = coordinated_properties.get(PropertyID::AnimationIterationCount).value()[i];
+        auto animation_direction_style_value = coordinated_properties.get(PropertyID::AnimationDirection).value()[i];
+        auto animation_play_state_style_value = coordinated_properties.get(PropertyID::AnimationPlayState).value()[i];
+        auto animation_delay_style_value = coordinated_properties.get(PropertyID::AnimationDelay).value()[i];
+        auto animation_fill_mode_style_value = coordinated_properties.get(PropertyID::AnimationFillMode).value()[i];
+        auto animation_composition_style_value = coordinated_properties.get(PropertyID::AnimationComposition).value()[i];
+
+        auto duration = [&] {
+            if (animation_duration_style_value->is_time())
+                return animation_duration_style_value->as_time().time().to_milliseconds();
+
+            if (animation_duration_style_value->is_calculated())
+                return animation_duration_style_value->as_calculated().resolve_time({}).value().to_milliseconds();
+
+            VERIFY_NOT_REACHED();
+        }();
+
+        auto timing_function = EasingFunction::from_style_value(animation_timing_function_style_value);
+
+        auto iteration_count = [&] {
+            if (animation_iteration_count_style_value->to_keyword() == Keyword::Infinite)
+                return AK::Infinity<double>;
+
+            if (animation_iteration_count_style_value->is_number())
+                return animation_iteration_count_style_value->as_number().number();
+
+            if (animation_iteration_count_style_value->is_calculated())
+                return animation_iteration_count_style_value->as_calculated().resolve_number({}).value();
+
+            VERIFY_NOT_REACHED();
+        }();
+
+        auto direction = keyword_to_animation_direction(animation_direction_style_value->to_keyword()).value();
+        auto play_state = keyword_to_animation_play_state(animation_play_state_style_value->to_keyword()).value();
+        auto delay = [&] {
+            if (animation_delay_style_value->is_time())
+                return animation_delay_style_value->as_time().time().to_milliseconds();
+
+            if (animation_delay_style_value->is_calculated())
+                return animation_delay_style_value->as_calculated().resolve_time({}).value().to_milliseconds();
+
+            VERIFY_NOT_REACHED();
+        }();
+        auto fill_mode = keyword_to_animation_fill_mode(animation_fill_mode_style_value->to_keyword()).value();
+        auto composition = keyword_to_animation_composition(animation_composition_style_value->to_keyword()).value();
+
+        auto name = [&] {
+            if (animation_name_style_value->is_custom_ident())
+                return animation_name_style_value->as_custom_ident().custom_ident();
+
+            if (animation_name_style_value->is_string())
+                return animation_name_style_value->as_string().string_value();
+
+            VERIFY_NOT_REACHED();
+        }();
+
+        animations.append(AnimationProperties {
+            .duration = duration,
+            .timing_function = timing_function,
+            .iteration_count = iteration_count,
+            .direction = direction,
+            .play_state = play_state,
+            .delay = delay,
+            .fill_mode = fill_mode,
+            .composition = composition,
+            .name = name,
+        });
+    }
+
+    return animations;
 }
 
 MaskType ComputedProperties::mask_type() const

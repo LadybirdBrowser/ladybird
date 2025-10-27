@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        @keyframes foo {
+            from {
+                top: 0px;
+            }
+
+            to {
+                top: 10px;
+            }
+        }
+
+        @keyframes bar {
+            from {
+                left: 0px;
+            }
+
+            to {
+                left: 10px;
+            }
+        }
+
+        #baz {
+            animation: foo 1s, bar 2s;
+        }
+    </style>
+    <body>
+        <div id="baz"></div>
+        <script src="../include.js"></script>
+        <script>
+            test(() => {
+                for (const animation of document.getAnimations()) {
+                    println(animation.animationName);
+                    println(animation.effect.getTiming().duration);
+                }
+            });
+        </script>
+    </body>
+</html>
