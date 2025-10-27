@@ -40,7 +40,7 @@
 
 namespace JS {
 
-ASTNode::ASTNode(SourceRange source_range)
+ASTNode::ASTNode(SourceRange const& source_range)
     : m_start_offset(source_range.start.offset)
     , m_source_code(source_range.code)
     , m_end_offset(source_range.end.offset)

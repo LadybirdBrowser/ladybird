@@ -135,8 +135,8 @@ public:
 
     // Prepare for the horror of templates.
     template<typename T, typename... Rest>
-    Style(T const& style_arg, Rest... rest)
-        : Style(rest...)
+    Style(T const& style_arg, Rest&&... rest)
+        : Style(forward<Rest>(rest)...)
     {
         set(style_arg);
         m_is_empty = false;

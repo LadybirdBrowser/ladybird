@@ -76,7 +76,7 @@ void WebGL2RenderingContextImpl::blit_framebuffer(WebIDL::Long src_x0, WebIDL::L
     glBlitFramebuffer(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0, dst_x1, dst_y1, mask, filter);
 }
 
-void WebGL2RenderingContextImpl::framebuffer_texture_layer(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, GC::Root<WebGLTexture> texture, WebIDL::Long level, WebIDL::Long layer)
+void WebGL2RenderingContextImpl::framebuffer_texture_layer(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, GC::Root<WebGLTexture> const& texture, WebIDL::Long level, WebIDL::Long layer)
 {
     m_context->make_current();
 
@@ -157,7 +157,7 @@ void WebGL2RenderingContextImpl::tex_storage3d(WebIDL::UnsignedLong target, WebI
     glTexStorage3D(target, levels, internalformat, width, height, depth);
 }
 
-void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data)
+void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& src_data)
 {
     m_context->make_current();
 
@@ -169,7 +169,7 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
     glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
 }
 
-void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
 
@@ -181,7 +181,7 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
     glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
 }
 
-void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
 
@@ -193,31 +193,31 @@ void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, We
     glTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, src_data_span.size(), src_data_span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform1ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0)
+void WebGL2RenderingContextImpl::uniform1ui(GC::Root<WebGLUniformLocation> const& location, WebIDL::UnsignedLong v0)
 {
     m_context->make_current();
     glUniform1ui(location ? location->handle() : 0, v0);
 }
 
-void WebGL2RenderingContextImpl::uniform2ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1)
+void WebGL2RenderingContextImpl::uniform2ui(GC::Root<WebGLUniformLocation> const& location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1)
 {
     m_context->make_current();
     glUniform2ui(location ? location->handle() : 0, v0, v1);
 }
 
-void WebGL2RenderingContextImpl::uniform3ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2)
+void WebGL2RenderingContextImpl::uniform3ui(GC::Root<WebGLUniformLocation> const& location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2)
 {
     m_context->make_current();
     glUniform3ui(location ? location->handle() : 0, v0, v1, v2);
 }
 
-void WebGL2RenderingContextImpl::uniform4ui(GC::Root<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2, WebIDL::UnsignedLong v3)
+void WebGL2RenderingContextImpl::uniform4ui(GC::Root<WebGLUniformLocation> const& location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2, WebIDL::UnsignedLong v3)
 {
     m_context->make_current();
     glUniform4ui(location ? location->handle() : 0, v0, v1, v2, v3);
 }
 
-void WebGL2RenderingContextImpl::uniform1uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1uiv(GC::Root<WebGLUniformLocation> const& location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -228,7 +228,7 @@ void WebGL2RenderingContextImpl::uniform1uiv(GC::Root<WebGLUniformLocation> loca
     glUniform1uiv(location->handle(), span.size(), span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform2uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2uiv(GC::Root<WebGLUniformLocation> const& location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -243,7 +243,7 @@ void WebGL2RenderingContextImpl::uniform2uiv(GC::Root<WebGLUniformLocation> loca
     glUniform2uiv(location->handle(), span.size() / 2, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform3uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3uiv(GC::Root<WebGLUniformLocation> const& location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -258,7 +258,7 @@ void WebGL2RenderingContextImpl::uniform3uiv(GC::Root<WebGLUniformLocation> loca
     glUniform3uiv(location->handle(), span.size() / 3, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform4uiv(GC::Root<WebGLUniformLocation> location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4uiv(GC::Root<WebGLUniformLocation> const& location, Uint32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -273,7 +273,7 @@ void WebGL2RenderingContextImpl::uniform4uiv(GC::Root<WebGLUniformLocation> loca
     glUniform4uiv(location->handle(), span.size() / 4, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix3x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix3x2fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -289,7 +289,7 @@ void WebGL2RenderingContextImpl::uniform_matrix3x2fv(GC::Root<WebGLUniformLocati
     glUniformMatrix3x2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix4x2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix4x2fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -305,7 +305,7 @@ void WebGL2RenderingContextImpl::uniform_matrix4x2fv(GC::Root<WebGLUniformLocati
     glUniformMatrix4x2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix2x3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix2x3fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -321,7 +321,7 @@ void WebGL2RenderingContextImpl::uniform_matrix2x3fv(GC::Root<WebGLUniformLocati
     glUniformMatrix2x3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix4x3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix4x3fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -337,7 +337,7 @@ void WebGL2RenderingContextImpl::uniform_matrix4x3fv(GC::Root<WebGLUniformLocati
     glUniformMatrix4x3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix2x4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix2x4fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -353,7 +353,7 @@ void WebGL2RenderingContextImpl::uniform_matrix2x4fv(GC::Root<WebGLUniformLocati
     glUniformMatrix2x4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix3x4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix3x4fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -557,7 +557,7 @@ GC::Root<WebGLQuery> WebGL2RenderingContextImpl::create_query()
     return WebGLQuery::create(m_realm, *this, handle);
 }
 
-void WebGL2RenderingContextImpl::delete_query(GC::Root<WebGLQuery> query)
+void WebGL2RenderingContextImpl::delete_query(GC::Root<WebGLQuery> const& query)
 {
     m_context->make_current();
 
@@ -574,7 +574,7 @@ void WebGL2RenderingContextImpl::delete_query(GC::Root<WebGLQuery> query)
     glDeleteQueries(1, &query_handle);
 }
 
-void WebGL2RenderingContextImpl::begin_query(WebIDL::UnsignedLong target, GC::Root<WebGLQuery> query)
+void WebGL2RenderingContextImpl::begin_query(WebIDL::UnsignedLong target, GC::Root<WebGLQuery> const& query)
 {
     m_context->make_current();
 
@@ -597,7 +597,7 @@ void WebGL2RenderingContextImpl::end_query(WebIDL::UnsignedLong target)
     glEndQuery(target);
 }
 
-JS::Value WebGL2RenderingContextImpl::get_query_parameter(GC::Root<WebGLQuery> query, WebIDL::UnsignedLong pname)
+JS::Value WebGL2RenderingContextImpl::get_query_parameter(GC::Root<WebGLQuery> const& query, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
@@ -633,7 +633,7 @@ GC::Root<WebGLSampler> WebGL2RenderingContextImpl::create_sampler()
     return WebGLSampler::create(m_realm, *this, handle);
 }
 
-void WebGL2RenderingContextImpl::delete_sampler(GC::Root<WebGLSampler> sampler)
+void WebGL2RenderingContextImpl::delete_sampler(GC::Root<WebGLSampler> const& sampler)
 {
     m_context->make_current();
 
@@ -650,7 +650,7 @@ void WebGL2RenderingContextImpl::delete_sampler(GC::Root<WebGLSampler> sampler)
     glDeleteSamplers(1, &sampler_handle);
 }
 
-void WebGL2RenderingContextImpl::bind_sampler(WebIDL::UnsignedLong unit, GC::Root<WebGLSampler> sampler)
+void WebGL2RenderingContextImpl::bind_sampler(WebIDL::UnsignedLong unit, GC::Root<WebGLSampler> const& sampler)
 {
     m_context->make_current();
 
@@ -666,7 +666,7 @@ void WebGL2RenderingContextImpl::bind_sampler(WebIDL::UnsignedLong unit, GC::Roo
     glBindSampler(unit, sampler_handle);
 }
 
-void WebGL2RenderingContextImpl::sampler_parameteri(GC::Root<WebGLSampler> sampler, WebIDL::UnsignedLong pname, WebIDL::Long param)
+void WebGL2RenderingContextImpl::sampler_parameteri(GC::Root<WebGLSampler> const& sampler, WebIDL::UnsignedLong pname, WebIDL::Long param)
 {
     m_context->make_current();
 
@@ -706,7 +706,7 @@ void WebGL2RenderingContextImpl::sampler_parameteri(GC::Root<WebGLSampler> sampl
     glSamplerParameteri(sampler_handle, pname, param);
 }
 
-void WebGL2RenderingContextImpl::sampler_parameterf(GC::Root<WebGLSampler> sampler, WebIDL::UnsignedLong pname, float param)
+void WebGL2RenderingContextImpl::sampler_parameterf(GC::Root<WebGLSampler> const& sampler, WebIDL::UnsignedLong pname, float param)
 {
     m_context->make_current();
 
@@ -754,7 +754,7 @@ GC::Root<WebGLSync> WebGL2RenderingContextImpl::fence_sync(WebIDL::UnsignedLong 
     return WebGLSync::create(m_realm, *this, handle);
 }
 
-void WebGL2RenderingContextImpl::delete_sync(GC::Root<WebGLSync> sync)
+void WebGL2RenderingContextImpl::delete_sync(GC::Root<WebGLSync> const& sync)
 {
     m_context->make_current();
 
@@ -771,7 +771,7 @@ void WebGL2RenderingContextImpl::delete_sync(GC::Root<WebGLSync> sync)
     glDeleteSync(sync_handle);
 }
 
-WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
+WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Root<WebGLSync> const& sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
 {
     m_context->make_current();
 
@@ -788,7 +788,7 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Root<WebGL
     return glClientWaitSync(sync_handle, flags, timeout);
 }
 
-void WebGL2RenderingContextImpl::wait_sync(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
+void WebGL2RenderingContextImpl::wait_sync(GC::Root<WebGLSync> const& sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
 {
     m_context->make_current();
 
@@ -805,7 +805,7 @@ void WebGL2RenderingContextImpl::wait_sync(GC::Root<WebGLSync> sync, WebIDL::Uns
     glWaitSync(sync_handle, flags, timeout);
 }
 
-JS::Value WebGL2RenderingContextImpl::get_sync_parameter(GC::Root<WebGLSync> sync, WebIDL::UnsignedLong pname)
+JS::Value WebGL2RenderingContextImpl::get_sync_parameter(GC::Root<WebGLSync> const& sync, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
@@ -833,7 +833,7 @@ GC::Root<WebGLTransformFeedback> WebGL2RenderingContextImpl::create_transform_fe
     return WebGLTransformFeedback::create(m_realm, *this, handle);
 }
 
-void WebGL2RenderingContextImpl::delete_transform_feedback(GC::Root<WebGLTransformFeedback> transform_feedback)
+void WebGL2RenderingContextImpl::delete_transform_feedback(GC::Root<WebGLTransformFeedback> const& transform_feedback)
 {
     m_context->make_current();
 
@@ -850,7 +850,7 @@ void WebGL2RenderingContextImpl::delete_transform_feedback(GC::Root<WebGLTransfo
     glDeleteTransformFeedbacks(1, &transform_feedback_handle);
 }
 
-void WebGL2RenderingContextImpl::bind_transform_feedback(WebIDL::UnsignedLong target, GC::Root<WebGLTransformFeedback> transform_feedback)
+void WebGL2RenderingContextImpl::bind_transform_feedback(WebIDL::UnsignedLong target, GC::Root<WebGLTransformFeedback> const& transform_feedback)
 {
     m_context->make_current();
 
@@ -879,7 +879,7 @@ void WebGL2RenderingContextImpl::end_transform_feedback()
     glEndTransformFeedback();
 }
 
-void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Root<WebGLProgram> program, Vector<String> const& varyings, WebIDL::UnsignedLong buffer_mode)
+void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Root<WebGLProgram> const& program, Vector<String> const& varyings, WebIDL::UnsignedLong buffer_mode)
 {
     m_context->make_current();
 
@@ -920,7 +920,7 @@ void WebGL2RenderingContextImpl::resume_transform_feedback()
     glResumeTransformFeedback();
 }
 
-void WebGL2RenderingContextImpl::bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer)
+void WebGL2RenderingContextImpl::bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> const& buffer)
 {
     m_context->make_current();
 
@@ -936,7 +936,7 @@ void WebGL2RenderingContextImpl::bind_buffer_base(WebIDL::UnsignedLong target, W
     glBindBufferBase(target, index, buffer_handle);
 }
 
-void WebGL2RenderingContextImpl::bind_buffer_range(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer, WebIDL::LongLong offset, WebIDL::LongLong size)
+void WebGL2RenderingContextImpl::bind_buffer_range(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> const& buffer, WebIDL::LongLong offset, WebIDL::LongLong size)
 {
     m_context->make_current();
 
@@ -952,7 +952,7 @@ void WebGL2RenderingContextImpl::bind_buffer_range(WebIDL::UnsignedLong target, 
     glBindBufferRange(target, index, buffer_handle, offset, size);
 }
 
-JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Root<WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname)
+JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Root<WebGLProgram> const& program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
@@ -999,7 +999,7 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Root<WebGLProgram>
     return JS::Array::create_from(m_realm, params_as_values);
 }
 
-WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Root<WebGLProgram> program, String uniform_block_name)
+WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Root<WebGLProgram> const& program, String const& uniform_block_name)
 {
     m_context->make_current();
 
@@ -1017,7 +1017,7 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Roo
     return glGetUniformBlockIndex(program_handle, uniform_block_name_null_terminated.data());
 }
 
-JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong pname)
+JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
@@ -1061,7 +1061,7 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Roo
     }
 }
 
-Optional<String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index)
+Optional<String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong uniform_block_index)
 {
     m_context->make_current();
 
@@ -1085,7 +1085,7 @@ Optional<String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::R
     return String::from_utf8_without_validation(ReadonlyBytes { uniform_block_name.data(), static_cast<size_t>(uniform_block_name_length - 1) });
 }
 
-void WebGL2RenderingContextImpl::uniform_block_binding(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong uniform_block_binding)
+void WebGL2RenderingContextImpl::uniform_block_binding(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong uniform_block_binding)
 {
     m_context->make_current();
 
@@ -1110,7 +1110,7 @@ GC::Root<WebGLVertexArrayObject> WebGL2RenderingContextImpl::create_vertex_array
     return WebGLVertexArrayObject::create(m_realm, *this, handle);
 }
 
-void WebGL2RenderingContextImpl::delete_vertex_array(GC::Root<WebGLVertexArrayObject> vertex_array)
+void WebGL2RenderingContextImpl::delete_vertex_array(GC::Root<WebGLVertexArrayObject> const& vertex_array)
 {
     m_context->make_current();
 
@@ -1127,7 +1127,7 @@ void WebGL2RenderingContextImpl::delete_vertex_array(GC::Root<WebGLVertexArrayOb
     glDeleteVertexArrays(1, &vertex_array_handle);
 }
 
-bool WebGL2RenderingContextImpl::is_vertex_array(GC::Root<WebGLVertexArrayObject> vertex_array)
+bool WebGL2RenderingContextImpl::is_vertex_array(GC::Root<WebGLVertexArrayObject> const& vertex_array)
 {
     m_context->make_current();
 
@@ -1143,7 +1143,7 @@ bool WebGL2RenderingContextImpl::is_vertex_array(GC::Root<WebGLVertexArrayObject
     return glIsVertexArray(vertex_array_handle);
 }
 
-void WebGL2RenderingContextImpl::bind_vertex_array(GC::Root<WebGLVertexArrayObject> array)
+void WebGL2RenderingContextImpl::bind_vertex_array(GC::Root<WebGLVertexArrayObject> const& array)
 {
     m_context->make_current();
 
@@ -1166,7 +1166,7 @@ void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, WebIDL
     glBufferData(target, size, 0, usage);
 }
 
-void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::BufferSource> src_data, WebIDL::UnsignedLong usage)
+void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::BufferSource> const& src_data, WebIDL::UnsignedLong usage)
 {
     m_context->make_current();
 
@@ -1174,7 +1174,7 @@ void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Ro
     glBufferData(target, data.size(), data.data(), usage);
 }
 
-void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::BufferSource> src_data)
+void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::BufferSource> const& src_data)
 {
     m_context->make_current();
 
@@ -1182,7 +1182,7 @@ void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, We
     glBufferSubData(target, dst_byte_offset, data.size(), data.data());
 }
 
-void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLong usage, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
+void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLong usage, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
 {
     m_context->make_current();
 
@@ -1190,7 +1190,7 @@ void WebGL2RenderingContextImpl::buffer_data(WebIDL::UnsignedLong target, GC::Ro
     glBufferData(target, span.size(), span.data(), usage);
 }
 
-void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
+void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong dst_byte_offset, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong length)
 {
     m_context->make_current();
 
@@ -1198,7 +1198,7 @@ void WebGL2RenderingContextImpl::buffer_sub_data(WebIDL::UnsignedLong target, We
     glBufferSubData(target, dst_byte_offset, span.size(), span.data());
 }
 
-void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
+void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& pixels)
 {
     m_context->make_current();
 
@@ -1221,7 +1221,7 @@ void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL
     glTexImage2DRobustANGLE(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 }
 
-void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
+void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& pixels)
 {
     m_context->make_current();
 
@@ -1256,7 +1256,7 @@ void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL
     glTexImage2DRobustANGLE(target, level, internalformat, converted_texture.width, converted_texture.height, border, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 }
 
-void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
 
@@ -1280,7 +1280,7 @@ void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, We
     glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 }
 
-void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset)
+void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset)
 {
     m_context->make_current();
 
@@ -1292,7 +1292,7 @@ void WebGL2RenderingContextImpl::tex_sub_image2d(WebIDL::UnsignedLong target, We
     glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, pixels_span.size(), pixels_span.data());
 }
 
-void WebGL2RenderingContextImpl::compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
+void WebGL2RenderingContextImpl::compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
 
@@ -1300,7 +1300,7 @@ void WebGL2RenderingContextImpl::compressed_tex_image2d(WebIDL::UnsignedLong tar
     glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, pixels.size(), pixels.size(), pixels.data());
 }
 
-void WebGL2RenderingContextImpl::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
+void WebGL2RenderingContextImpl::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
 
@@ -1308,7 +1308,7 @@ void WebGL2RenderingContextImpl::compressed_tex_sub_image2d(WebIDL::UnsignedLong
     glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, pixels.size(), pixels.size(), pixels.data());
 }
 
-void WebGL2RenderingContextImpl::compressed_tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
+void WebGL2RenderingContextImpl::compressed_tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
 
@@ -1316,7 +1316,7 @@ void WebGL2RenderingContextImpl::compressed_tex_image3d(WebIDL::UnsignedLong tar
     glCompressedTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, pixels.size(), pixels.size(), pixels.data());
 }
 
-void WebGL2RenderingContextImpl::compressed_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
+void WebGL2RenderingContextImpl::compressed_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> const& src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
 
@@ -1324,7 +1324,7 @@ void WebGL2RenderingContextImpl::compressed_tex_sub_image3d(WebIDL::UnsignedLong
     glCompressedTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height, depth, format, pixels.size(), pixels.size(), pixels.data());
 }
 
-void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> const& location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1335,7 +1335,7 @@ void WebGL2RenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> locat
     glUniform1fv(location->handle(), span.size(), span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> const& location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1350,7 +1350,7 @@ void WebGL2RenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> locat
     glUniform2fv(location->handle(), span.size() / 2, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> const& location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1365,7 +1365,7 @@ void WebGL2RenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> locat
     glUniform3fv(location->handle(), span.size() / 3, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> const& location, Float32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1380,7 +1380,7 @@ void WebGL2RenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> locat
     glUniform4fv(location->handle(), span.size() / 4, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> const& location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1391,7 +1391,7 @@ void WebGL2RenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> locat
     glUniform1iv(location->handle(), span.size(), span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> const& location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1406,7 +1406,7 @@ void WebGL2RenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> locat
     glUniform2iv(location->handle(), span.size() / 2, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> const& location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1421,7 +1421,7 @@ void WebGL2RenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> locat
     glUniform3iv(location->handle(), span.size() / 3, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> const& location, Int32List values, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1436,7 +1436,7 @@ void WebGL2RenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> locat
     glUniform4iv(location->handle(), span.size() / 4, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1452,7 +1452,7 @@ void WebGL2RenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation
     glUniformMatrix2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1468,7 +1468,7 @@ void WebGL2RenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation
     glUniformMatrix3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
+void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> const& location, bool transpose, Float32List data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length)
 {
     m_context->make_current();
 
@@ -1484,7 +1484,7 @@ void WebGL2RenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation
     glUniformMatrix4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
+void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> const& pixels)
 {
     m_context->make_current();
 
@@ -1502,7 +1502,7 @@ void WebGL2RenderingContextImpl::active_texture(WebIDL::UnsignedLong texture)
     glActiveTexture(texture);
 }
 
-void WebGL2RenderingContextImpl::attach_shader(GC::Root<WebGLProgram> program, GC::Root<WebGLShader> shader)
+void WebGL2RenderingContextImpl::attach_shader(GC::Root<WebGLProgram> const& program, GC::Root<WebGLShader> const& shader)
 {
     m_context->make_current();
 
@@ -1558,7 +1558,7 @@ void WebGL2RenderingContextImpl::attach_shader(GC::Root<WebGLProgram> program, G
     }
 }
 
-void WebGL2RenderingContextImpl::bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String name)
+void WebGL2RenderingContextImpl::bind_attrib_location(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong index, String const& name)
 {
     m_context->make_current();
 
@@ -1576,7 +1576,7 @@ void WebGL2RenderingContextImpl::bind_attrib_location(GC::Root<WebGLProgram> pro
     glBindAttribLocation(program_handle, index, name_null_terminated.data());
 }
 
-void WebGL2RenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Root<WebGLBuffer> buffer)
+void WebGL2RenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Root<WebGLBuffer> const& buffer)
 {
     m_context->make_current();
 
@@ -1619,7 +1619,7 @@ void WebGL2RenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Ro
     glBindBuffer(target, buffer_handle);
 }
 
-void WebGL2RenderingContextImpl::bind_framebuffer(WebIDL::UnsignedLong target, GC::Root<WebGLFramebuffer> framebuffer)
+void WebGL2RenderingContextImpl::bind_framebuffer(WebIDL::UnsignedLong target, GC::Root<WebGLFramebuffer> const& framebuffer)
 {
     m_context->make_current();
 
@@ -1637,7 +1637,7 @@ void WebGL2RenderingContextImpl::bind_framebuffer(WebIDL::UnsignedLong target, G
     m_framebuffer_binding = framebuffer;
 }
 
-void WebGL2RenderingContextImpl::bind_renderbuffer(WebIDL::UnsignedLong target, GC::Root<WebGLRenderbuffer> renderbuffer)
+void WebGL2RenderingContextImpl::bind_renderbuffer(WebIDL::UnsignedLong target, GC::Root<WebGLRenderbuffer> const& renderbuffer)
 {
     m_context->make_current();
 
@@ -1655,7 +1655,7 @@ void WebGL2RenderingContextImpl::bind_renderbuffer(WebIDL::UnsignedLong target, 
     m_renderbuffer_binding = renderbuffer;
 }
 
-void WebGL2RenderingContextImpl::bind_texture(WebIDL::UnsignedLong target, GC::Root<WebGLTexture> texture)
+void WebGL2RenderingContextImpl::bind_texture(WebIDL::UnsignedLong target, GC::Root<WebGLTexture> const& texture)
 {
     m_context->make_current();
 
@@ -1760,7 +1760,7 @@ void WebGL2RenderingContextImpl::color_mask(bool red, bool green, bool blue, boo
     glColorMask(red, green, blue, alpha);
 }
 
-void WebGL2RenderingContextImpl::compile_shader(GC::Root<WebGLShader> shader)
+void WebGL2RenderingContextImpl::compile_shader(GC::Root<WebGLShader> const& shader)
 {
     m_context->make_current();
 
@@ -1850,7 +1850,7 @@ void WebGL2RenderingContextImpl::cull_face(WebIDL::UnsignedLong mode)
     glCullFace(mode);
 }
 
-void WebGL2RenderingContextImpl::delete_buffer(GC::Root<WebGLBuffer> buffer)
+void WebGL2RenderingContextImpl::delete_buffer(GC::Root<WebGLBuffer> const& buffer)
 {
     m_context->make_current();
 
@@ -1867,7 +1867,7 @@ void WebGL2RenderingContextImpl::delete_buffer(GC::Root<WebGLBuffer> buffer)
     glDeleteBuffers(1, &buffer_handle);
 }
 
-void WebGL2RenderingContextImpl::delete_framebuffer(GC::Root<WebGLFramebuffer> framebuffer)
+void WebGL2RenderingContextImpl::delete_framebuffer(GC::Root<WebGLFramebuffer> const& framebuffer)
 {
     m_context->make_current();
 
@@ -1884,7 +1884,7 @@ void WebGL2RenderingContextImpl::delete_framebuffer(GC::Root<WebGLFramebuffer> f
     glDeleteFramebuffers(1, &framebuffer_handle);
 }
 
-void WebGL2RenderingContextImpl::delete_program(GC::Root<WebGLProgram> program)
+void WebGL2RenderingContextImpl::delete_program(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 
@@ -1900,7 +1900,7 @@ void WebGL2RenderingContextImpl::delete_program(GC::Root<WebGLProgram> program)
     glDeleteProgram(program_handle);
 }
 
-void WebGL2RenderingContextImpl::delete_renderbuffer(GC::Root<WebGLRenderbuffer> renderbuffer)
+void WebGL2RenderingContextImpl::delete_renderbuffer(GC::Root<WebGLRenderbuffer> const& renderbuffer)
 {
     m_context->make_current();
 
@@ -1917,7 +1917,7 @@ void WebGL2RenderingContextImpl::delete_renderbuffer(GC::Root<WebGLRenderbuffer>
     glDeleteRenderbuffers(1, &renderbuffer_handle);
 }
 
-void WebGL2RenderingContextImpl::delete_shader(GC::Root<WebGLShader> shader)
+void WebGL2RenderingContextImpl::delete_shader(GC::Root<WebGLShader> const& shader)
 {
     m_context->make_current();
 
@@ -1933,7 +1933,7 @@ void WebGL2RenderingContextImpl::delete_shader(GC::Root<WebGLShader> shader)
     glDeleteShader(shader_handle);
 }
 
-void WebGL2RenderingContextImpl::delete_texture(GC::Root<WebGLTexture> texture)
+void WebGL2RenderingContextImpl::delete_texture(GC::Root<WebGLTexture> const& texture)
 {
     m_context->make_current();
 
@@ -1968,7 +1968,7 @@ void WebGL2RenderingContextImpl::depth_range(float z_near, float z_far)
     glDepthRangef(z_near, z_far);
 }
 
-void WebGL2RenderingContextImpl::detach_shader(GC::Root<WebGLProgram> program, GC::Root<WebGLShader> shader)
+void WebGL2RenderingContextImpl::detach_shader(GC::Root<WebGLProgram> const& program, GC::Root<WebGLShader> const& shader)
 {
     m_context->make_current();
 
@@ -2047,7 +2047,7 @@ void WebGL2RenderingContextImpl::flush()
     glFlush();
 }
 
-void WebGL2RenderingContextImpl::framebuffer_renderbuffer(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong renderbuffertarget, GC::Root<WebGLRenderbuffer> renderbuffer)
+void WebGL2RenderingContextImpl::framebuffer_renderbuffer(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong renderbuffertarget, GC::Root<WebGLRenderbuffer> const& renderbuffer)
 {
     m_context->make_current();
 
@@ -2063,7 +2063,7 @@ void WebGL2RenderingContextImpl::framebuffer_renderbuffer(WebIDL::UnsignedLong t
     glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer_handle);
 }
 
-void WebGL2RenderingContextImpl::framebuffer_texture2d(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong textarget, GC::Root<WebGLTexture> texture, WebIDL::Long level)
+void WebGL2RenderingContextImpl::framebuffer_texture2d(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong textarget, GC::Root<WebGLTexture> const& texture, WebIDL::Long level)
 {
     m_context->make_current();
 
@@ -2091,7 +2091,7 @@ void WebGL2RenderingContextImpl::generate_mipmap(WebIDL::UnsignedLong target)
     glGenerateMipmap(target);
 }
 
-GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_active_attrib(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index)
+GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_active_attrib(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong index)
 {
     m_context->make_current();
 
@@ -2115,7 +2115,7 @@ GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_active_attrib(GC::Root
     return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
 }
 
-GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_active_uniform(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index)
+GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_active_uniform(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong index)
 {
     m_context->make_current();
 
@@ -2139,7 +2139,7 @@ GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_active_uniform(GC::Roo
     return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
 }
 
-Optional<Vector<GC::Root<WebGLShader>>> WebGL2RenderingContextImpl::get_attached_shaders(GC::Root<WebGLProgram> program)
+Optional<Vector<GC::Root<WebGLShader>>> WebGL2RenderingContextImpl::get_attached_shaders(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 
@@ -2166,7 +2166,7 @@ Optional<Vector<GC::Root<WebGLShader>>> WebGL2RenderingContextImpl::get_attached
     return result;
 }
 
-WebIDL::Long WebGL2RenderingContextImpl::get_attrib_location(GC::Root<WebGLProgram> program, String name)
+WebIDL::Long WebGL2RenderingContextImpl::get_attrib_location(GC::Root<WebGLProgram> const& program, String const& name)
 {
     m_context->make_current();
 
@@ -2864,7 +2864,7 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_error()
     return glGetError();
 }
 
-JS::Value WebGL2RenderingContextImpl::get_program_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong pname)
+JS::Value WebGL2RenderingContextImpl::get_program_parameter(GC::Root<WebGLProgram> const& program, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
@@ -2901,7 +2901,7 @@ JS::Value WebGL2RenderingContextImpl::get_program_parameter(GC::Root<WebGLProgra
     }
 }
 
-Optional<String> WebGL2RenderingContextImpl::get_program_info_log(GC::Root<WebGLProgram> program)
+Optional<String> WebGL2RenderingContextImpl::get_program_info_log(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 
@@ -2925,7 +2925,7 @@ Optional<String> WebGL2RenderingContextImpl::get_program_info_log(GC::Root<WebGL
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 }
 
-JS::Value WebGL2RenderingContextImpl::get_shader_parameter(GC::Root<WebGLShader> shader, WebIDL::UnsignedLong pname)
+JS::Value WebGL2RenderingContextImpl::get_shader_parameter(GC::Root<WebGLShader> const& shader, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
 
@@ -2964,7 +2964,7 @@ GC::Root<WebGLShaderPrecisionFormat> WebGL2RenderingContextImpl::get_shader_prec
     return WebGLShaderPrecisionFormat::create(m_realm, range[0], range[1], precision);
 }
 
-Optional<String> WebGL2RenderingContextImpl::get_shader_info_log(GC::Root<WebGLShader> shader)
+Optional<String> WebGL2RenderingContextImpl::get_shader_info_log(GC::Root<WebGLShader> const& shader)
 {
     m_context->make_current();
 
@@ -2988,7 +2988,7 @@ Optional<String> WebGL2RenderingContextImpl::get_shader_info_log(GC::Root<WebGLS
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 }
 
-GC::Root<WebGLUniformLocation> WebGL2RenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> program, String name)
+GC::Root<WebGLUniformLocation> WebGL2RenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> const& program, String const& name)
 {
     m_context->make_current();
 
@@ -3020,7 +3020,7 @@ void WebGL2RenderingContextImpl::hint(WebIDL::UnsignedLong target, WebIDL::Unsig
     glHint(target, mode);
 }
 
-bool WebGL2RenderingContextImpl::is_buffer(GC::Root<WebGLBuffer> buffer)
+bool WebGL2RenderingContextImpl::is_buffer(GC::Root<WebGLBuffer> const& buffer)
 {
     m_context->make_current();
 
@@ -3042,7 +3042,7 @@ bool WebGL2RenderingContextImpl::is_enabled(WebIDL::UnsignedLong cap)
     return glIsEnabled(cap);
 }
 
-bool WebGL2RenderingContextImpl::is_framebuffer(GC::Root<WebGLFramebuffer> framebuffer)
+bool WebGL2RenderingContextImpl::is_framebuffer(GC::Root<WebGLFramebuffer> const& framebuffer)
 {
     m_context->make_current();
 
@@ -3058,7 +3058,7 @@ bool WebGL2RenderingContextImpl::is_framebuffer(GC::Root<WebGLFramebuffer> frame
     return glIsFramebuffer(framebuffer_handle);
 }
 
-bool WebGL2RenderingContextImpl::is_program(GC::Root<WebGLProgram> program)
+bool WebGL2RenderingContextImpl::is_program(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 
@@ -3074,7 +3074,7 @@ bool WebGL2RenderingContextImpl::is_program(GC::Root<WebGLProgram> program)
     return glIsProgram(program_handle);
 }
 
-bool WebGL2RenderingContextImpl::is_renderbuffer(GC::Root<WebGLRenderbuffer> renderbuffer)
+bool WebGL2RenderingContextImpl::is_renderbuffer(GC::Root<WebGLRenderbuffer> const& renderbuffer)
 {
     m_context->make_current();
 
@@ -3090,7 +3090,7 @@ bool WebGL2RenderingContextImpl::is_renderbuffer(GC::Root<WebGLRenderbuffer> ren
     return glIsRenderbuffer(renderbuffer_handle);
 }
 
-bool WebGL2RenderingContextImpl::is_shader(GC::Root<WebGLShader> shader)
+bool WebGL2RenderingContextImpl::is_shader(GC::Root<WebGLShader> const& shader)
 {
     m_context->make_current();
 
@@ -3106,7 +3106,7 @@ bool WebGL2RenderingContextImpl::is_shader(GC::Root<WebGLShader> shader)
     return glIsShader(shader_handle);
 }
 
-bool WebGL2RenderingContextImpl::is_texture(GC::Root<WebGLTexture> texture)
+bool WebGL2RenderingContextImpl::is_texture(GC::Root<WebGLTexture> const& texture)
 {
     m_context->make_current();
 
@@ -3128,7 +3128,7 @@ void WebGL2RenderingContextImpl::line_width(float width)
     glLineWidth(width);
 }
 
-void WebGL2RenderingContextImpl::link_program(GC::Root<WebGLProgram> program)
+void WebGL2RenderingContextImpl::link_program(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 
@@ -3185,7 +3185,7 @@ void WebGL2RenderingContextImpl::scissor(WebIDL::Long x, WebIDL::Long y, WebIDL:
     glScissor(x, y, width, height);
 }
 
-void WebGL2RenderingContextImpl::shader_source(GC::Root<WebGLShader> shader, String source)
+void WebGL2RenderingContextImpl::shader_source(GC::Root<WebGLShader> const& shader, String const& source)
 {
     m_context->make_current();
 
@@ -3255,55 +3255,55 @@ void WebGL2RenderingContextImpl::tex_parameteri(WebIDL::UnsignedLong target, Web
     glTexParameteri(target, pname, param);
 }
 
-void WebGL2RenderingContextImpl::uniform1f(GC::Root<WebGLUniformLocation> location, float x)
+void WebGL2RenderingContextImpl::uniform1f(GC::Root<WebGLUniformLocation> const& location, float x)
 {
     m_context->make_current();
     glUniform1f(location ? location->handle() : 0, x);
 }
 
-void WebGL2RenderingContextImpl::uniform2f(GC::Root<WebGLUniformLocation> location, float x, float y)
+void WebGL2RenderingContextImpl::uniform2f(GC::Root<WebGLUniformLocation> const& location, float x, float y)
 {
     m_context->make_current();
     glUniform2f(location ? location->handle() : 0, x, y);
 }
 
-void WebGL2RenderingContextImpl::uniform3f(GC::Root<WebGLUniformLocation> location, float x, float y, float z)
+void WebGL2RenderingContextImpl::uniform3f(GC::Root<WebGLUniformLocation> const& location, float x, float y, float z)
 {
     m_context->make_current();
     glUniform3f(location ? location->handle() : 0, x, y, z);
 }
 
-void WebGL2RenderingContextImpl::uniform4f(GC::Root<WebGLUniformLocation> location, float x, float y, float z, float w)
+void WebGL2RenderingContextImpl::uniform4f(GC::Root<WebGLUniformLocation> const& location, float x, float y, float z, float w)
 {
     m_context->make_current();
     glUniform4f(location ? location->handle() : 0, x, y, z, w);
 }
 
-void WebGL2RenderingContextImpl::uniform1i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x)
+void WebGL2RenderingContextImpl::uniform1i(GC::Root<WebGLUniformLocation> const& location, WebIDL::Long x)
 {
     m_context->make_current();
     glUniform1i(location ? location->handle() : 0, x);
 }
 
-void WebGL2RenderingContextImpl::uniform2i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y)
+void WebGL2RenderingContextImpl::uniform2i(GC::Root<WebGLUniformLocation> const& location, WebIDL::Long x, WebIDL::Long y)
 {
     m_context->make_current();
     glUniform2i(location ? location->handle() : 0, x, y);
 }
 
-void WebGL2RenderingContextImpl::uniform3i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z)
+void WebGL2RenderingContextImpl::uniform3i(GC::Root<WebGLUniformLocation> const& location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z)
 {
     m_context->make_current();
     glUniform3i(location ? location->handle() : 0, x, y, z);
 }
 
-void WebGL2RenderingContextImpl::uniform4i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z, WebIDL::Long w)
+void WebGL2RenderingContextImpl::uniform4i(GC::Root<WebGLUniformLocation> const& location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z, WebIDL::Long w)
 {
     m_context->make_current();
     glUniform4i(location ? location->handle() : 0, x, y, z, w);
 }
 
-void WebGL2RenderingContextImpl::use_program(GC::Root<WebGLProgram> program)
+void WebGL2RenderingContextImpl::use_program(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 
@@ -3321,7 +3321,7 @@ void WebGL2RenderingContextImpl::use_program(GC::Root<WebGLProgram> program)
     m_current_program = program;
 }
 
-void WebGL2RenderingContextImpl::validate_program(GC::Root<WebGLProgram> program)
+void WebGL2RenderingContextImpl::validate_program(GC::Root<WebGLProgram> const& program)
 {
     m_context->make_current();
 

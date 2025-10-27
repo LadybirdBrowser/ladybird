@@ -39,10 +39,10 @@ GC::Ref<Error> Error::create(Realm& realm)
     return realm.create<Error>(realm.intrinsics().error_prototype());
 }
 
-GC::Ref<Error> Error::create(Realm& realm, Utf16String message)
+GC::Ref<Error> Error::create(Realm& realm, Utf16String const& message)
 {
     auto error = Error::create(realm);
-    error->set_message(move(message));
+    error->set_message(message);
     return error;
 }
 
@@ -75,7 +75,7 @@ ThrowCompletionOr<void> Error::install_error_cause(Value options)
     return {};
 }
 
-void Error::set_message(Utf16String message)
+void Error::set_message(Utf16String const& message)
 {
     auto& vm = this->vm();
 

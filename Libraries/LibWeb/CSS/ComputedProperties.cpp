@@ -383,7 +383,7 @@ PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme prefe
 
     // 3. Otherwise, if the user agent supports at least one of the listed color schemes,
     //    the used color scheme is the first supported color scheme in the list.
-    auto first_supported = scheme_value.schemes().first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
+    auto first_supported = scheme_value.schemes().first_matching([](auto const& scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
     if (first_supported.has_value())
         return preferred_color_scheme_from_string(first_supported.value());
 
@@ -393,7 +393,7 @@ PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme prefe
         if (preferred_scheme != PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
             return preferred_scheme;
 
-        auto document_first_supported = document_supported_schemes->first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
+        auto document_first_supported = document_supported_schemes->first_matching([](auto const& scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
         if (document_first_supported.has_value())
             return preferred_color_scheme_from_string(document_first_supported.value());
     }

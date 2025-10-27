@@ -14,7 +14,7 @@ CompletionSuggestion::CompletionSuggestion(StringView completion, StringView tra
     : text(MUST(String::from_utf8(completion)))
     , trailing_trivia(MUST(String::from_utf8(trailing_trivia)))
     , display_trivia(MUST(String::from_utf8(display_trivia)))
-    , style(style)
+    , style(move(style))
     , is_valid(true)
 {
 }

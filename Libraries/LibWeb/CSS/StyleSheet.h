@@ -42,7 +42,7 @@ public:
         return m_media;
     }
 
-    void set_media(String media)
+    void set_media(String const& media)
     {
         m_media->set_media_text(media);
     }

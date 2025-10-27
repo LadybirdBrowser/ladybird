@@ -18,7 +18,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#parse-an-import-map-string
-WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL base_url)
+WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL const& base_url)
 {
     HTML::TemporaryExecutionContext execution_context { realm };
 
@@ -93,7 +93,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-specifier-key
-Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifier_key, URL::URL base_url)
+Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifier_key, URL::URL const& base_url)
 {
     // 1. If specifierKey is the empty string, then:
     if (specifier_key.is_empty()) {
@@ -117,7 +117,7 @@ Optional<FlyString> normalize_specifier_key(JS::Realm& realm, FlyString specifie
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#sorting-and-normalizing-a-module-specifier-map
-WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
+WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(JS::Realm& realm, JS::Object& original_map, URL::URL const& base_url)
 {
     // 1. Let normalized be an empty ordered map.
     ModuleSpecifierMap normalized;
@@ -222,7 +222,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-module-integrity-map
-WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
+WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm& realm, JS::Object& original_map, URL::URL const& base_url)
 {
     // 1. Let normalized be an empty ordered map.
     ModuleIntegrityMap normalized;

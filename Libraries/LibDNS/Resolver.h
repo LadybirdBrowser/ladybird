@@ -308,7 +308,7 @@ public:
         });
     }
 
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Vector<Messages::ResourceType>> desired_types, LookupOptions options = LookupOptions::default_())
+    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString const& name, Messages::Class class_, Vector<Vector<Messages::ResourceType>> const& desired_types, LookupOptions options = LookupOptions::default_())
     {
         using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
         Vector<NonnullRefPtr<ResultPromise>> promises;

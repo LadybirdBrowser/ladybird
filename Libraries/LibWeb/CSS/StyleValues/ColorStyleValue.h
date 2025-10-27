@@ -22,7 +22,7 @@ enum class ColorSyntax : u8 {
 
 class ColorStyleValue : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<ColorStyleValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
+    static ValueComparingNonnullRefPtr<ColorStyleValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> const& name = {});
     virtual ~ColorStyleValue() override = default;
 
     virtual bool has_color() const override { return true; }

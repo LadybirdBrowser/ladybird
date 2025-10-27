@@ -33,7 +33,7 @@
 namespace Web::Painting {
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> context)
-    : m_context(context)
+    : m_context(move(context))
 {
 }
 

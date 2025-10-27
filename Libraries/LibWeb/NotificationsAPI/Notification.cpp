@@ -21,7 +21,7 @@ Notification::Notification(JS::Realm& realm)
 // https://notifications.spec.whatwg.org/#constructors
 WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
     JS::Realm& realm,
-    String,                        // FIXME: title is unused
+    String const&,                 // FIXME: title is unused
     Optional<NotificationOptions>) // FIXME: options is unused
 {
 

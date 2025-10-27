@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name)
+ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> const& name)
 {
     return RGBColorStyleValue::create(
         NumberStyleValue::create(color.red()),
@@ -27,7 +27,7 @@ ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_
         NumberStyleValue::create(color.blue()),
         NumberStyleValue::create(color.alpha() / 255.0),
         color_syntax,
-        name);
+        move(name));
 }
 
 Optional<double> ColorStyleValue::resolve_hue(StyleValue const& style_value, CalculationResolutionContext const& resolution_context)

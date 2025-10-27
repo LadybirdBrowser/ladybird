@@ -20,7 +20,7 @@ class WEB_API Attr final : public Node {
 
 public:
     [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, String value = {}, Element* = nullptr);
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, String value = {}, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString const& local_name, String value = {}, Element* = nullptr);
     GC::Ref<Attr> clone(Document&) const;
 
     virtual ~Attr() override = default;

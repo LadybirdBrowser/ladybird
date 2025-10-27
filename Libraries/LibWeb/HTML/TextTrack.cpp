@@ -57,7 +57,7 @@ String TextTrack::label()
 
 void TextTrack::set_label(String label)
 {
-    m_label = label;
+    m_label = move(label);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-language
@@ -68,7 +68,7 @@ String TextTrack::language()
 
 void TextTrack::set_language(String language)
 {
-    m_language = language;
+    m_language = move(language);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
@@ -79,7 +79,7 @@ String TextTrack::id()
 
 void TextTrack::set_id(String id)
 {
-    m_id = id;
+    m_id = move(id);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-mode
@@ -127,7 +127,7 @@ void TextTrack::unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&
     VERIFY(was_removed);
 }
 
-Bindings::TextTrackKind text_track_kind_from_string(String value)
+Bindings::TextTrackKind text_track_kind_from_string(String const& value)
 {
     // https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
 

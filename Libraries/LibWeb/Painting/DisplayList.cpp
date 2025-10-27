@@ -12,7 +12,7 @@ namespace Web::Painting {
 
 void DisplayList::append(DisplayListCommand&& command, Optional<i32> scroll_frame_id, RefPtr<ClipFrame const> clip_frame)
 {
-    m_commands.append({ scroll_frame_id, clip_frame, move(command) });
+    m_commands.append({ scroll_frame_id, move(clip_frame), move(command) });
 }
 
 String DisplayList::dump() const

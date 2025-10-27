@@ -128,7 +128,7 @@ static EGLConfig get_egl_config(EGLDisplay display)
 }
 #endif
 
-OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version)
+OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, WebGLVersion webgl_version)
 {
 #ifdef ENABLE_WEBGL
     EGLAttrib display_attributes[] = {

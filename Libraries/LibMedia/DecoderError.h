@@ -37,7 +37,7 @@ public:
     template<OneOf<StringView, ByteString> T>
     static DecoderError with_description(DecoderErrorCategory category, T description)
     {
-        return DecoderError(category, description);
+        return DecoderError(category, move(description));
     }
 
     template<typename... Parameters>

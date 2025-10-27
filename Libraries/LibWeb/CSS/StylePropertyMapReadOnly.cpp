@@ -46,7 +46,7 @@ void StylePropertyMapReadOnly::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get
-WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(String property_name)
+WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(String const& property_name)
 {
     // The get(property) method, when called on a StylePropertyMapReadOnly this, must perform the following steps:
 
@@ -70,7 +70,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall
-WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String property_name)
+WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String const& property_name)
 {
     // The getAll(property) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -94,7 +94,7 @@ WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::ge
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-has
-WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String property_name)
+WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String const& property_name)
 {
     // The has(property) method, when called on a StylePropertyMapReadOnly this, must perform the following steps:
 

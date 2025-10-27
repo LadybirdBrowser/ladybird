@@ -21,7 +21,7 @@ class MediaKeySystemAccess : public Bindings::PlatformObject {
 
 public:
     virtual ~MediaKeySystemAccess() override;
-    [[nodiscard]] static GC::Ref<MediaKeySystemAccess> create(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
+    [[nodiscard]] static GC::Ref<MediaKeySystemAccess> create(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration const&, NonnullOwnPtr<KeySystem>);
 
     [[nodiscard]] Utf16String key_system() const { return m_key_system; }
     [[nodiscard]] Bindings::MediaKeySystemConfiguration get_configuration() const { return m_configuration; }

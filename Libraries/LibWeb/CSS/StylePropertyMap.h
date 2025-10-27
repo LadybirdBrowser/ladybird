@@ -20,8 +20,8 @@ public:
 
     virtual ~StylePropertyMap() override;
 
-    WebIDL::ExceptionOr<void> set(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values);
-    WebIDL::ExceptionOr<void> append(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values);
+    WebIDL::ExceptionOr<void> set(FlyString const& property, Vector<Variant<GC::Root<CSSStyleValue>, String>> const& values);
+    WebIDL::ExceptionOr<void> append(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> const& values);
     WebIDL::ExceptionOr<void> delete_(FlyString property);
     WebIDL::ExceptionOr<void> clear();
 

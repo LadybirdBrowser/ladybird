@@ -48,7 +48,7 @@ public:
     [[nodiscard]] LexicalPath parent() const;
 
     [[nodiscard]] static ByteString canonicalized_path(ByteString);
-    [[nodiscard]] static ByteString absolute_path(ByteString dir_path, ByteString target);
+    [[nodiscard]] static ByteString absolute_path(ByteString const& dir_path, ByteString const& target);
     [[nodiscard]] static Optional<ByteString> relative_path(StringView absolute_path, StringView absolute_prefix);
 
     template<typename... S>

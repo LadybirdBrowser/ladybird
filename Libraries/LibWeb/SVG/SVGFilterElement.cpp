@@ -29,7 +29,7 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGFilterElement);
 
 SVGFilterElement::SVGFilterElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+    : SVGElement(document, move(qualified_name))
 {
 }
 

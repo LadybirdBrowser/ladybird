@@ -14,7 +14,7 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGFEColorMatrixElement);
 
 SVGFEColorMatrixElement::SVGFEColorMatrixElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+    : SVGElement(document, move(qualified_name))
 {
 }
 

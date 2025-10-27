@@ -597,7 +597,7 @@ GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
     return static_cast<HTML::HTMLMediaElement*>(dom_node);
 }
 
-void Page::set_user_style(String source)
+void Page::set_user_style(String const& source)
 {
     m_user_style_sheet_source = source;
     if (top_level_traversable_is_initialized() && top_level_traversable()->active_document()) {

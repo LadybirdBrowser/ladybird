@@ -39,7 +39,7 @@ public:
 
     virtual ~Violation() = default;
 
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(JS::Realm& realm, GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(JS::Realm& realm, GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String const& directive);
     [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const>);
 
     // https://w3c.github.io/webappsec-csp/#violation-url
@@ -61,7 +61,7 @@ public:
     [[nodiscard]] String const& effective_directive() const { return m_effective_directive; }
 
     [[nodiscard]] Optional<URL::URL> source_file() const { return m_source_file; }
-    void set_source_file(URL::URL source_file) { m_source_file = source_file; }
+    void set_source_file(URL::URL const& source_file) { m_source_file = source_file; }
 
     [[nodiscard]] u32 line_number() const { return m_line_number; }
     void set_line_number(u32 line_number) { m_line_number = line_number; }
@@ -73,7 +73,7 @@ public:
     void set_element(GC::Ref<DOM::Element> element) { m_element = element; }
 
     [[nodiscard]] String const& sample() const { return m_sample; }
-    void set_sample(String sample) { m_sample = sample; }
+    void set_sample(String sample) { m_sample = move(sample); }
 
     void report_a_violation(JS::Realm&);
 

@@ -564,7 +564,7 @@ static GC::Ref<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Do
     return realm.create<MathML::MathMLElement>(document, move(qualified_name));
 }
 // https://dom.spec.whatwg.org/#concept-create-element
-WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag)
+WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> const& namespace_, Optional<FlyString> prefix, Optional<String> const& is_value, bool synchronous_custom_elements_flag)
 {
     auto& realm = document.realm();
 

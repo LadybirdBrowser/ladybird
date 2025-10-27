@@ -33,13 +33,13 @@ public:
     using ErrorCallback = GC::Function<void(ByteString const&, Requests::RequestTimingInfo const&, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
     using TimeoutCallback = GC::Function<void()>;
 
-    void load(LoadRequest&, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback = nullptr, Optional<u32> timeout = {}, GC::Root<TimeoutCallback> timeout_callback = nullptr);
+    void load(LoadRequest&, GC::Root<SuccessCallback> const& success_callback, GC::Root<ErrorCallback> const& error_callback = nullptr, Optional<u32> timeout = {}, GC::Root<TimeoutCallback> const& timeout_callback = nullptr);
 
     using OnHeadersReceived = GC::Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
     using OnDataReceived = GC::Function<void(ReadonlyBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
 
-    void load_unbuffered(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnComplete>);
+    void load_unbuffered(LoadRequest&, GC::Root<OnHeadersReceived> const&, GC::Root<OnDataReceived> const&, GC::Root<OnComplete> const&);
 
     RefPtr<Requests::RequestClient>& request_client() { return m_request_client; }
 

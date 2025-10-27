@@ -118,7 +118,7 @@ public:
     template<size_t N>
     void set(char const (&key)[N], String value)
     {
-        set(StringView { key, N - 1 }, value);
+        set(StringView { key, N - 1 }, move(value));
     }
 
     template<size_t N>
@@ -134,14 +134,14 @@ public:
     }
 
     // FIXME: These are deprecated.
-    void set(StringView key, ByteString value)
+    void set(StringView key, ByteString const& value)
     {
         set(key, MUST(String::from_byte_string(value)));
     }
     template<size_t N>
     void set(char const (&key)[N], ByteString value)
     {
-        set(StringView { key, N - 1 }, value);
+        set(StringView { key, N - 1 }, move(value));
     }
 
 private:

@@ -24,7 +24,7 @@ ErrorOr<UnsignedBigInteger> SECPxxxr1::generate_private_key()
     return TRY(openssl_bignum_to_unsigned_big_integer(priv_bn));
 }
 
-ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key(UnsignedBigInteger scalar)
+ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key(UnsignedBigInteger const& scalar)
 {
     auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
@@ -48,7 +48,7 @@ ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key(UnsignedBigInteger scalar
     };
 }
 
-ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate(UnsignedBigInteger scalar, SECPxxxr1Point point)
+ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate(UnsignedBigInteger const& scalar, SECPxxxr1Point const& point)
 {
     auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
@@ -80,7 +80,7 @@ ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate(UnsignedBigInteger scalar,
     };
 }
 
-ErrorOr<bool> SECPxxxr1::verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature)
+ErrorOr<bool> SECPxxxr1::verify(ReadonlyBytes hash, SECPxxxr1Point const& pubkey, SECPxxxr1Signature const& signature)
 {
     auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
 
@@ -135,7 +135,7 @@ ErrorOr<bool> SECPxxxr1::verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPx
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign(ReadonlyBytes hash, UnsignedBigInteger private_key)
+ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign(ReadonlyBytes hash, UnsignedBigInteger const& private_key)
 {
     auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
 
@@ -181,7 +181,7 @@ ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign(ReadonlyBytes hash, UnsignedBigInteg
     };
 }
 
-ErrorOr<bool> SECPxxxr1::is_valid_point(SECPxxxr1Point pubkey, Optional<UnsignedBigInteger> private_key)
+ErrorOr<bool> SECPxxxr1::is_valid_point(SECPxxxr1Point const& pubkey, Optional<UnsignedBigInteger> private_key)
 {
     auto* group = OPENSSL_TRY_PTR(EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name)));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };

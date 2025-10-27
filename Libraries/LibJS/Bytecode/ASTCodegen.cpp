@@ -499,7 +499,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> arguments_to_arr
         return dst;
     }
 
-    auto first_spread = find_if(arguments.begin(), arguments.end(), [](auto el) { return el.is_spread; });
+    auto first_spread = find_if(arguments.begin(), arguments.end(), [](auto const& el) { return el.is_spread; });
 
     Vector<ScopedOperand> args;
     args.ensure_capacity(first_spread.index());
@@ -1210,7 +1210,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ArrayExpression::genera
         return dst;
     }
 
-    if (all_of(m_elements, [](auto element) { return !element || is<PrimitiveLiteral>(*element); })) {
+    if (all_of(m_elements, [](auto const& element) { return !element || is<PrimitiveLiteral>(*element); })) {
         // If all elements are constant primitives, we can just emit a single instruction to initialize the array,
         // instead of emitting instructions to manually evaluate them one-by-one
         Vector<Value> values;
@@ -1278,7 +1278,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionDeclaration::ge
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> const& lhs_name, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     bool has_name = !name().is_empty();
@@ -1292,7 +1292,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::gen
     }
 
     auto new_function = choose_dst(generator, preferred_dst);
-    generator.emit_new_function(new_function, *this, lhs_name);
+    generator.emit_new_function(new_function, *this, move(lhs_name));
 
     if (has_name) {
         generator.emit<Bytecode::Op::InitializeLexicalBinding>(*name_identifier, new_function);
@@ -1438,7 +1438,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
     generator.emit<Bytecode::Op::GetIterator>(iterator, input_array);
     bool first = true;
 
-    auto assign_value_to_alias = [&](auto& alias, ScopedOperand value) {
+    auto assign_value_to_alias = [&](auto& alias, ScopedOperand const& value) {
         return alias.visit(
             [&](Empty) -> Bytecode::CodeGenerationErrorOr<void> {
                 // This element is an elision
@@ -1833,9 +1833,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
 static ScopedOperand generate_await(
     Bytecode::Generator& generator,
-    ScopedOperand argument,
-    ScopedOperand received_completion,
-    ScopedOperand received_completion_type,
+    ScopedOperand const& argument,
+    ScopedOperand const& received_completion,
+    ScopedOperand const& received_completion_type,
     ScopedOperand received_completion_value);
 
 // https://tc39.es/ecma262/#sec-return-statement-runtime-semantics-evaluation
@@ -1881,9 +1881,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ReturnStatement::genera
 
 static void get_received_completion_type_and_value(
     Bytecode::Generator& generator,
-    ScopedOperand received_completion,
-    ScopedOperand received_completion_type,
-    ScopedOperand received_completion_value)
+    ScopedOperand const& received_completion,
+    ScopedOperand const& received_completion_type,
+    ScopedOperand const& received_completion_value)
 {
     generator.emit<Op::GetCompletionFields>(received_completion_type, received_completion_value, received_completion);
 }
@@ -1896,9 +1896,9 @@ enum class AwaitBeforeYield {
 static void generate_yield(Bytecode::Generator& generator,
     Bytecode::Label continuation_label,
     ScopedOperand argument,
-    ScopedOperand received_completion,
-    ScopedOperand received_completion_type,
-    ScopedOperand received_completion_value,
+    ScopedOperand const& received_completion,
+    ScopedOperand const& received_completion_type,
+    ScopedOperand const& received_completion_value,
     AwaitBeforeYield await_before_yield)
 {
     if (!generator.is_in_async_generator_function()) {
@@ -2885,7 +2885,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassDeclaration::gener
 }
 
 // 15.7.14 Runtime Semantics: ClassDefinitionEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ClassExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> const& lhs_name, Optional<ScopedOperand> preferred_dst) const
 {
     // NOTE: Step 2 is not a part of NewClass instruction because it is assumed to be done before super class expression evaluation
     generator.emit<Bytecode::Op::CreateLexicalEnvironment>();
@@ -2959,9 +2959,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ThisExpression::generat
 
 static ScopedOperand generate_await(
     Bytecode::Generator& generator,
-    ScopedOperand argument,
-    ScopedOperand received_completion,
-    ScopedOperand received_completion_type,
+    ScopedOperand const& argument,
+    ScopedOperand const& received_completion,
+    ScopedOperand const& received_completion_type,
     ScopedOperand received_completion_value)
 {
     VERIFY(generator.is_in_async_function());

@@ -126,7 +126,7 @@ FileWatcher::FileWatcher(int watcher_fd, NonnullRefPtr<Notifier> notifier)
 
 FileWatcher::~FileWatcher() = default;
 
-ErrorOr<bool> FileWatcherBase::add_watch(ByteString path, FileWatcherEvent::Type event_mask)
+ErrorOr<bool> FileWatcherBase::add_watch(ByteString const& path, FileWatcherEvent::Type event_mask)
 {
     if (m_path_to_wd.find(path) != m_path_to_wd.end()) {
         dbgln_if(FILE_WATCHER_DEBUG, "add_watch: path '{}' is already being watched", path);
@@ -159,7 +159,7 @@ ErrorOr<bool> FileWatcherBase::add_watch(ByteString path, FileWatcherEvent::Type
     return true;
 }
 
-ErrorOr<bool> FileWatcherBase::remove_watch(ByteString path)
+ErrorOr<bool> FileWatcherBase::remove_watch(ByteString const& path)
 {
     auto it = m_path_to_wd.find(path);
     if (it == m_path_to_wd.end()) {

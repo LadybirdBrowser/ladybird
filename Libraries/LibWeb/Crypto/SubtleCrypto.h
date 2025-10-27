@@ -52,6 +52,6 @@ struct NormalizedAlgorithmAndParameter {
     NonnullOwnPtr<AlgorithmMethods> methods;
     NonnullOwnPtr<AlgorithmParams> parameter;
 };
-WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::Realm&, AlgorithmIdentifier const& algorithm, String operation);
+WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::Realm&, AlgorithmIdentifier const& algorithm, String const& operation);
 
 }

@@ -86,8 +86,8 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
 IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Optional<Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>>> const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
     : PlatformObject(realm)
     , m_callback(callback)
-    , m_root_margin(root_margin)
-    , m_scroll_margin(scroll_margin)
+    , m_root_margin(move(root_margin))
+    , m_scroll_margin(move(scroll_margin))
     , m_thresholds(move(thresholds))
     , m_delay(delay)
     , m_track_visibility(track_visibility)
@@ -317,13 +317,13 @@ void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<Intersectio
 }
 
 // https://w3c.github.io/IntersectionObserver/#parse-a-margin
-Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, String margin_string)
+Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, String const& margin_string)
 {
     // 1. Parse a list of component values marginString, storing the result as tokens.
     auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { realm }, margin_string).parse_as_list_of_component_values();
 
     // 2. Remove all whitespace tokens from tokens.
-    tokens.remove_all_matching([](auto componentValue) { return componentValue.is(CSS::Parser::Token::Type::Whitespace); });
+    tokens.remove_all_matching([](auto const& componentValue) { return componentValue.is(CSS::Parser::Token::Type::Whitespace); });
 
     // 3. If the length of tokens is greater than 4, return failure.
     if (tokens.size() > 4) {
