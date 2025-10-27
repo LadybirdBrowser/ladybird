@@ -4,9 +4,9 @@ This is a personal fork of the [Ladybird Browser](https://github.com/LadybirdBro
 
 ## Fork Status
 
-- **Upstream**: Synchronized with [LadybirdBrowser/ladybird](https://github.com/LadybirdBrowser/ladybird)
-- **Purpose**: Personal learning and IPC security research
-- **Contribution Policy**: This fork contains experimental features not intended for upstream contribution
+- Upstream: Synchronized with [LadybirdBrowser/ladybird](https://github.com/LadybirdBrowser/ladybird)
+- Purpose: Personal learning and IPC security research
+- Contribution Policy: This fork contains experimental features not intended for upstream contribution
 
 ## Custom Additions
 
@@ -14,47 +14,65 @@ This fork includes experimental IPC security enhancements and development infras
 
 ### Security Enhancements
 
-**LibIPC Security Features** (`Libraries/LibIPC/`):
-- `Limits.h` - IPC message size and rate limiting constants
-- `RateLimiter.h` - Per-connection message rate limiting with sliding window algorithm
-- `SafeMath.h` - Overflow-safe arithmetic operations for IPC value validation
-- `ValidatedDecoder.h` - Bounds-checked IPC message decoding with validation
+LibIPC Security Features (Libraries/LibIPC/):
+- Limits.h: IPC message size and rate limiting constants
+- RateLimiter.h: Per-connection message rate limiting with sliding window algorithm
+- SafeMath.h: Overflow-safe arithmetic operations for IPC value validation
+- ValidatedDecoder.h: Bounds-checked IPC message decoding with validation
 
-**Service Process Hardening** (`Services/`):
-- **WebContent** - Enhanced page_id validation and input sanitization
-- **ImageDecoder** - Resource limit enforcement and validated decoding
-- **RequestServer** - URL length validation and request rate limiting
+Service Process Hardening (Services/):
+- WebContent: Enhanced page_id validation and input sanitization
+- ImageDecoder: Resource limit enforcement and validated decoding
+- RequestServer: URL length validation and request rate limiting
 
-**IPC Compiler Enhancements** (`Meta/Tools/CodeGenerators/IPCCompiler/`):
+IPC Compiler Enhancements (Meta/Tools/CodeGenerators/IPCCompiler/):
 - Automatic validation attribute generation
 - Type-safe parameter bounds checking
 - Security annotation support
 
+### Network Privacy Features
+
+Per-Tab Tor Integration (Libraries/LibIPC/, Services/RequestServer/):
+- ProxyConfig.h: Proxy configuration with Tor SOCKS5H support
+- NetworkIdentity.h/.cpp: Per-page network identity management
+- Stream isolation via SOCKS5 authentication
+- DNS leak prevention (SOCKS5H hostname resolution)
+- Circuit rotation support
+- Network activity audit logging
+
+VPN/Proxy Support:
+- Per-tab proxy configuration
+- libcurl integration with proxy settings
+- Authentication support for proxy connections
+- Transparent proxy application to HTTP requests
+
+See [TOR_INTEGRATION_COMPLETE.md](claudedocs/TOR_INTEGRATION_COMPLETE.md) for detailed implementation.
+
 ### Testing and Fuzzing
 
-**IPC Fuzzing Framework** (`Meta/Lagom/Fuzzers/`):
-- `FuzzIPC.cpp` - General IPC message fuzzing
-- `FuzzWebContentIPC.cpp` - WebContent-specific IPC fuzzing
+IPC Fuzzing Framework (Meta/Lagom/Fuzzers/):
+- FuzzIPC.cpp: General IPC message fuzzing
+- FuzzWebContentIPC.cpp: WebContent-specific IPC fuzzing
 - Automated malformed message testing
 
-**IPC Compiler Tests** (`Tests/LibIPC/`):
-- `TestIPCCompiler.cpp` - Validation attribute generation tests
+IPC Compiler Tests (Tests/LibIPC/):
+- TestIPCCompiler.cpp: Validation attribute generation tests
 - Type safety verification
 - Edge case handling validation
 
 ### Development Infrastructure
 
-**Documentation** (`claudedocs/`):
+Documentation (claudedocs/):
 - IPC security implementation guides
 - Validation attribute usage documentation
 - Migration examples and patterns
 - Windows build setup guides
 - Comprehensive security analysis reports
 
-**AI-Assisted Development**:
-- `CLAUDE.md` - Claude Code integration guide with project context
+Development Workflow:
+- CLAUDE.md: Claude Code integration guide with project context
 - Development workflow documentation
-- Architectural guidance for AI-assisted contributions
+- Architectural guidance for development
 
 ## Documentation Structure
 
