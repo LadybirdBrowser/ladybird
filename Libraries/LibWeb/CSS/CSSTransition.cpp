@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/Interpolation.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -25,6 +26,11 @@ GC::Ref<CSSTransition> CSSTransition::start_a_transition(DOM::AbstractElement ab
 {
     auto& realm = abstract_element.element().realm();
     return realm.create<CSSTransition>(realm, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+}
+
+StringView CSSTransition::transition_property() const
+{
+    return string_from_property_id(m_transition_property);
 }
 
 Animations::AnimationClass CSSTransition::animation_class() const

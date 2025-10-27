@@ -10,6 +10,7 @@
 #include <AK/Variant.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleComputer.h>

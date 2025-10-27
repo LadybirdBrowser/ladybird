@@ -16,33 +16,11 @@ class SVGFilterPrimitiveStandardAttributes {
 public:
     virtual ~SVGFilterPrimitiveStandardAttributes() = default;
 
-    GC::Ref<SVGAnimatedLength> x()
-    {
-        return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::X);
-    }
-
-    GC::Ref<SVGAnimatedLength> y()
-    {
-        return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::Y);
-    }
-
-    GC::Ref<SVGAnimatedLength> width()
-    {
-        return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::Width);
-    }
-
-    GC::Ref<SVGAnimatedLength> height()
-    {
-        return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::Height);
-    }
-
-    GC::Ref<SVGAnimatedString> result()
-    {
-        if (!m_result_animated_string)
-            m_result_animated_string = SVGAnimatedString::create(this_svg_element()->realm(), *this_svg_element(), AttributeNames::result);
-
-        return *m_result_animated_string;
-    }
+    GC::Ref<SVGAnimatedLength> x();
+    GC::Ref<SVGAnimatedLength> y();
+    GC::Ref<SVGAnimatedLength> width();
+    GC::Ref<SVGAnimatedLength> height();
+    GC::Ref<SVGAnimatedString> result();
 
 protected:
     void visit_edges(JS::Cell::Visitor& visitor)

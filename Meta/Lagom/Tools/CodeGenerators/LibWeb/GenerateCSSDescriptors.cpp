@@ -82,8 +82,7 @@ ErrorOr<void> generate_header_file(JsonObject const& at_rules_data, Core::File& 
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
-#include <LibWeb/CSS/Keyword.h>
-#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -152,6 +151,7 @@ ErrorOr<void> generate_implementation_file(JsonObject const& at_rules_data, Core
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 

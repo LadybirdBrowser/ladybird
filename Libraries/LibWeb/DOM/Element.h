@@ -15,7 +15,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
 #include <LibWeb/CSS/CascadedProperties.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -495,41 +494,6 @@ public:
     void maybe_invalidate_ordinals_for_list_owner(Optional<Element*> skip_node = {});
     i32 ordinal_value();
 
-    template<typename Callback>
-    void for_each_numbered_item_owned_by_list_owner(Callback callback) const
-    {
-        const_cast<Element*>(this)->for_each_numbered_item_owned_by_list_owner(move(callback));
-    }
-
-    template<typename Callback>
-    void for_each_numbered_item_owned_by_list_owner(Callback callback)
-    {
-        for (auto* node = this->first_child(); node != nullptr; node = node->next_in_pre_order(this)) {
-            auto* element = as_if<Element>(node);
-            if (!element)
-                continue;
-
-            element->m_is_contained_in_list_subtree = true;
-
-            if (node->is_html_ol_ul_menu_element()) {
-                // Skip list nodes and their descendents. They have their own, unrelated ordinals.
-                while (node->last_child() != nullptr) // Find the last node (preorder) in the subtree headed by node. O(1).
-                    node = node->last_child();
-
-                continue;
-            }
-
-            if (!node->layout_node())
-                continue; // Skip nodes that do not participate in the layout.
-
-            if (!element->computed_properties()->display().is_list_item())
-                continue; // Skip nodes that are not list items.
-
-            if (callback(element) == IterationDecision::Break)
-                return;
-        }
-    }
-
     bool captured_in_a_view_transition() const { return m_captured_in_a_view_transition; }
     void set_captured_in_a_view_transition(bool value) { m_captured_in_a_view_transition = value; }
 
@@ -589,6 +553,15 @@ private:
     Optional<Directionality> auto_directionality() const;
     Optional<Directionality> contained_text_auto_directionality(bool can_exclude_root) const;
     Directionality parent_directionality() const;
+
+    template<typename Callback>
+    void for_each_numbered_item_owned_by_list_owner(Callback callback) const
+    {
+        const_cast<Element*>(this)->for_each_numbered_item_owned_by_list_owner(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_numbered_item_owned_by_list_owner(Callback callback);
 
     QualifiedName m_qualified_name;
     mutable Optional<FlyString> m_html_uppercased_qualified_name;
