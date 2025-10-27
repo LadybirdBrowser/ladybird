@@ -1,4 +1,3 @@
-#include <LibWeb/MediaSession/ChapterInformation.h>
 #include <AK/StringBuilder.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/MediaSession/Utils.h>

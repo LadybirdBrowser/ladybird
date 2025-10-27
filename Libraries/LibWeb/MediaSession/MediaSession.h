@@ -1,7 +1,6 @@
 #pragma once
 
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/MediaSession/MediaMetadata.h>
 #include <LibWeb/Bindings/MediaSessionPrototype.h>
 
