@@ -11,7 +11,7 @@ env:
 jobs:
   run_and_update_results:
     runs-on: test262-runner
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
 
     concurrency: libjs-test262
 
@@ -21,7 +21,7 @@ jobs:
           echo "Cleaning up previous run"
           rm -rf "${{ github.workspace }}/*"
 
-      - name: Checkout LadybirdBrowser/ladybird
+      - name: Checkout quanticsoul4772/ladybird
         uses: actions/checkout@v5
 
       - name: Checkout LadybirdBrowser/libjs-test262

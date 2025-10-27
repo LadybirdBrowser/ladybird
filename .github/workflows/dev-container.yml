@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
     runs-on: ubuntu-latest
     steps:
 

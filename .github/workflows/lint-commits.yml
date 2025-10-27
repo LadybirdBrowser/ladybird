@@ -8,7 +8,7 @@ on: [pull_request_target]
 jobs:
   lint:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'quanticsoul4772/ladybird'
 
     steps:
       - name: Lint PR commits
@@ -102,4 +102,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.LADYBIRD_BOT_TOKEN }}
         with:
-          msg: "Hello!\n\nOne or more of the commit messages in this PR do not match the Ladybird [code submission policy](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md#code-submission-policy), please check the `lint_commits` CI job for more details on which commits were flagged and why.\nPlease do not close this PR and open another, instead modify your commit message(s) with [git commit --amend](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/changing-a-commit-message) and force push those changes to update this PR."
+          msg: "Hello!\n\nOne or more of the commit messages in this PR do not match the Ladybird [code submission policy](https://github.com/quanticsoul4772/ladybird/blob/master/CONTRIBUTING.md#code-submission-policy), please check the `lint_commits` CI job for more details on which commits were flagged and why.\nPlease do not close this PR and open another, instead modify your commit message(s) with [git commit --amend](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/changing-a-commit-message) and force push those changes to update this PR."
