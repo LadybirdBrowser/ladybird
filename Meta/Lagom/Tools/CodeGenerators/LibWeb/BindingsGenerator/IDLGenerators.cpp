@@ -98,6 +98,7 @@ static bool is_platform_object(Type const& type)
 
         "ChapterInformation"sv,
         "MediaMetadata"sv,
+        "MediaSession"sv,
 
         "Memory"sv,
         "MessagePort"sv,

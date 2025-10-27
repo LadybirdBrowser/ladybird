@@ -20,6 +20,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 
 namespace Web::HTML {
 
@@ -76,6 +77,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
+    visitor.visit(m_media_session);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -146,6 +148,15 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
     if (!m_media_capabilities)
         m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());
     return *m_media_capabilities;
+}
+
+GC::Ref<MediaSession::MediaSession> Navigator::media_session()
+{
+
+    auto& window = as<HTML::Window>(HTML::entry_global_object());
+    if (!m_media_session)
+        m_media_session = realm().create<MediaSession::MediaSession>(window);
+    return *m_media_session;
 }
 
 }

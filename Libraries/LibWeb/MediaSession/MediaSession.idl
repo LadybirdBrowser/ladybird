@@ -1,7 +1,4 @@
-[Exposed=Window]
-partial interface Navigator {
-  [SameObject] readonly attribute MediaSession mediaSession;
-};
+// https://w3c.github.io/mediasession/#the-mediasession-interface
 
 enum MediaSessionPlaybackState {
   "none",
@@ -52,4 +49,21 @@ interface MediaSession {
   Promise<undefined> setCameraActive(boolean active);
 
   Promise<undefined> setScreenshareActive(boolean active);
+};
+
+// https://w3c.github.io/mediasession/#the-mediasessionactiondetails-dictionary
+dictionary MediaSessionActionDetails {
+  required MediaSessionAction action;
+  double seekOffset;
+  double seekTime;
+  boolean fastSeek;
+  boolean isActivating;
+  MediaSessionEnterPictureInPictureReason enterPictureInPictureReason;
+};
+
+// https://w3c.github.io/mediasession/#the-mediapositionstate-dictionary
+dictionary MediaPositionState {
+  unrestricted double duration;
+  double playbackRate;
+  double position;
 };
