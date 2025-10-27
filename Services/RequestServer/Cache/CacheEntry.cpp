@@ -85,7 +85,7 @@ void CacheEntry::remove()
     m_index.remove_entry(m_cache_key);
 }
 
-void CacheEntry::close_and_destory_cache_entry()
+void CacheEntry::close_and_destroy_cache_entry()
 {
     m_disk_cache.cache_entry_closed({}, *this);
 }
@@ -154,7 +154,7 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 {
     if (m_marked_for_deletion) {
-        close_and_destory_cache_entry();
+        close_and_destroy_cache_entry();
         return Error::from_string_literal("Cache entry has been deleted");
     }
 
@@ -162,7 +162,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
         dbgln("\033[31;1mUnable to write to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
-        close_and_destory_cache_entry();
+        close_and_destroy_cache_entry();
 
         return result.release_error();
     }
@@ -175,7 +175,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 
 ErrorOr<void> CacheEntryWriter::flush()
 {
-    ScopeGuard guard { [&]() { close_and_destory_cache_entry(); } };
+    ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
     if (m_marked_for_deletion)
         return Error::from_string_literal("Cache entry has been deleted");
@@ -337,7 +337,7 @@ void CacheEntryReader::pipe_complete()
             m_on_pipe_complete(m_bytes_piped);
     }
 
-    close_and_destory_cache_entry();
+    close_and_destroy_cache_entry();
 }
 
 void CacheEntryReader::pipe_error(Error error)
@@ -351,7 +351,7 @@ void CacheEntryReader::pipe_error(Error error)
     if (m_on_pipe_error)
         m_on_pipe_error(m_bytes_piped);
 
-    close_and_destory_cache_entry();
+    close_and_destroy_cache_entry();
 }
 
 ErrorOr<void> CacheEntryReader::read_and_validate_footer()

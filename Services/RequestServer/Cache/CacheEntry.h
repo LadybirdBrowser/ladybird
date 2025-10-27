@@ -62,7 +62,7 @@ public:
 protected:
     CacheEntry(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, CacheHeader);
 
-    void close_and_destory_cache_entry();
+    void close_and_destroy_cache_entry();
 
     DiskCache& m_disk_cache;
     CacheIndex& m_index;
