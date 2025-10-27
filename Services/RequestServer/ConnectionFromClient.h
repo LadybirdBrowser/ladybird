@@ -38,9 +38,9 @@ public:
 
     virtual void die() override;
 
-    // Network identity management
-    [[nodiscard]] RefPtr<IPC::NetworkIdentity> network_identity() const { return m_network_identity; }
-    void set_network_identity(RefPtr<IPC::NetworkIdentity> identity) { m_network_identity = move(identity); }
+    // Network identity management (per-page for circuit isolation)
+    [[nodiscard]] RefPtr<IPC::NetworkIdentity> network_identity_for_page(u64 page_id);
+    [[nodiscard]] RefPtr<IPC::NetworkIdentity> get_or_create_network_identity_for_page(u64 page_id);
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -59,14 +59,14 @@ private:
 
     virtual void clear_cache() override;
 
-    // Tor network control IPC handlers
-    virtual void enable_tor(ByteString circuit_id) override;
-    virtual void disable_tor() override;
-    virtual void rotate_tor_circuit() override;
+    // Tor network control IPC handlers (with page_id for per-tab isolation)
+    virtual void enable_tor(u64 page_id, ByteString circuit_id) override;
+    virtual void disable_tor(u64 page_id) override;
+    virtual void rotate_tor_circuit(u64 page_id) override;
 
-    // VPN/Proxy control IPC handlers
-    virtual void set_proxy(ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password) override;
-    virtual void clear_proxy() override;
+    // VPN/Proxy control IPC handlers (with page_id for per-tab isolation)
+    virtual void set_proxy(u64 page_id, ByteString host, u16 port, ByteString proxy_type, Optional<ByteString> username, Optional<ByteString> password) override;
+    virtual void clear_proxy(u64 page_id) override;
 
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;
     virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;
@@ -102,8 +102,9 @@ private:
     NonnullRefPtr<Resolver> m_resolver;
     ByteString m_alt_svc_cache_path;
 
-    // Network identity for per-tab routing and audit
-    RefPtr<IPC::NetworkIdentity> m_network_identity;
+    // Network identity per page_id for per-tab routing and audit
+    // SECURITY: Each page/tab maintains independent proxy/Tor configuration
+    HashMap<u64, RefPtr<IPC::NetworkIdentity>> m_page_network_identities;
 
     // Security validation helpers
     [[nodiscard]] bool validate_request_id(i32 request_id, SourceLocation location = SourceLocation::current())

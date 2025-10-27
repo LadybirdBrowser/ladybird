@@ -1363,9 +1363,9 @@ void ConnectionFromClient::enable_tor(u64 page_id, ByteString circuit_id)
         return;
     }
 
-    // Call enable_tor on RequestServer via IPC
-    // The RequestServerEndpoint interface (inherited by RequestClient) has this method
-    request_client->async_enable_tor(move(circuit_id));
+    // Call enable_tor on RequestServer via IPC with page_id for per-tab isolation
+    // SECURITY: Passing page_id ensures each tab has independent Tor circuit
+    request_client->async_enable_tor(page_id, move(circuit_id));
 
     dbgln("WebContent: Enabled Tor for page {} with circuit {}", page_id, circuit_id);
 }
@@ -1385,8 +1385,9 @@ void ConnectionFromClient::disable_tor(u64 page_id)
         return;
     }
 
-    // Call disable_tor on RequestServer via IPC
-    request_client->async_disable_tor();
+    // Call disable_tor on RequestServer via IPC with page_id for per-tab isolation
+    // SECURITY: Passing page_id ensures only this tab's Tor is disabled
+    request_client->async_disable_tor(page_id);
 
     dbgln("WebContent: Disabled Tor for page {}", page_id);
 }
@@ -1407,7 +1408,8 @@ void ConnectionFromClient::rotate_tor_circuit(u64 page_id)
     }
 
     // Call rotate_tor_circuit on RequestServer via IPC
-    request_client->async_rotate_tor_circuit();
+    // SECURITY: Pass page_id to ensure circuit rotation only affects this tab
+    request_client->async_rotate_tor_circuit(page_id);
 
     dbgln("WebContent: Rotated Tor circuit for page {}", page_id);
 }
@@ -1427,8 +1429,9 @@ void ConnectionFromClient::set_proxy(u64 page_id, ByteString host, u16 port, Byt
         return;
     }
 
-    // Call set_proxy on RequestServer via IPC
-    request_client->async_set_proxy(move(host), port, move(proxy_type), move(username), move(password));
+    // Call set_proxy on RequestServer via IPC with page_id for per-tab isolation
+    // SECURITY: Passing page_id ensures each tab has independent proxy configuration
+    request_client->async_set_proxy(page_id, move(host), port, move(proxy_type), move(username), move(password));
 
     dbgln("WebContent: Set proxy for page {} ({}:{})", page_id, host, port);
 }
@@ -1449,7 +1452,8 @@ void ConnectionFromClient::clear_proxy(u64 page_id)
     }
 
     // Call clear_proxy on RequestServer via IPC
-    request_client->async_clear_proxy();
+    // SECURITY: Pass page_id to ensure proxy clearing only affects this tab
+    request_client->async_clear_proxy(page_id);
 
     dbgln("WebContent: Cleared proxy for page {}", page_id);
 }

@@ -14,12 +14,31 @@ namespace IPC {
 
 // Proxy connectivity validator
 // Tests if a proxy is reachable and accepting connections before applying configuration
+//
+// IMPORTANT LIMITATIONS:
+// - This validator makes SYNCHRONOUS BLOCKING TCP connections
+// - Calling from an event loop will BLOCK until connection succeeds/fails
+// - Connection timeout is system-dependent (typically 30-120 seconds)
+// - Can cause UI freezes if called from IPC handlers
+//
+// FUTURE IMPROVEMENTS:
+// - Make validation asynchronous (requires event loop integration)
+// - Add configurable timeout support
+// - Move validation to background thread
+// - Add caching to reduce validation frequency
+//
+// CURRENT WORKAROUND:
+// - Validation failures are treated as warnings, not errors
+// - Config is applied even if validation fails
+// - This prevents falling back to unencrypted connections
 class ProxyValidator {
 public:
     // Test if proxy is reachable and accepting connections
+    // WARNING: This is SYNCHRONOUS and will BLOCK the calling thread
     [[nodiscard]] static ErrorOr<void> test_proxy(ProxyConfig const& config);
 
     // Convenience wrapper - returns true if proxy is working
+    // WARNING: This is SYNCHRONOUS and will BLOCK the calling thread
     [[nodiscard]] static bool is_proxy_working(ProxyConfig const& config);
 
 private:

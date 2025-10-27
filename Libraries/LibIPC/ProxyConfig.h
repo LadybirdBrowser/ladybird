@@ -29,6 +29,28 @@ struct ProxyConfig {
     Optional<ByteString> username;  // For SOCKS5 stream isolation
     Optional<ByteString> password;  // For SOCKS5 authentication
 
+    // SECURITY: Securely clear credentials from memory
+    // Call this when credentials are no longer needed (e.g., after proxy config is applied)
+    // Note: This should be called explicitly, not in destructor, to avoid issues with copies
+    void clear_credentials()
+    {
+        // Clear username if present
+        if (username.has_value()) {
+            auto& username_str = const_cast<ByteString&>(*username);
+            if (username_str.length() > 0)
+                explicit_bzero(const_cast<char*>(username_str.characters()), username_str.length());
+            username.clear();
+        }
+
+        // Clear password if present
+        if (password.has_value()) {
+            auto& password_str = const_cast<ByteString&>(*password);
+            if (password_str.length() > 0)
+                explicit_bzero(const_cast<char*>(password_str.characters()), password_str.length());
+            password.clear();
+        }
+    }
+
     // Check if proxy is configured
     [[nodiscard]] bool is_configured() const
     {
