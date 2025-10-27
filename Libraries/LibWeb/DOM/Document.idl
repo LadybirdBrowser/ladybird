@@ -26,6 +26,7 @@
 #import <HTML/HTMLScriptElement.idl>
 #import <HTML/Location.idl>
 #import <Selection/Selection.idl>
+#import <TrustedTypes/TrustedHTML.idl>
 #import <ViewTransition/ViewTransition.idl>
 #import <XPath/XPathResult.idl>
 #import <XPath/XPathExpression.idl>
@@ -56,13 +57,10 @@ interface Document : Node {
     [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2);
     WindowProxy? open(USVString url, DOMString name, DOMString features);
     [CEReactions] undefined close();
-    // FIXME: [CEReactions] undefined write((TrustedHTML or DOMString)... text);
-    [CEReactions] undefined write(DOMString... text);
-    // FIXME: [CEReactions] undefined writeln((TrustedHTML or DOMString)... text);
-    [CEReactions] undefined writeln(DOMString... text);
+    [CEReactions] undefined write((TrustedHTML or Utf16DOMString)... text);
+    [CEReactions] undefined writeln((TrustedHTML or Utf16DOMString)... text);
 
-    // FIXME: static Document parseHTMLUnsafe((TrustedHTML or DOMString) html);
-    static Document parseHTMLUnsafe(DOMString html);
+    static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
 
     attribute DOMString cookie;
 

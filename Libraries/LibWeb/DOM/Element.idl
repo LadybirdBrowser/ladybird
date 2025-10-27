@@ -14,6 +14,8 @@
 #import <Geometry/DOMRectList.idl>
 #import <HTML/HTMLSlotElement.idl>
 #import <HTML/Window.idl>
+#import <TrustedTypes/TrustedHTML.idl>
+#import <TrustedTypes/TrustedTypePolicy.idl>
 
 enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
 // https://drafts.csswg.org/cssom-view-1/#dictdef-scrollintoviewoptions
@@ -52,8 +54,8 @@ interface Element : Node {
     sequence<DOMString> getAttributeNames();
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions] undefined setAttribute(DOMString qualifiedName, DOMString value);
-    [CEReactions] undefined setAttributeNS([FlyString] DOMString? namespace , [FlyString] DOMString qualifiedName , DOMString value);
+    [CEReactions] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions] undefined setAttributeNS([FlyString] DOMString? namespace , [FlyString] DOMString qualifiedName , (TrustedType or Utf16DOMString) value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
@@ -108,18 +110,14 @@ interface Element : Node {
     readonly attribute double currentCSSZoom;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
-    // FIXME: [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
-    [CEReactions] undefined setHTMLUnsafe(DOMString html);
+    [CEReactions] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});
 
-    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString innerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
 
-    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) outerHTML;
-    [CEReactions, LegacyNullToEmptyString] attribute DOMString outerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
 
-    // FIXME: [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) string);
-    [CEReactions] undefined insertAdjacentHTML(DOMString position, DOMString text);
+    [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
 
     // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
     undefined setPointerCapture(long pointerId);

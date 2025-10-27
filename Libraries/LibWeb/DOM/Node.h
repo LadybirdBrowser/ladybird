@@ -280,12 +280,12 @@ public:
 
     Utf16String descendant_text_content() const;
     Optional<Utf16String> text_content() const;
-    void set_text_content(Optional<Utf16String> const&);
+    WebIDL::ExceptionOr<void> set_text_content(Optional<Utf16String> const&);
 
     WebIDL::ExceptionOr<void> normalize();
 
     Optional<String> node_value() const;
-    void set_node_value(Optional<String> const&);
+    WebIDL::ExceptionOr<void> set_node_value(Optional<String> const&);
 
     GC::Ptr<HTML::Navigable> navigable() const;
 
@@ -403,7 +403,7 @@ public:
     [[nodiscard]] UniqueNodeID unique_id() const { return m_unique_id; }
     static Node* from_unique_id(UniqueNodeID);
 
-    WebIDL::ExceptionOr<String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
+    WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
     WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
 

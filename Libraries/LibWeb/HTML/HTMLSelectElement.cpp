@@ -612,7 +612,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
         height: 16px;
         margin-left: 4px;
     )~~~"_string));
-    MUST(m_chevron_icon_element->set_inner_html(chevron_svg));
+    MUST(m_chevron_icon_element->set_inner_html(Utf16String::from_utf8(chevron_svg)));
     MUST(border->append_child(*m_chevron_icon_element));
 
     update_inner_text_element();
@@ -633,7 +633,7 @@ void HTMLSelectElement::update_inner_text_element()
     // Update inner text element to the label of the selected option
     for (auto const& option_element : m_cached_list_of_options) {
         if (option_element->selected()) {
-            m_inner_text_element->set_text_content(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label())));
+            MUST(m_inner_text_element->set_text_content(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label()))));
             return;
         }
     }
