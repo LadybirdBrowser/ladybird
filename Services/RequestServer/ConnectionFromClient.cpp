@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "WebSocketImplCurl.h"
-
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
-#include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
@@ -21,405 +18,32 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
-#include <LibTLS/TLSv12.h>
-#include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
+#include <RequestServer/CURL.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/RequestClientEndpoint.h>
-
-#ifdef AK_OS_WINDOWS
-// needed because curl.h includes winsock2.h
-#    include <AK/Windows.h>
-#endif
-
-#include <curl/curl.h>
+#include <RequestServer/Request.h>
+#include <RequestServer/Resolver.h>
+#include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
 
-ByteString g_default_certificate_path;
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
-static long s_connect_timeout_seconds = 90L;
 
 // Gateway timeout configuration (shorter than standard HTTP for faster failover)
 // With 4 IPFS gateways, total max time = 4 * (10s connect + 30s transfer) = 160s
-static long s_gateway_connect_timeout_seconds = 10L;  // Connect timeout for gateway requests
-static long s_gateway_request_timeout_seconds = 30L;  // Total request timeout for gateway requests
-
-static struct {
-    Optional<Core::SocketAddress> server_address;
-    Optional<ByteString> server_hostname;
-    u16 port;
-    bool use_dns_over_tls = true;
-    bool validate_dnssec_locally = false;
-} g_dns_info;
+[[maybe_unused]] static long s_gateway_connect_timeout_seconds = 10L;  // Connect timeout for gateway requests
+[[maybe_unused]] static long s_gateway_request_timeout_seconds = 30L;  // Total request timeout for gateway requests
 
 Optional<DiskCache> g_disk_cache;
 
 // Static storage for NetworkIdentity shared across all ConnectionFromClient instances
 HashMap<u64, RefPtr<IPC::NetworkIdentity>> ConnectionFromClient::s_page_network_identities;
-
-static WeakPtr<Resolver> s_resolver {};
-static NonnullRefPtr<Resolver> default_resolver()
-{
-    if (auto resolver = s_resolver.strong_ref())
-        return *resolver;
-    auto resolver = make_ref_counted<Resolver>([] -> ErrorOr<DNS::Resolver::SocketResult> {
-        if (!g_dns_info.server_address.has_value()) {
-            if (!g_dns_info.server_hostname.has_value())
-                return Error::from_string_literal("No DNS server configured");
-
-            auto resolved = TRY(default_resolver()->dns.lookup(*g_dns_info.server_hostname)->await());
-            if (!resolved->has_cached_addresses())
-                return Error::from_string_literal("Failed to resolve DNS server hostname");
-            auto address = resolved->cached_addresses().first().visit([](auto& addr) -> Core::SocketAddress { return { addr, g_dns_info.port }; });
-            g_dns_info.server_address = address;
-        }
-
-        if (g_dns_info.use_dns_over_tls) {
-            TLS::Options options;
-
-            if (!g_default_certificate_path.is_empty())
-                options.root_certificates_path = g_default_certificate_path;
-
-            return DNS::Resolver::SocketResult {
-                MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(*g_dns_info.server_address, *g_dns_info.server_hostname, move(options)))),
-                DNS::Resolver::ConnectionMode::TCP,
-            };
-        }
-
-#if !defined(AK_OS_WINDOWS)
-        return DNS::Resolver::SocketResult {
-            MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*g_dns_info.server_address))))),
-            DNS::Resolver::ConnectionMode::UDP,
-        };
-#else
-        return Error::from_string_literal("Core::UDPSocket::connect() and Core::BufferedUDPSocket::create() are not implemented on Windows");
-#endif
-    });
-
-    s_resolver = resolver;
-    return resolver;
-}
-
-ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port)
-{
-    StringBuilder resolve_opt_builder;
-    resolve_opt_builder.appendff("{}:{}:", host, port);
-    auto first = true;
-    for (auto& addr : dns_result.cached_addresses()) {
-        auto formatted_address = addr.visit(
-            [&](IPv4Address const& ipv4) { return ipv4.to_byte_string(); },
-            [&](IPv6Address const& ipv6) { return MUST(ipv6.to_string()).to_byte_string(); });
-        if (!first)
-            resolve_opt_builder.append(',');
-        first = false;
-        resolve_opt_builder.append(formatted_address);
-    }
-
-    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Resolve list: {}", resolve_opt_builder.string_view());
-
-    return resolve_opt_builder.to_byte_string();
-}
-
-struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
-    CURLM* multi { nullptr };
-    CURL* easy { nullptr };
-    Vector<curl_slist*> curl_string_lists;
-    i32 request_id { 0 };
-    u64 page_id { 0 };
-    WeakPtr<ConnectionFromClient> client;
-    int writer_fd { 0 };
-    bool is_connect_only { false };
-    bool is_gateway_request { false };  // P2P gateway request (IPFS/IPNS/ENS)
-    size_t downloaded_so_far { 0 };
-    URL::URL url;
-    ByteString method;
-    Optional<String> reason_phrase;
-    ByteBuffer body;
-
-    AllocatingMemoryStream send_buffer;
-    NonnullRefPtr<Core::Notifier> write_notifier;
-    bool done_fetching { false };
-
-    Optional<long> http_status_code;
-    HTTP::HeaderMap headers;
-    bool got_all_headers { false };
-
-    Optional<size_t> start_offset_of_resumed_response;
-    size_t bytes_transferred_to_client { 0 };
-
-    Optional<CacheEntryWriter&> cache_entry;
-    UnixDateTime request_start_time;
-
-    // IPFS content verification
-    Optional<IPC::ParsedCID> ipfs_cid;
-    ByteBuffer ipfs_content_buffer;
-
-    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, u64 page_id, int writer_fd)
-        : multi(multi)
-        , easy(easy)
-        , request_id(request_id)
-        , page_id(page_id)
-        , client(client)
-        , writer_fd(writer_fd)
-        , write_notifier(Core::Notifier::construct(writer_fd, Core::NotificationType::Write))
-        , request_start_time(UnixDateTime::now())
-    {
-        write_notifier->set_enabled(false);
-        write_notifier->on_activation = [this] {
-            if (auto maybe_error = write_queued_bytes_without_blocking(); maybe_error.is_error()) {
-                dbgln("Warning: Failed to write buffered request data (it's likely the client disappeared): {}", maybe_error.error());
-            }
-        };
-    }
-
-    void schedule_self_destruction() const
-    {
-        Core::deferred_invoke([weak_this = make_weak_ptr()] {
-            if (!weak_this)
-                return;
-            if (weak_this->client)
-                weak_this->client->m_active_requests.remove(weak_this->request_id);
-        });
-    }
-
-    ErrorOr<void> write_queued_bytes_without_blocking()
-    {
-        auto available_bytes = send_buffer.used_buffer_size();
-
-        // If we've received a response to a range request that is not the partial content (206) we requested, we must
-        // only transfer the subset of data that WebContent now needs. We discard all received bytes up to the expected
-        // start of the remaining data, and then transfer the remaining bytes.
-        if (start_offset_of_resumed_response.has_value()) {
-            if (http_status_code == 206) {
-                start_offset_of_resumed_response.clear();
-            } else if (http_status_code == 200) {
-                // All bytes currently available have already been transferred. Discard them entirely.
-                if (bytes_transferred_to_client + available_bytes <= *start_offset_of_resumed_response) {
-                    bytes_transferred_to_client += available_bytes;
-
-                    MUST(send_buffer.discard(available_bytes));
-                    return {};
-                }
-
-                // Some bytes currently available have already been transferred. Discard those bytes and transfer the rest.
-                if (bytes_transferred_to_client + available_bytes > *start_offset_of_resumed_response) {
-                    auto bytes_to_discard = *start_offset_of_resumed_response - bytes_transferred_to_client;
-                    bytes_transferred_to_client += bytes_to_discard;
-                    available_bytes -= bytes_to_discard;
-
-                    MUST(send_buffer.discard(bytes_to_discard));
-                }
-
-                start_offset_of_resumed_response.clear();
-            } else {
-                return Error::from_string_literal("Unacceptable status code for resumed HTTP request");
-            }
-        }
-
-        Vector<u8> bytes_to_send;
-        bytes_to_send.resize(available_bytes);
-        send_buffer.peek_some(bytes_to_send);
-
-        auto result = Core::System::write(this->writer_fd, bytes_to_send);
-        if (result.is_error()) {
-            if (result.error().code() != EAGAIN) {
-                return result.release_error();
-            }
-            write_notifier->set_enabled(true);
-            return {};
-        }
-
-        if (cache_entry.has_value()) {
-            auto bytes_sent = bytes_to_send.span().slice(0, result.value());
-
-            if (cache_entry->write_data(bytes_sent).is_error())
-                cache_entry.clear();
-        }
-
-        bytes_transferred_to_client += result.value();
-        MUST(send_buffer.discard(result.value()));
-
-        write_notifier->set_enabled(!send_buffer.is_eof());
-        if (send_buffer.is_eof() && done_fetching)
-            schedule_self_destruction();
-
-        return {};
-    }
-
-    void notify_about_fetching_completion()
-    {
-        done_fetching = true;
-        if (send_buffer.is_eof())
-            schedule_self_destruction();
-    }
-
-    ~ActiveRequest()
-    {
-        if (!send_buffer.is_eof()) {
-            dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
-        }
-
-        if (writer_fd > 0)
-            MUST(Core::System::close(writer_fd));
-
-        auto result = curl_multi_remove_handle(multi, easy);
-        VERIFY(result == CURLM_OK);
-        curl_easy_cleanup(easy);
-
-        for (auto* string_list : curl_string_lists)
-            curl_slist_free_all(string_list);
-
-        if (cache_entry.has_value())
-            (void)cache_entry->flush();
-    }
-
-    void flush_headers_if_needed()
-    {
-        if (!http_status_code.has_value())
-            http_status_code = acquire_http_status_code();
-
-        if (got_all_headers)
-            return;
-        got_all_headers = true;
-
-        client->async_headers_became_available(request_id, headers, *http_status_code, reason_phrase);
-
-        if (g_disk_cache.has_value())
-            cache_entry = g_disk_cache->create_entry(url, method, *http_status_code, reason_phrase, headers, request_start_time);
-    }
-
-    long acquire_http_status_code() const
-    {
-        long code = 0;
-        auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &code);
-        VERIFY(result == CURLE_OK);
-
-        return code;
-    }
-};
-
-size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data)
-{
-    auto* request = static_cast<ActiveRequest*>(user_data);
-    size_t total_size = size * nmemb;
-    auto header_line = StringView { static_cast<char const*>(buffer), total_size };
-
-    // NOTE: We need to extract the HTTP reason phrase since it can be a custom value.
-    //       Fetching infrastructure needs this value for setting the status message.
-    if (!request->reason_phrase.has_value() && header_line.starts_with("HTTP/"sv)) {
-        if (auto const space_positions = header_line.find_all(" "sv); space_positions.size() > 1) {
-            auto const second_space_offset = space_positions.at(1);
-            auto const reason_phrase_string_view = header_line.substring_view(second_space_offset + 1).trim_whitespace();
-
-            if (!reason_phrase_string_view.is_empty()) {
-                auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
-                VERIFY(decoder.has_value());
-
-                request->reason_phrase = MUST(decoder->to_utf8(reason_phrase_string_view));
-                return total_size;
-            }
-        }
-    }
-
-    if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
-        auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
-        auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
-        request->headers.set(name, value);
-    }
-
-    return total_size;
-}
-
-size_t ConnectionFromClient::on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data)
-{
-    auto* request = static_cast<ActiveRequest*>(user_data);
-    request->flush_headers_if_needed();
-
-    size_t total_size = size * nmemb;
-    ReadonlyBytes bytes { static_cast<u8 const*>(buffer), total_size };
-
-    auto maybe_write_error = [&] -> ErrorOr<void> {
-        TRY(request->send_buffer.write_some(bytes));
-        return request->write_queued_bytes_without_blocking();
-    }();
-
-    if (maybe_write_error.is_error()) {
-        dbgln("ConnectionFromClient::on_data_received: Aborting request because error occurred whilst writing data to the client: {}", maybe_write_error.error());
-        return CURL_WRITEFUNC_ERROR;
-    }
-
-    // IPFS content verification: Accumulate content if this is an IPFS request
-    if (request->ipfs_cid.has_value()) {
-        auto append_result = request->ipfs_content_buffer.try_append(bytes);
-        if (append_result.is_error()) {
-            dbgln("ConnectionFromClient::on_data_received: Failed to append IPFS content to buffer: {}", append_result.error());
-            // Continue anyway - verification will fail later
-        }
-    }
-
-    request->downloaded_so_far += total_size;
-    return total_size;
-}
-
-int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* user_data, void*)
-{
-    auto* client = static_cast<ConnectionFromClient*>(user_data);
-
-    if (what == CURL_POLL_REMOVE) {
-        client->m_read_notifiers.remove(sockfd);
-        client->m_write_notifiers.remove(sockfd);
-        return 0;
-    }
-
-    if (what & CURL_POLL_IN) {
-        client->m_read_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
-            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Read);
-            notifier->on_activation = [client, sockfd, multi] {
-                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_IN, nullptr);
-                VERIFY(result == CURLM_OK);
-                client->check_active_requests();
-            };
-            notifier->set_enabled(true);
-            return notifier;
-        });
-    }
-
-    if (what & CURL_POLL_OUT) {
-        client->m_write_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
-            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Write);
-            notifier->on_activation = [client, sockfd, multi] {
-                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_OUT, nullptr);
-                VERIFY(result == CURLM_OK);
-                client->check_active_requests();
-            };
-            notifier->set_enabled(true);
-            return notifier;
-        });
-    }
-
-    return 0;
-}
-
-int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user_data)
-{
-    auto* client = static_cast<ConnectionFromClient*>(user_data);
-    if (!client->m_timer)
-        return 0;
-    if (timeout_ms < 0) {
-        client->m_timer->stop();
-    } else {
-        client->m_timer->restart(timeout_ms);
-    }
-    return 0;
-}
-
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
-    , m_resolver(default_resolver())
+    , m_resolver(Resolver::default_resolver())
 {
     s_connections.set(client_id(), *this);
 
@@ -449,6 +73,14 @@ ConnectionFromClient::~ConnectionFromClient()
 
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
+}
+
+void ConnectionFromClient::request_complete(Badge<Request>, int request_id)
+{
+    Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id] {
+        if (auto self = weak_self.strong_ref())
+            self->m_active_requests.remove(request_id);
+    });
 }
 
 void ConnectionFromClient::die()
@@ -883,7 +515,9 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
     if (!validate_string_length(host_or_address, "host_or_address"sv))
         return;
 
-    if (host_or_address == g_dns_info.server_hostname && port == g_dns_info.port && use_tls == g_dns_info.use_dns_over_tls && validate_dnssec_locally == g_dns_info.validate_dnssec_locally)
+    auto& dns_info = DNSInfo::the();
+
+    if (host_or_address == dns_info.server_hostname && port == dns_info.port && use_tls == dns_info.use_dns_over_tls && validate_dnssec_locally == dns_info.validate_dnssec_locally)
         return;
 
     auto result = [&] -> ErrorOr<void> {
@@ -893,20 +527,20 @@ void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, 
         else if (auto v6 = IPv6Address::from_string(host_or_address); v6.has_value())
             addr = { v6.value(), port };
         else
-            TRY(default_resolver()->dns.lookup(host_or_address)->await())->cached_addresses().first().visit([&](auto& address) { addr = { address, port }; });
+            TRY(m_resolver->dns.lookup(host_or_address)->await())->cached_addresses().first().visit([&](auto& address) { addr = { address, port }; });
 
-        g_dns_info.server_address = addr;
-        g_dns_info.server_hostname = host_or_address;
-        g_dns_info.port = port;
-        g_dns_info.use_dns_over_tls = use_tls;
-        g_dns_info.validate_dnssec_locally = validate_dnssec_locally;
+        dns_info.server_address = addr;
+        dns_info.server_hostname = host_or_address;
+        dns_info.port = port;
+        dns_info.use_dns_over_tls = use_tls;
+        dns_info.validate_dnssec_locally = validate_dnssec_locally;
         return {};
     }();
 
     if (result.is_error())
         dbgln("Failed to set DNS server: {}", result.error());
     else
-        default_resolver()->dns.reset_connection();
+        m_resolver->dns.reset_connection();
 }
 
 void ConnectionFromClient::set_use_system_dns()
@@ -915,9 +549,10 @@ void ConnectionFromClient::set_use_system_dns()
     if (!check_rate_limit())
         return;
 
-    g_dns_info.server_hostname = {};
-    g_dns_info.server_address = {};
-    default_resolver()->dns.reset_connection();
+    auto& dns_info = DNSInfo::the();
+    dns_info.server_hostname = {};
+    dns_info.server_address = {};
+    m_resolver->dns.reset_connection();
 }
 
 #ifdef AK_OS_WINDOWS
@@ -955,382 +590,126 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {}, page_id={})", request_id, url, page_id);
 
-    // IPFS URL handling - route to gateway transformation
+    // IPFS Integration: Detect P2P protocol types
+    Request::ProtocolType protocol_type = Request::ProtocolType::HTTP;
+    ByteString original_resource_id;
+    ByteString remaining_path;
+
     if (url.scheme() == "ipfs"sv) {
-        issue_ipfs_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
-        return;
-    }
-
-    // IPNS URL handling - route to gateway transformation (mutable content)
-    if (url.scheme() == "ipns"sv) {
-        issue_ipns_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
-        return;
-    }
-
-    // ENS domain handling - route to eth.limo gateway (Ethereum Name Service)
-    if (url.host().ends_with(".eth"sv)) {
-        issue_ens_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
-        return;
-    }
-
-    if (g_disk_cache.has_value()) {
-        if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
-            auto fds = MUST(Core::System::pipe2(O_NONBLOCK));
-            auto writer_fd = fds[1];
-            auto reader_fd = fds[0];
-
-            async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
-            async_headers_became_available(request_id, cache_entry->headers(), cache_entry->status_code(), cache_entry->reason_phrase());
-
-            cache_entry->pipe_to(
-                writer_fd,
-                [this, request_id, writer_fd](auto bytes_sent) {
-                    // FIXME: Implement timing info for cache hits.
-                    async_request_finished(request_id, bytes_sent, {}, {});
-                    MUST(Core::System::close(writer_fd));
-                },
-                [this, request_id, writer_fd, page_id, method = move(method), url = move(url), request_headers = move(request_headers), request_body = move(request_body), proxy_data](auto bytes_sent) mutable {
-                    // FIXME: We should really also have a way to validate the data once CacheEntry is storing its crc.
-                    ResumeRequestForFailedCacheEntry resume_request {
-                        .start_offset = bytes_sent,
-                        .writer_fd = writer_fd,
-                    };
-
-                    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id, resume_request);
-                });
-
-            return;
+        protocol_type = Request::ProtocolType::IPFS;
+        auto path = url.serialize_path().to_byte_string();
+        if (path.starts_with("/"sv)) path = path.substring(1);
+        if (auto slash = path.find('/'); slash.has_value()) {
+            original_resource_id = path.substring(0, *slash);
+            remaining_path = path.substring(*slash);
+        } else {
+            original_resource_id = path;
         }
+        url = transform_ipfs_url_to_gateway(request_id, url, page_id);
+    } else if (url.scheme() == "ipns"sv) {
+        protocol_type = Request::ProtocolType::IPNS;
+        auto path = url.serialize_path().to_byte_string();
+        if (path.starts_with("/"sv)) path = path.substring(1);
+        if (auto slash = path.find('/'); slash.has_value()) {
+            original_resource_id = path.substring(0, *slash);
+            remaining_path = path.substring(*slash);
+        } else {
+            original_resource_id = path;
+        }
+        url = transform_ipns_url_to_gateway(request_id, url, page_id);
+    } else if (url.serialized_host().ends_with_bytes(".eth"sv)) {
+        protocol_type = Request::ProtocolType::ENS;
+        original_resource_id = url.serialized_host().to_byte_string();
+        remaining_path = url.serialize_path().to_byte_string();
+        url = transform_ens_url_to_gateway(request_id, url, page_id);
     }
 
-    issue_network_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
+    // Create the Request object using the (potentially transformed) URL
+    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data);
+
+    // Set protocol type on the request
+    request->set_protocol_type(protocol_type);
+
+    // Setup IPFS verification callback if this is an IPFS request
+    if (protocol_type == Request::ProtocolType::IPFS) {
+        setup_ipfs_verification(request_id, *request, original_resource_id);
+    }
+
+    if (protocol_type != Request::ProtocolType::HTTP) {
+        setup_gateway_fallback(request_id, *request, protocol_type, original_resource_id,
+                              remaining_path, method, request_headers, request_body, proxy_data, page_id);
+    }
+
+    m_active_requests.set(request_id, move(request));
 }
 
-void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> resume_request)
+void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> resume)
 {
-    auto host = url.serialized_host().to_byte_string();
+    (void)resume;  // TODO: Handle resume for failed cache entries
+    (void)page_id; // Page ID already handled by caller
 
-    // Check if using SOCKS5H proxy (hostname resolution via proxy)
-    // If so, skip DNS lookup - let Tor/proxy handle DNS resolution
-    auto network_identity = network_identity_for_page(page_id);
-
-
-    bool using_socks5h_proxy = network_identity && network_identity->has_proxy()
-        && network_identity->proxy_config().has_value()
-        && network_identity->proxy_config()->type == IPC::ProxyType::SOCKS5H;
-
-    if (using_socks5h_proxy) {
-        dbgln("RequestServer: Skipping DNS lookup for {} (using SOCKS5H proxy - DNS via Tor)", host);
-        // Proceed directly to curl setup without DNS lookup
-        issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id, resume_request, {});
-        return;
-    }
-
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally })
-        ->when_rejected([this, request_id, resume_request](auto const& error) {
-            dbgln("StartRequest: DNS lookup failed: {}", error);
-            // FIXME: Implement timing info for DNS lookup failure.
-            async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
-
-            if (resume_request.has_value())
-                MUST(Core::System::close(resume_request->writer_fd));
-        })
-        .when_resolved([this, request_id, page_id, host = move(host), url = move(url), method = move(method), request_body = move(request_body), request_headers = move(request_headers), proxy_data, resume_request](auto const& dns_result) mutable {
-            if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
-                dbgln("StartRequest: DNS lookup failed for '{}'", host);
-                // FIXME: Implement timing info for DNS lookup failure.
-                async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToResolveHost);
-                return;
-            }
-
-            dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: DNS lookup successful");
-            // dns_result is const, but we need non-const for Optional - use const_cast
-            auto non_const_result = const_cast<DNS::LookupResult*>(dns_result.ptr());
-            issue_network_request_with_optional_dns(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id, resume_request, Optional<NonnullRefPtr<DNS::LookupResult>>(NonnullRefPtr<DNS::LookupResult>(*non_const_result)));
-        });
-}
-
-void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> resume_request, Optional<NonnullRefPtr<DNS::LookupResult>> dns_result)
-{
-    auto host = url.serialized_host().to_byte_string();
-
-    auto* easy = curl_easy_init();
-    if (!easy) {
-        dbgln("StartRequest: Failed to initialize curl easy handle");
-        return;
-    }
-
-    int writer_fd = 0;
-
-    if (resume_request.has_value()) {
-        writer_fd = resume_request->writer_fd;
-    } else {
-        auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
-        if (fds_or_error.is_error()) {
-            dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
-            return;
-        }
-
-        auto fds = fds_or_error.release_value();
-        auto reader_fd = fds[0];
-        writer_fd = fds[1];
-
-        async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
-    }
-
-    auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, page_id, writer_fd);
-    request->url = url;
-    request->method = method;
-
-    // IPFS content verification: Retrieve and store CID if this is an IPFS request
-    if (auto it = m_pending_ipfs_verifications.find(request_id); it != m_pending_ipfs_verifications.end()) {
-        request->ipfs_cid = move(it->value);
-        m_pending_ipfs_verifications.remove(request_id);
-        dbgln("IPFS: Attached CID {} to request {} for verification", request->ipfs_cid->raw_cid, request_id);
-    }
-
-    // Gateway request detection: Check if this is a P2P gateway request (IPFS/IPNS/ENS)
-    if (m_gateway_fallback_requests.contains(request_id)) {
-        request->is_gateway_request = true;
-        dbgln("Gateway: Request {} marked as gateway request for timeout configuration", request_id);
-    }
-
-    auto set_option = [easy](auto option, auto value) {
-        auto result = curl_easy_setopt(easy, option, value);
-        if (result != CURLE_OK)
-            dbgln("StartRequest: Failed to set curl option: {}", curl_easy_strerror(result));
-    };
-
-    set_option(CURLOPT_PRIVATE, request.ptr());
-
-    if (!g_default_certificate_path.is_empty())
-        set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
-
-    set_option(CURLOPT_ACCEPT_ENCODING, ""); // empty string lets curl define the accepted encodings
-    set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
-    set_option(CURLOPT_PORT, url.port_or_default());
-
-    // Apply appropriate timeouts based on request type
-    // Gateway requests use shorter timeouts for faster failover
-    if (request->is_gateway_request) {
-        set_option(CURLOPT_CONNECTTIMEOUT, s_gateway_connect_timeout_seconds);
-        set_option(CURLOPT_TIMEOUT, s_gateway_request_timeout_seconds);
-        dbgln("Gateway: Applied gateway timeouts (connect={}, total={}) for request {}",
-            s_gateway_connect_timeout_seconds, s_gateway_request_timeout_seconds, request_id);
-    } else {
-        set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
-        // No total timeout for standard requests (may be large downloads)
-    }
-    set_option(CURLOPT_PIPEWAIT, 1L);
-    set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
-
-    // Apply proxy configuration from NetworkIdentity (Tor/VPN support)
-    auto network_identity = network_identity_for_page(page_id);
-    if (network_identity && network_identity->has_proxy()) {
-        auto const& proxy = network_identity->proxy_config().value();
-
-        // Set proxy URL (e.g., "socks5h://localhost:9050" for Tor)
-        set_option(CURLOPT_PROXY, proxy.to_curl_proxy_url().characters());
-
-        // Set proxy type for libcurl
-        if (proxy.type == IPC::ProxyType::SOCKS5H)
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);  // DNS via proxy (leak prevention)
-        else if (proxy.type == IPC::ProxyType::SOCKS5)
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
-        else if (proxy.type == IPC::ProxyType::HTTP)
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
-        else if (proxy.type == IPC::ProxyType::HTTPS)
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
-
-        // Set SOCKS5 authentication for stream isolation (each tab gets unique Tor circuit)
-        if (auto auth = proxy.to_curl_auth_string(); auth.has_value())
-            set_option(CURLOPT_PROXYUSERPWD, auth->characters());
-
-        dbgln("RequestServer: Using {} proxy {} for request to {} (page_id={})",
-            proxy.type == IPC::ProxyType::SOCKS5H ? "SOCKS5H" : "other",
-            proxy.to_curl_proxy_url(), url, page_id);
-    } else {
-        dbgln("RequestServer: NO proxy configured for request to {} (page_id={}, has_identity={}, has_proxy={})",
-            url, page_id, network_identity != nullptr, network_identity ? network_identity->has_proxy() : false);
-    }
-
-    set_option(CURLOPT_CUSTOMREQUEST, method.characters());
-    set_option(CURLOPT_FOLLOWLOCATION, 0);
-
-    bool did_set_body = false;
-    if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
-        request->body = move(request_body);
-        set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
-        set_option(CURLOPT_POSTFIELDS, request->body.data());
-        did_set_body = true;
-    } else if (method == "HEAD"sv) {
-        set_option(CURLOPT_NOBODY, 1L);
-    }
-
-    struct curl_slist* curl_headers = nullptr;
-
-    // NOTE: CURLOPT_POSTFIELDS automatically sets the Content-Type header.
-    //       Tell curl to remove it by setting a blank value if the headers passed in don't contain a content type.
-    if (did_set_body && !request_headers.contains("Content-Type"))
-        curl_headers = curl_slist_append(curl_headers, "Content-Type:");
-
-    for (auto const& header : request_headers.headers()) {
-        if (header.value.is_empty()) {
-            // Special case for headers with an empty value. curl will discard the header unless we pass the
-            // header name followed by a semicolon.
-            //
-            // i.e. we need to pass "Content-Type;" instead of "Content-Type: "
-            //
-            // See: https://curl.se/libcurl/c/httpcustomheader.html
-            auto header_string = ByteString::formatted("{};", header.name);
-            curl_headers = curl_slist_append(curl_headers, header_string.characters());
-            continue;
-        }
-
-        auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
-        dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request header: {}", header_string);
-        curl_headers = curl_slist_append(curl_headers, header_string.characters());
-    }
-
-    if (curl_headers) {
-        set_option(CURLOPT_HTTPHEADER, curl_headers);
-        request->curl_string_lists.append(curl_headers);
-    }
-
-    if (resume_request.has_value()) {
-        auto range = ByteString::formatted("{}-", resume_request->start_offset);
-        set_option(CURLOPT_RANGE, range.characters());
-
-        request->got_all_headers = true; // Don't re-send the headers for resumed requests.
-        request->start_offset_of_resumed_response = resume_request->start_offset;
-    }
-
-    // NOTE: proxy_data parameter is legacy and unused - proxy configuration now comes from NetworkIdentity
-    (void)proxy_data;
-
-    set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
-    set_option(CURLOPT_WRITEDATA, reinterpret_cast<void*>(request.ptr()));
-
-    set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
-    set_option(CURLOPT_HEADERDATA, reinterpret_cast<void*>(request.ptr()));
-
-    // Only set CURLOPT_RESOLVE if we have DNS results
-    // For SOCKS5H proxy, skip this to let proxy handle DNS resolution
-    if (dns_result.has_value()) {
-        auto formatted_address = build_curl_resolve_list(*dns_result.value(), host, url.port_or_default());
-        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-            set_option(CURLOPT_RESOLVE, resolve_list);
-            request->curl_string_lists.append(resolve_list);
-        } else
-            VERIFY_NOT_REACHED();
-    } else {
-        dbgln("RequestServer: Skipping CURLOPT_RESOLVE for {} (DNS resolution via proxy)", host);
-    }
-
-    // Log request in NetworkIdentity audit trail
-    if (network_identity)
-        network_identity->log_request(url, method);
-
-    auto result = curl_multi_add_handle(m_curl_multi, easy);
-    VERIFY(result == CURLM_OK);
+    // Create the Request object using the provided URL (no IPFS detection)
+    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data);
 
     m_active_requests.set(request_id, move(request));
 }
 #endif
 
-static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
+int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* user_data, void*)
 {
-    switch (code) {
-    case CURLE_COULDNT_RESOLVE_HOST:
-        return Requests::NetworkError::UnableToResolveHost;
-    case CURLE_COULDNT_RESOLVE_PROXY:
-        return Requests::NetworkError::UnableToResolveProxy;
-    case CURLE_COULDNT_CONNECT:
-        return Requests::NetworkError::UnableToConnect;
-    case CURLE_OPERATION_TIMEDOUT:
-        return Requests::NetworkError::TimeoutReached;
-    case CURLE_TOO_MANY_REDIRECTS:
-        return Requests::NetworkError::TooManyRedirects;
-    case CURLE_SSL_CONNECT_ERROR:
-        return Requests::NetworkError::SSLHandshakeFailed;
-    case CURLE_PEER_FAILED_VERIFICATION:
-        return Requests::NetworkError::SSLVerificationFailed;
-    case CURLE_URL_MALFORMAT:
-        return Requests::NetworkError::MalformedUrl;
-    case CURLE_BAD_CONTENT_ENCODING:
-        return Requests::NetworkError::InvalidContentEncoding;
-    default:
-        return Requests::NetworkError::Unknown;
+    auto* client = static_cast<ConnectionFromClient*>(user_data);
+
+    if (what == CURL_POLL_REMOVE) {
+        client->m_read_notifiers.remove(sockfd);
+        client->m_write_notifiers.remove(sockfd);
+        return 0;
     }
+
+    if (what & CURL_POLL_IN) {
+        client->m_read_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
+            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Read);
+            notifier->on_activation = [client, sockfd, multi] {
+                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_IN, nullptr);
+                VERIFY(result == CURLM_OK);
+
+                client->check_active_requests();
+            };
+
+            notifier->set_enabled(true);
+            return notifier;
+        });
+    }
+
+    if (what & CURL_POLL_OUT) {
+        client->m_write_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
+            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Write);
+            notifier->on_activation = [client, sockfd, multi] {
+                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_OUT, nullptr);
+                VERIFY(result == CURLM_OK);
+
+                client->check_active_requests();
+            };
+
+            notifier->set_enabled(true);
+            return notifier;
+        });
+    }
+
+    return 0;
 }
 
-static Requests::RequestTimingInfo get_timing_info_from_curl_easy_handle(CURL* easy_handle)
+int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user_data)
 {
-    /*
-     *   curl_easy_perform()
-     *       |
-     *       |--QUEUE
-     *       |--|--NAMELOOKUP
-     *       |--|--|--CONNECT
-     *       |--|--|--|--APPCONNECT
-     *       |--|--|--|--|--PRETRANSFER
-     *       |--|--|--|--|--|--POSTTRANSFER
-     *       |--|--|--|--|--|--|--STARTTRANSFER
-     *       |--|--|--|--|--|--|--|--TOTAL
-     *       |--|--|--|--|--|--|--|--REDIRECT
-     */
+    auto* client = static_cast<ConnectionFromClient*>(user_data);
+    if (!client->m_timer)
+        return 0;
 
-    auto get_timing_info = [easy_handle](auto option) {
-        curl_off_t time_value = 0;
-        auto result = curl_easy_getinfo(easy_handle, option, &time_value);
-        VERIFY(result == CURLE_OK);
-        return time_value;
-    };
+    if (timeout_ms < 0)
+        client->m_timer->stop();
+    else
+        client->m_timer->restart(timeout_ms);
 
-    auto queue_time = get_timing_info(CURLINFO_QUEUE_TIME_T);
-    auto domain_lookup_time = get_timing_info(CURLINFO_NAMELOOKUP_TIME_T);
-    auto connect_time = get_timing_info(CURLINFO_CONNECT_TIME_T);
-    auto secure_connect_time = get_timing_info(CURLINFO_APPCONNECT_TIME_T);
-    auto request_start_time = get_timing_info(CURLINFO_PRETRANSFER_TIME_T);
-    auto response_start_time = get_timing_info(CURLINFO_STARTTRANSFER_TIME_T);
-    auto response_end_time = get_timing_info(CURLINFO_TOTAL_TIME_T);
-    auto encoded_body_size = get_timing_info(CURLINFO_SIZE_DOWNLOAD_T);
-
-    long http_version = 0;
-    auto get_version_result = curl_easy_getinfo(easy_handle, CURLINFO_HTTP_VERSION, &http_version);
-    VERIFY(get_version_result == CURLE_OK);
-
-    auto http_version_alpn = Requests::ALPNHttpVersion::None;
-    switch (http_version) {
-    case CURL_HTTP_VERSION_1_0:
-        http_version_alpn = Requests::ALPNHttpVersion::Http1_0;
-        break;
-    case CURL_HTTP_VERSION_1_1:
-        http_version_alpn = Requests::ALPNHttpVersion::Http1_1;
-        break;
-    case CURL_HTTP_VERSION_2_0:
-        http_version_alpn = Requests::ALPNHttpVersion::Http2_TLS;
-        break;
-    case CURL_HTTP_VERSION_3:
-        http_version_alpn = Requests::ALPNHttpVersion::Http3;
-        break;
-    default:
-        http_version_alpn = Requests::ALPNHttpVersion::None;
-        break;
-    }
-
-    return Requests::RequestTimingInfo {
-        .domain_lookup_start_microseconds = queue_time,
-        .domain_lookup_end_microseconds = queue_time + domain_lookup_time,
-        .connect_start_microseconds = queue_time + domain_lookup_time,
-        .connect_end_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time,
-        .secure_connect_start_microseconds = queue_time + domain_lookup_time + connect_time,
-        .request_start_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + request_start_time,
-        .response_start_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + response_start_time,
-        .response_end_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + response_end_time,
-        .encoded_body_size = encoded_body_size,
-        .http_version_alpn_identifier = http_version_alpn,
-    };
+    return 0;
 }
 
 void ConnectionFromClient::check_active_requests()
@@ -1357,89 +736,8 @@ void ConnectionFromClient::check_active_requests()
             continue;
         }
 
-        auto* request = static_cast<ActiveRequest*>(application_private);
-
-        if (!request->is_connect_only) {
-            auto timing_info = get_timing_info_from_curl_easy_handle(msg->easy_handle);
-            request->flush_headers_if_needed();
-
-            auto result_code = msg->data.result;
-
-            // HTTPS servers might terminate their connection without proper notice of shutdown - i.e. they do not send
-            // a "close notify" alert. OpenSSL version 3.2 began treating this as an error, which curl translates to
-            // CURLE_RECV_ERROR in the absence of a Content-Length response header. The Python server used by WPT is one
-            // such server. We ignore this error if we were actually able to download some response data.
-            if (result_code == CURLE_RECV_ERROR && request->downloaded_so_far != 0 && !request->headers.contains("Content-Length"sv))
-                result_code = CURLE_OK;
-
-            Optional<Requests::NetworkError> network_error;
-            bool const request_was_successful = result_code == CURLE_OK;
-            if (!request_was_successful) {
-                network_error = map_curl_code_to_network_error(result_code);
-
-                if (network_error.has_value() && network_error.value() == Requests::NetworkError::Unknown) {
-                    char const* curl_error_message = curl_easy_strerror(result_code);
-                    dbgln("ConnectionFromClient: Unable to map error ({}), message: \"\033[31;1m{}\033[0m\"", static_cast<int>(result_code), curl_error_message);
-                }
-            }
-
-            // Check HTTP status code for gateway failures (404, 500, 502, 503, 504)
-            bool http_error_suggests_gateway_failure = false;
-            if (request_was_successful && request->http_status_code.has_value()) {
-                auto status_code = request->http_status_code.value();
-                // Retry on 404 (gateway doesn't have content), 5xx (gateway errors), 429 (rate limited)
-                if (status_code == 404 || status_code == 429 || (status_code >= 500 && status_code < 600)) {
-                    http_error_suggests_gateway_failure = true;
-                    dbgln("Gateway fallback: HTTP {} suggests gateway failure", status_code);
-                }
-            }
-
-            // IPFS content verification: Verify downloaded content matches CID
-            bool ipfs_verification_failed = false;
-            if (request_was_successful && request->ipfs_cid.has_value()) {
-                auto verification_result = IPC::IPFSVerifier::verify_content(request->ipfs_cid.value(), request->ipfs_content_buffer.bytes());
-                if (verification_result.is_error()) {
-                    dbgln("IPFS: Content verification error: {}", verification_result.error());
-                    ipfs_verification_failed = true;
-                } else if (!verification_result.value()) {
-                    dbgln("IPFS: Content verification FAILED - hash mismatch for CID {}", request->ipfs_cid->raw_cid);
-                    ipfs_verification_failed = true;
-                } else {
-                    dbgln("IPFS: Content verification PASSED for CID {}", request->ipfs_cid->raw_cid);
-                }
-            }
-
-            // Gateway fallback: Check if this request should be retried with next gateway
-            bool should_retry_gateway = (!request_was_successful || http_error_suggests_gateway_failure || ipfs_verification_failed)
-                && m_gateway_fallback_requests.contains(request->request_id);
-
-            if (should_retry_gateway) {
-                dbgln("Gateway fallback: Request {} failed (curl={}, http={}, verification={}), attempting next gateway",
-                    request->request_id,
-                    !request_was_successful,
-                    http_error_suggests_gateway_failure,
-                    ipfs_verification_failed);
-
-                // Trigger retry with next gateway
-                retry_with_next_gateway(request->request_id);
-
-                // Don't send async_request_finished yet - retry will handle it
-                request->schedule_self_destruction();
-                continue; // Skip to next message in queue
-            }
-
-            // If IPFS verification failed and we're not retrying, set error
-            if (ipfs_verification_failed) {
-                network_error = Requests::NetworkError::Unknown;
-            }
-
-            // Clean up fallback info if request succeeded or we're not retrying
-            m_gateway_fallback_requests.remove(request->request_id);
-
-            async_request_finished(request->request_id, request->downloaded_so_far, timing_info, network_error);
-        }
-
-        request->notify_about_fetching_completion();
+        auto* request = static_cast<Request*>(application_private);
+        request->notify_fetch_complete({}, msg->data.result);
     }
 }
 
@@ -1492,54 +790,10 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     if (!validate_url(url))
         return;
 
-    if (cache_level == CacheLevel::CreateConnection) {
-        auto* easy = curl_easy_init();
-        if (!easy) {
-            dbgln("EnsureConnection: Failed to initialize curl easy handle");
-            return;
-        }
+    auto connect_only_request_id = get_random<i32>();
 
-        auto set_option = [easy](auto option, auto value) {
-            auto result = curl_easy_setopt(easy, option, value);
-            if (result != CURLE_OK) {
-                dbgln("EnsureConnection: Failed to set curl option: {}", curl_easy_strerror(result));
-                return false;
-            }
-            return true;
-        };
-
-        auto connect_only_request_id = get_random<i32>();
-
-        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0, 0); // page_id=0 for connection test
-        request->url = url;
-        request->is_connect_only = true;
-
-        set_option(CURLOPT_PRIVATE, request.ptr());
-        set_option(CURLOPT_URL, url.to_byte_string().characters());
-        set_option(CURLOPT_PORT, url.port_or_default());
-        set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
-        set_option(CURLOPT_CONNECT_ONLY, 1L);
-
-        auto const result = curl_multi_add_handle(m_curl_multi, easy);
-        VERIFY(result == CURLM_OK);
-
-        m_active_requests.set(connect_only_request_id, move(request));
-
-        return;
-    }
-
-    if (cache_level == CacheLevel::ResolveOnly) {
-        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = g_dns_info.validate_dnssec_locally });
-        if constexpr (REQUESTSERVER_DEBUG) {
-            Core::ElapsedTimer timer;
-            timer.start();
-            promise->when_resolved([url, timer](auto const& results) -> ErrorOr<void> {
-                dbgln("ensure_connection::ResolveOnly({}) OK {} entrie(s) in {}ms", url, results->cached_addresses().size(), timer.elapsed_milliseconds());
-                return {};
-            });
-            promise->when_rejected([url](auto const&) { dbgln("ensure_connection::ResolveOnly({}) rejected", url); });
-        }
-    }
+    auto request = Request::connect(connect_only_request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
+    m_active_requests.set(connect_only_request_id, move(request));
 }
 
 void ConnectionFromClient::clear_cache()
@@ -1599,8 +853,8 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
             connection_info.set_headers(move(additional_request_headers));
             connection_info.set_dns_result(move(dns_result));
 
-            if (!g_default_certificate_path.is_empty())
-                connection_info.set_root_certificates_path(g_default_certificate_path);
+            if (auto const& path = default_certificate_path(); !path.is_empty())
+                connection_info.set_root_certificates_path(path);
 
             auto impl = WebSocketImplCurl::create(m_curl_multi);
             auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
@@ -1729,12 +983,12 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
     // Clone headers and body since they'll be moved
     GatewayFallbackInfo fallback_info {
         .protocol = GatewayProtocol::IPFS,
-        .current_gateway_index = use_local_daemon ? 0 : 1, // Start with local or first public gateway
+        .current_gateway_index = static_cast<size_t>(use_local_daemon ? 0 : 1), // Start with local or first public gateway
         .resource_identifier = cid_string,
         .path = remaining_path,
         .method = method,
         .headers = request_headers,
-        .body = MUST(request_body.clone()),
+        .body = MUST(ByteBuffer::copy(request_body)),
         .proxy_data = proxy_data,
         .page_id = page_id
     };
@@ -1786,12 +1040,12 @@ void ConnectionFromClient::issue_ipns_request(i32 request_id, ByteString method,
     // Store fallback info for retry on failure
     GatewayFallbackInfo fallback_info {
         .protocol = GatewayProtocol::IPNS,
-        .current_gateway_index = use_local_daemon ? 0 : 1, // Start with local or first public gateway
+        .current_gateway_index = static_cast<size_t>(use_local_daemon ? 0 : 1), // Start with local or first public gateway
         .resource_identifier = name_string,
         .path = remaining_path,
         .method = method,
         .headers = request_headers,
-        .body = MUST(request_body.clone()),
+        .body = MUST(ByteBuffer::copy(request_body)),
         .proxy_data = proxy_data,
         .page_id = page_id
     };
@@ -1821,7 +1075,7 @@ void ConnectionFromClient::issue_ens_request(i32 request_id, ByteString method, 
 {
     // Extract .eth domain and path from URL
     // Format: http://example.eth/path or https://example.eth/path
-    auto eth_domain = ens_url.host().to_byte_string();
+    auto eth_domain = ens_url.serialized_host().to_byte_string();
     auto path = ens_url.serialize_path().to_byte_string();
     auto query = ens_url.query().value_or({}).to_byte_string();
     auto fragment = ens_url.fragment().value_or({}).to_byte_string();
@@ -1849,7 +1103,7 @@ void ConnectionFromClient::issue_ens_request(i32 request_id, ByteString method, 
         .path = full_path,
         .method = method,
         .headers = request_headers,
-        .body = MUST(request_body.clone()),
+        .body = MUST(ByteBuffer::copy(request_body)),
         .proxy_data = proxy_data,
         .page_id = page_id
     };
@@ -1955,7 +1209,7 @@ void ConnectionFromClient::retry_with_next_gateway(i32 request_id)
         // Send final error to client with context
         // Note: Would be better to send custom error message, but NetworkError enum is limited
         // The debug message above provides context in browser console
-        async_request_finished(request_id, 0, {}, Requests::NetworkError::ConnectionFailed);
+        async_request_finished(request_id, 0, {}, Requests::NetworkError::UnableToConnect);
         return;
     }
 
@@ -2020,7 +1274,7 @@ void ConnectionFromClient::retry_with_next_gateway(i32 request_id)
     // Copy request parameters (we need to clone them since they're consumed)
     auto method_copy = fallback.method;
     auto headers_copy = fallback.headers;
-    auto body_copy = MUST(fallback.body.clone());
+    auto body_copy = MUST(ByteBuffer::copy(fallback.body));
     auto proxy_data_copy = fallback.proxy_data;
     auto page_id_copy = fallback.page_id;
 
@@ -2033,6 +1287,128 @@ void ConnectionFromClient::retry_with_next_gateway(i32 request_id)
     issue_network_request(request_id, move(method_copy), move(gateway_url),
                          move(headers_copy), move(body_copy),
                          proxy_data_copy, page_id_copy);
+}
+
+// IPFS Integration: URL transformation helpers
+
+URL::URL ConnectionFromClient::transform_ipfs_url_to_gateway(i32 request_id, URL::URL const& ipfs_url, u64 page_id)
+{
+    (void)request_id;
+    (void)page_id;
+    auto path_string = ipfs_url.serialize_path().to_byte_string();
+    if (path_string.starts_with("/"sv))
+        path_string = path_string.substring(1);
+
+    auto cid_string = path_string;
+    auto remaining_path = ByteString();
+    if (auto slash_pos = path_string.find('/'); slash_pos.has_value()) {
+        cid_string = path_string.substring(0, slash_pos.value());
+        remaining_path = path_string.substring(slash_pos.value());
+    }
+
+    auto gateway_base = s_ipfs_gateways[0];
+    auto url_string = ByteString::formatted("{}/ipfs/{}{}", gateway_base, cid_string, remaining_path);
+    return URL::create_with_url_or_path(url_string).value_or(ipfs_url);
+}
+
+URL::URL ConnectionFromClient::transform_ipns_url_to_gateway(i32 request_id, URL::URL const& ipns_url, u64 page_id)
+{
+    (void)request_id;
+    (void)page_id;
+    auto path_string = ipns_url.serialize_path().to_byte_string();
+    if (path_string.starts_with("/"sv))
+        path_string = path_string.substring(1);
+
+    auto name_string = path_string;
+    auto remaining_path = ByteString();
+    if (auto slash_pos = path_string.find('/'); slash_pos.has_value()) {
+        name_string = path_string.substring(0, slash_pos.value());
+        remaining_path = path_string.substring(slash_pos.value());
+    }
+
+    auto gateway_base = s_ipns_gateways[0];
+    auto url_string = ByteString::formatted("{}/ipns/{}{}", gateway_base, name_string, remaining_path);
+    return URL::create_with_url_or_path(url_string).value_or(ipns_url);
+}
+
+URL::URL ConnectionFromClient::transform_ens_url_to_gateway(i32 request_id, URL::URL const& ens_url, u64 page_id)
+{
+    (void)request_id;
+    (void)page_id;
+    auto eth_domain = ens_url.serialized_host().to_byte_string();
+    auto path = ens_url.serialize_path().to_byte_string();
+
+    auto gateway_suffix = s_ens_gateways[0];
+    auto gateway_host = ByteString::formatted("{}{}", eth_domain, gateway_suffix);
+    auto url_string = ByteString::formatted("https://{}{}", gateway_host, path);
+
+    return URL::create_with_url_or_path(url_string).value_or(ens_url);
+}
+
+void ConnectionFromClient::setup_ipfs_verification(i32 request_id, Request& request, ByteString const& cid_string)
+{
+    auto parsed_cid_result = IPC::IPFSVerifier::parse_cid(cid_string);
+    if (parsed_cid_result.is_error()) {
+        dbgln("Failed to parse CID: {}", parsed_cid_result.error());
+        return;
+    }
+
+    auto parsed_cid = parsed_cid_result.release_value();
+    m_pending_ipfs_verifications.set(request_id, move(parsed_cid));
+
+    request.set_content_verification_callback([this, request_id](ReadonlyBytes content) -> ErrorOr<bool> {
+        auto cid_it = m_pending_ipfs_verifications.find(request_id);
+        if (cid_it == m_pending_ipfs_verifications.end())
+            return Error::from_string_literal("No CID found for verification");
+
+        auto result = TRY(IPC::IPFSVerifier::verify_content(cid_it->value, content));
+        m_pending_ipfs_verifications.remove(request_id);
+        return result;
+    });
+}
+
+void ConnectionFromClient::setup_gateway_fallback(i32 request_id, Request& request, Request::ProtocolType protocol,
+    ByteString const& resource_id, ByteString const& path, ByteString const& method,
+    HTTP::HeaderMap const& headers, ByteBuffer const& body, Core::ProxyData const& proxy_data, u64 page_id)
+{
+    auto body_clone_result = ByteBuffer::copy(body);
+    if (body_clone_result.is_error()) {
+        dbgln("Failed to clone body for gateway fallback: {}", body_clone_result.error());
+        return;
+    }
+
+    // Convert Request::ProtocolType to GatewayProtocol
+    GatewayProtocol gateway_protocol;
+    switch (protocol) {
+    case Request::ProtocolType::IPFS:
+        gateway_protocol = GatewayProtocol::IPFS;
+        break;
+    case Request::ProtocolType::IPNS:
+        gateway_protocol = GatewayProtocol::IPNS;
+        break;
+    case Request::ProtocolType::ENS:
+        gateway_protocol = GatewayProtocol::ENS;
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    GatewayFallbackInfo info {
+        .protocol = gateway_protocol,
+        .current_gateway_index = 0,
+        .resource_identifier = resource_id,
+        .path = path,
+        .method = method,
+        .headers = headers,
+        .body = body_clone_result.release_value(),
+        .proxy_data = proxy_data,
+        .page_id = page_id,
+    };
+    m_gateway_fallback_requests.set(request_id, move(info));
+
+    request.set_gateway_fallback_callback([this, request_id]() {
+        retry_with_next_gateway(request_id);
+    });
 }
 
 }
