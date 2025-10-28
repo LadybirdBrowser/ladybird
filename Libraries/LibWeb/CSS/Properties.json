@@ -1608,7 +1608,6 @@
     ]
   },
   "counter-increment": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1622,7 +1621,6 @@
     ]
   },
   "counter-reset": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1636,7 +1634,6 @@
     ]
   },
   "counter-set": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
