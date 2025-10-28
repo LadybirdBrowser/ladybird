@@ -4487,11 +4487,11 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     if (!cpp_value.has_value())
         impl->remove_attribute("@attribute.reflect_name@"_fly_string);
     else
-        MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value.value()));
+        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value.value()); }));
 )~~~");
                 } else {
                     attribute_generator.append(R"~~~(
-MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value));
+    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value); }));
 )~~~");
                 }
 
