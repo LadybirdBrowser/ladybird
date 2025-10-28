@@ -93,6 +93,7 @@ public:
         grow(sizeof(OpType));
         void* slot = m_current_basic_block->data() + slot_offset;
         new (slot) OpType(forward<Args>(args)...);
+        static_cast<OpType*>(slot)->set_strict(m_strict);
         if constexpr (OpType::IsTerminator)
             m_current_basic_block->terminate({});
         m_current_basic_block->add_source_map_entry(slot_offset, { m_current_ast_node->start_offset(), m_current_ast_node->end_offset() });
@@ -110,6 +111,7 @@ public:
         grow(size_to_allocate);
         void* slot = m_current_basic_block->data() + slot_offset;
         new (slot) OpType(forward<Args>(args)...);
+        static_cast<OpType*>(slot)->set_strict(m_strict);
         if constexpr (OpType::IsTerminator)
             m_current_basic_block->terminate({});
         m_current_basic_block->add_source_map_entry(slot_offset, { m_current_ast_node->start_offset(), m_current_ast_node->end_offset() });
@@ -382,6 +384,8 @@ private:
         Label bytecode_target;
         Vector<FlyString> language_label_set;
     };
+
+    Strict m_strict { Strict::No };
 
     BasicBlock* m_current_basic_block { nullptr };
     ASTNode const* m_current_ast_node { nullptr };

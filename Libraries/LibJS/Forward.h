@@ -152,6 +152,11 @@
 
 namespace JS {
 
+enum class Strict : u8 {
+    No,
+    Yes,
+};
+
 class ASTNode;
 class Accessor;
 class Agent;

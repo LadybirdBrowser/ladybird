@@ -238,30 +238,6 @@ ThrowCompletionOr<Realm*> get_function_realm(VM& vm, FunctionObject const& funct
     return vm.current_realm();
 }
 
-// 8.5.2.1 InitializeBoundName ( name, value, environment ), https://tc39.es/ecma262/#sec-initializeboundname
-ThrowCompletionOr<void> initialize_bound_name(VM& vm, Utf16FlyString const& name, Value value, Environment* environment)
-{
-    // 1. If environment is not undefined, then
-    if (environment) {
-        // FIXME: The normal is not included in the explicit resource management spec yet, so there is no spec link for it.
-        // a. Perform ! environment.InitializeBinding(name, value, normal).
-        MUST(environment->initialize_binding(vm, name, value, Environment::InitializeBindingHint::Normal));
-
-        // b. Return unused.
-        return {};
-    }
-    // 2. Else,
-    else {
-        // a. Let lhs be ? ResolveBinding(name).
-        auto lhs = TRY(vm.resolve_binding(name));
-
-        // b. Return ? PutValue(lhs, value).
-        return TRY(lhs.put_value(vm, value));
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 // 10.1.6.2 IsCompatiblePropertyDescriptor ( Extensible, Desc, Current ), https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor
 bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor& descriptor, Optional<PropertyDescriptor> const& current)
 {
