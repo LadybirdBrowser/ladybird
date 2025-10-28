@@ -169,4 +169,27 @@ bool TorAvailability::is_tor_running()
     return !result.is_error();
 }
 
+// IPFSAvailability implementation
+
+ErrorOr<void> IPFSAvailability::check_api_available(ByteString host, u16 port)
+{
+    // Try to connect to IPFS API endpoint using LibCore::TCPSocket
+    auto socket_result = Core::TCPSocket::connect(host, port);
+
+    if (socket_result.is_error()) {
+        dbgln("IPFSAvailability: Cannot connect to IPFS API at {}:{} - {}",
+            host, port, socket_result.error());
+        return Error::from_string_literal("Cannot connect to IPFS daemon API. Is IPFS running?");
+    }
+
+    dbgln("IPFSAvailability: IPFS daemon API is available at {}:{}", host, port);
+    return {};
+}
+
+bool IPFSAvailability::is_daemon_running()
+{
+    auto result = check_api_available();
+    return !result.is_error();
+}
+
 }

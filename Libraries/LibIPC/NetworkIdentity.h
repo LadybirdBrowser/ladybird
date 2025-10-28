@@ -167,4 +167,13 @@ public:
     [[nodiscard]] static bool is_tor_running();
 };
 
+class IPFSAvailability {
+public:
+    // Check if local IPFS daemon API is available
+    [[nodiscard]] static ErrorOr<void> check_api_available(ByteString host = "127.0.0.1"sv, u16 port = 5001);
+
+    // Convenience wrapper - returns true if IPFS daemon is running
+    [[nodiscard]] static bool is_daemon_running();
+};
+
 }

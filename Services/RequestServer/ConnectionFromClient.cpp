@@ -14,6 +14,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibIPC/Limits.h>
+#include <LibIPC/NetworkIdentity.h>
 #include <LibIPC/ProxyValidator.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -873,6 +874,12 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {}, page_id={})", request_id, url, page_id);
 
+    // IPFS URL handling - route to gateway transformation
+    if (url.scheme() == "ipfs"sv) {
+        issue_ipfs_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
+        return;
+    }
+
     if (g_disk_cache.has_value()) {
         if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
             auto fds = MUST(Core::System::pipe2(O_NONBLOCK));
@@ -1510,6 +1517,35 @@ Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::w
         success = true;
     }
     return success;
+}
+
+void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method, URL::URL ipfs_url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id)
+{
+    // Extract CID from ipfs:// URL
+    // Format: ipfs://CID or ipfs://CID/path
+    auto cid = ipfs_url.serialize_path();
+    if (cid.starts_with("/"sv))
+        cid = cid.substring_view(1);
+
+    dbgln("IPFS: Transforming ipfs://{} to gateway request", cid);
+
+    // Check if local IPFS daemon is available
+    bool use_local_daemon = IPC::IPFSAvailability::is_daemon_running();
+
+    // Construct gateway URL
+    URL::URL gateway_url;
+    if (use_local_daemon) {
+        // Local daemon: http://127.0.0.1:8080/ipfs/CID
+        gateway_url = MUST(URL::URL::create_with_url_or_path(ByteString::formatted("http://127.0.0.1:8080/ipfs/{}", cid)));
+        dbgln("IPFS: Using local daemon at 127.0.0.1:8080");
+    } else {
+        // Public gateway fallback: https://ipfs.io/ipfs/CID
+        gateway_url = MUST(URL::URL::create_with_url_or_path(ByteString::formatted("https://ipfs.io/ipfs/{}", cid)));
+        dbgln("IPFS: Using public gateway ipfs.io (local daemon not available)");
+    }
+
+    // Issue the transformed HTTP request via standard network request
+    issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
 }
 
 }
