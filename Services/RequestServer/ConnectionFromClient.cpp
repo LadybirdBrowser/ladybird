@@ -1359,19 +1359,58 @@ void ConnectionFromClient::check_active_requests()
                 }
             }
 
+            // Check HTTP status code for gateway failures (404, 500, 502, 503, 504)
+            bool http_error_suggests_gateway_failure = false;
+            if (request_was_successful && request->http_status_code.has_value()) {
+                auto status_code = request->http_status_code.value();
+                // Retry on 404 (gateway doesn't have content), 5xx (gateway errors), 429 (rate limited)
+                if (status_code == 404 || status_code == 429 || (status_code >= 500 && status_code < 600)) {
+                    http_error_suggests_gateway_failure = true;
+                    dbgln("Gateway fallback: HTTP {} suggests gateway failure", status_code);
+                }
+            }
+
             // IPFS content verification: Verify downloaded content matches CID
+            bool ipfs_verification_failed = false;
             if (request_was_successful && request->ipfs_cid.has_value()) {
                 auto verification_result = IPC::IPFSVerifier::verify_content(request->ipfs_cid.value(), request->ipfs_content_buffer.bytes());
                 if (verification_result.is_error()) {
                     dbgln("IPFS: Content verification error: {}", verification_result.error());
-                    network_error = Requests::NetworkError::Unknown;
+                    ipfs_verification_failed = true;
                 } else if (!verification_result.value()) {
                     dbgln("IPFS: Content verification FAILED - hash mismatch for CID {}", request->ipfs_cid->raw_cid);
-                    network_error = Requests::NetworkError::Unknown;
+                    ipfs_verification_failed = true;
                 } else {
                     dbgln("IPFS: Content verification PASSED for CID {}", request->ipfs_cid->raw_cid);
                 }
             }
+
+            // Gateway fallback: Check if this request should be retried with next gateway
+            bool should_retry_gateway = (!request_was_successful || http_error_suggests_gateway_failure || ipfs_verification_failed)
+                && m_gateway_fallback_requests.contains(request->request_id);
+
+            if (should_retry_gateway) {
+                dbgln("Gateway fallback: Request {} failed (curl={}, http={}, verification={}), attempting next gateway",
+                    request->request_id,
+                    !request_was_successful,
+                    http_error_suggests_gateway_failure,
+                    ipfs_verification_failed);
+
+                // Trigger retry with next gateway
+                retry_with_next_gateway(request->request_id);
+
+                // Don't send async_request_finished yet - retry will handle it
+                request->schedule_self_destruction();
+                continue; // Skip to next message in queue
+            }
+
+            // If IPFS verification failed and we're not retrying, set error
+            if (ipfs_verification_failed) {
+                network_error = Requests::NetworkError::Unknown;
+            }
+
+            // Clean up fallback info if request succeeded or we're not retrying
+            m_gateway_fallback_requests.remove(request->request_id);
 
             async_request_finished(request->request_id, request->downloaded_so_far, timing_info, network_error);
         }
@@ -1636,8 +1675,11 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
 
     // Extract just the CID (before any path separator)
     auto cid_string = path_string;
-    if (auto slash_pos = path_string.find('/'); slash_pos.has_value())
+    auto remaining_path = ByteString();
+    if (auto slash_pos = path_string.find('/'); slash_pos.has_value()) {
         cid_string = path_string.substring(0, slash_pos.value());
+        remaining_path = ByteString::formatted("/{}", path_string.substring(slash_pos.value() + 1));
+    }
 
     dbgln("IPFS: Transforming ipfs://{} to gateway request", path_string);
 
@@ -1653,25 +1695,38 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
     auto parsed_cid = parsed_cid_result.release_value();
     dbgln("IPFS: Parsed CID version {} - {}", parsed_cid.version == IPC::CIDVersion::V0 ? "v0" : "v1", parsed_cid.raw_cid);
 
+    // Store parsed_cid for verification after download
+    m_pending_ipfs_verifications.set(request_id, move(parsed_cid));
+
     // Check if local IPFS daemon is available
     bool use_local_daemon = IPC::IPFSAvailability::is_daemon_running();
 
-    // Construct gateway URL
-    URL::URL gateway_url;
-    if (use_local_daemon) {
-        // Local daemon: http://127.0.0.1:8080/ipfs/CID/path
-        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("http://127.0.0.1:8080/ipfs/{}", path_string));
-        gateway_url = url_opt.value();
-        dbgln("IPFS: Using local daemon at 127.0.0.1:8080");
-    } else {
-        // Public gateway fallback: https://ipfs.io/ipfs/CID/path
-        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("https://ipfs.io/ipfs/{}", path_string));
-        gateway_url = url_opt.value();
-        dbgln("IPFS: Using public gateway ipfs.io (local daemon not available)");
-    }
+    // Store fallback info for retry on failure
+    // Clone headers and body since they'll be moved
+    GatewayFallbackInfo fallback_info {
+        .protocol = GatewayProtocol::IPFS,
+        .current_gateway_index = use_local_daemon ? 0 : 1, // Start with local or first public gateway
+        .resource_identifier = cid_string,
+        .path = remaining_path,
+        .method = method,
+        .headers = request_headers,
+        .body = MUST(request_body.clone()),
+        .proxy_data = proxy_data,
+        .page_id = page_id
+    };
 
-    // Store parsed_cid for verification after download
-    m_pending_ipfs_verifications.set(request_id, move(parsed_cid));
+    m_gateway_fallback_requests.set(request_id, move(fallback_info));
+
+    // Construct initial gateway URL
+    URL::URL gateway_url;
+    size_t initial_gateway_index = use_local_daemon ? 0 : 1;
+    auto gateway_base = s_ipfs_gateways[initial_gateway_index];
+
+    auto url_opt = URL::create_with_url_or_path(
+        ByteString::formatted("{}/ipfs/{}{}", gateway_base, cid_string, remaining_path));
+    gateway_url = url_opt.value();
+
+    dbgln("IPFS: Trying gateway {} ({})", initial_gateway_index + 1, gateway_base);
 
     // Issue the transformed HTTP request via standard network request
     issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
@@ -1690,8 +1745,11 @@ void ConnectionFromClient::issue_ipns_request(i32 request_id, ByteString method,
 
     // Extract just the name (before any path separator)
     auto name_string = path_string;
-    if (auto slash_pos = path_string.find('/'); slash_pos.has_value())
+    auto remaining_path = ByteString();
+    if (auto slash_pos = path_string.find('/'); slash_pos.has_value()) {
         name_string = path_string.substring(0, slash_pos.value());
+        remaining_path = ByteString::formatted("/{}", path_string.substring(slash_pos.value() + 1));
+    }
 
     dbgln("IPNS: Transforming ipns://{} to gateway request", path_string);
 
@@ -1701,19 +1759,31 @@ void ConnectionFromClient::issue_ipns_request(i32 request_id, ByteString method,
     // Check if local IPFS daemon is available
     bool use_local_daemon = IPC::IPFSAvailability::is_daemon_running();
 
-    // Construct gateway URL
+    // Store fallback info for retry on failure
+    GatewayFallbackInfo fallback_info {
+        .protocol = GatewayProtocol::IPNS,
+        .current_gateway_index = use_local_daemon ? 0 : 1, // Start with local or first public gateway
+        .resource_identifier = name_string,
+        .path = remaining_path,
+        .method = method,
+        .headers = request_headers,
+        .body = MUST(request_body.clone()),
+        .proxy_data = proxy_data,
+        .page_id = page_id
+    };
+
+    m_gateway_fallback_requests.set(request_id, move(fallback_info));
+
+    // Construct initial gateway URL
     URL::URL gateway_url;
-    if (use_local_daemon) {
-        // Local daemon: http://127.0.0.1:8080/ipns/name/path
-        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("http://127.0.0.1:8080/ipns/{}", path_string));
-        gateway_url = url_opt.value();
-        dbgln("IPNS: Using local daemon at 127.0.0.1:8080");
-    } else {
-        // Public gateway fallback: https://ipfs.io/ipns/name/path
-        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("https://ipfs.io/ipns/{}", path_string));
-        gateway_url = url_opt.value();
-        dbgln("IPNS: Using public gateway ipfs.io (local daemon not available)");
-    }
+    size_t initial_gateway_index = use_local_daemon ? 0 : 1;
+    auto gateway_base = s_ipns_gateways[initial_gateway_index];
+
+    auto url_opt = URL::create_with_url_or_path(
+        ByteString::formatted("{}/ipns/{}{}", gateway_base, name_string, remaining_path));
+    gateway_url = url_opt.value();
+
+    dbgln("IPNS: Trying gateway {} ({})", initial_gateway_index + 1, gateway_base);
 
     // Note: IPNS content cannot be verified by hash like IPFS content
     // IPNS names can be updated to point to different CIDs over time
@@ -1732,28 +1802,46 @@ void ConnectionFromClient::issue_ens_request(i32 request_id, ByteString method, 
     auto query = ens_url.query().value_or({}).to_byte_string();
     auto fragment = ens_url.fragment().value_or({}).to_byte_string();
 
-    dbgln("ENS: Resolving {}{}", eth_domain, path);
+    // Build path string with query and fragment
+    StringBuilder path_builder;
+    path_builder.append(path);
+    if (!query.is_empty()) {
+        path_builder.append('?');
+        path_builder.append(query);
+    }
+    if (!fragment.is_empty()) {
+        path_builder.append('#');
+        path_builder.append(fragment);
+    }
+    auto full_path = path_builder.to_byte_string();
 
-    // Construct gateway URL using eth.limo
+    dbgln("ENS: Resolving {}{}", eth_domain, full_path);
+
+    // Store fallback info for retry on failure
+    GatewayFallbackInfo fallback_info {
+        .protocol = GatewayProtocol::ENS,
+        .current_gateway_index = 0, // Start with first gateway (.limo)
+        .resource_identifier = eth_domain,
+        .path = full_path,
+        .method = method,
+        .headers = request_headers,
+        .body = MUST(request_body.clone()),
+        .proxy_data = proxy_data,
+        .page_id = page_id
+    };
+
+    m_gateway_fallback_requests.set(request_id, move(fallback_info));
+
+    // Construct gateway URL using first gateway (.limo)
     // Primary: https://example.eth.limo/path
-    // Pattern: append .limo to .eth domain for HTTPS resolution
-    auto gateway_host = ByteString::formatted("{}.limo", eth_domain);
+    // Pattern: append suffix to .eth domain for HTTPS resolution
+    auto gateway_suffix = s_ens_gateways[0];
+    auto gateway_host = ByteString::formatted("{}{}", eth_domain, gateway_suffix);
 
-    // Build full URL with path, query, and fragment
     StringBuilder url_builder;
     url_builder.append("https://"sv);
     url_builder.append(gateway_host);
-    url_builder.append(path);
-
-    if (!query.is_empty()) {
-        url_builder.append('?');
-        url_builder.append(query);
-    }
-
-    if (!fragment.is_empty()) {
-        url_builder.append('#');
-        url_builder.append(fragment);
-    }
+    url_builder.append(full_path);
 
     auto gateway_url_string = url_builder.to_byte_string();
     auto url_opt = URL::create_with_url_or_path(gateway_url_string);
@@ -1764,7 +1852,7 @@ void ConnectionFromClient::issue_ens_request(i32 request_id, ByteString method, 
     }
 
     auto gateway_url = url_opt.value();
-    dbgln("ENS: Using eth.limo gateway: {}", gateway_url.to_string());
+    dbgln("ENS: Trying gateway 1 ({}{}): {}", eth_domain, gateway_suffix, gateway_url.to_string());
 
     // Note: ENS names are resolved by the gateway to IPFS content or other addresses
     // The gateway handles all blockchain resolution
@@ -1772,6 +1860,124 @@ void ConnectionFromClient::issue_ens_request(i32 request_id, ByteString method, 
 
     // Issue the transformed HTTP request via standard network request
     issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
+}
+
+void ConnectionFromClient::retry_with_next_gateway(i32 request_id)
+{
+    // Check if this request has fallback info
+    auto fallback_it = m_gateway_fallback_requests.find(request_id);
+    if (fallback_it == m_gateway_fallback_requests.end()) {
+        dbgln("Gateway fallback: No fallback info for request {}", request_id);
+        return;
+    }
+
+    auto& fallback = fallback_it->value;
+    fallback.current_gateway_index++;
+
+    // Determine gateway count based on protocol
+    size_t gateway_count = 0;
+    switch (fallback.protocol) {
+    case GatewayProtocol::IPFS:
+        gateway_count = sizeof(s_ipfs_gateways) / sizeof(s_ipfs_gateways[0]);
+        break;
+    case GatewayProtocol::IPNS:
+        gateway_count = sizeof(s_ipns_gateways) / sizeof(s_ipns_gateways[0]);
+        break;
+    case GatewayProtocol::ENS:
+        gateway_count = sizeof(s_ens_gateways) / sizeof(s_ens_gateways[0]);
+        break;
+    }
+
+    // Check if we've exhausted all gateways
+    if (fallback.current_gateway_index >= gateway_count) {
+        dbgln("Gateway fallback: Exhausted all {} gateways for {} request {}",
+            gateway_count,
+            fallback.protocol == GatewayProtocol::IPFS ? "IPFS" :
+            fallback.protocol == GatewayProtocol::IPNS ? "IPNS" : "ENS",
+            request_id);
+
+        // Clean up fallback info
+        m_gateway_fallback_requests.remove(request_id);
+
+        // Send final error to client
+        async_request_finished(request_id, 0, {}, Requests::NetworkError::ConnectionFailed);
+        return;
+    }
+
+    // Construct new gateway URL
+    URL::URL gateway_url;
+    ByteString gateway_url_string;
+
+    switch (fallback.protocol) {
+    case GatewayProtocol::IPFS: {
+        auto gateway_base = s_ipfs_gateways[fallback.current_gateway_index];
+        gateway_url_string = ByteString::formatted("{}/ipfs/{}{}",
+            gateway_base,
+            fallback.resource_identifier,
+            fallback.path);
+        dbgln("Gateway fallback: IPFS trying gateway {} ({}): {}",
+            fallback.current_gateway_index + 1,
+            gateway_base,
+            gateway_url_string);
+        break;
+    }
+    case GatewayProtocol::IPNS: {
+        auto gateway_base = s_ipns_gateways[fallback.current_gateway_index];
+        gateway_url_string = ByteString::formatted("{}/ipns/{}{}",
+            gateway_base,
+            fallback.resource_identifier,
+            fallback.path);
+        dbgln("Gateway fallback: IPNS trying gateway {} ({}): {}",
+            fallback.current_gateway_index + 1,
+            gateway_base,
+            gateway_url_string);
+        break;
+    }
+    case GatewayProtocol::ENS: {
+        auto gateway_suffix = s_ens_gateways[fallback.current_gateway_index];
+        auto gateway_host = ByteString::formatted("{}{}", fallback.resource_identifier, gateway_suffix);
+
+        StringBuilder url_builder;
+        url_builder.append("https://"sv);
+        url_builder.append(gateway_host);
+        url_builder.append(fallback.path);
+        gateway_url_string = url_builder.to_byte_string();
+
+        dbgln("Gateway fallback: ENS trying gateway {} ({} → {}): {}",
+            fallback.current_gateway_index + 1,
+            fallback.resource_identifier,
+            gateway_host,
+            gateway_url_string);
+        break;
+    }
+    }
+
+    // Parse the URL
+    auto url_opt = URL::create_with_url_or_path(gateway_url_string);
+    if (!url_opt.has_value()) {
+        dbgln("Gateway fallback: Failed to construct gateway URL: {}", gateway_url_string);
+        retry_with_next_gateway(request_id); // Try next gateway
+        return;
+    }
+
+    gateway_url = url_opt.value();
+
+    // Copy request parameters (we need to clone them since they're consumed)
+    auto method_copy = fallback.method;
+    auto headers_copy = fallback.headers;
+    auto body_copy = MUST(fallback.body.clone());
+    auto proxy_data_copy = fallback.proxy_data;
+    auto page_id_copy = fallback.page_id;
+
+    // Cancel current request if it exists
+    if (m_active_requests.contains(request_id)) {
+        m_active_requests.remove(request_id);
+    }
+
+    // Issue the new request with the next gateway
+    issue_network_request(request_id, move(method_copy), move(gateway_url),
+                         move(headers_copy), move(body_copy),
+                         proxy_data_copy, page_id_copy);
 }
 
 }

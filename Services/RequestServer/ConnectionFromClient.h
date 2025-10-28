@@ -93,6 +93,25 @@ private:
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
+    // Gateway fallback support for P2P protocols
+    enum class GatewayProtocol {
+        IPFS,
+        IPNS,
+        ENS
+    };
+
+    struct GatewayFallbackInfo {
+        GatewayProtocol protocol;
+        size_t current_gateway_index { 0 };
+        ByteString resource_identifier;  // CID for IPFS, name for IPNS, domain for ENS
+        ByteString path;                 // Path component after CID/name/domain
+        ByteString method;
+        HTTP::HeaderMap headers;
+        ByteBuffer body;
+        Core::ProxyData proxy_data;
+        u64 page_id;
+    };
+
     struct ActiveRequest;
     friend struct ActiveRequest;
 
@@ -107,6 +126,30 @@ private:
 
     // IPFS content verification: Store CIDs for pending requests
     HashMap<i32, IPC::ParsedCID> m_pending_ipfs_verifications;
+
+    // Gateway fallback chains for P2P protocols
+    HashMap<i32, GatewayFallbackInfo> m_gateway_fallback_requests;
+
+    // Gateway arrays (in priority order)
+    static constexpr StringView s_ipfs_gateways[] = {
+        "http://127.0.0.1:8080"sv,      // Local daemon (fastest)
+        "https://ipfs.io"sv,            // Official IPFS gateway
+        "https://dweb.link"sv,          // Protocol Labs gateway
+        "https://cloudflare-ipfs.com"sv // Cloudflare gateway
+    };
+
+    static constexpr StringView s_ipns_gateways[] = {
+        "http://127.0.0.1:8080"sv,  // Local daemon (fastest)
+        "https://ipfs.io"sv,        // Official IPFS gateway
+        "https://dweb.link"sv       // Protocol Labs gateway
+    };
+
+    static constexpr StringView s_ens_gateways[] = {
+        ".limo"sv,   // eth.limo gateway (example.eth → example.eth.limo)
+        ".link"sv    // eth.link gateway (example.eth → example.eth.link)
+    };
+
+    void retry_with_next_gateway(i32 request_id);
 
     void check_active_requests();
     void* m_curl_multi { nullptr };
