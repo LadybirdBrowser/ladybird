@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 25 tests
+
+24 Pass
+1 Fail
+Pass	Single item
+Pass	Empty index
+Pass	Get all records
+Pass	Get all records with empty options
+Pass	Get all records with large value
+Pass	Count
+Pass	Query with bound range
+Pass	Query with bound range and count
+Pass	Query with upper excluded bound range
+Pass	Query with lower excluded bound range
+Pass	Query with bound range and count for generated keys
+Pass	Query with Nonexistent key
+Pass	Zero count
+Pass	Max value count
+Pass	Query with empty range where first key < upperBound
+Pass	Query with empty range where lowerBound < last key
+Pass	Query index key that matches multiple records
+Pass	Query with multiEntry index
+Pass	Direction: next
+Pass	Direction: prev
+Pass	Direction: nextunique
+Pass	Direction: prevunique
+Pass	Direction and query
+Pass	Direction, query and count
+Fail	Get all records with invalid query keys
