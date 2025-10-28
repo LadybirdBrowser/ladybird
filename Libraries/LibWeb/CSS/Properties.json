@@ -790,7 +790,6 @@
     "max-values": 1
   },
   "border-image": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "none 100% / 1 / 0 stretch",
     "longhands": [
@@ -802,7 +801,6 @@
     ]
   },
   "border-image-outset": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -814,7 +812,6 @@
     ]
   },
   "border-image-repeat": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -825,7 +822,6 @@
     ]
   },
   "border-image-slice": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -840,7 +836,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-image-source": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -853,7 +848,6 @@
     ]
   },
   "border-image-width": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
