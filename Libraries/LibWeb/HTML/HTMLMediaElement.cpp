@@ -12,6 +12,7 @@
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MediaSessionPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/HTML/HTMLSourceElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/MediaError.h>
+#include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -38,6 +40,7 @@
 #include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
@@ -2212,10 +2215,20 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
     if (modifiers != UIEvents::KeyModifier::Mod_None)
         return false;
 
+    auto const& mediasession = document().window()->navigator()->media_session();
+
     switch (key) {
-    case UIEvents::KeyCode::Key_Space:
-        toggle_playback();
+    case UIEvents::KeyCode::Key_PlayPause:
+    case UIEvents::KeyCode::Key_Space: {
+        if (!mediasession->has_action_handler(Bindings::MediaSessionAction::Play) &&
+                mediasession->has_action_handler(Bindings::MediaSessionAction::Pause))
+            toggle_playback();
+        else if (potentially_playing())
+            mediasession->handle_action(Bindings::MediaSessionAction::Play);
+        else
+            mediasession->handle_action(Bindings::MediaSessionAction::Pause);
         break;
+    }
 
     case UIEvents::KeyCode::Key_Home:
         set_current_time(0);
