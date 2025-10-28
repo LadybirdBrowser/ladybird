@@ -120,7 +120,6 @@
     "legacy-alias-for": "order"
   },
   "-webkit-text-fill-color": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "currentColor",
@@ -153,7 +152,6 @@
     "legacy-alias-for": "user-select"
   },
   "accent-color": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
@@ -453,7 +451,6 @@
     ]
   },
   "background-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -614,7 +611,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-color": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -638,7 +634,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-end-color": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "block-end"
@@ -674,7 +669,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-start-color": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "block-start"
@@ -738,7 +732,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -809,7 +802,6 @@
     ]
   },
   "border-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -935,7 +927,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-color": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -959,7 +950,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-end-color": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "inline-end"
@@ -993,7 +983,6 @@
     ]
   },
   "border-inline-start-color": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "inline-start"
@@ -1054,7 +1043,6 @@
     ]
   },
   "border-left-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1116,7 +1104,6 @@
     ]
   },
   "border-right-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1205,7 +1192,6 @@
     ]
   },
   "border-top-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1332,7 +1318,6 @@
     ]
   },
   "caret-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1395,7 +1380,6 @@
     ]
   },
   "color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1976,7 +1960,6 @@
     ]
   },
   "flood-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3232,7 +3215,6 @@
     ]
   },
   "outline-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3780,7 +3762,6 @@
     ]
   },
   "stop-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3933,7 +3914,6 @@
     ]
   },
   "text-decoration-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
