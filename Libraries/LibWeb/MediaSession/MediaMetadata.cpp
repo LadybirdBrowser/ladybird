@@ -47,7 +47,6 @@ void MediaMetadata::finalize()
 }
 
 void MediaMetadata::visit_edges(JS::Cell::Visitor& visitor) {
-    Base::visit_edges(visitor);
     visitor.visit(m_chapter_info);
 }
 

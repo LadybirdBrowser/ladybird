@@ -152,9 +152,8 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
 
 GC::Ref<MediaSession::MediaSession> Navigator::media_session()
 {
-    auto& window = as<HTML::Window>(realm().global_object());
     if (!m_media_session)
-        m_media_session = realm().create<MediaSession::MediaSession>(window);
+        m_media_session = realm().create<MediaSession::MediaSession>(realm());
     return *m_media_session;
 }
 

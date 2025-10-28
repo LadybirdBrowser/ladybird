@@ -23,12 +23,12 @@ struct MediaPositionState {
     Optional<double> position;
 };
 
-class WEB_API MediaSession final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaSession, DOM::EventTarget);
+class WEB_API MediaSession final : public Bindings::PlatformObject {
+    WEB_PLATFORM_OBJECT(MediaSession, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(MediaSession);
 
 public:
-    static GC::Ref<MediaSession> create(HTML::Window& window);
+    static GC::Ref<MediaSession> create(JS::Realm&);
 
     WebIDL::ExceptionOr<void> set_action_handler(Bindings::MediaSessionAction action, MediaSessionActionHandler handler);
 
@@ -58,12 +58,10 @@ public:
     bool has_action_handler(Bindings::MediaSessionAction) const;
 
 private:
-    explicit MediaSession(HTML::Window&);
+    explicit MediaSession(JS::Realm&);
 
     // https://w3c.github.io/mediasession/#update-metadata-algorithm
     void update_metadata(GC::Ref<MediaMetadata>) const;
-
-    GC::Ref<HTML::Window> m_window;
 
     GC::Ptr<MediaMetadata> m_metadata;
 
