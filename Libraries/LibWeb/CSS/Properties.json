@@ -386,7 +386,6 @@
     ]
   },
   "background": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "transparent",
@@ -403,7 +402,6 @@
     "multiplicity": "coordinating-list"
   },
   "background-attachment": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -414,7 +412,6 @@
     ]
   },
   "background-blend-mode": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -424,7 +421,6 @@
     ]
   },
   "background-clip": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -447,7 +443,6 @@
     ]
   },
   "background-image": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -461,7 +456,6 @@
     ]
   },
   "background-origin": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -472,7 +466,6 @@
     ]
   },
   "background-position": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "0% 0%",
@@ -491,7 +484,6 @@
     "percentages-resolve-to": "length"
   },
   "background-position-x": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -509,7 +501,6 @@
     "percentages-resolve-to": "length"
   },
   "background-position-y": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -527,7 +518,6 @@
     "percentages-resolve-to": "length"
   },
   "background-repeat": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -543,7 +533,6 @@
     ]
   },
   "background-size": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
