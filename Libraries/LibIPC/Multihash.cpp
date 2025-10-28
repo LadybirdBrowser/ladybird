@@ -167,7 +167,7 @@ ErrorOr<ByteBuffer> Multihash::create(MultihashCode code, ReadonlyBytes hash_byt
     auto multihash = TRY(ByteBuffer::create_uninitialized(2 + hash_length));
     multihash[0] = hash_code_byte;
     multihash[1] = hash_length;
-    multihash.bytes().slice(2).copy_from(hash_bytes);
+    memcpy(multihash.data() + 2, hash_bytes.data(), hash_bytes.size());
 
     return multihash;
 }

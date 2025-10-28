@@ -96,7 +96,7 @@ ErrorOr<ByteBuffer> Multibase::decode_raw(ByteString const& encoded, MultibaseEn
     }
 }
 
-ErrorOr<ByteBuffer> Multibase::decode_base16(ByteString const& encoded, bool uppercase)
+ErrorOr<ByteBuffer> Multibase::decode_base16(ByteString const& encoded, bool)
 {
     // Hex decoding (straightforward)
     return decode_hex(encoded);
@@ -227,17 +227,17 @@ ErrorOr<ByteBuffer> Multibase::decode_base64(ByteString const& encoded, bool url
                 standard_encoded = ByteString::formatted("{}=", standard_encoded);
         }
 
-        return decode_base64(standard_encoded);
+        return AK::decode_base64(standard_encoded, AK::LastChunkHandling::Loose);
     }
 
     // Standard base64 decoding
-    return decode_base64(encoded);
+    return AK::decode_base64(encoded, AK::LastChunkHandling::Loose);
 }
 
-ErrorOr<ByteString> Multibase::encode(ReadonlyBytes data, MultibaseEncoding encoding)
+ErrorOr<ByteString> Multibase::encode(ReadonlyBytes, MultibaseEncoding encoding)
 {
     // Get the prefix character
-    char prefix;
+    char prefix __attribute__((unused));
     switch (encoding) {
     case MultibaseEncoding::Base16Lower:
         prefix = 'f';

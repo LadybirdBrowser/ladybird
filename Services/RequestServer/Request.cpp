@@ -439,6 +439,39 @@ void Request::handle_complete_state()
             }
         }
 
+        // IPFS Integration: Content verification hook
+        // Note: Verification happens on data already sent to client. If verification fails,
+        // the error will be reported but data has already been transferred.
+        if (m_content_verification_callback && !m_network_error.has_value() && m_bytes_transferred_to_client > 0) {
+            // Allocate buffer for post-transfer verification check
+            // FIXME: For large files, this could be memory-intensive. Consider streaming verification.
+            auto buffer_size = m_response_buffer.used_buffer_size();
+            if (buffer_size > 0) {
+                auto verification_buffer_result = ByteBuffer::create_uninitialized(buffer_size);
+                if (verification_buffer_result.is_error()) {
+                    dbgln("Request::handle_complete_state: Failed to allocate buffer for content verification");
+                    m_network_error = Requests::NetworkError::Unknown;
+                } else {
+                    auto& verification_buffer = verification_buffer_result.value();
+                    auto read_result = m_response_buffer.read_until_filled(verification_buffer);
+
+                    if (read_result.is_error()) {
+                        dbgln("Request::handle_complete_state: Failed to read response buffer for verification: {}", read_result.error());
+                        m_network_error = Requests::NetworkError::Unknown;
+                    } else {
+                        auto verification_result = m_content_verification_callback(verification_buffer.bytes());
+                        if (verification_result.is_error()) {
+                            dbgln("Request::handle_complete_state: Content verification failed: {}", verification_result.error());
+                            m_network_error = Requests::NetworkError::Unknown;
+                        } else if (!verification_result.value()) {
+                            dbgln("Request::handle_complete_state: Content integrity check failed");
+                            m_network_error = Requests::NetworkError::Unknown;
+                        }
+                    }
+                }
+            }
+        }
+
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
     }
 
@@ -447,6 +480,22 @@ void Request::handle_complete_state()
 
 void Request::handle_error_state()
 {
+    // IPFS Integration: Try gateway fallback if available for recoverable errors
+    if (m_gateway_fallback_callback) {
+        auto error = m_network_error.value_or(Requests::NetworkError::Unknown);
+        // Retry on DNS, connection, timeout, or unknown errors (typical gateway failures)
+        if (error == Requests::NetworkError::UnableToResolveHost
+            || error == Requests::NetworkError::UnableToConnect
+            || error == Requests::NetworkError::TimeoutReached
+            || error == Requests::NetworkError::Unknown) {
+            dbgln("Request::handle_error_state: Triggering gateway fallback for error: {}", static_cast<int>(error));
+            m_gateway_fallback_callback();
+            // Don't send async_request_finished - fallback will create new request
+            m_client.request_complete({}, m_request_id);
+            return;
+        }
+    }
+
     if (m_type == Type::Fetch) {
         // FIXME: Implement timing info for failed requests.
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, {}, m_network_error.value_or(Requests::NetworkError::Unknown));
@@ -667,5 +716,17 @@ Requests::RequestTimingInfo Request::acquire_timing_info() const
         .http_version_alpn_identifier = http_version_alpn,
     };
 }
+
+// IPFS Integration: Start
+void Request::set_content_verification_callback(Function<ErrorOr<bool>(ReadonlyBytes)> callback)
+{
+    m_content_verification_callback = move(callback);
+}
+
+void Request::set_gateway_fallback_callback(Function<void()> callback)
+{
+    m_gateway_fallback_callback = move(callback);
+}
+// IPFS Integration: End
 
 }

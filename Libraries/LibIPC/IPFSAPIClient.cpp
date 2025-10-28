@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/TCPSocket.h>
+#include <LibCore/Socket.h>
 #include <LibIPC/IPFSAPIClient.h>
 
 namespace IPC {

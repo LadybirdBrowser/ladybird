@@ -11,11 +11,13 @@
 #include <AK/SourceLocation.h>
 #include <LibDNS/Resolver.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibIPC/IPFSVerifier.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/NetworkIdentity.h>
 #include <LibIPC/RateLimiter.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
+#include <RequestServer/Request.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
@@ -84,6 +86,17 @@ private:
     void issue_ipfs_request(i32 request_id, ByteString method, URL::URL ipfs_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
     void issue_ipns_request(i32 request_id, ByteString method, URL::URL ipns_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
     void issue_ens_request(i32 request_id, ByteString method, URL::URL ens_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
+
+    // P2P URL transformation helpers
+    URL::URL transform_ipfs_url_to_gateway(i32 request_id, URL::URL const& ipfs_url, u64 page_id);
+    URL::URL transform_ipns_url_to_gateway(i32 request_id, URL::URL const& ipns_url, u64 page_id);
+    URL::URL transform_ens_url_to_gateway(i32 request_id, URL::URL const& ens_url, u64 page_id);
+
+    // IPFS content verification and gateway fallback helpers
+    void setup_ipfs_verification(i32 request_id, Request& request, ByteString const& cid_string);
+    void setup_gateway_fallback(i32 request_id, Request& request, Request::ProtocolType protocol,
+        ByteString const& resource_id, ByteString const& path, ByteString const& method,
+        HTTP::HeaderMap const& headers, ByteBuffer const& body, Core::ProxyData const& proxy_data, u64 page_id);
 
     // Gateway fallback support for P2P protocols
     enum class GatewayProtocol {

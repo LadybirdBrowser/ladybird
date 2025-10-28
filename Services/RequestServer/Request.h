@@ -57,6 +57,25 @@ public:
     void notify_request_unblocked(Badge<DiskCache>);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
+    // IPFS Integration: Start
+    // Protocol types for P2P/decentralized content
+    enum class ProtocolType : u8 {
+        HTTP,  // Standard HTTP/HTTPS
+        IPFS,  // IPFS content-addressed
+        IPNS,  // IPFS mutable names
+        ENS,   // Ethereum Name Service
+    };
+
+    void set_protocol_type(ProtocolType type) { m_protocol_type = type; }
+    ProtocolType protocol_type() const { return m_protocol_type; }
+
+    // Set callback for content verification (e.g., IPFS CID verification)
+    void set_content_verification_callback(Function<ErrorOr<bool>(ReadonlyBytes)> callback);
+
+    // Set callback for gateway fallback on errors
+    void set_gateway_fallback_callback(Function<void()> callback);
+    // IPFS Integration: End
+
 private:
     enum class Type : u8 {
         Fetch,
@@ -158,6 +177,12 @@ private:
     Optional<CacheEntryWriter&> m_cache_entry_writer;
 
     Optional<Requests::NetworkError> m_network_error;
+
+    // IPFS Integration: Start
+    ProtocolType m_protocol_type { ProtocolType::HTTP };
+    Function<ErrorOr<bool>(ReadonlyBytes)> m_content_verification_callback;
+    Function<void()> m_gateway_fallback_callback;
+    // IPFS Integration: End
 };
 
 }

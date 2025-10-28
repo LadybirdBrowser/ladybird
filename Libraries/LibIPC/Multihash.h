@@ -54,9 +54,10 @@ public:
     // Create multihash from hash code and hash bytes
     static ErrorOr<ByteBuffer> create(MultihashCode code, ReadonlyBytes hash_bytes);
 
-private:
     // Decode unsigned varint (variable-length integer encoding)
     static ErrorOr<u64> decode_varint(ReadonlyBytes data, size_t& bytes_read);
+
+private:
 };
 
 }
