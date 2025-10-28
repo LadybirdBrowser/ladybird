@@ -26,16 +26,33 @@ static Gfx::Path path_from_resolved_rect(float top, float right, float bottom, f
 
 Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
-    // FIXME: A pair of insets in either dimension that add up to more than the used dimension
-    // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
-    // to proportionally reduce the inset effect to 100%.
-
     auto resolved_top = LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(node, reference_box.height()).to_float();
-    auto resolved_right = reference_box.width().to_float() - LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
-    auto resolved_bottom = reference_box.height().to_float() - LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
+    auto resolved_right = LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
+    auto resolved_bottom = LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
     auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
 
-    return path_from_resolved_rect(resolved_top, resolved_right, resolved_bottom, resolved_left);
+    // A pair of insets in either dimension that add up to more than the used dimension
+    // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
+    // to proportionally reduce the inset effect to 100%.
+    if (resolved_top + resolved_bottom > reference_box.height().to_float() || resolved_left + resolved_right > reference_box.width().to_float()) {
+        // https://drafts.csswg.org/css-backgrounds-3/#corner-overlap
+        // Let f = min(Li/Si), where i ∈ {top, right, bottom, left}, Si is the sum of the two corresponding radii of the
+        // corners on side i, and Ltop = Lbottom = the width of the box, and Lleft = Lright = the height of the box. If
+        // f < 1, then all corner radii are reduced by multiplying them by f.
+
+        // NB: We only care about vertical and horizontal here as top = bottom and left = right
+        auto s_vertical = resolved_top + resolved_bottom;
+        auto s_horizontal = resolved_left + resolved_right;
+
+        auto f = min(reference_box.height() / s_vertical, reference_box.width() / s_horizontal);
+
+        resolved_top *= f;
+        resolved_right *= f;
+        resolved_bottom *= f;
+        resolved_left *= f;
+    }
+
+    return path_from_resolved_rect(resolved_top, reference_box.width().to_float() - resolved_right, reference_box.height().to_float() - resolved_bottom, resolved_left);
 }
 
 String Inset::to_string(SerializationMode mode) const
