@@ -25,8 +25,20 @@ MediaSession::MediaSession(HTML::Window& window)
 MediaSession::~MediaSession() = default;
 
 WebIDL::ExceptionOr<void> MediaSession::set_action_handler(Bindings::MediaSessionAction action, MediaSessionActionHandler handler) {
-    set_event_handler_attribute(Bindings::idl_enum_to_string(action), handler);
+    if (!handler)
+        m_action_handlers.remove(action);
+    else
+        m_action_handlers.set(action, handler);
     return {};
+}
+
+bool MediaSession::handle_action(Bindings::MediaSessionAction action) {
+    if (!m_action_handlers.contains(action))
+        return false;
+
+    dbgln("MediaSession::handle_action is unimplemented");
+
+    return true;
 }
 
 WebIDL::ExceptionOr<void> MediaSession::set_position_state() {

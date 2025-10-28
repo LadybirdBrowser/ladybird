@@ -30,7 +30,6 @@ class WEB_API MediaSession final : public DOM::EventTarget {
 public:
     static GC::Ref<MediaSession> create(HTML::Window& window);
 
-    // TODO: make `handler` Optional
     WebIDL::ExceptionOr<void> set_action_handler(Bindings::MediaSessionAction action, MediaSessionActionHandler handler);
 
     WebIDL::ExceptionOr<void> set_position_state();
@@ -54,6 +53,10 @@ public:
     Bindings::MediaSessionPlaybackState playback_state() const;
     void set_playback_state(Bindings::MediaSessionPlaybackState);
 
+    bool handle_action(Bindings::MediaSessionAction);
+
+    bool has_action_handler(Bindings::MediaSessionAction) const;
+
 private:
     explicit MediaSession(HTML::Window&);
 
@@ -67,6 +70,9 @@ private:
     Bindings::MediaSessionPlaybackState m_playback_state;
 
     MediaPositionState m_position_state;
+
+    // https://w3c.github.io/mediasession/#supported-media-session-actions
+    HashMap<Bindings::MediaSessionAction, MediaSessionActionHandler> m_action_handlers;
 };
 
 }
