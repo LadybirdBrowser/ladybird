@@ -4,6 +4,9 @@ set(SOURCES
     Encoder.cpp
     IPFSAPIClient.cpp
     IPFSVerifier.cpp
+    Multibase.cpp
+    Multicodec.cpp
+    Multihash.cpp
     NetworkIdentity.cpp
     ProxyValidator.cpp
 )

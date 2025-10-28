@@ -8,6 +8,9 @@
 #include <AK/Hex.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibIPC/IPFSVerifier.h>
+#include <LibIPC/Multibase.h>
+#include <LibIPC/Multicodec.h>
+#include <LibIPC/Multihash.h>
 
 namespace IPC {
 
@@ -114,24 +117,40 @@ ErrorOr<ParsedCID> IPFSVerifier::parse_cid_v0(ByteString const& cid_string)
 ErrorOr<ParsedCID> IPFSVerifier::parse_cid_v1(ByteString const& cid_string)
 {
     // CIDv1 format: <multibase-prefix><version><codec><multihash>
-    // For now, we'll support the most common case: base32 + dag-pb + SHA-256
+    // Full implementation using multibase/multicodec/multihash libraries
 
-    // Common CIDv1 prefixes:
-    // - "bafybeig..." = base32, dag-pb, SHA-256
-    // - "bafkreig..." = base32, raw, SHA-256
+    // Step 1: Multibase decode (removes prefix and decodes)
+    auto decoded = TRY(Multibase::decode(cid_string));
 
-    if (!cid_string.starts_with("bafy"sv) && !cid_string.starts_with("bafk"sv))
-        return Error::from_string_literal("CIDv1 parsing currently supports base32 (bafy/bafk) only");
+    if (decoded.size() < 2)
+        return Error::from_string_literal("CIDv1 decoded data too short");
 
-    // For MVP, we'll do simplified parsing: assume SHA-256 and extract via gateway verification
-    // Full CIDv1 parsing requires multibase, multicodec, and multihash libraries
-    // The gateway will handle the CID properly, and we verify the returned content hash
+    // Step 2: Extract version byte (should be 0x01 for CIDv1)
+    u8 version = decoded[0];
+    if (version != 0x01)
+        return Error::from_string_literal("CIDv1 version byte must be 0x01");
 
+    // Step 3: Decode codec (varint after version)
+    size_t codec_bytes_read = 0;
+    auto remaining_data = decoded.bytes().slice(1);
+    u64 codec_code = TRY(Multihash::decode_varint(remaining_data, codec_bytes_read));
+
+    dbgln("IPFS: CIDv1 codec = {} ({})", Multicodec::codec_name(codec_code), codec_code);
+
+    // Step 4: Parse multihash (remaining data after version + codec)
+    auto multihash_data = remaining_data.slice(codec_bytes_read);
+    auto parsed_multihash = TRY(Multihash::parse_with_varint(multihash_data));
+
+    dbgln("IPFS: CIDv1 multihash algorithm = {}, length = {}",
+        parsed_multihash.hash_algorithm_name(),
+        parsed_multihash.hash_length);
+
+    // Step 5: Build ParsedCID with extracted hash
     return ParsedCID {
         .version = CIDVersion::V1,
         .raw_cid = cid_string,
-        .expected_hash = {}, // Will be populated from gateway response or full parsing
-        .hash_algorithm = "sha256"sv // Most common for CIDv1
+        .expected_hash = move(parsed_multihash.hash_bytes),
+        .hash_algorithm = parsed_multihash.hash_algorithm_name()
     };
 }
 
@@ -161,14 +180,7 @@ ErrorOr<ByteBuffer> IPFSVerifier::hash_content(ReadonlyBytes content, ByteString
 
 ErrorOr<bool> IPFSVerifier::verify_content(ParsedCID const& cid, ReadonlyBytes content)
 {
-    // For CIDv1 with empty expected_hash, we skip verification for now
-    // Full CIDv1 verification requires complete multibase/multicodec/multihash parsing
-    if (cid.version == CIDVersion::V1 && cid.expected_hash.is_empty()) {
-        dbgln("IPFSVerifier: CIDv1 verification skipped (full parsing not implemented)");
-        return true; // Gateway has already validated
-    }
-
-    // Hash the content
+    // Hash the content using the algorithm specified in the CID
     auto computed_hash = TRY(hash_content(content, cid.hash_algorithm));
 
     // Compare hashes
@@ -181,9 +193,13 @@ ErrorOr<bool> IPFSVerifier::verify_content(ParsedCID const& cid, ReadonlyBytes c
     bool matches = (computed_hash.bytes() == cid.expected_hash.bytes());
 
     if (matches) {
-        dbgln("IPFSVerifier: Content integrity verified for CID {}", cid.raw_cid);
+        dbgln("IPFSVerifier: Content integrity verified for {} {}",
+            cid.version == CIDVersion::V0 ? "CIDv0" : "CIDv1",
+            cid.raw_cid);
     } else {
-        dbgln("IPFSVerifier: HASH MISMATCH for CID {}", cid.raw_cid);
+        dbgln("IPFSVerifier: HASH MISMATCH for {} {}",
+            cid.version == CIDVersion::V0 ? "CIDv0" : "CIDv1",
+            cid.raw_cid);
         dbgln("  Expected: {}", encode_hex(cid.expected_hash));
         dbgln("  Computed: {}", encode_hex(computed_hash));
     }
