@@ -1615,26 +1615,6 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                     return {};
                 return Inset { interpolated_top.release_nonnull(), interpolated_right.release_nonnull(), interpolated_bottom.release_nonnull(), interpolated_left.release_nonnull() };
             },
-            [&](Xywh const& from_xywh) -> Optional<BasicShape> {
-                auto& to_xywh = to_shape.get<Xywh>();
-                auto interpolated_x = interpolate_value(element, basic_shape_calculation_context, from_xywh.x, to_xywh.x, delta, allow_discrete);
-                auto interpolated_y = interpolate_value(element, basic_shape_calculation_context, from_xywh.x, to_xywh.x, delta, allow_discrete);
-                auto interpolated_width = interpolate_value(element, basic_shape_calculation_context, from_xywh.width, to_xywh.width, delta, allow_discrete);
-                auto interpolated_height = interpolate_value(element, basic_shape_calculation_context, from_xywh.height, to_xywh.height, delta, allow_discrete);
-                if (!interpolated_x || !interpolated_y || !interpolated_width || !interpolated_height)
-                    return {};
-                return Xywh { interpolated_x.release_nonnull(), interpolated_y.release_nonnull(), interpolated_width.release_nonnull(), interpolated_height.release_nonnull() };
-            },
-            [&](Rect const& from_rect) -> Optional<BasicShape> {
-                auto const& to_rect = to_shape.get<Rect>();
-                auto interpolated_top = interpolate_value(element, basic_shape_calculation_context, from_rect.top, to_rect.top, delta, allow_discrete);
-                auto interpolated_right = interpolate_value(element, basic_shape_calculation_context, from_rect.right, to_rect.right, delta, allow_discrete);
-                auto interpolated_bottom = interpolate_value(element, basic_shape_calculation_context, from_rect.bottom, to_rect.bottom, delta, allow_discrete);
-                auto interpolated_left = interpolate_value(element, basic_shape_calculation_context, from_rect.left, to_rect.left, delta, allow_discrete);
-                if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left)
-                    return {};
-                return Rect { interpolated_top.release_nonnull(), interpolated_right.release_nonnull(), interpolated_bottom.release_nonnull(), interpolated_left.release_nonnull() };
-            },
             [&](Circle const& from_circle) -> Optional<BasicShape> {
                 // If both shapes are the same type, that type is ellipse() or circle(), and the radiuses are specified
                 // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.

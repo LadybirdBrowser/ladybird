@@ -2,13 +2,14 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
-Fail	Property clip-path value 'rect(0 0 0 0)'
-Fail	Property clip-path value 'rect(10px auto 20px 30px)'
+5 Pass
+6 Fail
+Pass	Property clip-path value 'rect(0 0 0 0)'
+Pass	Property clip-path value 'rect(10px auto 20px 30px)'
 Fail	Property clip-path value 'rect(auto auto auto auto)'
-Fail	Property clip-path value 'rect(10% 20% 15% 12%)'
-Fail	Property clip-path value 'rect(10% 95% 97% 12%)'
-Fail	Property clip-path value 'rect(-10% -20% -15% -12%)'
+Pass	Property clip-path value 'rect(10% 20% 15% 12%)'
+Pass	Property clip-path value 'rect(10% 95% 97% 12%)'
+Pass	Property clip-path value 'rect(-10% -20% -15% -12%)'
 Fail	Property clip-path value 'rect(10px 12% 20px 30px round 100%)'
 Fail	Property clip-path value 'rect(10px 12% 20px 30px round 0 1px)'
 Fail	Property clip-path value 'rect(10px 12% 20px 30px round 0px 1px 2%)'
