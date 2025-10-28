@@ -561,7 +561,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -573,7 +572,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -596,7 +594,6 @@
     ]
   },
   "border-block-end": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -614,7 +611,6 @@
     "max-values": 1
   },
   "border-block-end-style": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "block-end"
@@ -622,7 +618,6 @@
     "max-values": 1
   },
   "border-block-end-width": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "block-end"
@@ -631,7 +626,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-start": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -649,7 +643,6 @@
     "max-values": 1
   },
   "border-block-start-style": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "block-start"
@@ -657,7 +650,6 @@
     "max-values": 1
   },
   "border-block-start-width": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "block-start"
@@ -666,7 +658,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-style": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "none",
     "positional-value-list-shorthand": true,
@@ -679,7 +670,6 @@
     ]
   },
   "border-block-width": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium",
     "positional-value-list-shorthand": true,
@@ -694,7 +684,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -743,7 +732,6 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-style": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -752,7 +740,6 @@
     ]
   },
   "border-bottom-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -888,7 +875,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -911,7 +897,6 @@
     ]
   },
   "border-inline-end": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -929,7 +914,6 @@
     "max-values": 1
   },
   "border-inline-end-style": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "inline-end"
@@ -937,7 +921,6 @@
     "max-values": 1
   },
   "border-inline-end-width": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "inline-end"
@@ -945,7 +928,6 @@
     "max-values": 1
   },
   "border-inline-start": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -962,7 +944,6 @@
     "max-values": 1
   },
   "border-inline-start-style": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "inline-start"
@@ -970,7 +951,6 @@
     "max-values": 1
   },
   "border-inline-start-width": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "inline-start"
@@ -978,7 +958,6 @@
     "max-values": 1
   },
   "border-inline-style": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "none",
     "positional-value-list-shorthand": true,
@@ -991,7 +970,6 @@
     ]
   },
   "border-inline-width": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium",
     "positional-value-list-shorthand": true,
@@ -1005,7 +983,6 @@
     ]
   },
   "border-left": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -1027,7 +1004,6 @@
     ]
   },
   "border-left-style": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1036,7 +1012,6 @@
     ]
   },
   "border-left-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1066,7 +1041,6 @@
     "percentages-resolve-to": "length"
   },
   "border-right": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -1088,7 +1062,6 @@
     ]
   },
   "border-right-style": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1097,7 +1070,6 @@
     ]
   },
   "border-right-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1110,7 +1082,6 @@
     ]
   },
   "border-spacing": {
-    "strip-whitespace": true,
     "_comment": "Follows the newer definition from: https://drafts.csswg.org/css-tables-3/#border-spacing-property",
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1140,7 +1111,6 @@
     "max-values": 1
   },
   "border-style": {
-    "strip-whitespace": true,
     "initial": "none",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1154,7 +1124,6 @@
     ]
   },
   "border-top": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -1202,7 +1171,6 @@
     "percentages-resolve-to": "length"
   },
   "border-top-style": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1211,7 +1179,6 @@
     ]
   },
   "border-top-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1224,7 +1191,6 @@
     ]
   },
   "border-width": {
-    "strip-whitespace": true,
     "initial": "medium",
     "positional-value-list-shorthand": true,
     "longhands": [
