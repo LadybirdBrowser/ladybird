@@ -89,6 +89,7 @@ private:
     void issue_network_request_with_optional_dns(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id, Optional<ResumeRequestForFailedCacheEntry>, Optional<NonnullRefPtr<DNS::LookupResult>>);
     void issue_ipfs_request(i32 request_id, ByteString method, URL::URL ipfs_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
     void issue_ipns_request(i32 request_id, ByteString method, URL::URL ipns_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
+    void issue_ens_request(i32 request_id, ByteString method, URL::URL ens_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 

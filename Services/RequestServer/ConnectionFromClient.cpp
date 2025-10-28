@@ -960,6 +960,12 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
         return;
     }
 
+    // ENS domain handling - route to eth.limo gateway (Ethereum Name Service)
+    if (url.host().ends_with(".eth"sv)) {
+        issue_ens_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
+        return;
+    }
+
     if (g_disk_cache.has_value()) {
         if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
             auto fds = MUST(Core::System::pipe2(O_NONBLOCK));
@@ -1712,6 +1718,57 @@ void ConnectionFromClient::issue_ipns_request(i32 request_id, ByteString method,
     // Note: IPNS content cannot be verified by hash like IPFS content
     // IPNS names can be updated to point to different CIDs over time
     // We trust the gateway to resolve the current CID for the IPNS name
+
+    // Issue the transformed HTTP request via standard network request
+    issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
+}
+
+void ConnectionFromClient::issue_ens_request(i32 request_id, ByteString method, URL::URL ens_url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id)
+{
+    // Extract .eth domain and path from URL
+    // Format: http://example.eth/path or https://example.eth/path
+    auto eth_domain = ens_url.host().to_byte_string();
+    auto path = ens_url.serialize_path().to_byte_string();
+    auto query = ens_url.query().value_or({}).to_byte_string();
+    auto fragment = ens_url.fragment().value_or({}).to_byte_string();
+
+    dbgln("ENS: Resolving {}{}", eth_domain, path);
+
+    // Construct gateway URL using eth.limo
+    // Primary: https://example.eth.limo/path
+    // Pattern: append .limo to .eth domain for HTTPS resolution
+    auto gateway_host = ByteString::formatted("{}.limo", eth_domain);
+
+    // Build full URL with path, query, and fragment
+    StringBuilder url_builder;
+    url_builder.append("https://"sv);
+    url_builder.append(gateway_host);
+    url_builder.append(path);
+
+    if (!query.is_empty()) {
+        url_builder.append('?');
+        url_builder.append(query);
+    }
+
+    if (!fragment.is_empty()) {
+        url_builder.append('#');
+        url_builder.append(fragment);
+    }
+
+    auto gateway_url_string = url_builder.to_byte_string();
+    auto url_opt = URL::create_with_url_or_path(gateway_url_string);
+    if (!url_opt.has_value()) {
+        dbgln("ENS: Failed to construct gateway URL: {}", gateway_url_string);
+        async_request_finished(request_id, 0, {}, Requests::NetworkError::MalformedUrl);
+        return;
+    }
+
+    auto gateway_url = url_opt.value();
+    dbgln("ENS: Using eth.limo gateway: {}", gateway_url.to_string());
+
+    // Note: ENS names are resolved by the gateway to IPFS content or other addresses
+    // The gateway handles all blockchain resolution
+    // No local validation needed - gateway will return 404 if domain doesn't exist
 
     // Issue the transformed HTTP request via standard network request
     issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
