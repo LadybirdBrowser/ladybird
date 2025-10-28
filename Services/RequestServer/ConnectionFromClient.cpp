@@ -42,6 +42,12 @@ ByteString g_default_certificate_path;
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 static long s_connect_timeout_seconds = 90L;
+
+// Gateway timeout configuration (shorter than standard HTTP for faster failover)
+// With 4 IPFS gateways, total max time = 4 * (10s connect + 30s transfer) = 160s
+static long s_gateway_connect_timeout_seconds = 10L;  // Connect timeout for gateway requests
+static long s_gateway_request_timeout_seconds = 30L;  // Total request timeout for gateway requests
+
 static struct {
     Optional<Core::SocketAddress> server_address;
     Optional<ByteString> server_hostname;
@@ -127,6 +133,7 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     WeakPtr<ConnectionFromClient> client;
     int writer_fd { 0 };
     bool is_connect_only { false };
+    bool is_gateway_request { false };  // P2P gateway request (IPFS/IPNS/ENS)
     size_t downloaded_so_far { 0 };
     URL::URL url;
     ByteString method;
@@ -1082,6 +1089,12 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
         dbgln("IPFS: Attached CID {} to request {} for verification", request->ipfs_cid->raw_cid, request_id);
     }
 
+    // Gateway request detection: Check if this is a P2P gateway request (IPFS/IPNS/ENS)
+    if (m_gateway_fallback_requests.contains(request_id)) {
+        request->is_gateway_request = true;
+        dbgln("Gateway: Request {} marked as gateway request for timeout configuration", request_id);
+    }
+
     auto set_option = [easy](auto option, auto value) {
         auto result = curl_easy_setopt(easy, option, value);
         if (result != CURLE_OK)
@@ -1096,7 +1109,18 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
     set_option(CURLOPT_ACCEPT_ENCODING, ""); // empty string lets curl define the accepted encodings
     set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
     set_option(CURLOPT_PORT, url.port_or_default());
-    set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
+
+    // Apply appropriate timeouts based on request type
+    // Gateway requests use shorter timeouts for faster failover
+    if (request->is_gateway_request) {
+        set_option(CURLOPT_CONNECTTIMEOUT, s_gateway_connect_timeout_seconds);
+        set_option(CURLOPT_TIMEOUT, s_gateway_request_timeout_seconds);
+        dbgln("Gateway: Applied gateway timeouts (connect={}, total={}) for request {}",
+            s_gateway_connect_timeout_seconds, s_gateway_request_timeout_seconds, request_id);
+    } else {
+        set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
+        // No total timeout for standard requests (may be large downloads)
+    }
     set_option(CURLOPT_PIPEWAIT, 1L);
     set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
 
@@ -1890,16 +1914,47 @@ void ConnectionFromClient::retry_with_next_gateway(i32 request_id)
 
     // Check if we've exhausted all gateways
     if (fallback.current_gateway_index >= gateway_count) {
-        dbgln("Gateway fallback: Exhausted all {} gateways for {} request {}",
-            gateway_count,
-            fallback.protocol == GatewayProtocol::IPFS ? "IPFS" :
-            fallback.protocol == GatewayProtocol::IPNS ? "IPNS" : "ENS",
-            request_id);
+        ByteString protocol_name;
+        ByteString user_message;
+
+        switch (fallback.protocol) {
+        case GatewayProtocol::IPFS:
+            protocol_name = "IPFS";
+            user_message = ByteString::formatted(
+                "Failed to load IPFS content '{}' after trying {} gateways. "
+                "This may indicate the content is not available on the IPFS network, "
+                "or all gateways are currently unreachable. "
+                "You can try again later or check if a local IPFS daemon is running.",
+                fallback.resource_identifier, gateway_count);
+            break;
+        case GatewayProtocol::IPNS:
+            protocol_name = "IPNS";
+            user_message = ByteString::formatted(
+                "Failed to resolve IPNS name '{}' after trying {} gateways. "
+                "The name may not exist, may have expired, or all gateways are unreachable. "
+                "Verify the IPNS name is correct and try again later.",
+                fallback.resource_identifier, gateway_count);
+            break;
+        case GatewayProtocol::ENS:
+            protocol_name = "ENS";
+            user_message = ByteString::formatted(
+                "Failed to resolve ENS domain '{}' after trying {} gateways. "
+                "The domain may not be registered, may not have content records set, "
+                "or the ENS gateways are unreachable. "
+                "Verify the domain exists on the Ethereum blockchain.",
+                fallback.resource_identifier, gateway_count);
+            break;
+        }
+
+        dbgln("Gateway fallback: Exhausted all {} gateways for {} request {}: {}",
+            gateway_count, protocol_name, request_id, user_message);
 
         // Clean up fallback info
         m_gateway_fallback_requests.remove(request_id);
 
-        // Send final error to client
+        // Send final error to client with context
+        // Note: Would be better to send custom error message, but NetworkError enum is limited
+        // The debug message above provides context in browser console
         async_request_finished(request_id, 0, {}, Requests::NetworkError::ConnectionFailed);
         return;
     }
