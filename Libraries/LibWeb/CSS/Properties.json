@@ -163,7 +163,6 @@
     ]
   },
   "align-content": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -172,7 +171,6 @@
     ]
   },
   "align-items": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -181,7 +179,6 @@
     ]
   },
   "align-self": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2579,7 +2576,6 @@
     ]
   },
   "justify-content": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -2588,7 +2584,6 @@
     ]
   },
   "justify-items": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "legacy",
@@ -2597,7 +2592,6 @@
     ]
   },
   "justify-self": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
