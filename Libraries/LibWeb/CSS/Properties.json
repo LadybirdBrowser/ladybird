@@ -1212,7 +1212,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "box-shadow": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "custom",
     "inherited": false,
@@ -3894,7 +3893,6 @@
     ]
   },
   "text-shadow": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "custom",
     "inherited": true,
