@@ -322,7 +322,6 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
     }
 
     auto prototype = Object::create_prototype(realm, proto_parent);
-    VERIFY(prototype);
 
     // FIXME: Step 14.a is done in the parser. By using a synthetic super(...args) which does not call @@iterator of %Array.prototype%
     auto const& constructor = *m_constructor;

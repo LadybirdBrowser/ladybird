@@ -71,6 +71,9 @@ public:
 
     operator T&() const { return *m_ptr; }
 
+    operator bool() const = delete;
+    bool operator!() const = delete;
+
 private:
     T* m_ptr { nullptr };
 };
