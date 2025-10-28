@@ -100,6 +100,12 @@ public:
     static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, HTTP::HeaderMap, u64 data_size);
     virtual ~CacheEntryReader() override = default;
 
+    bool must_revalidate() const { return m_must_revalidate; }
+    void set_must_revalidate() { m_must_revalidate = true; }
+
+    void revalidation_succeeded(HTTP::HeaderMap const&);
+    void revalidation_failed();
+
     void pipe_to(int pipe_fd, Function<void(u64 bytes_piped)> on_complete, Function<void(u64 bytes_piped)> on_error);
 
     u32 status_code() const { return m_cache_header.status_code; }
@@ -127,6 +133,8 @@ private:
 
     Optional<String> m_reason_phrase;
     HTTP::HeaderMap m_response_headers;
+
+    bool m_must_revalidate { false };
 
     u64 const m_data_offset { 0 };
     u64 const m_data_size { 0 };

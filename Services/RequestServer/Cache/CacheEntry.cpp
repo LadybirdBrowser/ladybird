@@ -121,7 +121,12 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
-        if (auto freshness = calculate_freshness_lifetime(response_headers); freshness.is_negative() || freshness.is_zero())
+        auto freshness_lifetime = calculate_freshness_lifetime(response_headers);
+        auto current_age = calculate_age(response_headers, m_request_time, m_response_time);
+
+        // We can cache already-expired responses if there are other cache directives that allow us to revalidate the
+        // response on subsequent requests. For example, `Cache-Control: max-age=0, must-revalidate`.
+        if (cache_lifetime_status(response_headers, freshness_lifetime, current_age) == CacheLifetimeStatus::Expired)
             return Error::from_string_literal("Response has already expired");
 
         TRY(m_file->write_value(m_cache_header));
@@ -238,6 +243,22 @@ CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64
     , m_data_offset(data_offset)
     , m_data_size(data_size)
 {
+}
+
+void CacheEntryReader::revalidation_succeeded(HTTP::HeaderMap const& response_headers)
+{
+    dbgln("\033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
+
+    update_header_fields(m_response_headers, response_headers);
+    m_index.update_response_headers(m_cache_key, m_response_headers);
+}
+
+void CacheEntryReader::revalidation_failed()
+{
+    dbgln("\033[33;1mCache revalidation failed for\033[0m {}", m_url);
+
+    remove();
+    close_and_destroy_cache_entry();
 }
 
 void CacheEntryReader::pipe_to(int pipe_fd, Function<void(u64)> on_complete, Function<void(u64)> on_error)

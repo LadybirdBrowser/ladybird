@@ -99,6 +99,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.remove_all_entries = TRY(database.prepare_statement("DELETE FROM CacheIndex;"sv));
     statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
+    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ?;"sv));
 
     return CacheIndex { database, statements };
@@ -138,6 +139,16 @@ void CacheIndex::remove_all_entries()
 {
     m_database.execute_statement(m_statements.remove_all_entries, {});
     m_entries.clear();
+}
+
+void CacheIndex::update_response_headers(u64 cache_key, HTTP::HeaderMap response_headers)
+{
+    auto entry = m_entries.get(cache_key);
+    if (!entry.has_value())
+        return;
+
+    m_database.execute_statement(m_statements.update_response_headers, {}, serialize_headers(response_headers), cache_key);
+    entry->response_headers = move(response_headers);
 }
 
 void CacheIndex::update_last_access_time(u64 cache_key)

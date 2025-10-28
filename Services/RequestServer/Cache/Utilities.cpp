@@ -114,12 +114,6 @@ bool is_cacheable(u32 status_code, HTTP::HeaderMap const& headers)
     //     - a cache extension that allows it to be cached (see Section 5.2.3); or
     //     - a status code that is defined as heuristically cacheable (see Section 4.2.2).
 
-    // FIXME: Implement cache revalidation.
-    if (cache_control->contains("no-cache"sv, CaseSensitivity::CaseInsensitive))
-        return false;
-    if (cache_control->contains("revalidate"sv, CaseSensitivity::CaseInsensitive))
-        return false;
-
     return true;
 }
 
@@ -216,10 +210,84 @@ AK::Duration calculate_age(HTTP::HeaderMap const& headers, UnixDateTime request_
     return AK::Duration::from_seconds(current_age);
 }
 
-// https://httpwg.org/specs/rfc9111.html#expiration.model
-bool is_response_fresh(AK::Duration freshness_lifetime, AK::Duration current_age)
+CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderMap const& headers, AK::Duration freshness_lifetime, AK::Duration current_age)
 {
-    return freshness_lifetime > current_age;
+    auto revalidation_status = [&]() {
+        // In order to revalidate a cache entry, we must have one of these headers to attach to the revalidation request.
+        if (headers.contains("Last-Modified"sv) || headers.contains("ETag"sv))
+            return CacheLifetimeStatus::MustRevalidate;
+        return CacheLifetimeStatus::Expired;
+    };
+
+    auto cache_control = headers.get("Cache-Control"sv);
+
+    // https://httpwg.org/specs/rfc9111.html#cache-response-directive.no-cache
+    // The no-cache response directive, in its unqualified form (without an argument), indicates that the response MUST
+    // NOT be used to satisfy any other request without forwarding it for validation and receiving a successful response
+    //
+    // FIXME: Handle the qualified form of the no-cache directive, which may allow us to re-use the response.
+    if (cache_control.has_value() && cache_control->contains("no-cache"sv, CaseSensitivity::CaseInsensitive))
+        return revalidation_status();
+
+    // https://httpwg.org/specs/rfc9111.html#expiration.model
+    if (freshness_lifetime > current_age)
+        return CacheLifetimeStatus::Fresh;
+
+    if (cache_control.has_value()) {
+        // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
+        // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT
+        // reuse that response to satisfy another request until it has been successfully validated by the origin
+        if (cache_control->contains("must-revalidate"sv, CaseSensitivity::CaseInsensitive))
+            return revalidation_status();
+
+        // FIXME: Implement stale-while-revalidate.
+    }
+
+    return CacheLifetimeStatus::Expired;
+}
+
+// https://httpwg.org/specs/rfc9111.html#validation.sent
+RevalidationAttributes RevalidationAttributes::create(HTTP::HeaderMap const& headers)
+{
+    RevalidationAttributes attributes;
+    attributes.etag = headers.get("ETag"sv).map([](auto const& etag) { return etag; });
+    attributes.last_modified = parse_http_date(headers.get("Last-Modified"sv));
+
+    return attributes;
+}
+
+// https://httpwg.org/specs/rfc9111.html#update
+void update_header_fields(HTTP::HeaderMap& stored_headers, HTTP::HeaderMap const& updated_headers)
+{
+    // Caches are required to update a stored response's header fields from another (typically newer) response in
+    // several situations; for example, see Sections 3.4, 4.3.4, and 4.3.5.
+
+    // When doing so, the cache MUST add each header field in the provided response to the stored response, replacing
+    // field values that are already present, with the following exceptions:
+    auto is_header_exempted_from_update = [](StringView name) {
+        // * Header fields excepted from storage in Section 3.1,
+        if (is_header_exempted_from_storage(name))
+            return true;
+
+        // * Header fields that the cache's stored response depends upon, as described below,
+        // * Header fields that are automatically processed and removed by the recipient, as described below, and
+
+        // * The Content-Length header field.
+        if (name.equals_ignoring_ascii_case("Content-Type"sv))
+            return true;
+
+        return false;
+    };
+
+    for (auto const& updated_header : updated_headers.headers()) {
+        if (!is_header_exempted_from_update(updated_header.name))
+            stored_headers.remove(updated_header.name);
+    }
+
+    for (auto const& updated_header : updated_headers.headers()) {
+        if (!is_header_exempted_from_update(updated_header.name))
+            stored_headers.set(updated_header.name, updated_header.value);
+    }
 }
 
 }
