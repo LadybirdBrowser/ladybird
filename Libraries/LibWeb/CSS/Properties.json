@@ -187,7 +187,6 @@
     ]
   },
   "all": {
-    "strip-whitespace": true,
     "affects-layout": true,
     "affects-stacking-context": true,
     "inherited": false,
