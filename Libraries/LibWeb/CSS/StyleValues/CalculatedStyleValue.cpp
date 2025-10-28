@@ -3070,6 +3070,22 @@ NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode
         if (child.type() == CalculationNode::Type::Negate)
             return as<NegateCalculationNode>(child).child();
 
+        // AD-HOC: Convert negated sums into sums of negated nodes - see https://github.com/w3c/csswg-drafts/issues/13020
+        if (child.type() == CalculationNode::Type::Sum) {
+            Vector<NonnullRefPtr<CalculationNode const>> negated_sum_components;
+
+            for (auto const& sum_child : child.children()) {
+                if (sum_child->type() == CalculationNode::Type::Numeric)
+                    negated_sum_components.append(as<NumericCalculationNode>(*sum_child).negated(context));
+                else if (sum_child->type() == CalculationNode::Type::Negate)
+                    negated_sum_components.append(as<NegateCalculationNode>(*sum_child).child());
+                else
+                    negated_sum_components.append(NegateCalculationNode::create(sum_child));
+            }
+
+            return SumCalculationNode::create(negated_sum_components);
+        }
+
         // 3. Return root.
         // NOTE: Because our root is immutable, we have to return a new node if the child was modified.
         if (&child == &root_negate.child())

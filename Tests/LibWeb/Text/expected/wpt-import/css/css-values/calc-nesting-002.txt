@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	testing calc(20px + calc(80px))
+Pass	testing calc(calc(100px))
+Pass	testing calc(calc(2) * calc(50px)
+Pass	testing calc(calc(150px*2/3)
+Pass	testing calc(calc(2 * calc(calc(3)) + 4) * 10px)
+Pass	testing calc(50px + calc(40%))
+Pass	testing calc(calc(300px - 1 * (0% + 100px)))
+Pass	testing calc(calc(300px - (0% + 100px) * 1))
+Pass	testing calc(calc(300px - (0% + 100px) * -1))
+Pass	testing calc(calc(300px - -1 * (0% + 100px)))
+Pass	testing calc(calc(300px - 1 * (0% - 100px)))

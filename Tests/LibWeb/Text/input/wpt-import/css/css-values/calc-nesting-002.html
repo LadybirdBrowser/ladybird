@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Values and Units Test: serialization of summation involving nested calc()</title>
+
+  <!--
+
+  This test is an adapted version of the portion of the original test
+
+  https://chromium.googlesource.com/chromium/src/+/c825d655f6aaf73484f9d56e9012793f5b9668cc/third_party/WebKit/LayoutTests/css3/calc/calc-nesting.html
+
+  which required using property-parsing-test.js
+
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-values-4/#math-function-simplify-an-expression">
+
+  <meta content="This test checks that how a summation involving one or more nested calc() is performed and serialized." name="assert">
+
+  <script src="../../resources/testharness.js"></script>
+
+  <script src="../../resources/testharnessreport.js"></script>
+
+  <div id="target"></div>
+
+  <script>
+  function startTesting()
+  {
+
+  var targetElement = document.getElementById("target");
+
+    function verifySerialization(specified_value, serialization_expected, description)
+    {
+
+    test(function()
+      {
+
+      targetElement.style.left = specified_value;
+
+      assert_equals(targetElement.style.left, serialization_expected);
+
+      }, description);
+    }
+
+    verifySerialization("calc(20px + calc(80px))", "calc(100px)", "testing calc(20px + calc(80px))");
+
+    verifySerialization("calc(calc(100px))", "calc(100px)", "testing calc(calc(100px))");
+
+    verifySerialization("calc(calc(2) * calc(50px)", "calc(100px)", "testing calc(calc(2) * calc(50px)");
+
+    verifySerialization("calc(calc(150px*2/3)", "calc(100px)", "testing calc(calc(150px*2/3)");
+
+    verifySerialization("calc(calc(2 * calc(calc(3)) + 4) * 10px)", "calc(100px)", "testing calc(calc(2 * calc(calc(3)) + 4) * 10px)");
+
+    verifySerialization("calc(50px + calc(40%))", "calc(40% + 50px)", "testing calc(50px + calc(40%))");
+
+    verifySerialization("calc(calc(300px - 1 * (0% + 100px)))", "calc(0% + 200px)", "testing calc(calc(300px - 1 * (0% + 100px)))");
+
+    verifySerialization("calc(calc(300px - (0% + 100px) * 1))", "calc(0% + 200px)", "testing calc(calc(300px - (0% + 100px) * 1))");
+
+    verifySerialization("calc(calc(300px - (0% + 100px) * -1))", "calc(0% + 400px)", "testing calc(calc(300px - (0% + 100px) * -1))");
+
+    verifySerialization("calc(calc(300px - -1 * (0% + 100px)))", "calc(0% + 400px)", "testing calc(calc(300px - -1 * (0% + 100px)))");
+
+    verifySerialization("calc(calc(300px - 1 * (0% - 100px)))", "calc(0% + 400px)", "testing calc(calc(300px - 1 * (0% - 100px)))");
+
+  /*
+
+  "
+  Sort the terms in the following order:
+
+    The number, if present
+
+    The percentage, if present
+
+    The dimensions, ordered by their units ASCII case-insensitive alphabetically
+  "
+  https://www.w3.org/TR/css-values-4/#math-function-serialize-a-summation
+
+  */
+
+  }
+
+  startTesting();
+
+  </script>
