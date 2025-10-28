@@ -19,13 +19,12 @@ GC_DEFINE_ALLOCATOR(MediaSession);
 //     const auto& navigator = as<HTML::Navigator>(*this);
 // }
 
-GC::Ref<MediaSession> MediaSession::create(HTML::Window& window) {
-    return window.realm().create<MediaSession>(window);
+GC::Ref<MediaSession> MediaSession::create(JS::Realm& realm) {
+    return realm.create<MediaSession>(realm);
 }
 
-MediaSession::MediaSession(HTML::Window& window)
-    : DOM::EventTarget(window.realm())
-    , m_window(window)
+MediaSession::MediaSession(JS::Realm& realm)
+    : Bindings::PlatformObject(realm)
 {
 }
 
@@ -169,7 +168,6 @@ void MediaSession::initialize(JS::Realm& realm)
 
 void MediaSession::visit_edges(JS::Cell::Visitor& visitor) {
     Base::visit_edges(visitor);
-    visitor.visit(m_window);
     visitor.visit(m_metadata);
 }
 
