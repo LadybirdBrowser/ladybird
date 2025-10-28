@@ -120,6 +120,7 @@
     "legacy-alias-for": "order"
   },
   "-webkit-text-fill-color": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "currentColor",
@@ -152,6 +153,7 @@
     "legacy-alias-for": "user-select"
   },
   "accent-color": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
@@ -163,6 +165,7 @@
     ]
   },
   "align-content": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -171,6 +174,7 @@
     ]
   },
   "align-items": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -179,6 +183,7 @@
     ]
   },
   "align-self": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -187,6 +192,7 @@
     ]
   },
   "all": {
+    "strip-whitespace": true,
     "affects-layout": true,
     "affects-stacking-context": true,
     "inherited": false,
@@ -195,6 +201,7 @@
     "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
   },
   "anchor-name": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -206,6 +213,7 @@
     ]
   },
   "anchor-scope": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -219,6 +227,7 @@
     ]
   },
   "animation": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "none 0s ease 1 normal running 0s none",
@@ -236,6 +245,7 @@
     ]
   },
   "animation-composition": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -245,6 +255,7 @@
     ]
   },
   "animation-delay": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -256,6 +267,7 @@
     ]
   },
   "animation-direction": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -270,6 +282,7 @@
     ]
   },
   "animation-duration": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -284,6 +297,7 @@
     ]
   },
   "animation-fill-mode": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -298,6 +312,7 @@
     ]
   },
   "animation-iteration-count": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -312,6 +327,7 @@
     ]
   },
   "animation-name": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -327,6 +343,7 @@
     ]
   },
   "animation-play-state": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -339,6 +356,7 @@
     ]
   },
   "animation-timing-function": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -351,6 +369,7 @@
     ]
   },
   "appearance": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -359,6 +378,7 @@
     ]
   },
   "aspect-ratio": {
+    "strip-whitespace": true,
     "affects-layout": true,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -371,6 +391,7 @@
     ]
   },
   "backdrop-filter": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",
@@ -383,6 +404,7 @@
     ]
   },
   "background": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "transparent",
@@ -399,6 +421,7 @@
     "multiplicity": "coordinating-list"
   },
   "background-attachment": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -409,6 +432,7 @@
     ]
   },
   "background-blend-mode": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -418,6 +442,7 @@
     ]
   },
   "background-clip": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -428,6 +453,7 @@
     ]
   },
   "background-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -440,6 +466,7 @@
     ]
   },
   "background-image": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -453,6 +480,7 @@
     ]
   },
   "background-origin": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -463,6 +491,7 @@
     ]
   },
   "background-position": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "0% 0%",
@@ -481,6 +510,7 @@
     "percentages-resolve-to": "length"
   },
   "background-position-x": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -498,6 +528,7 @@
     "percentages-resolve-to": "length"
   },
   "background-position-y": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -515,6 +546,7 @@
     "percentages-resolve-to": "length"
   },
   "background-repeat": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -530,6 +562,7 @@
     ]
   },
   "background-size": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -548,6 +581,7 @@
     "percentages-resolve-to": "length"
   },
   "block-size": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "size",
       "mapping": "block-size"
@@ -557,6 +591,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -568,6 +603,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -578,6 +614,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-color": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -590,6 +627,7 @@
     ]
   },
   "border-block-end": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -600,6 +638,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-end-color": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "block-end"
@@ -607,6 +646,7 @@
     "max-values": 1
   },
   "border-block-end-style": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "block-end"
@@ -614,6 +654,7 @@
     "max-values": 1
   },
   "border-block-end-width": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "block-end"
@@ -622,6 +663,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-start": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -632,6 +674,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-start-color": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "block-start"
@@ -639,6 +682,7 @@
     "max-values": 1
   },
   "border-block-start-style": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "block-start"
@@ -646,6 +690,7 @@
     "max-values": 1
   },
   "border-block-start-width": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "block-start"
@@ -654,6 +699,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-style": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "none",
     "positional-value-list-shorthand": true,
@@ -666,6 +712,7 @@
     ]
   },
   "border-block-width": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium",
     "positional-value-list-shorthand": true,
@@ -680,6 +727,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -690,6 +738,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -702,6 +751,7 @@
     ]
   },
   "border-bottom-left-radius": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -714,6 +764,7 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-right-radius": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -726,6 +777,7 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-style": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -734,6 +786,7 @@
     ]
   },
   "border-bottom-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -747,6 +800,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-collapse": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "separate",
@@ -755,6 +809,7 @@
     ]
   },
   "border-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -772,6 +827,7 @@
     ]
   },
   "border-end-end-radius": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "end-end"
@@ -779,6 +835,7 @@
     "max-values": 1
   },
   "border-end-start-radius": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "end-start"
@@ -786,6 +843,7 @@
     "max-values": 1
   },
   "border-image": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "none 100% / 1 / 0 stretch",
     "longhands": [
@@ -797,6 +855,7 @@
     ]
   },
   "border-image-outset": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -808,6 +867,7 @@
     ]
   },
   "border-image-repeat": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -818,6 +878,7 @@
     ]
   },
   "border-image-slice": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -832,6 +893,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-image-source": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -844,6 +906,7 @@
     ]
   },
   "border-image-width": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -861,6 +924,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -871,6 +935,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-color": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -883,6 +948,7 @@
     ]
   },
   "border-inline-end": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -893,6 +959,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-end-color": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "inline-end"
@@ -900,6 +967,7 @@
     "max-values": 1
   },
   "border-inline-end-style": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "inline-end"
@@ -907,6 +975,7 @@
     "max-values": 1
   },
   "border-inline-end-width": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "inline-end"
@@ -914,6 +983,7 @@
     "max-values": 1
   },
   "border-inline-start": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -923,6 +993,7 @@
     ]
   },
   "border-inline-start-color": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-color",
       "mapping": "inline-start"
@@ -930,6 +1001,7 @@
     "max-values": 1
   },
   "border-inline-start-style": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-style",
       "mapping": "inline-start"
@@ -937,6 +1009,7 @@
     "max-values": 1
   },
   "border-inline-start-width": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-width",
       "mapping": "inline-start"
@@ -944,6 +1017,7 @@
     "max-values": 1
   },
   "border-inline-style": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "none",
     "positional-value-list-shorthand": true,
@@ -956,6 +1030,7 @@
     ]
   },
   "border-inline-width": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium",
     "positional-value-list-shorthand": true,
@@ -969,6 +1044,7 @@
     ]
   },
   "border-left": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -978,6 +1054,7 @@
     ]
   },
   "border-left-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -990,6 +1067,7 @@
     ]
   },
   "border-left-style": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -998,6 +1076,7 @@
     ]
   },
   "border-left-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1010,6 +1089,7 @@
     ]
   },
   "border-radius": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "0",
@@ -1026,6 +1106,7 @@
     "percentages-resolve-to": "length"
   },
   "border-right": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -1035,6 +1116,7 @@
     ]
   },
   "border-right-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1047,6 +1129,7 @@
     ]
   },
   "border-right-style": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1055,6 +1138,7 @@
     ]
   },
   "border-right-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1067,6 +1151,7 @@
     ]
   },
   "border-spacing": {
+    "strip-whitespace": true,
     "_comment": "Follows the newer definition from: https://drafts.csswg.org/css-tables-3/#border-spacing-property",
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1080,6 +1165,7 @@
     ]
   },
   "border-start-end-radius": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "start-end"
@@ -1087,6 +1173,7 @@
     "max-values": 1
   },
   "border-start-start-radius": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "start-start"
@@ -1094,6 +1181,7 @@
     "max-values": 1
   },
   "border-style": {
+    "strip-whitespace": true,
     "initial": "none",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1107,6 +1195,7 @@
     ]
   },
   "border-top": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "medium currentcolor none",
     "longhands": [
@@ -1116,6 +1205,7 @@
     ]
   },
   "border-top-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1128,6 +1218,7 @@
     ]
   },
   "border-top-left-radius": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -1140,6 +1231,7 @@
     "percentages-resolve-to": "length"
   },
   "border-top-right-radius": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -1152,6 +1244,7 @@
     "percentages-resolve-to": "length"
   },
   "border-top-style": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1160,6 +1253,7 @@
     ]
   },
   "border-top-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1172,6 +1266,7 @@
     ]
   },
   "border-width": {
+    "strip-whitespace": true,
     "initial": "medium",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1189,6 +1284,7 @@
     ]
   },
   "bottom": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1207,6 +1303,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "box-shadow": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "custom",
     "inherited": false,
@@ -1217,6 +1314,7 @@
     ]
   },
   "box-sizing": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "content-box",
@@ -1225,6 +1323,7 @@
     ]
   },
   "caption-side": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "top",
@@ -1233,6 +1332,7 @@
     ]
   },
   "caret-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1245,6 +1345,7 @@
     ]
   },
   "clear": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1253,6 +1354,7 @@
     ]
   },
   "clip": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1267,6 +1369,7 @@
     ]
   },
   "clip-path": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
     "affects-stacking-context": true,
@@ -1282,6 +1385,7 @@
     "initial": "none"
   },
   "clip-rule": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1291,6 +1395,7 @@
     ]
   },
   "color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1303,6 +1408,7 @@
     ]
   },
   "color-interpolation": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1312,6 +1418,7 @@
     ]
   },
   "color-scheme": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1326,6 +1433,7 @@
     ]
   },
   "column-count": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1337,6 +1445,7 @@
     ]
   },
   "column-gap": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
@@ -1350,6 +1459,7 @@
     "percentages-resolve-to": "length"
   },
   "column-height": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1361,6 +1471,7 @@
     ]
   },
   "column-span": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1369,6 +1480,7 @@
     ]
   },
   "column-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1380,6 +1492,7 @@
     ]
   },
   "columns": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto auto / auto",
     "longhands": [
@@ -1389,6 +1502,7 @@
     ]
   },
   "contain": {
+    "strip-whitespace": true,
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1398,6 +1512,7 @@
     ]
   },
   "container-type": {
+    "strip-whitespace": true,
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1410,6 +1525,7 @@
     ]
   },
   "content": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -1429,6 +1545,7 @@
     ]
   },
   "content-visibility": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
@@ -1437,6 +1554,7 @@
     ]
   },
   "corner-block-end-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1448,6 +1566,7 @@
     ]
   },
   "corner-block-start-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1459,6 +1578,7 @@
     ]
   },
   "corner-bottom-left-shape": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1467,6 +1587,7 @@
     ]
   },
   "corner-bottom-right-shape": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1475,6 +1596,7 @@
     ]
   },
   "corner-bottom-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1486,18 +1608,21 @@
     ]
   },
   "corner-end-end-shape": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "end-end"
     }
   },
   "corner-end-start-shape": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "end-start"
     }
   },
   "corner-inline-end-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1509,6 +1634,7 @@
     ]
   },
   "corner-inline-start-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1520,6 +1646,7 @@
     ]
   },
   "corner-left-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1531,6 +1658,7 @@
     ]
   },
   "corner-right-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1542,6 +1670,7 @@
     ]
   },
   "corner-shape": {
+    "strip-whitespace": true,
     "initial": "round round round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1555,18 +1684,21 @@
     ]
   },
   "corner-start-end-shape": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "start-end"
     }
   },
   "corner-start-start-shape": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "start-start"
     }
   },
   "corner-top-left-shape": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1575,6 +1707,7 @@
     ]
   },
   "corner-top-right-shape": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1583,6 +1716,7 @@
     ]
   },
   "corner-top-shape": {
+    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1594,6 +1728,7 @@
     ]
   },
   "counter-increment": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1607,6 +1742,7 @@
     ]
   },
   "counter-reset": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1620,6 +1756,7 @@
     ]
   },
   "counter-set": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1633,6 +1770,7 @@
     ]
   },
   "cursor": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1645,6 +1783,7 @@
     ]
   },
   "cx": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CX.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1659,6 +1798,7 @@
     ]
   },
   "cy": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CY.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1673,6 +1813,7 @@
     ]
   },
   "direction": {
+    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "ltr",
@@ -1681,6 +1822,7 @@
     ]
   },
   "display": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "inline",
@@ -1697,6 +1839,7 @@
     ]
   },
   "empty-cells": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "show",
@@ -1705,6 +1848,7 @@
     ]
   },
   "fill": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1714,6 +1858,7 @@
     ]
   },
   "fill-opacity": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1723,6 +1868,7 @@
     ]
   },
   "fill-rule": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1732,6 +1878,7 @@
     ]
   },
   "filter": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",
@@ -1744,6 +1891,7 @@
     ]
   },
   "flex": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "0 1 auto",
     "valid-identifiers": [
@@ -1756,6 +1904,7 @@
     ]
   },
   "flex-basis": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1773,6 +1922,7 @@
     "percentages-resolve-to": "length"
   },
   "flex-direction": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row",
@@ -1781,6 +1931,7 @@
     ]
   },
   "flex-flow": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "row nowrap",
     "longhands": [
@@ -1789,6 +1940,7 @@
     ]
   },
   "flex-grow": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -1797,6 +1949,7 @@
     ]
   },
   "flex-shrink": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "1",
@@ -1805,6 +1958,7 @@
     ]
   },
   "flex-wrap": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "nowrap",
@@ -1813,6 +1967,7 @@
     ]
   },
   "float": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1821,6 +1976,7 @@
     ]
   },
   "flood-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1830,6 +1986,7 @@
     ]
   },
   "flood-opacity": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1839,6 +1996,7 @@
     ]
   },
   "font": {
+    "strip-whitespace": true,
     "inherited": true,
     "initial": "normal medium serif",
     "__comment": "FIXME: Handle properties that are reset implicitly. https://drafts.csswg.org/css-fonts/#reset-implicitly",
@@ -1853,6 +2011,7 @@
     ]
   },
   "font-family": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "serif",
@@ -1863,6 +2022,7 @@
     ]
   },
   "font-feature-settings": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1878,6 +2038,7 @@
     ]
   },
   "font-kerning": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -1886,6 +2047,7 @@
     ]
   },
   "font-language-override": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1897,6 +2059,7 @@
     ]
   },
   "font-size": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "medium",
@@ -1918,6 +2081,7 @@
     "legacy-alias-for": "font-width"
   },
   "font-style": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": true,
     "initial": "normal",
@@ -1927,6 +2091,7 @@
     ]
   },
   "font-variant": {
+    "strip-whitespace": true,
     "inherited": true,
     "initial": "normal",
     "longhands": [
@@ -1943,6 +2108,7 @@
     ]
   },
   "font-variant-alternates": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1951,6 +2117,7 @@
     ]
   },
   "font-variant-caps": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1959,6 +2126,7 @@
     ]
   },
   "font-variant-east-asian": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1967,6 +2135,7 @@
     ]
   },
   "font-variant-emoji": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1975,6 +2144,7 @@
     ]
   },
   "font-variant-ligatures": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1983,6 +2153,7 @@
     ]
   },
   "font-variant-numeric": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1991,6 +2162,7 @@
     ]
   },
   "font-variant-position": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -1999,6 +2171,7 @@
     ]
   },
   "font-variation-settings": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": true,
     "initial": "normal",
@@ -2012,6 +2185,7 @@
     ]
   },
   "font-weight": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2026,6 +2200,7 @@
     ]
   },
   "font-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2035,6 +2210,7 @@
     ]
   },
   "gap": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "valid-types": [
@@ -2052,6 +2228,7 @@
     ]
   },
   "grid": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2070,6 +2247,7 @@
     ]
   },
   "grid-area": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2086,6 +2264,7 @@
     ]
   },
   "grid-auto-columns": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2100,11 +2279,13 @@
     "percentages-resolve-to": "length"
   },
   "grid-auto-flow": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row"
   },
   "grid-auto-rows": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2119,6 +2300,7 @@
     "percentages-resolve-to": "length"
   },
   "grid-column": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2133,6 +2315,7 @@
     ]
   },
   "grid-column-end": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2147,6 +2330,7 @@
     "legacy-alias-for": "column-gap"
   },
   "grid-column-start": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2161,6 +2345,7 @@
     "legacy-alias-for": "gap"
   },
   "grid-row": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2175,6 +2360,7 @@
     ]
   },
   "grid-row-end": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2189,6 +2375,7 @@
     "legacy-alias-for": "row-gap"
   },
   "grid-row-start": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2200,6 +2387,7 @@
     ]
   },
   "grid-template": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2219,6 +2407,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-areas": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -2230,6 +2419,7 @@
     ]
   },
   "grid-template-columns": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -2246,6 +2436,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-rows": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -2262,6 +2453,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "height": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2282,6 +2474,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "image-rendering": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "affects-layout": false,
     "inherited": true,
@@ -2291,6 +2484,7 @@
     ]
   },
   "inline-size": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "size",
       "mapping": "inline-size"
@@ -2300,6 +2494,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "positional-value-list-shorthand": true,
@@ -2320,6 +2515,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-block": {
+    "strip-whitespace": true,
     "initial": "auto",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2337,6 +2533,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-block-end": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "block-end"
@@ -2345,6 +2542,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-block-start": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "block-start"
@@ -2353,6 +2551,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline": {
+    "strip-whitespace": true,
     "initial": "auto",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2370,6 +2569,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline-end": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "inline-end"
@@ -2378,6 +2578,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline-start": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "inline-start"
@@ -2386,6 +2587,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "isolation": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2394,6 +2596,7 @@
     ]
   },
   "justify-content": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -2402,6 +2605,7 @@
     ]
   },
   "justify-items": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "legacy",
@@ -2410,6 +2614,7 @@
     ]
   },
   "justify-self": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2418,6 +2623,7 @@
     ]
   },
   "left": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2436,6 +2642,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "letter-spacing": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2452,6 +2659,7 @@
     ]
   },
   "line-height": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2467,6 +2675,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "list-style": {
+    "strip-whitespace": true,
     "inherited": true,
     "initial": "outside none disc",
     "longhands": [
@@ -2476,6 +2685,7 @@
     ]
   },
   "list-style-image": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "none",
@@ -2487,6 +2697,7 @@
     ]
   },
   "list-style-position": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "outside",
@@ -2495,6 +2706,7 @@
     ]
   },
   "list-style-type": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "disc",
@@ -2504,6 +2716,7 @@
     ]
   },
   "margin": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "0",
     "positional-value-list-shorthand": true,
@@ -2527,6 +2740,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-block": {
+    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2544,6 +2758,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-block-end": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "block-end"
@@ -2551,6 +2766,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-block-start": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "block-start"
@@ -2558,6 +2774,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-bottom": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2575,6 +2792,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline": {
+    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2592,6 +2810,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline-end": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "inline-end"
@@ -2599,6 +2818,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline-start": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "inline-start"
@@ -2606,6 +2826,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-left": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2623,6 +2844,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-right": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2640,6 +2862,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-top": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2657,6 +2880,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "mask": {
+    "strip-whitespace": true,
     "__comment": "FIXME: reset mask-border",
     "inherited": false,
     "affects-layout": false,
@@ -2674,6 +2898,7 @@
     ]
   },
   "mask-clip": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2687,6 +2912,7 @@
     "initial": "border-box"
   },
   "mask-composite": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2697,6 +2923,7 @@
     "initial": "add"
   },
   "mask-image": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2712,6 +2939,7 @@
     "initial": "none"
   },
   "mask-mode": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2722,6 +2950,7 @@
     "initial": "match-source"
   },
   "mask-origin": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2732,6 +2961,7 @@
     "initial": "border-box"
   },
   "mask-position": {
+    "strip-whitespace": true,
     "animation-type": "repeatable-list",
     "affects-layout": false,
     "inherited": false,
@@ -2743,6 +2973,7 @@
     "percentages-resolve-to": "length"
   },
   "mask-repeat": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -2758,6 +2989,7 @@
     ]
   },
   "mask-size": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -2776,6 +3008,7 @@
     "percentages-resolve-to": "length"
   },
   "mask-type": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2786,6 +3019,7 @@
     "initial": "luminance"
   },
   "math-depth": {
+    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "0",
@@ -2798,6 +3032,7 @@
     ]
   },
   "math-shift": {
+    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "normal",
@@ -2806,6 +3041,7 @@
     ]
   },
   "math-style": {
+    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "normal",
@@ -2814,6 +3050,7 @@
     ]
   },
   "max-block-size": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "max-size",
       "mapping": "block-size"
@@ -2821,6 +3058,7 @@
     "initial": "none"
   },
   "max-height": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -2840,6 +3078,7 @@
     ]
   },
   "max-inline-size": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "max-size",
       "mapping": "inline-size"
@@ -2847,6 +3086,7 @@
     "initial": "none"
   },
   "max-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -2866,6 +3106,7 @@
     ]
   },
   "min-block-size": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "min-size",
       "mapping": "block-size"
@@ -2873,6 +3114,7 @@
     "initial": "0"
   },
   "min-height": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2892,6 +3134,7 @@
     ]
   },
   "min-inline-size": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "min-size",
       "mapping": "inline-size"
@@ -2899,6 +3142,7 @@
     "initial": "0"
   },
   "min-width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2918,6 +3162,7 @@
     ]
   },
   "mix-blend-mode": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -2926,6 +3171,7 @@
     ]
   },
   "object-fit": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "fill",
@@ -2934,6 +3180,7 @@
     ]
   },
   "object-position": {
+    "strip-whitespace": true,
     "animation-type": "repeatable-list",
     "affects-layout": false,
     "inherited": false,
@@ -2944,6 +3191,7 @@
     "percentages-resolve-to": "length"
   },
   "opacity": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
     "affects-stacking-context": true,
@@ -2954,6 +3202,7 @@
     ]
   },
   "order": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2962,6 +3211,7 @@
     ]
   },
   "orphans": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "2",
@@ -2971,6 +3221,7 @@
     "__comment": "FIXME: We don't implement this property any further than compute time"
   },
   "outline": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "medium currentColor none",
@@ -2981,6 +3232,7 @@
     ]
   },
   "outline-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2991,6 +3243,7 @@
     ]
   },
   "outline-offset": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3000,6 +3253,7 @@
     ]
   },
   "outline-style": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3009,6 +3263,7 @@
     ]
   },
   "outline-width": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3019,6 +3274,7 @@
     ]
   },
   "overflow": {
+    "strip-whitespace": true,
     "longhands": [
       "overflow-x",
       "overflow-y"
@@ -3031,18 +3287,21 @@
     ]
   },
   "overflow-block": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "overflow",
       "mapping": "block-xy"
     }
   },
   "overflow-inline": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "overflow",
       "mapping": "inline-xy"
     }
   },
   "overflow-wrap": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -3053,6 +3312,7 @@
     ]
   },
   "overflow-x": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
@@ -3064,6 +3324,7 @@
     ]
   },
   "overflow-y": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
@@ -3075,6 +3336,7 @@
     ]
   },
   "padding": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "0",
     "positional-value-list-shorthand": true,
@@ -3095,6 +3357,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-block": {
+    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -3109,6 +3372,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-block-end": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "block-end"
@@ -3116,6 +3380,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-block-start": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "block-start"
@@ -3123,6 +3388,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-bottom": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3137,6 +3403,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-inline": {
+    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -3151,12 +3418,14 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-inline-end": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "inline-end"
     }
   },
   "padding-inline-start": {
+    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "inline-start"
@@ -3164,6 +3433,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-left": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3178,6 +3448,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-right": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3192,6 +3463,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-top": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3206,6 +3478,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "paint-order": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -3217,6 +3490,7 @@
     ]
   },
   "place-content": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "longhands": [
@@ -3225,6 +3499,7 @@
     ]
   },
   "place-items": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "longhands": [
@@ -3233,6 +3508,7 @@
     ]
   },
   "place-self": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "longhands": [
@@ -3241,6 +3517,7 @@
     ]
   },
   "pointer-events": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3250,6 +3527,7 @@
     ]
   },
   "position": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "static",
@@ -3258,6 +3536,7 @@
     ]
   },
   "position-anchor": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3269,6 +3548,7 @@
     ]
   },
   "position-area": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "__comment": "Animation type is currently listed as TBD in the specification",
     "inherited": false,
@@ -3281,6 +3561,7 @@
     ]
   },
   "position-try-fallbacks": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -3293,6 +3574,7 @@
     ]
   },
   "position-try-order": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -3304,6 +3586,7 @@
     ]
   },
   "position-visibility": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "anchors-visible",
@@ -3315,6 +3598,7 @@
     ]
   },
   "quotes": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3328,6 +3612,7 @@
     ]
   },
   "r": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#R.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3342,6 +3627,7 @@
     ]
   },
   "right": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3360,6 +3646,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "rotate": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3367,6 +3654,7 @@
     "affects-stacking-context": true
   },
   "row-gap": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
@@ -3380,6 +3668,7 @@
     "percentages-resolve-to": "length"
   },
   "rx": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RX.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3397,6 +3686,7 @@
     ]
   },
   "ry": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RY.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3414,6 +3704,7 @@
     ]
   },
   "scale": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3421,12 +3712,14 @@
     "affects-stacking-context": true
   },
   "scrollbar-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": "yes",
     "initial": "auto"
   },
   "scrollbar-gutter": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "This property should affect layout per-spec, but ladybird always uses overlay scrollbars so it doesn't in practice.",
@@ -3434,6 +3727,7 @@
     "initial": "auto"
   },
   "scrollbar-width": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3448,6 +3742,7 @@
     ]
   },
   "shape-image-threshold": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3457,6 +3752,7 @@
     ]
   },
   "shape-margin": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3467,12 +3763,14 @@
     "percentages-resolve-to": "length"
   },
   "shape-outside": {
+    "strip-whitespace": true,
     "affects-layout": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none"
   },
   "shape-rendering": {
+    "strip-whitespace": true,
     "affects-layout": true,
     "animation-type": "discrete",
     "inherited": true,
@@ -3482,6 +3780,7 @@
     ]
   },
   "stop-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3491,6 +3790,7 @@
     ]
   },
   "stop-opacity": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3500,6 +3800,7 @@
     ]
   },
   "stroke": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3509,6 +3810,7 @@
     ]
   },
   "stroke-dasharray": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": true,
     "initial": "none",
@@ -3516,6 +3818,7 @@
     "percentages-resolve-to": "length"
   },
   "stroke-dashoffset": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3528,6 +3831,7 @@
     "percentages-resolve-to": "length"
   },
   "stroke-linecap": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3537,6 +3841,7 @@
     ]
   },
   "stroke-linejoin": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3546,6 +3851,7 @@
     ]
   },
   "stroke-miterlimit": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3555,6 +3861,7 @@
     ]
   },
   "stroke-opacity": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3564,6 +3871,7 @@
     ]
   },
   "stroke-width": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3576,6 +3884,7 @@
     "percentages-resolve-to": "length"
   },
   "tab-size": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "8",
@@ -3585,6 +3894,7 @@
     ]
   },
   "table-layout": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3593,6 +3903,7 @@
     ]
   },
   "text-align": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
@@ -3601,6 +3912,7 @@
     ]
   },
   "text-anchor": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
@@ -3609,6 +3921,7 @@
     ]
   },
   "text-decoration": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "none",
@@ -3620,6 +3933,7 @@
     ]
   },
   "text-decoration-color": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3629,6 +3943,7 @@
     ]
   },
   "text-decoration-line": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "FIXME: This property is not supposed to be inherited, but we currently rely on inheritance to propagate decorations into line boxes.",
@@ -3639,6 +3954,7 @@
     ]
   },
   "text-decoration-style": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3648,6 +3964,7 @@
     ]
   },
   "text-decoration-thickness": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3663,6 +3980,7 @@
     "percentages-resolve-to": "length"
   },
   "text-indent": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "0",
@@ -3676,6 +3994,7 @@
     ]
   },
   "text-justify": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3687,6 +4006,7 @@
     ]
   },
   "text-overflow": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3696,6 +4016,7 @@
     ]
   },
   "text-rendering": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3705,6 +4026,7 @@
     ]
   },
   "text-shadow": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "custom",
     "inherited": true,
@@ -3714,6 +4036,7 @@
     ]
   },
   "text-transform": {
+    "strip-whitespace": true,
     "__comment": "NOTE: This property has custom invalidation handling.",
     "animation-type": "discrete",
     "inherited": true,
@@ -3723,6 +4046,7 @@
     ]
   },
   "text-underline-offset": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
@@ -3736,6 +4060,7 @@
     "percentages-resolve-to": "length"
   },
   "text-underline-position": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3745,6 +4070,7 @@
     ]
   },
   "text-wrap": {
+    "strip-whitespace": true,
     "inherited": true,
     "initial": "wrap",
     "longhands": [
@@ -3753,6 +4079,7 @@
     ]
   },
   "text-wrap-mode": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "wrap",
@@ -3761,6 +4088,7 @@
     ]
   },
   "text-wrap-style": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3769,6 +4097,7 @@
     ]
   },
   "top": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3787,6 +4116,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "touch-action": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3796,6 +4126,7 @@
     ]
   },
   "transform": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3811,6 +4142,7 @@
     ]
   },
   "transform-box": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "view-box",
@@ -3820,6 +4152,7 @@
     ]
   },
   "transform-origin": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3839,6 +4172,7 @@
     "percentages-resolve-to": "length"
   },
   "transition": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "none",
@@ -3852,6 +4186,7 @@
     ]
   },
   "transition-behavior": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3862,6 +4197,7 @@
     ]
   },
   "transition-delay": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3872,6 +4208,7 @@
     ]
   },
   "transition-duration": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3882,6 +4219,7 @@
     ]
   },
   "transition-property": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3895,6 +4233,7 @@
     ]
   },
   "transition-timing-function": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3906,6 +4245,7 @@
     ]
   },
   "translate": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3918,6 +4258,7 @@
     "percentages-resolve-to": "length"
   },
   "unicode-bidi": {
+    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
@@ -3926,6 +4267,7 @@
     ]
   },
   "user-select": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3935,6 +4277,7 @@
     ]
   },
   "vertical-align": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "baseline",
@@ -3949,6 +4292,7 @@
     ]
   },
   "view-transition-name": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "discrete",
@@ -3962,6 +4306,7 @@
     ]
   },
   "visibility": {
+    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": true,
     "initial": "visible",
@@ -3970,6 +4315,7 @@
     ]
   },
   "white-space": {
+    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "valid-types": [
@@ -3982,6 +4328,7 @@
     ]
   },
   "white-space-collapse": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "collapse",
@@ -3990,6 +4337,7 @@
     ]
   },
   "white-space-trim": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -4001,6 +4349,7 @@
     ]
   },
   "widows": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "2",
@@ -4010,6 +4359,7 @@
     "__comment": "FIXME: We don't implement this property any further than compute time"
   },
   "width": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4030,6 +4380,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "will-change": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "none",
@@ -4046,6 +4397,7 @@
     ]
   },
   "word-break": {
+    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "normal",
     "inherited": true,
@@ -4057,6 +4409,7 @@
     ]
   },
   "word-spacing": {
+    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -4076,6 +4429,7 @@
     "legacy-alias-for": "overflow-wrap"
   },
   "writing-mode": {
+    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "horizontal-tb",
@@ -4084,6 +4438,7 @@
     ]
   },
   "x": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#X.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4098,6 +4453,7 @@
     ]
   },
   "y": {
+    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#Y.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4112,6 +4468,7 @@
     ]
   },
   "z-index": {
+    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "by-computed-value",
