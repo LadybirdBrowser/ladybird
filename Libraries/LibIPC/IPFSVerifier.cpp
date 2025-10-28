@@ -107,7 +107,7 @@ ErrorOr<ParsedCID> IPFSVerifier::parse_cid_v0(ByteString const& cid_string)
         .version = CIDVersion::V0,
         .raw_cid = cid_string,
         .expected_hash = move(expected_hash),
-        .hash_algorithm = "sha256"_string
+        .hash_algorithm = "sha256"sv
     };
 }
 
@@ -131,7 +131,7 @@ ErrorOr<ParsedCID> IPFSVerifier::parse_cid_v1(ByteString const& cid_string)
         .version = CIDVersion::V1,
         .raw_cid = cid_string,
         .expected_hash = {}, // Will be populated from gateway response or full parsing
-        .hash_algorithm = "sha256"_string // Most common for CIDv1
+        .hash_algorithm = "sha256"sv // Most common for CIDv1
     };
 }
 
@@ -152,9 +152,7 @@ ErrorOr<ParsedCID> IPFSVerifier::parse_cid(ByteString const& cid_string)
 ErrorOr<ByteBuffer> IPFSVerifier::hash_content(ReadonlyBytes content, ByteString const& algorithm)
 {
     if (algorithm == "sha256"sv) {
-        Crypto::Hash::SHA256 sha256;
-        sha256.update(content);
-        auto digest = sha256.digest();
+        auto digest = Crypto::Hash::SHA256::hash(content);
         return ByteBuffer::copy(digest.bytes());
     }
 
