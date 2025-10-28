@@ -499,6 +499,7 @@ static BatchingDispatcher& batching_dispatcher()
 void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
 {
     auto& realm = this->realm();
+    auto update_the_image_data_count = ++m_update_the_image_data_count;
 
     // 1. If the element's node document is not fully active, then:
     if (!document().is_fully_active()) {
@@ -510,21 +511,21 @@ void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe
             return;
 
         m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
-        m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events]() {
+        m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events, update_the_image_data_count]() {
             // 4. Queue a microtask to continue this algorithm.
-            queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events]() {
-                update_the_image_data_impl(restart_animations, maybe_omit_events);
+            queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events, update_the_image_data_count]() {
+                update_the_image_data_impl(restart_animations, maybe_omit_events, update_the_image_data_count);
             }));
         });
 
         return;
     }
 
-    update_the_image_data_impl(restart_animations, maybe_omit_events);
+    update_the_image_data_impl(restart_animations, maybe_omit_events, update_the_image_data_count);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
-void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool maybe_omit_events)
+void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool maybe_omit_events, u64 update_the_image_data_count)
 {
     // 1. If the element's node document is not fully active, then:
     // FIXME: This step and it's substeps is implemented by the calling `update_the_image_data` function.
@@ -621,9 +622,11 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     }
 after_step_7:
     // 8. Queue a microtask to perform the rest of this algorithm, allowing the task that invoked this algorithm to continue.
-    queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events, previous_url]() mutable {
-        // FIXME: 9. If another instance of this algorithm for this img element was started after this instance
-        //           (even if it aborted and is no longer running), then return.
+    queue_a_microtask(&document(), GC::create_function(this->heap(), [this, update_the_image_data_count, restart_animations, maybe_omit_events, previous_url]() mutable {
+        // 9. If another instance of this algorithm for this img element was started after this instance
+        //    (even if it aborted and is no longer running), then return.
+        if (update_the_image_data_count != m_update_the_image_data_count)
+            return;
 
         // 10. Let selected source and selected pixel density be
         //    the URL and pixel density that results from selecting an image source, respectively.
