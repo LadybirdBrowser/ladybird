@@ -7,6 +7,7 @@
 #include <AK/Hex.h>
 #include <AK/Random.h>
 #include <LibCore/Socket.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibIPC/NetworkIdentity.h>
 
 namespace IPC {
@@ -23,6 +24,10 @@ NetworkIdentity::NetworkIdentity(u64 page_id)
 ErrorOr<NonnullRefPtr<NetworkIdentity>> NetworkIdentity::create_for_page(u64 page_id)
 {
     auto identity = adopt_ref(*new NetworkIdentity(page_id));
+
+    // Generate Ed25519 keypair for P2P protocol support
+    TRY(identity->generate_cryptographic_identity());
+
     return identity;
 }
 
@@ -42,18 +47,23 @@ ErrorOr<NonnullRefPtr<NetworkIdentity>> NetworkIdentity::create_with_proxy(u64 p
 
 ErrorOr<void> NetworkIdentity::generate_cryptographic_identity()
 {
-    // TODO: Implement proper public/private key generation
-    // For now, generate placeholder keys for future P2P protocol support
-    // This will be implemented when adding IPFS/Hypercore support
+    using namespace Crypto::Curves;
 
-    u8 public_key_bytes[32];
-    u8 private_key_bytes[32];
+    // Generate Ed25519 keypair for P2P protocol support (IPFS, Hypercore, etc.)
+    Ed25519 ed25519;
 
-    fill_with_random({ public_key_bytes, sizeof(public_key_bytes) });
-    fill_with_random({ private_key_bytes, sizeof(private_key_bytes) });
+    // Generate private key (32 bytes)
+    auto private_key_buffer = TRY(ed25519.generate_private_key());
 
-    m_public_key = encode_hex({ public_key_bytes, sizeof(public_key_bytes) });
-    m_private_key = encode_hex({ private_key_bytes, sizeof(private_key_bytes) });
+    // Derive public key from private key (32 bytes)
+    auto public_key_buffer = TRY(ed25519.generate_public_key(private_key_buffer));
+
+    // Store keys as ByteStrings
+    m_public_key = ByteString::copy(public_key_buffer);
+    m_private_key = ByteString::copy(private_key_buffer);
+
+    dbgln("NetworkIdentity: Generated Ed25519 keypair for page_id {}", m_page_id);
+    dbgln("  Public key fingerprint: {}", encode_hex(m_public_key->bytes().slice(0, 16)));
 
     return {};
 }

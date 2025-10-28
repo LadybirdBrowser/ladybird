@@ -53,7 +53,11 @@ public:
     // Create network identity with custom proxy
     [[nodiscard]] static ErrorOr<NonnullRefPtr<NetworkIdentity>> create_with_proxy(u64 page_id, ProxyConfig);
 
-    ~NetworkIdentity() = default;
+    ~NetworkIdentity()
+    {
+        // SECURITY: Clear sensitive cryptographic material on destruction
+        clear_sensitive_data();
+    }
 
     // Page/tab identification
     [[nodiscard]] u64 page_id() const { return m_page_id; }
