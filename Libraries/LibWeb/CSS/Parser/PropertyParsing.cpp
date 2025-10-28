@@ -2680,11 +2680,13 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
     // font-variant and font-width aren't included because we have special parsing rules for them in font.
     auto remaining_longhands = Vector { PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight };
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_ident("normal"sv)) {
             normal_count++;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // normal
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2710,6 +2712,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
                     property_initial_value(PropertyID::FontVariantNumeric),
                     property_initial_value(PropertyID::FontVariantPosition),
                 });
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2721,6 +2724,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
                 if (keyword_to_font_width(keyword->to_keyword()).has_value()) {
                     font_width_transaction.commit();
                     font_width = keyword.release_nonnull();
+                    tokens.discard_whitespace();
                     continue;
                 }
             }
@@ -2738,12 +2742,14 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             font_size = value.release_nonnull();
 
             // Consume `/ line-height` if present
+            tokens.discard_whitespace();
             if (tokens.next_token().is_delim('/')) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // /
                 auto maybe_line_height = parse_css_value_for_property(PropertyID::LineHeight, tokens);
                 if (!maybe_line_height)
                     return nullptr;
                 line_height = maybe_line_height.release_nonnull();
+                tokens.discard_whitespace();
             }
 
             // Consume font-families
@@ -2752,16 +2758,19 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             if (!maybe_font_families || tokens.has_next_token())
                 return nullptr;
             font_families = maybe_font_families.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::FontStyle: {
             VERIFY(!font_style);
             font_style = FontStyleStyleValue::create(*keyword_to_font_style(value.release_nonnull()->to_keyword()));
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::FontWeight: {
             VERIFY(!font_weight);
             font_weight = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         }
         default:
