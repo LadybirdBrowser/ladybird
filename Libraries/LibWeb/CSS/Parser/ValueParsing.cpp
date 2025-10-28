@@ -3593,6 +3593,17 @@ Optional<FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& toke
     return custom_ident;
 }
 
+RefPtr<CustomIdentStyleValue const> Parser::parse_dashed_ident_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    if (auto dashed_ident = parse_dashed_ident(tokens); dashed_ident.has_value()) {
+        transaction.commit();
+        return CustomIdentStyleValue::create(*dashed_ident);
+    }
+    return nullptr;
+}
+
 // https://www.w3.org/TR/css-grid-2/#typedef-track-breadth
 Optional<GridSize> Parser::parse_grid_track_breadth(TokenStream<ComponentValue>& tokens)
 {
@@ -4908,6 +4919,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
     case ValueType::CustomIdent:
         // FIXME: Figure out how to pass the blacklist here
         return parse_custom_ident_value(tokens, {});
+    case ValueType::DashedIdent:
+        return parse_dashed_ident_value(tokens);
     case ValueType::EasingFunction:
         return parse_easing_value(tokens);
     case ValueType::FilterValueList:

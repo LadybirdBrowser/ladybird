@@ -23,6 +23,7 @@ enum class ValueType : u8 {
     CornerShape,
     Counter,
     CustomIdent,
+    DashedIdent,
     EasingFunction,
     FilterValueList,
     FitContent,
