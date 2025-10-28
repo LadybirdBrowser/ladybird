@@ -83,6 +83,7 @@ private:
     void issue_network_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> = {});
     void issue_network_request_with_optional_dns(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id, Optional<ResumeRequestForFailedCacheEntry>, Optional<NonnullRefPtr<DNS::LookupResult>>);
     void issue_ipfs_request(i32 request_id, ByteString method, URL::URL ipfs_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
+    void issue_ipns_request(i32 request_id, ByteString method, URL::URL ipns_url, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id);
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
@@ -151,8 +152,8 @@ private:
             return false;
         }
 
-        // Scheme validation (http/https/ipfs allowed)
-        if (!url.scheme().is_one_of("http"sv, "https"sv, "ipfs"sv)) {
+        // Scheme validation (http/https/ipfs/ipns allowed)
+        if (!url.scheme().is_one_of("http"sv, "https"sv, "ipfs"sv, "ipns"sv)) {
             dbgln("Security: RequestServer attempted disallowed URL scheme '{}' at {}:{}",
                 url.scheme(), location.filename(), location.line_number());
             track_validation_failure();

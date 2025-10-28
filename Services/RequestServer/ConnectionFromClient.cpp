@@ -894,6 +894,12 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
         return;
     }
 
+    // IPNS URL handling - route to gateway transformation (mutable content)
+    if (url.scheme() == "ipns"sv) {
+        issue_ipns_request(request_id, move(method), move(url), move(request_headers), move(request_body), proxy_data, page_id);
+        return;
+    }
+
     if (g_disk_cache.has_value()) {
         if (auto cache_entry = g_disk_cache->open_entry(url, method); cache_entry.has_value()) {
             auto fds = MUST(Core::System::pipe2(O_NONBLOCK));
@@ -1600,6 +1606,52 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
 
     // Store parsed_cid for verification after download
     m_pending_ipfs_verifications.set(request_id, move(parsed_cid));
+
+    // Issue the transformed HTTP request via standard network request
+    issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
+}
+
+void ConnectionFromClient::issue_ipns_request(i32 request_id, ByteString method, URL::URL ipns_url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id)
+{
+    // Extract IPNS name from ipns:// URL
+    // Format: ipns://name or ipns://name/path
+    // IPNS names can be:
+    // - IPNS hashes (like CIDs but for mutable content)
+    // - Domain names (with DNSLink)
+    auto path_string = ipns_url.serialize_path().to_byte_string();
+    if (path_string.starts_with("/"sv))
+        path_string = path_string.substring(1);
+
+    // Extract just the name (before any path separator)
+    auto name_string = path_string;
+    if (auto slash_pos = path_string.find('/'); slash_pos.has_value())
+        name_string = path_string.substring(0, slash_pos.value());
+
+    dbgln("IPNS: Transforming ipns://{} to gateway request", path_string);
+
+    // IPNS names don't need validation like CIDs - they're resolved by the gateway
+    // The gateway will return 404 if the name doesn't exist
+
+    // Check if local IPFS daemon is available
+    bool use_local_daemon = IPC::IPFSAvailability::is_daemon_running();
+
+    // Construct gateway URL
+    URL::URL gateway_url;
+    if (use_local_daemon) {
+        // Local daemon: http://127.0.0.1:8080/ipns/name/path
+        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("http://127.0.0.1:8080/ipns/{}", path_string));
+        gateway_url = url_opt.value();
+        dbgln("IPNS: Using local daemon at 127.0.0.1:8080");
+    } else {
+        // Public gateway fallback: https://ipfs.io/ipns/name/path
+        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("https://ipfs.io/ipns/{}", path_string));
+        gateway_url = url_opt.value();
+        dbgln("IPNS: Using public gateway ipfs.io (local daemon not available)");
+    }
+
+    // Note: IPNS content cannot be verified by hash like IPFS content
+    // IPNS names can be updated to point to different CIDs over time
+    // We trust the gateway to resolve the current CID for the IPNS name
 
     // Issue the transformed HTTP request via standard network request
     issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);
