@@ -248,17 +248,16 @@ Duration now_time_from_filetime()
 Duration now_time_from_query_performance_counter()
 {
     static LARGE_INTEGER ticks_per_second;
-    // FIXME: Limit to microseconds for now, but could probably use nanos?
-    static float ticks_per_microsecond;
+    static f64 ticks_per_nanosecond;
     if (ticks_per_second.QuadPart == 0) {
         QueryPerformanceFrequency(&ticks_per_second);
         VERIFY(ticks_per_second.QuadPart != 0);
-        ticks_per_microsecond = static_cast<float>(ticks_per_second.QuadPart) / 1'000'000.0F;
+        ticks_per_nanosecond = static_cast<f64>(ticks_per_second.QuadPart) / 1'000'000'000.0;
     }
 
     LARGE_INTEGER now_time {};
     QueryPerformanceCounter(&now_time);
-    return Duration::from_microseconds(static_cast<i64>(now_time.QuadPart / ticks_per_microsecond));
+    return Duration::from_nanoseconds(static_cast<i64>(now_time.QuadPart / ticks_per_nanosecond));
 }
 
 Duration now_time_from_clock(int clock_id)
