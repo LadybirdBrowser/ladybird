@@ -220,7 +220,6 @@
     ]
   },
   "animation": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "none 0s ease 1 normal running 0s none",
@@ -238,7 +237,6 @@
     ]
   },
   "animation-composition": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -248,7 +246,6 @@
     ]
   },
   "animation-delay": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -260,7 +257,6 @@
     ]
   },
   "animation-direction": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -275,7 +271,6 @@
     ]
   },
   "animation-duration": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -290,7 +285,6 @@
     ]
   },
   "animation-fill-mode": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -305,7 +299,6 @@
     ]
   },
   "animation-iteration-count": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -320,7 +313,6 @@
     ]
   },
   "animation-name": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -336,7 +328,6 @@
     ]
   },
   "animation-play-state": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -349,7 +340,6 @@
     ]
   },
   "animation-timing-function": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
