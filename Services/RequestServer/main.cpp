@@ -16,6 +16,7 @@
 #include <LibMain/Main.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Resolver.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
@@ -23,7 +24,6 @@
 
 namespace RequestServer {
 
-extern ByteString g_default_certificate_path;
 extern Optional<DiskCache> g_disk_cache;
 
 }
@@ -49,7 +49,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // FIXME: Update RequestServer to support multiple custom root certificates.
     if (!certificates.is_empty())
-        RequestServer::g_default_certificate_path = certificates.first();
+        RequestServer::set_default_certificate_path(certificates.first());
 
     Core::EventLoop event_loop;
 

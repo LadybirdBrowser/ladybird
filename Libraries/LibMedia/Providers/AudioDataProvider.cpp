@@ -222,10 +222,6 @@ bool AudioDataProvider::ThreadData::handle_seek()
 
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
-#if PLAYBACK_MANAGER_DEBUG
-    auto start_time = MonotonicTime::now();
-#endif
-
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
         auto locker = take_lock();
         m_is_in_error_state = true;

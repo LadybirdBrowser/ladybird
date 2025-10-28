@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+</head>
+<body>
+<script>
+const policy = trustedTypes.createPolicy("testpolicy", {
+  createScript: s => s,
+  createHTML: s => s,
+  createScriptURL: s => s,
+});
+
+function getTrusted(element, attr) {
+  const type = trustedTypes.getPropertyType(element, attr);
+  if (type == "TrustedScript") {
+    return policy.createScript("2+2");
+  } else if (type == "TrustedScriptURL") {
+    return policy.createScript("https://example.test/");
+  } else if (type == "TrustedHTML") {
+    return policy.createHTML("<b>hello</b>");
+  } else {
+    return "a simple string";
+  }
+}
+
+// This test will run a simple, TT-relevant assignment, in a number of
+// circumstances. We've had issues where subtle difference in DOM behaviour -
+// for example a connected element or a non-connected element - produce
+// different results, and no test catching it because the tests were written
+// to do it one particular way. So this test does one thing, but in all the
+// different ways we can think of.
+//
+// - With TT disabled or enabled,
+// - with any of the trusted types,
+// - with a string or a TT value,
+// - with a element that's connected to the DOM (or not).
+//
+// Run the set of tests, assuming that is_tt_enabled reflects whether Trusted
+// Types is currently enabled (& enforced) or not.
+function runTests(is_tt_enabled, description_suffix) {
+  for (const [element, attr] of [
+      [ 'script', 'src' ],
+      [ 'div', 'innerHTML' ],
+      [ 'iframe', 'srcdoc' ],
+      [ 'script', 'text' ],
+      [ 'script', 'innerText' ],
+      [ 'script', 'textContent' ],
+    ]) {
+    const trusted = getTrusted(element, attr);
+    for (const value of [trusted, trusted.toString()]) {
+      for (const connected of [true, false]) {
+
+        const expect_exception = is_tt_enabled &&
+            value.constructor.name != trustedTypes.getPropertyType(element, attr);
+        test(t => {
+          const elem = document.createElement(element);
+          if (connected) document.body.appendChild(elem);
+          if (expect_exception) {
+            assert_throws_js(TypeError, _ => { elem[attr] = value; });
+          } else {
+            elem[attr] = value;
+          }
+        }, `${is_tt_enabled ? "TT enabled" : "TT disabled"}: ${element}.${attr}
+            = ${value.constructor.name} on a
+            ${connected ? "connected" : "non-connected"} element
+            ${description_suffix}`);
+      }
+    }
+  }
+}
+
+// Run the tests without TT first.
+runTests(false, "");
+
+// Now run the tests a second time, with TT enabled. To accomplish this, insert
+// a suitable <meta> element.
+const meta = document.createElement("meta");
+meta.setAttribute("http-equiv", "Content-Security-Policy");
+meta.setAttribute("content", "require-trusted-types-for 'script';");
+document.head.appendChild(meta);
+runTests(true, "");
+
+// Remove the meta element and re-run the tests, expecting exceptions.
+// That is, trusted types are still enforced. That behavior is required by
+// <https://www.w3.org/TR/CSP3/#meta-element> 's note
+// "Modifications to the content attribute of a meta element after the element
+// has been parsed will be ignored.".
+meta.remove();
+runTests(true,
+  `after removing the "require-trusted-types-for 'script' directive`);
+</script>

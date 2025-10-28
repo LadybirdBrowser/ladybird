@@ -55,6 +55,8 @@ class CacheEntry {
 public:
     virtual ~CacheEntry() = default;
 
+    u64 cache_key() const { return m_cache_key; }
+
     void remove();
 
     void mark_for_deletion(Badge<DiskCache>) { m_marked_for_deletion = true; }
@@ -62,7 +64,7 @@ public:
 protected:
     CacheEntry(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, CacheHeader);
 
-    void close_and_destory_cache_entry();
+    void close_and_destroy_cache_entry();
 
     DiskCache& m_disk_cache;
     CacheIndex& m_index;
@@ -80,9 +82,10 @@ protected:
 
 class CacheEntryWriter : public CacheEntry {
 public:
-    static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&, UnixDateTime request_time);
+    static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, UnixDateTime request_time);
     virtual ~CacheEntryWriter() override = default;
 
+    ErrorOr<void> write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&);
     ErrorOr<void> write_data(ReadonlyBytes);
     ErrorOr<void> flush();
 
