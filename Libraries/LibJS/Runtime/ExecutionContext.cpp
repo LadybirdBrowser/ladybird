@@ -125,7 +125,6 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->program_counter = program_counter;
     copy->function_name = function_name;
     copy->this_value = this_value;
-    copy->is_strict_mode = is_strict_mode;
     copy->executable = executable;
     copy->arguments_offset = arguments_offset;
     copy->passed_argument_count = passed_argument_count;

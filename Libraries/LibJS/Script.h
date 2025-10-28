@@ -46,10 +46,8 @@ public:
     HostDefined* host_defined() const { return m_host_defined; }
     StringView filename() const LIFETIME_BOUND { return m_filename; }
 
-    [[nodiscard]] bool is_strict_mode() const { return m_strict_mode; }
-
 private:
-    Script(Realm&, StringView filename, NonnullRefPtr<Program>, HostDefined*, bool strict_mode);
+    Script(Realm&, StringView filename, NonnullRefPtr<Program>, HostDefined*);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -60,8 +58,6 @@ private:
     // Needed for potential lookups of modules.
     ByteString m_filename;
     HostDefined* m_host_defined { nullptr }; // [[HostDefined]]
-
-    bool m_strict_mode { false };
 };
 
 }

@@ -342,9 +342,6 @@ NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bo
     // 10. Set context's PrivateEnvironment to null.
     context->private_environment = nullptr;
 
-    // Non-standard
-    context->is_strict_mode = strict_eval;
-
     // 11. Return context.
     return context;
 }

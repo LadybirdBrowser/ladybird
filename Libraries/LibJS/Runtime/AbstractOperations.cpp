@@ -723,9 +723,6 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     // 28. Set evalContext's PrivateEnvironment to privateEnv.
     eval_context->private_environment = private_environment;
 
-    // NOTE: This isn't in the spec, but we require it.
-    eval_context->is_strict_mode = strict_eval;
-
     // 29. Push evalContext onto the execution context stack; evalContext is now the running execution context.
     TRY(vm.push_execution_context(*eval_context, {}));
 

@@ -15,12 +15,11 @@ describe("normal behavior", () => {
         // Currently uses a plain JS::GlobalObject, i.e. no TestRunnerGlobalObject functions are available on the
         // shadow realm's global object. This may change in the future, update the test accordingly.
         const shadowRealm = new ShadowRealm();
-        expect(shadowRealm.evaluate("globalThis.isStrictMode")).toBeUndefined();
+        expect(shadowRealm.evaluate("globalThis.markAsGarbage")).toBeUndefined();
     });
 
     test("strict mode behavior", () => {
         const shadowRealm = new ShadowRealm();
-        // NOTE: We don't have access to the isStrictMode() test helper inside the shadow realm, see the comment in the test above.
 
         // sloppy mode
         expect(shadowRealm.evaluate("(function() { return !this; })()")).toBe(false);
