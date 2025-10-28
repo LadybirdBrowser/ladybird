@@ -2009,6 +2009,12 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
         PropertyID::FontStyle,
         compute_font_style(font_style_specified_value, font_computation_context));
 
+    auto const& font_variation_settings_value = style.property(PropertyID::FontVariationSettings, ComputedProperties::WithAnimationsApplied::No);
+
+    style.set_property_without_modifying_flags(
+        PropertyID::FontVariationSettings,
+        compute_font_variation_settings(font_variation_settings_value, font_computation_context));
+
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
     auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width(), style.font_variation_settings().value_or({}), font_computation_context.length_resolution_context);
@@ -3154,7 +3160,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::CornerTopRightShape:
         return compute_corner_shape(absolutized_value);
     case PropertyID::FontVariationSettings:
-        return compute_font_variation_settings(absolutized_value);
+        return compute_font_variation_settings(absolutized_value, computation_context);
     case PropertyID::LetterSpacing:
     case PropertyID::WordSpacing:
         if (absolutized_value->to_keyword() == Keyword::Normal)
@@ -3201,7 +3207,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
     });
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& absolutized_value)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& absolutized_value, ComputationContext const& computation_context)
 {
     if (absolutized_value->is_keyword())
         return absolutized_value;
@@ -3221,7 +3227,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(N
 
     // The computed value contains the de-duplicated axis names, sorted in ascending order by code unit.
     for (auto const& [key, axis_tag] : axis_tags_map)
-        axis_tags.append(axis_tag);
+        axis_tags.append(axis_tag->absolutized(computation_context));
 
     quick_sort(axis_tags, [](auto& a, auto& b) {
         return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
