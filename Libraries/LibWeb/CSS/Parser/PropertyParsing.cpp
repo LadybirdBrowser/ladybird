@@ -186,6 +186,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return {};
     };
 
+    tokens.discard_whitespace();
     auto& peek_token = tokens.next_token();
 
     auto parse_for_type = [&](ValueType const type) -> Optional<PropertyAndValue> {
