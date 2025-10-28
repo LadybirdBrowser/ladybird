@@ -2046,6 +2046,7 @@ RefPtr<StyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>&
 RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<ComponentValue>& tokens, ShadowStyleValue::ShadowType shadow_type)
 {
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     RefPtr<StyleValue const> color;
     RefPtr<StyleValue const> offset_x;
@@ -2059,6 +2060,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (color)
                 return nullptr;
             color = maybe_color.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2070,6 +2072,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             offset_x = maybe_offset_x;
 
             // vertical offset
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 return nullptr;
             auto maybe_offset_y = parse_length_value(tokens);
@@ -2078,6 +2081,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             offset_y = maybe_offset_y;
 
             // blur radius (optional)
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 break;
 
@@ -2093,6 +2097,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
                 return nullptr;
 
             // spread distance (optional)
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 break;
             auto maybe_spread_distance = parse_length_value(tokens);
@@ -2104,6 +2109,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
 
             spread_distance = maybe_spread_distance;
 
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2111,7 +2117,8 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (placement.has_value())
                 return nullptr;
             placement = ShadowPlacement::Inner;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // inset
+            tokens.discard_whitespace();
             continue;
         }
 
