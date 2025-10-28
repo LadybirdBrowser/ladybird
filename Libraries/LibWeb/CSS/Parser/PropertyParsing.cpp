@@ -500,6 +500,15 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     auto tokens = TokenStream { component_values };
 
     // Special-case property handling
+    auto parse_all_as = [](auto& tokens, auto&& callback) -> ParseErrorOr<NonnullRefPtr<StyleValue const>> {
+        tokens.discard_whitespace();
+        auto parsed_value = callback(tokens);
+        tokens.discard_whitespace();
+        if (parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    };
+
     switch (property_id) {
     case PropertyID::All:
         // NOTE: The 'all' property, unlike some other shorthands, doesn't support directly listing sub-property
@@ -507,21 +516,13 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         //       is an invalid value which is a syntax error.
         return ParseError::SyntaxError;
     case PropertyID::AnchorName:
-        if (auto parsed_value = parse_anchor_name_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_anchor_name_value(tokens); });
     case PropertyID::AnchorScope:
-        if (auto parsed_value = parse_anchor_scope_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_anchor_scope_value(tokens); });
     case PropertyID::AspectRatio:
-        if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_aspect_ratio_value(tokens); });
     case PropertyID::Animation:
-        if (auto parsed_value = parse_animation_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_animation_value(tokens); });
     case PropertyID::AnimationComposition:
     case PropertyID::AnimationDelay:
     case PropertyID::AnimationDirection:
@@ -531,381 +532,219 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     case PropertyID::AnimationName:
     case PropertyID::AnimationPlayState:
     case PropertyID::AnimationTimingFunction:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackdropFilter:
     case PropertyID::Filter:
-        if (auto parsed_value = parse_filter_value_list_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_filter_value_list_value(tokens); });
     case PropertyID::Background:
-        if (auto parsed_value = parse_background_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_background_value(tokens); });
     case PropertyID::BackgroundAttachment:
     case PropertyID::BackgroundBlendMode:
     case PropertyID::BackgroundClip:
     case PropertyID::BackgroundImage:
     case PropertyID::BackgroundOrigin:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackgroundPosition:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); });
+        });
     case PropertyID::BackgroundPositionX:
     case PropertyID::BackgroundPositionY:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_position_x_or_y_value(tokens, property_id); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_position_x_or_y_value(tokens, property_id); });
+        });
     case PropertyID::BackgroundRepeat:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); });
+        });
     case PropertyID::BackgroundSize:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); });
+        });
     case PropertyID::Border:
     case PropertyID::BorderBlock:
     case PropertyID::BorderInline:
-        if (auto parsed_value = parse_border_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_border_value(property_id, tokens); });
     case PropertyID::BorderImage:
-        if (auto parsed_value = parse_border_image_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_image_value(tokens); });
     case PropertyID::BorderImageSlice:
-        if (auto parsed_value = parse_border_image_slice_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_image_slice_value(tokens); });
     case PropertyID::BorderTopLeftRadius:
     case PropertyID::BorderTopRightRadius:
     case PropertyID::BorderBottomRightRadius:
     case PropertyID::BorderBottomLeftRadius:
-        if (auto parsed_value = parse_border_radius_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_radius_value(tokens); });
     case PropertyID::BorderRadius:
-        if (auto parsed_value = parse_border_radius_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_radius_shorthand_value(tokens); });
     case PropertyID::BoxShadow:
-        if (auto parsed_value = parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Normal); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Normal); });
     case PropertyID::ColorScheme:
-        if (auto parsed_value = parse_color_scheme_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_color_scheme_value(tokens); });
     case PropertyID::Columns:
-        if (auto parsed_value = parse_columns_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_columns_value(tokens); });
     case PropertyID::Contain:
-        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_contain_value(tokens); });
     case PropertyID::ContainerType:
-        if (auto parsed_value = parse_container_type_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_container_type_value(tokens); });
     case PropertyID::Content:
-        if (auto parsed_value = parse_content_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_content_value(tokens); });
     case PropertyID::CounterIncrement:
-        if (auto parsed_value = parse_counter_increment_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_increment_value(tokens); });
     case PropertyID::CounterReset:
-        if (auto parsed_value = parse_counter_reset_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_reset_value(tokens); });
     case PropertyID::CounterSet:
-        if (auto parsed_value = parse_counter_set_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_set_value(tokens); });
     case PropertyID::Cursor:
-        if (auto parsed_value = parse_cursor_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_cursor_value(tokens); });
     case PropertyID::Display:
-        if (auto parsed_value = parse_display_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_display_value(tokens); });
     case PropertyID::Flex:
-        if (auto parsed_value = parse_flex_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_flex_shorthand_value(tokens); });
     case PropertyID::FlexFlow:
-        if (auto parsed_value = parse_flex_flow_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_flex_flow_value(tokens); });
     case PropertyID::Font:
-        if (auto parsed_value = parse_font_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_value(tokens); });
     case PropertyID::FontFamily:
-        if (auto parsed_value = parse_font_family_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_family_value(tokens); });
     case PropertyID::FontFeatureSettings:
-        if (auto parsed_value = parse_font_feature_settings_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_feature_settings_value(tokens); });
     case PropertyID::FontLanguageOverride:
-        if (auto parsed_value = parse_font_language_override_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_language_override_value(tokens); });
     case PropertyID::FontStyle:
-        if (auto parsed_value = parse_font_style_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_style_value(tokens); });
     case PropertyID::FontVariationSettings:
-        if (auto parsed_value = parse_font_variation_settings_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variation_settings_value(tokens); });
     case PropertyID::FontVariant:
-        if (auto parsed_value = parse_font_variant(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant(tokens); });
     case PropertyID::FontVariantAlternates:
-        if (auto parsed_value = parse_font_variant_alternates_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_alternates_value(tokens); });
     case PropertyID::FontVariantEastAsian:
-        if (auto parsed_value = parse_font_variant_east_asian_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_east_asian_value(tokens); });
     case PropertyID::FontVariantLigatures:
-        if (auto parsed_value = parse_font_variant_ligatures_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_ligatures_value(tokens); });
     case PropertyID::FontVariantNumeric:
-        if (auto parsed_value = parse_font_variant_numeric_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_numeric_value(tokens); });
     case PropertyID::GridArea:
-        if (auto parsed_value = parse_grid_area_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_area_shorthand_value(tokens); });
     case PropertyID::GridAutoFlow:
-        if (auto parsed_value = parse_grid_auto_flow_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_auto_flow_value(tokens); });
     case PropertyID::GridColumn:
-        if (auto parsed_value = parse_grid_track_placement_shorthand_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::GridColumnEnd:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::GridColumnStart:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
     case PropertyID::GridRow:
-        if (auto parsed_value = parse_grid_track_placement_shorthand_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_grid_track_placement_shorthand_value(property_id, tokens); });
+    case PropertyID::GridColumnEnd:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
+    case PropertyID::GridColumnStart:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
     case PropertyID::GridRowEnd:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
     case PropertyID::GridRowStart:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
     case PropertyID::Grid:
-        if (auto parsed_value = parse_grid_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_shorthand_value(tokens); });
     case PropertyID::GridTemplate:
-        if (auto parsed_value = parse_grid_track_size_list_shorthand_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_size_list_shorthand_value(PropertyID::GridTemplate, tokens); });
     case PropertyID::GridTemplateAreas:
-        if (auto parsed_value = parse_grid_template_areas_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_template_areas_value(tokens); });
     case PropertyID::GridTemplateColumns:
-        if (auto parsed_value = parse_grid_track_size_list(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_size_list(tokens); });
     case PropertyID::GridTemplateRows:
-        if (auto parsed_value = parse_grid_track_size_list(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_size_list(tokens); });
     case PropertyID::GridAutoColumns:
-        if (auto parsed_value = parse_grid_auto_track_sizes(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_auto_track_sizes(tokens); });
     case PropertyID::GridAutoRows:
-        if (auto parsed_value = parse_grid_auto_track_sizes(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_auto_track_sizes(tokens); });
     case PropertyID::ListStyle:
-        if (auto parsed_value = parse_list_style_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_list_style_value(tokens); });
     case PropertyID::MathDepth:
-        if (auto parsed_value = parse_math_depth_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_math_depth_value(tokens); });
     case PropertyID::Mask:
-        if (auto parsed_value = parse_mask_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_mask_value(tokens); });
     case PropertyID::MaskClip:
     case PropertyID::MaskComposite:
     case PropertyID::MaskImage:
     case PropertyID::MaskMode:
     case PropertyID::MaskOrigin:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::MaskPosition:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                return parse_position_value(tokens);
+            });
+        });
     case PropertyID::MaskRepeat:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                return parse_single_repeat_style_value(PropertyID::MaskRepeat, tokens);
+            });
+        });
     case PropertyID::MaskSize:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                return parse_single_background_size_value(PropertyID::MaskSize, tokens);
+            });
+        });
     // FIXME: This can be removed once we have generic logic for parsing "positional-value-list-shorthand"s
     case PropertyID::Overflow:
-        if (auto parsed_value = parse_overflow_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_overflow_value(tokens); });
     case PropertyID::PaintOrder:
-        if (auto parsed_value = parse_paint_order_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_paint_order_value(tokens); });
     case PropertyID::PlaceContent:
-        if (auto parsed_value = parse_place_content_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_place_content_value(tokens); });
     case PropertyID::PlaceItems:
-        if (auto parsed_value = parse_place_items_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_place_items_value(tokens); });
     case PropertyID::PlaceSelf:
-        if (auto parsed_value = parse_place_self_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_place_self_value(tokens); });
     case PropertyID::PositionAnchor:
-        if (auto parsed_value = parse_position_anchor_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_anchor_value(tokens); });
     case PropertyID::PositionArea:
-        if (auto parsed_value = parse_position_area_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_area_value(tokens); });
     case PropertyID::PositionTryFallbacks:
-        if (auto parsed_value = parse_position_try_fallbacks_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_try_fallbacks_value(tokens); });
     case PropertyID::PositionVisibility:
-        if (auto parsed_value = parse_position_visibility_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_visibility_value(tokens); });
     case PropertyID::Quotes:
-        if (auto parsed_value = parse_quotes_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_quotes_value(tokens); });
     case PropertyID::Rotate:
-        if (auto parsed_value = parse_rotate_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_rotate_value(tokens); });
     case PropertyID::ScrollbarColor:
-        if (auto parsed_value = parse_scrollbar_color_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scrollbar_color_value(tokens); });
     case PropertyID::ScrollbarGutter:
-        if (auto parsed_value = parse_scrollbar_gutter_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scrollbar_gutter_value(tokens); });
     case PropertyID::ShapeOutside:
-        if (auto parsed_value = parse_shape_outside_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_shape_outside_value(tokens); });
     case PropertyID::StrokeDasharray:
-        if (auto parsed_value = parse_stroke_dasharray_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_stroke_dasharray_value(tokens); });
     case PropertyID::TextDecoration:
-        if (auto parsed_value = parse_text_decoration_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_decoration_value(tokens); });
     case PropertyID::TextDecorationLine:
-        if (auto parsed_value = parse_text_decoration_line_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_decoration_line_value(tokens); });
     case PropertyID::TextShadow:
-        if (auto parsed_value = parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); });
     case PropertyID::TextUnderlinePosition:
-        if (auto parsed_value = parse_text_underline_position_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_underline_position_value(tokens); });
     case PropertyID::TouchAction:
-        if (auto parsed_value = parse_touch_action_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_touch_action_value(tokens); });
     case PropertyID::TransformOrigin:
-        if (auto parsed_value = parse_transform_origin_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_transform_origin_value(tokens); });
     case PropertyID::Transition:
-        if (auto parsed_value = parse_transition_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_value(tokens); });
     case PropertyID::TransitionDelay:
-        if (auto parsed_value = parse_list_of_time_values(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
     case PropertyID::TransitionDuration:
-        if (auto parsed_value = parse_list_of_time_values(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_list_of_time_values(property_id, tokens); });
     case PropertyID::TransitionProperty:
-        if (auto parsed_value = parse_transition_property_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_property_value(tokens); });
     case PropertyID::TransitionTimingFunction:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_simple_comma_separated_value_list(PropertyID::TransitionTimingFunction, tokens); });
     case PropertyID::Translate:
-        if (auto parsed_value = parse_translate_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_translate_value(tokens); });
     case PropertyID::Scale:
-        if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scale_value(tokens); });
     case PropertyID::WhiteSpace:
-        if (auto parsed_value = parse_white_space_shorthand(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_white_space_shorthand(tokens); });
     case PropertyID::WhiteSpaceTrim:
-        if (auto parsed_value = parse_white_space_trim_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_white_space_trim_value(tokens); });
     case PropertyID::WillChange:
-        if (auto parsed_value = parse_will_change_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_will_change_value(tokens); });
 
     default:
         break;
