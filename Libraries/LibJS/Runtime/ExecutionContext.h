@@ -93,14 +93,13 @@ public:
         return registers_and_constants_and_locals_and_arguments()[index];
     }
 
-    u32 arguments_offset { 0 };
-    u32 passed_argument_count { 0 };
-
     Span<Value> arguments;
 
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;
+
+    u32 passed_argument_count { 0 };
 
 private:
     friend class Bytecode::Interpreter;
