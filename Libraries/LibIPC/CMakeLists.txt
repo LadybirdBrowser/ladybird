@@ -2,6 +2,7 @@ set(SOURCES
     Connection.cpp
     Decoder.cpp
     Encoder.cpp
+    IPFSAPIClient.cpp
     IPFSVerifier.cpp
     NetworkIdentity.cpp
     ProxyValidator.cpp

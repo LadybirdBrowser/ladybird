@@ -71,6 +71,11 @@ private:
     // Network audit log retrieval
     virtual Messages::RequestServer::GetNetworkAuditResponse get_network_audit() override;
 
+    // IPFS content pinning
+    virtual Messages::RequestServer::IpfsPinAddResponse ipfs_pin_add(ByteString cid) override;
+    virtual Messages::RequestServer::IpfsPinRemoveResponse ipfs_pin_remove(ByteString cid) override;
+    virtual Messages::RequestServer::IpfsPinListResponse ipfs_pin_list() override;
+
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;
     virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_close(i64 websocket_id, u16, ByteString) override;

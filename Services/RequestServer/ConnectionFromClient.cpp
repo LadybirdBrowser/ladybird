@@ -13,6 +13,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
+#include <LibIPC/IPFSAPIClient.h>
 #include <LibIPC/IPFSVerifier.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/NetworkIdentity.h>
@@ -721,6 +722,65 @@ Messages::RequestServer::GetNetworkAuditResponse ConnectionFromClient::get_netwo
         audit_entries.size(), total_bytes_sent, total_bytes_received);
 
     return { move(audit_entries), total_bytes_sent, total_bytes_received };
+}
+
+Messages::RequestServer::IpfsPinAddResponse ConnectionFromClient::ipfs_pin_add(ByteString cid)
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: CID string validation
+    if (!validate_string_length(cid, "cid"sv))
+        return false;
+
+    dbgln("RequestServer: Pinning IPFS content: {}", cid);
+
+    auto result = IPC::IPFSAPIClient::pin_add(cid);
+    if (result.is_error()) {
+        dbgln("RequestServer: Failed to pin CID {}: {}", cid, result.error());
+        return false;
+    }
+
+    return true;
+}
+
+Messages::RequestServer::IpfsPinRemoveResponse ConnectionFromClient::ipfs_pin_remove(ByteString cid)
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: CID string validation
+    if (!validate_string_length(cid, "cid"sv))
+        return false;
+
+    dbgln("RequestServer: Unpinning IPFS content: {}", cid);
+
+    auto result = IPC::IPFSAPIClient::pin_remove(cid);
+    if (result.is_error()) {
+        dbgln("RequestServer: Failed to unpin CID {}: {}", cid, result.error());
+        return false;
+    }
+
+    return true;
+}
+
+Messages::RequestServer::IpfsPinListResponse ConnectionFromClient::ipfs_pin_list()
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return Vector<ByteString> {};
+
+    dbgln("RequestServer: Listing pinned IPFS content");
+
+    auto result = IPC::IPFSAPIClient::pin_list();
+    if (result.is_error()) {
+        dbgln("RequestServer: Failed to list pins: {}", result.error());
+        return Vector<ByteString> {};
+    }
+
+    return result.release_value();
 }
 
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
