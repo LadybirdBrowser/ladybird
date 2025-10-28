@@ -1451,7 +1451,6 @@
     ]
   },
   "corner-block-end-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1463,7 +1462,6 @@
     ]
   },
   "corner-block-start-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1475,7 +1473,6 @@
     ]
   },
   "corner-bottom-left-shape": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1484,7 +1481,6 @@
     ]
   },
   "corner-bottom-right-shape": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1493,7 +1489,6 @@
     ]
   },
   "corner-bottom-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1505,21 +1500,18 @@
     ]
   },
   "corner-end-end-shape": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "end-end"
     }
   },
   "corner-end-start-shape": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "end-start"
     }
   },
   "corner-inline-end-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1531,7 +1523,6 @@
     ]
   },
   "corner-inline-start-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1543,7 +1534,6 @@
     ]
   },
   "corner-left-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1555,7 +1545,6 @@
     ]
   },
   "corner-right-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1567,7 +1556,6 @@
     ]
   },
   "corner-shape": {
-    "strip-whitespace": true,
     "initial": "round round round round",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -1581,21 +1569,18 @@
     ]
   },
   "corner-start-end-shape": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "start-end"
     }
   },
   "corner-start-start-shape": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "corner-shape",
       "mapping": "start-start"
     }
   },
   "corner-top-left-shape": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1604,7 +1589,6 @@
     ]
   },
   "corner-top-right-shape": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1613,7 +1597,6 @@
     ]
   },
   "corner-top-shape": {
-    "strip-whitespace": true,
     "initial": "round round",
     "positional-value-list-shorthand": true,
     "longhands": [
