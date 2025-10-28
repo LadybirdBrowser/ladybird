@@ -787,6 +787,8 @@ RefPtr<UnicodeRangeStyleValue const> Parser::parse_unicode_range_value(TokenStre
 
 RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number) && peek_token.token().number().is_integer()) {
         tokens.discard_a_token(); // integer
@@ -806,6 +808,8 @@ RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>
 
 RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number)) {
         tokens.discard_a_token(); // number
@@ -851,6 +855,8 @@ RefPtr<StyleValue const> Parser::parse_number_percentage_none_value(TokenStream<
 
 RefPtr<StyleValue const> Parser::parse_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Percentage)) {
         tokens.discard_a_token(); // percentage
@@ -1042,6 +1048,8 @@ RefPtr<StyleValue const> Parser::parse_anchor_size(TokenStream<ComponentValue>& 
 
 RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1071,6 +1079,8 @@ RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& 
 
 RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1103,6 +1113,8 @@ RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<Compon
 
 RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1123,6 +1135,8 @@ RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& t
 
 RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1143,6 +1157,8 @@ RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValu
 
 RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1166,6 +1182,8 @@ RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<Co
 
 RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1211,6 +1229,8 @@ RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>&
 
 RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1259,6 +1279,8 @@ RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<Compo
 
 RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1284,6 +1306,8 @@ RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentVal
 
 RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1304,6 +1328,8 @@ RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& t
 
 RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1327,6 +1353,7 @@ RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<Compone
 
 RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Ident)) {
         auto keyword = keyword_from_string(peek_token.token().ident());
@@ -2487,6 +2514,7 @@ RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& 
 
 RefPtr<StringStyleValue const> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
     auto const& peek = tokens.next_token();
     if (peek.is(Token::Type::String)) {
         tokens.discard_a_token();
