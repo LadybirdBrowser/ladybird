@@ -15,6 +15,7 @@
 #include <LibCore/Proxy.h>
 #include <LibDNS/Resolver.h>
 #include <LibHTTP/HeaderMap.h>
+#include <LibIPC/NetworkIdentity.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -38,7 +39,8 @@ public:
         HTTP::HeaderMap request_headers,
         ByteBuffer request_body,
         ByteString alt_svc_cache_path,
-        Core::ProxyData proxy_data);
+        Core::ProxyData proxy_data,
+        RefPtr<IPC::NetworkIdentity> network_identity = nullptr);
 
     static NonnullOwnPtr<Request> connect(
         i32 request_id,
@@ -159,6 +161,7 @@ private:
 
     ByteString m_alt_svc_cache_path;
     Core::ProxyData m_proxy_data;
+    RefPtr<IPC::NetworkIdentity> m_network_identity;
 
     u32 m_status_code { 0 };
     Optional<String> m_reason_phrase;

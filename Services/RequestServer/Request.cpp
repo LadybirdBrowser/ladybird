@@ -29,9 +29,11 @@ NonnullOwnPtr<Request> Request::fetch(
     HTTP::HeaderMap request_headers,
     ByteBuffer request_body,
     ByteString alt_svc_cache_path,
-    Core::ProxyData proxy_data)
+    Core::ProxyData proxy_data,
+    RefPtr<IPC::NetworkIdentity> network_identity)
 {
     auto request = adopt_own(*new Request { request_id, disk_cache, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    request->m_network_identity = move(network_identity);
     request->process();
 
     return request;
@@ -252,6 +254,18 @@ void Request::handle_read_cache_state()
 
 void Request::handle_dns_lookup_state()
 {
+    // Skip DNS lookup for SOCKS5H proxy (Tor) - let proxy handle DNS resolution
+    if (m_network_identity && m_network_identity->has_proxy()) {
+        auto const& proxy_config = m_network_identity->proxy_config();
+        if (proxy_config.has_value() && proxy_config->type == IPC::ProxyType::SOCKS5H) {
+            auto host = m_url.serialized_host().to_byte_string();
+            dbgln("RequestServer: Skipping DNS lookup for '{}' (using SOCKS5H proxy - DNS via Tor)", host);
+            // Skip DNS, transition directly to fetch state
+            transition_to_state(State::Fetch);
+            return;
+        }
+    }
+
     auto host = m_url.serialized_host().to_byte_string();
     auto const& dns_info = DNSInfo::the();
 
@@ -391,8 +405,43 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_RANGE, range.characters());
     }
 
-    // FIXME: Set up proxy if applicable
-    (void)m_proxy_data;
+    // Apply proxy configuration from NetworkIdentity (Tor/VPN support)
+    if (m_network_identity && m_network_identity->has_proxy()) {
+        auto const& proxy_config = m_network_identity->proxy_config();
+        if (proxy_config.has_value()) {
+            // Set proxy URL (e.g., "socks5h://localhost:9050" for Tor)
+            auto proxy_url = proxy_config->to_curl_proxy_url();
+            set_option(CURLOPT_PROXY, proxy_url.characters());
+
+            // Set proxy type for libcurl
+            switch (proxy_config->type) {
+            case IPC::ProxyType::SOCKS5H:
+                set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);  // DNS via proxy
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using SOCKS5H proxy at {} (DNS via proxy)", proxy_url);
+                break;
+            case IPC::ProxyType::SOCKS5:
+                set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);  // Local DNS
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using SOCKS5 proxy at {}", proxy_url);
+                break;
+            case IPC::ProxyType::HTTP:
+                set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using HTTP proxy at {}", proxy_url);
+                break;
+            case IPC::ProxyType::HTTPS:
+                set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using HTTPS proxy at {}", proxy_url);
+                break;
+            case IPC::ProxyType::None:
+                break;
+            }
+
+            // Set SOCKS5 authentication for stream isolation (Tor circuit isolation)
+            if (auto auth = proxy_config->to_curl_auth_string(); auth.has_value()) {
+                set_option(CURLOPT_PROXYUSERPWD, auth->characters());
+                dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Using proxy authentication for circuit isolation");
+            }
+        }
+    }
 
     set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
     set_option(CURLOPT_HEADERDATA, this);
@@ -400,14 +449,19 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
     set_option(CURLOPT_WRITEDATA, this);
 
-    VERIFY(m_dns_result);
-    auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+    // Only apply DNS resolution if we have a DNS result
+    // For SOCKS5H proxy, m_dns_result will be null and proxy handles DNS
+    if (m_dns_result) {
+        auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
 
-    if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-        set_option(CURLOPT_RESOLVE, resolve_list);
-        m_curl_string_lists.append(resolve_list);
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            m_curl_string_lists.append(resolve_list);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
     } else {
-        VERIFY_NOT_REACHED();
+        dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Skipping CURLOPT_RESOLVE (DNS resolution via proxy)");
     }
 
     auto result = curl_multi_add_handle(m_curl_multi_handle, m_curl_easy_handle);

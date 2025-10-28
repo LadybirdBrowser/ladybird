@@ -624,8 +624,11 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
         url = transform_ens_url_to_gateway(request_id, url, page_id);
     }
 
+    // Get network identity for this page (for Tor/proxy configuration)
+    auto network_identity = network_identity_for_page(page_id);
+
     // Create the Request object using the (potentially transformed) URL
-    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data);
+    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data, network_identity);
 
     // Set protocol type on the request
     request->set_protocol_type(protocol_type);
@@ -646,10 +649,12 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
 void ConnectionFromClient::issue_network_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data, u64 page_id, Optional<ResumeRequestForFailedCacheEntry> resume)
 {
     (void)resume;  // TODO: Handle resume for failed cache entries
-    (void)page_id; // Page ID already handled by caller
+
+    // Get network identity for this page (for Tor/proxy configuration)
+    auto network_identity = network_identity_for_page(page_id);
 
     // Create the Request object using the provided URL (no IPFS detection)
-    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data);
+    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data, network_identity);
 
     m_active_requests.set(request_id, move(request));
 }
