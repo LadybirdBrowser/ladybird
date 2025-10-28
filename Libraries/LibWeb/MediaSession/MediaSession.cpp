@@ -1,15 +1,22 @@
+#include "LibJS/Runtime/AbstractOperations.h"
+#include "LibJS/Runtime/JobCallback.h"
+#include "LibJS/Runtime/PropertyAttributes.h"
+#include "LibWeb/HTML/EventLoop/EventLoop.h"
+#include "LibWeb/WebIDL/AbstractOperations.h"
+#include "LibWeb/WebIDL/ExceptionOr.h"
 #include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/Bindings/MediaSessionPrototype.h>
+#include <LibWeb/HTML/HTMLHtmlElement.h>
 
 namespace Web::MediaSession {
 
 GC_DEFINE_ALLOCATOR(MediaSession);
 
 // void MediaSession::update_metadata(GC::Ref<MediaMetadata> metadata) const {
-//     // const auto& navigator = as<HTML::Navigator>(*this);
+//     const auto& navigator = as<HTML::Navigator>(*this);
 // }
 
 GC::Ref<MediaSession> MediaSession::create(HTML::Window& window) {
@@ -32,13 +39,39 @@ WebIDL::ExceptionOr<void> MediaSession::set_action_handler(Bindings::MediaSessio
     return {};
 }
 
-bool MediaSession::handle_action(Bindings::MediaSessionAction action) {
-    if (!m_action_handlers.contains(action))
-        return false;
+void MediaSession::handle_action(MediaSessionActionDetails details) {
+    // When the user agent is notified by a media session action source named source that a media session action named action has been triggered,
+    // the user agent MUST queue a task, using the user interaction task source,
+    // to run the following handle media session action steps:
+    HTML::queue_a_task(HTML::Task::Source::UserInteraction, nullptr, nullptr, GC::create_function(realm().heap(), [this, details_copy = details] {
+        // 1. Let session be source’s target.
+        // 2. If session is null, set session to the active media session.
+        // 3. If session is null, abort these steps.
+        // 4. Let actions be session’s supported media session actions.
+        // 5. If actions does not contain the key action, abort these steps.
+        if (!m_action_handlers.contains(details_copy.action))
+            return;
+        auto& realm = this->realm();
+        // 6. Let handler be the MediaSessionActionHandler associated with the key action in actions.
+        auto const& handler = m_action_handlers.get(details_copy.action).release_value();
 
-    dbgln("MediaSession::handle_action is unimplemented");
+        auto details_js = JS::Object::create(realm, nullptr);
+        details_js->define_direct_property("action"_utf16, JS::Value(static_cast<i32>(details_copy.action)), JS::default_attributes);
+        details_js->define_direct_property("seekOffset"_utf16, JS::Value(details_copy.seekOffset), JS::default_attributes);
+        details_js->define_direct_property("seekTime"_utf16, JS::Value(details_copy.seekTime), JS::default_attributes);
+        details_js->define_direct_property("fastSeek"_utf16, JS::Value(details_copy.fastSeek), JS::default_attributes);
+        details_js->define_direct_property("isActivating"_utf16, JS::Value(details_copy.isActivating), JS::default_attributes);
+        details_js->define_direct_property("enterPictureInPictureReason"_utf16, JS::Value(static_cast<i32>(details_copy.enterPictureInPictureReason)), JS::default_attributes);
 
-    return true;
+        // 7. Run handler with the details parameter set to: MediaSessionActionDetails.
+        MUST(WebIDL::invoke_callback(*handler, {}, { { details_js } }));
+        // 8. Run the activation notification steps in the browsing context associated with session.
+        // TODO: Currently not implemented: https://github.com/LadybirdBrowser/ladybird/blob/9312a9f86f63a7f693ee1a9663154a69fbf53462/Libraries/LibWeb/DOM/EventTarget.cpp#L848
+    }));
+}
+
+bool MediaSession::has_action_handler(Bindings::MediaSessionAction action) const {
+    return m_action_handlers.contains(action);
 }
 
 WebIDL::ExceptionOr<void> MediaSession::set_position_state() {

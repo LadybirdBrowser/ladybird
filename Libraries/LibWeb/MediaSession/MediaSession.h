@@ -53,7 +53,7 @@ public:
     Bindings::MediaSessionPlaybackState playback_state() const;
     void set_playback_state(Bindings::MediaSessionPlaybackState);
 
-    bool handle_action(Bindings::MediaSessionAction);
+    void handle_action(MediaSessionActionDetails);
 
     bool has_action_handler(Bindings::MediaSessionAction) const;
 
