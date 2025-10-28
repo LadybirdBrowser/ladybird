@@ -27,6 +27,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::Counter;
     if (string.equals_ignoring_ascii_case("custom-ident"sv))
         return ValueType::CustomIdent;
+    if (string.equals_ignoring_ascii_case("dashed-ident"sv))
+        return ValueType::DashedIdent;
     if (string.equals_ignoring_ascii_case("easing-function"sv))
         return ValueType::EasingFunction;
     if (string.equals_ignoring_ascii_case("filter-value-list"sv))
@@ -103,6 +105,8 @@ StringView value_type_to_string(ValueType value_type)
         return "Counter"sv;
     case Web::CSS::ValueType::CustomIdent:
         return "CustomIdent"sv;
+    case Web::CSS::ValueType::DashedIdent:
+        return "DashedIdent"sv;
     case Web::CSS::ValueType::EasingFunction:
         return "EasingFunction"sv;
     case Web::CSS::ValueType::FilterValueList:

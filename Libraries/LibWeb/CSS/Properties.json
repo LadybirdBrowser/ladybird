@@ -198,11 +198,11 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "valid-types": [
+      "dashed-ident"
+    ],
     "valid-identifiers": [
       "none"
-    ],
-    "valid-types": [
-      "custom-ident ![none]"
     ]
   },
   "anchor-scope": {
@@ -210,6 +210,9 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "valid-types": [
+      "dashed-ident"
+    ],
     "valid-identifiers": [
       "none",
       "all"
@@ -3259,7 +3262,7 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
-      "custom-ident ![auto]"
+      "dashed-ident"
     ],
     "valid-identifiers": [
       "auto"
@@ -3282,7 +3285,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident ![none]",
+      "dashed-ident",
       "try-tactic"
     ],
     "valid-identifiers": [

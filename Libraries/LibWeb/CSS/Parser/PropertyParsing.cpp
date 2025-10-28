@@ -224,6 +224,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Counter); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::DashedIdent); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Image); parsed.has_value())
@@ -1269,10 +1271,7 @@ RefPtr<StyleValue const> Parser::parse_anchor_name_value(TokenStream<ComponentVa
         return none;
 
     return parse_comma_separated_value_list(tokens, [this](TokenStream<ComponentValue>& inner_tokens) -> RefPtr<StyleValue const> {
-        auto dashed_ident = parse_dashed_ident(inner_tokens);
-        if (!dashed_ident.has_value())
-            return nullptr;
-        return CustomIdentStyleValue::create(*dashed_ident);
+        return parse_dashed_ident_value(inner_tokens);
     });
 }
 
@@ -1287,10 +1286,7 @@ RefPtr<StyleValue const> Parser::parse_anchor_scope_value(TokenStream<ComponentV
         return all;
 
     return parse_comma_separated_value_list(tokens, [this](TokenStream<ComponentValue>& inner_tokens) -> RefPtr<StyleValue const> {
-        auto dashed_ident = parse_dashed_ident(inner_tokens);
-        if (!dashed_ident.has_value())
-            return {};
-        return CustomIdentStyleValue::create(*dashed_ident);
+        return parse_dashed_ident_value(inner_tokens);
     });
 }
 
@@ -4236,10 +4232,7 @@ RefPtr<StyleValue const> Parser::parse_position_anchor_value(TokenStream<Compone
         return auto_keyword;
 
     // <anchor-name> = <dashed-ident>
-    auto dashed_ident = parse_dashed_ident(tokens);
-    if (!dashed_ident.has_value())
-        return nullptr;
-    return CustomIdentStyleValue::create(*dashed_ident);
+    return parse_dashed_ident_value(tokens);
 }
 
 // https://drafts.csswg.org/css-anchor-position/#position-try-fallbacks
@@ -4266,17 +4259,17 @@ RefPtr<StyleValue const> Parser::parse_single_position_try_fallbacks_value(Token
         return position_area;
     }
 
-    Optional<FlyString> dashed_ident;
+    RefPtr<StyleValue const> dashed_ident;
     RefPtr<StyleValue const> try_tactic;
     while (tokens.has_next_token()) {
         if (auto try_tactic_value = parse_try_tactic_value(tokens)) {
             if (try_tactic)
                 return {};
             try_tactic = try_tactic_value.release_nonnull();
-        } else if (auto maybe_dashed_ident = parse_dashed_ident(tokens); maybe_dashed_ident.has_value()) {
-            if (dashed_ident.has_value())
+        } else if (auto maybe_dashed_ident = parse_dashed_ident_value(tokens)) {
+            if (dashed_ident)
                 return {};
-            dashed_ident = maybe_dashed_ident.release_value();
+            dashed_ident = maybe_dashed_ident.release_nonnull();
         } else {
             break;
         }
@@ -4284,8 +4277,8 @@ RefPtr<StyleValue const> Parser::parse_single_position_try_fallbacks_value(Token
     }
 
     StyleValueVector values;
-    if (dashed_ident.has_value())
-        values.append(CustomIdentStyleValue::create(dashed_ident.release_value()));
+    if (dashed_ident)
+        values.append(dashed_ident.release_nonnull());
     if (try_tactic)
         values.append(try_tactic.release_nonnull());
 
