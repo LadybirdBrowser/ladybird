@@ -80,7 +80,9 @@ namespace Web::CSS::Parser {
 
 RefPtr<StyleValue const> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
 {
+    tokens.discard_whitespace();
     auto first = parse_one_value(tokens);
+    tokens.discard_whitespace();
     if (!first || !tokens.has_next_token())
         return first;
 
@@ -91,8 +93,11 @@ RefPtr<StyleValue const> Parser::parse_comma_separated_value_list(TokenStream<Co
         if (!tokens.consume_a_token().is(Token::Type::Comma))
             return nullptr;
 
+        tokens.discard_whitespace();
+
         if (auto maybe_value = parse_one_value(tokens)) {
             values.append(maybe_value.release_nonnull());
+            tokens.discard_whitespace();
             continue;
         }
         return nullptr;
