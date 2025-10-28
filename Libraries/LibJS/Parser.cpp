@@ -810,6 +810,8 @@ void Parser::parse_script(Program& program, bool starts_in_strict_mode)
 
 void Parser::parse_module(Program& program)
 {
+    program.set_strict_mode();
+
     TemporaryChange strict_mode_rollback(m_state.strict_mode, true);
     TemporaryChange await_expression_valid_rollback(m_state.await_expression_is_valid, true);
 

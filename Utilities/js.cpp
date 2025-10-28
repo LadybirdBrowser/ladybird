@@ -766,7 +766,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
 
         switch (mode) {
         case CompleteProperty: {
-            auto reference_or_error = g_vm->resolve_binding(variable_name, &global_environment);
+            auto reference_or_error = g_vm->resolve_binding(variable_name, JS::Strict::No, &global_environment);
             if (reference_or_error.is_error())
                 return {};
             auto value_or_error = reference_or_error.value().get_value(*g_vm);

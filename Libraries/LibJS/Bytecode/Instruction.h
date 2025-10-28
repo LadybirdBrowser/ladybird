@@ -188,7 +188,7 @@ public:
     constexpr static bool IsTerminator = false;
     static constexpr bool IsVariableLength = false;
 
-    enum class Type {
+    enum class Type : u8 {
 #define __BYTECODE_OP(op) \
     op,
         ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
@@ -202,6 +202,9 @@ public:
     void visit_operands(Function<void(Operand&)> visitor);
     static void destroy(Instruction&);
 
+    Strict strict() const { return m_strict; }
+    void set_strict(Strict strict) { m_strict = strict; }
+
 protected:
     explicit Instruction(Type type)
         : m_type(type)
@@ -213,6 +216,7 @@ protected:
 
 private:
     Type m_type {};
+    Strict m_strict {};
 };
 
 class InstructionStreamIterator {
