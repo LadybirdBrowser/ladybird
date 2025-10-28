@@ -1344,7 +1344,6 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
 
     auto environment = GC::Ref { *interpreter.running_execution_context().lexical_environment };
     if (has_own_name) {
-        VERIFY(environment);
         environment = new_declarative_environment(*environment);
         MUST(environment->create_immutable_binding(interpreter.vm(), own_name, false));
     }
