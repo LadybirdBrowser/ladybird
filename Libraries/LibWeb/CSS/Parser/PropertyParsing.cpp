@@ -1300,6 +1300,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         remaining_layer_properties.unchecked_append(PropertyID::BackgroundRepeat);
     };
 
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (tokens.next_token().is(Token::Type::Comma)) {
             has_multiple_layers = true;
@@ -1307,6 +1308,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
                 return nullptr;
             complete_background_layer();
             tokens.discard_a_token();
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -1321,14 +1323,17 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         case PropertyID::BackgroundAttachment:
             VERIFY(!background_attachment);
             background_attachment = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         case PropertyID::BackgroundColor:
             VERIFY(!background_color);
             background_color = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         case PropertyID::BackgroundImage:
             VERIFY(!background_image);
             background_image = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         case PropertyID::BackgroundClip:
         case PropertyID::BackgroundOrigin: {
@@ -1345,6 +1350,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
             } else {
                 VERIFY_NOT_REACHED();
             }
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::BackgroundPosition: {
@@ -1355,15 +1361,19 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
 
             // Attempt to parse `/ <background-size>`
             auto background_size_transaction = tokens.begin_transaction();
+            tokens.discard_whitespace();
             auto& maybe_slash = tokens.consume_a_token();
             if (maybe_slash.is_delim('/')) {
+                tokens.discard_whitespace();
                 if (auto maybe_background_size = parse_single_background_size_value(PropertyID::BackgroundSize, tokens)) {
                     background_size_transaction.commit();
                     background_size = maybe_background_size.release_nonnull();
+                    tokens.discard_whitespace();
                     continue;
                 }
                 return nullptr;
             }
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::BackgroundRepeat: {
@@ -1371,6 +1381,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
             tokens.reconsume_current_input_token();
             if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 background_repeat = maybe_repeat.release_nonnull();
+                tokens.discard_whitespace();
                 continue;
             }
             return nullptr;
