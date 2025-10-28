@@ -1524,19 +1524,19 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
 {
     // Extract CID from ipfs:// URL
     // Format: ipfs://CID or ipfs://CID/path
-    auto cid_with_path = ipfs_url.serialize_path();
-    if (cid_with_path.starts_with("/"sv))
-        cid_with_path = cid_with_path.substring_view(1);
+    auto path_string = ipfs_url.serialize_path().to_byte_string();
+    if (path_string.starts_with("/"sv))
+        path_string = path_string.substring(1);
 
     // Extract just the CID (before any path separator)
-    auto cid_string = cid_with_path;
-    if (auto slash_pos = cid_with_path.find('/'); slash_pos.has_value())
-        cid_string = cid_with_path.substring_view(0, slash_pos.value());
+    auto cid_string = path_string;
+    if (auto slash_pos = path_string.find('/'); slash_pos.has_value())
+        cid_string = path_string.substring(0, slash_pos.value());
 
-    dbgln("IPFS: Transforming ipfs://{} to gateway request", cid_with_path);
+    dbgln("IPFS: Transforming ipfs://{} to gateway request", path_string);
 
     // Parse and validate CID
-    auto parsed_cid_result = IPC::IPFSVerifier::parse_cid(cid_string.to_byte_string());
+    auto parsed_cid_result = IPC::IPFSVerifier::parse_cid(cid_string);
     if (parsed_cid_result.is_error()) {
         dbgln("IPFS: Failed to parse CID '{}': {}", cid_string, parsed_cid_result.error());
         // TODO: Send error response to client
@@ -1553,11 +1553,13 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
     URL::URL gateway_url;
     if (use_local_daemon) {
         // Local daemon: http://127.0.0.1:8080/ipfs/CID/path
-        gateway_url = MUST(URL::URL::create_with_url_or_path(ByteString::formatted("http://127.0.0.1:8080/ipfs/{}", cid_with_path)));
+        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("http://127.0.0.1:8080/ipfs/{}", path_string));
+        gateway_url = url_opt.value();
         dbgln("IPFS: Using local daemon at 127.0.0.1:8080");
     } else {
         // Public gateway fallback: https://ipfs.io/ipfs/CID/path
-        gateway_url = MUST(URL::URL::create_with_url_or_path(ByteString::formatted("https://ipfs.io/ipfs/{}", cid_with_path)));
+        auto url_opt = URL::create_with_url_or_path(ByteString::formatted("https://ipfs.io/ipfs/{}", path_string));
+        gateway_url = url_opt.value();
         dbgln("IPFS: Using public gateway ipfs.io (local daemon not available)");
     }
 

@@ -2,6 +2,7 @@ set(SOURCES
     Connection.cpp
     Decoder.cpp
     Encoder.cpp
+    IPFSVerifier.cpp
     NetworkIdentity.cpp
     ProxyValidator.cpp
 )
@@ -19,4 +20,4 @@ else()
 endif()
 
 ladybird_lib(LibIPC ipc)
-target_link_libraries(LibIPC PRIVATE LibCore LibURL LibThreading)
+target_link_libraries(LibIPC PRIVATE LibCore LibCrypto LibURL LibThreading)
