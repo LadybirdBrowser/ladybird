@@ -146,6 +146,10 @@ struct ConnectionFromClient::ActiveRequest : public Weakable<ActiveRequest> {
     Optional<CacheEntryWriter&> cache_entry;
     UnixDateTime request_start_time;
 
+    // IPFS content verification
+    Optional<IPC::ParsedCID> ipfs_cid;
+    ByteBuffer ipfs_content_buffer;
+
     ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, u64 page_id, int writer_fd)
         : multi(multi)
         , easy(easy)
@@ -338,6 +342,15 @@ size_t ConnectionFromClient::on_data_received(void* buffer, size_t size, size_t 
     if (maybe_write_error.is_error()) {
         dbgln("ConnectionFromClient::on_data_received: Aborting request because error occurred whilst writing data to the client: {}", maybe_write_error.error());
         return CURL_WRITEFUNC_ERROR;
+    }
+
+    // IPFS content verification: Accumulate content if this is an IPFS request
+    if (request->ipfs_cid.has_value()) {
+        auto append_result = request->ipfs_content_buffer.try_append(bytes);
+        if (append_result.is_error()) {
+            dbgln("ConnectionFromClient::on_data_received: Failed to append IPFS content to buffer: {}", append_result.error());
+            // Continue anyway - verification will fail later
+        }
     }
 
     request->downloaded_so_far += total_size;
@@ -990,6 +1003,13 @@ void ConnectionFromClient::issue_network_request_with_optional_dns(i32 request_i
     request->url = url;
     request->method = method;
 
+    // IPFS content verification: Retrieve and store CID if this is an IPFS request
+    if (auto it = m_pending_ipfs_verifications.find(request_id); it != m_pending_ipfs_verifications.end()) {
+        request->ipfs_cid = move(it->value);
+        m_pending_ipfs_verifications.remove(request_id);
+        dbgln("IPFS: Attached CID {} to request {} for verification", request->ipfs_cid->raw_cid, request_id);
+    }
+
     auto set_option = [easy](auto option, auto value) {
         auto result = curl_easy_setopt(easy, option, value);
         if (result != CURLE_OK)
@@ -1267,6 +1287,20 @@ void ConnectionFromClient::check_active_requests()
                 }
             }
 
+            // IPFS content verification: Verify downloaded content matches CID
+            if (request_was_successful && request->ipfs_cid.has_value()) {
+                auto verification_result = IPC::IPFSVerifier::verify_content(request->ipfs_cid.value(), request->ipfs_content_buffer.bytes());
+                if (verification_result.is_error()) {
+                    dbgln("IPFS: Content verification error: {}", verification_result.error());
+                    network_error = Requests::NetworkError::Unknown;
+                } else if (!verification_result.value()) {
+                    dbgln("IPFS: Content verification FAILED - hash mismatch for CID {}", request->ipfs_cid->raw_cid);
+                    network_error = Requests::NetworkError::Unknown;
+                } else {
+                    dbgln("IPFS: Content verification PASSED for CID {}", request->ipfs_cid->raw_cid);
+                }
+            }
+
             async_request_finished(request->request_id, request->downloaded_so_far, timing_info, network_error);
         }
 
@@ -1539,7 +1573,8 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
     auto parsed_cid_result = IPC::IPFSVerifier::parse_cid(cid_string);
     if (parsed_cid_result.is_error()) {
         dbgln("IPFS: Failed to parse CID '{}': {}", cid_string, parsed_cid_result.error());
-        // TODO: Send error response to client
+        // Send error response to client
+        async_request_finished(request_id, 0, {}, Requests::NetworkError::MalformedUrl);
         return;
     }
 
@@ -1563,8 +1598,8 @@ void ConnectionFromClient::issue_ipfs_request(i32 request_id, ByteString method,
         dbgln("IPFS: Using public gateway ipfs.io (local daemon not available)");
     }
 
-    // TODO: Store parsed_cid in request metadata for verification after download
-    // For now, issue the request and rely on gateway integrity
+    // Store parsed_cid for verification after download
+    m_pending_ipfs_verifications.set(request_id, move(parsed_cid));
 
     // Issue the transformed HTTP request via standard network request
     issue_network_request(request_id, move(method), move(gateway_url), move(request_headers), move(request_body), proxy_data, page_id);

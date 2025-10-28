@@ -98,6 +98,9 @@ private:
 
     HashMap<i32, NonnullOwnPtr<ActiveRequest>> m_active_requests;
 
+    // IPFS content verification: Store CIDs for pending requests
+    HashMap<i32, IPC::ParsedCID> m_pending_ipfs_verifications;
+
     void check_active_requests();
     void* m_curl_multi { nullptr };
     RefPtr<Core::Timer> m_timer;
