@@ -107,7 +107,10 @@ private:
 
     // Network identity per page_id for per-tab routing and audit
     // SECURITY: Each page/tab maintains independent proxy/Tor configuration
-    HashMap<u64, RefPtr<IPC::NetworkIdentity>> m_page_network_identities;
+    // NOTE: Static to share state across all ConnectionFromClient instances
+    // Multiple WebContent processes create separate ConnectionFromClient instances,
+    // so we need global state to ensure enable_tor and start_request see the same data
+    static HashMap<u64, RefPtr<IPC::NetworkIdentity>> s_page_network_identities;
 
     // Security validation helpers
     [[nodiscard]] bool validate_request_id(i32 request_id, SourceLocation location = SourceLocation::current())

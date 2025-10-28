@@ -49,6 +49,9 @@ static struct {
 
 Optional<DiskCache> g_disk_cache;
 
+// Static storage for NetworkIdentity shared across all ConnectionFromClient instances
+HashMap<u64, RefPtr<IPC::NetworkIdentity>> ConnectionFromClient::s_page_network_identities;
+
 static WeakPtr<Resolver> s_resolver {};
 static NonnullRefPtr<Resolver> default_resolver()
 {
@@ -438,7 +441,7 @@ void ConnectionFromClient::die()
 // Helper method to get network identity for a specific page
 RefPtr<IPC::NetworkIdentity> ConnectionFromClient::network_identity_for_page(u64 page_id)
 {
-    return m_page_network_identities.get(page_id).value_or(nullptr);
+    return s_page_network_identities.get(page_id).value_or(nullptr);
 }
 
 // Helper method to get or create network identity for a page
@@ -449,7 +452,7 @@ RefPtr<IPC::NetworkIdentity> ConnectionFromClient::get_or_create_network_identit
 
     // Create new network identity for this page
     auto identity = MUST(IPC::NetworkIdentity::create_for_page(page_id));
-    m_page_network_identities.set(page_id, identity);
+    s_page_network_identities.set(page_id, identity);
     dbgln("RequestServer: Created NetworkIdentity for page {}", page_id);
     return identity;
 }
@@ -497,10 +500,9 @@ void ConnectionFromClient::enable_tor(u64 page_id, ByteString circuit_id)
 
     dbgln("RequestServer: Tor proxy configured at {}:{} for page {}", tor_proxy.host, tor_proxy.port, page_id);
 
-    dbgln("RequestServer: Tor ENABLED for page {} ONLY with circuit {} (has_proxy={})",
+    dbgln("RequestServer: Tor ENABLED for page {} ONLY with circuit {}",
         page_id,
-        network_identity->tor_circuit_id().value_or("default"),
-        network_identity->has_proxy());
+        network_identity->tor_circuit_id().value_or("default"));
 
     // SECURITY FIX: Removed global state mutation that applied Tor to ALL connections.
     // Each connection must manage its own proxy configuration independently to prevent
@@ -672,8 +674,8 @@ Messages::RequestServer::GetNetworkAuditResponse ConnectionFromClient::get_netwo
     // In a per-tab implementation, this would need a page_id parameter.
     // For now, we get the first available network identity from the map.
     RefPtr<IPC::NetworkIdentity> network_identity;
-    if (!m_page_network_identities.is_empty()) {
-        network_identity = m_page_network_identities.begin()->value;
+    if (!s_page_network_identities.is_empty()) {
+        network_identity = s_page_network_identities.begin()->value;
     }
 
     if (!network_identity) {
@@ -911,6 +913,8 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
     // Check if using SOCKS5H proxy (hostname resolution via proxy)
     // If so, skip DNS lookup - let Tor/proxy handle DNS resolution
     auto network_identity = network_identity_for_page(page_id);
+
+
     bool using_socks5h_proxy = network_identity && network_identity->has_proxy()
         && network_identity->proxy_config().has_value()
         && network_identity->proxy_config()->type == IPC::ProxyType::SOCKS5H;
