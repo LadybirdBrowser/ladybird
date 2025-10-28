@@ -207,7 +207,6 @@
     ]
   },
   "anchor-scope": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -363,7 +362,6 @@
     ]
   },
   "appearance": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -789,7 +787,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-collapse": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "separate",
@@ -1296,7 +1293,6 @@
     ]
   },
   "box-sizing": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "content-box",
@@ -1305,7 +1301,6 @@
     ]
   },
   "caption-side": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "top",
@@ -1326,7 +1321,6 @@
     ]
   },
   "clear": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1366,7 +1360,6 @@
     "initial": "none"
   },
   "clip-rule": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1388,7 +1381,6 @@
     ]
   },
   "color-interpolation": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1451,7 +1443,6 @@
     ]
   },
   "column-span": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1482,7 +1473,6 @@
     ]
   },
   "contain": {
-    "strip-whitespace": true,
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1492,7 +1482,6 @@
     ]
   },
   "container-type": {
-    "strip-whitespace": true,
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1525,7 +1514,6 @@
     ]
   },
   "content-visibility": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
@@ -1793,7 +1781,6 @@
     ]
   },
   "direction": {
-    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "ltr",
@@ -1819,7 +1806,6 @@
     ]
   },
   "empty-cells": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "show",
@@ -1848,7 +1834,6 @@
     ]
   },
   "fill-rule": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1947,7 +1932,6 @@
     ]
   },
   "float": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -2453,7 +2437,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "image-rendering": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "affects-layout": false,
     "inherited": true,
@@ -2566,7 +2549,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "isolation": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3008,7 +2990,6 @@
     ]
   },
   "math-shift": {
-    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "normal",
@@ -3017,7 +2998,6 @@
     ]
   },
   "math-style": {
-    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "normal",
@@ -3138,7 +3118,6 @@
     ]
   },
   "mix-blend-mode": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -3147,7 +3126,6 @@
     ]
   },
   "object-fit": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "fill",
@@ -3228,7 +3206,6 @@
     ]
   },
   "outline-style": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3492,7 +3469,6 @@
     ]
   },
   "pointer-events": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3502,7 +3478,6 @@
     ]
   },
   "position": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "static",
@@ -3561,7 +3536,6 @@
     ]
   },
   "position-visibility": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "anchors-visible",
@@ -3745,7 +3719,6 @@
     "initial": "none"
   },
   "shape-rendering": {
-    "strip-whitespace": true,
     "affects-layout": true,
     "animation-type": "discrete",
     "inherited": true,
@@ -3805,7 +3778,6 @@
     "percentages-resolve-to": "length"
   },
   "stroke-linecap": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3815,7 +3787,6 @@
     ]
   },
   "stroke-linejoin": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3868,7 +3839,6 @@
     ]
   },
   "table-layout": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3877,7 +3847,6 @@
     ]
   },
   "text-align": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
@@ -3886,7 +3855,6 @@
     ]
   },
   "text-anchor": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
@@ -3967,7 +3935,6 @@
     ]
   },
   "text-justify": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3979,7 +3946,6 @@
     ]
   },
   "text-overflow": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3989,7 +3955,6 @@
     ]
   },
   "text-rendering": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -4009,7 +3974,6 @@
     ]
   },
   "text-transform": {
-    "strip-whitespace": true,
     "__comment": "NOTE: This property has custom invalidation handling.",
     "animation-type": "discrete",
     "inherited": true,
@@ -4052,7 +4016,6 @@
     ]
   },
   "text-wrap-mode": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "wrap",
@@ -4061,7 +4024,6 @@
     ]
   },
   "text-wrap-style": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -4115,7 +4077,6 @@
     ]
   },
   "transform-box": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "view-box",
@@ -4231,7 +4192,6 @@
     "percentages-resolve-to": "length"
   },
   "unicode-bidi": {
-    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
@@ -4240,7 +4200,6 @@
     ]
   },
   "user-select": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -4279,7 +4238,6 @@
     ]
   },
   "visibility": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": true,
     "initial": "visible",
@@ -4301,7 +4259,6 @@
     ]
   },
   "white-space-collapse": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "collapse",
@@ -4370,7 +4327,6 @@
     ]
   },
   "word-break": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "initial": "normal",
     "inherited": true,
@@ -4402,7 +4358,6 @@
     "legacy-alias-for": "overflow-wrap"
   },
   "writing-mode": {
-    "strip-whitespace": true,
     "animation-type": "none",
     "inherited": true,
     "initial": "horizontal-tb",
