@@ -127,6 +127,9 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
 
     auto translate_command_by_scroll = [&](auto& command, int scroll_frame_id) {
         auto cumulative_offset = scroll_state.cumulative_offset_for_frame_with_id(scroll_frame_id);
+        if (cumulative_offset.is_zero())
+            return;
+
         auto scroll_offset = cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
         command.visit(
             [scroll_offset](auto& command) {

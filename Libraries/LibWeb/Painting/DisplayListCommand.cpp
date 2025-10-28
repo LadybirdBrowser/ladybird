@@ -140,7 +140,7 @@ void FillRectWithRoundedCorners::dump(StringBuilder& builder) const
 
 void FillPath::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillPath");
+    builder.appendff("FillPath path_bounding_rect={}", path_bounding_rect);
 }
 
 void StrokePath::dump(StringBuilder& builder) const

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2022-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,10 +17,10 @@ class MatroskaDemuxer final : public Demuxer {
 public:
     // FIXME: We should instead accept some abstract data streaming type so that the demuxer
     //        can work with non-contiguous data.
-    static DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> from_file(StringView filename);
-    static DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file);
+    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_file(StringView filename);
+    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file);
 
-    static DecoderErrorOr<NonnullOwnPtr<MatroskaDemuxer>> from_data(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_data(ReadonlyBytes data);
 
     MatroskaDemuxer(Reader&& reader)
         : m_reader(move(reader))
@@ -30,16 +30,16 @@ public:
     DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
     DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
 
-    DecoderErrorOr<Optional<AK::Duration>> seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone()) override;
+    DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions) override;
 
     DecoderErrorOr<AK::Duration> duration_of_track(Track const& track) override;
     DecoderErrorOr<AK::Duration> total_duration() override;
 
-    DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
+    DecoderErrorOr<CodecID> get_codec_id_for_track(Track const& track) override;
 
-    DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) override;
+    DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const& track) override;
 
-    DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track track) override;
+    DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const& track) override;
 
 private:
     struct TrackStatus {
@@ -53,8 +53,7 @@ private:
         }
     };
 
-    DecoderErrorOr<TrackStatus*> get_track_status(Track track);
-    static CodecID get_codec_id_for_string(FlyString const& codec_id);
+    DecoderErrorOr<TrackStatus*> get_track_status(Track const& track);
 
     Reader m_reader;
 

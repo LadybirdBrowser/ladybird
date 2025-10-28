@@ -1,13 +1,12 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/IDAllocator.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibMedia/Audio/Loader.h>
 #include <LibWeb/Bindings/AudioTrackPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
@@ -16,84 +15,27 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Platform/AudioCodecPlugin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(AudioTrack);
 
-static IDAllocator s_audio_track_id_allocator;
-
-AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, NonnullRefPtr<Audio::Loader> loader)
-    : PlatformObject(realm)
-    , m_media_element(media_element)
-    , m_audio_plugin(Platform::AudioCodecPlugin::create(move(loader)).release_value_but_fixme_should_propagate_errors())
+AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
+    : MediaTrackBase(realm, media_element, track)
 {
-    m_audio_plugin->on_playback_position_updated = [this](auto position) {
-        if (auto* paintable = m_media_element->paintable())
-            paintable->set_needs_display();
-
-        auto playback_position = static_cast<double>(position.to_milliseconds()) / 1000.0;
-        m_media_element->set_current_playback_position(playback_position);
-    };
-
-    m_audio_plugin->on_decoder_error = [this](String error_message) {
-        m_media_element->set_decoder_error(move(error_message));
-    };
-
-    update_volume();
 }
 
-AudioTrack::~AudioTrack()
-{
-    auto id = m_id.to_number<int>();
-    VERIFY(id.has_value());
-
-    s_audio_track_id_allocator.deallocate(id.value());
-}
+AudioTrack::~AudioTrack() = default;
 
 void AudioTrack::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioTrack);
     Base::initialize(realm);
-
-    auto id = s_audio_track_id_allocator.allocate();
-    m_id = String::number(id);
-}
-
-void AudioTrack::play()
-{
-    m_audio_plugin->resume_playback();
-}
-
-void AudioTrack::pause()
-{
-    m_audio_plugin->pause_playback();
-}
-
-AK::Duration AudioTrack::duration()
-{
-    return m_audio_plugin->duration();
-}
-
-void AudioTrack::seek(double position, MediaSeekMode seek_mode)
-{
-    // FIXME: Implement seeking mode.
-    (void)seek_mode;
-
-    m_audio_plugin->seek(position);
-}
-
-void AudioTrack::update_volume()
-{
-    m_audio_plugin->set_volume(m_media_element->effective_media_volume());
 }
 
 void AudioTrack::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_media_element);
     visitor.visit(m_audio_track_list);
 }
 
@@ -110,12 +52,13 @@ void AudioTrack::set_enabled(bool enabled)
         // Whenever an audio track in an AudioTrackList that was disabled is enabled, and whenever one that was enabled
         // is disabled, the user agent must queue a media element task given the media element to fire an event named
         // change at the AudioTrackList object.
-        m_media_element->queue_a_media_element_task([this]() {
+        media_element().queue_a_media_element_task([this]() {
             m_audio_track_list->dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
         });
     }
 
     m_enabled = enabled;
+    media_element().set_audio_track_enabled({}, this, enabled);
 }
 
 }

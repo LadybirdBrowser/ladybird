@@ -75,4 +75,21 @@ void CanvasPattern::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvaspattern-settransform
+WebIDL::ExceptionOr<void> CanvasPattern::set_transform(Geometry::DOMMatrix2DInit& transform)
+{
+    // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
+    auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm(), transform));
+
+    // 2. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
+    if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
+        return {};
+
+    // 3. Reset the pattern's transformation matrix to matrix.
+    Gfx::AffineTransform affine_transform(matrix->a(), matrix->b(), matrix->c(), matrix->d(), matrix->e(), matrix->f());
+    m_pattern->set_transform(affine_transform);
+
+    return {};
+}
+
 }

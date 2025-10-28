@@ -29,11 +29,6 @@ private:
 
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
-
-    virtual void on_playing() override;
-    virtual void on_paused() override;
-    virtual void on_seek(double, MediaSeekMode) override;
-    virtual void on_volume_change() override;
 };
 
 }

@@ -43,8 +43,10 @@ void CanvasFillStrokeStyles<IncludingClass>::set_fill_style(FillOrStrokeStyleVar
             if (style_value && style_value->has_color()) {
                 CSS::ColorResolutionContext color_resolution_context {};
 
-                if (context && context->layout_node()) {
-                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
+                if (context) {
+                    context->document().update_layout(DOM::UpdateLayoutReason::CanvasRenderingContext2DSetFillStyle);
+                    if (context->layout_node())
+                        color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
                 }
 
                 auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
@@ -97,8 +99,10 @@ void CanvasFillStrokeStyles<IncludingClass>::set_stroke_style(FillOrStrokeStyleV
             if (style_value && style_value->has_color()) {
                 CSS::ColorResolutionContext color_resolution_context {};
 
-                if (context && context->layout_node()) {
-                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
+                if (context) {
+                    context->document().update_layout(DOM::UpdateLayoutReason::CanvasRenderingContext2DSetStrokeStyle);
+                    if (context->layout_node())
+                        color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
                 }
 
                 auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);

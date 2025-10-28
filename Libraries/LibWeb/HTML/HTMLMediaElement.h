@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <AK/Variant.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
+#include <LibMedia/Forward.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -93,7 +95,7 @@ public:
     WebIDL::ExceptionOr<void> load();
 
     double current_time() const;
-    void set_current_time(double);
+    double set_current_time(double);
     void fast_seek(double);
 
     double current_playback_position() const { return m_current_playback_position; }
@@ -127,6 +129,12 @@ public:
     GC::Ref<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
     GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
     GC::Ref<TextTrackList> text_tracks() const { return *m_text_tracks; }
+
+    void set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool);
+
+    void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
+
+    void update_video_frame_and_timeline();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
@@ -163,6 +171,8 @@ public:
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
+    RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
+
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
 
@@ -173,17 +183,6 @@ protected:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
     virtual void children_changed(ChildrenChangedMetadata const* metadata) override;
-
-    // Override in subclasses to handle implementation-specific behavior when the element state changes
-    // to playing or paused, e.g. to start/stop play timers.
-    virtual void on_playing() { }
-    virtual void on_paused() { }
-
-    // Override in subclasses to handle implementation-specific seeking behavior. When seeking is complete,
-    // subclasses must invoke set_current_playback_position() to unblock the user agent.
-    virtual void on_seek(double, MediaSeekMode) { m_seek_in_progress = false; }
-
-    virtual void on_volume_change() { }
 
 private:
     friend SourceElementSelector;
@@ -203,18 +202,30 @@ private:
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
+    void on_playback_manager_state_change();
     WebIDL::ExceptionOr<void> play_element();
     WebIDL::ExceptionOr<void> pause_element();
     void seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
+    void finish_seeking_element();
     void notify_about_playing();
     void set_show_poster(bool);
     void set_paused(bool);
     void set_duration(double);
+    void set_ended(bool);
 
     void volume_or_muted_attribute_changed();
+    void update_volume();
 
     bool is_eligible_for_autoplay() const;
+
+    enum class PlaybackDirection : u8 {
+        Forwards,
+        Backwards,
+    };
+    PlaybackDirection direction_of_playback() const;
+
     bool has_ended_playback() const;
+    void upon_has_ended_playback_possibly_changed();
     void reached_end_of_media_playback();
 
     void dispatch_time_update_event();
@@ -282,6 +293,9 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-paused
     bool m_paused { true };
 
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-ended
+    bool m_ended { false };
+
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
     double m_default_playback_rate { 1.0 };
 
@@ -321,7 +335,11 @@ private:
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
-    bool m_seek_in_progress = false;
+    RefPtr<Media::PlaybackManager> m_playback_manager;
+    GC::Ptr<VideoTrack> m_selected_video_track;
+    RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+
+    bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 
     // Cached state for layout.
     Optional<MediaComponent> m_mouse_tracking_component;

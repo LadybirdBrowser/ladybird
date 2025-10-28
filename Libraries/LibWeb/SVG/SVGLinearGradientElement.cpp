@@ -114,20 +114,25 @@ NumberPercentage SVGLinearGradientElement::end_y_impl(HashTable<SVGGradientEleme
 
 Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGPaintContext const& paint_context) const
 {
-    auto units = gradient_units();
-    // FIXME: Resolve percentages properly
     Gfx::FloatPoint start_point {};
     Gfx::FloatPoint end_point {};
 
     // https://svgwg.org/svg2-draft/pservers.html#LinearGradientElementGradientUnitsAttribute
-    if (units == GradientUnits::ObjectBoundingBox) {
+    if (gradient_units() == GradientUnits::ObjectBoundingBox) {
         // If gradientUnits="objectBoundingBox", the user coordinate system for attributes ‘x1’, ‘y1’, ‘x2’ and ‘y2’
         // is established using the bounding box of the element to which the gradient is applied (see Object bounding
         // box units) and then applying the transform specified by attribute ‘gradientTransform’. Percentages represent
         // values relative to the bounding box for the object.
         // Note: For gradientUnits="objectBoundingBox" both "100%" and "1" are treated the same.
-        start_point = { start_x().value(), start_y().value() };
-        end_point = { end_x().value(), end_y().value() };
+        auto const& bounding_box = paint_context.path_bounding_box;
+        start_point = {
+            bounding_box.location().x() + start_x().value() * bounding_box.width(),
+            bounding_box.location().y() + start_y().value() * bounding_box.height(),
+        };
+        end_point = {
+            bounding_box.location().x() + end_x().value() * bounding_box.width(),
+            bounding_box.location().y() + end_y().value() * bounding_box.height(),
+        };
     } else {
         // GradientUnits::UserSpaceOnUse
         // If gradientUnits="userSpaceOnUse", ‘x1’, ‘y1’, ‘x2’, and ‘y2’ represent values in the coordinate system

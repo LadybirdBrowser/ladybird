@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/WebViewHints.h>
@@ -182,6 +183,8 @@ public:
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
 
+    void update_all_media_element_video_sinks();
+
     struct MediaContextMenu {
         URL::URL media_url;
         bool is_video { false };
@@ -232,6 +235,15 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     GC::Ptr<HTML::HTMLMediaElement> media_context_menu_element();
+
+    template<typename Callback>
+    void for_each_media_element(Callback&& callback)
+    {
+        for (auto media_id : m_media_elements) {
+            if (auto* node = DOM::Node::from_unique_id(media_id))
+                callback(as<HTML::HTMLMediaElement>(*node));
+        }
+    }
 
     Vector<GC::Root<DOM::Document>> documents_in_active_window() const;
 

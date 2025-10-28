@@ -1,5 +1,11 @@
 <!DOCTYPE html>
 <link rel="match" href="../expected/svg-gradient-userSpaceOnUse-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-69">
+<style>
+svg {
+    border: 1px solid red;
+}
+</style>
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="10" y="10" width="44" height="44" fill="url(#a)" />
     <defs>
@@ -7,6 +13,75 @@
             <stop offset="0" stop-color="#f00" />
             <stop offset="0.0001" stop-color="#0f0" stop-opacity="0.3" />
             <stop offset="1" stop-color="#0f0" stop-opacity="0.7" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="32" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="64" height="64" fill="url(#b)" />
+    <defs>
+        <linearGradient id="b" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f00" />
+            <stop offset="0.1" stop-color="#0f0" />
+            <stop offset="1" stop-color="#00f" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="48" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="64" height="64" fill="url(#c)" />
+    <defs>
+        <linearGradient id="c" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f00" />
+            <stop offset="0.1" stop-color="#0f0" />
+            <stop offset="1" stop-color="#00f" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="64" height="64" viewBox="0 32 64 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="64" height="64" fill="url(#d)" />
+    <defs>
+        <linearGradient id="d" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f00" />
+            <stop offset="0.1" stop-color="#0f0" />
+            <stop offset="1" stop-color="#00f" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="64" height="64" viewBox="0 0 64 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="64" height="64" fill="url(#e)" />
+    <defs>
+        <linearGradient id="e" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f00" />
+            <stop offset="0.1" stop-color="#0f0" />
+            <stop offset="1" stop-color="#00f" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="64" height="64" viewBox="32 0 32 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="64" height="64" fill="url(#f)" />
+    <defs>
+        <linearGradient id="f" x1="10" y1="0" x2="54" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f00" />
+            <stop offset="0.1" stop-color="#0f0" />
+            <stop offset="1" stop-color="#00f" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="64" height="64" viewBox="-20 -20 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="-20" y="-20" width="50" height="50" fill="url(#g)" />
+    <defs>
+        <linearGradient id="g" x1="10" y1="10" x2="10" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f00" />
+            <stop offset="0.0001" stop-color="#0f0" stop-opacity="0.3" />
+            <stop offset="1" stop-color="#0f0" stop-opacity="0.7" />
+        </linearGradient>
+    </defs>
+</svg>
+<svg width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="16" y="16" width="32" height="32" fill="url(#h)" transform="rotate(45 32 32)" />
+    <defs>
+        <linearGradient id="h" gradientUnits="userSpaceOnUse">
+            <stop offset=".25" stop-color="#f00" />
+            <stop offset=".75" stop-color="#0f0" />
         </linearGradient>
     </defs>
 </svg>

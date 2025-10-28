@@ -63,7 +63,7 @@ public:
     // whenever possible.
     //
     // This function should be able to run from any thread safely.
-    virtual ErrorOr<AK::Duration> total_time_played() = 0;
+    virtual AK::Duration total_time_played() const = 0;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
 };

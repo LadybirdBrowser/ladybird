@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -98,16 +99,9 @@ Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform_impl(HashT
 // The gradient transform, appropriately scaled and combined with the paint transform.
 Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContext const& paint_context) const
 {
-    Gfx::AffineTransform gradient_paint_transform = paint_context.paint_transform;
-    auto const& bounding_box = paint_context.path_bounding_box;
-
-    if (gradient_units() == SVGUnits::ObjectBoundingBox) {
-        // Scale points from 0..1 to bounding box coordinates:
-        gradient_paint_transform.scale(bounding_box.width(), bounding_box.height());
-    } else {
-        // Translate points from viewport to bounding box coordinates:
-        gradient_paint_transform.translate(paint_context.viewport.location() - bounding_box.location());
-    }
+    auto gradient_paint_transform = Gfx::AffineTransform {};
+    gradient_paint_transform.set_translation(-paint_context.paint_transform.map(paint_context.path_bounding_box).location())
+        .multiply(paint_context.paint_transform);
 
     if (auto transform = gradient_transform(); transform.has_value())
         gradient_paint_transform.multiply(transform.value());
