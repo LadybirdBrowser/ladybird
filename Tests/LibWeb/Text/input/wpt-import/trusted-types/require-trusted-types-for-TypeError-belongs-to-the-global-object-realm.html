@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy"
+      content="require-trusted-types-for 'script';"/>
+<link rel="help" href="https://github.com/web-platform-tests/wpt/issues/45405">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="divInsertedByParser"></div>
+<script>
+  test( _ => {
+    assert_throws_js(TypeError, _ => divInsertedByParser.innerHTML = 'unsafe');
+  }, "Setting innerHTML on a node inserted by the parser.");
+
+  promise_test(async t => {
+    const iframe = document.createElement("iframe");
+    const passThroughPolicy =
+          trustedTypes.createPolicy("passThrough", { createHTML: s => s,
+                                                     createScript: s => s });
+    iframe.srcdoc = passThroughPolicy.createHTML("<!DOCTYPE html><div></div>");
+    await new Promise(resolve => {
+      iframe.addEventListener("load", resolve);
+      document.body.appendChild(iframe);
+    });
+    const divAdoptedFromIframe =
+          document.adoptNode(iframe.contentDocument.body.firstElementChild);
+
+    // There are cross-browser differences about which realm a node returned
+    // by Document.adoptNode belongs to. Here, we expect that Trusted Types will
+    // throw an exception from divAdoptedFromIframe's realm, but without
+    // taking a stance about whether this should be the window's or the iframe's
+    // realm.
+    // Discussion at: https://github.com/web-platform-tests/wpt/issues/45405
+    assert_throws_js(
+          divAdoptedFromIframe.constructor.constructor(
+              passThroughPolicy.createScript("return TypeError"))(),
+          _ => divAdoptedFromIframe.innerHTML = 'unsafe');
+  }, "Setting innerHTML on a node adopted from a subframe.");
+</script>
