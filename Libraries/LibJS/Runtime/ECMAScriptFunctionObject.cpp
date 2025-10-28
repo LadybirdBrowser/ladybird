@@ -689,9 +689,6 @@ void ECMAScriptFunctionObject::make_method(Object& home_object)
 // 10.2.1.1 PrepareForOrdinaryCall ( F, newTarget ), https://tc39.es/ecma262/#sec-prepareforordinarycall
 void ECMAScriptFunctionObject::prepare_for_ordinary_call(VM& vm, ExecutionContext& callee_context, Object* new_target)
 {
-    // Non-standard
-    callee_context.is_strict_mode = is_strict_mode();
-
     // 1. Let callerContext be the running execution context.
     // 2. Let calleeContext be a new ECMAScript code execution context.
 

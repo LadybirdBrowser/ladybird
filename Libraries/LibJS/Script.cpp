@@ -25,18 +25,15 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(StringView source_tex
     if (parser.has_errors())
         return parser.errors();
 
-    bool strict_mode = script->is_strict_mode();
-
     // 3. Return Script Record { [[Realm]]: realm, [[ECMAScriptCode]]: script, [[HostDefined]]: hostDefined }.
-    return realm.heap().allocate<Script>(realm, filename, move(script), host_defined, strict_mode);
+    return realm.heap().allocate<Script>(realm, filename, move(script), host_defined);
 }
 
-Script::Script(Realm& realm, StringView filename, NonnullRefPtr<Program> parse_node, HostDefined* host_defined, bool strict_mode)
+Script::Script(Realm& realm, StringView filename, NonnullRefPtr<Program> parse_node, HostDefined* host_defined)
     : m_realm(realm)
     , m_parse_node(move(parse_node))
     , m_filename(filename)
     , m_host_defined(host_defined)
-    , m_strict_mode(strict_mode)
 {
 }
 

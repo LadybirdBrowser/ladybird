@@ -249,9 +249,6 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
 
     // 8. Set the PrivateEnvironment of scriptContext to null.
 
-    // NOTE: This isn't in the spec, but we require it.
-    script_context->is_strict_mode = script_record.is_strict_mode();
-
     // 9. Suspend the currently running execution context.
     // 10. Push scriptContext onto the execution context stack; scriptContext is now the running execution context.
     TRY(vm.push_execution_context(*script_context, {}));

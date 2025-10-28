@@ -151,9 +151,6 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
     //       calling async_block_start which goes through a NativeFunction here.
     callee_context.private_environment = caller_context.private_environment;
 
-    // NOTE: This is a LibJS specific hack for NativeFunction to inherit the strictness of its caller.
-    callee_context.is_strict_mode = caller_context.is_strict_mode;
-
     // </8.> --------------------------------------------------------------------------
 
     // 9. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
@@ -203,9 +200,6 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ExecutionC
 
     callee_context.lexical_environment = caller_context.lexical_environment;
     callee_context.variable_environment = caller_context.variable_environment;
-
-    // NOTE: This is a LibJS specific hack for NativeFunction to inherit the strictness of its caller.
-    callee_context.is_strict_mode = caller_context.is_strict_mode;
 
     // </8.> --------------------------------------------------------------------------
 

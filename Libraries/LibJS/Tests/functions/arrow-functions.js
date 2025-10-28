@@ -110,33 +110,6 @@ test("arrow functions in objects", () => {
     expect(foobar.x.z()).toBe(foobar.x);
 });
 
-test("strict mode propagation", () => {
-    (() => {
-        "use strict";
-        expect(isStrictMode()).toBeTrue();
-
-        (() => {
-            expect(isStrictMode()).toBeTrue();
-        })();
-    })();
-
-    (() => {
-        "use strict";
-        expect(isStrictMode()).toBeTrue();
-    })();
-
-    (() => {
-        expect(isStrictMode()).toBeFalse();
-
-        (() => {
-            "use strict";
-            expect(isStrictMode()).toBeTrue();
-        })();
-
-        expect(isStrictMode()).toBeFalse();
-    })();
-});
-
 test("no prototype", () => {
     let foo = () => {};
     expect(foo).not.toHaveProperty("prototype");

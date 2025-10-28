@@ -95,7 +95,6 @@ public:
 
     u32 arguments_offset { 0 };
     u32 passed_argument_count { 0 };
-    bool is_strict_mode { false };
 
     Span<Value> arguments;
 
