@@ -43,6 +43,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -272,6 +273,12 @@ double HTMLMediaElement::current_time() const
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-currenttime
 void HTMLMediaElement::set_current_time(double current_time)
 {
+    auto const& mediasession = document().window()->navigator()->media_session();
+
+    if (mediasession->has_action_handler(Bindings::MediaSessionAction::Seekto))
+        // TODO: use `fastSeek` correctly.
+        mediasession->handle_action({ Bindings::MediaSessionAction::Seekto, 0, current_time, false, false, Bindings::MediaSessionEnterPictureInPictureReason::Other });
+
     // On setting, if the media element's readyState is HAVE_NOTHING, then it must set the media element's default playback start
     // position to the new value; otherwise, it must set the official playback position to the new value and then seek to the new
     // value. The new value must be interpreted as being in seconds.
@@ -2217,6 +2224,17 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
 
     auto const& mediasession = document().window()->navigator()->media_session();
 
+    auto details = MediaSession::MediaSessionActionDetails {
+        Bindings::MediaSessionAction::Pause,
+        0,
+        0,
+        true, // because we triggered an hardware key event
+        // TODO
+        false,
+        // TODO: no PiP browser support
+        Bindings::MediaSessionEnterPictureInPictureReason::Other
+    };
+
     switch (key) {
     case UIEvents::KeyCode::Key_PlayPause:
     case UIEvents::KeyCode::Key_Space: {
@@ -2224,9 +2242,7 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
                 mediasession->has_action_handler(Bindings::MediaSessionAction::Pause))
             toggle_playback();
         else if (potentially_playing())
-            mediasession->handle_action(Bindings::MediaSessionAction::Play);
-        else
-            mediasession->handle_action(Bindings::MediaSessionAction::Pause);
+            details.action = Bindings::MediaSessionAction::Play;
         break;
     }
 
@@ -2234,20 +2250,30 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
         set_current_time(0);
         break;
     case UIEvents::KeyCode::Key_End:
+        details.seekTime = duration();
         set_current_time(duration());
         break;
 
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right: {
-        static constexpr double time_skipped_per_key_press = 5.0;
-        auto current_time = this->current_time();
+        if (!mediasession->has_action_handler(Bindings::MediaSessionAction::Seekforward) &&
+                !mediasession->has_action_handler(Bindings::MediaSessionAction::Seekbackward)) {
+            static constexpr double time_skipped_per_key_press = 5.0;
+            auto current_time = this->current_time();
 
-        if (key == UIEvents::KeyCode::Key_Left)
-            current_time = max(0.0, current_time - time_skipped_per_key_press);
+            details.seekOffset = time_skipped_per_key_press;
+
+            if (key == UIEvents::KeyCode::Key_Left)
+                current_time = max(0.0, current_time - time_skipped_per_key_press);
+            else
+                current_time = min(duration(), current_time + time_skipped_per_key_press);
+
+            set_current_time(current_time);
+        } else if (key == UIEvents::KeyCode::Key_Left)
+            details.action = Bindings::MediaSessionAction::Seekbackward;
         else
-            current_time = min(duration(), current_time + time_skipped_per_key_press);
+            details.action = Bindings::MediaSessionAction::Seekforward;
 
-        set_current_time(current_time);
         break;
     }
 
@@ -2270,9 +2296,27 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
         set_muted(!muted());
         break;
 
+    case UIEvents::KeyCode::Key_NextTrack:
+        // TODO: impl NextTrack, currently only implemented for MediaSession::setActionHandler.
+        details.action = Bindings::MediaSessionAction::Nexttrack;
+        mediasession->handle_action(details);
+        break;
+
+    case UIEvents::KeyCode::Key_PreviousTrack:
+        // TODO: impl PreviousTrack, currently only implemented for MediaSession::setActionHandler.
+        details.action = Bindings::MediaSessionAction::Previoustrack;
+        break;
+
+    case UIEvents::KeyCode::Key_Stop:
+        // TODO: impl KeyStop, currently only implemented for MediaSession::setActionHandler.
+        details.action = Bindings::MediaSessionAction::Stop;
+        break;
+
     default:
         return false;
     }
+
+    mediasession->handle_action(details);
 
     return true;
 }
