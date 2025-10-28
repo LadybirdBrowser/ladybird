@@ -34,6 +34,7 @@ public:
 
     String album() const;
     void set_album(String album);
+
     WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> artwork() const;
     WebIDL::ExceptionOr<void> set_artwork(Vector<GC::Root<JS::Object>> const& artwork);
 
