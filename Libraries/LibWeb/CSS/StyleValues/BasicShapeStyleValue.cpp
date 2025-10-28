@@ -9,6 +9,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::CSS {
@@ -60,33 +61,9 @@ String Inset::to_string(SerializationMode mode) const
     return MUST(String::formatted("inset({} {} {} {})", top->to_string(mode), right->to_string(mode), bottom->to_string(mode), left->to_string(mode)));
 }
 
-Gfx::Path Xywh::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
-{
-    auto top = LengthPercentage::from_style_value(y).to_px(node, reference_box.height()).to_float();
-    auto bottom = top + max(0.0f, LengthPercentage::from_style_value(height).to_px(node, reference_box.height()).to_float());
-    auto left = LengthPercentage::from_style_value(x).to_px(node, reference_box.width()).to_float();
-    auto right = left + max(0.0f, LengthPercentage::from_style_value(width).to_px(node, reference_box.width()).to_float());
-
-    return path_from_resolved_rect(top, right, bottom, left);
-}
-
 String Xywh::to_string(SerializationMode mode) const
 {
     return MUST(String::formatted("xywh({} {} {} {})", x->to_string(mode), y->to_string(mode), width->to_string(mode), height->to_string(mode)));
-}
-
-Gfx::Path Rect::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
-{
-    // An auto value makes the edge of the box coincide with the corresponding edge of the reference box:
-    // it’s equivalent to 0% as the first (top) or fourth (left) value, and equivalent to 100% as the second (right) or third (bottom) value.
-
-    auto resolved_top = top->has_auto() ? 0 : LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(node, reference_box.height()).to_float();
-    auto resolved_right = right->has_auto() ? reference_box.width().to_float() : LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
-    auto resolved_bottom = bottom->has_auto() ? reference_box.height().to_float() : LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
-    auto resolved_left = left->has_auto() ? 0 : LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
-
-    // The second (right) and third (bottom) values are floored by the fourth (left) and second (top) values, respectively.
-    return path_from_resolved_rect(resolved_top, max(resolved_right, resolved_left), max(resolved_bottom, resolved_top), resolved_left);
 }
 
 String Rect::to_string(SerializationMode mode) const
@@ -251,8 +228,14 @@ BasicShapeStyleValue::~BasicShapeStyleValue() = default;
 
 Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
-    return m_basic_shape.visit([&](auto const& shape) {
-        return shape.to_path(reference_box, node);
+    return m_basic_shape.visit([&](auto const& shape) -> Gfx::Path {
+        // NB: Xywh and Rect don't require to_path functions as we should have already converted them to their
+        //     respective Inset equivalents during absolutization
+        if constexpr (requires { shape.to_path(reference_box, node); }) {
+            return shape.to_path(reference_box, node);
+        }
+
+        VERIFY_NOT_REACHED();
     });
 }
 
@@ -263,8 +246,26 @@ String BasicShapeStyleValue::to_string(SerializationMode mode) const
     });
 }
 
+// https://www.w3.org/TR/css-shapes-1/#basic-shape-computed-values
 ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(ComputationContext const& computation_context) const
 {
+    // The values in a <basic-shape> function are computed as specified, with these exceptions:
+    // - Omitted values are included and compute to their defaults.
+    // FIXME: - A <position> value in circle() or ellipse() is computed as a pair of offsets (horizontal then vertical) from the top left origin, each given as a <length-percentage>.
+    // FIXME: - A <'border-radius'> value in a <basic-shape-rect> function is computed as an expanded list of all eight <length-percentage> values.
+    // - All <basic-shape-rect> functions compute to the equivalent inset() function.
+
+    CalculationContext calculation_context { .percentages_resolve_as = ValueType::Length };
+
+    auto const one_hundred_percent_minus = [&](Vector<NonnullRefPtr<StyleValue const>> const& values, CalculationContext const& calculation_context) {
+        Vector<NonnullRefPtr<CalculationNode const>> sum_components = { NumericCalculationNode::create(Percentage { 100 }, calculation_context) };
+
+        for (auto const& value : values)
+            sum_components.append(NegateCalculationNode::create(CalculationNode::from_style_value(value, calculation_context)));
+
+        return CalculatedStyleValue::create(SumCalculationNode::create(sum_components), NumericType { NumericType::BaseType::Length, 1 }, calculation_context);
+    };
+
     auto absolutized_shape = m_basic_shape.visit(
         [&](Inset const& shape) -> BasicShape {
             auto absolutized_top = shape.top->absolutized(computation_context);
@@ -278,26 +279,35 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
             return Inset { absolutized_top, absolutized_right, absolutized_bottom, absolutized_left };
         },
         [&](Xywh const& shape) -> BasicShape {
-            auto absolutized_x = shape.x->absolutized(computation_context);
-            auto absolutized_y = shape.y->absolutized(computation_context);
-            auto absolutized_width = shape.width->absolutized(computation_context);
-            auto absolutized_height = shape.height->absolutized(computation_context);
+            // Note: Given xywh(x y w h), the equivalent function is inset(y calc(100% - x - w) calc(100% - y - h) x).
+            auto absolutized_top = shape.y->absolutized(computation_context);
+            auto absolutized_right = one_hundred_percent_minus({ shape.x, shape.width }, calculation_context)->absolutized(computation_context);
+            auto absolutized_bottom = one_hundred_percent_minus({ shape.y, shape.height }, calculation_context)->absolutized(computation_context);
+            auto absolutized_left = shape.x->absolutized(computation_context);
 
-            if (absolutized_x == shape.x && absolutized_y == shape.y && absolutized_width == shape.width && absolutized_height == shape.height)
-                return shape;
-
-            return Xywh { absolutized_x, absolutized_y, absolutized_width, absolutized_height };
+            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left };
         },
         [&](Rect const& shape) -> BasicShape {
-            auto absolutized_top = shape.top->absolutized(computation_context);
-            auto absolutized_right = shape.right->absolutized(computation_context);
-            auto absolutized_bottom = shape.bottom->absolutized(computation_context);
-            auto absolutized_left = shape.left->absolutized(computation_context);
+            // Note: Given rect(t r b l), the equivalent function is inset(t calc(100% - r) calc(100% - b) l).
 
-            if (absolutized_top == shape.top && absolutized_right == shape.right && absolutized_bottom == shape.bottom && absolutized_left == shape.left)
-                return shape;
+            auto resolve_auto = [](ValueComparingNonnullRefPtr<StyleValue const> const& style_value, Percentage value_of_auto) -> ValueComparingNonnullRefPtr<StyleValue const> {
+                // An auto value makes the edge of the box coincide with the corresponding edge of the reference box:
+                // it’s equivalent to 0% as the first (top) or fourth (left) value, and equivalent to 100% as the second
+                // (right) or third (bottom) value.
+                if (style_value->is_keyword()) {
+                    VERIFY(style_value->to_keyword() == Keyword::Auto);
+                    return PercentageStyleValue::create(value_of_auto);
+                }
 
-            return Rect { absolutized_top, absolutized_right, absolutized_bottom, absolutized_left };
+                return style_value;
+            };
+
+            auto absolutized_top = resolve_auto(shape.top, Percentage { 0 })->absolutized(computation_context);
+            auto absolutized_right = one_hundred_percent_minus({ resolve_auto(shape.right, Percentage { 100 }) }, calculation_context)->absolutized(computation_context);
+            auto absolutized_bottom = one_hundred_percent_minus({ resolve_auto(shape.bottom, Percentage { 100 }) }, calculation_context)->absolutized(computation_context);
+            auto absolutized_left = resolve_auto(shape.left, Percentage { 0 })->absolutized(computation_context);
+
+            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left };
         },
         [&](Circle const& shape) -> BasicShape {
             auto absolutized_radius = shape.radius->absolutized(computation_context);

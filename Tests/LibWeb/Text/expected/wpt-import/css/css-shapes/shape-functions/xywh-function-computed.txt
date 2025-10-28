@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Property shape-outside value 'xywh(0px 1px 2% 3em)'
-Fail	Property shape-outside value 'xywh(0px calc(100% - 20px) 2% 3em)'
+2 Pass
+5 Fail
+Pass	Property shape-outside value 'xywh(0px 1px 2% 3em)'
+Pass	Property shape-outside value 'xywh(0px calc(100% - 20px) 2% 3em)'
 Fail	Property shape-outside value 'xywh(10px 20px 30px 25px round 100%)'
 Fail	Property shape-outside value 'xywh(10px 20px 30px 25px round 0 1px)'
 Fail	Property shape-outside value 'xywh(10px 20px 30px 25px round 0px 1px 2%)'

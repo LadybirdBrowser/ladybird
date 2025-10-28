@@ -28,7 +28,6 @@ struct Inset {
 };
 
 struct Xywh {
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
     String to_string(SerializationMode) const;
 
     bool operator==(Xywh const&) const = default;
@@ -40,7 +39,6 @@ struct Xywh {
 };
 
 struct Rect {
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
     String to_string(SerializationMode) const;
 
     bool operator==(Rect const&) const = default;
