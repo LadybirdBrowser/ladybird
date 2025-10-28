@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <meta http-equiv="Content-Security-Policy"
+        content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+/* This is chiefly a regression test for crbug.com/430335244, but should apply
+   to any TT implementation:
+
+   Per https://www.w3.org/TR/trusted-types/#create-a-trusted-type-algorithm
+   step 4: If a policy function does not return a value, the empty string should
+   be used.
+*/
+test(t => {
+  const policy = trustedTypes.createPolicy("emptyCreateHTML", {
+    "createHTML": _ => {},
+  });
+
+  const doc = new DOMParser().parseFromString(
+    policy.createHTML("bla"), "text/html");
+  assert_equals(doc.body.textContent, "");
+}, "createHTML with a policy that returns undefined DOMParser");
+
+test(t => {
+  const policy = trustedTypes.createPolicy("emptyCreateHTML", {
+    "createHTML": _ => {},
+  });
+
+  const iframe = document.createElement("iframe");
+  iframe.srcdoc = policy.createHTML("bla");
+  assert_equals(iframe.srcdoc, "");
+  assert_true(iframe.hasAttribute('srcdoc'), "srcdoc attribute exists");
+}, "createHTML with a policy that returns undefined iframe.srcdoc");
+
+test(t => {
+  const policy = trustedTypes.createPolicy("emptyCreateScript", {
+    "createScript": _ => {},
+  });
+
+  const div = document.createElement("div");
+  div.setAttribute('onload', policy.createScript("bla"));
+  assert_true(div.hasAttribute("onload"), "onload attribute exists");
+}, "createScript with a policy that returns undefined <div onload>");
+
+test(t => {
+  const policy = trustedTypes.createPolicy("emptyCreateScriptURL", {
+    "createScriptURL": _ => {},
+  });
+
+  const script = document.createElement("script");
+  script.src = policy.createScriptURL("bla");
+  assert_equals(script.src, document.location.href);
+  assert_true(script.hasAttribute("src"), "src attribute exists");
+}, "createScriptURL with a policy that returns undefined script.src");
+</script>
+</body>

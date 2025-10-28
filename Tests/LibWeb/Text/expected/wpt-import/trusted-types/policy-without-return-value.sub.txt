@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	createHTML with a policy that returns undefined DOMParser
+Fail	createHTML with a policy that returns undefined iframe.srcdoc
+Pass	createScript with a policy that returns undefined <div onload>
+Fail	createScriptURL with a policy that returns undefined script.src

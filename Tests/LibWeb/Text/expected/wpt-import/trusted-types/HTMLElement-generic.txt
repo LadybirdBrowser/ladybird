@@ -1,0 +1,294 @@
+Harness status: OK
+
+Found 72 tests
+
+68 Pass
+4 Fail
+Pass	TT disabled: script.src
+            = TrustedScript on a
+            connected element
+            
+Pass	TT disabled: script.src
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT disabled: script.src
+            = String on a
+            connected element
+            
+Pass	TT disabled: script.src
+            = String on a
+            non-connected element
+            
+Pass	TT disabled: div.innerHTML
+            = TrustedHTML on a
+            connected element
+            
+Pass	TT disabled: div.innerHTML
+            = TrustedHTML on a
+            non-connected element
+            
+Pass	TT disabled: div.innerHTML
+            = String on a
+            connected element
+            
+Pass	TT disabled: div.innerHTML
+            = String on a
+            non-connected element
+            
+Pass	TT disabled: iframe.srcdoc
+            = TrustedHTML on a
+            connected element
+            
+Pass	TT disabled: iframe.srcdoc
+            = TrustedHTML on a
+            non-connected element
+            
+Pass	TT disabled: iframe.srcdoc
+            = String on a
+            connected element
+            
+Pass	TT disabled: iframe.srcdoc
+            = String on a
+            non-connected element
+            
+Pass	TT disabled: script.text
+            = TrustedScript on a
+            connected element
+            
+Pass	TT disabled: script.text
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT disabled: script.text
+            = String on a
+            connected element
+            
+Pass	TT disabled: script.text
+            = String on a
+            non-connected element
+            
+Pass	TT disabled: script.innerText
+            = TrustedScript on a
+            connected element
+            
+Pass	TT disabled: script.innerText
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT disabled: script.innerText
+            = String on a
+            connected element
+            
+Pass	TT disabled: script.innerText
+            = String on a
+            non-connected element
+            
+Pass	TT disabled: script.textContent
+            = TrustedScript on a
+            connected element
+            
+Pass	TT disabled: script.textContent
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT disabled: script.textContent
+            = String on a
+            connected element
+            
+Pass	TT disabled: script.textContent
+            = String on a
+            non-connected element
+            
+Pass	TT enabled: script.src
+            = TrustedScript on a
+            connected element
+            
+Pass	TT enabled: script.src
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT enabled: script.src
+            = String on a
+            connected element
+            
+Pass	TT enabled: script.src
+            = String on a
+            non-connected element
+            
+Pass	TT enabled: div.innerHTML
+            = TrustedHTML on a
+            connected element
+            
+Pass	TT enabled: div.innerHTML
+            = TrustedHTML on a
+            non-connected element
+            
+Pass	TT enabled: div.innerHTML
+            = String on a
+            connected element
+            
+Pass	TT enabled: div.innerHTML
+            = String on a
+            non-connected element
+            
+Fail	TT enabled: iframe.srcdoc
+            = TrustedHTML on a
+            connected element
+            
+Fail	TT enabled: iframe.srcdoc
+            = TrustedHTML on a
+            non-connected element
+            
+Pass	TT enabled: iframe.srcdoc
+            = String on a
+            connected element
+            
+Pass	TT enabled: iframe.srcdoc
+            = String on a
+            non-connected element
+            
+Pass	TT enabled: script.text
+            = TrustedScript on a
+            connected element
+            
+Pass	TT enabled: script.text
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT enabled: script.text
+            = String on a
+            connected element
+            
+Pass	TT enabled: script.text
+            = String on a
+            non-connected element
+            
+Pass	TT enabled: script.innerText
+            = TrustedScript on a
+            connected element
+            
+Pass	TT enabled: script.innerText
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT enabled: script.innerText
+            = String on a
+            connected element
+            
+Pass	TT enabled: script.innerText
+            = String on a
+            non-connected element
+            
+Pass	TT enabled: script.textContent
+            = TrustedScript on a
+            connected element
+            
+Pass	TT enabled: script.textContent
+            = TrustedScript on a
+            non-connected element
+            
+Pass	TT enabled: script.textContent
+            = String on a
+            connected element
+            
+Pass	TT enabled: script.textContent
+            = String on a
+            non-connected element
+            
+Pass	TT enabled: script.src
+            = TrustedScript on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.src
+            = TrustedScript on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.src
+            = String on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.src
+            = String on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: div.innerHTML
+            = TrustedHTML on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: div.innerHTML
+            = TrustedHTML on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: div.innerHTML
+            = String on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: div.innerHTML
+            = String on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Fail	TT enabled: iframe.srcdoc
+            = TrustedHTML on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Fail	TT enabled: iframe.srcdoc
+            = TrustedHTML on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: iframe.srcdoc
+            = String on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: iframe.srcdoc
+            = String on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.text
+            = TrustedScript on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.text
+            = TrustedScript on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.text
+            = String on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.text
+            = String on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.innerText
+            = TrustedScript on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.innerText
+            = TrustedScript on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.innerText
+            = String on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.innerText
+            = String on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.textContent
+            = TrustedScript on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.textContent
+            = TrustedScript on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.textContent
+            = String on a
+            connected element
+            after removing the "require-trusted-types-for 'script' directive
+Pass	TT enabled: script.textContent
+            = String on a
+            non-connected element
+            after removing the "require-trusted-types-for 'script' directive

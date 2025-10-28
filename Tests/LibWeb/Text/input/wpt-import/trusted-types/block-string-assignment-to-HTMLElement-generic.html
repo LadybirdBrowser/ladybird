@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+</head>
+<body>
+<script>
+  var testnb = 0;
+  // TrustedScriptURL Assignments
+  const scriptURLTestCases = [
+    [ 'script', 'src' ]
+  ];
+
+  testnb = 0;
+  scriptURLTestCases.forEach(c => {
+    test(t => {
+      assert_element_accepts_trusted_script_url(window, ++testnb, t, c[0], c[1], RESULTS.SCRIPTURL);
+      assert_throws_no_trusted_type(c[0], c[1], 'A string');
+      assert_throws_no_trusted_type(c[0], c[1], null);
+    }, c[0] + "." + c[1] + " accepts only TrustedScriptURL");
+  });
+
+  // TrustedHTML Assignments
+  const HTMLTestCases = [
+    [ 'div', 'innerHTML' ],
+    [ 'iframe', 'srcdoc' ]
+  ];
+
+  testnb = 0;
+  HTMLTestCases.forEach(c => {
+    test(t => {
+      assert_element_accepts_trusted_html(window, ++testnb, t, c[0], c[1], RESULTS.HTML);
+      assert_throws_no_trusted_type(c[0], c[1], 'A string');
+      assert_throws_no_trusted_type(c[0], c[1], null);
+    }, c[0] + "." + c[1] + " accepts only TrustedHTML");
+  });
+
+  // After default policy creation string and null assignments implicitly call createHTML
+  let p = window.trustedTypes.createPolicy("default", { createScriptURL: createScriptURLJS, createHTML: createHTMLJS });
+
+  scriptURLTestCases.forEach(c => {
+    test(t => {
+      assert_element_accepts_trusted_type(c[0], c[1], INPUTS.SCRIPTURL, RESULTS.SCRIPTURL);
+      assert_element_accepts_trusted_type(c[0], c[1], null, window.location.toString().replace(/[^\/]*$/, "null"));
+    }, c[0] + "." + c[1] + " accepts string and null after default policy was created");
+  });
+
+
+  HTMLTestCases.forEach(c => {
+    test(t => {
+      assert_element_accepts_trusted_type(c[0], c[1], INPUTS.HTML, RESULTS.HTML);
+      assert_element_accepts_trusted_type(c[0], c[1], null, c[1] === 'innerHTML'? "" : "null");
+    }, c[0] + "." + c[1] + " accepts string and null after default policy was created");
+  });
+
+  // TrustedScript Assignments
+  const scriptTestCases = [
+    [ 'script', 'text' ],
+    [ 'script', 'innerText' ],
+    [ 'script', 'textContent' ]
+  ];
+
+  testnb = 0;
+  scriptTestCases.forEach(c => {
+    test(t => {
+      assert_element_accepts_trusted_script(window, ++testnb, t, c[0], c[1], RESULTS.SCRIPT);
+      assert_throws_no_trusted_type(c[0], c[1], 'A string');
+      assert_throws_no_trusted_type(c[0], c[1], null);
+    }, c[0] + "." + c[1] + " accepts only TrustedScript");
+  });
+</script>
