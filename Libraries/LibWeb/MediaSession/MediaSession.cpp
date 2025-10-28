@@ -89,9 +89,9 @@ WebIDL::ExceptionOr<void> MediaSession::set_position_state(MediaPositionState st
 
     // - If state’s duration is not present, throw a TypeError.
     // - If state’s duration is negative or NaN, throw a TypeError.
-    if (!state.duration.has_value() || state.duration.release_value() < 0)
+    if (!state.duration.has_value() || state.duration.value() < 0)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "duration should be positive"sv };
-    double duration = state.duration.release_value();
+    double duration = state.duration.value();
     // - If state’s position is not present, set it to zero.
     double position = state.position.value_or(0);
     // - If state’s position is negative or greater than duration, throw a TypeError.
