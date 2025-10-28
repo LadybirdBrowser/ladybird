@@ -151,7 +151,6 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
     return *m_media_capabilities;
 }
 
-<<<<<<< HEAD
 // https://w3c.github.io/battery/#the-getbattery-method
 GC::Ref<WebIDL::Promise> Navigator::get_battery()
 {
@@ -177,16 +176,13 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 
     // 4. Return this.[[BatteryPromise]].
     return *m_battery_promise;
-||||||| parent of 70ace2db1e (LibWeb: Initial implementation of MediaSession)
-=======
+}
+
 GC::Ref<MediaSession::MediaSession> Navigator::media_session()
 {
-
-    auto& window = as<HTML::Window>(HTML::entry_global_object());
     if (!m_media_session)
-        m_media_session = realm().create<MediaSession::MediaSession>(window);
+        m_media_session = realm().create<MediaSession::MediaSession>(realm());
     return *m_media_session;
->>>>>>> 70ace2db1e (LibWeb: Initial implementation of MediaSession)
 }
 
 }

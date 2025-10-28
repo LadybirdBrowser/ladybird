@@ -23,12 +23,12 @@ struct MediaPositionState {
     Optional<double> position;
 };
 
-class WEB_API MediaSession final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaSession, DOM::EventTarget);
+class WEB_API MediaSession final : public Bindings::PlatformObject {
+    WEB_PLATFORM_OBJECT(MediaSession, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(MediaSession);
 
 public:
-    static GC::Ref<MediaSession> create(HTML::Window& window);
+    static GC::Ref<MediaSession> create(JS::Realm&);
 
     WebIDL::ExceptionOr<void> set_action_handler(Bindings::MediaSessionAction action, MediaSessionActionHandler handler);
 
@@ -53,17 +53,23 @@ public:
     Bindings::MediaSessionPlaybackState playback_state() const;
     void set_playback_state(Bindings::MediaSessionPlaybackState);
 
-    bool handle_action(Bindings::MediaSessionAction);
+
+    // https://w3c.github.io/mediasession/#handle-media-session-action
+    void handle_media_session_action(MediaSessionActionDetails);
 
     bool has_action_handler(Bindings::MediaSessionAction) const;
 
 private:
-    explicit MediaSession(HTML::Window&);
+    explicit MediaSession(JS::Realm&);
 
     // https://w3c.github.io/mediasession/#update-metadata-algorithm
-    void update_metadata(GC::Ref<MediaMetadata>) const;
+    // TODO: currently the AudioSession API is unimplemented, so audio focus stuff are needed to be implemented first
+    // so we can actually have something like "active media session". https://w3c.github.io/mediasession/#audio-focus
+    WebIDL::ExceptionOr<void> update_metadata(GC::Ref<MediaMetadata>) const;
 
-    GC::Ref<HTML::Window> m_window;
+    // https://w3c.github.io/mediasession/#media-session-actions-update-algorithm
+    // TODO: need to implement "active media session"
+    void media_session_actions_update();
 
     GC::Ptr<MediaMetadata> m_metadata;
 
@@ -72,7 +78,7 @@ private:
     MediaPositionState m_position_state;
 
     // https://w3c.github.io/mediasession/#supported-media-session-actions
-    HashMap<Bindings::MediaSessionAction, MediaSessionActionHandler> m_action_handlers;
+    HashMap<Bindings::MediaSessionAction, MediaSessionActionHandler> m_supported_media_session_actions;
 };
 
 }

@@ -8,19 +8,24 @@ namespace Web::MediaSession {
 WebIDL::ExceptionOr<Vector<MediaImage>> convert_artwork(Vector<MediaImage> const& artwork) {
     // 1. Let output be an empty list of type MediaImage.
     Vector<MediaImage> output;
+    output.ensure_capacity(artwork.size());
+
     // 2. For each entry in input (which is a MediaImage list), perform the following steps:
     for (auto entry : artwork) {
         // 1. Let image be a new MediaImage.
         MediaImage image;
         // 2. Let baseURL be the API base URL specified by the entry settings object.
-        auto baseURL = HTML::entry_settings_object().api_base_url();
+        auto base_url = HTML::entry_settings_object().api_base_url();
         // 3. Parse entry’s src using baseURL. If it does not return failure, set image’s src to the return value. Otherwise, throw a TypeError and abort these steps.
-        auto final_url = DOMURL::parse(entry.src.value(), baseURL);
-        // FIXME: check if entry.src is null
+        if (!entry.src.has_value())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "must specify src when parsing MediaImage"sv };
+
+        auto final_url = DOMURL::parse(entry.src.value(), base_url);
         if (!final_url.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "could not parse entry's src using baseURL"sv };
 
         image.src = final_url.release_value().to_string();
+        // TODO: parse `entry.sizes`
         // 4. Set image’s sizes to entry’s sizes.
         image.sizes = entry.sizes;
         // 5. Set image’s type to entry’s type.
@@ -56,13 +61,14 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> convert_artwork_to_js(JS::Realm
 
 WebIDL::ExceptionOr<Vector<MediaImage>> convert_artwork_to_cpp(Vector<GC::Root<JS::Object>> const& artwork_obj) {
     Vector<MediaImage> artwork;
+    artwork.ensure_capacity(artwork_obj.size());
 
     for (auto const& image_obj : artwork_obj) {
         MediaImage image;
 
         auto src_val = TRY(image_obj->get("src"_utf16));
         auto sizes_val = TRY(image_obj->get("sizes"_utf16));
-        auto type_val = TRY(image_obj->get("types"_utf16));
+        auto type_val = TRY(image_obj->get("type"_utf16));
 
         if (!src_val.is_string()) {
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "src must be a string and not null"sv };
@@ -71,12 +77,12 @@ WebIDL::ExceptionOr<Vector<MediaImage>> convert_artwork_to_cpp(Vector<GC::Root<J
         image.src = src_val.as_string().utf8_string();
 
         if (sizes_val.is_string())
-            // FIXME: use utf16
             image.sizes = sizes_val.as_string().utf8_string();
 
         if (type_val.is_string())
-            // FIXME: use utf16
             image.type = type_val.as_string().utf8_string();
+
+        artwork.append(image);
     }
 
 
