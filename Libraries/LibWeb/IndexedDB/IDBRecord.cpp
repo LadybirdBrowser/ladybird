@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/IDBRecordPrototype.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
 namespace Web::IndexedDB {
 
@@ -38,6 +39,20 @@ void IDBRecord::visit_edges(Visitor& visitor)
     visitor.visit(m_key);
     visitor.visit(m_value);
     visitor.visit(m_primary_key);
+}
+
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#dom-idbrecord-key
+WebIDL::ExceptionOr<JS::Value> IDBRecord::key() const
+{
+    // The key getter steps are to return the result of converting a key to a value with this’s key.
+    return convert_a_key_to_a_value(realm(), m_key);
+}
+
+// https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#dom-idbrecord-primarykey
+WebIDL::ExceptionOr<JS::Value> IDBRecord::primary_key() const
+{
+    // The primaryKey getter steps are to return the result of converting a key to a value with this’s primary key.
+    return convert_a_key_to_a_value(realm(), m_primary_key);
 }
 
 }

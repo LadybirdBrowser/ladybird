@@ -36,9 +36,9 @@ public:
     [[nodiscard]] static GC::Ref<IDBRecord> create(JS::Realm& realm, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
     virtual ~IDBRecord();
 
-    GC::Ref<Key> key() const { return m_key; }
-    GC::Ref<Key> primary_key() const { return m_primary_key; }
     JS::Value value() const { return m_value; }
+    WebIDL::ExceptionOr<JS::Value> key() const;
+    WebIDL::ExceptionOr<JS::Value> primary_key() const;
 
 protected:
     explicit IDBRecord(JS::Realm&, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
