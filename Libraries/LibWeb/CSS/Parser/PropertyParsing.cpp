@@ -1835,25 +1835,19 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
 
 RefPtr<StyleValue const> Parser::parse_border_radius_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() == 2) {
-        auto transaction = tokens.begin_transaction();
-        auto horizontal = parse_length_percentage_value(tokens);
-        auto vertical = parse_length_percentage_value(tokens);
-        if (horizontal && vertical) {
-            transaction.commit();
-            return BorderRadiusStyleValue::create(horizontal.release_nonnull(), vertical.release_nonnull());
-        }
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    auto horizontal = parse_length_percentage_value(tokens);
+    tokens.discard_whitespace();
+    auto vertical = parse_length_percentage_value(tokens);
+    if (horizontal && vertical) {
+        transaction.commit();
+        return BorderRadiusStyleValue::create(horizontal.release_nonnull(), vertical.release_nonnull());
     }
-
-    if (tokens.remaining_token_count() == 1) {
-        auto transaction = tokens.begin_transaction();
-        auto radius = parse_length_percentage_value(tokens);
-        if (radius) {
-            transaction.commit();
-            return BorderRadiusStyleValue::create(*radius, *radius);
-        }
+    if (horizontal) {
+        transaction.commit();
+        return BorderRadiusStyleValue::create(*horizontal, *horizontal);
     }
-
     return nullptr;
 }
 
@@ -1902,6 +1896,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
     StyleValueVector vertical_radii;
     bool reading_vertical = false;
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_delim('/')) {
@@ -1910,6 +1905,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
 
             reading_vertical = true;
             tokens.discard_a_token(); // `/`
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -1925,6 +1921,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
         } else {
             horizontal_radii.append(maybe_dimension.release_nonnull());
         }
+        tokens.discard_whitespace();
     }
 
     if (horizontal_radii.size() > 4 || vertical_radii.size() > 4

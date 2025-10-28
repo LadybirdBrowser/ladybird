@@ -706,7 +706,6 @@
     ]
   },
   "border-bottom-left-radius": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -719,7 +718,6 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-right-radius": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -778,7 +776,6 @@
     ]
   },
   "border-end-end-radius": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "end-end"
@@ -786,7 +783,6 @@
     "max-values": 1
   },
   "border-end-start-radius": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "end-start"
@@ -1024,7 +1020,6 @@
     ]
   },
   "border-radius": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "0",
@@ -1095,7 +1090,6 @@
     ]
   },
   "border-start-end-radius": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "start-end"
@@ -1103,7 +1097,6 @@
     "max-values": 1
   },
   "border-start-start-radius": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "border-radius",
       "mapping": "start-start"
@@ -1145,7 +1138,6 @@
     ]
   },
   "border-top-left-radius": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -1158,7 +1150,6 @@
     "percentages-resolve-to": "length"
   },
   "border-top-right-radius": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
