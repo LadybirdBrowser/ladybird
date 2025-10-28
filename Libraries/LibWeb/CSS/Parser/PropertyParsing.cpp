@@ -1772,8 +1772,10 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         return false;
     };
 
+    tokens.discard_whitespace();
     if (parse_fill(tokens))
         fill = true;
+    tokens.discard_whitespace();
 
     Vector<ValueComparingNonnullRefPtr<StyleValue const>> number_percentages;
     while (number_percentages.size() <= 4 && tokens.has_next_token()) {
@@ -1786,6 +1788,7 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         if (number_percentage->is_percentage() && !property_accepts_percentage(PropertyID::BorderImageSlice, number_percentage->as_percentage().percentage()))
             return nullptr;
         number_percentages.append(number_percentage.release_nonnull());
+        tokens.discard_whitespace();
     }
 
     switch (number_percentages.size()) {
@@ -1817,11 +1820,13 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         return nullptr;
     }
 
+    tokens.discard_whitespace();
     if (tokens.has_next_token() && parse_fill(tokens)) {
         if (fill)
             return nullptr;
 
         fill = true;
+        tokens.discard_whitespace();
     }
 
     transaction.commit();
