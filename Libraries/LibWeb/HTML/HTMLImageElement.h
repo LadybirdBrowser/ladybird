@@ -115,7 +115,7 @@ public:
 private:
     HTMLImageElement(DOM::Document&, DOM::QualifiedName);
 
-    void update_the_image_data_impl(bool restart_the_animations = false, bool maybe_omit_events = false);
+    void update_the_image_data_impl(bool restart_the_animations, bool maybe_omit_events, u64 update_the_image_data_count);
 
     virtual bool is_html_image_element() const override { return true; }
 
@@ -164,6 +164,8 @@ private:
     SourceSet m_source_set;
 
     CSSPixelSize m_last_seen_viewport_size;
+
+    u64 m_update_the_image_data_count { 0 };
 };
 
 }
