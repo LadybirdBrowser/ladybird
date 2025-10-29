@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <iframe
+        width="499"
+        id="frame"
+        srcdoc="
+<!DOCTYPE html>
+<html>
+    <style>
+        @keyframes foo {}
+
+        @media (width >= 500px) {
+            #bar {
+                animation: foo 1s;
+            }
+        } 
+    </style>
+    <div id='bar'></div>
+</html>
+"
+    ></iframe>
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await new Promise(resolve => window.addEventListener("load", resolve));
+
+            frame.width = "500";
+            println(frame.contentDocument.getAnimations().length);
+        });
+    </script>
+</html>
