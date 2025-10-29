@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	IDBCursor direction - index with keyrange - next
+Pass	IDBCursor direction - index with keyrange - prev
+Pass	IDBCursor direction - index with keyrange - nextunique
+Pass	IDBCursor direction - index with keyrange - prevunique
