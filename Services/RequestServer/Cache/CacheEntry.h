@@ -13,6 +13,7 @@
 #include <AK/Types.h>
 #include <LibCore/File.h>
 #include <LibHTTP/HeaderMap.h>
+#include <RequestServer/Cache/Version.h>
 #include <RequestServer/Forward.h>
 
 namespace RequestServer {
@@ -22,7 +23,6 @@ struct [[gnu::packed]] CacheHeader {
     ErrorOr<void> write_to_stream(Stream&) const;
 
     static constexpr auto CACHE_MAGIC = 0xcafef00du;
-    static constexpr auto CACHE_VERSION = 1;
 
     u32 magic { CACHE_MAGIC };
     u32 version { CACHE_VERSION };
