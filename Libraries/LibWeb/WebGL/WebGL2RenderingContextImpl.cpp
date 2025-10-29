@@ -68,6 +68,58 @@ void WebGL2RenderingContextImpl::copy_buffer_sub_data(WebIDL::UnsignedLong read_
     glCopyBufferSubData(read_target, write_target, read_offset, write_offset, size);
 }
 
+// https://registry.khronos.org/webgl/specs/latest/2.0/#3.7.3
+void WebGL2RenderingContextImpl::get_buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong src_byte_offset,
+    GC::Root<WebIDL::ArrayBufferView> dst_buffer, WebIDL::UnsignedLongLong dst_offset, WebIDL::UnsignedLong length)
+{
+    // If dstBuffer is a DataView, let elementSize be 1; otherwise, let elementSize be dstBuffer.BYTES_PER_ELEMENT.
+    size_t element_size = dst_buffer->element_size();
+
+    // If length is 0:
+    size_t copy_length;
+    if (length == 0) {
+        // If dstBuffer is a DataView, let copyLength be dstBuffer.byteLength - dstOffset; the typed elements in the
+        // text below are bytes. Otherwise, let copyLength be dstBuffer.length - dstOffset.
+        copy_length = dst_buffer->byte_length() / element_size - dst_offset;
+    }
+
+    // Otherwise, let copyLength be length.
+    else {
+        copy_length = length;
+    }
+
+    // If copyLength is 0, no data is written to dstBuffer, but this does not cause a GL error to be generated.
+    if (copy_length == 0)
+        return;
+
+    // If dstOffset is greater than dstBuffer.length (or dstBuffer.byteLength in the case of DataView), generates an
+    // INVALID_VALUE error.
+    size_t dst_offset_in_bytes = dst_offset * element_size;
+    if (dst_offset_in_bytes > dst_buffer->byte_length()) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    // If dstOffset + copyLength is greater than dstBuffer.length (or dstBuffer.byteLength in the case of DataView),
+    // generates an INVALID_VALUE error.
+    size_t copy_bytes = copy_length * element_size;
+    if (dst_offset_in_bytes + copy_bytes > dst_buffer->byte_length()) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    // If copyLength is greater than zero, copy copyLength typed elements (each of size elementSize) from buf into
+    // dstBuffer, reading buf starting at byte index srcByteOffset and writing into dstBuffer starting at element
+    // index dstOffset.
+    auto* buffer_data = glMapBufferRange(target, src_byte_offset, copy_bytes, GL_MAP_READ_BIT);
+    if (!buffer_data)
+        return;
+
+    dst_buffer->write({ buffer_data, copy_bytes }, dst_offset_in_bytes);
+
+    glUnmapBuffer(target);
+}
+
 void WebGL2RenderingContextImpl::blit_framebuffer(WebIDL::Long src_x0, WebIDL::Long src_y0, WebIDL::Long src_x1, WebIDL::Long src_y1, WebIDL::Long dst_x0, WebIDL::Long dst_y0, WebIDL::Long dst_x1, WebIDL::Long dst_y1, WebIDL::UnsignedLong mask, WebIDL::UnsignedLong filter)
 {
     m_context->make_current();
