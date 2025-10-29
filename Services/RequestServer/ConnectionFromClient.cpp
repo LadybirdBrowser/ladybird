@@ -792,6 +792,50 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
     TODO();
 }
 
+void ConnectionFromClient::enforce_security_policy(i32 request_id, ByteString action)
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return;
+
+    // Security: Request ID validation
+    if (!validate_request_id(request_id))
+        return;
+
+    // Security: Action string validation
+    if (!validate_string_length(action, "action"sv))
+        return;
+
+    dbgln("RequestServer: enforce_security_policy() called for request {} with action '{}'", request_id, action);
+
+    // Get the request
+    auto request_opt = m_active_requests.get(request_id);
+    if (!request_opt.has_value()) {
+        dbgln("RequestServer: Request {} not found for security policy enforcement", request_id);
+        return;
+    }
+
+    auto& request = *request_opt.value();
+
+    // Apply the policy action
+    if (action == "block"sv) {
+        dbgln("RequestServer: Blocking request {} per security policy", request_id);
+        // Remove request to stop it (same as stop_request)
+        m_active_requests.remove(request_id);
+        // TODO Phase 3 Day 19: Delete downloaded file if exists
+    } else if (action == "quarantine"sv) {
+        dbgln("RequestServer: Quarantining request {} per security policy", request_id);
+        // TODO Phase 3 Day 19: Implement quarantine logic (move file to quarantine dir)
+        (void)request; // Silence unused warning
+    } else if (action == "allow"sv) {
+        dbgln("RequestServer: Allowing request {} per security policy", request_id);
+        // TODO Phase 3 Day 19: Resume download if paused
+        (void)request; // Silence unused warning
+    } else {
+        dbgln("RequestServer: Unknown security policy action '{}' for request {}", action, request_id);
+    }
+}
+
 void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
     // Security: Rate limiting

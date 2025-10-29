@@ -567,6 +567,9 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return {};
     };
 
+    // Note: on_security_alert callback is set by WebContentClient layer
+    // which has access to both Request and ViewImplementation
+
     ++m_pending_loads;
     if (on_load_counter_change)
         on_load_counter_change();

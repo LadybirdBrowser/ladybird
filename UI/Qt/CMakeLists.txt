@@ -9,6 +9,7 @@ target_sources(ladybird PRIVATE
     Menu.cpp
     NetworkAuditDialog.cpp
     ProxySettingsDialog.cpp
+    SecurityAlertDialog.cpp
     Settings.cpp
     StringUtils.cpp
     Tab.cpp

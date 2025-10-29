@@ -20,6 +20,9 @@ endpoint RequestServer
     stop_request(i32 request_id) => (bool success)
     set_certificate(i32 request_id, ByteString certificate, ByteString key) => (bool success)
 
+    // Security policy enforcement (Phase 3 Day 19)
+    enforce_security_policy(i32 request_id, ByteString action) =|
+
     ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
     clear_cache() =|

@@ -51,6 +51,10 @@ private:
     virtual void start_request(i32 request_id, ByteString, URL::URL, HTTP::HeaderMap, ByteBuffer, Core::ProxyData, u64 page_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(i32) override;
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString, ByteString) override;
+
+    // Security policy enforcement (Phase 3 Day 19)
+    virtual void enforce_security_policy(i32 request_id, ByteString action) override;
+
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void clear_cache() override;

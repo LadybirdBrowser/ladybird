@@ -103,8 +103,9 @@ void RequestClient::security_alert(i32 request_id, ByteString alert_json)
         return;
     }
 
-    // Log the security alert for now
-    // TODO Week 3: Show UI dialog to user with threat details and policy options
+    // TODO Phase 3 Day 19: Properly route to ViewImplementation.on_security_alert
+    // For now, just log the security alert
+    // UI dialog infrastructure is ready in Tab.cpp (SecurityAlertDialog)
     dbgln("RequestClient: Security threat detected in download (request {})", request_id);
     dbgln("Alert details: {}", alert_json);
 

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonParser.h>
 #include <LibIPC/NetworkIdentity.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -15,6 +16,7 @@
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/NetworkAuditDialog.h>
 #include <UI/Qt/ProxySettingsDialog.h>
+#include <UI/Qt/SecurityAlertDialog.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -352,6 +354,81 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_request_dismiss_dialog = [this]() {
         if (m_dialog)
             m_dialog->reject();
+    };
+
+    // Security alert callback (Phase 3 Day 17-18)
+    view().on_security_alert = [this](ByteString const& alert_json, i32 request_id) {
+        // Parse the alert JSON to extract threat details
+        auto json_result = JsonValue::from_string(alert_json);
+        if (json_result.is_error()) {
+            dbgln("Failed to parse security alert JSON: {}", alert_json);
+            return;
+        }
+
+        auto alert_obj = json_result.value().as_object();
+
+        // Extract basic threat information
+        auto url = alert_obj.get_string("url"sv).value_or(""_string);
+        auto filename = alert_obj.get_string("filename"sv).value_or("Unknown file"_string);
+        auto file_hash = alert_obj.get_string("file_hash"sv).value_or(""_string);
+        auto mime_type = alert_obj.get_string("mime_type"sv).value_or("application/octet-stream"_string);
+        auto file_size = alert_obj.get_integer<qint64>("file_size"sv).value_or(0);
+
+        // Extract first matched rule details
+        QString rule_name = "Unknown";
+        QString severity = "unknown";
+        QString description = "No description available";
+
+        if (auto matched_rules = alert_obj.get_array("matched_rules"sv); matched_rules.has_value() && !matched_rules->is_empty()) {
+            auto first_rule = matched_rules->at(0).as_object();
+            rule_name = QString::fromUtf8(first_rule.get_string("rule_name"sv).value_or("Unknown"_string).to_byte_string().characters());
+            severity = QString::fromUtf8(first_rule.get_string("severity"sv).value_or("unknown"_string).to_byte_string().characters());
+            description = QString::fromUtf8(first_rule.get_string("description"sv).value_or("No description"_string).to_byte_string().characters());
+        }
+
+        // Create SecurityAlertDialog
+        SecurityAlertDialog::ThreatDetails details {
+            .url = QString::fromUtf8(url.to_byte_string().characters()),
+            .filename = QString::fromUtf8(filename.to_byte_string().characters()),
+            .rule_name = rule_name,
+            .severity = severity,
+            .description = description,
+            .file_hash = QString::fromUtf8(file_hash.to_byte_string().characters()),
+            .mime_type = QString::fromUtf8(mime_type.to_byte_string().characters()),
+            .file_size = file_size
+        };
+
+        m_dialog = new SecurityAlertDialog(details, &view());
+        auto* security_dialog = qobject_cast<SecurityAlertDialog*>(m_dialog.data());
+
+        QObject::connect(security_dialog, &SecurityAlertDialog::userDecided, this, [security_dialog, request_id](SecurityAlertDialog::UserDecision decision) {
+            // TODO Phase 3 Day 19: Send enforcement decision via IPC
+            // For now, just log the decision
+            QString decision_str;
+            switch (decision) {
+            case SecurityAlertDialog::UserDecision::Block:
+                decision_str = "block";
+                break;
+            case SecurityAlertDialog::UserDecision::AllowOnce:
+                decision_str = "allow";
+                break;
+            case SecurityAlertDialog::UserDecision::AlwaysAllow:
+                decision_str = "allow";
+                // TODO: Create policy in PolicyGraph if should_remember()
+                break;
+            }
+
+            dbgln("Tab: User security decision for request {}: {} (remember: {})",
+                  request_id, decision_str.toUtf8().data(), security_dialog->should_remember());
+
+            // TODO Phase 3 Day 19: Call view().client().async_enforce_security_policy(request_id, decision_str);
+        });
+
+        QObject::connect(m_dialog, &QDialog::finished, this, [this]() {
+            m_dialog = nullptr;
+        });
+
+        m_dialog->open();
     };
 
     view().on_request_color_picker = [this](Color current_color) {
