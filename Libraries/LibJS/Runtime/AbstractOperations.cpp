@@ -735,7 +735,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     Optional<Value> eval_result;
 
-    auto result_or_error = vm.bytecode_interpreter().run_executable(*executable, {});
+    auto result_or_error = vm.bytecode_interpreter().run_executable(*eval_context, *executable, {});
     if (result_or_error.value.is_error())
         return result_or_error.value.release_error();
 

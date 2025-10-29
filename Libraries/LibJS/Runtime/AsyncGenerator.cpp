@@ -186,7 +186,7 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         // We should never enter `execute` again after the generator is complete.
         VERIFY(continuation_address.has_value());
 
-        auto next_result = bytecode_interpreter.run_executable(*m_generating_function->bytecode_executable(), continuation_address, completion_cell);
+        auto next_result = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_function->bytecode_executable(), continuation_address, completion_cell);
 
         auto result_value = move(next_result.value);
         if (!result_value.is_throw_completion()) {
