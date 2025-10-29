@@ -1342,11 +1342,6 @@ void Document::update_layout(UpdateLayoutReason reason)
     if (!navigable || navigable->active_document() != this)
         return;
 
-    // NOTE: If our parent document needs a relayout, we must do that *first*.
-    //       This is necessary as the parent layout may cause our viewport to change.
-    if (navigable->container() && &navigable->container()->document() != this)
-        navigable->container()->document().update_layout(reason);
-
     update_style();
 
     if (m_layout_root && !m_layout_root->needs_layout_update())
@@ -1557,6 +1552,11 @@ void Document::update_layout(UpdateLayoutReason reason)
 
 void Document::update_style()
 {
+    // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
+    // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
+    if (navigable()->container() && &navigable()->container()->document() != this)
+        navigable()->container()->document().update_layout(UpdateLayoutReason::ChildDocumentStyleUpdate);
+
     if (!browsing_context())
         return;
 
