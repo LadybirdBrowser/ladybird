@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 8 tests
 
-6 Pass
-2 Fail
+8 Pass
 Pass	IDBObjectStore::openCursor's request source must be the IDBObjectStore instance that opened the cursor
 Pass	IDBObjectStore::openKeyCursor's request source must be the IDBObjectStore instance that opened the cursor
-Fail	IDBIndex::openCursor's request source must be the IDBIndex instance that opened the cursor
-Fail	IDBIndex::openKeyCursor's request source must be the IDBIndex instance that opened the cursor
+Pass	IDBIndex::openCursor's request source must be the IDBIndex instance that opened the cursor
+Pass	IDBIndex::openKeyCursor's request source must be the IDBIndex instance that opened the cursor
 Pass	The source of the request from IDBObjectStore::update() is the cursor itself
 Pass	The source of the request from IDBObjectStore::delete() is the cursor itself
 Pass	The source of the request from IDBIndex::update() is the cursor itself
