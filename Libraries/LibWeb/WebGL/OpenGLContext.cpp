@@ -22,6 +22,7 @@ extern "C" {
 extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
+#include <GLES3/gl3.h>
 
 // Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_IMAGES)
@@ -236,6 +237,20 @@ void OpenGLContext::notify_content_will_change()
 void OpenGLContext::clear_buffer_to_default_values()
 {
 #ifdef ENABLE_WEBGL
+    GLint original_framebuffer;
+    GLint original_renderbuffer;
+    GLenum framebuffer_target = GL_FRAMEBUFFER;
+    GLenum framebuffer_binding = GL_FRAMEBUFFER_BINDING;
+    if (m_webgl_version == WebGLVersion::WebGL2) {
+        framebuffer_target = GL_DRAW_FRAMEBUFFER;
+        framebuffer_binding = GL_DRAW_FRAMEBUFFER_BINDING;
+    }
+    glGetIntegerv(framebuffer_binding, &original_framebuffer);
+    glGetIntegerv(GL_RENDERBUFFER_BINDING, &original_renderbuffer);
+
+    glBindFramebuffer(framebuffer_target, default_framebuffer());
+    glBindRenderbuffer(GL_RENDERBUFFER, default_renderbuffer());
+
     Array<GLfloat, 4> current_clear_color;
     glGetFloatv(GL_COLOR_CLEAR_VALUE, current_clear_color.data());
 
@@ -260,6 +275,9 @@ void OpenGLContext::clear_buffer_to_default_values()
     glClearColor(current_clear_color[0], current_clear_color[1], current_clear_color[2], current_clear_color[3]);
     glClearDepthf(current_clear_depth);
     glClearStencil(current_clear_stencil);
+
+    glBindFramebuffer(framebuffer_target, original_framebuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, original_renderbuffer);
 #endif
 }
 
