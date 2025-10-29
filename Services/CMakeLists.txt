@@ -1,5 +1,6 @@
 add_subdirectory(ImageDecoder)
 add_subdirectory(RequestServer)
+add_subdirectory(Sentinel)
 add_subdirectory(WebContent)
 add_subdirectory(WebDriver)
 add_subdirectory(WebWorker)
