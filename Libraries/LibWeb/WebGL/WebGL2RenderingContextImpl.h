@@ -257,6 +257,8 @@ private:
     GC::Ptr<WebGLBuffer> m_copy_read_buffer_binding;
     GC::Ptr<WebGLBuffer> m_copy_write_buffer_binding;
     GC::Ptr<WebGLBuffer> m_transform_feedback_buffer_binding;
+    GC::Ptr<WebGLBuffer> m_pixel_pack_buffer_binding;
+    GC::Ptr<WebGLBuffer> m_pixel_unpack_buffer_binding;
     GC::Ptr<WebGLTexture> m_texture_binding_2d_array;
     GC::Ptr<WebGLTexture> m_texture_binding_3d;
     GC::Ptr<WebGLTransformFeedback> m_transform_feedback_binding;
