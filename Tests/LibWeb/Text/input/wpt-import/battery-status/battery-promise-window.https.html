@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Battery Test: window.open() makes a different Navigator object</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="https://www.w3.org/TR/battery-status/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<style>
+  #note {
+    background-color: #fef1b5;
+    border: solid 1px #cdab2d;
+    padding: 5px;
+    margin: 15px;
+    display: block;
+  }
+</style>
+<div id="note">
+  Allow pop-up windows before running the tests.
+</div>
+<div id="log"></div>
+<script>
+async_test(function (t) {
+  var win = window.open('resources/support-window-open.html');
+  window.onmessage = t.step_func(function(e) {
+    assert_array_equals(e.data, [false, false, true]);
+    win.close();
+    t.done();
+  });
+}, 'window.open() makes a different Navigator object thus getting another battery promise');
+</script>
