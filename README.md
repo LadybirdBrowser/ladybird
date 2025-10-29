@@ -19,6 +19,14 @@ This fork extends Ladybird with:
 - **ENS**: Ethereum Name Service resolution for `.eth` domains
 - **Gateway Fallback**: Automatic failover between local and public IPFS gateways
 
+### Malware Detection (Sentinel)
+- **YARA-based Scanning**: Real-time malware detection during downloads
+- **Security Alerts**: User-facing dialog for threat notifications
+- **Policy Enforcement**: Block, quarantine, or allow downloads based on user decisions
+- **PolicyGraph Database**: Persistent storage for security policies and threat history
+- **Quarantine System**: Secure isolation of malicious files with metadata tracking
+- **Note**: Educational implementation, not security-audited
+
 ### Experimental Security (Educational)
 - IPC rate limiting and validated decoding
 - SafeMath operations for overflow protection

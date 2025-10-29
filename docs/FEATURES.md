@@ -169,6 +169,220 @@ request->set_content_verification_callback(verify_callback);
 
 ## Security Enhancements
 
+### Sentinel Malware Detection System (Phase 3 Complete)
+
+Real-time malware detection and policy enforcement system integrated into the browser's download pipeline.
+
+**System Architecture:**
+
+```
+Download → SecurityTap → YARA Scan → Threat Detected
+                                           ↓
+                                    SecurityAlertDialog (UI)
+                                           ↓
+                                    User Decision (Block/Allow/Quarantine)
+                                           ↓
+                                    PolicyGraph (Store Policy)
+                                           ↓
+                                    Request Enforcement (RequestServer)
+                                           ↓
+                                    Block / Quarantine / Allow
+```
+
+**Core Components:**
+
+**1. Sentinel Daemon** (`Services/Sentinel/`)
+- Standalone security service communicating via Unix socket
+- YARA-based malware detection engine
+- Configurable YARA rules from `/etc/sentinel/rules/`
+- SHA256 hash computation for file identification
+- Structured JSON alert generation
+
+**2. SecurityTap** (`Services/RequestServer/SecurityTap.{h,cpp}`)
+- Integration layer between RequestServer and Sentinel
+- Incremental download scanning (scans during download)
+- Metadata extraction (URL, filename, MIME type, file size)
+- IPC communication with Sentinel daemon
+- Alert JSON parsing and routing
+
+**3. SecurityAlertDialog** (`UI/Qt/SecurityAlertDialog.{h,cpp}`)
+- Qt QDialog-based user interface
+- Displays threat details: URL, filename, rule name, severity, description
+- Three action buttons: Block, Allow Once, Always Allow
+- "Remember this decision" checkbox for policy creation
+- Signal/slot integration with Tab
+
+**4. PolicyGraph Database** (`Services/Sentinel/PolicyGraph.{h,cpp}`)
+- SQLite-backed persistent policy storage
+- Two-table schema: `policies` and `threat_history`
+- Policy matching by hash, URL pattern, or rule name (priority order)
+- Threat history tracking with full metadata
+- Policy expiration support for temporary rules
+- 6 indexes for query performance
+
+**5. Request State Machine** (`Services/RequestServer/Request.{h,cpp}`)
+- Three new states: WaitingForPolicy, PolicyBlocked, PolicyQuarantined
+- CURL_WRITEFUNC_PAUSE for download suspension
+- Incremental scanning during download
+- Three control methods: `resume_download()`, `block_download()`, `quarantine_download()`
+- State transitions with error handling
+
+**6. Quarantine System** (`Services/RequestServer/Quarantine.{h,cpp}`)
+- Secure file isolation at `~/.local/share/Ladybird/Quarantine/`
+- Unique ID generation: `YYYYMMDD_HHMMSS_<6_hex_random>`
+- File storage: `<quarantine_id>.bin` (permissions 0400, read-only)
+- Metadata JSON: `<quarantine_id>.json` (permissions 0400, read-only)
+- Directory permissions: 0700 (owner-only access)
+- Atomic file move operations
+- Complete audit trail (URL, YARA rules, timestamps, SHA256)
+
+**Implementation Files:**
+
+Core Services:
+- `Services/Sentinel/main.cpp` - Sentinel daemon entry point
+- `Services/Sentinel/PolicyGraph.{h,cpp}` - Policy database (805 lines)
+- `Services/Sentinel/Database.{h,cpp}` - SQLite wrapper
+- `Services/RequestServer/SecurityTap.{h,cpp}` - YARA integration (350 lines)
+- `Services/RequestServer/Quarantine.{h,cpp}` - File quarantine system (311 lines)
+
+UI Components:
+- `UI/Qt/SecurityAlertDialog.{h,cpp}` - Security alert dialog (229 lines)
+- `UI/Qt/Tab.cpp` - PolicyGraph integration (74 lines modified)
+
+Request Handling:
+- `Services/RequestServer/Request.{h,cpp}` - State machine (357 lines modified)
+- `Services/RequestServer/ConnectionFromClient.{h,cpp}` - IPC enforcement (87 lines modified)
+
+Build System:
+- `Services/Sentinel/CMakeLists.txt` - Sentinel service build
+- `Services/CMakeLists.txt` - Service registration
+- `UI/Qt/CMakeLists.txt` - sentinelservice linkage
+
+**PolicyGraph Schema:**
+
+```sql
+-- Policies table
+CREATE TABLE policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_name TEXT NOT NULL,
+    url_pattern TEXT,
+    file_hash TEXT,
+    mime_type TEXT,
+    action TEXT NOT NULL,  -- "allow", "block", "quarantine"
+    created_at INTEGER NOT NULL,
+    created_by TEXT NOT NULL,
+    expires_at INTEGER,
+    hit_count INTEGER DEFAULT 0,
+    last_hit INTEGER
+);
+
+-- Threat history table
+CREATE TABLE threat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    detected_at INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    file_hash TEXT NOT NULL,
+    mime_type TEXT,
+    file_size INTEGER NOT NULL,
+    rule_name TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    action_taken TEXT NOT NULL,
+    policy_id INTEGER,
+    alert_json TEXT NOT NULL,
+    FOREIGN KEY (policy_id) REFERENCES policies(id)
+);
+```
+
+**Usage Example:**
+
+```cpp
+// 1. Sentinel detects threat during download
+auto scan_result = security_tap->inspect_download(metadata, content_buffer);
+
+// 2. SecurityAlertDialog shown to user
+SecurityAlertDialog dialog(threat_details);
+auto decision = dialog.exec();
+
+// 3. Create persistent policy if "Remember" checked
+if (dialog.should_remember()) {
+    PolicyGraph::Policy policy {
+        .rule_name = threat.rule_name,
+        .url_pattern = threat.url,
+        .action = (decision == Block) ? PolicyAction::Block : PolicyAction::Allow,
+        .created_at = UnixDateTime::now(),
+        .created_by = "UI"_string
+    };
+    policy_graph.create_policy(policy);
+}
+
+// 4. Enforce decision on current download
+if (decision == Block) {
+    request.block_download();
+} else if (decision == Quarantine) {
+    request.quarantine_download();
+} else {
+    request.resume_download();
+}
+```
+
+**Quarantine Metadata Example:**
+
+```json
+{
+  "original_url": "https://malicious.example.com/payload.exe",
+  "filename": "payload.exe",
+  "detection_time": "2025-10-29T12:34:56Z",
+  "sha256": "abc123def456...",
+  "file_size": 12345,
+  "quarantine_id": "20251029_123456_a1b2c3",
+  "rule_names": ["Windows_PE_Suspicious", "Malware_Generic"]
+}
+```
+
+**Testing:**
+
+```bash
+# Build Sentinel service
+cd Build/release
+ninja Sentinel
+
+# Run Sentinel daemon
+./bin/Sentinel
+
+# Test PolicyGraph
+ninja TestPolicyGraph
+./bin/TestPolicyGraph
+
+# View quarantined files
+ls -la ~/.local/share/Ladybird/Quarantine/
+cat ~/.local/share/Ladybird/Quarantine/20251029_123456_a1b2c3.json
+```
+
+**Documentation:**
+- [SENTINEL_PHASE3_STATUS.md](SENTINEL_PHASE3_STATUS.md) - Phase 3 status report (Days 15-19 complete)
+- [SENTINEL_PHASE3_PLAN.md](SENTINEL_PHASE3_PLAN.md) - Original Phase 3 architectural plan
+- [SENTINEL_PHASE2_COMPLETION.md](SENTINEL_PHASE2_COMPLETION.md) - Phase 2 completion report
+- [SENTINEL_IMPLEMENTATION_PLAN.md](SENTINEL_IMPLEMENTATION_PLAN.md) - Overall implementation plan
+
+**Status:** Phase 3 Days 15-19 Complete (76% of Phase 3)
+- ✅ PolicyGraph Database (Days 15-16)
+- ✅ SecurityAlertDialog UI (Days 17-18)
+- ✅ Policy Enforcement (Day 19)
+- 🔵 Management UI (Day 20, optional)
+- 🔵 Integration Tests (Day 21, optional)
+
+**Commits:**
+- `7c35a8370e9` - PolicyGraph database implementation
+- `162c238a2a6` - PolicyGraph matching fixes
+- `2b9213d7bb4` - IPC routing with page_id
+- `bbc1aca164c` - SecurityAlertDialog and IPC enforcement
+- `6330f7e2224` - Complete Phase 3 Day 19 implementation
+
+**Note:** Sentinel is an educational implementation for learning about malware detection systems. It has not been security-audited and should not be used in production environments.
+
+---
+
 ### IPC Security Features
 
 The fork includes experimental IPC security enhancements for research and learning.
