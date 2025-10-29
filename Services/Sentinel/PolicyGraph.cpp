@@ -124,24 +124,24 @@ ErrorOr<PolicyGraph> PolicyGraph::create(ByteString const& db_directory)
     statements.match_by_hash = TRY(database->prepare_statement(R"#(
         SELECT * FROM policies
         WHERE file_hash = ?
-          AND (expires_at IS NULL OR expires_at > ?)
+          AND (expires_at = -1 OR expires_at > ?)
         LIMIT 1;
     )#"sv));
 
     statements.match_by_url_pattern = TRY(database->prepare_statement(R"#(
         SELECT * FROM policies
-        WHERE url_pattern IS NOT NULL
+        WHERE url_pattern != ''
           AND ? LIKE url_pattern
-          AND (expires_at IS NULL OR expires_at > ?)
+          AND (expires_at = -1 OR expires_at > ?)
         LIMIT 1;
     )#"sv));
 
     statements.match_by_rule_name = TRY(database->prepare_statement(R"#(
         SELECT * FROM policies
         WHERE rule_name = ?
-          AND file_hash IS NULL
-          AND url_pattern IS NULL
-          AND (expires_at IS NULL OR expires_at > ?)
+          AND (file_hash = '' OR file_hash IS NULL)
+          AND (url_pattern = '' OR url_pattern IS NULL)
+          AND (expires_at = -1 OR expires_at > ?)
         LIMIT 1;
     )#"sv));
 
