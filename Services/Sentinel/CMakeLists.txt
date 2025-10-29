@@ -3,12 +3,14 @@ set(CMAKE_AUTORCC OFF)
 set(CMAKE_AUTOUIC OFF)
 
 set(SOURCES
+    PolicyGraph.cpp
     SentinelServer.cpp
 )
 
 add_library(sentinelservice STATIC ${SOURCES})
 
 add_executable(Sentinel main.cpp)
+add_executable(TestPolicyGraph TestPolicyGraph.cpp)
 
 target_include_directories(sentinelservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(sentinelservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
@@ -27,5 +29,6 @@ else()
     target_link_libraries(sentinelservice PRIVATE ${YARA_LIBRARY})
 endif()
 
-target_link_libraries(sentinelservice PRIVATE LibCore LibFileSystem LibIPC)
+target_link_libraries(sentinelservice PRIVATE LibCore LibDatabase LibFileSystem LibIPC)
 target_link_libraries(Sentinel PRIVATE sentinelservice LibCore LibMain)
+target_link_libraries(TestPolicyGraph PRIVATE sentinelservice LibCore LibMain)
