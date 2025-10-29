@@ -63,6 +63,11 @@ void SharedResourceRequest::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_image_data);
 }
 
+ReadonlyBytes SharedResourceRequest::encoded_data() const
+{
+    return m_encoded_data;
+}
+
 GC::Ptr<DecodedImageData> SharedResourceRequest::image_data() const
 {
     return m_image_data;
@@ -140,13 +145,15 @@ void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<v
 
 void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, StringView mime_type, ByteBuffer data)
 {
+    m_encoded_data = move(data);
+
     // AD-HOC: At this point, things gets very ad-hoc.
     // FIXME: Bring this closer to spec.
 
     bool const is_svg_image = mime_type == "image/svg+xml"sv || url_string.basename().ends_with(".svg"sv);
 
     if (is_svg_image) {
-        auto result = SVG::SVGDecodedImageData::create(m_document->realm(), m_page, url_string, data);
+        auto result = SVG::SVGDecodedImageData::create(m_document->realm(), m_page, url_string, m_encoded_data);
         if (result.is_error()) {
             handle_failed_fetch();
         } else {
@@ -173,7 +180,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         strong_this->handle_failed_fetch();
     };
 
-    (void)Web::Platform::ImageCodecPlugin::the().decode_image(data.bytes(), move(handle_successful_bitmap_decode), move(handle_failed_decode));
+    (void)Web::Platform::ImageCodecPlugin::the().decode_image(m_encoded_data, move(handle_successful_bitmap_decode), move(handle_failed_decode));
 }
 
 void SharedResourceRequest::handle_failed_fetch()

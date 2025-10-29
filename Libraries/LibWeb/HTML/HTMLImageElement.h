@@ -163,6 +163,15 @@ private:
     SourceSet m_source_set;
 
     CSSPixelSize m_last_seen_viewport_size;
+
+    // https://html.spec.whatwg.org/multipage/embedded-content.html#attr-img-decoding
+    enum class DecodingMode {
+        Auto,
+        Sync,
+        Async,
+    };
+
+    DecodingMode m_decoding_mode { DecodingMode::Auto };
 };
 
 }
