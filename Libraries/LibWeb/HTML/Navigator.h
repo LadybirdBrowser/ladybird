@@ -65,6 +65,7 @@ public:
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
+    [[nodiscard]] GC::Ref<WebIDL::Promise> get_battery();
 
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 
@@ -108,6 +109,9 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
+
+    // https://w3c.github.io/battery/
+    GC::Ptr<WebIDL::Promise> m_battery_promise;
 };
 
 }

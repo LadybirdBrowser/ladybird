@@ -1,0 +1,10 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<script>
+var data = [
+    navigator === window.opener.navigator,
+    navigator.getBattery() === window.opener.navigator.getBattery(),
+    navigator.getBattery() === navigator.getBattery()
+];
+window.opener.postMessage(data, '*');
+</script>
