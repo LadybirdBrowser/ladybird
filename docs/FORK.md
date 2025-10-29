@@ -1,191 +1,208 @@
 # Ladybird Browser - Personal Development Fork
 
-This is a personal fork of the [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird) project for learning, experimentation, and development purposes.
+This is a personal fork of the [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird) project for learning, experimentation, and privacy-focused development.
 
 ## Fork Status
 
-- Upstream: Synchronized with [LadybirdBrowser/ladybird](https://github.com/LadybirdBrowser/ladybird)
-- Purpose: Personal learning and IPC security research
-- Contribution Policy: This fork contains experimental features not intended for upstream contribution
+- **Upstream**: Synchronized with [LadybirdBrowser/ladybird](https://github.com/LadybirdBrowser/ladybird)
+- **Purpose**: Personal learning, privacy research, and P2P protocol experimentation
+- **Contribution Policy**: This fork contains experimental features not intended for upstream contribution
 
-## Custom Additions
+## Feature Overview
 
-This fork includes experimental IPC security enhancements and development infrastructure that extend the base Ladybird browser for research and learning purposes.
+This fork extends Ladybird with privacy and P2P protocol features:
 
-### Security Enhancements
+### ✅ Completed Features
 
-LibIPC Security Features (Libraries/LibIPC/):
-- Limits.h: IPC message size and rate limiting constants
-- RateLimiter.h: Per-connection message rate limiting with sliding window algorithm
-- SafeMath.h: Overflow-safe arithmetic operations for IPC value validation
-- ValidatedDecoder.h: Bounds-checked IPC message decoding with validation
+1. **Tor Integration** - Full per-tab Tor support with DNS leak prevention
+   - SOCKS5H proxy with hostname resolution via Tor
+   - Stream isolation (unique circuits per tab)
+   - DNS bypass for .onion domains
+   - NetworkIdentity system for per-page proxy configuration
 
-Service Process Hardening (Services/):
-- WebContent: Enhanced page_id validation and input sanitization
-- ImageDecoder: Resource limit enforcement and validated decoding
-- RequestServer: URL length validation and request rate limiting
+2. **IPFS Protocol Support** - Decentralized web content
+   - `ipfs://` URL scheme support
+   - `ipns://` URL scheme support
+   - `.eth` ENS domain resolution
+   - Gateway fallback chain (local daemon → public gateways)
+   - Optional content verification via CID validation
 
-IPC Compiler Enhancements (Meta/Tools/CodeGenerators/IPCCompiler/):
-- Automatic validation attribute generation
-- Type-safe parameter bounds checking
-- Security annotation support
+3. **IPC Security Enhancements** - Educational security features
+   - Rate limiting for IPC messages
+   - Validated decoding with bounds checking
+   - SafeMath operations for overflow protection
 
-### Network Privacy Features
-
-Per-Tab Tor Integration (Libraries/LibIPC/, Services/RequestServer/):
-- ProxyConfig.h: Proxy configuration with Tor SOCKS5H support
-- NetworkIdentity.h/.cpp: Per-page network identity management
-- Stream isolation via SOCKS5 authentication
-- DNS leak prevention (SOCKS5H hostname resolution)
-- Circuit rotation support
-- Network activity audit logging
-
-VPN/Proxy Support:
-- Per-tab proxy configuration
-- libcurl integration with proxy settings
-- Authentication support for proxy connections
-- Transparent proxy application to HTTP requests
-
-See [TOR_INTEGRATION_COMPLETE.md](claudedocs/TOR_INTEGRATION_COMPLETE.md) for detailed implementation.
-
-### Testing and Fuzzing
-
-IPC Fuzzing Framework (Meta/Lagom/Fuzzers/):
-- FuzzIPC.cpp: General IPC message fuzzing
-- FuzzWebContentIPC.cpp: WebContent-specific IPC fuzzing
-- Automated malformed message testing
-
-IPC Compiler Tests (Tests/LibIPC/):
-- TestIPCCompiler.cpp: Validation attribute generation tests
-- Type safety verification
-- Edge case handling validation
-
-### Development Infrastructure
-
-Documentation (claudedocs/):
-- IPC security implementation guides
-- Validation attribute usage documentation
-- Migration examples and patterns
-- Windows build setup guides
-- Comprehensive security analysis reports
-
-Development Workflow:
-- CLAUDE.md: Claude Code integration guide with project context
-- Development workflow documentation
-- Architectural guidance for development
+For detailed feature documentation, see [FEATURES.md](FEATURES.md)
 
 ## Documentation Structure
 
 ```
-claudedocs/
-├── TODO_ANALYSIS.md                    # Development roadmap and contribution strategy
-└── security-hardening/
-    ├── Comprehensive-Security-Analysis-Report.md
-    ├── IPC-Validation-Attributes-Guide.md
-    ├── ValidatedDecoder-Usage-Guide.md
-    ├── WebContentClient-Security-Analysis.md
-    ├── ServiceProcesses-Security-Analysis.md
-    ├── Migration-Example.md
-    ├── Windows-Build-Setup-Guide.md
-    └── [Weekly Progress Reports]
+docs/
+├── FEATURES.md          # Comprehensive feature documentation
+├── FORK.md             # This file - fork overview
+├── DEVELOPMENT.md      # Development workflow and setup
+├── SECURITY_AUDIT.md   # IPC security analysis
+├── TESTING.md          # Testing procedures
+└── archive/            # Archived development notes
+    ├── TOR_INTEGRATION_COMPLETE.md
+    └── NETWORK_IDENTITY_DESIGN.md
 ```
 
-## Security Features Overview
+## Quick Start
 
-### Rate Limiting
-```cpp
-// Example: Rate-limited IPC handler
-RateLimiter m_rate_limiter{100, std::chrono::seconds(1)}; // 100 msg/sec
+### Building
 
-Messages::WebContentServer::HandleMouseMoveResponse handle_mouse_move(i32 page_id, Gfx::IntPoint position) {
-    if (!m_rate_limiter.check_and_update()) {
-        return {}; // Rate limit exceeded
-    }
-    // Process message...
-}
-```
-
-### Validated Decoding
-```cpp
-// Example: Bounds-checked decoding
-ErrorOr<void> decode_with_validation(IPC::Decoder& decoder) {
-    ValidatedDecoder validated(decoder);
-    auto page_id = TRY(validated.decode_validated<i32>(0, MAX_PAGE_ID));
-    auto url = TRY(validated.decode_validated_string(0, MAX_URL_LENGTH));
-    return {};
-}
-```
-
-### SafeMath Operations
-```cpp
-// Example: Overflow-safe arithmetic
-using namespace IPC::SafeMath;
-auto result = safe_multiply(width, height);
-if (result.has_overflow()) {
-    return Error::from_string_literal("Dimension overflow");
-}
-```
-
-## Building and Testing
-
-### Standard Build
 ```bash
-# Use upstream build instructions
-./Meta/ladybird.py run
+# Clone and build
+git clone https://github.com/quanticsoul4772/ladybird.git
+cd ladybird
+cmake --preset Release
+cmake --build Build/release -j$(nproc)
 ```
 
-### Security Testing
+See [Documentation/BuildInstructionsLadybird.md](../Documentation/BuildInstructionsLadybird.md) for platform-specific instructions.
+
+### Running
+
 ```bash
-# Run IPC fuzzing tests
-./Build/release/bin/FuzzIPC
-./Build/release/bin/FuzzWebContentIPC
-
-# Run IPC compiler validation tests
-./Meta/ladybird.py test LibIPC
+# Run Ladybird
+./Build/release/bin/Ladybird
 ```
 
-### Windows Build Setup
-See `claudedocs/security-hardening/Windows-Build-Setup-Guide.md` for detailed Windows-specific build instructions.
+### Testing Tor
+
+```bash
+# Navigate to a .onion domain:
+http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion
+
+# Check logs for DNS bypass message:
+# "RequestServer: Skipping DNS lookup for '...onion' (using SOCKS5H proxy - DNS via Tor)"
+```
+
+### Testing IPFS
+
+```bash
+# Navigate to IPFS content:
+ipfs://QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco
+
+# Or IPNS:
+ipns://docs.ipfs.tech
+
+# Or ENS:
+https://vitalik.eth
+```
+
+## Key Implementation Files
+
+### Network Privacy
+- `Libraries/LibIPC/NetworkIdentity.h` - Per-page network identity
+- `Libraries/LibIPC/ProxyConfig.h` - Proxy configuration
+- `Services/RequestServer/Request.cpp` - Proxy application & DNS bypass
+- `Services/RequestServer/ConnectionFromClient.cpp` - NetworkIdentity integration
+
+### P2P Protocols
+- `Services/RequestServer/Request.h` - Protocol type enum & callbacks
+- `Services/RequestServer/ConnectionFromClient.cpp` - IPFS URL transformation
+- `Libraries/LibIPC/Multibase.cpp` - Base encoding for CIDs
+- `Libraries/LibIPC/Multihash.cpp` - Cryptographic hashes for CIDs
+- `Libraries/LibIPC/IPFSAPIClient.cpp` - IPFS API client
+
+### IPC Security (Experimental)
+- `Libraries/LibIPC/Limits.h` - IPC constants
+- `Libraries/LibIPC/RateLimiter.h` - Rate limiting
+- `Libraries/LibIPC/SafeMath.h` - Safe arithmetic
+- `Libraries/LibIPC/ValidatedDecoder.h` - Validated decoding
+
+## Architecture Highlights
+
+### Extension Pattern
+
+This fork uses **callbacks instead of inheritance** for extension:
+
+```cpp
+// Request class provides optional hooks
+class Request {
+    ProtocolType m_protocol_type { ProtocolType::HTTP };
+    Function<ErrorOr<bool>(ReadonlyBytes)> m_content_verification_callback;
+    Function<void()> m_gateway_fallback_callback;
+};
+
+// ConnectionFromClient implements protocol-specific logic
+void setup_ipfs_verification(Request& request, String const& cid);
+void setup_gateway_fallback(Request& request, GatewayConfig config);
+```
+
+**Benefits:**
+- Clean separation of concerns
+- Easy upstream synchronization
+- Optional feature activation
+- No core class modifications
+
+### NetworkIdentity System
+
+Per-page network configuration enables:
+- Different proxy settings per tab
+- Tor circuit isolation
+- VPN tunneling per page
+- Network activity audit logging
+
+```cpp
+// Each tab has a NetworkIdentity
+auto network_identity = NetworkIdentity::create();
+network_identity->set_proxy_config(ProxyConfig::for_tor_circuit("unique-id"));
+
+// RequestServer applies configuration
+auto request = Request::fetch(/* ... */, network_identity);
+```
 
 ## Sync Strategy
 
 This fork regularly synchronizes with upstream:
+
 ```bash
 git fetch upstream
 git merge upstream/master
+# Resolve any conflicts
 git push origin master
 ```
 
-No feature branches are maintained to avoid "contribute to upstream" prompts.
+**Merge Strategy:**
+- Keep fork features isolated in specific files
+- Minimize changes to core upstream files
+- Use callbacks/hooks for extensibility
+- Document all custom changes
 
 ## Learning Focus Areas
 
-1. **IPC Security Architecture** - Understanding multi-process browser security
-2. **Memory Safety** - Implementing bounds checking and overflow protection
-3. **Fuzzing Techniques** - Automated security testing methodologies
-4. **Browser Architecture** - Multi-process design patterns
-5. **C++23 Features** - Modern C++ in large-scale projects
+1. **Browser Architecture** - Multi-process design and IPC
+2. **Network Privacy** - Tor integration and DNS leak prevention
+3. **P2P Protocols** - IPFS, IPNS, ENS implementation
+4. **Security Patterns** - IPC validation and rate limiting
+5. **C++ Patterns** - Modern C++ in large-scale projects
 
 ## Disclaimer
 
-This fork contains experimental security enhancements for educational purposes. The implementations:
-- Are not security-audited
-- May contain bugs or vulnerabilities
-- Should not be used in production environments
-- Are intended for learning and research only
+This fork contains experimental features for educational purposes. The implementations:
+
+- ❌ Are not security-audited
+- ❌ May contain bugs or vulnerabilities
+- ❌ Should not be used in production
+- ✅ Are intended for learning and research only
 
 For production use, please use the official [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird).
 
 ## Upstream Project
 
-Ladybird is a truly independent web browser with a novel engine based on web standards. For more information about the upstream project:
+Ladybird is a truly independent web browser with a novel engine based on web standards.
 
-- Website: https://ladybird.org
-- Repository: https://github.com/LadybirdBrowser/ladybird
-- Discord: https://discord.gg/nvfjVJ4Svh
+- **Website**: https://ladybird.org
+- **Repository**: https://github.com/LadybirdBrowser/ladybird
+- **Discord**: https://discord.gg/nvfjVJ4Svh
 
 ## License
 
-This fork maintains the same 2-clause BSD license as the upstream Ladybird project. See LICENSE for details.
+This fork maintains the same 2-clause BSD license as the upstream Ladybird project.
 
 All custom additions in this fork are also released under the 2-clause BSD license.
+
+See [LICENSE](../LICENSE) for details.

@@ -1,74 +1,130 @@
 # Ladybird Browser - Personal Development Fork
 
-This is a personal fork of [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird) for learning and IPC security research.
+This is a personal fork of [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird) for learning and privacy-focused experimentation.
 
-This fork includes experimental security enhancements not intended for upstream contribution. For the official project, visit [ladybird.org](https://ladybird.org)
+This fork maintains sync with upstream Ladybird while adding experimental features for educational purposes. **Not intended for production use.**
 
-## About This Fork
+## Fork Features
 
-This fork maintains sync with upstream Ladybird while adding experimental features for educational purposes:
+This fork extends Ladybird with:
 
-- IPC Security Enhancements: Rate limiting, validated decoding, overflow protection
-- Fuzzing Framework: Automated IPC message testing infrastructure
-- Per-Tab Tor Integration: Privacy-focused network isolation with stream isolation
-- VPN/Proxy Support: Per-tab VPN and proxy configuration with NetworkIdentity management
-- Development Documentation: Comprehensive guides for development workflow
+### ✅ Network Privacy
+- **Tor Integration**: Per-tab Tor support with SOCKS5H proxy, DNS leak prevention, and stream isolation
+- **VPN/Proxy Support**: Per-tab proxy configuration with NetworkIdentity management
+- **.onion Support**: Native support for Tor hidden services
 
-See [docs/FORK.md](docs/FORK.md) for detailed documentation of custom additions.
+### ✅ P2P Protocols
+- **IPFS**: Content-addressed web with `ipfs://` URL scheme
+- **IPNS**: Mutable IPFS names with `ipns://` URL scheme
+- **ENS**: Ethereum Name Service resolution for `.eth` domains
+- **Gateway Fallback**: Automatic failover between local and public IPFS gateways
+
+### 🔬 Experimental Security (Educational)
+- IPC rate limiting and validated decoding
+- SafeMath operations for overflow protection
+- **Note**: Not security-audited, for learning only
+
+## Documentation
+
+- **[docs/FORK.md](docs/FORK.md)** - Fork overview and quick start
+- **[docs/FEATURES.md](docs/FEATURES.md)** - Detailed feature documentation with code examples
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development workflow
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing procedures
+
+## Quick Start
+
+```bash
+# Build
+cmake --preset Release
+cmake --build Build/release -j$(nproc)
+
+# Run
+./Build/release/bin/Ladybird
+```
+
+See [Documentation/BuildInstructionsLadybird.md](Documentation/BuildInstructionsLadybird.md) for platform-specific build instructions.
+
+## Testing Features
+
+**Tor .onion domain:**
+```
+http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion
+```
+
+**IPFS content:**
+```
+ipfs://QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco
+ipns://docs.ipfs.tech
+```
+
+**ENS domain:**
+```
+https://vitalik.eth
+```
 
 ---
 
 ## About Ladybird
 
-[Ladybird](https://ladybird.org) is a truly independent web browser, using a novel engine based on web standards.
+[Ladybird](https://ladybird.org) is a truly independent web browser using a novel engine based on web standards. Ladybird is in pre-alpha and suitable only for developers.
 
-Ladybird is in a pre-alpha state, and only suitable for use by developers.
+### Multi-Process Architecture
 
-### Features
+- **Main UI Process** - Qt/AppKit/Android interface
+- **WebContent Process** (per tab, sandboxed) - Rendering and JavaScript execution
+- **ImageDecoder Process** (sandboxed) - Safe image decoding
+- **RequestServer Process** - Network requests with Tor/VPN/IPFS support
 
-Ladybird aims to build a complete, usable browser for the modern web.
+### Core Libraries
 
-Multi-Process Architecture:
-- Main UI process (Qt/AppKit/Android UI)
-- WebContent renderer processes (one per tab, sandboxed)
-- ImageDecoder process (sandboxed image decoding)
-- RequestServer process (network isolation with Tor/VPN support)
+Inherited from SerenityOS:
 
-Image decoding and network connections are done out of process to be more robust against malicious content.
-Each tab has its own renderer process, which is sandboxed from the rest of the system.
+- **LibWeb** - Web rendering engine
+- **LibJS** - JavaScript engine
+- **LibWasm** - WebAssembly implementation
+- **LibCrypto/LibTLS** - Cryptography and TLS
+- **LibHTTP** - HTTP/1.1 client
+- **LibGfx** - 2D graphics and image decoding
+- **LibUnicode** - Unicode and locale support
+- **LibMedia** - Audio and video playback
+- **LibCore** - Event loop and OS abstraction
+- **LibIPC** - Inter-process communication
 
-Core Libraries (inherited from SerenityOS):
-- LibWeb: Web rendering engine
-- LibJS: JavaScript engine
-- LibWasm: WebAssembly implementation
-- LibCrypto/LibTLS: Cryptography primitives and Transport Layer Security
-- LibHTTP: HTTP/1.1 client
-- LibGfx: 2D Graphics Library, Image Decoding and Rendering
-- LibUnicode: Unicode and locale support
-- LibMedia: Audio and video playback
-- LibCore: Event loop, OS abstraction layer
-- LibIPC: Inter-process communication
+## Build and Run
 
-## How do I build and run this?
+### Build Instructions
 
-See [build instructions](Documentation/BuildInstructionsLadybird.md) for information on how to build Ladybird.
+See [Documentation/BuildInstructionsLadybird.md](Documentation/BuildInstructionsLadybird.md) for detailed instructions.
 
-Ladybird runs on Linux, macOS, Windows (with WSL2), and many other \*Nixes.
+Ladybird runs on Linux, macOS, Windows (WSL2), and other *Nixes.
 
-## How do I read the documentation?
+### Documentation
 
-Code-related documentation can be found in the [documentation](Documentation/) folder.
+Code-related documentation is in the [Documentation/](Documentation/) folder.
 
-## Get in touch and participate!
+## Upstream Participation
 
-Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussion.
+### Get Involved
 
-Please read [Getting started contributing](Documentation/GettingStartedContributing.md) if you plan to contribute to Ladybird for the first time.
+Join [Ladybird's Discord server](https://discord.gg/nvfjVJ4Svh) to participate in upstream development.
 
-Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-policy) and the [detailed issue-reporting guidelines](ISSUES.md).
+**Contributing to upstream**: Read [Getting Started Contributing](Documentation/GettingStartedContributing.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-The full contribution guidelines can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+**Reporting issues**: See [issue policy](CONTRIBUTING.md#issue-policy) and [issue guidelines](ISSUES.md).
+
+## Fork Disclaimer
+
+⚠️ This fork contains experimental features for educational purposes:
+
+- ❌ Not security-audited
+- ❌ May contain bugs or vulnerabilities
+- ❌ Should not be used in production
+- ✅ Intended for learning and research only
+
+For production use, visit the official [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird).
 
 ## License
 
-Ladybird is licensed under a 2-clause BSD license.
+Ladybird is licensed under a 2-clause BSD license. This fork maintains the same license for all code.
+
+See [LICENSE](LICENSE) for details.
