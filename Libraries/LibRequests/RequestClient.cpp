@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonObject.h>
+#include <AK/JsonParser.h>
+#include <AK/JsonValue.h>
 #include <LibCore/System.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
@@ -90,6 +93,41 @@ void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap res
         return;
     }
     request->did_receive_headers({}, response_headers, status_code, reason_phrase);
+}
+
+void RequestClient::security_alert(i32 request_id, ByteString alert_json)
+{
+    auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
+    if (!request) {
+        warnln("Received security alert for non-existent request {}", request_id);
+        return;
+    }
+
+    // Log the security alert for now
+    // TODO Week 3: Show UI dialog to user with threat details and policy options
+    dbgln("RequestClient: Security threat detected in download (request {})", request_id);
+    dbgln("Alert details: {}", alert_json);
+
+    // Parse the alert JSON to log specific details
+    auto json_result = JsonValue::from_string(alert_json);
+    if (!json_result.is_error() && json_result.value().is_object()) {
+        auto alert_obj = json_result.value().as_object();
+        if (auto matched_rules = alert_obj.get_array("matched_rules"sv); matched_rules.has_value()) {
+            dbgln("Matched {} YARA rule(s):", matched_rules->size());
+            for (auto const& rule : matched_rules->values()) {
+                if (rule.is_object()) {
+                    auto rule_obj = rule.as_object();
+                    auto rule_name = rule_obj.get_string("rule_name"sv).value_or("Unknown"_string);
+                    auto severity = rule_obj.get_string("severity"sv).value_or("unknown"_string);
+                    auto description = rule_obj.get_string("description"sv).value_or("No description"_string);
+                    dbgln("  - {} [{}]: {}", rule_name, severity, description);
+                }
+            }
+        }
+    }
+
+    // For now, the download still completes but is logged
+    // Week 3 will add policy enforcement (quarantine, block, allow)
 }
 
 void RequestClient::certificate_requested(i32 request_id)
