@@ -256,7 +256,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 13. If result.[[Type]] is normal, then
     if (executable) {
         // a. Set result to Completion(Evaluation of script).
-        auto result_or_error = run_executable(*executable, {}, {});
+        auto result_or_error = run_executable(*script_context, *executable, {}, {});
         if (result_or_error.value.is_error())
             result = result_or_error.value.release_error();
         else {
@@ -707,21 +707,22 @@ Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) co
     return m_running_execution_context->identifier_table.data()[index.value];
 }
 
-Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
+Interpreter::ResultAndReturnRegister Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
 {
-    dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {:p}", &executable);
+    dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {}", &executable);
 
-    auto& running_execution_context = vm().running_execution_context();
-    TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
+    // NOTE: This is how we "push" a new execution context onto the interpreter stack.
+    TemporaryChange restore_running_execution_context { m_running_execution_context, &context };
 
-    running_execution_context.global_object = realm().global_object();
-    running_execution_context.global_declarative_environment = realm().global_environment().declarative_record();
-    running_execution_context.identifier_table = executable.identifier_table->identifiers();
+    context.executable = executable;
+    context.global_object = realm().global_object();
+    context.global_declarative_environment = realm().global_environment().declarative_record();
+    context.identifier_table = executable.identifier_table->identifiers();
 
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
-    VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments_span().size());
+    VERIFY(registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
 
-    running_execution_context.registers_and_constants_and_locals_arguments = running_execution_context.registers_and_constants_and_locals_and_arguments_span();
+    context.registers_and_constants_and_locals_arguments = context.registers_and_constants_and_locals_and_arguments_span();
 
     reg(Register::accumulator()) = initial_accumulator_value;
     reg(Register::return_value()) = js_special_empty_value();
@@ -731,18 +732,16 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     //       may have already been cached by a ResolveThisBinding instruction,
     //       and subsequent instructions expect this value to be set.
     if (reg(Register::this_value()).is_special_empty_value())
-        reg(Register::this_value()) = running_execution_context.this_value.value_or(js_special_empty_value());
+        reg(Register::this_value()) = context.this_value.value_or(js_special_empty_value());
 
-    running_execution_context.executable = &executable;
-
-    auto* registers_and_constants_and_locals_and_arguments = running_execution_context.registers_and_constants_and_locals_and_arguments();
+    auto* registers_and_constants_and_locals_and_arguments = context.registers_and_constants_and_locals_and_arguments();
     for (size_t i = 0; i < executable.constants.size(); ++i) {
         registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants[i];
     }
 
     run_bytecode(entry_point.value_or(0));
 
-    dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter did run unit {:p}", &executable);
+    dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter did run unit {}", context.executable);
 
     if constexpr (JS_BYTECODE_DEBUG) {
         for (size_t i = 0; i < executable.number_of_registers; ++i) {
