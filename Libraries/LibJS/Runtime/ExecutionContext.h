@@ -58,17 +58,17 @@ public:
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
     GC::Ptr<Cell> context_owner;
 
-    size_t program_counter { 0 };
+    u32 program_counter { 0 };
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
+    // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
+    u32 skip_when_determining_incumbent_counter { 0 };
 
     mutable RefPtr<CachedSourceRange> cached_source_range;
 
     Optional<Value> this_value;
 
     GC::Ptr<Bytecode::Executable> executable;
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
-    // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
-    size_t skip_when_determining_incumbent_counter { 0 };
 
     Span<Value> registers_and_constants_and_locals_and_arguments_span()
     {
