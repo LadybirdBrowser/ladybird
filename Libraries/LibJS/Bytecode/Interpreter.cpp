@@ -167,12 +167,12 @@ Interpreter::~Interpreter()
 
 ALWAYS_INLINE Value Interpreter::get(Operand op) const
 {
-    return m_registers_and_constants_and_locals_arguments.data()[op.index()];
+    return m_running_execution_context->registers_and_constants_and_locals_arguments.data()[op.index()];
 }
 
 ALWAYS_INLINE void Interpreter::set(Operand op, Value value)
 {
-    m_registers_and_constants_and_locals_arguments.data()[op.index()] = value;
+    m_running_execution_context->registers_and_constants_and_locals_arguments.data()[op.index()] = value;
 }
 
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
@@ -308,7 +308,7 @@ ThrowCompletionOr<Value> Interpreter::run(SourceTextModule& module)
 NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_counter, Value exception)
 {
     reg(Register::exception()) = exception;
-    m_scheduled_jump = {};
+    m_running_execution_context->scheduled_jump = {};
     auto handlers = current_executable().exception_handlers_for_offset(program_counter);
     if (!handlers.has_value()) {
         return HandleExceptionResponse::ExitFromExecutable;
@@ -318,7 +318,7 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
 
     VERIFY(!running_execution_context().unwind_contexts.is_empty());
     auto& unwind_context = running_execution_context().unwind_contexts.last();
-    VERIFY(unwind_context.executable == m_current_executable);
+    VERIFY(unwind_context.executable == &current_executable());
 
     if (handler.has_value()) {
         program_counter = handler.value();
@@ -492,7 +492,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                     if (auto finalizer = handlers.value().finalizer_offset; finalizer.has_value()) {
                         VERIFY(!running_execution_context.unwind_contexts.is_empty());
                         auto& unwind_context = running_execution_context.unwind_contexts.last();
-                        VERIFY(unwind_context.executable == m_current_executable);
+                        VERIFY(unwind_context.executable == &current_executable());
                         reg(Register::saved_return_value()) = reg(Register::return_value());
                         reg(Register::return_value()) = js_special_empty_value();
                         program_counter = finalizer.value();
@@ -503,21 +503,21 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                 return;
             }
             auto const old_scheduled_jump = running_execution_context.previously_scheduled_jumps.take_last();
-            if (m_scheduled_jump.has_value()) {
-                program_counter = m_scheduled_jump.value();
-                m_scheduled_jump = {};
+            if (m_running_execution_context->scheduled_jump.has_value()) {
+                program_counter = m_running_execution_context->scheduled_jump.value();
+                m_running_execution_context->scheduled_jump = {};
             } else {
                 program_counter = instruction.resume_target().address();
                 // set the scheduled jump to the old value if we continue
                 // where we left it
-                m_scheduled_jump = old_scheduled_jump;
+                m_running_execution_context->scheduled_jump = old_scheduled_jump;
             }
             goto start;
         }
 
         handle_ScheduleJump: {
             auto& instruction = *reinterpret_cast<Op::ScheduleJump const*>(&bytecode[program_counter]);
-            m_scheduled_jump = instruction.target().address();
+            m_running_execution_context->scheduled_jump = instruction.target().address();
             auto finalizer = executable.exception_handlers_for_offset(program_counter).value().finalizer_offset;
             VERIFY(finalizer.has_value());
             program_counter = finalizer.value();
@@ -704,26 +704,24 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 
 Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) const
 {
-    return m_identifier_table.data()[index.value];
+    return m_running_execution_context->identifier_table.data()[index.value];
 }
 
 Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {:p}", &executable);
 
-    TemporaryChange restore_executable { m_current_executable, GC::Ptr { executable } };
-    TemporaryChange restore_saved_jump { m_scheduled_jump, Optional<size_t> {} };
-    TemporaryChange restore_realm { m_realm, GC::Ptr { vm().current_realm() } };
-    TemporaryChange restore_global_object { m_global_object, GC::Ptr { m_realm->global_object() } };
-    TemporaryChange restore_global_declarative_environment { m_global_declarative_environment, GC::Ptr { m_realm->global_environment().declarative_record() } };
-    TemporaryChange restore_identifier_table { m_identifier_table, executable.identifier_table->identifiers() };
-
     auto& running_execution_context = vm().running_execution_context();
+    TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
+
+    running_execution_context.global_object = realm().global_object();
+    running_execution_context.global_declarative_environment = realm().global_environment().declarative_record();
+    running_execution_context.identifier_table = executable.identifier_table->identifiers();
+
     u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
     VERIFY(registers_and_constants_and_locals_count <= running_execution_context.registers_and_constants_and_locals_and_arguments_span().size());
 
-    TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
-    TemporaryChange restore_registers_and_constants_and_locals { m_registers_and_constants_and_locals_arguments, running_execution_context.registers_and_constants_and_locals_and_arguments_span() };
+    running_execution_context.registers_and_constants_and_locals_arguments = running_execution_context.registers_and_constants_and_locals_and_arguments_span();
 
     reg(Register::accumulator()) = initial_accumulator_value;
     reg(Register::return_value()) = js_special_empty_value();
@@ -773,10 +771,10 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 void Interpreter::enter_unwind_context()
 {
     running_execution_context().unwind_contexts.empend(
-        m_current_executable,
+        current_executable(),
         running_execution_context().lexical_environment);
-    running_execution_context().previously_scheduled_jumps.append(m_scheduled_jump);
-    m_scheduled_jump = {};
+    running_execution_context().previously_scheduled_jumps.append(m_running_execution_context->scheduled_jump);
+    m_running_execution_context->scheduled_jump = {};
 }
 
 void Interpreter::leave_unwind_context()
@@ -797,13 +795,13 @@ void Interpreter::catch_exception(Operand dst)
 
 void Interpreter::restore_scheduled_jump()
 {
-    m_scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
+    m_running_execution_context->scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
 }
 
 void Interpreter::leave_finally()
 {
     reg(Register::exception()) = js_special_empty_value();
-    m_scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
+    m_running_execution_context->scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
 }
 
 void Interpreter::enter_object_environment(Object& object)
