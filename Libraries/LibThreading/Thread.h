@@ -12,11 +12,33 @@
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/Function.h>
+#include <AK/Noncopyable.h>
 #include <AK/Result.h>
 #include <LibCore/EventReceiver.h>
 #include <pthread.h>
 
 namespace Threading {
+
+class ThreadID {
+    AK_MAKE_DEFAULT_COPYABLE(ThreadID);
+    AK_MAKE_DEFAULT_MOVABLE(ThreadID);
+    using HandleType = pthread_t;
+    friend struct AK::Traits<ThreadID>;
+    friend struct AK::Formatter<ThreadID>;
+    friend class Thread;
+
+public:
+    bool operator==(ThreadID const& other);
+
+    ThreadID() = default;
+
+    static ThreadID self();
+
+    HandleType& native_handle_but_fixme() { return m_tid; }
+
+private:
+    HandleType m_tid {};
+};
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(intptr_t, ThreadError);
 
@@ -69,7 +91,7 @@ public:
     Result<T, ThreadError> join();
 
     ByteString thread_name() const;
-    pthread_t tid() const;
+    ThreadID tid() const;
     ThreadState state() const;
     bool is_started() const;
     bool needs_to_be_joined() const;
@@ -78,7 +100,7 @@ public:
 private:
     explicit Thread(ESCAPING Function<intptr_t()> action, StringView thread_name = {});
     Function<intptr_t()> m_action;
-    pthread_t m_tid {};
+    ThreadID m_tid;
     ByteString m_thread_name;
     Atomic<ThreadState> m_state { ThreadState::Startable };
 };
@@ -89,7 +111,7 @@ Result<T, ThreadError> Thread::join()
     VERIFY(needs_to_be_joined());
 
     void* thread_return = nullptr;
-    int rc = pthread_join(m_tid, &thread_return);
+    int rc = pthread_join(m_tid.m_tid, &thread_return);
     if (rc != 0) {
         return ThreadError { rc };
     }
@@ -116,6 +138,14 @@ struct AK::Formatter<pthread_t> : AK::Formatter<FormatString> {
     }
 };
 #endif
+
+template<>
+struct AK::Formatter<Threading::ThreadID> : AK::Formatter<pthread_t> {
+    ErrorOr<void> format(FormatBuilder& builder, Threading::ThreadID const& thread_id)
+    {
+        return AK::Formatter<pthread_t>::format(builder, thread_id.m_tid);
+    }
+};
 
 template<>
 struct AK::Formatter<Threading::Thread> : AK::Formatter<FormatString> {
