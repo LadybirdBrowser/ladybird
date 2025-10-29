@@ -1062,7 +1062,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
                 cache.in_module_environment = true;
                 return TRY(module_environment.get_binding_value_direct(vm, index.value()));
             }
-            return TRY(module_environment.get_binding_value(vm, identifier, strict == Strict::Yes));
+            return TRY(module_environment.get_binding_value(vm, identifier, true));
         }
     }
 
