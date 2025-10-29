@@ -220,6 +220,7 @@ OwnPtr<BooleanExpression> Parser::parse_boolean_expression(TokenStream<Component
         tokens.discard_whitespace();
 
         if (auto child = parse_boolean_expression_group(tokens, result_for_general_enclosed, parse_test)) {
+            tokens.discard_whitespace();
             transaction.commit();
             return BooleanNotExpression::create(child.release_nonnull());
         }

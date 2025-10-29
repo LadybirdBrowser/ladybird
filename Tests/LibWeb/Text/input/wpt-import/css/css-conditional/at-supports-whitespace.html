@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<title>Parsing of @supports with whitespace</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-3/#at-supports">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<main id=main></main>
+<script>
+  let examples = [
+    '@supports ((a)) {}',
+    '@supports ((a) ) {}',
+    '@supports ( (a)) {}',
+    '@supports ( (a) ) {}',
+
+    '@supports (not (a)) {}',
+    '@supports (not (a) ) {}',
+    '@supports ( not (a)) {}',
+    '@supports ( not (a) ) {}',
+
+    '@supports ((a) and (b)) {}',
+    '@supports ((a) and (b) ) {}',
+    '@supports ( (a) and (b)) {}',
+    '@supports ( (a) and (b) ) {}',
+
+    '@supports ((a) or (b)) {}',
+    '@supports ((a) or (b) ) {}',
+    '@supports ( (a) or (b)) {}',
+    '@supports ( (a) or (b) ) {}',
+  ];
+
+  for (let example of examples) {
+    test((t) => {
+      let style = document.createElement('style');
+      t.add_cleanup(() => style.remove());
+      style.textContent = example;
+      main.append(style);
+      assert_equals(style.sheet.rules.length, 1);
+    }, example);
+  }
+</script>
