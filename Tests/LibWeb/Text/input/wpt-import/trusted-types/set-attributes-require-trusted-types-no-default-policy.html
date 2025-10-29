@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/namespaces.js"></script>
+<script src="./support/attributes.js"></script>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<script>
+  // Set an attribute for each testcase of trustedTypeDataForAttribute. The CSP
+  // rule and a null default policy will block those corresponding to trusted
+  // type sinks.
+  attributeSetterData.forEach(setterData => {
+    trustedTypeDataForAttribute.forEach(testData => {
+      if (testData.attrNS && !setterData.acceptNS) return;
+      test(() => {
+        let element = testData.element();
+        if (testData.type != null) {
+          // This is a trusted type sink and should be blocked.
+          assert_throws_js(TypeError, () => {
+            setterData.runSetter(element, testData.attrNS, testData.attrName,
+                                 "neverset", testData.type);
+          });
+        } else {
+          // Otherwise, this works normally.
+          setterData.runSetter(element, testData.attrNS, testData.attrName,
+                               "somevalue", testData.type);
+          assert_equals(element.getAttributeNS(testData.attrNS,
+                                               testData.attrName), "somevalue");
+        }
+      }, `${setterData.api} \
+${testData.type ? 'throws' : 'works'} for \
+elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''} \
+attrName=${testData.attrName} with a plain string`);
+    });
+  });
+
+  // For attributes that are trusted type sinks, try setting them to a value
+  // that has the expected trusted type.
+  attributeSetterData.forEach(setterData => {
+    trustedTypeDataForAttribute.forEach(testData => {
+      if (!testData.type) return;
+      if (testData.attrNS && !setterData.acceptNS) return;
+      test(() => {
+        let element = testData.element();
+        let trustedInput = createTrustedOutput(testData.type, "somevalue");
+        if (setterData.acceptTrustedTypeArgumentInIDL) {
+          // Passing a trusted type should work normally.
+          setterData.runSetter(element, testData.attrNS, testData.attrName,
+                               trustedInput, testData.type);
+          assert_equals(element.getAttributeNS(testData.attrNS,
+                                               testData.attrName), "somevalue");
+        } else {
+          // TrustedType arguments will be converted to a string when passed
+          // to this setter, so this is still blocked.
+          assert_throws_js(TypeError, () => {
+            setterData.runSetter(element, testData.attrNS, testData.attrName,
+                                 "neverset", testData.type);
+          });
+        }
+      }, `${setterData.api} \
+${setterData.acceptTrustedTypeArgumentInIDL ? 'works' : 'throws'} for \
+elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''} \
+attrName=${testData.attrName} with a ${testData.type} input.`);
+    });
+  });
+</script>

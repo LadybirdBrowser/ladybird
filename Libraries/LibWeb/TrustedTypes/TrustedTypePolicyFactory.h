@@ -69,6 +69,6 @@ struct TrustedTypeData {
     InjectionSink sink;
 };
 
-Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&, Utf16String const&, Optional<Utf16String> const&);
+Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface const& element, Utf16String const&, Optional<Utf16String> const&);
 
 }

@@ -355,7 +355,9 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Fly
     //    attributeName
     //    attributeNs
     auto const attribute_data = get_trusted_type_data_for_attribute(
-        element_interface_name(Utf16String::from_utf8(element.local_name()), attribute_ns.has_value() ? attribute_ns.value() : Utf16String::from_utf8(Namespace::HTML)),
+        element_interface(
+            Utf16String::from_utf8(element.local_name()),
+            element.namespace_uri().value_or(Namespace::HTML)),
         Utf16String::from_utf8(attribute_name),
         attribute_ns);
 
@@ -393,18 +395,18 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Fly
         Script.to_string());
 }
 
-Utf16String element_interface_name(Utf16String const& local_name, Utf16String const& element_ns)
+ElementInterface element_interface(Utf16String const& local_name, FlyString const& element_ns)
 {
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function
     if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML)
-        return "HTMLIFrameElement"_utf16;
+        return { "HTMLIFrameElement"_utf16, element_ns };
     if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML)
-        return "HTMLScriptElement"_utf16;
+        return { "HTMLScriptElement"_utf16, element_ns };
     if (local_name == SVG::TagNames::script && element_ns == Namespace::SVG)
-        return "SVGScriptElement"_utf16;
+        return { "SVGScriptElement"_utf16, element_ns };
 
-    return "Element"_utf16;
+    return { "Element"_utf16, element_ns };
 }
 
 }
