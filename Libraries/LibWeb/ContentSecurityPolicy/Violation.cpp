@@ -239,7 +239,9 @@ ByteBuffer Violation::obtain_the_deprecated_serialization(JS::Realm& realm) cons
 
     // 3. Assert: If body["blocked-uri"] is not "inline", then body["sample"] is the empty string.
     // FIXME: File spec issue that body["sample"] should be body["script-sample"]
-    if (m_resource.has<Resource>() && m_resource.get<Resource>() != Resource::Inline) {
+    // FIXME: This is not a valid assertion, since Eval, TrustedTypesSink and TrustedTypesPolicy provide a sample. https://github.com/w3c/webappsec-csp/issues/788
+    if (auto* maybe_resource = m_resource.get_pointer<Resource>();
+        !maybe_resource || (*maybe_resource != Resource::Inline && *maybe_resource != Resource::Eval && *maybe_resource != Resource::TrustedTypesSink && *maybe_resource != Resource::TrustedTypesPolicy)) {
         VERIFY(m_sample.is_empty());
     }
 
