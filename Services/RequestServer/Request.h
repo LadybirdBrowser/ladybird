@@ -21,6 +21,7 @@
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/Forward.h>
+#include <RequestServer/SecurityTap.h>
 
 struct curl_slist;
 
@@ -58,6 +59,11 @@ public:
 
     void notify_request_unblocked(Badge<DiskCache>);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
+
+    // Sentinel integration
+    void set_security_tap(SecurityTap* security_tap) { m_security_tap = security_tap; }
+    bool should_inspect_download() const;
+    SecurityTap::DownloadMetadata extract_download_metadata() const;
 
     // IPFS Integration: Start
     // Protocol types for P2P/decentralized content
@@ -186,6 +192,9 @@ private:
     Function<ErrorOr<bool>(ReadonlyBytes)> m_content_verification_callback;
     Function<void()> m_gateway_fallback_callback;
     // IPFS Integration: End
+
+    // Sentinel integration
+    SecurityTap* m_security_tap { nullptr };
 };
 
 }

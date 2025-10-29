@@ -38,6 +38,7 @@ static IDAllocator s_client_ids;
 [[maybe_unused]] static long s_gateway_request_timeout_seconds = 30L;  // Total request timeout for gateway requests
 
 Optional<DiskCache> g_disk_cache;
+extern SecurityTap* g_security_tap;
 
 // Static storage for NetworkIdentity shared across all ConnectionFromClient instances
 HashMap<u64, RefPtr<IPC::NetworkIdentity>> ConnectionFromClient::s_page_network_identities;
@@ -633,6 +634,9 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
     // Set protocol type on the request
     request->set_protocol_type(protocol_type);
 
+    // Set SecurityTap for Sentinel integration
+    request->set_security_tap(g_security_tap);
+
     // Setup IPFS verification callback if this is an IPFS request
     if (protocol_type == Request::ProtocolType::IPFS) {
         setup_ipfs_verification(request_id, *request, original_resource_id);
@@ -655,6 +659,9 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
 
     // Create the Request object using the provided URL (no IPFS detection)
     auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data, network_identity);
+
+    // Set SecurityTap for Sentinel integration
+    request->set_security_tap(g_security_tap);
 
     m_active_requests.set(request_id, move(request));
 }

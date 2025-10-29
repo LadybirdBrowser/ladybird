@@ -542,6 +542,44 @@ void Request::handle_complete_state()
 
             m_network_identity->log_response(m_url, static_cast<u16>(status_code), bytes_sent, bytes_received);
         }
+
+        // Sentinel SecurityTap integration - inspect downloads for threats
+        if (m_security_tap && should_inspect_download() && !m_network_error.has_value()) {
+            auto buffer_size = m_response_buffer.used_buffer_size();
+            if (buffer_size > 0) {
+                // Read content from response buffer
+                auto content_buffer_result = ByteBuffer::create_uninitialized(buffer_size);
+                if (!content_buffer_result.is_error()) {
+                    auto content_buffer = content_buffer_result.release_value();
+                    auto read_result = m_response_buffer.read_until_filled(content_buffer);
+
+                    if (!read_result.is_error()) {
+                        // Extract download metadata
+                        auto metadata = extract_download_metadata();
+
+                        // Compute SHA256 hash
+                        auto sha256_result = SecurityTap::compute_sha256(content_buffer.bytes());
+                        if (!sha256_result.is_error()) {
+                            const_cast<SecurityTap::DownloadMetadata&>(metadata).sha256 = sha256_result.release_value();
+
+                            // Scan the content
+                            auto scan_result = m_security_tap->inspect_download(metadata, content_buffer.bytes());
+
+                            if (!scan_result.is_error() && scan_result.value().is_threat) {
+                                dbgln("SecurityTap: Threat detected in download: {}", metadata.filename);
+                                // TODO Week 2 Day 10-11: Send security_alert IPC message
+                                // m_client.async_security_alert(m_request_id, scan_result.value().alert_json.value());
+                            } else if (scan_result.is_error()) {
+                                dbgln("SecurityTap: Scan failed: {}", scan_result.error());
+                            }
+                        }
+
+                        // Note: AllocatingMemoryStream is already at the correct position
+                        // No need to rewind - the read_until_filled() doesn't move the position
+                    }
+                }
+            }
+        }
     }
 
     m_client.request_complete({}, m_request_id);
@@ -571,6 +609,91 @@ void Request::handle_error_state()
     }
 
     m_client.request_complete({}, m_request_id);
+}
+
+bool Request::should_inspect_download() const
+{
+    // Only inspect actual downloads, not page navigations or API responses
+
+    // Check Content-Disposition header
+    auto content_disposition = m_response_headers.get("Content-Disposition"sv);
+    if (content_disposition.has_value() && content_disposition->contains("attachment"sv))
+        return true;
+
+    // Check for common download MIME types
+    auto content_type = m_response_headers.get("Content-Type"sv);
+    if (content_type.has_value()) {
+        // Applications (executables, archives, documents)
+        if (content_type->starts_with("application/"sv))
+            return true;
+        // Executables
+        if (content_type->contains("executable"sv) || content_type->contains("x-ms"sv))
+            return true;
+    }
+
+    // Check URL file extension for common download types
+    auto path = m_url.serialize_path().to_byte_string();
+    if (path.ends_with(".exe"sv) || path.ends_with(".msi"sv) || path.ends_with(".dmg"sv)
+        || path.ends_with(".zip"sv) || path.ends_with(".rar"sv) || path.ends_with(".7z"sv)
+        || path.ends_with(".tar"sv) || path.ends_with(".gz"sv)
+        || path.ends_with(".ps1"sv) || path.ends_with(".bat"sv) || path.ends_with(".sh"sv)
+        || path.ends_with(".apk"sv) || path.ends_with(".deb"sv) || path.ends_with(".rpm"sv))
+        return true;
+
+    return false;
+}
+
+SecurityTap::DownloadMetadata Request::extract_download_metadata() const
+{
+    // Extract filename from Content-Disposition header or URL
+    ByteString filename = "unknown"sv;
+
+    auto disposition = m_response_headers.get("Content-Disposition"sv);
+    if (disposition.has_value()) {
+        // Parse: Content-Disposition: attachment; filename="file.exe"
+        auto filename_pos = disposition->find("filename="sv);
+        if (filename_pos.has_value()) {
+            auto start = *filename_pos + 9; // length of "filename="
+            auto filename_part = disposition->substring_view(start);
+
+            // Remove quotes if present
+            if (filename_part.starts_with('"')) {
+                filename_part = filename_part.substring_view(1);
+                if (auto quote_end = filename_part.find('"'); quote_end.has_value())
+                    filename_part = filename_part.substring_view(0, *quote_end);
+            } else {
+                // Without quotes, filename ends at semicolon or end of string
+                if (auto semicolon = filename_part.find(';'); semicolon.has_value())
+                    filename_part = filename_part.substring_view(0, *semicolon);
+            }
+
+            filename = filename_part.trim_whitespace();
+        }
+    }
+
+    // Fallback: extract from URL path
+    if (filename == "unknown"sv) {
+        auto path = m_url.serialize_path().to_byte_string();
+        if (auto last_slash = path.find_last('/'); last_slash.has_value()) {
+            filename = path.substring_view(*last_slash + 1);
+        } else {
+            filename = path;
+        }
+
+        // If still empty, use a generic name
+        if (filename.is_empty())
+            filename = "download"sv;
+    }
+
+    auto mime_type = m_response_headers.get("Content-Type"sv).value_or("application/octet-stream"sv);
+
+    return SecurityTap::DownloadMetadata {
+        .url = m_url.to_byte_string(),
+        .filename = filename,
+        .mime_type = mime_type,
+        .sha256 = ""sv, // Computed by SecurityTap
+        .size_bytes = m_response_buffer.used_buffer_size()
+    };
 }
 
 size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data)

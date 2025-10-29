@@ -11,6 +11,7 @@ set(SOURCES
     CURL.cpp
     Request.cpp
     Resolver.cpp
+    SecurityTap.cpp
     WebSocketImplCurl.cpp
 )
 

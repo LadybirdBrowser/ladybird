@@ -17,6 +17,7 @@
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
+#include <RequestServer/SecurityTap.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
@@ -25,6 +26,7 @@
 namespace RequestServer {
 
 extern Optional<DiskCache> g_disk_cache;
+SecurityTap* g_security_tap { nullptr };
 
 }
 
@@ -63,6 +65,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             warnln("Unable to create disk cache: {}", cache.error());
         else
             RequestServer::g_disk_cache = cache.release_value();
+    }
+
+    // Initialize SecurityTap for Sentinel integration
+    auto security_tap = RequestServer::SecurityTap::create();
+    if (security_tap.is_error()) {
+        // Sentinel not available - continue without security scanning (fail-open)
+        dbgln("RequestServer: SecurityTap initialization failed: {}", security_tap.error());
+        dbgln("RequestServer: Continuing without Sentinel security scanning");
+    } else {
+        RequestServer::g_security_tap = security_tap.release_value().leak_ptr();
+        dbgln("RequestServer: SecurityTap initialized successfully");
     }
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>());
