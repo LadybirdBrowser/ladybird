@@ -232,7 +232,7 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
 
         if (cache_header.magic != CacheHeader::CACHE_MAGIC)
             return Error::from_string_literal("Magic value mismatch");
-        if (cache_header.version != CacheHeader::CACHE_VERSION)
+        if (cache_header.version != CACHE_VERSION)
             return Error::from_string_literal("Version mismatch");
 
         url = TRY(String::from_stream(*file, cache_header.url_size));

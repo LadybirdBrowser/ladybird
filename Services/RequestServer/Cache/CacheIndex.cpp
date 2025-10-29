@@ -5,12 +5,43 @@
  */
 
 #include <RequestServer/Cache/CacheIndex.h>
+#include <RequestServer/Cache/Version.h>
 
 namespace RequestServer {
 
+static constexpr u32 CACHE_METADATA_KEY = 12389u;
+
 ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
 {
-    auto create_table = TRY(database.prepare_statement(R"#(
+    auto create_cache_metadata_table = TRY(database.prepare_statement(R"#(
+        CREATE TABLE IF NOT EXISTS CacheMetadata (
+            metadata_key INTEGER,
+            version INTEGER,
+            PRIMARY KEY(metadata_key)
+        );
+    )#"sv));
+    database.execute_statement(create_cache_metadata_table, {});
+
+    auto read_cache_version = TRY(database.prepare_statement("SELECT version FROM CacheMetadata WHERE metadata_key = ?;"sv));
+    auto cache_version = 0u;
+
+    database.execute_statement(
+        read_cache_version,
+        [&](auto statement_id) { cache_version = database.result_column<u32>(statement_id, 0); },
+        CACHE_METADATA_KEY);
+
+    if (cache_version != CACHE_VERSION) {
+        dbgln("\033[31;1mDisk cache version mismatch:\033[0m stored version = {}, new version = {}", cache_version, CACHE_VERSION);
+
+        // FIXME: We should more elegantly handle minor changes, i.e. use ALTER TABLE to add fields to CacheIndex.
+        auto delete_cache_index_table = TRY(database.prepare_statement("DROP TABLE IF EXISTS CacheIndex;"sv));
+        database.execute_statement(delete_cache_index_table, {});
+
+        auto set_cache_version = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheMetadata VALUES (?, ?);"sv));
+        database.execute_statement(set_cache_version, {}, CACHE_METADATA_KEY, CACHE_VERSION);
+    }
+
+    auto create_cache_index_table = TRY(database.prepare_statement(R"#(
         CREATE TABLE IF NOT EXISTS CacheIndex (
             cache_key INTEGER,
             url TEXT,
@@ -19,8 +50,9 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
             response_time INTEGER,
             last_access_time INTEGER,
             PRIMARY KEY(cache_key)
-        );)#"sv));
-    database.execute_statement(create_table, {});
+        );
+    )#"sv));
+    database.execute_statement(create_cache_index_table, {});
 
     Statements statements {};
     statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?);"sv));
