@@ -89,8 +89,6 @@ https://vitalik.eth
   - Per-tab NetworkIdentity for circuit isolation
   - Real-time malware scanning via SecurityTap
   - Request pause/resume for security policy enforcement
-
-**Fork-Specific Services:**
 - **Sentinel Service** - Standalone malware detection daemon with:
   - YARA-based rule engine
   - Unix socket IPC for inter-process communication
