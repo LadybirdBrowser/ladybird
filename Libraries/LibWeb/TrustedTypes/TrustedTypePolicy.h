@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
 
 WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeName, JS::Object&, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> input, InjectionSink sink, String sink_group);
 
-WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, const DOM::Element& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value);
+WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, DOM::Element const& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value);
 
 Utf16String element_interface_name(Utf16String const& local_name, Utf16String const& element_ns);
 
