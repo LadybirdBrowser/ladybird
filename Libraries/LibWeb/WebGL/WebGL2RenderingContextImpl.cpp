@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024-2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +16,6 @@ extern "C" {
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextImpl.h>
@@ -1591,15 +1591,8 @@ void WebGL2RenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Ro
     }
 
     switch (target) {
-    case GL_ELEMENT_ARRAY_BUFFER:
-        m_element_array_buffer_binding = buffer;
-        break;
     case GL_ARRAY_BUFFER:
         m_array_buffer_binding = buffer;
-        break;
-
-    case GL_UNIFORM_BUFFER:
-        m_uniform_buffer_binding = buffer;
         break;
     case GL_COPY_READ_BUFFER:
         m_copy_read_buffer_binding = buffer;
@@ -1607,8 +1600,20 @@ void WebGL2RenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Ro
     case GL_COPY_WRITE_BUFFER:
         m_copy_write_buffer_binding = buffer;
         break;
+    case GL_ELEMENT_ARRAY_BUFFER:
+        m_element_array_buffer_binding = buffer;
+        break;
+    case GL_PIXEL_PACK_BUFFER:
+        m_pixel_pack_buffer_binding = buffer;
+        break;
+    case GL_PIXEL_UNPACK_BUFFER:
+        m_pixel_unpack_buffer_binding = buffer;
+        break;
     case GL_TRANSFORM_FEEDBACK_BUFFER:
         m_transform_feedback_buffer_binding = buffer;
+        break;
+    case GL_UNIFORM_BUFFER:
+        m_uniform_buffer_binding = buffer;
         break;
     default:
         dbgln("Unknown WebGL buffer object binding target for storing current binding: 0x{:04x}", target);
@@ -2844,6 +2849,16 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
             return JS::js_null();
         return JS::Value(m_transform_feedback_buffer_binding);
     }
+    case GL_PIXEL_PACK_BUFFER_BINDING: {
+        if (!m_pixel_pack_buffer_binding)
+            return JS::js_null();
+        return JS::Value(m_pixel_pack_buffer_binding);
+    }
+    case GL_PIXEL_UNPACK_BUFFER_BINDING: {
+        if (!m_pixel_unpack_buffer_binding)
+            return JS::js_null();
+        return JS::Value(m_pixel_unpack_buffer_binding);
+    }
     case GL_TRANSFORM_FEEDBACK_PAUSED: {
         GLboolean result { GL_FALSE };
         glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_PAUSED, 1, nullptr, &result);
@@ -3440,6 +3455,8 @@ void WebGL2RenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_texture_binding_2d_array);
     visitor.visit(m_texture_binding_3d);
     visitor.visit(m_transform_feedback_binding);
+    visitor.visit(m_pixel_pack_buffer_binding);
+    visitor.visit(m_pixel_unpack_buffer_binding);
 }
 
 }
