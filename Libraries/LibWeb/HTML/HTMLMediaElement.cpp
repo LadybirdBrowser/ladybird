@@ -267,7 +267,7 @@ double HTMLMediaElement::current_time() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-currenttime
-double HTMLMediaElement::set_current_time(double current_time)
+void HTMLMediaElement::set_current_time(double current_time)
 {
     // On setting, if the media element's readyState is HAVE_NOTHING, then it must set the media element's default playback start
     // position to the new value; otherwise, it must set the official playback position to the new value and then seek to the new
@@ -283,7 +283,6 @@ double HTMLMediaElement::set_current_time(double current_time)
 
         seek_element(current_time);
     }
-    return current_time;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-fastseek
