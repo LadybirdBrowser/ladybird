@@ -477,6 +477,8 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     executable->argument_index_base = number_of_registers + number_of_constants + number_of_locals;
     executable->length_identifier = generator.m_length_identifier;
 
+    executable->registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+
     generator.m_finished = true;
 
     return executable;
