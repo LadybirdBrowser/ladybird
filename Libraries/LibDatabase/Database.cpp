@@ -40,6 +40,7 @@ static constexpr StringView sql_error(int error_code)
 
 #define ENUMERATE_SQL_TYPES              \
     __ENUMERATE_TYPE(String)             \
+    __ENUMERATE_TYPE(ByteString)         \
     __ENUMERATE_TYPE(UnixDateTime)       \
     __ENUMERATE_TYPE(i8)                 \
     __ENUMERATE_TYPE(i16)                \
@@ -118,7 +119,7 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
 {
     auto* statement = prepared_statement(statement_id);
 
-    if constexpr (IsSame<ValueType, String>) {
+    if constexpr (IsOneOf<ValueType, String, ByteString>) {
         StringView string { value };
         SQL_MUST(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
@@ -146,6 +147,9 @@ ValueType Database::result_column(StatementID statement_id, int column)
     if constexpr (IsSame<ValueType, String>) {
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
         return MUST(String::from_utf8(StringView { text, strlen(text) }));
+    } else if constexpr (IsSame<ValueType, ByteString>) {
+        auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
+        return ByteString { text, strlen(text) };
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         auto milliseconds = result_column<sqlite3_int64>(statement_id, column);
         return UnixDateTime::from_milliseconds_since_epoch(milliseconds);
