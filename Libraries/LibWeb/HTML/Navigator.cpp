@@ -76,6 +76,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
+    visitor.visit(m_battery_promise);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -146,6 +147,33 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
     if (!m_media_capabilities)
         m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());
     return *m_media_capabilities;
+}
+
+// https://w3c.github.io/battery/#the-getbattery-method
+GC::Ref<WebIDL::Promise> Navigator::get_battery()
+{
+    auto& realm = this->realm();
+
+    // FIXME: 1. If this.[[BatteryPromise]] is null, then set it to a new promise in this's relevant realm.
+    if (!m_battery_promise) {
+        WebIDL::SimpleException exception {
+            WebIDL::SimpleExceptionType::TypeError,
+            "Battery Status API is not yet implemented"sv
+        };
+        m_battery_promise = WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+    }
+
+    // FIXME: 2. If this's relevant global object's associated Document is not allowed to use the "battery"
+    // policy-controlled feature, then reject this.[[BatteryPromise]] with a "NotAllowedError" DOMException.
+
+    // FIXME: 3. Otherwise:
+    //    1. If this.[[BatteryManager]] is null, then set it to the result of creating a new BatteryManager
+    //       in this's relevant realm.
+
+    //    2. Resolve this.[[BatteryPromise]] with this.[[BatteryManager]].
+
+    // 4. Return this.[[BatteryPromise]].
+    return *m_battery_promise;
 }
 
 }
