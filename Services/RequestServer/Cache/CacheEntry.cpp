@@ -4,11 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/JsonArray.h>
-#include <AK/JsonArraySerializer.h>
-#include <AK/JsonObject.h>
-#include <AK/JsonObjectSerializer.h>
-#include <AK/JsonValue.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
@@ -35,8 +30,6 @@ ErrorOr<CacheHeader> CacheHeader::read_from_stream(Stream& stream)
     header.status_code = TRY(stream.read_value<u32>());
     header.reason_phrase_size = TRY(stream.read_value<u32>());
     header.reason_phrase_hash = TRY(stream.read_value<u32>());
-    header.headers_size = TRY(stream.read_value<u32>());
-    header.headers_hash = TRY(stream.read_value<u32>());
     return header;
 }
 
@@ -49,8 +42,6 @@ ErrorOr<void> CacheHeader::write_to_stream(Stream& stream) const
     TRY(stream.write_value(status_code));
     TRY(stream.write_value(reason_phrase_size));
     TRY(stream.write_value(reason_phrase_hash));
-    TRY(stream.write_value(headers_size));
-    TRY(stream.write_value(headers_hash));
     return {};
 }
 
@@ -112,7 +103,7 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers)
 {
     if (m_marked_for_deletion) {
         close_and_destroy_cache_entry();
@@ -133,35 +124,16 @@ ErrorOr<void> CacheEntryWriter::write_headers(u32 status_code, Optional<String> 
         if (auto freshness = calculate_freshness_lifetime(headers); freshness.is_negative() || freshness.is_zero())
             return Error::from_string_literal("Response has already expired");
 
-        StringBuilder builder;
-        auto headers_serializer = TRY(JsonArraySerializer<>::try_create(builder));
-
-        for (auto const& header : headers.headers()) {
-            if (is_header_exempted_from_storage(header.name))
-                continue;
-
-            auto header_serializer = TRY(headers_serializer.add_object());
-            TRY(header_serializer.add("name"sv, header.name));
-            TRY(header_serializer.add("value"sv, header.value));
-            TRY(header_serializer.finish());
-        }
-
-        TRY(headers_serializer.finish());
-        auto serialized_headers = builder.string_view();
-        m_cache_header.headers_size = serialized_headers.length();
-        m_cache_header.headers_hash = serialized_headers.hash();
-
         TRY(m_file->write_value(m_cache_header));
         TRY(m_file->write_until_depleted(m_url));
         if (reason_phrase.has_value())
             TRY(m_file->write_until_depleted(*reason_phrase));
-        TRY(m_file->write_until_depleted(serialized_headers));
 
         return {};
     }();
 
     if (result.is_error()) {
-        dbgln("\033[31;1mUnable to write headers to cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln("\033[31;1mUnable to write status/reason to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
         close_and_destroy_cache_entry();
@@ -194,7 +166,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush()
+ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap headers)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -208,13 +180,13 @@ ErrorOr<void> CacheEntryWriter::flush()
         return result.release_error();
     }
 
-    m_index.create_entry(m_cache_key, m_url, m_cache_footer.data_size, m_request_time, m_response_time);
+    m_index.create_entry(m_cache_key, m_url, move(headers), m_cache_footer.data_size, m_request_time, m_response_time);
 
     dbgln("\033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 data_size)
+ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, HTTP::HeaderMap headers, u64 data_size)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
 
@@ -225,7 +197,6 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
 
     String url;
     Optional<String> reason_phrase;
-    HTTP::HeaderMap headers;
 
     auto result = [&]() -> ErrorOr<void> {
         cache_header = TRY(file->read_value<CacheHeader>());
@@ -245,28 +216,6 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
                 return Error::from_string_literal("Reason phrase hash mismatch");
         }
 
-        auto serialized_headers = TRY(String::from_stream(*file, cache_header.headers_size));
-        if (serialized_headers.hash() != cache_header.headers_hash)
-            return Error::from_string_literal("HTTP headers hash mismatch");
-
-        auto json_headers = TRY(JsonValue::from_string(serialized_headers));
-        if (!json_headers.is_array())
-            return Error::from_string_literal("Expected HTTP headers to be a JSON array");
-
-        TRY(json_headers.as_array().try_for_each([&](JsonValue const& header) -> ErrorOr<void> {
-            if (!header.is_object())
-                return Error::from_string_literal("Expected headers entry to be a JSON object");
-
-            auto name = header.as_object().get_string("name"sv);
-            auto value = header.as_object().get_string("value"sv);
-
-            if (!name.has_value() || !value.has_value())
-                return Error::from_string_literal("Missing/invalid data in headers entry");
-
-            headers.set(name->to_byte_string(), value->to_byte_string());
-            return {};
-        }));
-
         return {};
     }();
 
@@ -275,7 +224,7 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
         return result.release_error();
     }
 
-    auto data_offset = sizeof(CacheHeader) + cache_header.url_size + cache_header.reason_phrase_size + cache_header.headers_size;
+    auto data_offset = sizeof(CacheHeader) + cache_header.url_size + cache_header.reason_phrase_size;
 
     return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(headers), data_offset, data_size });
 }

@@ -4,12 +4,51 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringBuilder.h>
 #include <RequestServer/Cache/CacheIndex.h>
+#include <RequestServer/Cache/Utilities.h>
 #include <RequestServer/Cache/Version.h>
 
 namespace RequestServer {
 
 static constexpr u32 CACHE_METADATA_KEY = 12389u;
+
+static ByteString serialize_headers(HTTP::HeaderMap const& headers)
+{
+    StringBuilder builder;
+
+    for (auto const& header : headers.headers()) {
+        if (is_header_exempted_from_storage(header.name))
+            continue;
+
+        builder.append(header.name);
+        builder.append(':');
+        builder.append(header.value);
+        builder.append('\n');
+    }
+
+    return builder.to_byte_string();
+}
+
+static HTTP::HeaderMap deserialize_headers(StringView serialized_headers)
+{
+    HTTP::HeaderMap headers;
+
+    serialized_headers.for_each_split_view('\n', SplitBehavior::Nothing, [&](StringView serialized_header) {
+        auto index = serialized_header.find(':');
+        if (!index.has_value())
+            return;
+
+        auto name = serialized_header.substring_view(0, *index).trim_whitespace();
+        if (is_header_exempted_from_storage(name))
+            return;
+
+        auto value = serialized_header.substring_view(*index + 1).trim_whitespace();
+        headers.set(name, value);
+    });
+
+    return headers;
+}
 
 ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
 {
@@ -45,6 +84,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
         CREATE TABLE IF NOT EXISTS CacheIndex (
             cache_key INTEGER,
             url TEXT,
+            response_headers TEXT,
             data_size INTEGER,
             request_time INTEGER,
             response_time INTEGER,
@@ -55,7 +95,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     database.execute_statement(create_cache_index_table, {});
 
     Statements statements {};
-    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?);"sv));
+    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?);"sv));
     statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.remove_all_entries = TRY(database.prepare_statement("DELETE FROM CacheIndex;"sv));
     statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
@@ -70,20 +110,21 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements)
 {
 }
 
-void CacheIndex::create_entry(u64 cache_key, String url, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+void CacheIndex::create_entry(u64 cache_key, String url, HTTP::HeaderMap response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
     Entry entry {
         .cache_key = cache_key,
         .url = move(url),
+        .response_headers = move(response_headers),
         .data_size = data_size,
         .request_time = request_time,
         .response_time = response_time,
         .last_access_time = now,
     };
 
-    m_database.execute_statement(m_statements.insert_entry, {}, entry.cache_key, entry.url, entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
+    m_database.execute_statement(m_statements.insert_entry, {}, entry.cache_key, entry.url, serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
     m_entries.set(cache_key, move(entry));
 }
 
@@ -122,12 +163,13 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
 
             auto cache_key = m_database.result_column<u64>(statement_id, column++);
             auto url = m_database.result_column<String>(statement_id, column++);
+            auto response_headers = m_database.result_column<ByteString>(statement_id, column++);
             auto data_size = m_database.result_column<u64>(statement_id, column++);
             auto request_time = m_database.result_column<UnixDateTime>(statement_id, column++);
             auto response_time = m_database.result_column<UnixDateTime>(statement_id, column++);
             auto last_access_time = m_database.result_column<UnixDateTime>(statement_id, column++);
 
-            Entry entry { cache_key, move(url), data_size, request_time, response_time, last_access_time };
+            Entry entry { cache_key, move(url), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
             m_entries.set(cache_key, move(entry));
         },
         cache_key);
