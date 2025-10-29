@@ -11,6 +11,7 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <LibDatabase/Database.h>
+#include <LibHTTP/HeaderMap.h>
 
 namespace RequestServer {
 
@@ -21,6 +22,7 @@ class CacheIndex {
         u64 cache_key { 0 };
 
         String url;
+        HTTP::HeaderMap response_headers;
         u64 data_size { 0 };
 
         UnixDateTime request_time;
@@ -31,7 +33,7 @@ class CacheIndex {
 public:
     static ErrorOr<CacheIndex> create(Database::Database&);
 
-    void create_entry(u64 cache_key, String url, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
+    void create_entry(u64 cache_key, String url, HTTP::HeaderMap, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key);
     void remove_all_entries();
 

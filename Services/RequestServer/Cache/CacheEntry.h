@@ -33,9 +33,6 @@ struct [[gnu::packed]] CacheHeader {
     u32 status_code { 0 };
     u32 reason_phrase_size { 0 };
     u32 reason_phrase_hash { 0 };
-
-    u32 headers_size { 0 };
-    u32 headers_hash { 0 };
 };
 
 struct [[gnu::packed]] CacheFooter {
@@ -85,9 +82,9 @@ public:
     static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, UnixDateTime request_time);
     virtual ~CacheEntryWriter() override = default;
 
-    ErrorOr<void> write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&);
+    ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&);
     ErrorOr<void> write_data(ReadonlyBytes);
-    ErrorOr<void> flush();
+    ErrorOr<void> flush(HTTP::HeaderMap);
 
 private:
     CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::OutputBufferedFile>, CacheHeader, UnixDateTime request_time);
@@ -100,7 +97,7 @@ private:
 
 class CacheEntryReader : public CacheEntry {
 public:
-    static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, u64 data_size);
+    static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, HTTP::HeaderMap, u64 data_size);
     virtual ~CacheEntryReader() override = default;
 
     void pipe_to(int pipe_fd, Function<void(u64 bytes_piped)> on_complete, Function<void(u64 bytes_piped)> on_error);

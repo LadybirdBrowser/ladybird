@@ -117,7 +117,7 @@ Request::~Request()
         curl_slist_free_all(string_list);
 
     if (m_cache_entry_writer.has_value())
-        (void)m_cache_entry_writer->flush();
+        (void)m_cache_entry_writer->flush(move(m_response_headers));
 }
 
 void Request::notify_request_unblocked(Badge<DiskCache>)
@@ -520,7 +520,7 @@ void Request::transfer_headers_to_client_if_needed()
     m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_cache_entry_writer->write_headers(m_status_code, m_reason_phrase, m_response_headers).is_error())
+        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error())
             m_cache_entry_writer.clear();
     }
 }

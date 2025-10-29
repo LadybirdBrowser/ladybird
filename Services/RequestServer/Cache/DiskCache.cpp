@@ -75,7 +75,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         return Optional<CacheEntryReader&> {};
     }
 
-    auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->data_size);
+    auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->response_headers, index_entry->data_size);
     if (cache_entry.is_error()) {
         dbgln("\033[31;1mUnable to open cache entry for\033[0m {}: {}", request.url(), cache_entry.error());
         m_index.remove_entry(cache_key);
