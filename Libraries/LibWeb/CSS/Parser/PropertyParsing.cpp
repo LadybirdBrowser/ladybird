@@ -3854,12 +3854,10 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
         mask_composites.append(mask_composite ? mask_composite.release_nonnull() : initial_mask_composite);
         mask_modes.append(mask_mode ? mask_mode.release_nonnull() : initial_mask_mode);
 
-        if (!mask_origin && !mask_clip) {
+        if (!mask_origin)
             mask_origin = initial_mask_origin;
-            mask_clip = initial_mask_clip;
-        } else if (!mask_clip) {
+        if (!mask_clip)
             mask_clip = mask_origin;
-        }
         mask_origins.append(mask_origin.release_nonnull());
         mask_clips.append(mask_clip.release_nonnull());
 
