@@ -1496,6 +1496,19 @@ void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, Web
     glReadPixelsRobustANGLE(x, y, width, height, format, type, span.size(), nullptr, nullptr, nullptr, span.data());
 }
 
+void WebGL2RenderingContextImpl::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height,
+    WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::LongLong offset)
+{
+    m_context->make_current();
+
+    if (!m_pixel_pack_buffer_binding) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    glReadPixelsRobustANGLE(x, y, width, height, format, type, 0, nullptr, nullptr, nullptr, reinterpret_cast<void*>(offset));
+}
+
 void WebGL2RenderingContextImpl::active_texture(WebIDL::UnsignedLong texture)
 {
     m_context->make_current();
