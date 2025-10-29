@@ -466,6 +466,11 @@ void Request::handle_fetch_state()
 
     auto result = curl_multi_add_handle(m_curl_multi_handle, m_curl_easy_handle);
     VERIFY(result == CURLM_OK);
+
+    // Log request for audit trail
+    if (m_network_identity) {
+        m_network_identity->log_request(m_url, m_method);
+    }
 #endif
 }
 
@@ -527,6 +532,16 @@ void Request::handle_complete_state()
         }
 
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
+
+        // Log response for audit trail
+        if (m_network_identity && !m_network_error.has_value()) {
+            auto status_code = acquire_status_code();
+            // Calculate total bytes for this request
+            size_t bytes_sent = m_request_body.size();
+            size_t bytes_received = m_bytes_transferred_to_client;
+
+            m_network_identity->log_response(m_url, static_cast<u16>(status_code), bytes_sent, bytes_received);
+        }
     }
 
     m_client.request_complete({}, m_request_id);
