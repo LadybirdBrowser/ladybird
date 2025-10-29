@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Coroutine.h>
 #include <AK/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
@@ -21,8 +22,9 @@ public:
 
     virtual ~EventLoopPlugin();
 
-    virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
+    virtual Coroutine<void> spin_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
     virtual void deferred_invoke(ESCAPING GC::Root<GC::Function<void()>>) = 0;
+    virtual void deferred_invoke(ESCAPING GC::Root<GC::Function<Coroutine<void>()>>) = 0;
     virtual GC::Ref<Timer> create_timer(GC::Heap&) = 0;
     virtual void quit() = 0;
 };

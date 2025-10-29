@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "AK/Coroutine.h"
+
 #include <AK/Badge.h>
 #include <AK/Debug.h>
 #include <AK/Function.h>
@@ -317,6 +319,7 @@ void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, Fl
 }
 #endif
 
+static void visit_allocator_ranges(TracingAllocator&, Heap&, HashMap<Cell*, HeapRoot>&);
 NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots)
 {
     FlatPtr dummy;
@@ -364,6 +367,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
             dbgln_if(HEAP_DEBUG, "  #-> {}", (void const*)cell);
         }
     });
+
+    visit_allocator_ranges(AK::Detail::g_coroutine_state_allocator, *this, roots);
 }
 
 class MarkingVisitor final : public Cell::Visitor {
@@ -424,6 +429,15 @@ private:
     FlatPtr m_min_block_address;
     FlatPtr m_max_block_address;
 };
+
+void visit_allocator_ranges(TracingAllocator& allocator, Heap& heap, HashMap<Cell*, HeapRoot>& roots)
+{
+    MarkingVisitor visitor(heap, roots);
+    for (auto [start, size] : allocator.allocated_ranges())
+        visitor.visit_possible_values({ start, size });
+    visitor.mark_all_live_cells();
+}
+
 
 void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
 {

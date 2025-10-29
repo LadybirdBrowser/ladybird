@@ -344,7 +344,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Queue a microtask to perform the following steps:
-    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, promise, &realm]() mutable {
+    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, promise, &realm]() mutable -> Coroutine<void> {
         // 1. Let global be this's relevant global object.
         auto& global = relevant_global_object(*this);
 
@@ -373,17 +373,18 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
         //    - or this's current request's state is broken,
         //    then reject promise with an "EncodingError" DOMException.
         if (reject_if_document_not_fully_active() || reject_if_current_request_state_broken()) {
-            return;
+            co_return;
         }
 
         // 3. Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, promise, &realm, &global] {
-            Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, promise, &realm, &global] {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, promise, &realm, &global] -> Coroutine<void> {
+            co_await Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, promise, &realm, &global] {
                 auto queue_reject_task = [promise, &realm, &global](Utf16String message) {
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = move(message)] {
+                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = move(message)] -> Coroutine<void> {
                         auto exception = WebIDL::EncodingError::create(realm, message);
                         HTML::TemporaryExecutionContext context(realm);
                         WebIDL::reject_promise(realm, promise, exception);
+                        co_return;
                     }));
                 };
 
@@ -417,9 +418,10 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
                     // FIXME: If decoding fails (for example due to invalid image data), then queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
 
                     // NOTE: For now we just resolve it.
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise] {
+                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise] -> Coroutine<void> {
                         HTML::TemporaryExecutionContext context(realm);
                         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+                        co_return;
                     }));
                     return true;
                 }
@@ -427,6 +429,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
                 return false;
             }));
         }));
+        co_return;
     }));
 
     // 3. Return promise.
@@ -512,8 +515,9 @@ void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe
         m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
         m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events]() {
             // 4. Queue a microtask to continue this algorithm.
-            queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events]() {
+            queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events]() -> Coroutine<void> {
                 update_the_image_data_impl(restart_animations, maybe_omit_events);
+                co_return;
             }));
         });
 
@@ -602,7 +606,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             m_current_request->set_current_pixel_density(selected_pixel_density.value_or(1.0f));
 
             // 7. Queue an element task on the DOM manipulation task source given the img element and following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url] -> Coroutine<void> {
                 // 1. If restart animation is set, then restart the animation.
                 if (restart_animations)
                     restart_the_animation();
@@ -613,6 +617,8 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
+
+                co_return;
             });
 
             // 8. Abort the update the image data algorithm.
@@ -621,7 +627,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
     }
 after_step_7:
     // 8. Queue a microtask to perform the rest of this algorithm, allowing the task that invoked this algorithm to continue.
-    queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events, previous_url]() mutable {
+    queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events, previous_url]() mutable -> Coroutine<void> {
         // FIXME: 9. If another instance of this algorithm for this img element was started after this instance
         //           (even if it aborted and is no longer running), then return.
 
@@ -645,7 +651,7 @@ after_step_7:
             m_pending_request = nullptr;
 
             // 2. Queue an element task on the DOM manipulation task source given the img element and the following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, maybe_omit_events, previous_url] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, maybe_omit_events, previous_url] -> Coroutine<void> {
                 // 1. Change the current request's current URL to the empty string.
                 m_current_request->set_current_url(realm(), String {});
 
@@ -657,10 +663,12 @@ after_step_7:
                     && (!maybe_omit_events || m_current_request->current_url() != ""sv)) {
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
                 }
+
+                co_return;
             });
 
             // 3. Return.
-            return;
+            co_return;
         }
 
         // 12. Let urlString be the result of encoding-parsing-and-serializing a URL given selected source, relative to the element's node document.
@@ -679,22 +687,24 @@ after_step_7:
             m_pending_request = nullptr;
 
             // 4. Queue an element task on the DOM manipulation task source given the img element and the following steps:
-            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, maybe_omit_events, previous_url] {
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, maybe_omit_events, previous_url] -> Coroutine<void> {
                 // 1. Change the current request's current URL to selected source.
                 m_current_request->set_current_url(realm(), selected_source.value().url);
 
                 // 2. If maybe omit events is not set or previousURL is not equal to selected source, then fire an event named error at the img element.
                 if (!maybe_omit_events || previous_url != selected_source.value().url)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+
+                co_return;
             });
 
             // 5. Return.
-            return;
+            co_return;
         }
 
         // 14. If the pending request is not null and urlString is the same as the pending request's current URL, then return.
         if (m_pending_request && url_string == m_pending_request->current_url())
-            return;
+            co_return;
 
         // 15. If urlString is the same as the current request's current URL and the current request's state is partially available,
         //     then abort the image request for the pending request,
@@ -703,11 +713,12 @@ after_step_7:
         if (url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
             abort_the_image_request(realm(), m_pending_request);
             if (restart_animations) {
-                queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
+                queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] -> Coroutine<void> {
                     restart_the_animation();
+                    co_return;
                 });
             }
-            return;
+            co_return;
         }
 
         // 16. If the pending request is not null, then abort the image request for the pending request.
@@ -739,7 +750,7 @@ after_step_7:
 
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
         if (image_request->is_available() || image_request->is_fetching())
-            return;
+            co_return;
 
         // AD-HOC: create_potential_CORS_request expects a url, but the following step passes a URL string.
         auto url_record = document().encoding_parse_url(selected_source.value().url);
@@ -773,7 +784,7 @@ after_step_7:
             document().start_intersection_observing_a_lazy_loading_element(*this);
 
             // 3. Return.
-            return;
+            co_return;
         }
 
         image_request->fetch_image(realm(), request);
@@ -928,12 +939,12 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     auto step_16 = [this](String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
         // 16. Queue an element task on the DOM manipulation task source given the img element and the following steps:
-        queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, image_request, key, image_data] {
+        queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, image_request, key, image_data] -> Coroutine<void> {
             // 1. FIXME: If the img element has experienced relevant mutations since this algorithm started, then set the pending request to null and abort these steps.
             // AD-HOC: Check if we have a pending request still, otherwise we will crash when upgrading the request. This will happen if the image has experienced mutations,
             //        but since the pending request may be set by another task soon after it is cleared, this check is probably not sufficient.
             if (!m_pending_request)
-                return;
+                co_return;
 
             // 2. Set the img element's last selected source to selected source and the img element's current pixel density to selected pixel density.
             // FIXME: pixel density
@@ -957,6 +968,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
             // 7. Fire an event named load at the img element.
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
+            co_return;
         });
     };
 

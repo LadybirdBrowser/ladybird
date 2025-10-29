@@ -2175,7 +2175,7 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm& realm, GC::
 void queue_a_database_task(GC::Ref<GC::Function<void()>> steps)
 {
     // To queue a database task, perform queue a task on the database access task source.
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, steps);
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(steps->heap(), [steps] -> Coroutine<void> { steps->function()(); co_return; }));
 }
 
 // https://w3c.github.io/IndexedDB/#cleanup-indexed-database-transactions

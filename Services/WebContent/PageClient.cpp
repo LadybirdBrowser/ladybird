@@ -359,9 +359,11 @@ void PageClient::page_did_set_browser_zoom(double factor)
     traversable->set_pending_set_browser_zoom_request(true);
     client().async_did_set_browser_zoom(m_id, factor);
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
-        return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
-    }));
+    Core::run_async_in_new_event_loop([&] {
+        return event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
+            return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
+        }));
+    });
 }
 
 void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)

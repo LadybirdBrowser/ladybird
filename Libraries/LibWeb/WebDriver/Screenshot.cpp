@@ -61,9 +61,11 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     browsing_context.active_document()->navigable()->start_display_list_rendering(painting_surface, paint_config, [&did_paint] {
         did_paint = true;
     });
-    HTML::main_thread_event_loop().spin_until(GC::create_function(HTML::main_thread_event_loop().heap(), [&] {
-        return did_paint;
-    }));
+    Core::run_async_in_new_event_loop([&] {
+        return HTML::main_thread_event_loop().spin_until(GC::create_function(HTML::main_thread_event_loop().heap(), [&] {
+            return did_paint;
+        }));
+    });
 
     canvas.surface()->write_from_bitmap(*bitmap);
 

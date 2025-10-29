@@ -120,7 +120,7 @@ void FileReader::queue_a_task(GC::Ref<GC::Function<void()>> task)
     // task IDs which are pending evaluation. This allows an abort to go through the task queue to
     // remove those pending tasks.
 
-    auto wrapper_task = GC::create_function(heap(), [this, task] {
+    auto wrapper_task = GC::create_function(heap(), [this, task] -> Coroutine<void> {
         auto& event_loop = *HTML::relevant_agent(*this).event_loop;
         VERIFY(event_loop.currently_running_task());
         auto& current_task = *event_loop.currently_running_task();
@@ -128,6 +128,7 @@ void FileReader::queue_a_task(GC::Ref<GC::Function<void()>> task)
         task->function()();
 
         m_pending_tasks.remove(current_task.id());
+        co_return;
     });
 
     auto id = HTML::queue_global_task(HTML::Task::Source::FileReading, realm().global_object(), wrapper_task);
@@ -170,7 +171,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
     bool is_first_chunk = true;
 
     // 10. In parallel, while true:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, chunk_promise, reader, bytes, is_first_chunk, &realm, type, encoding_name, blobs_type]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, chunk_promise, reader, bytes, is_first_chunk, &realm, type, encoding_name, blobs_type]() mutable -> Coroutine<void> {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         Optional<MonotonicTime> progress_timer;
 
@@ -181,12 +182,12 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
             // 1. Wait for chunkPromise to be fulfilled or rejected.
             // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
-            HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
+            co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
                 return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
             }));
 
             if (m_is_aborted)
-                return;
+                co_return;
 
             // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
             // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]
@@ -261,7 +262,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     // Spec-Note: Event handler for the load or error events could have started another load, if that happens the loadend event for this load is not fired.
                 }));
 
-                return;
+                co_return;
             }
             // 6. Otherwise, if chunkPromise is rejected with an error error, queue a task to run the following steps and abort this algorithm:
             else if (promise->state() == JS::Promise::State::Rejected) {
@@ -281,7 +282,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     // Spec-Note: Event handler for the error event could have started another load, if that happens the loadend event for this load is not fired.
                 }));
 
-                return;
+                co_return;
             }
         }
     }));

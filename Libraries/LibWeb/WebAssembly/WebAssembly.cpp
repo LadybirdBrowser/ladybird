@@ -724,7 +724,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, B
         auto module_or_error = Detail::compile_a_webassembly_module(vm, move(bytes));
 
         // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
-        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(vm.heap(), [&realm, promise, module_or_error = move(module_or_error)]() mutable {
+        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(vm.heap(), [&realm, promise, module_or_error = move(module_or_error)]() mutable -> Coroutine<void> {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = HTML::relevant_realm(*promise->promise());
 
@@ -742,6 +742,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, B
                 // 2. Resolve promise with moduleObject.
                 WebIDL::resolve_promise(realm, promise, module_object);
             }
+            co_return;
         }));
     }));
 
@@ -766,7 +767,7 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
 
     // 4. Run the following steps in parallel:
     //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(vm.heap(), [&vm, &realm, promise, module, import_object]() {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(vm.heap(), [&vm, &realm, promise, module, import_object]() -> Coroutine<void> {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = HTML::relevant_realm(*promise->promise());
 
@@ -775,7 +776,7 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
         auto result = Detail::instantiate_module(vm, module->module, import_object);
         if (result.is_error()) {
             WebIDL::reject_promise(realm, promise, result.error_value());
-            return;
+            co_return;
         }
         auto instance = result.release_value();
 

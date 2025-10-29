@@ -42,6 +42,7 @@ public:
     virtual bool is_focusable() const override { return true; }
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
+    void queue_a_media_element_task(Function<Coroutine<void>()>);
     void queue_a_media_element_task(Function<void()>);
 
     GC::Ptr<MediaError> error() const { return m_error; }
@@ -92,23 +93,23 @@ public:
     bool seeking() const { return m_seeking; }
     void set_seeking(bool);
 
-    WebIDL::ExceptionOr<void> load();
+    Coroutine<WebIDL::ExceptionOr<void>> load();
 
     double current_time() const;
-    double set_current_time(double);
-    void fast_seek(double);
+    Coroutine<double> set_current_time(double);
+    Coroutine<void> fast_seek(double);
 
     double current_playback_position() const { return m_current_playback_position; }
-    void set_current_playback_position(double);
+    Coroutine<void> set_current_playback_position(double);
 
     double duration() const;
     bool show_poster() const { return m_show_poster; }
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> play();
+    Coroutine<WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>>> play();
     WebIDL::ExceptionOr<void> pause();
-    WebIDL::ExceptionOr<void> toggle_playback();
+    Coroutine<WebIDL::ExceptionOr<void>> toggle_playback();
 
     double volume() const { return m_volume; }
     WebIDL::ExceptionOr<void> set_volume(double);
@@ -134,11 +135,11 @@ public:
 
     void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
 
-    void update_video_frame_and_timeline();
+    Coroutine<void> update_video_frame_and_timeline();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
-    WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
+    Coroutine<WebIDL::ExceptionOr<bool>> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
 
     enum class MediaComponent {
         PlaybackButton,
@@ -189,28 +190,30 @@ private:
 
     virtual bool is_html_media_element() const final { return true; }
 
+    Coroutine<WebIDL::ExceptionOr<bool>> handle_keydown(UIEvents::KeyCode, u32 modifiers);
+
     struct EntireResource { };
     using ByteRange = Variant<EntireResource>; // FIXME: This will need to include "until end" and an actual byte range.
 
     Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
-    WebIDL::ExceptionOr<void> load_element();
-    WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
+    Coroutine<WebIDL::ExceptionOr<void>> load_element();
+    WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<Coroutine<void>(String)> failure_callback);
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
-    WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> failure_callback);
+    Coroutine<WebIDL::ExceptionOr<void>> process_media_data(Function<Coroutine<void>(String)> failure_callback);
     WebIDL::ExceptionOr<void> handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
-    void on_playback_manager_state_change();
-    WebIDL::ExceptionOr<void> play_element();
+    Coroutine<void> on_playback_manager_state_change();
+    Coroutine<WebIDL::ExceptionOr<void>> play_element();
     WebIDL::ExceptionOr<void> pause_element();
-    void seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
-    void finish_seeking_element();
+    Coroutine<void> seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
+    Coroutine<void> finish_seeking_element();
     void notify_about_playing();
     void set_show_poster(bool);
     void set_paused(bool);
-    void set_duration(double);
+    Coroutine<void> set_duration(double);
     void set_ended(bool);
 
     void volume_or_muted_attribute_changed();
@@ -226,7 +229,7 @@ private:
 
     bool has_ended_playback() const;
     void upon_has_ended_playback_possibly_changed();
-    void reached_end_of_media_playback();
+    Coroutine<void> reached_end_of_media_playback();
 
     void dispatch_time_update_event();
 

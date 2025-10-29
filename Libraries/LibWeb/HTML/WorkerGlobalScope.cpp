@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibThreading/BackgroundAction.h"
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
@@ -87,7 +88,7 @@ void WorkerGlobalScope::close_a_worker()
 
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
 // https://whatpr.org/html/9893/workers.html#importing-scripts-and-libraries
-WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
+Coroutine<WebIDL::ExceptionOr<void>> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
 {
     // The algorithm may optionally be customized by supplying custom perform the fetch hooks,
     // which if provided will be used when invoking fetch a classic worker-imported script.
@@ -100,7 +101,7 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
     // 3. If urls is empty, return.
     if (urls.is_empty())
-        return {};
+        co_return {};
 
     // 4. Let urlRecords be « ».
     Vector<URL::URL> url_records;
@@ -113,7 +114,7 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.has_value())
-            return WebIDL::SyntaxError::create(realm(), "Invalid URL"_utf16);
+            co_return WebIDL::SyntaxError::create(realm(), "Invalid URL"_utf16);
 
         // 3. Append urlRecord to urlRecords.
         url_records.unchecked_append(url_record.release_value());
@@ -123,17 +124,17 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
     for (auto const& url_record : url_records) {
         // 1. Fetch a classic worker-imported script given urlRecord and settings object, passing along performFetch if provided.
         //    If this succeeds, let script be the result. Otherwise, rethrow the exception.
-        auto classic_script = TRY(HTML::fetch_a_classic_worker_imported_script(url_record, settings_object, perform_fetch));
+        auto classic_script = CO_TRY(co_await HTML::fetch_a_classic_worker_imported_script(url_record, settings_object, perform_fetch));
 
         // 2. Run the classic script script, with rethrow errors set to true.
         // NOTE: script will run until it either returns, fails to parse, fails to catch an exception,
         //       or gets prematurely aborted by the terminate a worker algorithm defined above.
         // If an exception was thrown or if the script was prematurely aborted, then abort all these steps,
         // letting the exception or aborting continue to be processed by the calling script.
-        TRY(classic_script->run(ClassicScript::RethrowErrors::Yes));
+        CO_TRY(classic_script->run(ClassicScript::RethrowErrors::Yes));
     }
 
-    return {};
+    co_return {};
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-location

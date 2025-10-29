@@ -223,10 +223,11 @@ void ReadableStreamPipeTo::read_chunk()
         if (check_for_error_and_close_states())
             return;
 
-        HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this]() {
+        HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this]() -> Coroutine<void> {
             HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             write_chunk();
             process();
+            co_return;
         }));
     });
 

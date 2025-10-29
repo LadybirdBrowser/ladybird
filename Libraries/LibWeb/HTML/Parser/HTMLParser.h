@@ -65,17 +65,17 @@ public:
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
     static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, StringView encoding);
 
-    void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
-    void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
+    Coroutine<void> run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
+    Coroutine<void> run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
 
-    static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser> = nullptr);
+    static Coroutine<void> the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser> = nullptr);
 
     DOM::Document& document();
     enum class AllowDeclarativeShadowRoots {
         No,
         Yes,
     };
-    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
+    static Coroutine<WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
 
     enum class SerializableShadowRoots {
         No,
@@ -114,35 +114,35 @@ private:
 
     DOM::QuirksMode which_quirks_mode(HTMLToken const&) const;
 
-    void handle_initial(HTMLToken&);
-    void handle_before_html(HTMLToken&);
-    void handle_before_head(HTMLToken&);
-    void handle_in_head(HTMLToken&);
-    void handle_in_head_noscript(HTMLToken&);
-    void handle_after_head(HTMLToken&);
-    void handle_in_body(HTMLToken&);
-    void handle_after_body(HTMLToken&);
-    void handle_after_after_body(HTMLToken&);
-    void handle_text(HTMLToken&);
-    void handle_in_table(HTMLToken&);
-    void handle_in_table_body(HTMLToken&);
-    void handle_in_row(HTMLToken&);
-    void handle_in_cell(HTMLToken&);
-    void handle_in_table_text(HTMLToken&);
-    void handle_in_select_in_table(HTMLToken&);
-    void handle_in_select(HTMLToken&);
-    void handle_in_caption(HTMLToken&);
-    void handle_in_column_group(HTMLToken&);
-    void handle_in_template(HTMLToken&);
-    void handle_in_frameset(HTMLToken&);
-    void handle_after_frameset(HTMLToken&);
-    void handle_after_after_frameset(HTMLToken&);
+    Coroutine<void> handle_initial(HTMLToken&);
+    Coroutine<void> handle_before_html(HTMLToken&);
+    Coroutine<void> handle_before_head(HTMLToken&);
+    Coroutine<void> handle_in_head(HTMLToken&);
+    Coroutine<void> handle_in_head_noscript(HTMLToken&);
+    Coroutine<void> handle_after_head(HTMLToken&);
+    Coroutine<void> handle_in_body(HTMLToken&);
+    Coroutine<void> handle_after_body(HTMLToken&);
+    Coroutine<void> handle_after_after_body(HTMLToken&);
+    Coroutine<void> handle_text(HTMLToken&);
+    Coroutine<void> handle_in_table(HTMLToken&);
+    Coroutine<void> handle_in_table_body(HTMLToken&);
+    Coroutine<void> handle_in_row(HTMLToken&);
+    Coroutine<void> handle_in_cell(HTMLToken&);
+    Coroutine<void> handle_in_table_text(HTMLToken&);
+    Coroutine<void> handle_in_select_in_table(HTMLToken&);
+    Coroutine<void> handle_in_select(HTMLToken&);
+    Coroutine<void> handle_in_caption(HTMLToken&);
+    Coroutine<void> handle_in_column_group(HTMLToken&);
+    Coroutine<void> handle_in_template(HTMLToken&);
+    Coroutine<void> handle_in_frameset(HTMLToken&);
+    Coroutine<void> handle_after_frameset(HTMLToken&);
+    Coroutine<void> handle_after_after_frameset(HTMLToken&);
 
     void stop_parsing() { m_stop_parsing = true; }
 
     void generate_implied_end_tags(FlyString const& exception = {});
     void generate_all_implied_end_tags_thoroughly();
-    GC::Ref<DOM::Element> create_element_for(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent);
+    Coroutine<GC::Ref<DOM::Element>> create_element_for(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent);
 
     struct AdjustedInsertionLocation {
         GC::Ptr<DOM::Node> parent;
@@ -159,18 +159,18 @@ private:
         No,
         Yes,
     };
-    GC::Ref<DOM::Element> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_, OnlyAddToElementStack);
-    GC::Ref<DOM::Element> insert_html_element(HTMLToken const&);
+    Coroutine<GC::Ref<DOM::Element>> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_, OnlyAddToElementStack);
+    Coroutine<GC::Ref<DOM::Element>> insert_html_element(HTMLToken const&);
     [[nodiscard]] GC::Ptr<DOM::Element> current_node();
     [[nodiscard]] GC::Ptr<DOM::Element> adjusted_current_node();
     [[nodiscard]] GC::Ptr<DOM::Element> node_before_current_node();
     void insert_character(u32 data);
     void insert_comment(HTMLToken&);
-    void reconstruct_the_active_formatting_elements();
+    Coroutine<void> reconstruct_the_active_formatting_elements();
     void close_a_p_element();
-    void process_using_the_rules_for(InsertionMode, HTMLToken&);
-    void process_using_the_rules_for_foreign_content(HTMLToken&);
-    void parse_generic_raw_text_element(HTMLToken&);
+    Coroutine<void> process_using_the_rules_for(InsertionMode, HTMLToken&);
+    Coroutine<void> process_using_the_rules_for_foreign_content(HTMLToken&);
+    Coroutine<void> parse_generic_raw_text_element(HTMLToken&);
     void increment_script_nesting_level();
     void decrement_script_nesting_level();
     void reset_the_insertion_mode_appropriately();
@@ -185,7 +185,7 @@ private:
         RunAnyOtherEndTagSteps,
     };
 
-    AdoptionAgencyAlgorithmOutcome run_the_adoption_agency_algorithm(HTMLToken&);
+    Coroutine<AdoptionAgencyAlgorithmOutcome> run_the_adoption_agency_algorithm(HTMLToken&);
     void clear_the_stack_back_to_a_table_context();
     void clear_the_stack_back_to_a_table_body_context();
     void clear_the_stack_back_to_a_table_row_context();

@@ -71,11 +71,11 @@ WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> ShadowRoot::inner_html() 
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
-WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
+Coroutine<WebIDL::ExceptionOr<void>> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
 {
     // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, the given value, "ShadowRoot innerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_string = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
@@ -87,7 +87,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
     VERIFY(context);
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(context->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = CO_TRY(co_await context->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);
@@ -103,7 +103,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
     }
 
     set_needs_style_update(true);
-    return {};
+    co_return {};
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
@@ -119,11 +119,11 @@ WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) 
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-sethtmlunsafe
-WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
+Coroutine<WebIDL::ExceptionOr<void>> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
 {
     // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_html = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         html,
@@ -131,9 +131,9 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLO
         TrustedTypes::Script.to_string()));
 
     // 2. Unsafely set HTML given this, this's shadow host, and compliantHTML.
-    TRY(unsafely_set_html(*this->host(), compliant_html.to_utf8_but_should_be_ported_to_utf16()));
+    CO_TRY(co_await unsafely_set_html(*this->host(), compliant_html.to_utf8_but_should_be_ported_to_utf16()));
 
-    return {};
+    co_return {};
 }
 
 GC::Ptr<Element> ShadowRoot::active_element()

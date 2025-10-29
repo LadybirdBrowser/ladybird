@@ -44,7 +44,7 @@ private:
     virtual bool hyperlink_element_utils_is_connected() const override { return is_connected(); }
     virtual void hyperlink_element_utils_queue_an_element_task(HTML::Task::Source source, Function<void()> steps) override
     {
-        queue_an_element_task(source, move(steps));
+        queue_an_element_task(source, [steps = move(steps)] -> Coroutine<void> { steps(); co_return; });
     }
     virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target) const override
     {

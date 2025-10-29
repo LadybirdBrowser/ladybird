@@ -1058,11 +1058,11 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
+Coroutine<WebIDL::ExceptionOr<void>> Element::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
 {
     // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_string = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
@@ -1073,7 +1073,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
     DOM::Node* context = this;
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = CO_TRY(co_await as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*context);
@@ -1093,7 +1093,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
         }
     }
 
-    return {};
+    co_return {};
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
@@ -1175,9 +1175,14 @@ FlyString Element::make_html_uppercased_qualified_name() const
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
-HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<void()> steps)
+HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<Coroutine<void>()> steps)
 {
     return queue_a_task(source, HTML::main_thread_event_loop(), document(), GC::create_function(heap(), move(steps)));
+}
+
+HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<void()> steps)
+{
+    return queue_a_task(source, HTML::main_thread_event_loop(), document(), GC::create_function(heap(), [steps = move(steps)] -> Coroutine<void> { steps(); co_return; }));
 }
 
 // https://html.spec.whatwg.org/multipage/syntax.html#void-elements
@@ -2081,28 +2086,30 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(StringView markup)
+Coroutine<WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>>> Element::parse_fragment(StringView markup)
 {
     // 1. Let algorithm be the HTML fragment parsing algorithm.
     auto algorithm = HTML::HTMLParser::parse_html_fragment;
 
     // 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
     if (document().is_xml_document()) {
-        algorithm = XMLFragmentParser::parse_xml_fragment;
+        algorithm = [](Element& context_element, StringView markup, auto allow_declarative_shadow_roots) -> Coroutine<WebIDL::ExceptionOr<Vector<GC::Root<Node>>>> {
+            co_return XMLFragmentParser::parse_xml_fragment(context_element, markup, allow_declarative_shadow_roots);
+        };
     }
 
     // 3. Let newChildren be the result of invoking algorithm given context and markup.
-    auto new_children = TRY(algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No));
+    auto new_children = CO_TRY(co_await algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No));
 
     // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
     auto fragment = realm().create<DOM::DocumentFragment>(document());
 
     // 5. For each node of newChildren, in tree order: append node to fragment.
     for (auto& child : new_children)
-        TRY(fragment->append_child(*child));
+        CO_TRY(fragment->append_child(*child));
 
     // 6. Return fragment.
-    return fragment;
+    co_return fragment;
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
@@ -2112,11 +2119,11 @@ WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> Element::outer_html() con
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
-WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrString const& value)
+Coroutine<WebIDL::ExceptionOr<void>> Element::set_outer_html(TrustedTypes::TrustedHTMLOrString const& value)
 {
     // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_string = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
@@ -2128,31 +2135,31 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
 
     // 3. If parent is null, return. There would be no way to obtain a reference to the nodes created even if the remaining steps were run.
     if (!parent)
-        return {};
+        co_return {};
 
     // 4. If parent is a Document, throw a "NoModificationAllowedError" DOMException.
     if (parent->is_document())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_utf16);
+        co_return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_utf16);
 
     // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, "body", and the HTML namespace.
     if (parent->is_document_fragment())
-        parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
+        parent = CO_TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
     // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString.
-    auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = CO_TRY(co_await as<Element>(*parent).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 6. Replace this with fragment within this's parent.
-    TRY(parent->replace_child(fragment, *this));
+    CO_TRY(parent->replace_child(fragment, *this));
 
-    return {};
+    co_return {};
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-insertadjacenthtml()-method
-WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const& string)
+Coroutine<WebIDL::ExceptionOr<void>> Element::insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const& string)
 {
     // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, string, "Element insertAdjacentHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_string = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         string,
@@ -2172,7 +2179,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 
         // 2. If context is null or a Document, throw a "NoModificationAllowedError" DOMException.
         if (!context || context->is_document())
-            return WebIDL::NoModificationAllowedError::create(realm(), "insertAdjacentHTML: context is null or a Document"_utf16);
+            co_return WebIDL::NoModificationAllowedError::create(realm(), "insertAdjacentHTML: context is null or a Document"_utf16);
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
@@ -2184,7 +2191,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // Otherwise
     else {
         // Throw a "SyntaxError" DOMException.
-        return WebIDL::SyntaxError::create(realm(), "insertAdjacentHTML: invalid position argument"_utf16);
+        co_return WebIDL::SyntaxError::create(realm(), "insertAdjacentHTML: invalid position argument"_utf16);
     }
 
     // 4. If context is not an Element or the following are all true:
@@ -2196,11 +2203,11 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
             && static_cast<Element const&>(*context).local_name() == "html"sv
             && static_cast<Element const&>(*context).namespace_uri() == Namespace::HTML)) {
         // then set context to the result of creating an element given this's node document, "body", and the HTML namespace.
-        context = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
+        context = CO_TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
     }
 
     // 5. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = CO_TRY(co_await as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
     // 6. Use the first matching item from this list:
 
@@ -2219,7 +2226,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // - If position is an ASCII case-insensitive match for the string "beforeend"
     else if (position.equals_ignoring_ascii_case("beforeend"sv)) {
         // Append fragment to this.
-        TRY(append_child(fragment));
+        CO_TRY(append_child(fragment));
     }
 
     // - If position is an ASCII case-insensitive match for the string "afterend"
@@ -2227,7 +2234,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
         // Insert fragment into this's parent before this's next sibling.
         parent()->insert_before(fragment, next_sibling());
     }
-    return {};
+    co_return {};
 }
 
 // https://dom.spec.whatwg.org/#insert-adjacent
@@ -2720,7 +2727,7 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
 
         // 4. Queue a microtask to perform the following steps:
         // NOTE: `this` is protected by GC::Function
-        HTML::queue_a_microtask(&document(), GC::create_function(heap(), [this]() {
+        HTML::queue_a_microtask(&document(), GC::create_function(heap(), [this] -> Coroutine<void> {
             auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*this).custom_element_reactions_stack;
 
             // 1. Invoke custom element reactions in reactionsStack's backup element queue.
@@ -2728,6 +2735,8 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
 
             // 2. Unset reactionsStack's processing the backup element queue flag.
             reactions_stack.processing_the_backup_element_queue = false;
+
+            co_return;
         }));
 
         return;
@@ -3960,11 +3969,11 @@ WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) con
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtmlunsafe
-WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
+Coroutine<WebIDL::ExceptionOr<void>> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
 {
     // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+    auto const compliant_html = CO_TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         html,
@@ -3977,9 +3986,9 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrSt
         target = as<HTML::HTMLTemplateElement>(*this).content().ptr();
 
     // 3. Unsafe set HTML given target, this, and compliantHTML.
-    TRY(target->unsafely_set_html(*this, compliant_html.to_utf8_but_should_be_ported_to_utf16()));
+    CO_TRY(co_await target->unsafely_set_html(*this, compliant_html.to_utf8_but_should_be_ported_to_utf16()));
 
-    return {};
+    co_return {};
 }
 
 Optional<CSS::CountersSet const&> Element::counters_set() const

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericAwaiter.h>
 #include <AK/Badge.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
@@ -145,6 +146,43 @@ void EventLoop::unregister_notifier(Badge<Notifier>, Notifier& notifier)
 void EventLoop::wake()
 {
     m_impl->wake();
+}
+
+Coroutine<void> EventLoop::next_turn()
+{
+    (void)co_await GenericAwaiter{[this](auto ready) mutable {
+        deferred_invoke(move(ready));
+    }};
+}
+
+void EventLoop::adopt_coroutine(Coroutine<void>&& coroutine, SourceLocation location)
+{
+    class OrphanedCoroutine {
+        struct PromiseType;
+
+    public:
+        using promise_type = PromiseType;
+
+    private:
+        struct Destroyer {
+            bool await_ready() const noexcept { return false; }
+            void await_suspend(std::coroutine_handle<> handle) const noexcept { handle.destroy(); }
+            void await_resume() const noexcept { }
+        };
+
+        struct PromiseType {
+            OrphanedCoroutine get_return_object() { return {}; }
+            AK::Detail::SuspendNever initial_suspend() { return {}; }
+            Destroyer final_suspend() noexcept { return {}; }
+            void return_void() { }
+        };
+    };
+
+    (void)location;
+    [](Coroutine<void>&& coroutine) mutable -> OrphanedCoroutine {
+        auto saved_coroutine = move(coroutine);
+        co_await saved_coroutine;
+    }(move(coroutine));
 }
 
 void EventLoop::deferred_invoke(Function<void()> invokee)

@@ -36,6 +36,8 @@ class ByteStringImpl;
 class CircularBuffer;
 class ConstrainedStream;
 class CountingStream;
+template<typename T>
+class Coroutine;
 class Duration;
 class Error;
 class FlyString;
@@ -159,6 +161,21 @@ requires(!IsRvalueReference<T>) class Vector;
 template<typename T, typename ErrorType = Error>
 class [[nodiscard]] ErrorOr;
 
+namespace Detail {
+template<typename T>
+struct ExtractCoroutineResult {
+    using Type = T;
+};
+
+template<typename T>
+struct ExtractCoroutineResult<Coroutine<T>> {
+    using Type = T;
+};
+}
+
+template<typename T>
+using ExtractCoroutineResult = typename Detail::ExtractCoroutineResult<T>::Type;
+
 }
 
 #if USING_AK_GLOBALLY
@@ -175,6 +192,7 @@ using AK::CircularBuffer;
 using AK::CircularQueue;
 using AK::ConstrainedStream;
 using AK::CountingStream;
+using AK::Coroutine;
 using AK::DoublyLinkedList;
 using AK::Error;
 using AK::ErrorOr;

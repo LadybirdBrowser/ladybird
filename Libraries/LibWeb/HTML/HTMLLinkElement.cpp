@@ -681,8 +681,9 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
         auto& realm = document->realm();
         auto global = GC::Ref { realm.global_object() };
 
-        auto process_body = GC::create_function(realm.heap(), [document, request](ByteBuffer body) {
+        auto process_body = GC::create_function(realm.heap(), [document, request](ByteBuffer body) -> Coroutine<void> {
             (void)decode_favicon(body, request->url(), document);
+            co_return;
         });
         auto process_body_error = GC::create_function(realm.heap(), [](JS::Value) {
         });

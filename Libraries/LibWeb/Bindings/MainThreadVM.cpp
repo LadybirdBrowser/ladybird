@@ -287,14 +287,14 @@ void initialize_main_thread_vm(AgentType type)
         auto* script = active_script();
 
         auto& heap = realm ? realm->heap() : vm.heap();
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(heap, [&vm, realm, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(heap, [&vm, realm, job = move(job), script_or_module = move(script_or_module)] -> Coroutine<void> {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
             if (realm) {
                 // 1. If realm is not null, then check if we can run script with realm. If this returns "do not run" then return.
                 if (HTML::can_run_script(*realm) == HTML::RunScriptDecision::DoNotRun)
-                    return;
+                    co_return;
 
                 // 2. If realm is not null, then prepare to run script with realm.
                 HTML::prepare_to_run_script(*realm);
@@ -722,7 +722,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
 
     // 3. Queue a microtask to notify mutation observers.
     // NOTE: This uses the implied document concept. In the case of mutation observers, it is always done in a node context, so document should be that node's document.
-    HTML::queue_a_microtask(&document, GC::create_function(vm.heap(), [&surrounding_agent, &heap = document.heap()]() {
+    HTML::queue_a_microtask(&document, GC::create_function(vm.heap(), [&surrounding_agent, &heap = document.heap()]() -> Coroutine<void> {
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         surrounding_agent.mutation_observer_microtask_queued = false;
 
@@ -776,6 +776,8 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
             event_init.bubbles = true;
             slot->dispatch_event(DOM::Event::create(slot->realm(), HTML::EventNames::slotchange, event_init));
         }
+
+        co_return;
     }));
 }
 

@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibCore/EventLoop.h"
+
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/Completion.h>
@@ -101,9 +103,11 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     //        by synchronously running all queued promise jobs.
     if (auto* agent = vm.agent()) {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
-        agent->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
-            return success.has_value();
-        }));
+        Core::run_async_in_new_event_loop([&] {
+            return agent->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
+                return success.has_value();
+            }));
+        });
     } else {
         // No embbedder, standalone LibJS implementation
         vm.run_queued_promise_jobs();

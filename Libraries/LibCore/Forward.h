@@ -54,4 +54,12 @@ struct ProxyData;
 class MachPort;
 #endif
 
+template<typename T>
+requires(IsSpecializationOf<InvokeResult<T&>, Coroutine>)
+typename AK::Detail::ExtractCoroutineResult<InvokeResult<T&>>::Type run_async_in_current_event_loop(T&&);
+
+template<typename T>
+requires(IsSpecializationOf<InvokeResult<T&>, Coroutine>)
+typename AK::Detail::ExtractCoroutineResult<InvokeResult<T&>>::Type run_async_in_new_event_loop(T&&);
+
 }

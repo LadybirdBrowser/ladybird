@@ -155,8 +155,9 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
 
                     // 3. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « position » and "report".
-                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
+                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] -> Coroutine<void> {
                         (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { position } });
+                        co_return;
                     }));
 
                     // 4. Terminate this algorithm.
@@ -178,8 +179,9 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
                     && cached_position->is_high_accuracy() == options.enable_high_accuracy) {
                     // 1. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « cachedPosition » and "report".
-                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, cached_position] {
+                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, cached_position] -> Coroutine<void> {
                         (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { cached_position } });
+                        co_return;
                     }));
 
                     // 2. Terminate this algorithm.
@@ -238,8 +240,9 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
 
             // 8. Queue a task on the geolocation task source with a step that invokes successCallback with « position »
             //    and "report".
-            HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
+            HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] -> Coroutine<void> {
                 (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { position } });
+                co_return;
             }));
         }
     }
@@ -256,9 +259,10 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
     auto error = realm().create<GeolocationPositionError>(realm(), code);
 
     // 3. Queue a task on the geolocation task source with a step that invokes callback with « error » and "report".
-    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [callback, error] {
+    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [callback, error] -> Coroutine<void> {
         (void)WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report,
             { { error } });
+        co_return;
     }));
 }
 

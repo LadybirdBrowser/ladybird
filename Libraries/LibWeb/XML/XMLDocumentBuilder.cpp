@@ -187,10 +187,10 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
     m_current_node = node.ptr();
 }
 
-void XMLDocumentBuilder::element_end(XML::Name const& name)
+Coroutine<void> XMLDocumentBuilder::element_end_impl(XML::Name const& name)
 {
     if (m_has_error)
-        return;
+        co_return;
 
     if (--m_namespace_stack.last().depth == 0) {
         m_namespace_stack.take_last();
@@ -201,10 +201,10 @@ void XMLDocumentBuilder::element_end(XML::Name const& name)
     // When the element's end tag is subsequently parsed,
     if (m_scripting_support == XMLScriptingSupport::Enabled && m_current_node->is_html_script_element()) {
         // the user agent must perform a microtask checkpoint,
-        HTML::perform_a_microtask_checkpoint();
+        co_await HTML::perform_a_microtask_checkpoint();
         // and then prepare the script element.
         auto& script_element = static_cast<HTML::HTMLScriptElement&>(*m_current_node);
-        script_element.prepare_script(Badge<XMLDocumentBuilder> {});
+        co_await script_element.prepare_script(Badge<XMLDocumentBuilder> {});
 
         // If this causes there to be a pending parsing-blocking script, then the user agent must run the following steps:
         if (auto pending_parsing_blocking_script = m_document->pending_parsing_blocking_script()) {
@@ -213,7 +213,7 @@ void XMLDocumentBuilder::element_end(XML::Name const& name)
 
             // 2. Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
             if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !pending_parsing_blocking_script->is_ready_to_be_parser_executed()) {
-                HTML::main_thread_event_loop().spin_until(GC::create_function(script_element.heap(), [&] {
+                co_await HTML::main_thread_event_loop().spin_until(GC::create_function(script_element.heap(), [&] {
                     return !m_document->has_a_style_sheet_that_is_blocking_scripts() && pending_parsing_blocking_script->is_ready_to_be_parser_executed();
                 }));
             }
@@ -222,7 +222,7 @@ void XMLDocumentBuilder::element_end(XML::Name const& name)
             // NOTE: Noop.
 
             // 4. Execute the script element given by the pending parsing-blocking script.
-            pending_parsing_blocking_script->execute_script();
+            co_await pending_parsing_blocking_script->execute_script();
 
             // 5. Set the pending parsing-blocking script to null.
             m_document->set_pending_parsing_blocking_script(nullptr);
@@ -233,7 +233,7 @@ void XMLDocumentBuilder::element_end(XML::Name const& name)
         // Script processing section of the Scripting chapter. Further parsing of the document will be blocked
         // until processing of the 'script' is complete.
         auto& script_element = static_cast<SVG::SVGScriptElement&>(*m_current_node);
-        script_element.process_the_script_element();
+        co_await script_element.process_the_script_element();
     };
 
     auto* parent = m_current_node->parent_node();
@@ -287,7 +287,7 @@ void XMLDocumentBuilder::processing_instruction(StringView target, StringView da
     MUST(m_current_node->append_child(processing_instruction));
 }
 
-void XMLDocumentBuilder::document_end()
+Coroutine<void> XMLDocumentBuilder::document_end_impl()
 {
     auto& heap = m_document->heap();
 
@@ -308,20 +308,20 @@ void XMLDocumentBuilder::document_end()
     if (!m_document->browsing_context()) {
         // Parsed via DOMParser, no need to wait for load events.
         m_document->update_readiness(HTML::DocumentReadyState::Complete);
-        return;
+        co_return;
     }
 
     // While the list of scripts that will execute when the document has finished parsing is not empty:
     while (!m_document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing has its "ready to be parser-executed" flag set
         // and the parser's Document has no style sheet that is blocking scripts.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
+        co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
             return m_document->scripts_to_execute_when_parsing_has_finished().first()->is_ready_to_be_parser_executed()
                 && !m_document->has_a_style_sheet_that_is_blocking_scripts();
         }));
 
         // Execute the first script in the list of scripts that will execute when the document has finished parsing.
-        m_document->scripts_to_execute_when_parsing_has_finished().first()->execute_script();
+        co_await m_document->scripts_to_execute_when_parsing_has_finished().first()->execute_script();
 
         // Remove the first script element from the list of scripts that will execute when the document has finished parsing (i.e. shift out the first entry in the list).
         (void)m_document->scripts_to_execute_when_parsing_has_finished().take_first();
@@ -345,12 +345,12 @@ void XMLDocumentBuilder::document_end()
     }));
 
     // Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
+    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
         return m_document->scripts_to_execute_as_soon_as_possible().is_empty();
     }));
 
     // Spin the event loop until there is nothing that delays the load event in the Document.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
+    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
         return !m_document->anything_is_delaying_the_load_event();
     }));
 

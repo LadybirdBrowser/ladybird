@@ -227,7 +227,10 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, Bod
     }
     // 6. Otherwise, fully read object’s body given successSteps, errorSteps, and object’s relevant global object.
     else {
-        body->fully_read(realm, success_steps, error_steps, GC::Ref { HTML::relevant_global_object(object.as_platform_object()) });
+        body->fully_read(realm, GC::create_function(realm.heap(), [f = move(success_steps)](ByteBuffer data) -> Coroutine<void> {
+            f->function()(move(data));
+            co_return;
+        }), error_steps, GC::Ref { HTML::relevant_global_object(object.as_platform_object()) });
     }
 
     // 7. Return promise.

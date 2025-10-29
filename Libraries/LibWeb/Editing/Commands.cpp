@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibCore/EventLoop.h"
+
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -1240,7 +1242,7 @@ bool command_insert_html_action(DOM::Document& document, Utf16String const& valu
         return true;
 
     // 4. Let frag be the result of calling createContextualFragment(value) on the active range.
-    auto frag = MUST(range->create_contextual_fragment(resulting_value));
+    auto frag = MUST(Core::run_async_in_new_event_loop([&] { return range->create_contextual_fragment(resulting_value); }));
 
     // 5. Let last child be the lastChild of frag.
     GC::Ptr<DOM::Node> last_child = frag->last_child();

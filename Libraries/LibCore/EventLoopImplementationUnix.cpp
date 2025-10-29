@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Coroutine.h>
 #include <AK/BinaryHeap.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>

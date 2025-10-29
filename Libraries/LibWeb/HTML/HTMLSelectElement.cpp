@@ -555,7 +555,7 @@ void HTMLSelectElement::did_select_item(Optional<u32> const& id)
 
 void HTMLSelectElement::form_associated_element_was_inserted()
 {
-    create_shadow_tree_if_needed();
+    Core::run_async_in_new_event_loop([&] { return create_shadow_tree_if_needed(); });
 }
 
 void HTMLSelectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const&)
@@ -581,10 +581,10 @@ void HTMLSelectElement::computed_properties_changed()
     }
 }
 
-void HTMLSelectElement::create_shadow_tree_if_needed()
+Coroutine<void> HTMLSelectElement::create_shadow_tree_if_needed()
 {
     if (shadow_root())
-        return;
+        co_return;
 
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
@@ -612,7 +612,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
         height: 16px;
         margin-left: 4px;
     )~~~"_string));
-    MUST(m_chevron_icon_element->set_inner_html(Utf16String::from_utf8(chevron_svg)));
+    MUST(co_await m_chevron_icon_element->set_inner_html(Utf16String::from_utf8(chevron_svg)));
     MUST(border->append_child(*m_chevron_icon_element));
 
     update_inner_text_element();

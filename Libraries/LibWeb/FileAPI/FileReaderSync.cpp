@@ -44,37 +44,37 @@ GC::Ref<FileReaderSync> FileReaderSync::construct_impl(JS::Realm& realm)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsArrayBufferSync
-WebIDL::ExceptionOr<GC::Root<JS::ArrayBuffer>> FileReaderSync::read_as_array_buffer(Blob& blob)
+Coroutine<WebIDL::ExceptionOr<GC::Root<JS::ArrayBuffer>>> FileReaderSync::read_as_array_buffer(Blob& blob)
 {
-    return read_as<GC::Root<JS::ArrayBuffer>>(blob, FileReader::Type::ArrayBuffer);
+    co_return co_await read_as<GC::Root<JS::ArrayBuffer>>(blob, FileReader::Type::ArrayBuffer);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsBinaryStringSync
-WebIDL::ExceptionOr<String> FileReaderSync::read_as_binary_string(Blob& blob)
+Coroutine<WebIDL::ExceptionOr<String>> FileReaderSync::read_as_binary_string(Blob& blob)
 {
-    return read_as<String>(blob, FileReader::Type::BinaryString);
+    co_return co_await read_as<String>(blob, FileReader::Type::BinaryString);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsTextSync
-WebIDL::ExceptionOr<String> FileReaderSync::read_as_text(Blob& blob, Optional<String> const& encoding)
+Coroutine<WebIDL::ExceptionOr<String>> FileReaderSync::read_as_text(Blob& blob, Optional<String> const& encoding)
 {
-    return read_as<String>(blob, FileReader::Type::Text, encoding);
+    co_return co_await read_as<String>(blob, FileReader::Type::Text, encoding);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsDataURLSync
-WebIDL::ExceptionOr<String> FileReaderSync::read_as_data_url(Blob& blob)
+Coroutine<WebIDL::ExceptionOr<String>> FileReaderSync::read_as_data_url(Blob& blob)
 {
-    return read_as<String>(blob, FileReader::Type::DataURL);
+    co_return co_await read_as<String>(blob, FileReader::Type::DataURL);
 }
 
 template<typename Result>
-WebIDL::ExceptionOr<Result> FileReaderSync::read_as(Blob& blob, FileReader::Type type, Optional<String> const& encoding)
+Coroutine<WebIDL::ExceptionOr<Result>> FileReaderSync::read_as(Blob& blob, FileReader::Type type, Optional<String> const& encoding)
 {
     // 1. Let stream be the result of calling get stream on blob.
     auto stream = blob.get_stream();
 
     // 2. Let reader be the result of getting a reader from stream.
-    auto reader = TRY(stream->get_a_reader());
+    auto reader = CO_TRY(stream->get_a_reader());
 
     // 3. Let promise be the result of reading all bytes from stream with reader.
     auto promise_capability = reader->read_all_bytes_deprecated();
@@ -84,23 +84,23 @@ WebIDL::ExceptionOr<Result> FileReaderSync::read_as(Blob& blob, FileReader::Type
 
     // 4. Wait for promise to be fulfilled or rejected.
     // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
+    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
         return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
     }));
 
     // 5. If promise fulfilled with a byte sequence bytes:
     auto result = promise->result();
-    auto* array_buffer = result.extract_pointer<JS::ArrayBuffer>();
+    auto* array_buffer = result.template extract_pointer<JS::ArrayBuffer>();
     if (promise->state() == JS::Promise::State::Fulfilled && array_buffer) {
         // AD-HOC: This diverges from the spec as wrritten, where the type argument is specified explicitly for each caller.
         // 1. Return the result of package data given bytes, type, blob’s type, and encoding.
-        auto result = TRY(FileReader::blob_package_data(realm(), array_buffer->buffer(), type, blob.type(), encoding));
-        return result.get<Result>();
+        auto result = CO_TRY(FileReader::blob_package_data(realm(), array_buffer->buffer(), type, blob.type(), encoding));
+        co_return result.template get<Result>();
     }
 
     // 6. Throw promise’s rejection reason.
     VERIFY(promise->state() == JS::Promise::State::Rejected);
-    return JS::throw_completion(result);
+    co_return JS::throw_completion(result);
 }
 
 }

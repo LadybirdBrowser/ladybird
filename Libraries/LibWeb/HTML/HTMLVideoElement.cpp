@@ -162,7 +162,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             response = filtered_response.internal_response();
         }
 
-        auto on_image_data_read = GC::create_function(heap(), [this](ByteBuffer image_data) mutable {
+        auto on_image_data_read = GC::create_function(heap(), [this](ByteBuffer image_data) mutable -> Coroutine<void> {
             m_fetch_controller = nullptr;
 
             // 6. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
@@ -174,6 +174,8 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
                     return {};
                 },
                 [](auto&) {});
+
+            co_return;
         });
 
         VERIFY(response->body());

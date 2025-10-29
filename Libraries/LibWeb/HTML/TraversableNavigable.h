@@ -65,14 +65,14 @@ public:
         Applied,
     };
 
-    HistoryStepResult apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement);
-    HistoryStepResult apply_the_reload_history_step(UserNavigationInvolvement);
+    Coroutine<HistoryStepResult> apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement);
+    Coroutine<HistoryStepResult> apply_the_reload_history_step(UserNavigationInvolvement);
     enum class SynchronousNavigation : bool {
         Yes,
         No,
     };
-    HistoryStepResult apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation);
-    HistoryStepResult update_for_navigable_creation_or_destruction();
+    Coroutine<HistoryStepResult> apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation);
+    Coroutine<HistoryStepResult> update_for_navigable_creation_or_destruction();
 
     int get_the_used_step(int step) const;
     Vector<GC::Root<Navigable>> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
@@ -83,16 +83,21 @@ public:
     void clear_the_forward_session_history();
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
 
-    void close_top_level_traversable();
-    void definitely_close_top_level_traversable();
+    Coroutine<void> close_top_level_traversable();
+    Coroutine<void> definitely_close_top_level_traversable();
     void destroy_top_level_traversable();
 
-    void append_session_history_traversal_steps(GC::Ref<GC::Function<void()>> steps)
+    void append_session_history_traversal_steps(GC::Ref<GC::Function<Coroutine<void>()>> steps)
     {
         m_session_history_traversal_queue->append(steps);
     }
 
     void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<void()>> steps)
+    {
+        m_session_history_traversal_queue->append_sync(steps, target_navigable);
+    }
+
+    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<Coroutine<void>()>> steps)
     {
         m_session_history_traversal_queue->append_sync(steps, target_navigable);
     }
@@ -107,7 +112,7 @@ public:
         CanceledByNavigate,
         Continue,
     };
-    CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload);
+    Coroutine<CheckIfUnloadingIsCanceledResult> check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload);
 
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
@@ -131,7 +136,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // FIXME: Fix spec typo cancelation --> cancellation
-    HistoryStepResult apply_the_history_step(
+    Coroutine<HistoryStepResult> apply_the_history_step(
         int step,
         bool check_for_cancelation,
         GC::Ptr<SourceSnapshotParams>,
@@ -140,7 +145,7 @@ private:
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation);
 
-    CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events);
+    Coroutine<CheckIfUnloadingIsCanceledResult> check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events);
 
     Vector<GC::Ref<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 
@@ -186,7 +191,7 @@ struct BrowsingContextAndDocument {
 };
 
 WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
+Coroutine<void> finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
 
 template<>
 inline bool Navigable::fast_is<TraversableNavigable>() const { return is_traversable(); }

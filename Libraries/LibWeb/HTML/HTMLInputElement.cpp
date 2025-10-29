@@ -12,6 +12,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibCore/EventLoop.h"
+
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpObject.h>
@@ -970,10 +972,10 @@ Optional<String> HTMLInputElement::placeholder_value() const
     return placeholder();
 }
 
-void HTMLInputElement::create_shadow_tree_if_needed()
+Coroutine<void> HTMLInputElement::create_shadow_tree_if_needed()
 {
     if (shadow_root())
-        return;
+        co_return;
 
     switch (type_state()) {
     case TypeAttributeState::Hidden:
@@ -998,7 +1000,7 @@ void HTMLInputElement::create_shadow_tree_if_needed()
         break;
     // FIXME: This could be better factored. Everything except the above types becomes a text input.
     default:
-        create_text_input_shadow_tree();
+        co_await create_text_input_shadow_tree();
         break;
     }
 }
@@ -1038,7 +1040,7 @@ void HTMLInputElement::create_button_input_shadow_tree()
     MUST(shadow_root->append_child(*text_container));
 }
 
-void HTMLInputElement::create_text_input_shadow_tree()
+Coroutine<void> HTMLInputElement::create_text_input_shadow_tree()
 {
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
@@ -1103,7 +1105,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             padding: 0;
             cursor: default;
         )~~~"_string));
-        MUST(up_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z\" /></svg>"_utf16));
+        MUST(co_await up_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z\" /></svg>"_utf16));
         MUST(element->append_child(up_button));
 
         auto mouseup_callback_function = JS::NativeFunction::create(
@@ -1135,7 +1137,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             padding: 0;
             cursor: default;
         )~~~"_string));
-        MUST(down_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z\" /></svg>"_utf16));
+        MUST(co_await down_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z\" /></svg>"_utf16));
         MUST(element->append_child(down_button));
 
         auto down_callback_function = JS::NativeFunction::create(
@@ -1487,7 +1489,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
     set_shadow_root(nullptr);
-    create_shadow_tree_if_needed();
+    Core::run_async_in_new_event_loop([&] { return create_shadow_tree_if_needed(); });
 
     // 5. Signal a type change for the element. (The Radio Button state uses this, in particular.)
     signal_a_type_change();
@@ -1889,7 +1891,7 @@ void HTMLInputElement::clear_algorithm()
 
 void HTMLInputElement::form_associated_element_was_inserted()
 {
-    create_shadow_tree_if_needed();
+    Core::run_async_in_new_event_loop([&] { return create_shadow_tree_if_needed(); });
 
     if (is_connected()) {
         // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)

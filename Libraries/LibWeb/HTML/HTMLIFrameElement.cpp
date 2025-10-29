@@ -122,8 +122,9 @@ void HTMLIFrameElement::post_connection()
 
         if (auto navigable = content_navigable()) {
             auto traversable = navigable->traversable_navigable();
-            traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this] {
+            traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this] -> Coroutine<void> {
                 set_content_navigable_has_session_history_entry_and_ready_for_navigation();
+                co_return;
             }));
         }
     })));

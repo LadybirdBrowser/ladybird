@@ -19,7 +19,7 @@ class SVGScriptElement
     GC_DECLARE_ALLOCATOR(SVGScriptElement);
 
 public:
-    void process_the_script_element();
+    Coroutine<void> process_the_script_element();
 
     void set_parser_inserted(Badge<HTML::HTMLParser>) { m_parser_inserted = true; }
     void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }

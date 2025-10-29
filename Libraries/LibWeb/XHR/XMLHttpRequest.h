@@ -49,14 +49,14 @@ public:
     Fetch::Infrastructure::Status status() const;
     WebIDL::ExceptionOr<String> status_text() const;
     WebIDL::ExceptionOr<String> response_text() const;
-    WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> response_xml();
-    WebIDL::ExceptionOr<JS::Value> response();
+    Coroutine<WebIDL::ExceptionOr<GC::Ptr<DOM::Document>>> response_xml();
+    Coroutine<WebIDL::ExceptionOr<JS::Value>> response();
     Bindings::XMLHttpRequestResponseType response_type() const { return m_response_type; }
     String response_url();
 
     WebIDL::ExceptionOr<void> open(String const& method, String const& url);
     WebIDL::ExceptionOr<void> open(String const& method, String const& url, bool async, Optional<String> const& username = Optional<String> {}, Optional<String> const& password = Optional<String> {});
-    WebIDL::ExceptionOr<void> send(Optional<DocumentOrXMLHttpRequestBodyInit> body);
+    Coroutine<WebIDL::ExceptionOr<void>> send(Optional<DocumentOrXMLHttpRequestBodyInit> body);
 
     WebIDL::ExceptionOr<void> set_request_header(String const& header, String const& value);
     WebIDL::ExceptionOr<void> set_response_type(Bindings::XMLHttpRequestResponseType);
@@ -89,7 +89,7 @@ private:
     [[nodiscard]] MimeSniff::MimeType get_final_mime_type() const;
 
     String get_text_response() const;
-    void set_document_response();
+    Coroutine<void> set_document_response();
 
     WebIDL::ExceptionOr<void> handle_response_end_of_body();
     WebIDL::ExceptionOr<void> handle_errors();

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -90,10 +91,16 @@ using ExtractExceptionOrValueType = typename Detail::ExtractExceptionOrValueType
 // void or ExceptionOr<void>: JS::ThrowCompletionOr<JS::Value>, always returns JS::js_undefined()
 // ExceptionOr<T>: JS::ThrowCompletionOr<T>
 // T: JS::ThrowCompletionOr<T>
-template<typename F, typename T = decltype(declval<F>()()), typename Ret = Conditional<!IsExceptionOr<T> && !IsVoid<T> && !IsThrowCompletionOr<T>, T, ExtractExceptionOrValueType<T>>>
+template<
+    typename F,
+    typename R = decltype(declval<F>()()),
+    typename T = AK::ExtractCoroutineResult<R>,
+    typename Ret = Conditional<!IsExceptionOr<T> && !IsVoid<T> && !IsThrowCompletionOr<T>, T, ExtractExceptionOrValueType<T>>>
 JS::ThrowCompletionOr<Ret> throw_dom_exception_if_needed(JS::VM& vm, F&& fn)
 {
-    if constexpr (IsExceptionOr<T>) {
+    if constexpr (IsSpecializationOf<R, Coroutine>) {
+        return throw_dom_exception_if_needed(vm, [&] { return Core::run_async_in_current_event_loop(fn); });
+    } else if constexpr (IsExceptionOr<T>) {
         auto&& result = fn();
 
         if (result.is_exception())

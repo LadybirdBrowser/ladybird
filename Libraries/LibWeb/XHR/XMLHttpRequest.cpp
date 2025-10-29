@@ -129,30 +129,30 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::response_text() const
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsexml
-WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> XMLHttpRequest::response_xml()
+Coroutine<WebIDL::ExceptionOr<GC::Ptr<DOM::Document>>> XMLHttpRequest::response_xml()
 {
     // 1. If this’s response type is not the empty string or "document", then throw an "InvalidStateError" DOMException.
     if (m_response_type != Bindings::XMLHttpRequestResponseType::Empty && m_response_type != Bindings::XMLHttpRequestResponseType::Document)
-        return WebIDL::InvalidStateError::create(realm(), "XHR responseXML can only be used for responseXML \"\" or \"document\""_utf16);
+        co_return WebIDL::InvalidStateError::create(realm(), "XHR responseXML can only be used for responseXML \"\" or \"document\""_utf16);
 
     // 2. If this’s state is not done, then return null.
     if (m_state != State::Done)
-        return nullptr;
+        co_return nullptr;
 
     // 3. Assert: this’s response object is not failure.
     VERIFY(!m_response_object.has<Failure>());
 
     // 4. If this’s response object is non-null, then return it.
     if (!m_response_object.has<Empty>())
-        return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
+        co_return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
 
     // 5. Set a document response for this.
-    set_document_response();
+    co_await set_document_response();
 
     // 6. Return this’s response object.
     if (m_response_object.has<Empty>())
-        return nullptr;
-    return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
+        co_return nullptr;
+    co_return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsetype
@@ -176,7 +176,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpReq
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-response
-WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
+Coroutine<WebIDL::ExceptionOr<JS::Value>> XMLHttpRequest::response()
 {
     auto& vm = this->vm();
 
@@ -184,22 +184,22 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty || m_response_type == Bindings::XMLHttpRequestResponseType::Text) {
         // 1. If this’s state is not loading or done, then return the empty string.
         if (m_state != State::Loading && m_state != State::Done)
-            return JS::PrimitiveString::create(vm, String {});
+            co_return JS::PrimitiveString::create(vm, String {});
 
         // 2. Return the result of getting a text response for this.
-        return JS::PrimitiveString::create(vm, get_text_response());
+        co_return JS::PrimitiveString::create(vm, get_text_response());
     }
     // 2. If this’s state is not done, then return null.
     if (m_state != State::Done)
-        return JS::js_null();
+        co_return JS::js_null();
 
     // 3. If this’s response object is failure, then return null.
     if (m_response_object.has<Failure>())
-        return JS::js_null();
+        co_return JS::js_null();
 
     // 4. If this’s response object is non-null, then return it.
     if (!m_response_object.has<Empty>())
-        return m_response_object.get<GC::Ref<JS::Object>>();
+        co_return m_response_object.get<GC::Ref<JS::Object>>();
 
     // 5. If this’s response type is "arraybuffer",
     if (m_response_type == Bindings::XMLHttpRequestResponseType::Arraybuffer) {
@@ -207,7 +207,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
         auto buffer_result = JS::ArrayBuffer::create(realm(), m_received_bytes.size());
         if (buffer_result.is_error()) {
             m_response_object = Failure();
-            return JS::js_null();
+            co_return JS::js_null();
         }
 
         auto buffer = buffer_result.release_value();
@@ -222,7 +222,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     }
     // 7. Otherwise, if this’s response type is "document", set a document response for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Document) {
-        set_document_response();
+        co_await set_document_response();
     }
     // 8. Otherwise:
     else {
@@ -231,12 +231,12 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
 
         // 2. If this’s response’s body is null, then return null.
         if (!m_response->body())
-            return JS::js_null();
+            co_return JS::js_null();
 
         // 3. Let jsonObject be the result of running parse JSON from bytes on this’s received bytes. If that threw an exception, then return null.
         auto json_object_result = Infra::parse_json_bytes_to_javascript_value(realm(), m_received_bytes);
         if (json_object_result.is_error())
-            return JS::js_null();
+            co_return JS::js_null();
 
         // 4. Set this’s response object to jsonObject.
         if (json_object_result.value().is_object())
@@ -246,7 +246,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     }
 
     // 9. Return this’s response object.
-    return m_response_object.visit(
+    co_return m_response_object.visit(
         [](GC::Ref<JS::Object> object) -> JS::Value { return object; },
         [](auto const&) -> JS::Value { return JS::js_null(); });
 }
@@ -280,22 +280,22 @@ String XMLHttpRequest::get_text_response() const
 }
 
 // https://xhr.spec.whatwg.org/#document-response
-void XMLHttpRequest::set_document_response()
+Coroutine<void> XMLHttpRequest::set_document_response()
 {
     // 1. If xhr’s response’s body is null, then return.
     if (!m_response->body())
-        return;
+        co_return;
 
     // 2. Let finalMIME be the result of get a final MIME type for xhr.
     auto final_mime = get_final_mime_type();
 
     // 3. If finalMIME is not an HTML MIME type or an XML MIME type, then return.
     if (!final_mime.is_html() && !final_mime.is_xml())
-        return;
+        co_return;
 
     // 4. If xhr’s response type is the empty string and finalMIME is an HTML MIME type, then return.
     if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty && final_mime.is_html())
-        return;
+        co_return;
 
     // 5. If finalMIME is an HTML MIME type, then:
     Optional<String> charset;
@@ -317,7 +317,7 @@ void XMLHttpRequest::set_document_response()
 
         // 5.4. Let document be a document that represents the result parsing xhr’s received bytes following the rules set forth in the HTML Standard for an HTML parser with scripting disabled and a known definite encoding charset.
         auto parser = HTML::HTMLParser::create(*document, m_received_bytes, charset.value());
-        parser->run(document->url());
+        co_await parser->run(document->url());
 
         // 5.5. Flag document as an HTML document.
         document->set_document_type(DOM::Document::Type::HTML);
@@ -328,7 +328,7 @@ void XMLHttpRequest::set_document_response()
         document = DOM::XMLDocument::create(realm(), m_response->url().value_or({}));
         if (!Web::build_xml_document(*document, m_received_bytes, {})) {
             m_response_object = Empty {};
-            return;
+            co_return;
         }
     }
 
@@ -548,18 +548,18 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send
-WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequestBodyInit> body)
+Coroutine<WebIDL::ExceptionOr<void>> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequestBodyInit> body)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
     // 1. If this’s state is not opened, then throw an "InvalidStateError" DOMException.
     if (m_state != State::Opened)
-        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not OPENED"_utf16);
+        co_return WebIDL::InvalidStateError::create(realm, "XHR readyState is not OPENED"_utf16);
 
     // 2. If this’s send() flag is set, then throw an "InvalidStateError" DOMException.
     if (m_send)
-        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_utf16);
+        co_return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_utf16);
 
     // 3. If this’s request method is `GET` or `HEAD`, then set body to null.
     if (m_request_method.is_one_of("GET"sv, "HEAD"sv))
@@ -572,7 +572,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
         if (body->has<GC::Root<DOM::Document>>()) {
-            auto string_serialized_document = TRY(body->get<GC::Root<DOM::Document>>().cell()->serialize_fragment(HTML::RequireWellFormed::No));
+            auto string_serialized_document = CO_TRY(body->get<GC::Root<DOM::Document>>().cell()->serialize_fragment(HTML::RequireWellFormed::No));
             m_request_body = Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document.to_utf8().bytes());
         }
         // 3. Otherwise:
@@ -733,7 +733,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
         // 6. If this’s state is not opened or this’s send() flag is unset, then return.
         if (m_state != State::Opened || !m_send)
-            return {};
+            co_return {};
 
         // 7. Let processRequestBodyChunkLength, given a bytesLength, be these steps:
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
@@ -849,7 +849,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         };
 
         // 10. Set this’s fetch controller to the result of fetching req with processRequestBodyChunkLength set to processRequestBodyChunkLength, processRequestEndOfBody set to processRequestEndOfBody, and processResponse set to processResponse.
-        m_fetch_controller = TRY(Fetch::Fetching::fetch(
+        m_fetch_controller = CO_TRY(Fetch::Fetching::fetch(
             realm,
             request,
             Fetch::Infrastructure::FetchAlgorithms::create(vm,
@@ -905,7 +905,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         };
 
         // 3. Set this’s fetch controller to the result of fetching req with processResponseConsumeBody set to processResponseConsumeBody and useParallelQueue set to true.
-        m_fetch_controller = TRY(Fetch::Fetching::fetch(
+        m_fetch_controller = CO_TRY(Fetch::Fetching::fetch(
             realm,
             request,
             Fetch::Infrastructure::FetchAlgorithms::create(vm,
@@ -936,7 +936,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
 
         // FIXME: This is not exactly correct, as it allows the HTML event loop to continue executing tasks.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() {
+        co_await HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() {
             return processed_response || did_time_out;
         }));
 
@@ -950,9 +950,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         m_fetch_controller->report_timing(HTML::current_principal_global_object());
 
         // 8. Run handle response end-of-body for this.
-        TRY(handle_response_end_of_body());
+        CO_TRY(handle_response_end_of_body());
     }
-    return {};
+    co_return {};
 }
 
 WebIDL::CallbackType* XMLHttpRequest::onreadystatechange()

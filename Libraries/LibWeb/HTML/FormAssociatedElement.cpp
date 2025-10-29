@@ -827,9 +827,10 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
         // AD-HOC: We don't fire the event if the user moves the cursor without selecting any text.
         //         This is not in the spec but matches how other browsers behave.
         if (source == SelectionSource::DOM || m_selection_start != m_selection_end) {
-            html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
+            html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] -> Coroutine<void> {
                 auto select_event = DOM::Event::create(html_element.realm(), EventNames::select, { .bubbles = true });
                 static_cast<DOM::EventTarget*>(&html_element)->dispatch_event(select_event);
+                co_return;
             });
         }
 

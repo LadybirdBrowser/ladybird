@@ -122,6 +122,7 @@ add_cxx_compile_options(-Wsuggest-override)
 add_cxx_compile_options(-Wno-invalid-offsetof)
 add_cxx_compile_options(-Wno-unknown-warning-option)
 add_cxx_compile_options(-Wno-unused-command-line-argument)
+add_cxx_compile_options(-Wno-coroutine-missing-unhandled-exception) # clang decides to be silly and warn despite -fno-exceptions
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "18")
     add_cxx_compile_options(-Wpadded-bitfield)

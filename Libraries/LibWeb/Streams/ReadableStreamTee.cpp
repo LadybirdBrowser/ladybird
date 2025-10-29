@@ -58,7 +58,7 @@ void ReadableStreamTeeReadRequest::visit_edges(Visitor& visitor)
 void ReadableStreamTeeReadRequest::on_chunk(JS::Value chunk)
 {
     // 1. Queue a microtask to perform the following steps:
-    HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk]() {
+    HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk]() -> Coroutine<void> {
         HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         auto controller1 = m_params->branch1->controller()->get<GC::Ref<ReadableStreamDefaultController>>();
@@ -93,7 +93,7 @@ void ReadableStreamTeeReadRequest::on_chunk(JS::Value chunk)
                 WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
                 // 4. Return.
-                return;
+                co_return;
             }
 
             // 3. Otherwise, set chunk2 to cloneResult.[[Value]].
@@ -115,7 +115,7 @@ void ReadableStreamTeeReadRequest::on_chunk(JS::Value chunk)
 
         // 7. If readAgain is true, perform pullAlgorithm.
         if (m_params->read_again) {
-            m_params->pull_algorithm->function()();
+            (void)m_params->pull_algorithm->function()();
         }
     }));
 
@@ -203,7 +203,7 @@ void ReadableByteStreamTeeDefaultReadRequest::visit_edges(Visitor& visitor)
 void ReadableByteStreamTeeDefaultReadRequest::on_chunk(JS::Value chunk)
 {
     // 1. Queue a microtask to perform the following steps:
-    HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk]() mutable {
+    HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk]() mutable -> Coroutine<void> {
         HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         auto controller1 = m_params->branch1->controller()->get<GC::Ref<ReadableByteStreamController>>();
@@ -241,7 +241,7 @@ void ReadableByteStreamTeeDefaultReadRequest::on_chunk(JS::Value chunk)
                 WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
                 // 4. Return.
-                return;
+                co_return;
             }
 
             // 3. Otherwise, set chunk2 to cloneResult.[[Value]].
@@ -263,11 +263,11 @@ void ReadableByteStreamTeeDefaultReadRequest::on_chunk(JS::Value chunk)
 
         // 8. If readAgainForBranch1 is true, perform pull1Algorithm.
         if (m_params->read_again_for_branch1) {
-            m_params->pull1_algorithm->function()();
+            (void)m_params->pull1_algorithm->function()();
         }
         // 9. Otherwise, if readAgainForBranch2 is true, perform pull2Algorithm.
         else if (m_params->read_again_for_branch2) {
-            m_params->pull2_algorithm->function()();
+            (void)m_params->pull2_algorithm->function()();
         }
     }));
 
@@ -354,7 +354,7 @@ void ReadableByteStreamTeeBYOBReadRequest::on_chunk(JS::Value chunk)
     auto chunk_view = m_realm->create<WebIDL::ArrayBufferView>(chunk.as_object());
 
     // 1. Queue a microtask to perform the following steps:
-    HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk = chunk_view]() {
+    HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk = chunk_view]() -> Coroutine<void> {
         HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         auto byob_controller = m_byob_branch->controller()->get<GC::Ref<ReadableByteStreamController>>();
@@ -393,7 +393,7 @@ void ReadableByteStreamTeeBYOBReadRequest::on_chunk(JS::Value chunk)
                 WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
                 // 4. Return.
-                return;
+                co_return;
             }
 
             // 3. Otherwise, let clonedChunk be cloneResult.[[Value]].
@@ -417,11 +417,11 @@ void ReadableByteStreamTeeBYOBReadRequest::on_chunk(JS::Value chunk)
 
         // 8. If readAgainForBranch1 is true, perform pull1Algorithm.
         if (m_params->read_again_for_branch1) {
-            m_params->pull1_algorithm->function()();
+            (void)m_params->pull1_algorithm->function()();
         }
         // 9. Otherwise, if readAgainForBranch2 is true, perform pull2Algorithm.
         else if (m_params->read_again_for_branch2) {
-            m_params->pull2_algorithm->function()();
+            (void)m_params->pull2_algorithm->function()();
         }
     }));
 
