@@ -78,15 +78,28 @@ https://vitalik.eth
 
 ### Multi-Process Architecture
 
-- **Main UI Process** - Qt/AppKit/Android interface
+**Core Processes:**
+- **Main UI Process** - Qt/AppKit/Android interface with security dialogs
 - **WebContent Process** (per tab, sandboxed) - Rendering and JavaScript execution
 - **ImageDecoder Process** (sandboxed) - Safe image decoding
-- **RequestServer Process** - Network requests with Tor/VPN/IPFS support
+- **RequestServer Process** - Enhanced network requests with:
+  - Tor/SOCKS5H proxy support with DNS leak prevention
+  - IPFS/IPNS protocol handler with gateway fallback
+  - ENS (Ethereum Name Service) resolution
+  - Per-tab NetworkIdentity for circuit isolation
+  - Real-time malware scanning via SecurityTap
+  - Request pause/resume for security policy enforcement
+
+**Fork-Specific Services:**
+- **Sentinel Service** - Standalone malware detection daemon with:
+  - YARA-based rule engine
+  - Unix socket IPC for inter-process communication
+  - PolicyGraph SQLite database for security policies
+  - Threat history tracking and quarantine management
 
 ### Core Libraries
 
-Inherited from SerenityOS:
-
+**Base Libraries** (Inherited from SerenityOS):
 - **LibWeb** - Web rendering engine
 - **LibJS** - JavaScript engine
 - **LibWasm** - WebAssembly implementation
@@ -97,6 +110,12 @@ Inherited from SerenityOS:
 - **LibMedia** - Audio and video playback
 - **LibCore** - Event loop and OS abstraction
 - **LibIPC** - Inter-process communication
+
+**Fork Enhancements:**
+- **SecurityTap** - YARA integration for download scanning
+- **PolicyGraph** - SQLite-backed security policy database
+- **NetworkIdentity** - Per-tab network configuration management
+- **Quarantine System** - Secure malicious file isolation
 
 ## Build and Run
 
