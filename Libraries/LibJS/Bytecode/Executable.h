@@ -92,6 +92,8 @@ public:
     size_t number_of_registers { 0 };
     bool is_strict_mode { false };
 
+    size_t registers_and_constants_and_locals_count { 0 };
+
     struct ExceptionHandlers {
         size_t start_offset;
         size_t end_offset;

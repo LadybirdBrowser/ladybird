@@ -507,7 +507,7 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& r
             executable = TRY(Bytecode::compile(vm(), *this));
         }
     }
-    registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+    registers_and_constants_and_locals_count = executable->registers_and_constants_and_locals_count;
     argument_count = max(argument_count, formal_parameters().size());
     return {};
 }
