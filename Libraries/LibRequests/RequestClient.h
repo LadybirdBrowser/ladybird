@@ -48,7 +48,7 @@ private:
     virtual void request_finished(i32, u64, RequestTimingInfo, Optional<NetworkError>) override;
     virtual void certificate_requested(i32) override;
     virtual void headers_became_available(i32, HTTP::HeaderMap, Optional<u32>, Optional<String>) override;
-    virtual void security_alert(i32, ByteString) override;
+    virtual void security_alert(i32, u64, ByteString) override;
 
     virtual void websocket_connected(i64 websocket_id) override;
     virtual void websocket_received(i64 websocket_id, bool, ByteBuffer) override;

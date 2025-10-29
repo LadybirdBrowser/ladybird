@@ -62,6 +62,7 @@ public:
 
     // Sentinel integration
     void set_security_tap(SecurityTap* security_tap) { m_security_tap = security_tap; }
+    void set_page_id(u64 page_id) { m_page_id = page_id; }
     bool should_inspect_download() const;
     SecurityTap::DownloadMetadata extract_download_metadata() const;
 
@@ -195,6 +196,7 @@ private:
 
     // Sentinel integration
     SecurityTap* m_security_tap { nullptr };
+    u64 m_page_id { 0 };
 };
 
 }

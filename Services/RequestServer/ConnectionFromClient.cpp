@@ -634,6 +634,9 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL:
     // Set protocol type on the request
     request->set_protocol_type(protocol_type);
 
+    // Set page_id for IPC routing
+    request->set_page_id(page_id);
+
     // Set SecurityTap for Sentinel integration
     request->set_security_tap(g_security_tap);
 
@@ -659,6 +662,9 @@ void ConnectionFromClient::issue_network_request(i32 request_id, ByteString meth
 
     // Create the Request object using the provided URL (no IPFS detection)
     auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), method, request_headers, request_body, m_alt_svc_cache_path, proxy_data, network_identity);
+
+    // Set page_id for IPC routing
+    request->set_page_id(page_id);
 
     // Set SecurityTap for Sentinel integration
     request->set_security_tap(g_security_tap);

@@ -643,6 +643,14 @@ void WebContentClient::did_request_dismiss_dialog(u64 page_id)
     }
 }
 
+void WebContentClient::did_receive_security_alert(u64 page_id, ByteString alert_json, i32 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_security_alert)
+            view->on_security_alert(alert_json, request_id);
+    }
+}
+
 void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon)
 {
     if (!favicon.is_valid()) {

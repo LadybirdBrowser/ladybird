@@ -142,6 +142,7 @@ private:
     virtual void page_did_request_set_prompt_text(String const&) override;
     virtual void page_did_request_accept_dialog() override;
     virtual void page_did_request_dismiss_dialog() override;
+    virtual void page_did_receive_security_alert(ByteString const& alert_json, i32 request_id) override;
     virtual void page_did_change_favicon(Gfx::Bitmap const&) override;
     virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) override;
     virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) override;

@@ -95,7 +95,7 @@ void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap res
     request->did_receive_headers({}, response_headers, status_code, reason_phrase);
 }
 
-void RequestClient::security_alert(i32 request_id, ByteString alert_json)
+void RequestClient::security_alert(i32 request_id, u64 page_id, ByteString alert_json)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
     if (!request) {
@@ -103,10 +103,7 @@ void RequestClient::security_alert(i32 request_id, ByteString alert_json)
         return;
     }
 
-    // TODO Phase 3 Day 19: Properly route to ViewImplementation.on_security_alert
-    // For now, just log the security alert
-    // UI dialog infrastructure is ready in Tab.cpp (SecurityAlertDialog)
-    dbgln("RequestClient: Security threat detected in download (request {})", request_id);
+    dbgln("RequestClient: Security threat detected in download (request {}, page_id {})", request_id, page_id);
     dbgln("Alert details: {}", alert_json);
 
     // Parse the alert JSON to log specific details
@@ -127,8 +124,10 @@ void RequestClient::security_alert(i32 request_id, ByteString alert_json)
         }
     }
 
-    // For now, the download still completes but is logged
-    // Week 3 will add policy enforcement (quarantine, block, allow)
+    // Call the on_security_alert callback if set (routes to ViewImplementation → Tab)
+    if (request->on_security_alert) {
+        request->on_security_alert(alert_json, request_id);
+    }
 }
 
 void RequestClient::certificate_requested(i32 request_id)

@@ -477,6 +477,11 @@ void PageClient::page_did_request_dismiss_dialog()
     client().async_did_request_dismiss_dialog(m_id);
 }
 
+void PageClient::page_did_receive_security_alert(ByteString const& alert_json, i32 request_id)
+{
+    client().async_did_receive_security_alert(m_id, alert_json, request_id);
+}
+
 void PageClient::page_did_change_favicon(Gfx::Bitmap const& favicon)
 {
     client().async_did_change_favicon(m_id, favicon.to_shareable_bitmap());

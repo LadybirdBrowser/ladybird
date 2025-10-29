@@ -103,6 +103,7 @@ private:
     virtual void did_request_set_prompt_text(u64 page_id, String message) override;
     virtual void did_request_accept_dialog(u64 page_id) override;
     virtual void did_request_dismiss_dialog(u64 page_id) override;
+    virtual void did_receive_security_alert(u64 page_id, ByteString alert_json, i32 request_id) override;
     virtual Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse did_request_all_cookies_webdriver(URL::URL) override;
     virtual Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(URL::URL) override;
     virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;

@@ -368,6 +368,7 @@ public:
     virtual void page_did_request_set_prompt_text(String const&) { }
     virtual void page_did_request_accept_dialog() { }
     virtual void page_did_request_dismiss_dialog() { }
+    virtual void page_did_receive_security_alert(ByteString const& alert_json, i32 request_id) { (void)alert_json; (void)request_id; }
     virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) { return {}; }
     virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) { return {}; }
     virtual Optional<Web::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) { return {}; }

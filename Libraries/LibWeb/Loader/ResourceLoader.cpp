@@ -567,8 +567,12 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return {};
     };
 
-    // Note: on_security_alert callback is set by WebContentClient layer
-    // which has access to both Request and ViewImplementation
+    // Set security alert callback to route through PageClient to ViewImplementation
+    if (auto page = request.page()) {
+        protocol_request->on_security_alert = [page_ptr = page.ptr()](ByteString const& alert_json, i32 request_id) {
+            page_ptr->client().page_did_receive_security_alert(alert_json, request_id);
+        };
+    }
 
     ++m_pending_loads;
     if (on_load_counter_change)

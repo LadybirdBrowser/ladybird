@@ -567,8 +567,8 @@ void Request::handle_complete_state()
 
                             if (!scan_result.is_error() && scan_result.value().is_threat) {
                                 dbgln("SecurityTap: Threat detected in download: {}", metadata.filename);
-                                // Send security alert to browser via IPC
-                                m_client.async_security_alert(m_request_id, scan_result.value().alert_json.value());
+                                // Send security alert to browser via IPC (with page_id for routing)
+                                m_client.async_security_alert(m_request_id, m_page_id, scan_result.value().alert_json.value());
                             } else if (scan_result.is_error()) {
                                 dbgln("SecurityTap: Scan failed: {}", scan_result.error());
                             }
