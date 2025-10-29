@@ -71,6 +71,12 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
 
 WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, DOM::Element const& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value);
 
-Utf16String element_interface_name(Utf16String const& local_name, Utf16String const& element_ns);
+// FIXME: Add-hoc definition of an element interface
+struct ElementInterface {
+    Utf16String element_name;
+    Utf16String element_ns;
+};
+
+ElementInterface element_interface(Utf16String const& local_name, Utf16String const& element_ns);
 
 }

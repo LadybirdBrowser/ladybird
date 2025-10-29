@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/namespaces.js"></script>
+<script src="./support/attributes.js"></script>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<iframe id="iframe"></iframe>
+<script>
+  // Create a default policy, which performs a mutation and transform its input.
+  const input_string = "unsafe_input";
+  const output_string = "safe_output";
+  const other_string = "other_value";
+  let applyMutation, finalChecks;
+  function testCleanup() {
+    applyMutation = undefined;
+    finalChecks = undefined;
+  }
+  function createTrustedType(input) {
+    if (window.applyMutation) {
+      assert_equals(input, input_string);
+      window.applyMutation();
+    }
+    return output_string;
+  }
+  trustedTypes.createPolicy("default", {
+    createHTML: createTrustedType,
+    createScript: createTrustedType,
+    createScriptURL: createTrustedType,
+  });
+
+  function assertReturnValue(api, returnValue, attributeNodeInCallback) {
+    switch (api) {
+      case "Element.setAttribute":
+      case "Element.setAttributeNS":
+        assert_equals(returnValue, undefined);
+        break;
+      case "Element.setAttributeNode":
+      case "Element.setAttributeNodeNS":
+      case "NamedNodeMap.setNamedItem":
+      case "NamedNodeMap.setNamedItemNS":
+        assert_equals(returnValue, attributeNodeInCallback);
+        break;
+      case "Attr.value":
+      case "Node.nodeValue":
+      case "Node.textContent":
+        assert_equals(returnValue, input_string);
+        break;
+      default:
+        assert_unreached();
+     }
+  }
+
+  const mutationsData = {
+    "delete other attribute before": function(setterData, testData) {
+      let element = testData.element();
+      // The attribute map ordering is not specified, but we assume
+      // beforeName/afterName are respectively placed before/after attrName.
+      let beforeName = `A`;
+      let afterName = `${testData.attrName}Z`;
+      element.setAttributeNS(testData.attrNS, beforeName, other_string);
+      element.setAttributeNS(testData.attrNS, testData.attrName,
+                             createTrustedOutput(testData.type, other_string));
+      element.setAttributeNS(testData.attrNS, afterName, other_string);
+      window.applyMutation = function() {
+        element.removeAttributeNS(testData.attrNS, beforeName);
+        attributeNodeInCallback = findAttribute(element, testData.attrNS,
+                                                testData.attrName);
+      };
+      const returnValue = setterData.runSetter(element, testData.attrNS,
+                                               testData.attrName,
+                                               input_string, testData.type);
+      assert_equals(element.attributes.length, 2);
+      assert_equals(element.getAttributeNS(testData.attrNS,
+                                           testData.attrName), output_string);
+      assert_true(element.hasAttributeNS(testData.attrNS, afterName));
+      assertReturnValue(setterData.api, returnValue, attributeNodeInCallback);
+    },
+    "delete attribute": function(setterData, testData) {
+      let element = testData.element();
+      // The attribute map ordering is not specified, but we assume
+      // beforeName/afterName are respectively placed before/after attrName.
+      let beforeName = `A`;
+      let afterName = `${testData.attrName}Z`;
+      element.setAttributeNS(testData.attrNS, beforeName, other_string);
+      element.setAttributeNS(testData.attrNS, testData.attrName,
+                             createTrustedOutput(testData.type, other_string));
+      element.setAttributeNS(testData.attrNS, afterName, other_string);
+      window.applyMutation = function() {
+        element.removeAttributeNS(testData.attrNS, testData.attrName);
+      };
+      const returnValue = setterData.runSetter(element, testData.attrNS,
+                                               testData.attrName,
+                                               input_string, testData.type);
+      switch (setterData.api) {
+        case "Element.setAttribute":
+        case "Element.setAttributeNS":
+        case "Element.setAttributeNode":
+        case "Element.setAttributeNodeNS":
+        case "NamedNodeMap.setNamedItem":
+        case "NamedNodeMap.setNamedItemNS":
+          // These APIs successfully sets the attribute on the element, even
+          // though it was deleted by the default policy's callback.
+          assert_equals(element.attributes.length, 3);
+          assert_equals(element.getAttributeNS(testData.attrNS,
+                                               testData.attrName),
+                        output_string);
+          break;
+        case "Attr.value":
+        case "Node.nodeValue":
+        case "Node.textContent":
+          // These APIs successfully sets the attribute node value, but that
+          // node is detached from the element by the default policy's callback.
+          assert_equals(element.attributes.length, 2);
+          assert_equals(setterData.lastAttributeNode.nodeValue, output_string);
+          break;
+        default:
+          assert_unreached();
+      }
+      assert_true(element.hasAttributeNS(testData.attrNS, beforeName));
+      assert_true(element.hasAttributeNS(testData.attrNS, afterName));
+      assertReturnValue(setterData.api, returnValue, null);
+    },
+    "modify attribute": function(setterData, testData) {
+      let element = testData.element();
+      let attributeNodeInCallback;
+      window.applyMutation = function() {
+        element.setAttributeNS(testData.attrNS, testData.attrName,
+                               createTrustedOutput(testData.type,
+                                                    other_string));
+        attributeNodeInCallback = findAttribute(element, testData.attrNS,
+                                                testData.attrName);
+      };
+      const returnValue = setterData.runSetter(element, testData.attrNS,
+                                               testData.attrName,
+                                               input_string, testData.type);
+      assert_equals(element.attributes.length, 1);
+      assert_equals(element.getAttributeNS(testData.attrNS,
+                                           testData.attrName), output_string);
+      assertReturnValue(setterData.api, returnValue, attributeNodeInCallback);
+    },
+    "move attribute node to another element": function(setterData, testData) {
+      let element = testData.element();
+      element.setAttributeNS(testData.attrNS, testData.attrName,
+                             createTrustedOutput(testData.type, other_string));
+      let otherElement = testData.element();
+      window.applyMutation = function() {
+        window.applyMutation = undefined;
+        let ownerElement = setterData.lastAttributeNode.ownerElement;
+        if (ownerElement) {
+          ownerElement.removeAttributeNode(setterData.lastAttributeNode);
+        }
+        otherElement.setAttributeNode(setterData.lastAttributeNode);
+      };
+      let returnValue;
+      switch (setterData.api) {
+        case "Element.setAttribute":
+        case "Element.setAttributeNS":
+          // These APIs successfully sets the attribute on the element, but the
+          // default policy's callback also sets it on the other element.
+          returnValue = setterData.runSetter(element, testData.attrNS,
+                                             testData.attrName,
+                                             input_string, testData.type);
+          assert_equals(element.attributes.length, 1);
+          assert_equals(element.getAttributeNS(testData.attrNS,
+                                               testData.attrName),
+                        output_string);
+          assert_equals(otherElement.attributes.length, 1);
+          assert_equals(otherElement.getAttributeNS(testData.attrNS,
+                                                    testData.attrName),
+                        output_string);
+          break;
+        case "Element.setAttributeNode":
+        case "Element.setAttributeNodeNS":
+        case "NamedNodeMap.setNamedItem":
+        case "NamedNodeMap.setNamedItemNS":
+          // These APIs throw a InUseAttributeError, but the default policy's
+          // callback still sets the attribute on the other element.
+          assert_throws_dom("InUseAttributeError", _ => {
+            returnValue = setterData.runSetter(element, testData.attrNS,
+                                               testData.attrName,
+                                               input_string, testData.type);
+          });
+          assert_equals(element.attributes.length, 1);
+          assert_equals(element.getAttributeNS(testData.attrNS,
+                                               testData.attrName),
+                        other_string);
+          assert_equals(otherElement.attributes.length, 1);
+          assert_equals(otherElement.getAttributeNS(testData.attrNS,
+                                                    testData.attrName),
+                        output_string);
+          break;
+        case "Attr.value":
+        case "Node.nodeValue":
+        case "Node.textContent":
+          // These APIs successfully sets the attribute node value, the default
+          // policy's callback moved that node on the other element.
+          returnValue = setterData.runSetter(element, testData.attrNS,
+                                             testData.attrName,
+                                             input_string, testData.type);
+          assert_equals(element.attributes.length, 0);
+          assert_equals(otherElement.attributes.length, 1);
+          assert_equals(otherElement.getAttributeNS(testData.attrNS,
+                                                  testData.attrName),
+                        output_string);
+          break;
+        default:
+          assert_unreached();
+      }
+      assertReturnValue(setterData.api, returnValue, undefined);
+    },
+  };
+
+  // Set an attribute for each testcase of trustedTypeDataForAttribute that are
+  // trusted type sinks and verify that the default policy works.
+  for (let mutationName of Object.keys(mutationsData)) {
+    const mutationData = mutationsData[mutationName];
+    attributeSetterData.forEach(setterData => {
+      trustedTypeDataForAttribute.forEach(testData => {
+        if (testData.attrNS && !setterData.acceptNS) return;
+        if (testData.type == null) return;
+        test(t => {
+          t.add_cleanup(testCleanup);
+          mutationData(setterData, testData);
+        }, `${setterData.api} works for \
+elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''}\
+attrName=${testData.attrName} (${mutationName})`);
+      });
+    });
+  }
+</script>
