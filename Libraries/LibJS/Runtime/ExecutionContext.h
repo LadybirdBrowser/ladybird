@@ -55,6 +55,12 @@ public:
     GC::Ptr<Environment> variable_environment;       // [[VariableEnvironment]]
     GC::Ptr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]
 
+    Optional<size_t> scheduled_jump;
+    GC::Ptr<Object> global_object;
+    GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
+    Span<Value> registers_and_constants_and_locals_arguments;
+    ReadonlySpan<Utf16FlyString> identifier_table;
+
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
     GC::Ptr<Cell> context_owner;
 

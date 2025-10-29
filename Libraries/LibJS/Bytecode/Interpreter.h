@@ -25,9 +25,9 @@ public:
     explicit Interpreter(VM&);
     ~Interpreter();
 
-    [[nodiscard]] Realm& realm() { return *m_realm; }
-    [[nodiscard]] Object& global_object() { return *m_global_object; }
-    [[nodiscard]] DeclarativeEnvironment& global_declarative_environment() { return *m_global_declarative_environment; }
+    [[nodiscard]] Realm& realm() { return *m_running_execution_context->realm; }
+    [[nodiscard]] Object& global_object() { return *m_running_execution_context->global_object; }
+    [[nodiscard]] DeclarativeEnvironment& global_declarative_environment() { return *m_running_execution_context->global_declarative_environment; }
     VM& vm() { return m_vm; }
     VM const& vm() const { return m_vm; }
 
@@ -50,11 +50,11 @@ public:
     ALWAYS_INLINE Value& saved_return_value() { return reg(Register::saved_return_value()); }
     Value& reg(Register const& r)
     {
-        return m_registers_and_constants_and_locals_arguments.data()[r.index()];
+        return m_running_execution_context->registers_and_constants_and_locals_arguments.data()[r.index()];
     }
     Value reg(Register const& r) const
     {
-        return m_registers_and_constants_and_locals_arguments.data()[r.index()];
+        return m_running_execution_context->registers_and_constants_and_locals_arguments.data()[r.index()];
     }
 
     [[nodiscard]] Value get(Operand) const;
@@ -75,8 +75,8 @@ public:
 
     void enter_object_environment(Object&);
 
-    Executable& current_executable() { return *m_current_executable; }
-    Executable const& current_executable() const { return *m_current_executable; }
+    Executable& current_executable() { return *m_running_execution_context->executable; }
+    Executable const& current_executable() const { return *m_running_execution_context->executable; }
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
 
@@ -98,14 +98,7 @@ private:
     [[nodiscard]] HandleExceptionResponse handle_exception(u32& program_counter, Value exception);
 
     VM& m_vm;
-    Optional<size_t> m_scheduled_jump;
-    GC::Ptr<Executable> m_current_executable { nullptr };
-    GC::Ptr<Realm> m_realm { nullptr };
-    GC::Ptr<Object> m_global_object { nullptr };
-    GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment { nullptr };
-    Span<Value> m_registers_and_constants_and_locals_arguments;
     ExecutionContext* m_running_execution_context { nullptr };
-    ReadonlySpan<Utf16FlyString> m_identifier_table;
 };
 
 JS_API extern bool g_dump_bytecode;
