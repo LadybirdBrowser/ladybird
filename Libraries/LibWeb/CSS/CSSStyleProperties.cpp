@@ -517,14 +517,6 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         Layout::NodeWithStyle* layout_node = abstract_element.layout_node();
 
-        // Pending changes to an ancestor document's layout can affect an element's computed style e.g. an IFrame's
-        // width being changed can affect media query evaluation and the value of the `vw` unit.
-        // FIXME: This is likely overkill and can be optimized
-        for (auto const& navigable : abstract_element.document().ancestor_navigables()) {
-            if (navigable->active_document())
-                navigable->active_document()->update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-        }
-
         // FIXME: Be smarter about updating layout if there's no layout node.
         //        We may legitimately have no layout node if we're not visible, but this protects against situations
         //        where we're requesting the computed style before layout has happened.
