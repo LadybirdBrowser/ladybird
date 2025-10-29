@@ -5,6 +5,7 @@
  */
 
 #include "SentinelServer.h"
+#include <AK/Base64.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonParser.h>
@@ -183,13 +184,20 @@ ErrorOr<void> SentinelServer::process_message(Core::LocalSocket& socket, String 
             response.set("status"sv, "error"sv);
             response.set("error"sv, "Missing 'content' field"sv);
         } else {
-            auto result = scan_content(content.value().bytes());
-            if (result.is_error()) {
+            // Decode base64 content before scanning
+            auto decoded_result = decode_base64(content.value().bytes_as_string_view());
+            if (decoded_result.is_error()) {
                 response.set("status"sv, "error"sv);
-                response.set("error"sv, result.error().string_literal());
+                response.set("error"sv, "Failed to decode base64 content"sv);
             } else {
-                response.set("status"sv, "success"sv);
-                response.set("result"sv, MUST(String::from_utf8(StringView(result.value()))));
+                auto result = scan_content(decoded_result.value().bytes());
+                if (result.is_error()) {
+                    response.set("status"sv, "error"sv);
+                    response.set("error"sv, result.error().string_literal());
+                } else {
+                    response.set("status"sv, "success"sv);
+                    response.set("result"sv, MUST(String::from_utf8(StringView(result.value()))));
+                }
             }
         }
     } else {
