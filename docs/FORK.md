@@ -12,7 +12,7 @@ This is a personal fork of the [Ladybird Browser](https://github.com/LadybirdBro
 
 This fork extends Ladybird with privacy and P2P protocol features:
 
-### ✅ Completed Features
+### Completed Features
 
 1. **Tor Integration** - Full per-tab Tor support with DNS leak prevention
    - SOCKS5H proxy with hostname resolution via Tor
@@ -184,10 +184,10 @@ git push origin master
 
 This fork contains experimental features for educational purposes. The implementations:
 
-- ❌ Are not security-audited
-- ❌ May contain bugs or vulnerabilities
-- ❌ Should not be used in production
-- ✅ Are intended for learning and research only
+- Are not security-audited
+- May contain bugs or vulnerabilities
+- Should not be used in production
+- Are intended for learning and research only
 
 For production use, please use the official [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird).
 

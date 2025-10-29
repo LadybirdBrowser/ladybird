@@ -8,18 +8,18 @@ This fork maintains sync with upstream Ladybird while adding experimental featur
 
 This fork extends Ladybird with:
 
-### ✅ Network Privacy
+### Network Privacy
 - **Tor Integration**: Per-tab Tor support with SOCKS5H proxy, DNS leak prevention, and stream isolation
 - **VPN/Proxy Support**: Per-tab proxy configuration with NetworkIdentity management
 - **.onion Support**: Native support for Tor hidden services
 
-### ✅ P2P Protocols
+### P2P Protocols
 - **IPFS**: Content-addressed web with `ipfs://` URL scheme
 - **IPNS**: Mutable IPFS names with `ipns://` URL scheme
 - **ENS**: Ethereum Name Service resolution for `.eth` domains
 - **Gateway Fallback**: Automatic failover between local and public IPFS gateways
 
-### 🔬 Experimental Security (Educational)
+### Experimental Security (Educational)
 - IPC rate limiting and validated decoding
 - SafeMath operations for overflow protection
 - **Note**: Not security-audited, for learning only
@@ -116,10 +116,10 @@ Join [Ladybird's Discord server](https://discord.gg/nvfjVJ4Svh) to participate i
 
 ⚠️ This fork contains experimental features for educational purposes:
 
-- ❌ Not security-audited
-- ❌ May contain bugs or vulnerabilities
-- ❌ Should not be used in production
-- ✅ Intended for learning and research only
+- Not security-audited
+- May contain bugs or vulnerabilities
+- Should not be used in production
+- Intended for learning and research only
 
 For production use, visit the official [Ladybird Browser](https://github.com/LadybirdBrowser/ladybird).
 
