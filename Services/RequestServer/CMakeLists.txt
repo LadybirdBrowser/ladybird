@@ -9,6 +9,7 @@ set(SOURCES
     Cache/Utilities.cpp
     ConnectionFromClient.cpp
     CURL.cpp
+    Quarantine.cpp
     Request.cpp
     Resolver.cpp
     SecurityTap.cpp

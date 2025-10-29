@@ -11,6 +11,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <Services/Sentinel/PolicyGraph.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -401,7 +402,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_dialog = new SecurityAlertDialog(details, &view());
         auto* security_dialog = qobject_cast<SecurityAlertDialog*>(m_dialog.data());
 
-        QObject::connect(security_dialog, &SecurityAlertDialog::userDecided, this, [security_dialog, request_id](SecurityAlertDialog::UserDecision decision) {
+        QObject::connect(security_dialog, &SecurityAlertDialog::userDecided, this, [security_dialog, alert_obj, request_id](SecurityAlertDialog::UserDecision decision) {
             // TODO Phase 3 Day 19: Send enforcement decision via IPC
             // For now, just log the decision
             QString decision_str;
@@ -414,12 +415,68 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                 break;
             case SecurityAlertDialog::UserDecision::AlwaysAllow:
                 decision_str = "allow";
-                // TODO: Create policy in PolicyGraph if should_remember()
                 break;
             }
 
             dbgln("Tab: User security decision for request {}: {} (remember: {})",
                   request_id, decision_str.toUtf8().data(), security_dialog->should_remember());
+
+            // Phase 3 Day 19: Create policy in PolicyGraph if remember is checked
+            if (security_dialog->should_remember()) {
+                // Only create policies for Block and AlwaysAllow (not AllowOnce)
+                if (decision == SecurityAlertDialog::UserDecision::Block ||
+                    decision == SecurityAlertDialog::UserDecision::AlwaysAllow) {
+
+                    // Extract URL and rule from alert JSON
+                    auto url = alert_obj.get_string("url"sv).value_or(""_string);
+                    auto url_pattern = ak_string_from_qstring(QString::fromUtf8(url.to_byte_string().characters()));
+
+                    // Get first matched rule name
+                    String rule_name = "Unknown"_string;
+                    if (auto matched_rules = alert_obj.get_array("matched_rules"sv); matched_rules.has_value() && !matched_rules->is_empty()) {
+                        auto first_rule = matched_rules->at(0).as_object();
+                        rule_name = first_rule.get_string("rule_name"sv).value_or("Unknown"_string);
+                    }
+
+                    // Determine PolicyGraph action
+                    Sentinel::PolicyGraph::PolicyAction action;
+                    if (decision == SecurityAlertDialog::UserDecision::Block) {
+                        action = Sentinel::PolicyGraph::PolicyAction::Block;
+                    } else {
+                        action = Sentinel::PolicyGraph::PolicyAction::Allow;
+                    }
+
+                    // Create policy in PolicyGraph
+                    Sentinel::PolicyGraph::Policy policy {
+                        .rule_name = rule_name,
+                        .url_pattern = url_pattern,
+                        .file_hash = {},
+                        .mime_type = {},
+                        .action = action,
+                        .created_at = UnixDateTime::now(),
+                        .created_by = "UI"_string,
+                        .expires_at = {},
+                        .last_hit = {}
+                    };
+
+                    // Get PolicyGraph instance and create policy
+                    auto pg_result = Sentinel::PolicyGraph::create("/tmp/sentinel");
+                    if (pg_result.is_error()) {
+                        dbgln("Failed to access PolicyGraph: {}", pg_result.error());
+                    } else {
+                        auto& policy_graph = pg_result.value();
+                        auto policy_result = policy_graph.create_policy(policy);
+
+                        if (policy_result.is_error()) {
+                            dbgln("Failed to create policy: {}", policy_result.error());
+                        } else {
+                            dbgln("Created policy: {} {} for {}",
+                                action == Sentinel::PolicyGraph::PolicyAction::Allow ? "Allow" : "Block",
+                                rule_name.to_byte_string().characters(), url_pattern.to_byte_string().characters());
+                        }
+                    }
+                }
+            }
 
             // TODO Phase 3 Day 19: Call view().client().async_enforce_security_policy(request_id, decision_str);
         });

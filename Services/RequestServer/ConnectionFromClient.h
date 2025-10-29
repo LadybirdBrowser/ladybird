@@ -148,6 +148,9 @@ private:
     // Gateway fallback chains for P2P protocols
     HashMap<i32, GatewayFallbackInfo> m_gateway_fallback_requests;
 
+    // Security alert storage for quarantine operations (Phase 3 Day 19)
+    HashMap<i32, ByteString> m_pending_security_alerts;
+
     // Gateway arrays (in priority order)
     static constexpr StringView s_ipfs_gateways[] = {
         "http://127.0.0.1:8080"sv,      // Local daemon (fastest)

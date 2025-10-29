@@ -823,20 +823,20 @@ void ConnectionFromClient::enforce_security_policy(i32 request_id, ByteString ac
 
     auto& request = *request_opt.value();
 
-    // Apply the policy action
+    // Apply the policy action by calling Request control methods
     if (action == "block"sv) {
         dbgln("RequestServer: Blocking request {} per security policy", request_id);
-        // Remove request to stop it (same as stop_request)
-        m_active_requests.remove(request_id);
-        // TODO Phase 3 Day 19: Delete downloaded file if exists
+        request.block_download();
+        // Note: block_download() will transition to Complete state, which will call request_complete()
+        // and remove the request from m_active_requests
     } else if (action == "quarantine"sv) {
         dbgln("RequestServer: Quarantining request {} per security policy", request_id);
-        // TODO Phase 3 Day 19: Implement quarantine logic (move file to quarantine dir)
-        (void)request; // Silence unused warning
+        request.quarantine_download();
+        // Note: quarantine_download() will resume the download and mark it for quarantine
     } else if (action == "allow"sv) {
         dbgln("RequestServer: Allowing request {} per security policy", request_id);
-        // TODO Phase 3 Day 19: Resume download if paused
-        (void)request; // Silence unused warning
+        request.resume_download();
+        // Note: resume_download() will unpause the CURL transfer and continue downloading
     } else {
         dbgln("RequestServer: Unknown security policy action '{}' for request {}", action, request_id);
     }

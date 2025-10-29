@@ -6,11 +6,17 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/JsonObject.h>
+#include <AK/JsonParser.h>
+#include <AK/JsonValue.h>
+#include <LibCore/File.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/System.h>
 #include <LibTextCodec/Decoder.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Quarantine.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 
@@ -166,6 +172,13 @@ void Request::process()
         break;
     case State::Fetch:
         handle_fetch_state();
+        break;
+    case State::WaitingForPolicy:
+        handle_waiting_for_policy_state();
+        break;
+    case State::PolicyBlocked:
+    case State::PolicyQuarantined:
+        // These states are terminal - they transition to Complete or Error
         break;
     case State::Complete:
         handle_complete_state();
@@ -567,6 +580,8 @@ void Request::handle_complete_state()
 
                             if (!scan_result.is_error() && scan_result.value().is_threat) {
                                 dbgln("SecurityTap: Threat detected in download: {}", metadata.filename);
+                                // Store alert JSON for quarantine (Phase 3 Day 19)
+                                m_security_alert_json = scan_result.value().alert_json.value();
                                 // Send security alert to browser via IPC (with page_id for routing)
                                 m_client.async_security_alert(m_request_id, m_page_id, scan_result.value().alert_json.value());
                             } else if (scan_result.is_error()) {
@@ -738,14 +753,72 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
     auto total_size = size * nmemb;
     ReadonlyBytes bytes { static_cast<u8 const*>(buffer), total_size };
 
-    auto result = [&] -> ErrorOr<void> {
-        TRY(request.m_response_buffer.write_some(bytes));
-        return request.write_queued_bytes_without_blocking();
-    }();
+    // Sentinel integration: Incremental scanning for malware detection
+    if (request.m_security_tap && request.should_inspect_download()) {
+        // Write to response buffer first (needed for scanning)
+        auto write_result = request.m_response_buffer.write_some(bytes);
+        if (write_result.is_error()) {
+            dbgln("Request::on_data_received: Failed to write to response buffer: {}", write_result.error());
+            return CURL_WRITEFUNC_ERROR;
+        }
 
-    if (result.is_error()) {
-        dbgln("Request::on_data_received: Aborting request because error occurred whilst writing data to the client: {}", result.error());
-        return CURL_WRITEFUNC_ERROR;
+        // Scan the accumulated content incrementally
+        auto buffer_size = request.m_response_buffer.used_buffer_size();
+        if (buffer_size > 0) {
+            auto content_buffer_result = ByteBuffer::create_uninitialized(buffer_size);
+            if (!content_buffer_result.is_error()) {
+                auto content_buffer = content_buffer_result.release_value();
+
+                // Peek at the data (don't consume it)
+                request.m_response_buffer.peek_some(content_buffer.span());
+
+                // Extract download metadata
+                auto metadata = request.extract_download_metadata();
+
+                // Compute SHA256 hash
+                auto sha256_result = SecurityTap::compute_sha256(content_buffer.bytes());
+                if (!sha256_result.is_error()) {
+                    const_cast<SecurityTap::DownloadMetadata&>(metadata).sha256 = sha256_result.release_value();
+
+                    // Scan the content
+                    auto scan_result = request.m_security_tap->inspect_download(metadata, content_buffer.bytes());
+
+                    if (!scan_result.is_error() && scan_result.value().is_threat) {
+                        dbgln("SecurityTap: Threat detected during download: {}", metadata.filename);
+
+                        // Store alert JSON for quarantine (Phase 3 Day 19)
+                        request.m_security_alert_json = scan_result.value().alert_json.value();
+
+                        // Send security alert to browser via IPC
+                        request.m_client.async_security_alert(request.m_request_id, request.m_page_id, scan_result.value().alert_json.value());
+
+                        // Transition to WaitingForPolicy state
+                        request.transition_to_state(State::WaitingForPolicy);
+
+                        // Pause CURL transfer
+                        return CURL_WRITEFUNC_PAUSE;
+                    }
+                }
+            }
+        }
+
+        // Continue normal processing
+        auto flush_result = request.write_queued_bytes_without_blocking();
+        if (flush_result.is_error()) {
+            dbgln("Request::on_data_received: Aborting request because error occurred whilst writing data to the client: {}", flush_result.error());
+            return CURL_WRITEFUNC_ERROR;
+        }
+    } else {
+        // Normal path (no security scanning)
+        auto result = [&] -> ErrorOr<void> {
+            TRY(request.m_response_buffer.write_some(bytes));
+            return request.write_queued_bytes_without_blocking();
+        }();
+
+        if (result.is_error()) {
+            dbgln("Request::on_data_received: Aborting request because error occurred whilst writing data to the client: {}", result.error());
+            return CURL_WRITEFUNC_ERROR;
+        }
     }
 
     return total_size;
@@ -920,5 +993,217 @@ void Request::set_gateway_fallback_callback(Function<void()> callback)
     m_gateway_fallback_callback = move(callback);
 }
 // IPFS Integration: End
+
+// Sentinel Security Policy Enforcement: Start
+
+void Request::handle_waiting_for_policy_state()
+{
+    // Do nothing; we are waiting for the user to make a security decision.
+    // The ConnectionFromClient::enforce_security_policy() method will call
+    // resume_download(), block_download(), or quarantine_download() based on the user's choice.
+}
+
+void Request::resume_download()
+{
+    dbgln("Request::resume_download: Resuming download for request {}", m_request_id);
+
+    if (m_state != State::WaitingForPolicy) {
+        dbgln("Request::resume_download: Warning - request {} is not in WaitingForPolicy state (current state: {})",
+              m_request_id, static_cast<int>(m_state));
+        return;
+    }
+
+    if (!m_curl_easy_handle) {
+        dbgln("Request::resume_download: Error - no CURL handle for request {}", m_request_id);
+        transition_to_state(State::Error);
+        return;
+    }
+
+    // Unpause the CURL transfer
+    auto result = curl_easy_pause(m_curl_easy_handle, CURLPAUSE_RECV);
+    if (result != CURLE_OK) {
+        dbgln("Request::resume_download: Failed to unpause CURL transfer: {}", curl_easy_strerror(result));
+        transition_to_state(State::Error);
+        return;
+    }
+
+    // Transition back to Fetch state to continue receiving data
+    transition_to_state(State::Fetch);
+}
+
+void Request::block_download()
+{
+    dbgln("Request::block_download: Blocking download for request {}", m_request_id);
+
+    if (m_state != State::WaitingForPolicy) {
+        dbgln("Request::block_download: Warning - request {} is not in WaitingForPolicy state (current state: {})",
+              m_request_id, static_cast<int>(m_state));
+        return;
+    }
+
+    // Transition to PolicyBlocked state
+    m_state = State::PolicyBlocked;
+
+    // Set network error to indicate the download was blocked
+    m_network_error = Requests::NetworkError::Unknown;
+
+    // Abort the CURL transfer
+    if (m_curl_easy_handle) {
+        auto result = curl_multi_remove_handle(m_curl_multi_handle, m_curl_easy_handle);
+        if (result != CURLM_OK)
+            dbgln("Request::block_download: Failed to remove CURL handle");
+
+        curl_easy_cleanup(m_curl_easy_handle);
+        m_curl_easy_handle = nullptr;
+    }
+
+    // Clear the response buffer (delete partial download)
+    m_response_buffer = AllocatingMemoryStream();
+
+    // Transition to Complete state to finalize the request
+    transition_to_state(State::Complete);
+}
+
+void Request::quarantine_download()
+{
+    dbgln("Request::quarantine_download: Quarantining download for request {}", m_request_id);
+
+    if (m_state != State::WaitingForPolicy) {
+        dbgln("Request::quarantine_download: Warning - request {} is not in WaitingForPolicy state (current state: {})",
+              m_request_id, static_cast<int>(m_state));
+        return;
+    }
+
+    // Check if we have a security alert stored
+    if (!m_security_alert_json.has_value()) {
+        dbgln("Request::quarantine_download: Error - no security alert stored for quarantine");
+        transition_to_state(State::Error);
+        return;
+    }
+
+    // Parse the security alert JSON to extract metadata
+    auto json_result = JsonValue::from_string(m_security_alert_json.value());
+    if (json_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to parse security alert JSON: {}", json_result.error());
+        transition_to_state(State::Error);
+        return;
+    }
+
+    auto json = json_result.value();
+    if (!json.is_object()) {
+        dbgln("Request::quarantine_download: Error - security alert JSON is not an object");
+        transition_to_state(State::Error);
+        return;
+    }
+
+    auto obj = json.as_object();
+
+    // Extract metadata from alert JSON
+    QuarantineMetadata metadata;
+
+    // Get download metadata
+    auto download_metadata = extract_download_metadata();
+    metadata.original_url = download_metadata.url;
+    metadata.filename = download_metadata.filename;
+    metadata.sha256 = download_metadata.sha256;
+    metadata.file_size = download_metadata.size_bytes;
+
+    // Get detection time (use current time as ISO 8601)
+    auto now = UnixDateTime::now();
+    time_t timestamp = now.seconds_since_epoch();
+    struct tm tm_buf;
+    struct tm* tm_info = gmtime_r(&timestamp, &tm_buf);
+
+    if (tm_info) {
+        metadata.detection_time = ByteString::formatted("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+            tm_info->tm_year + 1900, tm_info->tm_mon + 1, tm_info->tm_mday,
+            tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
+    } else {
+        metadata.detection_time = "1970-01-01T00:00:00Z"_string.to_byte_string();
+    }
+
+    // Extract rule names from alert JSON
+    auto matches = obj.get_array("matches"sv);
+    if (matches.has_value()) {
+        for (size_t i = 0; i < matches->size(); i++) {
+            auto match = matches->at(i);
+            if (match.is_object()) {
+                auto rule_name = match.as_object().get_string("rule_name"sv);
+                if (rule_name.has_value()) {
+                    metadata.rule_names.append(rule_name.value().to_byte_string());
+                }
+            }
+        }
+    }
+
+    // Write response buffer to a temporary file
+    auto buffer_size = m_response_buffer.used_buffer_size();
+    if (buffer_size == 0) {
+        dbgln("Request::quarantine_download: Error - no content to quarantine");
+        transition_to_state(State::Error);
+        return;
+    }
+
+    // Create temporary file in /tmp
+    auto temp_path_result = String::formatted("/tmp/ladybird_quarantine_temp_{}", m_request_id);
+    if (temp_path_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to create temp path");
+        transition_to_state(State::Error);
+        return;
+    }
+    auto temp_path = temp_path_result.release_value();
+
+    // Read content from response buffer
+    auto content_buffer_result = ByteBuffer::create_uninitialized(buffer_size);
+    if (content_buffer_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to allocate buffer: {}", content_buffer_result.error());
+        transition_to_state(State::Error);
+        return;
+    }
+    auto content_buffer = content_buffer_result.release_value();
+
+    auto read_result = m_response_buffer.read_until_filled(content_buffer);
+    if (read_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to read response buffer: {}", read_result.error());
+        transition_to_state(State::Error);
+        return;
+    }
+
+    // Write to temporary file
+    auto file_result = Core::File::open(temp_path, Core::File::OpenMode::Write);
+    if (file_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to open temp file: {}", file_result.error());
+        transition_to_state(State::Error);
+        return;
+    }
+    auto file = file_result.release_value();
+
+    auto write_result = file->write_until_depleted(content_buffer.bytes());
+    if (write_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to write to temp file: {}", write_result.error());
+        (void)Core::System::unlink(temp_path);
+        transition_to_state(State::Error);
+        return;
+    }
+
+    file->close();
+
+    // Move file to quarantine directory
+    auto quarantine_result = Quarantine::quarantine_file(temp_path, metadata);
+    if (quarantine_result.is_error()) {
+        dbgln("Request::quarantine_download: Error - failed to quarantine file: {}", quarantine_result.error());
+        (void)Core::System::unlink(temp_path);
+        transition_to_state(State::Error);
+        return;
+    }
+
+    auto quarantine_id = quarantine_result.release_value();
+    dbgln("Request::quarantine_download: Successfully quarantined file with ID: {}", quarantine_id);
+
+    // Transition to Complete state
+    transition_to_state(State::Complete);
+}
+
+// Sentinel Security Policy Enforcement: End
 
 }

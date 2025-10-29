@@ -66,6 +66,11 @@ public:
     bool should_inspect_download() const;
     SecurityTap::DownloadMetadata extract_download_metadata() const;
 
+    // Security policy enforcement (pause/resume state machine)
+    void resume_download();
+    void block_download();
+    void quarantine_download();
+
     // IPFS Integration: Start
     // Protocol types for P2P/decentralized content
     enum class ProtocolType : u8 {
@@ -92,14 +97,17 @@ private:
     };
 
     enum class State : u8 {
-        Init,         // Decide whether to service this request from cache or the network.
-        ReadCache,    // Read the cached response from disk.
-        WaitForCache, // Wait for an existing cache entry to complete before proceeding.
-        DNSLookup,    // Resolve the URL's host.
-        Connect,      // Issue a network request to connect to the URL.
-        Fetch,        // Issue a network request to fetch the URL.
-        Complete,     // Finalize the request with the client.
-        Error,        // Any error occured during the request's lifetime.
+        Init,              // Decide whether to service this request from cache or the network.
+        ReadCache,         // Read the cached response from disk.
+        WaitForCache,      // Wait for an existing cache entry to complete before proceeding.
+        DNSLookup,         // Resolve the URL's host.
+        Connect,           // Issue a network request to connect to the URL.
+        Fetch,             // Issue a network request to fetch the URL.
+        WaitingForPolicy,  // Download paused, waiting for user security decision.
+        PolicyBlocked,     // User chose to block the download.
+        PolicyQuarantined, // Malware detected, file will be quarantined.
+        Complete,          // Finalize the request with the client.
+        Error,             // Any error occured during the request's lifetime.
     };
 
     Request(
@@ -130,6 +138,7 @@ private:
     void handle_dns_lookup_state();
     void handle_connect_state();
     void handle_fetch_state();
+    void handle_waiting_for_policy_state();
     void handle_complete_state();
     void handle_error_state();
 
@@ -197,6 +206,7 @@ private:
     // Sentinel integration
     SecurityTap* m_security_tap { nullptr };
     u64 m_page_id { 0 };
+    Optional<ByteString> m_security_alert_json;  // Stored alert for quarantine (Phase 3 Day 19)
 };
 
 }

@@ -18,7 +18,7 @@ target_sources(ladybird PRIVATE
     WebContentView.cpp
     ladybird.qrc
 )
-target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
+target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets sentinelservice)
 lagom_copy_runtime_dlls(ladybird)
 create_ladybird_bundle(ladybird)
 
