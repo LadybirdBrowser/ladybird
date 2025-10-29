@@ -709,9 +709,6 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     ExecutionContext* module_context = nullptr;
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, registers_and_constants_and_locals_count, 0);
 
-    // NOTE: This is not in the spec but we require it.
-    module_context->is_strict_mode = true;
-
     // 2. Set the Function of moduleContext to null.
 
     // 3. Set the Realm of moduleContext to module.[[Realm]].
@@ -746,7 +743,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
         Completion result;
 
-        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*executable, {});
+        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*module_context, *executable, {});
         if (result_and_return_register.value.is_error()) {
             result = result_and_return_register.value.release_error();
         } else {

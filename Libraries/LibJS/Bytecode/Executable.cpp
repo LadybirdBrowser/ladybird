@@ -25,7 +25,7 @@ Executable::Executable(
     size_t number_of_property_lookup_caches,
     size_t number_of_global_variable_caches,
     size_t number_of_registers,
-    bool is_strict_mode)
+    Strict strict)
     : bytecode(move(bytecode))
     , string_table(move(string_table))
     , identifier_table(move(identifier_table))
@@ -33,7 +33,7 @@ Executable::Executable(
     , constants(move(constants))
     , source_code(move(source_code))
     , number_of_registers(number_of_registers)
-    , is_strict_mode(is_strict_mode)
+    , is_strict_mode(strict == Strict::Yes)
 {
     property_lookup_caches.resize(number_of_property_lookup_caches);
     global_variable_caches.resize(number_of_global_variable_caches);

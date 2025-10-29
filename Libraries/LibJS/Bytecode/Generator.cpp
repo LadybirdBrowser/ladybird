@@ -218,6 +218,14 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
 CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<LocalVariable> local_variable_names)
 {
     Generator generator(vm, function, must_propagate_completion);
+
+    if (is<Program>(node))
+        generator.m_strict = static_cast<Program const&>(node).is_strict_mode() ? Strict::Yes : Strict::No;
+    else if (is<FunctionBody>(node))
+        generator.m_strict = static_cast<FunctionBody const&>(node).in_strict_mode() ? Strict::Yes : Strict::No;
+    else if (is<FunctionDeclaration>(node))
+        generator.m_strict = static_cast<FunctionDeclaration const&>(node).is_strict_mode() ? Strict::Yes : Strict::No;
+
     generator.m_local_variables = local_variable_names;
 
     generator.switch_to_basic_block(generator.make_block());
@@ -259,14 +267,6 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
             generator.emit_return<Bytecode::Op::Yield>(generator.add_constant(js_undefined()));
         }
     }
-
-    bool is_strict_mode = false;
-    if (is<Program>(node))
-        is_strict_mode = static_cast<Program const&>(node).is_strict_mode();
-    else if (is<FunctionBody>(node))
-        is_strict_mode = static_cast<FunctionBody const&>(node).in_strict_mode();
-    else if (is<FunctionDeclaration>(node))
-        is_strict_mode = static_cast<FunctionDeclaration const&>(node).is_strict_mode();
 
     size_t size_needed = 0;
     for (auto& block : generator.m_root_basic_blocks) {
@@ -453,7 +453,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         generator.m_next_property_lookup_cache,
         generator.m_next_global_variable_cache,
         generator.m_next_register,
-        is_strict_mode);
+        generator.m_strict);
 
     Vector<Executable::ExceptionHandlers> linked_exception_handlers;
 

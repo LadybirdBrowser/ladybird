@@ -75,7 +75,7 @@ public:
         size_t number_of_property_lookup_caches,
         size_t number_of_global_variable_caches,
         size_t number_of_registers,
-        bool is_strict_mode);
+        Strict);
 
     virtual ~Executable() override;
 

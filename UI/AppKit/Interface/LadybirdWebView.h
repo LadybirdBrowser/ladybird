@@ -38,7 +38,7 @@
 
 @end
 
-@interface LadybirdWebView : NSView <NSMenuDelegate>
+@interface LadybirdWebView : NSView <NSMenuDelegate, NSTextInputClient>
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer

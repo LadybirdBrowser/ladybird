@@ -102,11 +102,10 @@ void ExecutionContext::operator delete(void* ptr)
 ExecutionContext::ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count)
 {
     registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_count + arguments_count;
-    arguments_offset = registers_and_constants_and_locals_count;
     auto* registers_and_constants_and_locals_and_arguments = this->registers_and_constants_and_locals_and_arguments();
     for (size_t i = 0; i < registers_and_constants_and_locals_count; ++i)
         registers_and_constants_and_locals_and_arguments[i] = js_special_empty_value();
-    arguments = { registers_and_constants_and_locals_and_arguments + arguments_offset, registers_and_constants_and_locals_and_arguments_count - arguments_offset };
+    arguments = { registers_and_constants_and_locals_and_arguments + registers_and_constants_and_locals_count, arguments_count };
 }
 
 ExecutionContext::~ExecutionContext()
@@ -123,11 +122,8 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->variable_environment = variable_environment;
     copy->private_environment = private_environment;
     copy->program_counter = program_counter;
-    copy->function_name = function_name;
     copy->this_value = this_value;
-    copy->is_strict_mode = is_strict_mode;
     copy->executable = executable;
-    copy->arguments_offset = arguments_offset;
     copy->passed_argument_count = passed_argument_count;
     copy->unwind_contexts = unwind_contexts;
     copy->saved_lexical_environments = saved_lexical_environments;
@@ -135,7 +131,7 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_and_arguments_count;
     for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)
         copy->registers_and_constants_and_locals_and_arguments()[i] = registers_and_constants_and_locals_and_arguments()[i];
-    copy->arguments = { copy->registers_and_constants_and_locals_and_arguments() + copy->arguments_offset, arguments.size() };
+    copy->arguments = { copy->registers_and_constants_and_locals_and_arguments() + (arguments.data() - registers_and_constants_and_locals_and_arguments()), arguments.size() };
     return copy;
 }
 
@@ -150,7 +146,6 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     if (this_value.has_value())
         visitor.visit(*this_value);
     visitor.visit(executable);
-    visitor.visit(function_name);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
     for (auto& context : unwind_contexts) {
         visitor.visit(context.lexical_environment);

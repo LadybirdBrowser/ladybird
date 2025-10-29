@@ -55,21 +55,26 @@ public:
     GC::Ptr<Environment> variable_environment;       // [[VariableEnvironment]]
     GC::Ptr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]
 
+    Optional<size_t> scheduled_jump;
+    GC::Ptr<Object> global_object;
+    GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
+    Span<Value> registers_and_constants_and_locals_arguments;
+    ReadonlySpan<Utf16FlyString> identifier_table;
+
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
     GC::Ptr<Cell> context_owner;
 
-    size_t program_counter { 0 };
-
-    mutable RefPtr<CachedSourceRange> cached_source_range;
-
-    GC::Ptr<PrimitiveString> function_name;
-    Optional<Value> this_value;
-
-    GC::Ptr<Bytecode::Executable> executable;
+    u32 program_counter { 0 };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
     // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
-    size_t skip_when_determining_incumbent_counter { 0 };
+    u32 skip_when_determining_incumbent_counter { 0 };
+
+    mutable RefPtr<CachedSourceRange> cached_source_range;
+
+    Optional<Value> this_value;
+
+    GC::Ptr<Bytecode::Executable> executable;
 
     Span<Value> registers_and_constants_and_locals_and_arguments_span()
     {
@@ -93,15 +98,13 @@ public:
         return registers_and_constants_and_locals_and_arguments()[index];
     }
 
-    u32 arguments_offset { 0 };
-    u32 passed_argument_count { 0 };
-    bool is_strict_mode { false };
-
     Span<Value> arguments;
 
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;
+
+    u32 passed_argument_count { 0 };
 
 private:
     friend class Bytecode::Interpreter;

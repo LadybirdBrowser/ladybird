@@ -46,6 +46,8 @@ public:
     virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ExecutionContext&, FunctionObject& new_target) override;
     ThrowCompletionOr<void> validate_non_revoked_proxy() const;
 
+    virtual Utf16String name_for_call_stack() const override;
+
 private:
     ProxyObject(Object& target, Object& handler, Object& prototype);
 

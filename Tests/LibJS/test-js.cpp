@@ -17,11 +17,6 @@ TEST_ROOT("Libraries/LibJS/Tests");
 
 TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-parser-tests", 0);
 
-TESTJS_GLOBAL_FUNCTION(is_strict_mode, isStrictMode, 0)
-{
-    return JS::Value(vm.in_strict_mode());
-}
-
 TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 {
     auto source = TRY(vm.argument(0).to_string(vm));
@@ -83,7 +78,7 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
     if (!outer_environment.has_value())
         return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name.utf8_string_view());
 
-    auto reference = TRY(vm.resolve_binding(variable_name.utf16_string(), outer_environment.value()->lexical_environment));
+    auto reference = TRY(vm.resolve_binding(variable_name.utf16_string(), JS::Strict::No, outer_environment.value()->lexical_environment));
 
     auto value = TRY(reference.get_value(vm));
 

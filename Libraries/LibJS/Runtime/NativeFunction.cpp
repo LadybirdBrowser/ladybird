@@ -123,7 +123,6 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
 
     // 4. Set the Function of calleeContext to F.
     callee_context.function = this;
-    callee_context.function_name = m_name_string;
 
     // 5. Let calleeRealm be F.[[Realm]].
     auto callee_realm = m_realm;
@@ -150,9 +149,6 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
     // Note: Keeping the private environment is probably only needed because of async methods in classes
     //       calling async_block_start which goes through a NativeFunction here.
     callee_context.private_environment = caller_context.private_environment;
-
-    // NOTE: This is a LibJS specific hack for NativeFunction to inherit the strictness of its caller.
-    callee_context.is_strict_mode = caller_context.is_strict_mode;
 
     // </8.> --------------------------------------------------------------------------
 
@@ -182,7 +178,6 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ExecutionC
 
     // 4. Set the Function of calleeContext to F.
     callee_context.function = this;
-    callee_context.function_name = m_name_string;
 
     // 5. Let calleeRealm be F.[[Realm]].
     auto callee_realm = m_realm;
@@ -203,9 +198,6 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ExecutionC
 
     callee_context.lexical_environment = caller_context.lexical_environment;
     callee_context.variable_environment = caller_context.variable_environment;
-
-    // NOTE: This is a LibJS specific hack for NativeFunction to inherit the strictness of its caller.
-    callee_context.is_strict_mode = caller_context.is_strict_mode;
 
     // </8.> --------------------------------------------------------------------------
 
@@ -237,6 +229,11 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::construct(FunctionObject&)
 bool NativeFunction::is_strict_mode() const
 {
     return true;
+}
+
+Utf16String NativeFunction::name_for_call_stack() const
+{
+    return m_name.to_utf16_string();
 }
 
 }

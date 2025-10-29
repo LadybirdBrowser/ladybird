@@ -25,7 +25,7 @@ ThrowCompletionOr<void> Reference::put_value(VM& vm, Value value)
     // 4. If IsUnresolvableReference(V) is true, then
     if (is_unresolvable()) {
         // a. If V.[[Strict]] is true, throw a ReferenceError exception.
-        if (m_strict)
+        if (m_strict == Strict::Yes)
             return throw_reference_error(vm);
 
         // b. Let globalObj be GetGlobalObject().
@@ -53,7 +53,7 @@ ThrowCompletionOr<void> Reference::put_value(VM& vm, Value value)
         auto succeeded = TRY(base_obj->internal_set(name(), value, get_this_value()));
 
         // d. If succeeded is false and V.[[Strict]] is true, throw a TypeError exception.
-        if (!succeeded && m_strict)
+        if (!succeeded && m_strict == Strict::Yes)
             return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishSetProperty, name(), m_base_value.to_string_without_side_effects());
 
         // e. Return unused.
@@ -69,9 +69,9 @@ ThrowCompletionOr<void> Reference::put_value(VM& vm, Value value)
 
     // c. Return ? base.SetMutableBinding(V.[[ReferencedName]], W, V.[[Strict]]) (see 9.1).
     if (m_environment_coordinate.has_value())
-        return static_cast<DeclarativeEnvironment*>(m_base_environment)->set_mutable_binding_direct(vm, m_environment_coordinate->index, value, m_strict);
+        return static_cast<DeclarativeEnvironment*>(m_base_environment)->set_mutable_binding_direct(vm, m_environment_coordinate->index, value, m_strict == Strict::Yes);
     else
-        return m_base_environment->set_mutable_binding(vm, name().as_string(), value, m_strict);
+        return m_base_environment->set_mutable_binding(vm, name().as_string(), value, m_strict == Strict::Yes);
 }
 
 Completion Reference::throw_reference_error(VM& vm) const
@@ -144,7 +144,7 @@ ThrowCompletionOr<Value> Reference::get_value(VM& vm) const
     // c. Return ? base.GetBindingValue(V.[[ReferencedName]], V.[[Strict]]) (see 9.1).
     if (m_environment_coordinate.has_value())
         return static_cast<DeclarativeEnvironment*>(m_base_environment)->get_binding_value_direct(vm, m_environment_coordinate->index);
-    return m_base_environment->get_binding_value(vm, name().as_string(), m_strict);
+    return m_base_environment->get_binding_value(vm, name().as_string(), m_strict == Strict::Yes);
 }
 
 // 13.5.1.2 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-delete-operator-runtime-semantics-evaluation
@@ -161,7 +161,7 @@ ThrowCompletionOr<bool> Reference::delete_(VM& vm)
     // 4. If IsUnresolvableReference(ref) is true, then
     if (is_unresolvable()) {
         // a. Assert: ref.[[Strict]] is false.
-        VERIFY(!m_strict);
+        VERIFY(m_strict == Strict::No);
         // b. Return true.
         return true;
     }
@@ -182,7 +182,7 @@ ThrowCompletionOr<bool> Reference::delete_(VM& vm)
         bool delete_status = TRY(base_obj->internal_delete(name()));
 
         // e. If deleteStatus is false and ref.[[Strict]] is true, throw a TypeError exception.
-        if (!delete_status && m_strict)
+        if (!delete_status && m_strict == Strict::Yes)
             return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishDeleteProperty, name(), m_base_value.to_string_without_side_effects());
 
         // f. Return deleteStatus.

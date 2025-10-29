@@ -18,7 +18,7 @@
 namespace JS {
 
 struct JS_API TracebackFrame {
-    FlyString function_name;
+    Utf16String function_name;
     [[nodiscard]] SourceRange const& source_range() const;
 
     RefPtr<CachedSourceRange> cached_source_range;

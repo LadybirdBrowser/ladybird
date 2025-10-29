@@ -546,7 +546,7 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
         ordinary_call_bind_this(vm, callee_context, this_argument);
 
     // 6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
-    auto result = ordinary_call_evaluate_body(vm);
+    auto result = ordinary_call_evaluate_body(vm, callee_context);
 
     // 7. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
@@ -607,7 +607,7 @@ FLATTEN ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_co
     auto constructor_env = callee_context.lexical_environment;
 
     // 8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
-    auto result = ordinary_call_evaluate_body(vm);
+    auto result = ordinary_call_evaluate_body(vm, callee_context);
 
     // 9. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
@@ -689,15 +689,11 @@ void ECMAScriptFunctionObject::make_method(Object& home_object)
 // 10.2.1.1 PrepareForOrdinaryCall ( F, newTarget ), https://tc39.es/ecma262/#sec-prepareforordinarycall
 void ECMAScriptFunctionObject::prepare_for_ordinary_call(VM& vm, ExecutionContext& callee_context, Object* new_target)
 {
-    // Non-standard
-    callee_context.is_strict_mode = is_strict_mode();
-
     // 1. Let callerContext be the running execution context.
     // 2. Let calleeContext be a new ECMAScript code execution context.
 
     // 3. Set the Function of calleeContext to F.
     callee_context.function = this;
-    callee_context.function_name = m_name_string;
 
     // 4. Let calleeRealm be F.[[Realm]].
     // 5. Set the Realm of calleeContext to calleeRealm.
@@ -827,7 +823,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
             if (maybe_executable.is_error())
                 result = maybe_executable.release_error();
             else
-                result = vm.bytecode_interpreter().run_executable(*maybe_executable.value(), {}).value;
+                result = vm.bytecode_interpreter().run_executable(vm.running_execution_context(), *maybe_executable.value(), {}).value;
         }
         // c. Else,
         else {
@@ -888,9 +884,9 @@ template void async_function_start(VM&, PromiseCapability const&, GC::Function<C
 
 // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
-ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm)
+ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm, ExecutionContext& context)
 {
-    auto result_and_frame = vm.bytecode_interpreter().run_executable(*bytecode_executable(), {});
+    auto result_and_frame = vm.bytecode_interpreter().run_executable(context, *bytecode_executable(), {});
 
     if (result_and_frame.value.is_error()) [[unlikely]] {
         return result_and_frame.value.release_error();
@@ -903,18 +899,17 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
     if (kind() == FunctionKind::Normal)
         return result;
 
-    auto& realm = *vm.current_realm();
     if (kind() == FunctionKind::AsyncGenerator) {
-        auto async_generator_object = TRY(AsyncGenerator::create(realm, result, this, vm.running_execution_context().copy()));
+        auto async_generator_object = TRY(AsyncGenerator::create(*context.realm, result, this, context.copy()));
         return async_generator_object;
     }
 
-    auto generator_object = TRY(GeneratorObject::create(realm, result, this, vm.running_execution_context().copy()));
+    auto generator_object = TRY(GeneratorObject::create(*context.realm, result, this, context.copy()));
 
     // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise
     //       See AwaitExpression::generate_bytecode() for the transformation.
     if (kind() == FunctionKind::Async)
-        return AsyncFunctionDriverWrapper::create(realm, generator_object);
+        return AsyncFunctionDriverWrapper::create(*context.realm, generator_object);
 
     ASSERT(kind() == FunctionKind::Generator);
     return generator_object;
@@ -934,6 +929,11 @@ ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data
     if (!m_class_data)
         m_class_data = make<ClassData>();
     return *m_class_data;
+}
+
+Utf16String ECMAScriptFunctionObject::name_for_call_stack() const
+{
+    return m_name_string->utf16_string();
 }
 
 }

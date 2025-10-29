@@ -108,7 +108,7 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
     // We should never enter `execute` again after the generator is complete.
     VERIFY(next_block.has_value());
 
-    auto next_result = bytecode_interpreter.run_executable(*m_generating_function->bytecode_executable(), next_block, compleion_cell);
+    auto next_result = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_function->bytecode_executable(), next_block, compleion_cell);
 
     vm.pop_execution_context();
 

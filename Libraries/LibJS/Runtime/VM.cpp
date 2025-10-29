@@ -287,7 +287,7 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
 }
 
 // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
-ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environment, Utf16FlyString name, bool strict, size_t hops)
+ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environment, Utf16FlyString name, Strict strict, size_t hops)
 {
     // 1. If env is the value null, then
     if (!environment) {
@@ -321,7 +321,7 @@ ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environme
 }
 
 // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
-ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Environment* environment)
+ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Strict strict, Environment* environment)
 {
     // 1. If env is not present or if env is undefined, then
     if (!environment) {
@@ -333,7 +333,7 @@ ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Env
     VERIFY(environment);
 
     // 3. If the source text matched by the syntactic production that is being evaluated is contained in strict mode code, let strict be true; else let strict be false.
-    bool strict = in_strict_mode();
+    // NOTE: We take this as a parameter.
 
     // 4. Return ? GetIdentifierReference(env, name, strict).
     return get_identifier_reference(environment, name, strict);
@@ -483,11 +483,12 @@ void VM::dump_backtrace() const
 {
     for (ssize_t i = m_execution_context_stack.size() - 1; i >= 0; --i) {
         auto& frame = m_execution_context_stack[i];
+
         if (frame->executable) {
             auto source_range = frame->executable->source_range_at(frame->program_counter).realize();
-            dbgln("-> {} @ {}:{},{}", frame->function_name ? frame->function_name->utf8_string() : ""_string, source_range.filename(), source_range.start.line, source_range.start.column);
+            dbgln("-> {} @ {}:{},{}", frame->function ? frame->function->name_for_call_stack() : ""_utf16, source_range.filename(), source_range.start.line, source_range.start.column);
         } else {
-            dbgln("-> {}", frame->function_name ? frame->function_name->utf8_string() : ""_string);
+            dbgln("-> {}", frame->function ? frame->function->name_for_call_stack() : ""_utf16);
         }
     }
 }

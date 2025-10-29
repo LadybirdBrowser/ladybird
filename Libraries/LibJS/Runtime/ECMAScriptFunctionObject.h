@@ -139,6 +139,8 @@ public:
     Statement const& ecmascript_code() const { return *shared_data().m_ecmascript_code; }
     [[nodiscard]] virtual FunctionParameters const& formal_parameters() const override { return *shared_data().m_formal_parameters; }
 
+    virtual Utf16String name_for_call_stack() const override;
+
     Utf16FlyString const& name() const { return shared_data().m_name; }
     void set_name(Utf16FlyString const& name);
 
@@ -201,7 +203,7 @@ private:
 
     virtual bool is_strict_mode() const override { return shared_data().m_strict; }
 
-    ThrowCompletionOr<Value> ordinary_call_evaluate_body(VM&);
+    ThrowCompletionOr<Value> ordinary_call_evaluate_body(VM&, ExecutionContext&);
 
     [[nodiscard]] bool function_environment_needed() const { return shared_data().m_function_environment_needed; }
     SharedFunctionInstanceData const& shared_data() const { return m_shared_data; }

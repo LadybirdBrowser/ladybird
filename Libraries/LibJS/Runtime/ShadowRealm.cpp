@@ -175,7 +175,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     // 11. If result.[[Type]] is normal, then
     if (!eval_result.is_throw_completion()) {
         // a. Set result to the result of evaluating body.
-        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*executable, {});
+        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*eval_context, *executable, {});
         if (result_and_return_register.value.is_error()) {
             result = result_and_return_register.value.release_error();
         } else {
@@ -341,9 +341,6 @@ NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bo
 
     // 10. Set context's PrivateEnvironment to null.
     context->private_environment = nullptr;
-
-    // Non-standard
-    context->is_strict_mode = strict_eval;
 
     // 11. Return context.
     return context;

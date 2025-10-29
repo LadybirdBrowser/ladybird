@@ -321,7 +321,7 @@ struct HideCursor {
         if (self == nil) {
             return;
         }
-        NSEvent* event = Ladybird::key_event_to_ns_event(key_event);
+        auto* event = Ladybird::key_event_to_ns_event(key_event);
 
         self.event_being_redispatched = event;
         [NSApp sendEvent:event];
@@ -1072,8 +1072,7 @@ struct HideCursor {
         return;
     }
 
-    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
-    m_web_view_bridge->enqueue_input_event(move(key_event));
+    [self interpretKeyEvents:@[ event ]];
 }
 
 - (void)keyUp:(NSEvent*)event
@@ -1121,6 +1120,81 @@ struct HideCursor {
     // The NSApp will override the custom cursor set from on_cursor_change when the view hierarchy changes in some way
     // (such as when we show self.status_label on link hover). Overriding this method with an empty implementation will
     // prevent this from happening. See: https://stackoverflow.com/a/20197686
+}
+
+- (BOOL)canBecomeKeyView
+{
+    return YES;
+}
+
+#pragma mark - NSResponder
+
+- (BOOL)acceptsFirstResponder
+{
+    return YES;
+}
+
+#pragma mark - NSTextInputClient
+
+- (void)insertText:(id)string replacementRange:(NSRange)replacementRange
+{
+    auto* event = [NSApp currentEvent];
+    if (event && event.type == NSEventTypeKeyDown) {
+        auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
+        m_web_view_bridge->enqueue_input_event(move(key_event));
+    }
+}
+
+- (void)doCommandBySelector:(SEL)selector
+{
+    auto* event = [NSApp currentEvent];
+    if (event && event.type == NSEventTypeKeyDown) {
+        auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
+        m_web_view_bridge->enqueue_input_event(move(key_event));
+    }
+}
+
+- (BOOL)hasMarkedText
+{
+    return NO;
+}
+
+- (NSRange)markedRange
+{
+    return NSMakeRange(NSNotFound, 0);
+}
+
+- (NSRange)selectedRange
+{
+    return NSMakeRange(NSNotFound, 0);
+}
+
+- (void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange
+{
+}
+
+- (void)unmarkText
+{
+}
+
+- (NSArray<NSAttributedStringKey>*)validAttributesForMarkedText
+{
+    return @[];
+}
+
+- (NSAttributedString*)attributedSubstringForProposedRange:(NSRange)range actualRange:(NSRangePointer)actualRange
+{
+    return nil;
+}
+
+- (NSUInteger)characterIndexForPoint:(NSPoint)point
+{
+    return NSNotFound;
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange
+{
+    return NSZeroRect;
 }
 
 #pragma mark - NSDraggingDestination
