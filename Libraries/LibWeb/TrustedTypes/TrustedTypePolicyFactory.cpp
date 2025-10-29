@@ -296,7 +296,7 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
     return result;
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
+// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-data-for-attribute
 Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const& element, Utf16String const& attribute, Optional<Utf16String> const& attribute_ns)
 {
     // 1. Let data be null.
