@@ -207,8 +207,9 @@ void prepare_to_run_callback(JS::Realm& realm)
     auto* context = top_most_script_having_execution_context(vm);
 
     // 3. If context is not null, increment context's skip-when-determining-incumbent counter.
-    if (context)
+    if (context) {
         context->skip_when_determining_incumbent_counter++;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#parse-a-url
@@ -265,8 +266,9 @@ void clean_up_after_running_callback(JS::Realm const& realm)
     auto* context = top_most_script_having_execution_context(vm);
 
     // 2. If context is not null, decrement context's skip-when-determining-incumbent counter.
-    if (context)
+    if (context) {
         context->skip_when_determining_incumbent_counter--;
+    }
 
     // 3. Assert: the topmost entry of the backup incumbent realm stack is realm.
     auto& event_loop = HTML::main_thread_event_loop();

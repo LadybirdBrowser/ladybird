@@ -305,7 +305,7 @@ ThrowCompletionOr<Value> Interpreter::run(SourceTextModule& module)
     return js_undefined();
 }
 
-NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(size_t& program_counter, Value exception)
+NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_counter, Value exception)
 {
     reg(Register::exception()) = exception;
     m_scheduled_jump = {};
@@ -349,7 +349,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
     auto& executable = current_executable();
     auto const* bytecode = executable.bytecode.data();
 
-    size_t& program_counter = running_execution_context.program_counter;
+    u32& program_counter = running_execution_context.program_counter;
     program_counter = entry_point;
 
     // Declare a lookup table for computed goto with each of the `handle_*` labels

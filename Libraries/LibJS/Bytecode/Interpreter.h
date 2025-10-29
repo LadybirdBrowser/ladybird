@@ -95,7 +95,7 @@ private:
         ExitFromExecutable,
         ContinueInThisExecutable,
     };
-    [[nodiscard]] HandleExceptionResponse handle_exception(size_t& program_counter, Value exception);
+    [[nodiscard]] HandleExceptionResponse handle_exception(u32& program_counter, Value exception);
 
     VM& m_vm;
     Optional<size_t> m_scheduled_jump;
