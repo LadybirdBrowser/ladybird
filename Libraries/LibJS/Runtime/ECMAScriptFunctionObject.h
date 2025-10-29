@@ -139,6 +139,8 @@ public:
     Statement const& ecmascript_code() const { return *shared_data().m_ecmascript_code; }
     [[nodiscard]] virtual FunctionParameters const& formal_parameters() const override { return *shared_data().m_formal_parameters; }
 
+    virtual Utf16String name_for_call_stack() const override;
+
     Utf16FlyString const& name() const { return shared_data().m_name; }
     void set_name(Utf16FlyString const& name);
 

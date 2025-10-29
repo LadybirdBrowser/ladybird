@@ -483,11 +483,12 @@ void VM::dump_backtrace() const
 {
     for (ssize_t i = m_execution_context_stack.size() - 1; i >= 0; --i) {
         auto& frame = m_execution_context_stack[i];
+
         if (frame->executable) {
             auto source_range = frame->executable->source_range_at(frame->program_counter).realize();
-            dbgln("-> {} @ {}:{},{}", frame->function_name ? frame->function_name->utf8_string() : ""_string, source_range.filename(), source_range.start.line, source_range.start.column);
+            dbgln("-> {} @ {}:{},{}", frame->function ? frame->function->name_for_call_stack() : ""_utf16, source_range.filename(), source_range.start.line, source_range.start.column);
         } else {
-            dbgln("-> {}", frame->function_name ? frame->function_name->utf8_string() : ""_string);
+            dbgln("-> {}", frame->function ? frame->function->name_for_call_stack() : ""_utf16);
         }
     }
 }

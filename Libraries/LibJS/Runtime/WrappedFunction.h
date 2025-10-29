@@ -29,6 +29,8 @@ public:
 
     virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count) override;
 
+    virtual Utf16String name_for_call_stack() const override;
+
 private:
     WrappedFunction(Realm&, FunctionObject&, Object& prototype);
 

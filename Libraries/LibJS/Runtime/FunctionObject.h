@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -41,6 +41,8 @@ public:
     virtual Vector<LocalVariable> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
 
     virtual FunctionParameters const& formal_parameters() const { VERIFY_NOT_REACHED(); }
+
+    virtual Utf16String name_for_call_stack() const = 0;
 
     template<typename T>
     bool fast_is() const = delete;

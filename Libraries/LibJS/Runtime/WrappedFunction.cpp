@@ -174,4 +174,9 @@ void prepare_for_wrapped_function_call(WrappedFunction& function, ExecutionConte
     // NOTE: No-op, see NOTE after step 2.
 }
 
+Utf16String WrappedFunction::name_for_call_stack() const
+{
+    return "(Wrapped)"_utf16;
+}
+
 }

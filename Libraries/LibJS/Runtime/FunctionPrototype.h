@@ -20,6 +20,8 @@ public:
 
     virtual ThrowCompletionOr<Value> internal_call(ExecutionContext&, Value this_argument) override;
 
+    virtual Utf16String name_for_call_stack() const override;
+
 private:
     explicit FunctionPrototype(Realm&);
 
