@@ -123,7 +123,6 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
 
     // 4. Set the Function of calleeContext to F.
     callee_context.function = this;
-    callee_context.function_name = m_name_string;
 
     // 5. Let calleeRealm be F.[[Realm]].
     auto callee_realm = m_realm;
@@ -179,7 +178,6 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ExecutionC
 
     // 4. Set the Function of calleeContext to F.
     callee_context.function = this;
-    callee_context.function_name = m_name_string;
 
     // 5. Let calleeRealm be F.[[Realm]].
     auto callee_realm = m_realm;
@@ -231,6 +229,11 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::construct(FunctionObject&)
 bool NativeFunction::is_strict_mode() const
 {
     return true;
+}
+
+Utf16String NativeFunction::name_for_call_stack() const
+{
+    return m_name.to_utf16_string();
 }
 
 }

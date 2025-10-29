@@ -62,7 +62,6 @@ public:
 
     mutable RefPtr<CachedSourceRange> cached_source_range;
 
-    GC::Ptr<PrimitiveString> function_name;
     Optional<Value> this_value;
 
     GC::Ptr<Bytecode::Executable> executable;

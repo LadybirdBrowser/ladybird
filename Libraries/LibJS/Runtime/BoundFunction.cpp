@@ -115,4 +115,9 @@ ThrowCompletionOr<void> BoundFunction::get_stack_frame_size(size_t& registers_an
     return {};
 }
 
+Utf16String BoundFunction::name_for_call_stack() const
+{
+    return m_bound_target_function->name_for_call_stack();
+}
+
 }

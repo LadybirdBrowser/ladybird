@@ -114,7 +114,7 @@ void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in
         WebView::StackFrame stack_frame;
 
         if (!frame.function_name.is_empty())
-            stack_frame.function = frame.function_name.to_string();
+            stack_frame.function = frame.function_name.to_utf8();
 
         if (!source_range.filename().is_empty() || source_range.start.offset != 0 || source_range.end.offset != 0) {
             stack_frame.file = String::from_utf8_with_replacement_character(source_range.filename());

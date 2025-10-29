@@ -192,4 +192,9 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::symbol_has_instance)
     return TRY(ordinary_has_instance(vm, vm.argument(0), vm.this_value()));
 }
 
+Utf16String FunctionPrototype::name_for_call_stack() const
+{
+    return "(Function.prototype)"_utf16;
+}
+
 }

@@ -350,10 +350,10 @@ ThrowCompletionOr<Value> Console::trace()
     auto& execution_context_stack = vm.execution_context_stack();
     // NOTE: -2 to skip the console.trace() execution context
     for (ssize_t i = execution_context_stack.size() - 2; i >= 0; --i) {
-        auto const& function_name = execution_context_stack[i]->function_name;
-        trace.stack.append((!function_name || function_name->is_empty())
+        auto function_name = execution_context_stack[i]->function ? execution_context_stack[i]->function->name_for_call_stack() : ""_utf16;
+        trace.stack.append(function_name.is_empty()
                 ? "<anonymous>"_string
-                : function_name->utf8_string());
+                : function_name.to_utf8());
     }
 
     // 2. Optionally, let formattedData be the result of Formatter(data), and incorporate formattedData as a label for trace.

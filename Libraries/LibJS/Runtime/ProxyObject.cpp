@@ -895,4 +895,9 @@ ThrowCompletionOr<void> ProxyObject::get_stack_frame_size(size_t& registers_and_
     return as<FunctionObject>(*m_target).get_stack_frame_size(registers_and_constants_and_locals_count, argument_count);
 }
 
+Utf16String ProxyObject::name_for_call_stack() const
+{
+    return "(Proxy)"_utf16;
+}
+
 }

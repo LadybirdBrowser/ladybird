@@ -30,6 +30,8 @@ public:
     Value bound_this() const { return m_bound_this; }
     Vector<Value> const& bound_arguments() const { return m_bound_arguments; }
 
+    virtual Utf16String name_for_call_stack() const override;
+
 private:
     BoundFunction(Realm&, FunctionObject& target_function, Value bound_this, Vector<Value> bound_arguments, Object* prototype);
 

@@ -122,7 +122,6 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->variable_environment = variable_environment;
     copy->private_environment = private_environment;
     copy->program_counter = program_counter;
-    copy->function_name = function_name;
     copy->this_value = this_value;
     copy->executable = executable;
     copy->passed_argument_count = passed_argument_count;
@@ -147,7 +146,6 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     if (this_value.has_value())
         visitor.visit(*this_value);
     visitor.visit(executable);
-    visitor.visit(function_name);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
     for (auto& context : unwind_contexts) {
         visitor.visit(context.lexical_environment);

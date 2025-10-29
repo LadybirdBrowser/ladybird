@@ -694,7 +694,6 @@ void ECMAScriptFunctionObject::prepare_for_ordinary_call(VM& vm, ExecutionContex
 
     // 3. Set the Function of calleeContext to F.
     callee_context.function = this;
-    callee_context.function_name = m_name_string;
 
     // 4. Let calleeRealm be F.[[Realm]].
     // 5. Set the Realm of calleeContext to calleeRealm.
@@ -931,6 +930,11 @@ ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data
     if (!m_class_data)
         m_class_data = make<ClassData>();
     return *m_class_data;
+}
+
+Utf16String ECMAScriptFunctionObject::name_for_call_stack() const
+{
+    return m_name_string->utf16_string();
 }
 
 }
