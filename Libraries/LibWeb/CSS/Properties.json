@@ -2481,7 +2481,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "list-style": {
-    "strip-whitespace": true,
     "inherited": true,
     "initial": "outside none disc",
     "longhands": [
@@ -2491,7 +2490,6 @@
     ]
   },
   "list-style-image": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "none",
@@ -2503,7 +2501,6 @@
     ]
   },
   "list-style-position": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "outside",
@@ -2512,7 +2509,6 @@
     ]
   },
   "list-style-type": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "disc",
