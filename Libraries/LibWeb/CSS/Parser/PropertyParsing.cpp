@@ -2199,26 +2199,33 @@ RefPtr<StyleValue const> Parser::parse_shape_outside_value(TokenStream<Component
     return StyleValueList::create({ basic_shape_value.release_nonnull(), shape_box_value.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
+// https://drafts.csswg.org/css-transforms-2/#propdef-rotate
 RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)
 {
-    // Value:	none | <angle> | [ x | y | z | <number>{3} ] && <angle>
+    // none | <angle> | [ x | y | z | <number>{3} ] && <angle>
 
-    if (tokens.remaining_token_count() == 1) {
-        // "none"
-        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-            return none;
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
-        // <angle>
-        if (auto angle = parse_angle_value(tokens))
-            return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { angle.release_nonnull() });
+    auto transaction = tokens.begin_transaction();
+
+    auto angle = parse_angle_value(tokens);
+    tokens.discard_whitespace();
+
+    // <angle>
+    if (angle && !tokens.has_next_token()) {
+        transaction.commit();
+        return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { angle.release_nonnull() });
     }
 
     auto parse_one_of_xyz = [&]() -> Optional<ComponentValue const&> {
-        auto transaction = tokens.begin_transaction();
+        auto xyz_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& axis = tokens.consume_a_token();
 
         if (axis.is_ident("x"sv) || axis.is_ident("y"sv) || axis.is_ident("z"sv)) {
-            transaction.commit();
+            xyz_transaction.commit();
             return axis;
         }
 
@@ -2226,34 +2233,28 @@ RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>&
     };
 
     // [ x | y | z ] && <angle>
-    if (tokens.remaining_token_count() == 2) {
-        // Try parsing `x <angle>`
-        if (auto axis = parse_one_of_xyz(); axis.has_value()) {
-            if (auto angle = parse_angle_value(tokens); angle) {
-                if (axis->is_ident("x"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-                if (axis->is_ident("y"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-                if (axis->is_ident("z"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
-            }
+    if (auto axis = parse_one_of_xyz(); axis.has_value()) {
+        tokens.discard_whitespace();
+
+        if (!angle)
+            angle = parse_angle_value(tokens);
+
+        if (angle) {
+            transaction.commit();
+            if (axis->is_ident("x"sv))
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
+            if (axis->is_ident("y"sv))
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
+            if (axis->is_ident("z"sv))
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
+            VERIFY_NOT_REACHED();
         }
 
-        // Try parsing `<angle> x`
-        if (auto angle = parse_angle_value(tokens); angle) {
-            if (auto axis = parse_one_of_xyz(); axis.has_value()) {
-                if (axis->is_ident("x"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-                if (axis->is_ident("y"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-                if (axis->is_ident("z"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
-            }
-        }
+        return nullptr;
     }
 
     auto parse_three_numbers = [&]() -> Optional<StyleValueVector> {
-        auto transaction = tokens.begin_transaction();
+        auto numbers_transaction = tokens.begin_transaction();
         StyleValueVector numbers;
         for (size_t i = 0; i < 3; ++i) {
             if (auto number = parse_number_value(tokens); number) {
@@ -2262,27 +2263,24 @@ RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>&
                 return {};
             }
         }
-        transaction.commit();
+        numbers_transaction.commit();
         return numbers;
     };
 
     // <number>{3} && <angle>
-    if (tokens.remaining_token_count() == 4) {
-        // Try parsing <number>{3} <angle>
-        if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
-            if (auto angle = parse_angle_value(tokens); angle) {
-                auto numbers = maybe_numbers.release_value();
-                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
-            }
+    if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
+        tokens.discard_whitespace();
+
+        if (!angle)
+            angle = parse_angle_value(tokens);
+
+        if (angle) {
+            auto numbers = maybe_numbers.release_value();
+            transaction.commit();
+            return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
         }
 
-        // Try parsing <angle> <number>{3}
-        if (auto angle = parse_angle_value(tokens); angle) {
-            if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
-                auto numbers = maybe_numbers.release_value();
-                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
-            }
-        }
+        return nullptr;
     }
 
     return nullptr;
@@ -4834,6 +4832,13 @@ RefPtr<StyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentV
 // https://www.w3.org/TR/css-transforms-1/#propdef-transform-origin
 RefPtr<StyleValue const> Parser::parse_transform_origin_value(TokenStream<ComponentValue>& tokens)
 {
+    //   [ left | center | right | top | bottom | <length-percentage> ]
+    // |
+    //   [ left | center | right | <length-percentage> ]
+    //   [ top | center | bottom | <length-percentage> ] <length>?
+    // |
+    //   [[ center | left | right ] && [ center | top | bottom ]] <length>?
+
     enum class Axis {
         None,
         X,
@@ -4875,34 +4880,31 @@ RefPtr<StyleValue const> Parser::parse_transform_origin_value(TokenStream<Compon
     };
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     auto make_list = [&transaction](NonnullRefPtr<StyleValue const> const& x_value, NonnullRefPtr<StyleValue const> const& y_value, NonnullRefPtr<StyleValue const> const& z_value) -> NonnullRefPtr<StyleValueList> {
         transaction.commit();
         return StyleValueList::create(StyleValueVector { x_value, y_value, z_value }, StyleValueList::Separator::Space);
     };
 
-    static StyleValue const& zero_value = LengthStyleValue::create(Length::make_px(0));
+    NonnullRefPtr<StyleValue const> const zero_value = LengthStyleValue::create(Length::make_px(0));
 
-    if (tokens.remaining_token_count() == 1) {
-        auto single_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
-        if (!single_value.has_value())
-            return nullptr;
+    auto first_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
+    if (!first_value.has_value())
+        return nullptr;
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token()) {
         // If only one value is specified, the second value is assumed to be center.
-        // FIXME: If one or two values are specified, the third value is assumed to be 0px.
-        switch (single_value->axis) {
+        switch (first_value->axis) {
         case Axis::None:
         case Axis::X:
-            return make_list(single_value->offset, KeywordStyleValue::create(Keyword::Center), zero_value);
+            return make_list(first_value->offset, KeywordStyleValue::create(Keyword::Center), zero_value);
         case Axis::Y:
-            return make_list(KeywordStyleValue::create(Keyword::Center), single_value->offset, zero_value);
+            return make_list(KeywordStyleValue::create(Keyword::Center), first_value->offset, zero_value);
         }
         VERIFY_NOT_REACHED();
     }
 
-    if (tokens.remaining_token_count() > 3)
-        return nullptr;
-
-    auto first_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
     auto second_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
     auto third_value = parse_length_value(tokens);
 
@@ -5040,20 +5042,23 @@ RefPtr<StyleValue const> Parser::parse_transition_property_value(TokenStream<Com
     return StyleValueList::create(move(transition_properties), StyleValueList::Separator::Comma);
 }
 
+// https://drafts.csswg.org/css-transforms-2/#propdef-translate
 RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() == 1) {
-        // "none"
-        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-            return none;
-    }
+    // none | <length-percentage> [ <length-percentage> <length>? ]?
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
     auto transaction = tokens.begin_transaction();
 
+    // <length-percentage> [ <length-percentage> <length>? ]?
     auto maybe_x = parse_length_percentage_value(tokens);
     if (!maybe_x)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), LengthStyleValue::create(Length::make_px(0)) });
@@ -5063,6 +5068,7 @@ RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValu
     if (!maybe_y)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
@@ -5077,20 +5083,23 @@ RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValu
     return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate3d, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
 }
 
+// https://drafts.csswg.org/css-transforms-2/#propdef-scale
 RefPtr<StyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() == 1) {
-        // "none"
-        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-            return none;
-    }
+    // none | [ <number> | <percentage> ]{1,3}
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
     auto transaction = tokens.begin_transaction();
 
+    // [ <number> | <percentage> ]{1,3}
     auto maybe_x = parse_number_percentage_value(tokens);
     if (!maybe_x)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { *maybe_x, *maybe_x });
@@ -5100,6 +5109,7 @@ RefPtr<StyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& 
     if (!maybe_y)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });

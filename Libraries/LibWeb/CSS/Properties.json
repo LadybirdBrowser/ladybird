@@ -3373,7 +3373,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "rotate": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3429,7 +3428,6 @@
     ]
   },
   "scale": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3814,7 +3812,6 @@
     ]
   },
   "transform": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3839,7 +3836,6 @@
     ]
   },
   "transform-origin": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3926,7 +3922,6 @@
     ]
   },
   "translate": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
