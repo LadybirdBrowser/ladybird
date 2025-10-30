@@ -3888,10 +3888,9 @@
     "initial": "all",
     "multiplicity": "coordinating-list",
     "valid-types": [
-      "custom-ident ![all,none]"
+      "custom-ident ![none]"
     ],
     "valid-identifiers": [
-      "all",
       "none"
     ]
   },
