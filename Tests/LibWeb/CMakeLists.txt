@@ -19,6 +19,7 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 target_link_libraries(TestContentFilter PRIVATE LibURL)
+target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 
 if (ENABLE_SWIFT)

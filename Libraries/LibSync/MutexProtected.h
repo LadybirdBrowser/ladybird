@@ -8,9 +8,9 @@
 
 #include <AK/Concepts.h>
 #include <AK/Noncopyable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
-namespace Threading {
+namespace Sync {
 
 template<typename T>
 class MutexProtected {

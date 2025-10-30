@@ -7,11 +7,11 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 #include <pthread.h>
 #include <sys/types.h>
 
-namespace Threading {
+namespace Sync {
 
 // A signaling condition variable that wraps over the pthread_cond_* APIs.
 class ConditionVariable {
