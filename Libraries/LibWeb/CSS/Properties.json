@@ -1754,7 +1754,6 @@
     ]
   },
   "flex": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "0 1 auto",
     "valid-identifiers": [
@@ -1767,7 +1766,6 @@
     ]
   },
   "flex-basis": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1785,7 +1783,6 @@
     "percentages-resolve-to": "length"
   },
   "flex-direction": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row",
@@ -1794,7 +1791,6 @@
     ]
   },
   "flex-flow": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "row nowrap",
     "longhands": [
@@ -1803,7 +1799,6 @@
     ]
   },
   "flex-grow": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -1812,7 +1807,6 @@
     ]
   },
   "flex-shrink": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "1",
@@ -1821,7 +1815,6 @@
     ]
   },
   "flex-wrap": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "nowrap",
