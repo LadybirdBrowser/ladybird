@@ -1684,7 +1684,6 @@
     ]
   },
   "display": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "inline",
