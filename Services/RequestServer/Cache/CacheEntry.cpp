@@ -103,7 +103,7 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& response_headers)
 {
     if (m_marked_for_deletion) {
         close_and_destroy_cache_entry();
@@ -118,10 +118,10 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
     }
 
     auto result = [&]() -> ErrorOr<void> {
-        if (!is_cacheable(status_code, headers))
+        if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
-        if (auto freshness = calculate_freshness_lifetime(headers); freshness.is_negative() || freshness.is_zero())
+        if (auto freshness = calculate_freshness_lifetime(response_headers); freshness.is_negative() || freshness.is_zero())
             return Error::from_string_literal("Response has already expired");
 
         TRY(m_file->write_value(m_cache_header));
@@ -166,7 +166,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap headers)
+ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap response_headers)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -180,13 +180,13 @@ ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap headers)
         return result.release_error();
     }
 
-    m_index.create_entry(m_cache_key, m_url, move(headers), m_cache_footer.data_size, m_request_time, m_response_time);
+    m_index.create_entry(m_cache_key, m_url, move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
 
     dbgln("\033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, HTTP::HeaderMap headers, u64 data_size)
+ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, HTTP::HeaderMap response_headers, u64 data_size)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
 
@@ -226,15 +226,15 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
 
     auto data_offset = sizeof(CacheHeader) + cache_header.url_size + cache_header.reason_phrase_size;
 
-    return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(headers), data_offset, data_size });
+    return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
 }
 
-CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, HTTP::HeaderMap header_map, u64 data_offset, u64 data_size)
+CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, HTTP::HeaderMap response_headers, u64 data_offset, u64 data_size)
     : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_fd(fd)
     , m_reason_phrase(move(reason_phrase))
-    , m_headers(move(header_map))
+    , m_response_headers(move(response_headers))
     , m_data_offset(data_offset)
     , m_data_size(data_size)
 {

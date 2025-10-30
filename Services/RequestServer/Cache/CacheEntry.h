@@ -104,7 +104,7 @@ public:
 
     u32 status_code() const { return m_cache_header.status_code; }
     Optional<String> const& reason_phrase() const { return m_reason_phrase; }
-    HTTP::HeaderMap const& headers() const { return m_headers; }
+    HTTP::HeaderMap const& response_headers() const { return m_response_headers; }
 
 private:
     CacheEntryReader(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::File>, int fd, CacheHeader, Optional<String> reason_phrase, HTTP::HeaderMap, u64 data_offset, u64 data_size);
@@ -126,7 +126,7 @@ private:
     u64 m_bytes_piped { 0 };
 
     Optional<String> m_reason_phrase;
-    HTTP::HeaderMap m_headers;
+    HTTP::HeaderMap m_response_headers;
 
     u64 const m_data_offset { 0 };
     u64 const m_data_size { 0 };
