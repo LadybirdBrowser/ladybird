@@ -3868,7 +3868,6 @@
     "percentages-resolve-to": "length"
   },
   "transition": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "none",
@@ -3882,7 +3881,6 @@
     ]
   },
   "transition-behavior": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3893,7 +3891,6 @@
     ]
   },
   "transition-delay": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3904,7 +3901,6 @@
     ]
   },
   "transition-duration": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3915,7 +3911,6 @@
     ]
   },
   "transition-property": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -3929,7 +3924,6 @@
     ]
   },
   "transition-timing-function": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
