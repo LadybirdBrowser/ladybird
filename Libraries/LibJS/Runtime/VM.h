@@ -144,12 +144,10 @@ public:
     // This is known as the agent's running execution context.
     ExecutionContext& running_execution_context()
     {
-        VERIFY(!m_execution_context_stack.is_empty());
         return *m_execution_context_stack.last();
     }
     ExecutionContext const& running_execution_context() const
     {
-        VERIFY(!m_execution_context_stack.is_empty());
         return *m_execution_context_stack.last();
     }
 
