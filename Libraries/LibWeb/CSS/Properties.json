@@ -373,7 +373,6 @@
     ]
   },
   "backdrop-filter": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",
@@ -1752,7 +1751,6 @@
     ]
   },
   "filter": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",
