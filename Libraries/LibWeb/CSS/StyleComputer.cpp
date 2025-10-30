@@ -1235,7 +1235,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
         // animation-name property and the animation uses a valid @keyframes rule
         auto animation = CSSAnimation::create(document.realm());
-        animation->set_id(animation_properties.name);
+        animation->set_animation_name(animation_properties.name);
         animation->set_timeline(document.timeline());
         animation->set_owning_element(element);
 

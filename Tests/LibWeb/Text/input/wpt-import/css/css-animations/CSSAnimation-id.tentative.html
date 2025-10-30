@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSAnimation.id</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#cssanimation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes abc { }
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'abc 100s';
+  const animation = div.getAnimations()[0];
+  assert_equals(animation.id, '', 'id for CSS Animation is initially empty');
+
+  animation.id = 'anim'
+  assert_equals(animation.id, 'anim', 'animation.id reflects the value set');
+}, 'Animation.id for CSS Animations');
+
+</script>
+</html>
