@@ -214,7 +214,7 @@ void Request::handle_read_cache_state()
 #else
     m_status_code = m_cache_entry_reader->status_code();
     m_reason_phrase = m_cache_entry_reader->reason_phrase();
-    m_response_headers = m_cache_entry_reader->headers();
+    m_response_headers = m_cache_entry_reader->response_headers();
 
     auto pipe_or_error = RequestPipe::create();
     if (pipe_or_error.is_error()) {

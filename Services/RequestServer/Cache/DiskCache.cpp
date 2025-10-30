@@ -83,8 +83,8 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         return Optional<CacheEntryReader&> {};
     }
 
-    auto freshness_lifetime = calculate_freshness_lifetime(cache_entry.value()->headers());
-    auto current_age = calculate_age(cache_entry.value()->headers(), index_entry->request_time, index_entry->response_time);
+    auto freshness_lifetime = calculate_freshness_lifetime(cache_entry.value()->response_headers());
+    auto current_age = calculate_age(cache_entry.value()->response_headers(), index_entry->request_time, index_entry->response_time);
 
     if (!is_response_fresh(freshness_lifetime, current_age)) {
         dbgln("\033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", request.url(), freshness_lifetime.to_seconds(), current_age.to_seconds());
