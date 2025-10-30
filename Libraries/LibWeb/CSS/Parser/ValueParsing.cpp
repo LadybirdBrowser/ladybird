@@ -877,6 +877,7 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
     // <anchor()> = anchor( <anchor-name>? && <anchor-side>, <length-percentage>? )
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     auto const& function_token = tokens.consume_a_token();
     if (!function_token.is_function("anchor"sv))
         return {};
@@ -937,6 +938,7 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
     if (!anchor_side_value)
         return {};
 
+    transaction.commit();
     return AnchorStyleValue::create(anchor_name, anchor_side_value.release_nonnull(), fallback_value);
 }
 
