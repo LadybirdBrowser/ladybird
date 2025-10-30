@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	eval with plain string with Trusted Types and permissive CSP throws (no type).
+Pass	indirect eval with plain string with Trusted Types and permissive CSP throws (no type).
+Pass	Function constructor with plain string with Trusted Types and permissive CSP throws (no type).
+Pass	eval with TrustedScript and permissive CSP works.
+Pass	indirect eval with TrustedScript and permissive CSP works.
+Pass	new Function with TrustedScript and permissive CSP works.
+Pass	eval with plain string with Trusted Types and permissive CSP works with default policy.
+Pass	indirect eval with plain string with Trusted Types and permissive CSP works with default policy.
+Pass	new Function with plain string default policy and permissive CSP works with default policy.

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <script nonce="abc" src="support/helper.sub.js"></script>
+
+  <!-- Note: Trusted Types enforcement, and a CSP that does not blanket-allow eval. -->
+  <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'; require-trusted-types-for 'script'">
+</head>
+<body>
+<script nonce="abc">
+  const p = createScript_policy(window, 1);
+
+  test(t => {
+    let a = 0;
+    assert_throws_js(EvalError, _ => {
+      eval('a="hello there"');
+    });
+    assert_equals(a, 0);
+  }, "eval with plain string throws (both block).");
+
+  test(t => {
+    let a = 0;
+    assert_throws_js(EvalError, _ => {
+      eval(p.createScript('a="Hello transformed string"'));
+    });
+    assert_equals(a, 0);
+  }, "eval with TrustedScript throws (script-src blocks).");
+</script>
+
