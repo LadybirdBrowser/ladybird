@@ -459,18 +459,18 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     return OptionalNone {};
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens, Optional<String> original_source_text)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, Optional<String> original_source_text)
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    Vector<ComponentValue> component_values;
     SubstitutionFunctionsPresence substitution_presence;
 
-    while (unprocessed_tokens.has_next_token()) {
-        auto const& token = unprocessed_tokens.consume_a_token();
+    tokens.mark();
+    while (tokens.has_next_token()) {
+        auto const& token = tokens.consume_a_token();
 
         if (token.is(Token::Type::Semicolon)) {
-            unprocessed_tokens.reconsume_current_input_token();
+            tokens.reconsume_current_input_token();
             return ParseError::SyntaxError;
         }
 
@@ -478,25 +478,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             token.function().contains_arbitrary_substitution_function(substitution_presence);
         else if (token.is_block())
             token.block().contains_arbitrary_substitution_function(substitution_presence);
-
-        component_values.append(token);
     }
+    tokens.restore_a_mark();
 
-    if (component_values.size() == 1) {
-        auto tokens = TokenStream { component_values };
-        if (auto parsed_value = parse_builtin_value(tokens))
-            return parsed_value.release_nonnull();
-    }
-
-    if (property_id == PropertyID::Custom || substitution_presence.has_any())
-        return UnresolvedStyleValue::create(move(component_values), substitution_presence, original_source_text);
-
-    if (component_values.is_empty())
-        return ParseError::SyntaxError;
-
-    auto tokens = TokenStream { component_values };
-
-    // Special-case property handling
     auto parse_all_as = [](auto& tokens, auto&& callback) -> ParseErrorOr<NonnullRefPtr<StyleValue const>> {
         tokens.discard_whitespace();
         auto parsed_value = callback(tokens);
@@ -506,6 +490,28 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     };
 
+    {
+        auto builtin_transaction = tokens.begin_transaction();
+        auto builtin = parse_all_as(tokens, [this](auto& tokens) { return parse_builtin_value(tokens); });
+        if (!builtin.is_error()) {
+            builtin_transaction.commit();
+            return builtin.release_value();
+        }
+    }
+
+    if (property_id == PropertyID::Custom || substitution_presence.has_any()) {
+        Vector<ComponentValue> component_values;
+        while (tokens.has_next_token()) {
+            component_values.append(tokens.consume_a_token());
+        }
+        return UnresolvedStyleValue::create(move(component_values), substitution_presence, original_source_text);
+    }
+
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token())
+        return ParseError::SyntaxError;
+
+    // Special-case property handling
     switch (property_id) {
     case PropertyID::All:
         // NOTE: The 'all' property, unlike some other shorthands, doesn't support directly listing sub-property
@@ -754,41 +760,39 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     }
 
-    // If there's only 1 ComponentValue, we can only produce a single StyleValue.
-    if (component_values.size() == 1) {
-        auto stream = TokenStream { component_values };
-        if (auto parsed_value = parse_css_value_for_property(property_id, stream))
-            return parsed_value.release_nonnull();
-    } else {
+    {
+        auto transaction = tokens.begin_transaction();
         StyleValueVector parsed_values;
-        auto stream = TokenStream { component_values };
-        while (auto parsed_value = parse_css_value_for_property(property_id, stream)) {
+        while (auto parsed_value = parse_css_value_for_property(property_id, tokens)) {
             parsed_values.append(parsed_value.release_nonnull());
-            if (!stream.has_next_token())
+            tokens.discard_whitespace();
+            if (!tokens.has_next_token())
                 break;
         }
 
-        if (!stream.has_next_token()) {
-            // Some types (such as <ratio>) can be made from multiple ComponentValues, so if we only made 1 StyleValue, return it directly.
-            if (parsed_values.size() == 1)
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token()) {
+            if (parsed_values.size() == 1) {
+                transaction.commit();
                 return *parsed_values.take_first();
+            }
 
-            if (!parsed_values.is_empty() && parsed_values.size() <= property_maximum_value_count(property_id))
+            if (!parsed_values.is_empty() && parsed_values.size() <= property_maximum_value_count(property_id)) {
+                transaction.commit();
                 return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
+            }
         }
     }
 
-    // We have multiple values, but the property claims to accept only a single one, check if it's a shorthand property.
+    // We have more values than the property claims to allow. Check if it's a shorthand.
     auto unassigned_properties = longhands_for_shorthand(property_id);
     if (unassigned_properties.is_empty())
         return ParseError::SyntaxError;
 
-    auto stream = TokenStream { component_values };
-
     OrderedHashMap<UnderlyingType<PropertyID>, Vector<ValueComparingNonnullRefPtr<StyleValue const>>> assigned_values;
 
-    while (stream.has_next_token() && !unassigned_properties.is_empty()) {
-        auto property_and_value = parse_css_value_for_properties(unassigned_properties, stream);
+    while (tokens.has_next_token() && !unassigned_properties.is_empty()) {
+        auto property_and_value = parse_css_value_for_properties(unassigned_properties, tokens);
         if (property_and_value.has_value()) {
             auto property = property_and_value->property;
             auto value = property_and_value->style_value;
@@ -804,7 +808,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 
         // No property matched, so we're done.
         if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("No property (from {} properties) matched {}", unassigned_properties.size(), stream.next_token().to_debug_string());
+            dbgln("No property (from {} properties) matched {}", unassigned_properties.size(), tokens.next_token().to_debug_string());
             for (auto id : unassigned_properties)
                 dbgln("    {}", string_from_property_id(id));
         }
@@ -814,8 +818,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     for (auto& property : unassigned_properties)
         assigned_values.ensure(to_underlying(property)).append(property_initial_value(property));
 
-    stream.discard_whitespace();
-    if (stream.has_next_token())
+    tokens.discard_whitespace();
+    if (tokens.has_next_token())
         return ParseError::SyntaxError;
 
     Vector<PropertyID> longhand_properties;
