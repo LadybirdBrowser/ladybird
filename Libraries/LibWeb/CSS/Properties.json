@@ -1413,7 +1413,6 @@
     ]
   },
   "content": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",

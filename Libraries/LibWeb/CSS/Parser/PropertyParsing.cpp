@@ -2341,15 +2341,10 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
         }
     };
 
-    if (tokens.remaining_token_count() == 1) {
-        auto transaction = tokens.begin_transaction();
-        if (auto keyword = parse_keyword_value(tokens)) {
-            if (is_single_value_keyword(keyword->to_keyword())) {
-                transaction.commit();
-                return keyword;
-            }
-        }
-    }
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none.release_nonnull();
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal.release_nonnull();
 
     auto transaction = tokens.begin_transaction();
 
@@ -2357,13 +2352,15 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
     StyleValueVector alt_text_values;
     bool in_alt_text = false;
 
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         auto& next = tokens.next_token();
         if (next.is_delim('/')) {
             if (in_alt_text || content_values.is_empty())
                 return nullptr;
             in_alt_text = true;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // /
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2376,6 +2373,7 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
             } else {
                 content_values.append(style_value.release_nonnull());
             }
+            tokens.discard_whitespace();
             continue;
         }
 
