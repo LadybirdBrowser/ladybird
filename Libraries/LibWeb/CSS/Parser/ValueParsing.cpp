@@ -3687,6 +3687,7 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
         return GridSize { Size::make_length_percentage(fixed_breadth.value()) };
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return {};
 
@@ -3731,6 +3732,7 @@ Optional<GridLineNames> Parser::parse_grid_line_names(TokenStream<ComponentValue
 
     auto transactions = tokens.begin_transaction();
     GridLineNames line_names;
+    tokens.discard_whitespace();
     auto const& token = tokens.consume_a_token();
     if (!token.is_block() || !token.block().is_square())
         return line_names;
@@ -3752,6 +3754,7 @@ Optional<GridLineNames> Parser::parse_grid_line_names(TokenStream<ComponentValue
 size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTrackSizeList& output, GridTrackParser const& track_parsing_callback, AllowTrailingLineNamesForEachTrack allow_trailing_line_names_for_each_track)
 {
     size_t parsed_tracks_count = 0;
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         auto transaction = tokens.begin_transaction();
         auto line_names = parse_grid_line_names(tokens);
@@ -3775,6 +3778,7 @@ size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTr
         }
         transaction.commit();
         parsed_tracks_count++;
+        tokens.discard_whitespace();
     }
 
     if (allow_trailing_line_names_for_each_track == AllowTrailingLineNamesForEachTrack::No) {
@@ -3789,6 +3793,7 @@ size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTr
 Optional<GridRepeat> Parser::parse_grid_track_repeat_impl(TokenStream<ComponentValue>& tokens, GridRepeatTypeParser const& repeat_type_parser, GridTrackParser const& repeat_track_parser)
 {
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
         return {};
@@ -3833,6 +3838,7 @@ Optional<GridRepeat> Parser::parse_grid_track_repeat_impl(TokenStream<ComponentV
 Optional<ExplicitGridTrack> Parser::parse_grid_minmax(TokenStream<ComponentValue>& tokens, GridMinMaxParamParser const& min_parser, GridMinMaxParamParser const& max_parser)
 {
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
         return {};
@@ -3902,6 +3908,7 @@ Optional<GridRepeat> Parser::parse_grid_auto_repeat(TokenStream<ComponentValue>&
     // <auto-repeat> = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
 
     GridRepeatTypeParser parse_repeat_type = [](TokenStream<ComponentValue>& tokens) -> Optional<GridRepeatParams> {
+        tokens.discard_whitespace();
         auto const& first_token = tokens.consume_a_token();
         if (!first_token.is_token() || !first_token.token().is(Token::Type::Ident))
             return {};
@@ -3946,7 +3953,7 @@ Optional<GridRepeat> Parser::parse_grid_fixed_repeat(TokenStream<ComponentValue>
 Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentValue>& tokens)
 {
     // <track-size> = <track-breadth> | minmax( <inflexible-breadth> , <track-breadth> ) | fit-content( <length-percentage [0,∞]> )
-
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return {};
 
@@ -3988,7 +3995,7 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
 Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentValue>& tokens)
 {
     // <fixed-size> = <fixed-breadth> | minmax( <fixed-breadth> , <track-breadth> ) | minmax( <inflexible-breadth> , <fixed-breadth> )
-
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return {};
 
@@ -4060,6 +4067,7 @@ GridTrackSizeList Parser::parse_grid_auto_track_list(TokenStream<ComponentValue>
     };
 
     parse_zero_or_more_fixed_tracks();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         if (parsed_track_count == 0)
             return {};
@@ -4108,9 +4116,9 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
     Optional<IntegerOrCalculated> parsed_integer;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
-    if (tokens.remaining_token_count() == 1 && tokens.next_token().is_ident("auto"sv)) {
-        tokens.discard_a_token();
+    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto)) {
         transaction.commit();
         return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_auto());
     }
@@ -4120,13 +4128,14 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
             if (is_span)
                 return nullptr;
 
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // span
 
             // NOTE: "span" must not appear in between <custom-ident> and <integer>
             if (tokens.has_next_token() && (parsed_custom_ident.has_value() || parsed_integer.has_value()))
                 return nullptr;
 
             is_span = true;
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -4135,6 +4144,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
                 return nullptr;
 
             parsed_custom_ident = maybe_parsed_custom_ident->to_string();
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -4143,6 +4153,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
                 return nullptr;
 
             parsed_integer = maybe_parsed_integer;
+            tokens.discard_whitespace();
             continue;
         }
 
