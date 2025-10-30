@@ -3141,7 +3141,6 @@
     ]
   },
   "padding": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "0",
     "positional-value-list-shorthand": true,
@@ -3162,7 +3161,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-block": {
-    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -3177,7 +3175,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-block-end": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "block-end"
@@ -3185,7 +3182,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-block-start": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "block-start"
@@ -3193,7 +3189,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-bottom": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3208,7 +3203,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-inline": {
-    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -3223,14 +3217,12 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-inline-end": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "inline-end"
     }
   },
   "padding-inline-start": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "padding",
       "mapping": "inline-start"
@@ -3238,7 +3230,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-left": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3253,7 +3244,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-right": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3268,7 +3258,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-top": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
