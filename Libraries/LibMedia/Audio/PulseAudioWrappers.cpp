@@ -12,7 +12,7 @@
 namespace Audio {
 
 static PulseAudioContext* s_pulse_audio_context;
-static Sync::Mutex s_pulse_audio_context_mutex;
+static Sync::RecursiveMutex s_pulse_audio_context_mutex;
 
 ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
