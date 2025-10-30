@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <script nonce="abc" src="support/helper.sub.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+  trustedTypes.createPolicy("default", {
+    createScript: ((s, _, sink) => {
+      // eval's source string is "1+1", the Function constructor's source string is "return 1+1"
+      // so we can distinguish between the two.
+      if (s === "1+1") {
+        assert_equals(sink, "eval");
+      } else {
+        assert_equals(sink, "Function");
+      }
+      return s
+    })
+  });
+  const p = trustedTypes.createPolicy("p", {createScript: s => s});
+
+  test(t => {
+    assert_equals(eval(p.createScript('1+1')), 2);
+  }, "eval of TrustedScript works.");
+
+  test(t => {
+    assert_equals(eval?.(p.createScript('1+1')), 2);
+  }, "indirect eval of TrustedScript works.");
+
+  test(t => {
+    assert_equals(eval('1+1'), 2);
+  }, "eval of string works.");
+
+  test(t => {
+    assert_equals(eval(42), 42);
+    assert_object_equals(eval({}), {});
+    assert_equals(eval(null), null);
+    assert_equals(eval(undefined), undefined);
+   }, "eval of !TrustedScript and !string works.");
+
+  test(t => {
+    assert_equals(new Function(p.createScript('return 1+1'))(), 2);
+  }, "Function constructor of TrustedScript works.");
+
+  test(t => {
+    assert_equals(new Function('return 1+1')(), 2);
+  }, "Function constructor of string works.");
+
+  test(t => {
+    assert_equals(new Function(p.createScript('val'),p.createScript('return val+1'))(1), 2);
+  }, "Function constructor of all TrustedScripts works.");
+
+  test(t => {
+    assert_equals(new Function('val', 'return val+1')(1), 2);
+  }, "Function constructor of all strings works.");
+
+  test(t => {
+    assert_equals(new Function('val', p.createScript('return val+1'))(1), 2);
+  }, "Function constructor of string and TrustedScript works.");
+
+  const AsyncFunction = async function() {}.constructor;
+  test(t => {
+    new AsyncFunction(p.createScript('return 1+1'))
+  }, "Async Function constructor of TrustedScript works.");
+
+  test(t => {
+    new AsyncFunction('return 1+1')
+  }, "AsyncFunction constructor of string works.");
+
+  test(t => {
+    new AsyncFunction(p.createScript('val'),p.createScript('return val+1'))
+  }, "AsyncFunction constructor of all TrustedScripts works.");
+
+  test(t => {
+    new AsyncFunction('val', 'return val+1')
+  }, "AsyncFunction constructor of all strings works.");
+
+  test(t => {
+    new AsyncFunction('val', p.createScript('return val+1'))
+  }, "AsyncFunction constructor of string and TrustedScript works.");
+
+  const GeneratorFunction = function*() {}.constructor;
+  test(t => {
+    new GeneratorFunction(p.createScript('return 1+1'))
+  }, "GeneratorFunction constructor of TrustedScript works.");
+
+  test(t => {
+    new GeneratorFunction('return 1+1')
+  }, "GeneratorFunction constructor of string works.");
+
+  test(t => {
+    new GeneratorFunction(p.createScript('val'),p.createScript('return val+1'))
+  }, "GeneratorFunction constructor of all TrustedScripts works.");
+
+  test(t => {
+    new GeneratorFunction('val', 'return val+1')
+  }, "GeneratorFunction constructor of all strings works.");
+
+  test(t => {
+    new GeneratorFunction('val', p.createScript('return val+1'))
+  }, "GeneratorFunction constructor of string and TrustedScript works.");
+
+  const AsyncGeneratorFunction = async function*() {}.constructor;
+  test(t => {
+    new AsyncGeneratorFunction(p.createScript('return 1+1'));
+  }, "AsyncGeneratorFunction constructor of TrustedScript works.");
+
+  test(t => {
+    new AsyncGeneratorFunction('return 1+1');
+  }, "AsyncGeneratorFunction constructor of string works.");
+
+  test(t => {
+    new AsyncGeneratorFunction(p.createScript('val'),p.createScript('return val+1'));
+  }, "AsyncGeneratorFunction constructor of all TrustedScripts works.");
+
+  test(t => {
+    new AsyncGeneratorFunction('val', 'return val+1');
+  }, "AsyncGeneratorFunction constructor of all strings works.");
+
+  test(t => {
+    new AsyncGeneratorFunction('val', p.createScript('return val+1'));
+  }, "AsyncGeneratorFunction constructor of string and TrustedScript works.");
+</script>
+
