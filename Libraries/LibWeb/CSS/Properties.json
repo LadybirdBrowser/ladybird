@@ -3037,7 +3037,6 @@
     "__comment": "FIXME: We don't implement this property any further than compute time"
   },
   "outline": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "medium currentColor none",
@@ -3058,7 +3057,6 @@
     ]
   },
   "outline-offset": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3077,7 +3075,6 @@
     ]
   },
   "outline-width": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
