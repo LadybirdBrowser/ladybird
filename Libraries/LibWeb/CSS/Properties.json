@@ -3278,7 +3278,6 @@
     ]
   },
   "position-anchor": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3290,7 +3289,6 @@
     ]
   },
   "position-area": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "__comment": "Animation type is currently listed as TBD in the specification",
     "inherited": false,
@@ -3303,7 +3301,6 @@
     ]
   },
   "position-try-fallbacks": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -3316,7 +3313,6 @@
     ]
   },
   "position-try-order": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
