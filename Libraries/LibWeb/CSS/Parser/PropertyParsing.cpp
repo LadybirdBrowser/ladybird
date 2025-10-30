@@ -4526,21 +4526,17 @@ RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>&
 {
     // https://www.w3.org/TR/css-content-3/#quotes-property
     // auto | none | [ <string> <string> ]+
-    auto transaction = tokens.begin_transaction();
 
-    if (tokens.remaining_token_count() == 1) {
-        auto keyword = parse_keyword_value(tokens);
-        if (keyword && property_accepts_keyword(PropertyID::Quotes, keyword->to_keyword())) {
-            transaction.commit();
-            return keyword;
-        }
-        return nullptr;
-    }
+    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return auto_keyword.release_nonnull();
+
+    if (auto none_keyword = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none_keyword.release_nonnull();
+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     // Parse an even number of <string> values.
-    if (tokens.remaining_token_count() % 2 != 0)
-        return nullptr;
-
     StyleValueVector string_values;
     while (tokens.has_next_token()) {
         auto maybe_string = parse_string_value(tokens);
@@ -4548,7 +4544,11 @@ RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>&
             return nullptr;
 
         string_values.append(maybe_string.release_nonnull());
+        tokens.discard_whitespace();
     }
+
+    if (string_values.size() % 2 != 0)
+        return nullptr;
 
     transaction.commit();
     return StyleValueList::create(move(string_values), StyleValueList::Separator::Space);
