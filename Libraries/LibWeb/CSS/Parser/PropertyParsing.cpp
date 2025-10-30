@@ -1957,28 +1957,33 @@ RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>
 
     Vector<PropertyID> remaining_longhands { PropertyID::ColumnCount, PropertyID::ColumnWidth };
     int found_autos = 0;
-    int tokens_read = 0;
+    int values_read = 0;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_delim('/')) {
-            if (tokens_read == 0)
+            if (values_read == 0)
                 return nullptr;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // /
+            tokens.discard_whitespace();
+
             auto value = parse_css_value_for_property(PropertyID::ColumnHeight, tokens);
             if (!value)
                 return nullptr;
             column_height = value.release_nonnull();
 
+            tokens.discard_whitespace();
             if (tokens.has_next_token())
                 return nullptr;
             break;
         }
-        if (tokens_read == 2)
+        if (values_read == 2)
             return nullptr;
-        tokens_read++;
+        values_read++;
 
         auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+        tokens.discard_whitespace();
         if (!property_and_value.has_value())
             return nullptr;
         auto& value = property_and_value->style_value;

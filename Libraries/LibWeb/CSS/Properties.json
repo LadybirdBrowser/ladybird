@@ -1333,7 +1333,6 @@
     ]
   },
   "column-count": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1345,7 +1344,6 @@
     ]
   },
   "column-gap": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
@@ -1359,7 +1357,6 @@
     "percentages-resolve-to": "length"
   },
   "column-height": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1379,7 +1376,6 @@
     ]
   },
   "column-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1391,7 +1387,6 @@
     ]
   },
   "columns": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto auto / auto",
     "longhands": [
