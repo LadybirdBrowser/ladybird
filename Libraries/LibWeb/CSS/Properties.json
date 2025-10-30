@@ -3472,7 +3472,6 @@
     ]
   },
   "shape-image-threshold": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3482,7 +3481,6 @@
     ]
   },
   "shape-margin": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3493,7 +3491,6 @@
     "percentages-resolve-to": "length"
   },
   "shape-outside": {
-    "strip-whitespace": true,
     "affects-layout": true,
     "animation-type": "by-computed-value",
     "inherited": false,
