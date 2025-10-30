@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-transitions-1/#transition-duration-property">
+<link rel="help" href="https://www.w3.org/TR/css-transitions-1/#transition-delay-property">
+<link rel="help" href="https://www.w3.org/TR/css-transitions-1/#transition-property-property">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_not_animatable({
+  property: 'transition-duration',
+  from: '1s',
+  to: '2s',
+  underlying: '0s',
+});
+
+test_not_animatable({
+  property: 'transition-delay',
+  from: '1s',
+  to: '2s',
+  underlying: '0s',
+});
+
+test_not_animatable({
+  property: 'transition-property',
+  from: 'color',
+  to: 'background-color',
+  underlying: 'all',
+});
+</script>
