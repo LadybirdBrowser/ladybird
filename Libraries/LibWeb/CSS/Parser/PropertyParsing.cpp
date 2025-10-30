@@ -3750,13 +3750,15 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
         remaining_layer_properties.unchecked_append(PropertyID::MaskMode);
     };
 
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (tokens.next_token().is(Token::Type::Comma)) {
             has_multiple_layers = true;
             if (!mask_layer_is_valid())
                 return nullptr;
             complete_mask_layer();
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // ,
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -3772,6 +3774,7 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
         case PropertyID::MaskImage:
             VERIFY(!mask_image);
             mask_image = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         // <position> [ / <bg-size> ]?
         case PropertyID::MaskPosition: {
@@ -3780,15 +3783,18 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
 
             // Attempt to parse `/ <bg-size>`
             auto mask_size_transaction = tokens.begin_transaction();
-            auto const& maybe_slash = tokens.consume_a_token();
-            if (maybe_slash.is_delim('/')) {
+            tokens.discard_whitespace();
+            if (auto const& maybe_slash = tokens.consume_a_token(); maybe_slash.is_delim('/')) {
+                tokens.discard_whitespace();
                 if (auto maybe_mask_size = parse_single_background_size_value(PropertyID::MaskSize, tokens)) {
                     mask_size_transaction.commit();
+                    tokens.discard_whitespace();
                     mask_size = maybe_mask_size.release_nonnull();
                     continue;
                 }
                 return nullptr;
             }
+            tokens.discard_whitespace();
             continue;
         }
         // <repeat-style>
@@ -3797,6 +3803,7 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
             tokens.reconsume_current_input_token();
             if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 mask_repeat = maybe_repeat.release_nonnull();
+                tokens.discard_whitespace();
                 continue;
             }
             return nullptr;
@@ -3820,17 +3827,20 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
             } else {
                 VERIFY_NOT_REACHED();
             }
+            tokens.discard_whitespace();
             continue;
         }
         // <compositing-operator>
         case PropertyID::MaskComposite:
             VERIFY(!mask_composite);
             mask_composite = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         // <masking-mode>
         case PropertyID::MaskMode:
             VERIFY(!mask_mode);
             mask_mode = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         default:
             VERIFY_NOT_REACHED();
