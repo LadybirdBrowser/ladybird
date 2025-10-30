@@ -15,7 +15,7 @@ namespace IPC {
 
 void SendQueue::enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds)
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     VERIFY(MUST(m_stream.write_some(bytes.span())) == bytes.size());
     m_fds.append(fds.data(), fds.size());
     m_condition.signal();
@@ -23,7 +23,7 @@ void SendQueue::enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds)
 
 SendQueue::Running SendQueue::block_until_message_enqueued()
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     while (m_stream.is_eof() && m_fds.is_empty() && m_running)
         m_condition.wait();
     return m_running ? Running::Yes : Running::No;
@@ -31,7 +31,7 @@ SendQueue::Running SendQueue::block_until_message_enqueued()
 
 SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     BytesAndFds result;
     auto bytes_to_send = min(max_bytes, m_stream.used_buffer_size());
     result.bytes.resize(bytes_to_send);
@@ -47,14 +47,14 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
 
 void SendQueue::discard(size_t bytes_count, size_t fds_count)
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     MUST(m_stream.discard(bytes_count));
     m_fds.remove(0, fds_count);
 }
 
 void SendQueue::stop()
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     m_running = false;
     m_condition.signal();
 }
@@ -99,20 +99,20 @@ void TransportSocket::stop_send_thread()
 
 void TransportSocket::set_up_read_hook(Function<void()> hook)
 {
-    Threading::RWLockLocker<Threading::LockMode::Write> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Write> lock(m_socket_rw_lock);
     VERIFY(m_socket->is_open());
     m_socket->on_ready_to_read = move(hook);
 }
 
 bool TransportSocket::is_open() const
 {
-    Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Read> lock(m_socket_rw_lock);
     return m_socket->is_open();
 }
 
 void TransportSocket::close()
 {
-    Threading::RWLockLocker<Threading::LockMode::Write> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Write> lock(m_socket_rw_lock);
     m_socket->close();
 }
 
@@ -133,7 +133,7 @@ void TransportSocket::close_after_sending_all_pending_messages()
 
 void TransportSocket::wait_until_readable()
 {
-    Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Read> lock(m_socket_rw_lock);
     auto maybe_did_become_readable = m_socket->can_read_without_blocking(-1);
     if (maybe_did_become_readable.is_error()) {
         dbgln("TransportSocket::wait_until_readable: {}", maybe_did_become_readable.error());
@@ -220,7 +220,7 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
     auto byte_count = bytes.size();
     auto fd_count = fds.size();
 
-    Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Read> lock(m_socket_rw_lock);
 
     if (!m_socket->is_open())
         return TransferState::SocketClosed;
@@ -258,7 +258,7 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
 
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
 {
-    Threading::RWLockLocker<Threading::LockMode::Read> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Read> lock(m_socket_rw_lock);
 
     bool should_shutdown = false;
     while (is_open()) {
@@ -352,13 +352,13 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
 
 ErrorOr<int> TransportSocket::release_underlying_transport_for_transfer()
 {
-    Threading::RWLockLocker<Threading::LockMode::Write> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Write> lock(m_socket_rw_lock);
     return m_socket->release_fd();
 }
 
 ErrorOr<IPC::File> TransportSocket::clone_for_transfer()
 {
-    Threading::RWLockLocker<Threading::LockMode::Write> lock(m_socket_rw_lock);
+    Sync::RWLockLocker<Sync::LockMode::Write> lock(m_socket_rw_lock);
     return IPC::File::clone_fd(m_socket->fd().value());
 }
 

@@ -20,8 +20,8 @@
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimedImage.h>
 #include <LibMedia/Track.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 
 namespace Media {
 
@@ -72,14 +72,14 @@ private:
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
 
-        [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
+        [[nodiscard]] Sync::MutexLocker take_lock() { return Sync::MutexLocker(m_mutex); }
         void wake() { m_wait_condition.broadcast(); }
 
     private:
         Core::EventLoop& m_main_thread_event_loop;
 
-        Threading::Mutex m_mutex;
-        Threading::ConditionVariable m_wait_condition { m_mutex };
+        Sync::Mutex m_mutex;
+        Sync::ConditionVariable m_wait_condition { m_mutex };
         Atomic<bool> m_exit { false };
 
         NonnullRefPtr<MutexedDemuxer> m_demuxer;
