@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 161 tests
 
-152 Pass
-9 Fail
+156 Pass
+5 Fail
 Pass	Can set 'margin-top' to CSS-wide keywords: initial
 Pass	Can set 'margin-top' to CSS-wide keywords: inherit
 Pass	Can set 'margin-top' to CSS-wide keywords: unset
 Pass	Can set 'margin-top' to CSS-wide keywords: revert
-Fail	Can set 'margin-top' to var() references:  var(--A)
+Pass	Can set 'margin-top' to var() references:  var(--A)
 Pass	Can set 'margin-top' to the 'auto' keyword: auto
 Pass	Can set 'margin-top' to a percent: 0%
 Pass	Can set 'margin-top' to a percent: -3.14%
@@ -40,7 +40,7 @@ Pass	Can set 'margin-left' to CSS-wide keywords: initial
 Pass	Can set 'margin-left' to CSS-wide keywords: inherit
 Pass	Can set 'margin-left' to CSS-wide keywords: unset
 Pass	Can set 'margin-left' to CSS-wide keywords: revert
-Fail	Can set 'margin-left' to var() references:  var(--A)
+Pass	Can set 'margin-left' to var() references:  var(--A)
 Pass	Can set 'margin-left' to the 'auto' keyword: auto
 Pass	Can set 'margin-left' to a percent: 0%
 Pass	Can set 'margin-left' to a percent: -3.14%
@@ -72,7 +72,7 @@ Pass	Can set 'margin-right' to CSS-wide keywords: initial
 Pass	Can set 'margin-right' to CSS-wide keywords: inherit
 Pass	Can set 'margin-right' to CSS-wide keywords: unset
 Pass	Can set 'margin-right' to CSS-wide keywords: revert
-Fail	Can set 'margin-right' to var() references:  var(--A)
+Pass	Can set 'margin-right' to var() references:  var(--A)
 Pass	Can set 'margin-right' to the 'auto' keyword: auto
 Pass	Can set 'margin-right' to a percent: 0%
 Pass	Can set 'margin-right' to a percent: -3.14%
@@ -104,7 +104,7 @@ Pass	Can set 'margin-bottom' to CSS-wide keywords: initial
 Pass	Can set 'margin-bottom' to CSS-wide keywords: inherit
 Pass	Can set 'margin-bottom' to CSS-wide keywords: unset
 Pass	Can set 'margin-bottom' to CSS-wide keywords: revert
-Fail	Can set 'margin-bottom' to var() references:  var(--A)
+Pass	Can set 'margin-bottom' to var() references:  var(--A)
 Pass	Can set 'margin-bottom' to the 'auto' keyword: auto
 Pass	Can set 'margin-bottom' to a percent: 0%
 Pass	Can set 'margin-bottom' to a percent: -3.14%

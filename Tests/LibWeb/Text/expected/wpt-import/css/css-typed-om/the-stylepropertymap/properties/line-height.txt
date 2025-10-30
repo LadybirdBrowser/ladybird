@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 32 tests
 
-29 Pass
-3 Fail
+30 Pass
+2 Fail
 Pass	Can set 'line-height' to CSS-wide keywords: initial
 Pass	Can set 'line-height' to CSS-wide keywords: inherit
 Pass	Can set 'line-height' to CSS-wide keywords: unset
 Pass	Can set 'line-height' to CSS-wide keywords: revert
-Fail	Can set 'line-height' to var() references:  var(--A)
+Pass	Can set 'line-height' to var() references:  var(--A)
 Pass	Can set 'line-height' to the 'normal' keyword: normal
 Pass	Can set 'line-height' to a length: 0px
 Pass	Can set 'line-height' to a length: -3.14em
