@@ -550,7 +550,6 @@
     "percentages-resolve-to": "length"
   },
   "block-size": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "size",
       "mapping": "block-size"
@@ -2297,7 +2296,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "height": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2327,7 +2325,6 @@
     ]
   },
   "inline-size": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "size",
       "mapping": "inline-size"
@@ -2879,7 +2876,6 @@
     ]
   },
   "max-block-size": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "max-size",
       "mapping": "block-size"
@@ -2887,7 +2883,6 @@
     "initial": "none"
   },
   "max-height": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -2907,7 +2902,6 @@
     ]
   },
   "max-inline-size": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "max-size",
       "mapping": "inline-size"
@@ -2915,7 +2909,6 @@
     "initial": "none"
   },
   "max-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -2935,7 +2928,6 @@
     ]
   },
   "min-block-size": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "min-size",
       "mapping": "block-size"
@@ -2943,7 +2935,6 @@
     "initial": "0"
   },
   "min-height": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2963,7 +2954,6 @@
     ]
   },
   "min-inline-size": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "min-size",
       "mapping": "inline-size"
@@ -2971,7 +2961,6 @@
     "initial": "0"
   },
   "min-width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4156,7 +4145,6 @@
     "__comment": "FIXME: We don't implement this property any further than compute time"
   },
   "width": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
