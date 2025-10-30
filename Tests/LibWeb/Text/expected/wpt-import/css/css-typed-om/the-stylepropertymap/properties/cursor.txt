@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 69 tests
 
-64 Pass
-5 Fail
+65 Pass
+4 Fail
 Pass	Can set 'cursor' to CSS-wide keywords: initial
 Pass	Can set 'cursor' to CSS-wide keywords: inherit
 Pass	Can set 'cursor' to CSS-wide keywords: unset
 Pass	Can set 'cursor' to CSS-wide keywords: revert
-Fail	Can set 'cursor' to var() references:  var(--A)
+Pass	Can set 'cursor' to var() references:  var(--A)
 Pass	Can set 'cursor' to the 'auto' keyword: auto
 Pass	Can set 'cursor' to the 'default' keyword: default
 Pass	Can set 'cursor' to the 'none' keyword: none

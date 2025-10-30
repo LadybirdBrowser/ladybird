@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 56 tests
 
-55 Pass
-1 Fail
+56 Pass
 Pass	Can set 'display' to CSS-wide keywords: initial
 Pass	Can set 'display' to CSS-wide keywords: inherit
 Pass	Can set 'display' to CSS-wide keywords: unset
 Pass	Can set 'display' to CSS-wide keywords: revert
-Fail	Can set 'display' to var() references:  var(--A)
+Pass	Can set 'display' to var() references:  var(--A)
 Pass	Can set 'display' to the 'none' keyword: none
 Pass	Can set 'display' to the 'block' keyword: block
 Pass	Can set 'display' to the 'inline' keyword: inline

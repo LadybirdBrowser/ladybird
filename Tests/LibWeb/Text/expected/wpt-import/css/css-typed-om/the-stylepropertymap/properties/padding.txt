@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 124 tests
 
-116 Pass
-8 Fail
+120 Pass
+4 Fail
 Pass	Can set 'padding-top' to CSS-wide keywords: initial
 Pass	Can set 'padding-top' to CSS-wide keywords: inherit
 Pass	Can set 'padding-top' to CSS-wide keywords: unset
 Pass	Can set 'padding-top' to CSS-wide keywords: revert
-Fail	Can set 'padding-top' to var() references:  var(--A)
+Pass	Can set 'padding-top' to var() references:  var(--A)
 Pass	Can set 'padding-top' to a percent: 0%
 Fail	Can set 'padding-top' to a percent: -3.14%
 Pass	Can set 'padding-top' to a percent: 3.14%
@@ -39,7 +39,7 @@ Pass	Can set 'padding-left' to CSS-wide keywords: initial
 Pass	Can set 'padding-left' to CSS-wide keywords: inherit
 Pass	Can set 'padding-left' to CSS-wide keywords: unset
 Pass	Can set 'padding-left' to CSS-wide keywords: revert
-Fail	Can set 'padding-left' to var() references:  var(--A)
+Pass	Can set 'padding-left' to var() references:  var(--A)
 Pass	Can set 'padding-left' to a percent: 0%
 Fail	Can set 'padding-left' to a percent: -3.14%
 Pass	Can set 'padding-left' to a percent: 3.14%
@@ -70,7 +70,7 @@ Pass	Can set 'padding-right' to CSS-wide keywords: initial
 Pass	Can set 'padding-right' to CSS-wide keywords: inherit
 Pass	Can set 'padding-right' to CSS-wide keywords: unset
 Pass	Can set 'padding-right' to CSS-wide keywords: revert
-Fail	Can set 'padding-right' to var() references:  var(--A)
+Pass	Can set 'padding-right' to var() references:  var(--A)
 Pass	Can set 'padding-right' to a percent: 0%
 Fail	Can set 'padding-right' to a percent: -3.14%
 Pass	Can set 'padding-right' to a percent: 3.14%
@@ -101,7 +101,7 @@ Pass	Can set 'padding-bottom' to CSS-wide keywords: initial
 Pass	Can set 'padding-bottom' to CSS-wide keywords: inherit
 Pass	Can set 'padding-bottom' to CSS-wide keywords: unset
 Pass	Can set 'padding-bottom' to CSS-wide keywords: revert
-Fail	Can set 'padding-bottom' to var() references:  var(--A)
+Pass	Can set 'padding-bottom' to var() references:  var(--A)
 Pass	Can set 'padding-bottom' to a percent: 0%
 Fail	Can set 'padding-bottom' to a percent: -3.14%
 Pass	Can set 'padding-bottom' to a percent: 3.14%
