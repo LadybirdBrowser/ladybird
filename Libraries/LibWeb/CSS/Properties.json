@@ -2064,7 +2064,6 @@
     ]
   },
   "grid": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2083,7 +2082,6 @@
     ]
   },
   "grid-area": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2100,7 +2098,6 @@
     ]
   },
   "grid-auto-columns": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2115,13 +2112,11 @@
     "percentages-resolve-to": "length"
   },
   "grid-auto-flow": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row"
   },
   "grid-auto-rows": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2136,7 +2131,6 @@
     "percentages-resolve-to": "length"
   },
   "grid-column": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2151,7 +2145,6 @@
     ]
   },
   "grid-column-end": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2166,7 +2159,6 @@
     "legacy-alias-for": "column-gap"
   },
   "grid-column-start": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2181,7 +2173,6 @@
     "legacy-alias-for": "gap"
   },
   "grid-row": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2196,7 +2187,6 @@
     ]
   },
   "grid-row-end": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2211,7 +2201,6 @@
     "legacy-alias-for": "row-gap"
   },
   "grid-row-start": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2223,7 +2212,6 @@
     ]
   },
   "grid-template": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "valid-identifiers": [
@@ -2243,7 +2231,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-areas": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -2255,7 +2242,6 @@
     ]
   },
   "grid-template-columns": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -2272,7 +2258,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-rows": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",

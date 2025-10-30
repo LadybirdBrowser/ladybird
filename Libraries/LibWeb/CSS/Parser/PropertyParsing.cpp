@@ -5209,16 +5209,19 @@ RefPtr<StyleValue const> Parser::parse_grid_track_placement_shorthand_value(Prop
     auto end_property = (property_id == PropertyID::GridColumn) ? PropertyID::GridColumnEnd : PropertyID::GridRowEnd;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     NonnullRawPtr<ComponentValue const> current_token = tokens.consume_a_token();
 
     Vector<ComponentValue> track_start_placement_tokens;
     while (true) {
         if (current_token->is_delim('/')) {
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 return nullptr;
             break;
         }
         track_start_placement_tokens.append(current_token);
+        tokens.discard_whitespace();
         if (!tokens.has_next_token())
             break;
         current_token = tokens.consume_a_token();
@@ -5229,6 +5232,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_placement_shorthand_value(Prop
         current_token = tokens.consume_a_token();
         while (true) {
             track_end_placement_tokens.append(current_token);
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 break;
             current_token = tokens.consume_a_token();
@@ -5295,7 +5299,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(Prop
         if (auto parsed_template_rows_values = parse_grid_track_size_list(tokens)) {
             tokens.discard_whitespace();
             if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // /
                 tokens.discard_whitespace();
                 if (auto parsed_template_columns_values = parse_grid_track_size_list(tokens)) {
                     transaction.commit();
@@ -5316,9 +5320,9 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(Prop
         Vector<ComponentValue> area_tokens;
 
         GridTrackParser parse_grid_track = [&](TokenStream<ComponentValue>& tokens) -> Optional<ExplicitGridTrack> {
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 return {};
-            tokens.discard_whitespace();
             auto const& token = tokens.consume_a_token();
             if (!token.is(Token::Type::String))
                 return {};
@@ -5343,7 +5347,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(Prop
 
             RefPtr columns_track_list = property_initial_value(PropertyID::GridTemplateColumns);
             if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // /
                 tokens.discard_whitespace();
                 if (auto parsed_columns = parse_explicit_track_list(tokens); !parsed_columns.is_empty()) {
                     transaction.commit();
@@ -5371,11 +5375,13 @@ RefPtr<StyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<Com
     auto transaction = tokens.begin_transaction();
 
     auto parse_placement_tokens = [&](Vector<ComponentValue>& placement_tokens, bool check_for_delimiter = true) -> void {
+        tokens.discard_whitespace();
         while (tokens.has_next_token()) {
             auto& current_token = tokens.consume_a_token();
             if (check_for_delimiter && current_token.is_delim('/'))
                 break;
             placement_tokens.append(current_token);
+            tokens.discard_whitespace();
         }
     };
 
@@ -5468,11 +5474,11 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         for (int i = 0; i < 2 && tokens.has_next_token(); ++i) {
             auto const& token = tokens.next_token();
             if (token.is_ident("auto-flow"sv) && !found_auto_flow) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // auto-flow
                 tokens.discard_whitespace();
                 found_auto_flow = true;
             } else if (token.is_ident("dense"sv) && dense == GridAutoFlowStyleValue::Dense::No) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // dense
                 tokens.discard_whitespace();
                 dense = GridAutoFlowStyleValue::Dense::Yes;
             } else {
@@ -5502,7 +5508,7 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         tokens.discard_whitespace();
         if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
             return nullptr;
-        tokens.discard_a_token();
+        tokens.discard_a_token(); // /
         tokens.discard_whitespace();
 
         auto grid_template_columns = parse_grid_track_size_list(tokens);
@@ -5527,7 +5533,7 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         tokens.discard_whitespace();
         if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
             return nullptr;
-        tokens.discard_a_token();
+        tokens.discard_a_token(); // /
         tokens.discard_whitespace();
 
         auto grid_auto_flow = parse_auto_flow_and_dense(GridAutoFlowStyleValue::Axis::Column);
@@ -5580,6 +5586,7 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
     Optional<size_t> column_count;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     while (tokens.has_next_token() && tokens.next_token().is(Token::Type::String)) {
         Vector<String> grid_area_columns;
         auto string = tokens.consume_a_token().token().string().code_points();
@@ -5610,6 +5617,7 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
         }
 
         grid_area_rows.append(move(grid_area_columns));
+        tokens.discard_whitespace();
     }
 
     // FIXME: If a named grid area spans multiple grid cells, but those cells do not form a single filled-in rectangle, the declaration is invalid.
@@ -5646,29 +5654,32 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
     auto transaction = tokens.begin_transaction();
 
     auto parse_axis = [&]() -> Optional<GridAutoFlowStyleValue::Axis> {
-        auto transaction = tokens.begin_transaction();
+        auto axis_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("row"sv)) {
-            transaction.commit();
+            axis_transaction.commit();
             return GridAutoFlowStyleValue::Axis::Row;
-        } else if (ident.equals_ignoring_ascii_case("column"sv)) {
-            transaction.commit();
+        }
+        if (ident.equals_ignoring_ascii_case("column"sv)) {
+            axis_transaction.commit();
             return GridAutoFlowStyleValue::Axis::Column;
         }
         return {};
     };
 
     auto parse_dense = [&]() -> Optional<GridAutoFlowStyleValue::Dense> {
-        auto transaction = tokens.begin_transaction();
+        auto dense_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("dense"sv)) {
-            transaction.commit();
+            dense_transaction.commit();
             return GridAutoFlowStyleValue::Dense::Yes;
         }
         return {};
@@ -5682,6 +5693,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
         axis = parse_axis();
     }
 
+    tokens.discard_whitespace();
     if (tokens.has_next_token())
         return nullptr;
 
@@ -5697,22 +5709,21 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<Componen
     // none
     {
         auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         if (tokens.has_next_token() && tokens.next_token().is_ident("none"sv)) {
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // none
             transaction.commit();
             return GridTrackSizeListStyleValue::make_none();
         }
     }
 
     // <auto-track-list>
-    auto auto_track_list = parse_grid_auto_track_list(tokens);
-    if (!auto_track_list.is_empty()) {
+    if (auto auto_track_list = parse_grid_auto_track_list(tokens); !auto_track_list.is_empty()) {
         return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(auto_track_list)));
     }
 
     // <track-list>
-    auto track_list = parse_grid_track_list(tokens);
-    if (!track_list.is_empty()) {
+    if (auto track_list = parse_grid_track_list(tokens); !track_list.is_empty()) {
         return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(track_list)));
     }
 
