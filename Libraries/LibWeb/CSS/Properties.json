@@ -1654,7 +1654,6 @@
     ]
   },
   "cx": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CX.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1669,7 +1668,6 @@
     ]
   },
   "cy": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CY.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3445,7 +3443,6 @@
     ]
   },
   "r": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#R.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3501,7 +3498,6 @@
     "percentages-resolve-to": "length"
   },
   "rx": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RX.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3519,7 +3515,6 @@
     ]
   },
   "ry": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RY.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4249,7 +4244,6 @@
     ]
   },
   "x": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#X.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4264,7 +4258,6 @@
     ]
   },
   "y": {
-    "strip-whitespace": true,
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#Y.",
     "animation-type": "by-computed-value",
     "inherited": false,
