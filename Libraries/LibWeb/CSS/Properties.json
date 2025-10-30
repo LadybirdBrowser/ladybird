@@ -2697,7 +2697,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "mask": {
-    "strip-whitespace": true,
     "__comment": "FIXME: reset mask-border",
     "inherited": false,
     "affects-layout": false,
@@ -2715,7 +2714,6 @@
     ]
   },
   "mask-clip": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2729,7 +2727,6 @@
     "initial": "border-box"
   },
   "mask-composite": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2740,7 +2737,6 @@
     "initial": "add"
   },
   "mask-image": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2756,7 +2752,6 @@
     "initial": "none"
   },
   "mask-mode": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2767,7 +2762,6 @@
     "initial": "match-source"
   },
   "mask-origin": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2778,7 +2772,6 @@
     "initial": "border-box"
   },
   "mask-position": {
-    "strip-whitespace": true,
     "animation-type": "repeatable-list",
     "affects-layout": false,
     "inherited": false,
@@ -2790,7 +2783,6 @@
     "percentages-resolve-to": "length"
   },
   "mask-repeat": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -2806,7 +2798,6 @@
     ]
   },
   "mask-size": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -2825,7 +2816,6 @@
     "percentages-resolve-to": "length"
   },
   "mask-type": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
