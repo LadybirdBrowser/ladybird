@@ -18,7 +18,7 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem)
+    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem LibSync)
 endforeach()
 
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)

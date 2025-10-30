@@ -24,6 +24,7 @@ endforeach()
 ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
 
 target_link_libraries(TestContentFilter PRIVATE LibURL)
+target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 

@@ -9,6 +9,7 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportMachPort.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include <mach/mach.h>
@@ -145,7 +146,7 @@ void TransportMachPort::notify_read_available()
 void TransportMachPort::mark_peer_eof()
 {
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
     }
     m_incoming_cv.broadcast();
@@ -164,14 +165,14 @@ intptr_t TransportMachPort::io_thread_loop()
 
         Vector<PendingMessage> messages_to_send;
         {
-            Threading::MutexLocker locker(m_send_mutex);
+            Sync::MutexLocker locker(m_send_mutex);
             messages_to_send = move(m_pending_send_messages);
         }
         for (auto& message : messages_to_send)
             send_mach_message(message);
 
         if (m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
-            Threading::MutexLocker locker(m_send_mutex);
+            Sync::MutexLocker locker(m_send_mutex);
             if (!m_pending_send_messages.is_empty())
                 continue;
             m_io_thread_state = IOThreadState::Stopped;
@@ -308,7 +309,7 @@ void TransportMachPort::process_received_message(u8* buffer)
         return;
 
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         m_incoming_messages.append(move(message));
     }
     m_incoming_cv.signal();
@@ -327,7 +328,7 @@ void TransportMachPort::set_up_read_hook(Function<void()> hook)
     };
 
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         if (!m_incoming_messages.is_empty())
             notify_read_available();
     }
@@ -352,7 +353,7 @@ void TransportMachPort::close_after_sending_all_pending_messages()
 
 void TransportMachPort::wait_until_readable()
 {
-    Threading::MutexLocker lock(m_incoming_mutex);
+    Sync::MutexLocker lock(m_incoming_mutex);
     while (m_incoming_messages.is_empty() && !m_peer_eof)
         m_incoming_cv.wait();
 }
@@ -360,7 +361,7 @@ void TransportMachPort::wait_until_readable()
 void TransportMachPort::post_message(Vector<u8> const& bytes, Vector<Attachment>& attachments)
 {
     {
-        Threading::MutexLocker locker(m_send_mutex);
+        Sync::MutexLocker locker(m_send_mutex);
         m_pending_send_messages.append(PendingMessage { bytes, move(attachments) });
     }
     wake_io_thread();
@@ -370,7 +371,7 @@ TransportMachPort::ShouldShutdown TransportMachPort::read_as_many_messages_as_po
 {
     Vector<NonnullOwnPtr<Message>> messages;
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         messages = move(m_incoming_messages);
     }
     for (auto& message : messages)

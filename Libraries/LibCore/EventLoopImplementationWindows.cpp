@@ -16,8 +16,8 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/Timer.h>
-#include <LibThreading/Mutex.h>
-#include <LibThreading/MutexProtected.h>
+#include <LibSync/Mutex.h>
+#include <LibSync/MutexProtected.h>
 
 struct OwnHandle {
     HANDLE handle = NULL;
@@ -152,7 +152,7 @@ struct ThreadData {
     NonnullOwnPtr<EventLoopWake> wake_data;
 };
 
-static Threading::MutexProtected<HashMap<pid_t, NonnullOwnPtr<EventLoopProcess>>> s_processes;
+static Sync::MutexProtected<HashMap<pid_t, NonnullOwnPtr<EventLoopProcess>>> s_processes;
 
 EventLoopImplementationWindows::EventLoopImplementationWindows()
     : m_wake_event(ThreadData::the()->wake_data->wait_event.handle)

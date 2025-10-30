@@ -105,8 +105,8 @@ private:
     void run();
     void process_one(BlockAllocator&);
 
-    Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_cv { m_mutex };
+    Sync::Mutex m_mutex;
+    Sync::ConditionVariable m_cv { m_mutex };
     RefPtr<Threading::Thread> m_thread;
     Vector<BlockAllocator*> m_pending;
     bool m_kicked { false };
@@ -130,20 +130,20 @@ DecommitWorker::DecommitWorker()
 
 void DecommitWorker::register_pending(BlockAllocator& a)
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     m_pending.append(&a);
 }
 
 void DecommitWorker::deregister(BlockAllocator& a)
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     m_pending.remove_first_matching([&](auto* p) { return p == &a; });
 }
 
 void DecommitWorker::kick()
 {
     {
-        Threading::MutexLocker locker(m_mutex);
+        Sync::MutexLocker locker(m_mutex);
         m_kicked = true;
     }
     m_cv.signal();
@@ -154,7 +154,7 @@ void DecommitWorker::run()
     while (true) {
         Vector<BlockAllocator*> snapshot;
         {
-            Threading::MutexLocker locker(m_mutex);
+            Sync::MutexLocker locker(m_mutex);
             while (!m_kicked)
                 m_cv.wait();
             m_kicked = false;
@@ -177,7 +177,7 @@ void DecommitWorker::run()
             process_one(*a);
             int prev_refcount = a->m_worker_refcount.fetch_sub(1);
             if (prev_refcount == 1) {
-                Threading::MutexLocker locker(a->m_mutex);
+                Sync::MutexLocker locker(a->m_mutex);
                 a->m_worker_cv.broadcast();
             }
         }
@@ -188,7 +188,7 @@ void DecommitWorker::process_one(BlockAllocator& a)
 {
     Vector<void*> to_process;
     {
-        Threading::MutexLocker locker(a.m_mutex);
+        Sync::MutexLocker locker(a.m_mutex);
         a.m_in_decommit_registry = false;
         to_process = move(a.m_freshly_freed);
     }
@@ -204,7 +204,7 @@ void DecommitWorker::process_one(BlockAllocator& a)
     }
 
     {
-        Threading::MutexLocker locker(a.m_mutex);
+        Sync::MutexLocker locker(a.m_mutex);
         for (auto* slot : to_process)
             a.m_blocks.append(slot);
     }
@@ -227,14 +227,14 @@ BlockAllocator::~BlockAllocator()
     // in-flight processing of *this before our storage goes away.
     DecommitWorker::the().deregister(*this);
 
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     while (m_worker_refcount.load() != 0)
         m_worker_cv.wait();
 }
 
 size_t BlockAllocator::block_count()
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     return m_blocks.size();
 }
 
@@ -244,7 +244,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
     bool needs_madvise_reuse = false;
 
     {
-        Threading::MutexLocker locker(m_mutex);
+        Sync::MutexLocker locker(m_mutex);
 
         // Prefer m_freshly_freed: those slots were never madvised, so we
         // can hand them back out with zero syscalls. This is the deferred-
@@ -297,7 +297,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
 
         ASAN_POISON_MEMORY_REGION(chunk_base, CHUNK_SIZE);
 
-        Threading::MutexLocker locker(m_mutex);
+        Sync::MutexLocker locker(m_mutex);
         for (size_t i = 0; i < BLOCKS_PER_CHUNK; ++i)
             m_blocks.append(static_cast<u8*>(chunk_base) + i * HeapBlock::BLOCK_SIZE);
         block = m_blocks.take_last();
@@ -330,7 +330,7 @@ void BlockAllocator::deallocate_block(void* block)
 
     bool need_to_register = false;
     {
-        Threading::MutexLocker locker(m_mutex);
+        Sync::MutexLocker locker(m_mutex);
         m_freshly_freed.append(block);
         if (!m_in_decommit_registry) {
             m_in_decommit_registry = true;

@@ -9,8 +9,8 @@
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibThreading/Mutex.h>
-#include <LibThreading/Once.h>
+#include <LibSync/Mutex.h>
+#include <LibSync/Once.h>
 #include <errno.h>
 #include <pthread.h>
 
@@ -41,16 +41,16 @@ struct ThreadEventQueue::Private {
         u8 event_type { Event::Type::Invalid };
     };
 
-    Threading::Mutex mutex;
+    Sync::Mutex mutex;
     Vector<QueuedEvent> queued_events;
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
-static Threading::OnceFlag s_current_thread_event_queue_key_once {};
+static Sync::OnceFlag s_current_thread_event_queue_key_once {};
 
 ThreadEventQueue* ThreadEventQueue::current_or_null()
 {
-    call_once(s_current_thread_event_queue_key_once, [] {
+    Sync::call_once(s_current_thread_event_queue_key_once, [] {
         pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
             if (value)
                 delete static_cast<ThreadEventQueue*>(value);
@@ -80,7 +80,7 @@ ThreadEventQueue::~ThreadEventQueue() = default;
 void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Type event_type)
 {
     {
-        Threading::MutexLocker lock(m_private->mutex);
+        Sync::MutexLocker lock(m_private->mutex);
         m_private->queued_events.empend(receiver, event_type);
     }
     Core::EventLoopManager::the().did_post_event();
@@ -89,7 +89,7 @@ void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Ty
 void ThreadEventQueue::deferred_invoke(Function<void()>&& invokee)
 {
     {
-        Threading::MutexLocker lock(m_private->mutex);
+        Sync::MutexLocker lock(m_private->mutex);
         m_private->queued_events.empend(move(invokee));
     }
     Core::EventLoopManager::the().did_post_event();
@@ -99,7 +99,7 @@ size_t ThreadEventQueue::process()
 {
     decltype(m_private->queued_events) events;
     {
-        Threading::MutexLocker locker(m_private->mutex);
+        Sync::MutexLocker locker(m_private->mutex);
         events = move(m_private->queued_events);
     }
 
@@ -133,7 +133,7 @@ size_t ThreadEventQueue::process()
 
 bool ThreadEventQueue::has_pending_events() const
 {
-    Threading::MutexLocker locker(m_private->mutex);
+    Sync::MutexLocker locker(m_private->mutex);
     return !m_private->queued_events.is_empty();
 }
 

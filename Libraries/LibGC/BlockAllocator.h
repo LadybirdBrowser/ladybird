@@ -9,8 +9,8 @@
 #include <AK/Atomic.h>
 #include <AK/Vector.h>
 #include <LibGC/Forward.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 
 namespace GC {
 
@@ -44,13 +44,13 @@ private:
 
     // Protects m_blocks, m_freshly_freed, and m_in_decommit_registry. Held
     // briefly on the alloc/dealloc hot path; uncontended in the common case.
-    Threading::Mutex m_mutex;
+    Sync::Mutex m_mutex;
 
     // Refcount the decommit worker bumps while it has a reference to this
     // allocator. The destructor waits on m_worker_cv until it hits zero so
     // we never let our storage go away while the worker is still running.
     AK::Atomic<int> m_worker_refcount { 0 };
-    Threading::ConditionVariable m_worker_cv;
+    Sync::ConditionVariable m_worker_cv;
 
     // True iff this allocator is currently in the worker's pending list.
     // Avoids re-registering on every dealloc; cleared by the worker at the

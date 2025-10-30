@@ -9,13 +9,13 @@ namespace Web::WebAudio {
 
 void ControlMessageQueue::enqueue(ControlMessage message)
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     m_messages.append(move(message));
 }
 
 Vector<ControlMessage> ControlMessageQueue::drain()
 {
-    Threading::MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     return move(m_messages);
 }
 

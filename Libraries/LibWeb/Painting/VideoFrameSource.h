@@ -9,7 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibMedia/Forward.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Web::Painting {
 
@@ -28,7 +28,7 @@ private:
     VideoFrameSource();
 
     u64 m_id { 0 };
-    mutable Threading::Mutex m_mutex;
+    mutable Sync::Mutex m_mutex;
     RefPtr<Media::VideoFrame> m_frame;
 };
 

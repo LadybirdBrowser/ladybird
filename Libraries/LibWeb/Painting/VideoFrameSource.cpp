@@ -28,7 +28,7 @@ void VideoFrameSource::update(RefPtr<Media::VideoFrame> frame)
 {
     RefPtr<Media::VideoFrame> old;
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         old = move(m_frame);
         m_frame = move(frame);
     }
@@ -38,14 +38,14 @@ void VideoFrameSource::clear()
 {
     RefPtr<Media::VideoFrame> old;
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         old = move(m_frame);
     }
 }
 
 RefPtr<Media::VideoFrame> VideoFrameSource::current_frame() const
 {
-    Threading::MutexLocker const locker { m_mutex };
+    Sync::MutexLocker const locker { m_mutex };
     return m_frame;
 }
 

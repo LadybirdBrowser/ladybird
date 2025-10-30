@@ -17,7 +17,7 @@
 #include <AK/RefPtr.h>
 #include <LibCore/Export.h>
 #include <LibCore/Forward.h>
-#include <LibThreading/RWLock.h>
+#include <LibSync/RWLock.h>
 
 namespace Core {
 
@@ -118,7 +118,7 @@ private:
     void revoke();
 
     EventLoop* m_event_loop;
-    Threading::RWLock m_lock;
+    Sync::RWLock m_lock;
 };
 
 class CORE_API StrongEventLoopReference {

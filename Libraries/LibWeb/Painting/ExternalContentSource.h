@@ -11,7 +11,7 @@
 #include <AK/Optional.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Web::Painting {
 
@@ -29,7 +29,7 @@ private:
     ExternalContentSource();
 
     u64 m_id { 0 };
-    mutable Threading::Mutex m_mutex;
+    mutable Sync::Mutex m_mutex;
     Optional<Gfx::DecodedImageFrame> m_frame;
 };
 

@@ -13,7 +13,8 @@
 #include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibThreading/ConditionVariable.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Forward.h>
 
 namespace IPC {
@@ -31,7 +32,7 @@ public:
 private:
     AllocatingMemoryStream m_stream;
     Vector<int> m_fds;
-    Threading::Mutex m_mutex;
+    Sync::Mutex m_mutex;
 };
 
 class TransportSocket {
@@ -99,7 +100,7 @@ private:
     // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
     // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
     Queue<NonnullRefPtr<AutoCloseFileDescriptor>> m_fds_retained_until_received_by_peer;
-    Threading::Mutex m_fds_retained_until_received_by_peer_mutex;
+    Sync::Mutex m_fds_retained_until_received_by_peer_mutex;
 
     RefPtr<Threading::Thread> m_io_thread;
     RefPtr<SendQueue> m_send_queue;
@@ -108,8 +109,8 @@ private:
     Atomic<bool> m_peer_eof { false };
     ByteBuffer m_unprocessed_bytes;
     Queue<Attachment> m_unprocessed_attachments;
-    Threading::Mutex m_incoming_mutex;
-    Threading::ConditionVariable m_incoming_cv { m_incoming_mutex };
+    Sync::Mutex m_incoming_mutex;
+    Sync::ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;
 
     RefPtr<AutoCloseFileDescriptor> m_wakeup_io_thread_read_fd;
