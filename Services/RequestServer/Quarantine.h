@@ -41,6 +41,15 @@ public:
     // Get quarantine directory path
     static ErrorOr<String> get_quarantine_directory();
 
+    // List all quarantined files
+    static ErrorOr<Vector<QuarantineMetadata>> list_all_entries();
+
+    // Restore a quarantined file to destination directory
+    static ErrorOr<void> restore_file(String const& quarantine_id, String const& destination_dir);
+
+    // Permanently delete a quarantined file
+    static ErrorOr<void> delete_file(String const& quarantine_id);
+
 private:
     // Generate unique quarantine ID (timestamp + random suffix)
     static ErrorOr<String> generate_quarantine_id();

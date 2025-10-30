@@ -15,6 +15,7 @@ class CacheIndex;
 class ConnectionFromClient;
 class DiskCache;
 class Request;
+class RequestPipe;
 
 struct DNSInfo;
 struct Resolver;

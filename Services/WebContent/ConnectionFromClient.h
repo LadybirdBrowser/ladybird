@@ -157,6 +157,9 @@ private:
     // Network audit log retrieval
     virtual Messages::WebContentServer::GetNetworkAuditResponse get_network_audit(u64 page_id) override;
 
+    // Security policy enforcement
+    virtual void enforce_security_policy(i32 request_id, ByteString action) override;
+
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 

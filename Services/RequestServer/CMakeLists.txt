@@ -11,6 +11,7 @@ set(SOURCES
     CURL.cpp
     Quarantine.cpp
     Request.cpp
+    RequestPipe.cpp
     Resolver.cpp
     SecurityTap.cpp
     WebSocketImplCurl.cpp

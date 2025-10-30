@@ -5,6 +5,9 @@
  */
 
 #include <AK/IDAllocator.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
+#include <AK/JsonValue.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
@@ -23,6 +26,7 @@
 #include <RequestServer/CURL.h>
 #include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Quarantine.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
@@ -1471,6 +1475,145 @@ void ConnectionFromClient::setup_gateway_fallback(i32 request_id, Request& reque
     request.set_gateway_fallback_callback([this, request_id]() {
         retry_with_next_gateway(request_id);
     });
+}
+
+Messages::RequestServer::GetSentinelStatusResponse ConnectionFromClient::get_sentinel_status()
+{
+    // Check if SecurityTap (connection to Sentinel) is initialized
+    bool connected = (g_security_tap != nullptr);
+
+    // Scanning is enabled if SecurityTap is connected
+    // In the future, this could check a configuration flag
+    bool scanning_enabled = connected;
+
+    return { connected, scanning_enabled };
+}
+
+Messages::RequestServer::ListQuarantineEntriesResponse ConnectionFromClient::list_quarantine_entries()
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return Vector<ByteString> {};
+
+    Vector<ByteString> json_entries;
+
+    // Get all quarantine entries
+    auto entries_result = Quarantine::list_all_entries();
+    if (entries_result.is_error()) {
+        dbgln("ListQuarantineEntries: Failed to list entries: {}", entries_result.error());
+        return json_entries;
+    }
+
+    auto entries = entries_result.release_value();
+
+    // Serialize each entry to JSON
+    for (auto const& entry : entries) {
+        JsonObject obj;
+        obj.set("quarantine_id"sv, JsonValue(entry.quarantine_id));
+        obj.set("filename"sv, JsonValue(entry.filename));
+        obj.set("original_url"sv, JsonValue(entry.original_url));
+        obj.set("detection_time"sv, JsonValue(entry.detection_time));
+        obj.set("sha256"sv, JsonValue(entry.sha256));
+        obj.set("file_size"sv, JsonValue(static_cast<u64>(entry.file_size)));
+
+        JsonArray rules_array;
+        for (auto const& rule : entry.rule_names) {
+            auto append_result = rules_array.append(JsonValue(rule));
+            if (append_result.is_error()) {
+                dbgln("ListQuarantineEntries: Failed to append rule name");
+            }
+        }
+        obj.set("rule_names"sv, move(rules_array));
+
+        json_entries.append(obj.serialized().to_byte_string());
+    }
+
+    dbgln("ListQuarantineEntries: Returning {} entries", json_entries.size());
+    return json_entries;
+}
+
+Messages::RequestServer::RestoreQuarantineFileResponse ConnectionFromClient::restore_quarantine_file(ByteString quarantine_id, ByteString destination_dir)
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: Validate string lengths
+    if (!validate_string_length(quarantine_id, "quarantine_id"sv))
+        return false;
+    if (!validate_string_length(destination_dir, "destination_dir"sv))
+        return false;
+
+    // Convert ByteString to String
+    auto quarantine_id_str_result = String::from_byte_string(quarantine_id);
+    if (quarantine_id_str_result.is_error()) {
+        dbgln("RestoreQuarantineFile: Failed to convert quarantine_id to String");
+        return false;
+    }
+
+    auto destination_dir_str_result = String::from_byte_string(destination_dir);
+    if (destination_dir_str_result.is_error()) {
+        dbgln("RestoreQuarantineFile: Failed to convert destination_dir to String");
+        return false;
+    }
+
+    // Restore the file
+    auto restore_result = Quarantine::restore_file(
+        quarantine_id_str_result.release_value(),
+        destination_dir_str_result.release_value()
+    );
+
+    if (restore_result.is_error()) {
+        dbgln("RestoreQuarantineFile: Failed to restore file: {}", restore_result.error());
+        return false;
+    }
+
+    dbgln("RestoreQuarantineFile: Successfully restored file {}", quarantine_id);
+    return true;
+}
+
+Messages::RequestServer::DeleteQuarantineFileResponse ConnectionFromClient::delete_quarantine_file(ByteString quarantine_id)
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return false;
+
+    // Security: Validate string length
+    if (!validate_string_length(quarantine_id, "quarantine_id"sv))
+        return false;
+
+    // Convert ByteString to String
+    auto quarantine_id_str_result = String::from_byte_string(quarantine_id);
+    if (quarantine_id_str_result.is_error()) {
+        dbgln("DeleteQuarantineFile: Failed to convert quarantine_id to String");
+        return false;
+    }
+
+    // Delete the file
+    auto delete_result = Quarantine::delete_file(quarantine_id_str_result.release_value());
+
+    if (delete_result.is_error()) {
+        dbgln("DeleteQuarantineFile: Failed to delete file: {}", delete_result.error());
+        return false;
+    }
+
+    dbgln("DeleteQuarantineFile: Successfully deleted file {}", quarantine_id);
+    return true;
+}
+
+Messages::RequestServer::GetQuarantineDirectoryResponse ConnectionFromClient::get_quarantine_directory()
+{
+    // Security: Rate limiting
+    if (!check_rate_limit())
+        return ByteString();
+
+    auto dir_result = Quarantine::get_quarantine_directory();
+    if (dir_result.is_error()) {
+        dbgln("GetQuarantineDirectory: Failed to get directory: {}", dir_result.error());
+        return ByteString();
+    }
+
+    return dir_result.release_value().to_byte_string();
 }
 
 }

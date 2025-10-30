@@ -145,11 +145,11 @@ rule Obfuscated_JavaScript {
 - [ ] Error handling: malformed JSON, invalid Base64, etc.
 
 **Acceptance Criteria**:
-- ✅ Sentinel starts and listens on UNIX socket
-- ✅ Accepts artifact messages from test client
-- ✅ YARA scan completes in < 100ms for 1MB files
-- ✅ Alert JSON sent back to client
-- ✅ No memory leaks or crashes
+-  Sentinel starts and listens on UNIX socket
+-  Accepts artifact messages from test client
+-  YARA scan completes in < 100ms for 1MB files
+-  Alert JSON sent back to client
+-  No memory leaks or crashes
 
 ---
 
@@ -280,10 +280,10 @@ Optional<Policy> PolicyGraph::match_download_policy(
 - [ ] Performance: measure IPC overhead
 
 **Acceptance Criteria**:
-- ✅ Downloads trigger SecurityTap inspection
-- ✅ Sentinel alerts sent to browser via IPC
-- ✅ PolicyGraph can store and query policies
-- ✅ Policy matching works for download patterns
+-  Downloads trigger SecurityTap inspection
+-  Sentinel alerts sent to browser via IPC
+-  PolicyGraph can store and query policies
+-  Policy matching works for download patterns
 
 ---
 
@@ -421,16 +421,16 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
    - Enforcement logged to database
 
 **Acceptance Criteria**:
-- ✅ Alert dialog appears on first detection
-- ✅ User can create policy from dialog
-- ✅ Subsequent downloads auto-enforce policy
-- ✅ Quarantined files saved to correct directory
+-  Alert dialog appears on first detection
+-  User can create policy from dialog
+-  Subsequent downloads auto-enforce policy
+-  Quarantined files saved to correct directory
 
 ---
 
 ## Week 4: Review UI & Polish
 
-### Day 22-23: `ladybird://security` WebUI
+### Day 22-23: `about:security` WebUI
 **Goal**: Policy management interface
 
 **Tasks**:
@@ -443,7 +443,7 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
 
 **Deliverables**:
 - `Libraries/LibWebView/WebUI/SecurityUI.h/cpp`
-- Registered URL handler for `ladybird://security`
+- Registered URL handler for `about:security`
 
 **UI Sections**:
 ```html
@@ -489,13 +489,13 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
 **Tasks**:
 - [ ] Create notification banner component
 - [ ] Show banner when policy auto-blocks download
-- [ ] Add "View Policy" link → opens `ladybird://security`
+- [ ] Add "View Policy" link → opens `about:security`
 - [ ] Implement auto-dismiss (5 seconds) or manual close
 
 **Banner Example**:
 ```
 ┌────────────────────────────────────────────────────┐
-│ 🛡 Download blocked by security policy             │
+│  Download blocked by security policy             │
 │ installer.exe from example-bad-site.ru             │
 │ [View Policy] [Dismiss]                            │
 └────────────────────────────────────────────────────┘
@@ -532,7 +532,7 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
 1. What is Sentinel?
 2. How download vetting works
 3. Creating policies from alerts
-4. Managing policies in `ladybird://security`
+4. Managing policies in `about:security`
 5. Writing custom YARA rules
 6. Troubleshooting
 
@@ -542,13 +542,13 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
 **Goal**: Validate Milestone 0.1 completion
 
 **Test Suite**:
-1. ✅ Download EICAR file → alert → create policy → re-download → auto-block
-2. ✅ Download clean file → no alert
-3. ✅ Disable Sentinel → downloads work normally
-4. ✅ Restart browser → policies persist
-5. ✅ Create custom YARA rule → verify detection
-6. ✅ Policy management in `ladybird://security`
-7. ✅ Performance: < 5% overhead for typical downloads
+1.  Download EICAR file → alert → create policy → re-download → auto-block
+2.  Download clean file → no alert
+3.  Disable Sentinel → downloads work normally
+4.  Restart browser → policies persist
+5.  Create custom YARA rule → verify detection
+6.  Policy management in `about:security`
+7.  Performance: < 5% overhead for typical downloads
 
 **Bug Fixes**:
 - Address any issues found during testing
@@ -567,24 +567,24 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
 ## Success Metrics
 
 ### Functional
-- ✅ Sentinel daemon compiles and runs
-- ✅ Browser intercepts downloads
-- ✅ YARA detections trigger alerts
-- ✅ User can create policies
-- ✅ Policies auto-enforce on subsequent downloads
-- ✅ `ladybird://security` UI functional
+-  Sentinel daemon compiles and runs
+-  Browser intercepts downloads
+-  YARA detections trigger alerts
+-  User can create policies
+-  Policies auto-enforce on subsequent downloads
+-  `about:security` UI functional
 
 ### Performance
-- ✅ Download overhead < 5% for 10MB files
-- ✅ YARA scan < 100ms for 1MB files
-- ✅ Policy query < 5ms
-- ✅ No memory leaks or crashes
+-  Download overhead < 5% for 10MB files
+-  YARA scan < 100ms for 1MB files
+-  Policy query < 5ms
+-  No memory leaks or crashes
 
 ### User Experience
-- ✅ Alert dialog is clear and non-technical
-- ✅ Policy creation is intuitive (one click)
-- ✅ Auto-enforcement is transparent (notification banner)
-- ✅ Review UI is informative and actionable
+-  Alert dialog is clear and non-technical
+-  Policy creation is intuitive (one click)
+-  Auto-enforcement is transparent (notification banner)
+-  Review UI is informative and actionable
 
 ---
 
@@ -627,7 +627,7 @@ ErrorOr<void> Request::save_download(ByteString const& path) {
 
 **Frontend (UI, Policy Enforcer)**:
 - Security alert dialog
-- `ladybird://security` WebUI
+- `about:security` WebUI
 - Notification system
 
 **Database (PolicyGraph)**:

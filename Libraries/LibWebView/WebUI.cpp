@@ -9,6 +9,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WebUI/ProcessesUI.h>
+#include <LibWebView/WebUI/SecurityUI.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
 namespace WebView {
@@ -39,6 +40,8 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
 
     if (host == "processes"sv)
         web_ui = TRY(create_web_ui<ProcessesUI>(client, move(host)));
+    else if (host == "security"sv)
+        web_ui = TRY(create_web_ui<SecurityUI>(client, move(host)));
     else if (host == "settings"sv)
         web_ui = TRY(create_web_ui<SettingsUI>(client, move(host)));
 

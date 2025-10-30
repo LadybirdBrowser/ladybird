@@ -10,10 +10,12 @@
 
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/SecurityNotificationBanner.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
@@ -287,6 +289,20 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
+
+    // Create security notification banner
+    m_security_notification_banner = new SecurityNotificationBanner(this);
+    m_security_notification_banner->raise(); // Ensure banner is on top
+
+    // Connect banner signals
+    QObject::connect(m_security_notification_banner, &SecurityNotificationBanner::view_policy_clicked, this, [this]([[maybe_unused]] QString policy_id) {
+        // Navigate to about:security page with policy highlighted
+        if (m_current_tab) {
+            if (auto url = WebView::sanitize_url("about:security"sv); url.has_value()) {
+                m_current_tab->navigate(url.release_value());
+            }
+        }
+    });
 
     if (browser_options.devtools_port.has_value())
         on_devtools_enabled();
@@ -577,6 +593,25 @@ void BrowserWindow::show_find_in_page()
     m_current_tab->show_find_in_page();
 }
 
+void BrowserWindow::show_security_notification(
+    SecurityNotificationBanner::NotificationType type,
+    String const& message,
+    String const& details,
+    Optional<String> policy_id)
+{
+    if (!m_security_notification_banner)
+        return;
+
+    SecurityNotificationBanner::Notification notification {
+        .type = type,
+        .message = message,
+        .details = details,
+        .policy_id = AK::move(policy_id)
+    };
+
+    m_security_notification_banner->show_notification(notification);
+}
+
 void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height)
 {
     x = x.value_or(0);
@@ -611,6 +646,11 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
     });
+
+    // Reposition notification banner at top of window
+    if (m_security_notification_banner) {
+        m_security_notification_banner->setGeometry(0, 0, width(), m_security_notification_banner->height());
+    }
 }
 
 void BrowserWindow::moveEvent(QMoveEvent* event)

@@ -1,0 +1,948 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Security Center</title>
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <style>
+            /* Phase 3 Security Page Styles */
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --card-background-color: #f9f9f9;
+                    --card-header-background-color: #f0f2f5;
+                    --stat-background: #ffffff;
+                    --stat-border: #e0e0e0;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --card-background-color: #2c2c2c;
+                    --card-header-background-color: #252525;
+                    --stat-background: #333333;
+                    --stat-border: #444444;
+                }
+            }
+
+            body {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 30px;
+            }
+
+            header h1 {
+                font-size: 24px;
+                font-weight: 500;
+            }
+
+            header img {
+                height: 48px;
+                margin-right: 12px;
+            }
+
+            .card {
+                background-color: var(--card-background-color);
+                border-radius: 8px;
+                margin-bottom: 20px;
+                overflow: hidden;
+            }
+
+            .card-header {
+                background-color: var(--card-header-background-color);
+                border-bottom: 1px solid var(--border-color);
+                padding: 15px 20px;
+                font-size: 16px;
+                font-weight: 500;
+            }
+
+            .card-body {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+            }
+
+            .stat-item {
+                background-color: var(--stat-background);
+                border: 1px solid var(--stat-border);
+                border-radius: 8px;
+                padding: 20px;
+                text-align: center;
+            }
+
+            .stat-value {
+                font-size: 36px;
+                font-weight: 700;
+                color: var(--violet-100);
+                margin-bottom: 8px;
+            }
+
+            .stat-label {
+                font-size: 14px;
+                opacity: 0.8;
+            }
+
+            .empty-message {
+                text-align: center;
+                padding: 40px 20px;
+                font-size: 14px;
+                opacity: 0.7;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+
+            .integration-notice {
+                background-color: var(--violet-100);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+            }
+
+            .integration-notice h3 {
+                margin: 0 0 8px 0;
+                font-size: 16px;
+            }
+
+            .integration-notice p {
+                margin: 0;
+                font-size: 14px;
+                opacity: 0.9;
+            }
+
+            /* System Status Styles */
+            .status-indicator {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+            }
+
+            .status-indicator .status-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+            }
+
+            .status-connected {
+                background-color: rgba(34, 197, 94, 0.1);
+                color: #22c55e;
+            }
+
+            .status-connected .status-dot {
+                background-color: #22c55e;
+            }
+
+            .status-disconnected {
+                background-color: rgba(239, 68, 68, 0.1);
+                color: #ef4444;
+            }
+
+            .status-disconnected .status-dot {
+                background-color: #ef4444;
+            }
+
+            .status-unknown {
+                background-color: rgba(156, 163, 175, 0.1);
+                color: #9ca3af;
+            }
+
+            .status-unknown .status-dot {
+                background-color: #9ca3af;
+            }
+
+            .status-info {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .status-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 0;
+                border-bottom: 1px solid var(--stat-border);
+            }
+
+            .status-item:last-child {
+                border-bottom: none;
+            }
+
+            .status-label {
+                font-weight: 500;
+                font-size: 14px;
+            }
+
+            .status-value {
+                font-size: 14px;
+                opacity: 0.8;
+            }
+
+            /* Policy Template Styles */
+            .button {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                background-color: var(--violet-100);
+                color: white;
+                transition: opacity 0.2s;
+            }
+
+            .button:hover {
+                opacity: 0.9;
+            }
+
+            .button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .button-secondary {
+                background-color: var(--stat-background);
+                color: inherit;
+                border: 1px solid var(--stat-border);
+            }
+
+            .templates-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 15px;
+                margin-top: 15px;
+            }
+
+            .template-card {
+                background-color: var(--stat-background);
+                border: 1px solid var(--stat-border);
+                border-radius: 8px;
+                padding: 16px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .template-card:hover {
+                border-color: var(--violet-100);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .template-card.selected {
+                border-color: var(--violet-100);
+                background-color: rgba(138, 80, 252, 0.05);
+            }
+
+            .template-name {
+                font-size: 16px;
+                font-weight: 600;
+                margin-bottom: 8px;
+                color: var(--violet-100);
+            }
+
+            .template-description {
+                font-size: 13px;
+                opacity: 0.8;
+                line-height: 1.4;
+            }
+
+            .template-category {
+                display: inline-block;
+                padding: 4px 10px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 500;
+                margin-top: 10px;
+                background-color: rgba(138, 80, 252, 0.1);
+                color: var(--violet-100);
+            }
+
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .modal.active {
+                display: flex;
+            }
+
+            .modal-content {
+                background-color: var(--card-background-color);
+                border-radius: 12px;
+                padding: 30px;
+                max-width: 600px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+
+            .modal-header {
+                font-size: 20px;
+                font-weight: 600;
+                margin-bottom: 20px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-label {
+                display: block;
+                font-size: 14px;
+                font-weight: 500;
+                margin-bottom: 8px;
+            }
+
+            .form-input {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid var(--stat-border);
+                border-radius: 6px;
+                font-size: 14px;
+                background-color: var(--stat-background);
+                color: inherit;
+                box-sizing: border-box;
+            }
+
+            .form-input:focus {
+                outline: none;
+                border-color: var(--violet-100);
+            }
+
+            .form-help {
+                font-size: 12px;
+                opacity: 0.7;
+                margin-top: 4px;
+            }
+
+            .form-warning {
+                background-color: rgba(245, 158, 11, 0.1);
+                color: #f59e0b;
+                padding: 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                margin-bottom: 20px;
+            }
+
+            .modal-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin-top: 25px;
+            }
+
+            .preview-section {
+                background-color: var(--stat-background);
+                border: 1px solid var(--stat-border);
+                border-radius: 8px;
+                padding: 15px;
+                margin-top: 20px;
+            }
+
+            .preview-title {
+                font-size: 14px;
+                font-weight: 600;
+                margin-bottom: 10px;
+            }
+
+            .preview-policy {
+                font-size: 13px;
+                padding: 8px;
+                background-color: var(--card-background-color);
+                border-radius: 4px;
+                margin-bottom: 8px;
+                font-family: monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source
+                    srcset="resource://icons/128x128/app-browser.png"
+                    media="(prefers-color-scheme: dark)"
+                />
+                <img src="resource://icons/128x128/app-browser-dark.png" alt="Ladybird Browser" />
+            </picture>
+            <h1>Security Center</h1>
+        </header>
+
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">Quick Actions</div>
+            <div class="card-body">
+                <button id="manage-quarantine-btn" class="button" onclick="openQuarantineManager()">
+                    Manage Quarantine
+                </button>
+                <p style="margin-top: 10px; font-size: 13px; opacity: 0.8;">
+                    View and manage files that have been quarantined by the security system.
+                </p>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="card">
+            <div class="card-header">System Status</div>
+            <div class="card-body">
+                <div class="status-info">
+                    <div class="status-item">
+                        <span class="status-label">SentinelServer Connection</span>
+                        <span id="sentinel-connection-status" class="status-indicator status-unknown">
+                            <span class="status-dot"></span>
+                            <span>Checking...</span>
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Security Scanning</span>
+                        <span id="scanning-status" class="status-value">Unknown</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last Scan</span>
+                        <span id="last-scan-time" class="status-value">Never</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Socket Path</span>
+                        <span class="status-value">/tmp/sentinel.sock</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Dashboard -->
+        <div class="card">
+            <div class="card-header">Security Statistics</div>
+            <div class="card-body">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-total-policies">0</div>
+                        <div class="stat-label">Active Policies</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-threats-blocked">0</div>
+                        <div class="stat-label">Threats Blocked</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-threats-quarantined">0</div>
+                        <div class="stat-label">Files Quarantined</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-threats-today">0</div>
+                        <div class="stat-label">Threats Today</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Policy Templates Section -->
+        <div class="card">
+            <div class="card-header">
+                Policy Templates
+                <button id="create-from-template-btn" class="button" style="float: right; margin-top: -5px;">
+                    Create from Template
+                </button>
+            </div>
+            <div class="card-body">
+                <p style="margin-bottom: 15px;">Use pre-configured templates to quickly create security policies for common scenarios.</p>
+                <div id="templates-grid" class="templates-grid">
+                    <div class="empty-message">Loading templates...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Policies Section -->
+        <div class="card">
+            <div class="card-header">Active Security Policies</div>
+            <div class="card-body">
+                <div id="policies-empty" class="empty-message">
+                    No security policies configured yet. Policies are created when you select "Remember this decision" in security alerts or by using policy templates.
+                </div>
+            </div>
+        </div>
+
+        <!-- Threat History Section -->
+        <div class="card">
+            <div class="card-header">Threat History</div>
+            <div class="card-body">
+                <div id="threats-empty" class="empty-message">
+                    No threats detected yet. Your browser is secure.
+                </div>
+            </div>
+        </div>
+
+        <!-- About Security Protection -->
+        <div class="card">
+            <div class="card-header">About Security Protection</div>
+            <div class="card-body">
+                <h4>How It Works</h4>
+                <p>Ladybird includes built-in malware protection that automatically scans downloads. When a threat is detected:</p>
+                <ol>
+                    <li>The download pauses automatically</li>
+                    <li>A security alert shows the threat details</li>
+                    <li>You can choose to block, quarantine, or allow the file</li>
+                    <li>Select "Remember this decision" to create a policy for future downloads</li>
+                    <li>Policies automatically handle similar threats without prompting</li>
+                </ol>
+
+                <h4>Security Actions</h4>
+                <ul>
+                    <li><strong>Block:</strong> Prevents download and removes the file</li>
+                    <li><strong>Quarantine:</strong> Isolates the file in a secure location for analysis</li>
+                    <li><strong>Allow:</strong> Permits the download to complete</li>
+                    <li><strong>Always Allow:</strong> Creates a whitelist policy for this file</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Template Creation Modal -->
+        <div id="template-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">Create Policy from Template</div>
+                <div id="template-modal-body">
+                    <!-- Template details will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+            // Security Page JavaScript Controller
+
+            // Status refresh interval (30 seconds)
+            const STATUS_REFRESH_INTERVAL = 30000;
+            let statusRefreshTimer = null;
+            let selectedTemplate = null;
+            let availableTemplates = [];
+
+            // Make openQuarantineManager available globally
+            window.openQuarantineManager = function() {
+                console.log("Opening Quarantine Manager...");
+                ladybird.sendMessage("openQuarantineManager");
+            };
+
+            document.addEventListener("WebUILoaded", () => {
+                console.log("Security UI loaded");
+                loadSystemStatus();
+                loadStatistics();
+                loadPolicies();
+                loadThreats();
+                loadTemplates();
+
+                // Start periodic status refresh
+                startStatusRefresh();
+
+                // Setup template UI
+                setupTemplateUI();
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                const { name, data } = event.detail;
+
+                switch (name) {
+                    case "systemStatusLoaded":
+                        renderSystemStatus(data);
+                        break;
+                    case "statisticsLoaded":
+                        renderStatistics(data);
+                        break;
+                    case "policiesLoaded":
+                        renderPolicies(data);
+                        break;
+                    case "threatHistoryLoaded":
+                        renderThreats(data);
+                        break;
+                    case "templatesLoaded":
+                        renderTemplates(data);
+                        break;
+                    case "policyFromTemplateCreated":
+                        handleTemplateCreated(data);
+                        break;
+                }
+            });
+
+            function startStatusRefresh() {
+                // Clear any existing timer
+                if (statusRefreshTimer) {
+                    clearInterval(statusRefreshTimer);
+                }
+
+                // Set up periodic refresh
+                statusRefreshTimer = setInterval(() => {
+                    loadSystemStatus();
+                }, STATUS_REFRESH_INTERVAL);
+            }
+
+            function loadSystemStatus() {
+                // Show "Checking..." state
+                const connectionStatus = document.getElementById('sentinel-connection-status');
+                connectionStatus.className = 'status-indicator status-unknown';
+                connectionStatus.innerHTML = '<span class="status-dot"></span><span>Checking...</span>';
+
+                ladybird.sendMessage("getSystemStatus");
+            }
+
+            function loadStatistics() {
+                ladybird.sendMessage("loadStatistics");
+            }
+
+            function loadPolicies() {
+                ladybird.sendMessage("loadPolicies");
+            }
+
+            function loadThreats() {
+                ladybird.sendMessage("loadThreatHistory", {});
+            }
+
+            function renderSystemStatus(status) {
+                const connectionStatus = document.getElementById('sentinel-connection-status');
+                const scanningStatus = document.getElementById('scanning-status');
+                const lastScanTime = document.getElementById('last-scan-time');
+
+                // Update connection status
+                if (status.connected) {
+                    connectionStatus.className = 'status-indicator status-connected';
+                    connectionStatus.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+                } else {
+                    connectionStatus.className = 'status-indicator status-disconnected';
+                    connectionStatus.innerHTML = '<span class="status-dot"></span><span>Disconnected</span>';
+                }
+
+                // Update scanning status
+                if (status.scanning_enabled) {
+                    scanningStatus.textContent = 'Enabled';
+                    scanningStatus.style.color = '#22c55e';
+                } else {
+                    scanningStatus.textContent = status.connected ? 'Disabled' : 'Unavailable';
+                    scanningStatus.style.color = status.connected ? '#f59e0b' : '#ef4444';
+                }
+
+                // Update last scan time
+                if (status.last_scan && status.last_scan > 0) {
+                    const date = new Date(status.last_scan);
+                    lastScanTime.textContent = date.toLocaleString();
+                } else {
+                    lastScanTime.textContent = 'Never';
+                }
+            }
+
+            function renderStatistics(stats) {
+                document.getElementById('stat-total-policies').textContent = stats.totalPolicies || 0;
+                document.getElementById('stat-threats-blocked').textContent = stats.threatsBlocked || 0;
+                document.getElementById('stat-threats-quarantined').textContent = stats.threatsQuarantined || 0;
+                document.getElementById('stat-threats-today').textContent = stats.threatsToday || 0;
+            }
+
+            function renderPolicies(data) {
+                if (!data.policies || data.policies.length === 0) {
+                    document.getElementById('policies-empty').classList.remove('hidden');
+                    return;
+                }
+
+                document.getElementById('policies-empty').classList.add('hidden');
+                // TODO: Render policies table when PolicyGraph integration is complete
+            }
+
+            function renderThreats(data) {
+                if (!data.threats || data.threats.length === 0) {
+                    document.getElementById('threats-empty').classList.remove('hidden');
+                    return;
+                }
+
+                document.getElementById('threats-empty').classList.add('hidden');
+                // TODO: Render threats table when PolicyGraph integration is complete
+            }
+
+            // Template Functions
+
+            function loadTemplates() {
+                ladybird.sendMessage("getTemplates");
+            }
+
+            function setupTemplateUI() {
+                const createBtn = document.getElementById('create-from-template-btn');
+                const modal = document.getElementById('template-modal');
+
+                createBtn.addEventListener('click', () => {
+                    if (selectedTemplate) {
+                        showTemplateModal(selectedTemplate);
+                    } else {
+                        alert('Please select a template first');
+                    }
+                });
+
+                // Close modal when clicking outside
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeTemplateModal();
+                    }
+                });
+            }
+
+            function renderTemplates(data) {
+                const templatesGrid = document.getElementById('templates-grid');
+
+                if (!data.templates || data.templates.length === 0) {
+                    templatesGrid.innerHTML = '<div class="empty-message">No templates available</div>';
+                    return;
+                }
+
+                availableTemplates = data.templates;
+                templatesGrid.innerHTML = '';
+
+                data.templates.forEach(template => {
+                    const card = document.createElement('div');
+                    card.className = 'template-card';
+                    card.dataset.templateId = template.id;
+
+                    card.innerHTML = `
+                        <div class="template-name">${template.name}</div>
+                        <div class="template-description">${template.description}</div>
+                        <span class="template-category">${template.category || 'General'}</span>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        // Remove selection from other cards
+                        document.querySelectorAll('.template-card').forEach(c => {
+                            c.classList.remove('selected');
+                        });
+
+                        // Select this card
+                        card.classList.add('selected');
+                        selectedTemplate = template;
+                    });
+
+                    templatesGrid.appendChild(card);
+                });
+            }
+
+            function showTemplateModal(template) {
+                const modal = document.getElementById('template-modal');
+                const modalBody = document.getElementById('template-modal-body');
+
+                let html = '';
+
+                // Show warning if template has one
+                if (template.warning) {
+                    html += `<div class="form-warning">${template.warning}</div>`;
+                }
+
+                // Template description
+                html += `<p style="margin-bottom: 20px;">${template.description}</p>`;
+
+                // Render form fields for variables
+                if (template.variables && template.variables.length > 0) {
+                    template.variables.forEach(variable => {
+                        html += `
+                            <div class="form-group">
+                                <label class="form-label" for="var-${variable.name}">
+                                    ${variable.label}${variable.required ? ' *' : ''}
+                                </label>
+                                <input
+                                    type="${variable.type || 'text'}"
+                                    id="var-${variable.name}"
+                                    class="form-input"
+                                    placeholder="${variable.placeholder || ''}"
+                                    ${variable.required ? 'required' : ''}
+                                    data-validation="${variable.validation || ''}"
+                                />
+                                ${variable.helpText ? `<div class="form-help">${variable.helpText}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+
+                // Preview section
+                html += `
+                    <div class="preview-section">
+                        <div class="preview-title">Preview</div>
+                        <div id="policy-preview">
+                            <em>Fill in the form to see a preview of the policies that will be created</em>
+                        </div>
+                    </div>
+                `;
+
+                // Modal actions
+                html += `
+                    <div class="modal-actions">
+                        <button class="button button-secondary" onclick="closeTemplateModal()">Cancel</button>
+                        <button class="button" id="create-policies-btn">Create Policies</button>
+                    </div>
+                `;
+
+                modalBody.innerHTML = html;
+                modal.classList.add('active');
+
+                // Add event listeners for live preview
+                if (template.variables) {
+                    template.variables.forEach(variable => {
+                        const input = document.getElementById(`var-${variable.name}`);
+                        if (input) {
+                            input.addEventListener('input', () => updatePreview(template));
+                        }
+                    });
+                }
+
+                // Add event listener for create button
+                document.getElementById('create-policies-btn').addEventListener('click', () => {
+                    createPoliciesFromTemplate(template);
+                });
+
+                // Initial preview
+                updatePreview(template);
+            }
+
+            function closeTemplateModal() {
+                const modal = document.getElementById('template-modal');
+                modal.classList.remove('active');
+            }
+
+            // Make it available globally
+            window.closeTemplateModal = closeTemplateModal;
+
+            function updatePreview(template) {
+                const previewDiv = document.getElementById('policy-preview');
+                if (!previewDiv) return;
+
+                // Collect variable values
+                const variables = {};
+                let allFilled = true;
+
+                if (template.variables) {
+                    template.variables.forEach(variable => {
+                        const input = document.getElementById(`var-${variable.name}`);
+                        if (input) {
+                            variables[variable.name] = input.value;
+                            if (variable.required && !input.value) {
+                                allFilled = false;
+                            }
+                        }
+                    });
+                }
+
+                if (!allFilled) {
+                    previewDiv.innerHTML = '<em>Fill in all required fields to see preview</em>';
+                    return;
+                }
+
+                // Generate preview
+                let previewHtml = '';
+                if (template.policies) {
+                    template.policies.forEach((policy, index) => {
+                        let ruleName = policy.ruleName;
+                        let urlPattern = policy.match_pattern.url_pattern;
+                        let fileHash = policy.match_pattern.file_hash;
+
+                        // Substitute variables
+                        Object.keys(variables).forEach(varName => {
+                            const placeholder = '${' + varName + '}';
+                            ruleName = ruleName.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), variables[varName]);
+                            if (urlPattern) {
+                                urlPattern = urlPattern.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), variables[varName]);
+                            }
+                            if (fileHash) {
+                                fileHash = fileHash.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), variables[varName]);
+                            }
+                        });
+
+                        previewHtml += `
+                            <div class="preview-policy">
+                                <strong>${ruleName}</strong><br>
+                                Action: ${policy.action}<br>
+                                ${urlPattern ? `URL: ${urlPattern}<br>` : ''}
+                                ${fileHash ? `Hash: ${fileHash}<br>` : ''}
+                                ${policy.match_pattern.mime_type ? `MIME: ${policy.match_pattern.mime_type}` : ''}
+                            </div>
+                        `;
+                    });
+                }
+
+                previewDiv.innerHTML = previewHtml;
+            }
+
+            function createPoliciesFromTemplate(template) {
+                // Collect variable values
+                const variables = {};
+                let isValid = true;
+
+                if (template.variables) {
+                    template.variables.forEach(variable => {
+                        const input = document.getElementById(`var-${variable.name}`);
+                        if (input) {
+                            const value = input.value;
+
+                            // Validate required fields
+                            if (variable.required && !value) {
+                                alert(`${variable.label} is required`);
+                                isValid = false;
+                                return;
+                            }
+
+                            // Validate with regex if provided
+                            if (variable.validation && value) {
+                                const regex = new RegExp(variable.validation);
+                                if (!regex.test(value)) {
+                                    alert(`${variable.label} has an invalid format`);
+                                    isValid = false;
+                                    return;
+                                }
+                            }
+
+                            variables[variable.name] = value;
+                        }
+                    });
+                }
+
+                if (!isValid) return;
+
+                // Send message to create policies
+                ladybird.sendMessage("createFromTemplate", {
+                    templateId: template.id,
+                    variables: variables
+                });
+
+                // Disable button while processing
+                const btn = document.getElementById('create-policies-btn');
+                btn.disabled = true;
+                btn.textContent = 'Creating...';
+            }
+
+            function handleTemplateCreated(data) {
+                if (data.error) {
+                    alert('Failed to create policies: ' + data.error);
+                    const btn = document.getElementById('create-policies-btn');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Create Policies';
+                    }
+                } else {
+                    alert(data.message || 'Policies created successfully!');
+                    closeTemplateModal();
+
+                    // Reload statistics and policies
+                    loadStatistics();
+                    loadPolicies();
+                }
+            }
+        </script>
+    </body>
+</html>

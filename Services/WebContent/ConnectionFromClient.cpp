@@ -1481,4 +1481,20 @@ Messages::WebContentServer::GetNetworkAuditResponse ConnectionFromClient::get_ne
     return { response.audit_entries(), response.total_bytes_sent(), response.total_bytes_received() };
 }
 
+void ConnectionFromClient::enforce_security_policy(i32 request_id, ByteString action)
+{
+    // Forward the security policy enforcement to RequestServer via ResourceLoader
+    auto request_client = Web::ResourceLoader::the().request_client();
+    if (!request_client) {
+        dbgln("WebContent::ConnectionFromClient::enforce_security_policy: No RequestClient available");
+        return;
+    }
+
+    // Call enforce_security_policy on RequestServer via IPC
+    // SECURITY: This enforces the user's security decision (block/allow/quarantine)
+    request_client->async_enforce_security_policy(request_id, move(action));
+
+    dbgln("WebContent: Enforced security policy for request {} with action '{}'", request_id, action);
+}
+
 }

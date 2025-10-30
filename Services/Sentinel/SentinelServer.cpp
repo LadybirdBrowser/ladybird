@@ -270,6 +270,65 @@ ErrorOr<ByteString> SentinelServer::scan_content(ReadonlyBytes content)
     if (!s_yara_rules)
         return Error::from_string_literal("YARA rules not initialized");
 
+    // For large files (> 10MB), use streaming scan to reduce memory pressure
+    constexpr size_t STREAMING_THRESHOLD = 10 * 1024 * 1024; // 10MB
+    constexpr size_t CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
+
+    if (content.size() > STREAMING_THRESHOLD) {
+        dbgln("SentinelServer: Using streaming scan for large file ({}MB)", content.size() / (1024 * 1024));
+
+        // Scan in chunks with overlap to catch patterns spanning chunk boundaries
+        constexpr size_t OVERLAP_SIZE = 4096; // 4KB overlap
+        YaraMatchData match_data;
+
+        size_t offset = 0;
+        while (offset < content.size()) {
+            size_t chunk_size = min(CHUNK_SIZE, content.size() - offset);
+            auto chunk = content.slice(offset, chunk_size);
+
+            int result = yr_rules_scan_mem(
+                s_yara_rules,
+                reinterpret_cast<uint8_t const*>(chunk.data()),
+                chunk.size(),
+                0,
+                yara_callback,
+                &match_data,
+                0);
+
+            if (result != ERROR_SUCCESS)
+                return Error::from_string_literal("YARA scan failed");
+
+            // If we found matches, we can stop early
+            if (!match_data.rule_names.is_empty())
+                break;
+
+            // Move to next chunk with overlap
+            if (offset + chunk_size >= content.size())
+                break;
+
+            offset += chunk_size - OVERLAP_SIZE;
+        }
+
+        if (match_data.rule_names.is_empty())
+            return ByteString("clean"sv);
+
+        // Format matches as detailed JSON response
+        JsonObject result_obj;
+        result_obj.set("threat_detected"sv, true);
+
+        JsonArray matched_rules_array;
+        for (auto const& rule_detail : match_data.rule_details) {
+            matched_rules_array.must_append(rule_detail);
+        }
+
+        result_obj.set("matched_rules"sv, move(matched_rules_array));
+        result_obj.set("match_count"sv, static_cast<i64>(match_data.rule_names.size()));
+
+        auto json_string = result_obj.serialized();
+        return ByteString(json_string.bytes_as_string_view());
+    }
+
+    // For smaller files, scan entire content at once (original behavior)
     YaraMatchData match_data;
     int result = yr_rules_scan_mem(
         s_yara_rules,

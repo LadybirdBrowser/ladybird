@@ -1,0 +1,39 @@
+{
+  "name": "Block Specific File by Hash",
+  "description": "Block a specific file by its SHA256 hash signature. Use this template to block known malware or unwanted files regardless of where they are downloaded from.",
+  "category": "Security",
+  "variables": [
+    {
+      "name": "file_hash",
+      "label": "SHA256 Hash",
+      "type": "text",
+      "placeholder": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required": true,
+      "validation": "^[a-fA-F0-9]{64}$",
+      "helpText": "Enter the SHA256 hash of the file to block"
+    },
+    {
+      "name": "filename",
+      "label": "Filename (for reference)",
+      "type": "text",
+      "placeholder": "malware.exe",
+      "required": false,
+      "helpText": "Optional: Filename for policy identification"
+    }
+  ],
+  "policies": [
+    {
+      "ruleName": "Block file by hash: ${filename}",
+      "match_pattern": {
+        "url_pattern": null,
+        "file_hash": "${file_hash}",
+        "mime_type": null
+      },
+      "action": "Block"
+    }
+  ],
+  "example": {
+    "file_hash": "a1b2c3d4e5f6789012345678901234567890123456789012345678901234abcd",
+    "filename": "known_malware.exe"
+  }
+}

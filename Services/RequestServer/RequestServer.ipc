@@ -50,4 +50,13 @@ endpoint RequestServer
     websocket_close(i64 websocket_id, u16 code, ByteString reason) =|
     websocket_set_certificate(i64 request_id, ByteString certificate, ByteString key) => (bool success)
 
+    // Sentinel security system status
+    get_sentinel_status() => (bool connected, bool scanning_enabled)
+
+    // Quarantine management (Phase 4 Day 24)
+    list_quarantine_entries() => (Vector<ByteString> quarantine_entries_json)
+    restore_quarantine_file(ByteString quarantine_id, ByteString destination_dir) => (bool success)
+    delete_quarantine_file(ByteString quarantine_id) => (bool success)
+    get_quarantine_directory() => (ByteString directory_path)
+
 }

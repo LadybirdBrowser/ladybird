@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
+#include <UI/Qt/SecurityNotificationBanner.h>
 #include <UI/Qt/Tab.h>
 
 #include <QIcon>
@@ -23,6 +24,7 @@ namespace Ladybird {
 
 class Tab;
 class WebContentView;
+class SecurityNotificationBanner;
 
 class BrowserWindow : public QMainWindow {
     Q_OBJECT
@@ -71,6 +73,12 @@ public slots:
     void open_file();
     void show_find_in_page();
 
+    void show_security_notification(
+        SecurityNotificationBanner::NotificationType type,
+        String const& message,
+        String const& details,
+        Optional<String> policy_id = {});
+
 protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
@@ -111,6 +119,7 @@ private:
     Tab* m_current_tab { nullptr };
 
     QToolBar* m_new_tab_button_toolbar { nullptr };
+    SecurityNotificationBanner* m_security_notification_banner { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
 

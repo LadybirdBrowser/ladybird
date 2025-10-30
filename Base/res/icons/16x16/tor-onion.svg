@@ -1,0 +1,8 @@
+<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tor onion icon -->
+  <ellipse cx="8" cy="10" rx="5" ry="4" fill="#7D4698"/>
+  <ellipse cx="8" cy="7" rx="3.5" ry="3" fill="#9B6BB5"/>
+  <ellipse cx="8" cy="5" rx="2" ry="2" fill="#C2A3D5"/>
+  <line x1="7" y1="3" x2="9" y2="3" stroke="#5A3A6A" stroke-width="1"/>
+  <line x1="8" y1="2" x2="8" y2="4" stroke="#5A3A6A" stroke-width="1"/>
+</svg>

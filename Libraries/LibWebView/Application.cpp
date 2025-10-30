@@ -640,6 +640,13 @@ void Application::display_error_dialog(StringView error_message) const
     warnln("{}", error_message);
 }
 
+void Application::on_quarantine_manager_requested() const
+{
+    // Default implementation: log to console
+    // Platform-specific implementations (Qt) will override this
+    dbgln("Application: Quarantine manager requested (no platform implementation)");
+}
+
 Utf16String Application::clipboard_text() const
 {
     if (!m_clipboard.has_value())

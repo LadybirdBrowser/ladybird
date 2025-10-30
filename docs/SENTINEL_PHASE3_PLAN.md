@@ -1,8 +1,8 @@
 # Sentinel Phase 3: Policy Enforcement & UI Integration
 
 **Timeline**: Week 3 (Days 15-21)
-**Status**: 🔄 PLANNING
-**Prerequisites**: ✅ Phase 1 (Sentinel daemon), ✅ Phase 2 (SecurityTap + IPC)
+**Status**:  PLANNING
+**Prerequisites**:  Phase 1 (Sentinel daemon),  Phase 2 (SecurityTap + IPC)
 
 ---
 
@@ -12,7 +12,7 @@ Phase 3 transforms Sentinel from a detection-only system to a complete security 
 1. **PolicyGraph database** - Persistent storage for security policies
 2. **UI security alerts** - User-facing dialogs when threats detected
 3. **Policy enforcement** - Block, quarantine, or allow downloads based on policies
-4. **Policy management** - Browser UI at `ladybird://security` for managing rules
+4. **Policy management** - Browser UI at `about:security` for managing rules
 
 ---
 
@@ -209,14 +209,14 @@ private:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  ⚠️  Security Threat Detected                           │
+│  ⚠  Security Threat Detected                           │
 ├─────────────────────────────────────────────────────────┤
 │                                                           │
 │  Sentinel has detected malware in this download:         │
 │                                                           │
 │  📄 Filename: suspicious.exe                             │
 │  🔗 URL: https://malicious.example.com/download          │
-│  🛡️  Rule: EICAR_Test_File                              │
+│    Rule: EICAR_Test_File                              │
 │  ⚡ Severity: Low                                        │
 │  📋 Description: EICAR anti-virus test file             │
 │                                                           │
@@ -362,17 +362,17 @@ void ConnectionFromClient::enforce_security_policy(i32 request_id, String action
 ## Day 20: Policy Management UI
 
 ### Goals
-- Browser chrome UI at `ladybird://security`
+- Browser chrome UI at `about:security`
 - View all policies
 - View threat history
 - Create/edit/delete policies manually
 - Export/import policy sets
 
-### UI Layout (`ladybird://security`)
+### UI Layout (`about:security`)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  🛡️  Sentinel Security Center                          │
+│    Sentinel Security Center                          │
 ├─────────────────────────────────────────────────────────┤
 │  [Policies] [Threat History] [Quarantine] [Settings]    │
 ├─────────────────────────────────────────────────────────┤
@@ -396,12 +396,12 @@ void ConnectionFromClient::enforce_security_policy(i32 request_id, String action
 ### Implementation
 
 **UI/Qt/SecurityPage.cpp**
-- Qt WebEngineView loading internal `ladybird://security` URL
+- Qt WebEngineView loading internal `about:security` URL
 - JavaScript API for policy management
 - Real-time updates when policies change
 
 **Services/RequestServer/SecurityProtocol.cpp** (new)
-- Custom protocol handler for `ladybird://security`
+- Custom protocol handler for `about:security`
 - Serves HTML/CSS/JS for policy management UI
 - REST-like API endpoints:
   - `GET /api/policies` - List all policies
@@ -434,7 +434,7 @@ void ConnectionFromClient::enforce_security_policy(i32 request_id, String action
 1. Download suspicious Windows PE
 2. User selects "Quarantine"
 3. File moved to quarantine directory
-4. Visit `ladybird://security/quarantine`
+4. Visit `about:security/quarantine`
 5. View quarantined file details
 6. Restore or permanently delete
 
@@ -474,14 +474,14 @@ void ConnectionFromClient::enforce_security_policy(i32 request_id, String action
 ## Success Criteria
 
 ### Phase 3 Complete When:
-- ✅ PolicyGraph database operational with all CRUD operations
-- ✅ Security alert dialog appears when threat detected
-- ✅ User decisions create policies correctly
-- ✅ Policies enforced automatically on subsequent threats
-- ✅ Quarantine directory functional
-- ✅ `ladybird://security` UI functional
-- ✅ All integration tests pass
-- ✅ Performance targets met
+-  PolicyGraph database operational with all CRUD operations
+-  Security alert dialog appears when threat detected
+-  User decisions create policies correctly
+-  Policies enforced automatically on subsequent threats
+-  Quarantine directory functional
+-  `about:security` UI functional
+-  All integration tests pass
+-  Performance targets met
 
 ---
 

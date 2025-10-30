@@ -31,10 +31,19 @@ public:
         Optional<ByteString> alert_json;
     };
 
+    using ScanCallback = Function<void(ErrorOr<ScanResult>)>;
+
     // Main inspection method - sends download to Sentinel for YARA scanning
     ErrorOr<ScanResult> inspect_download(
         DownloadMetadata const& metadata,
         ReadonlyBytes content
+    );
+
+    // Async inspection method - non-blocking, returns immediately and calls callback
+    void async_inspect_download(
+        DownloadMetadata const& metadata,
+        ReadonlyBytes content,
+        ScanCallback callback
     );
 
     // Compute SHA256 hash of content

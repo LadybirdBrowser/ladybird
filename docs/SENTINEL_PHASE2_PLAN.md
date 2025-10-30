@@ -2,7 +2,7 @@
 
 **Phase**: Week 2 - Browser Integration (SecurityTap)
 **Status**: Ready to Start
-**Dependencies**: Phase 1 Complete ✅
+**Dependencies**: Phase 1 Complete 
 
 ---
 
@@ -385,13 +385,13 @@ cp /tmp/test_eicar.txt .
 
 Phase 2 is complete when:
 
-1. ✅ SecurityTap compiles and links
-2. ✅ Downloads trigger SecurityTap inspection
-3. ✅ EICAR test file generates alert
-4. ✅ Clean files pass through without alerts
-5. ✅ IPC message delivered to browser
-6. ✅ Performance overhead < 5%
-7. ✅ Sentinel unavailable handled gracefully
+1.  SecurityTap compiles and links
+2.  Downloads trigger SecurityTap inspection
+3.  EICAR test file generates alert
+4.  Clean files pass through without alerts
+5.  IPC message delivered to browser
+6.  Performance overhead < 5%
+7.  Sentinel unavailable handled gracefully
 
 ---
 
@@ -402,10 +402,10 @@ Phase 2 is complete when:
 - Policy creation from alerts
 - Policy Graph database
 - Enforcement hooks (quarantine, block)
-- `ladybird://security` management UI
+- `about:security` management UI
 
 ---
 
 **Document Version**: 1.0
 **Created**: 2025-10-29
-**Ready to Implement**: Yes ✅
+**Ready to Implement**: Yes 

@@ -12,6 +12,51 @@
 
 namespace Sentinel {
 
+// PolicyGraphCache implementation
+
+Optional<Optional<int>> PolicyGraphCache::get_cached(String const& key)
+{
+    auto it = m_cache.find(key);
+    if (it == m_cache.end())
+        return {};
+
+    // Update LRU order
+    update_lru(key);
+
+    return it->value;
+}
+
+void PolicyGraphCache::cache_policy(String const& key, Optional<int> policy_id)
+{
+    // If cache is full, evict least recently used entry
+    if (m_cache.size() >= m_max_size && !m_cache.contains(key)) {
+        if (!m_lru_order.is_empty()) {
+            auto lru_key = m_lru_order.take_first();
+            m_cache.remove(lru_key);
+        }
+    }
+
+    m_cache.set(key, policy_id);
+    update_lru(key);
+}
+
+void PolicyGraphCache::invalidate()
+{
+    m_cache.clear();
+    m_lru_order.clear();
+}
+
+void PolicyGraphCache::update_lru(String const& key)
+{
+    // Remove key from current position
+    m_lru_order.remove_all_matching([&](auto const& k) { return k == key; });
+
+    // Add to end (most recently used)
+    m_lru_order.append(key);
+}
+
+// PolicyGraph implementation
+
 ErrorOr<PolicyGraph> PolicyGraph::create(ByteString const& db_directory)
 {
     // Ensure directory exists
@@ -172,7 +217,18 @@ ErrorOr<PolicyGraph> PolicyGraph::create(ByteString const& db_directory)
     statements.count_threats = TRY(database->prepare_statement(
         "SELECT COUNT(*) FROM threat_history;"sv));
 
-    return PolicyGraph { move(database), statements };
+    // Memory optimization statements
+    statements.delete_old_threats = TRY(database->prepare_statement(
+        "DELETE FROM threat_history WHERE detected_at < ?;"sv));
+
+    auto policy_graph = PolicyGraph { move(database), statements };
+
+    // Cleanup old threats on initialization
+    auto cleanup_result = policy_graph.cleanup_old_threats();
+    if (cleanup_result.is_error())
+        dbgln("PolicyGraph: Warning - failed to cleanup old threats: {}", cleanup_result.error());
+
+    return policy_graph;
 }
 
 PolicyGraph::PolicyGraph(NonnullRefPtr<Database::Database> database, Statements statements)
@@ -215,6 +271,10 @@ ErrorOr<i64> PolicyGraph::create_policy(Policy const& policy)
             last_id = m_database->result_column<i64>(statement_id, 0);
         }
     );
+
+    // Invalidate cache since policies changed
+    m_cache.invalidate();
+
     return last_id;
 }
 
@@ -336,19 +396,72 @@ ErrorOr<void> PolicyGraph::update_policy(i64 policy_id, Policy const& policy)
         policy_id
     );
 
+    // Invalidate cache since policies changed
+    m_cache.invalidate();
+
     return {};
 }
 
 ErrorOr<void> PolicyGraph::delete_policy(i64 policy_id)
 {
     m_database->execute_statement(m_statements.delete_policy, {}, policy_id);
+
+    // Invalidate cache since policies changed
+    m_cache.invalidate();
+
     return {};
 }
 
 // Policy matching implementation
 
+String PolicyGraph::compute_cache_key(ThreatMetadata const& threat) const
+{
+    // Create cache key: hash(url + filename + mime_type + file_hash)
+    // Using simple concatenation with separator for uniqueness
+    StringBuilder builder;
+    builder.append(threat.url);
+    builder.append('|');
+    builder.append(threat.filename);
+    builder.append('|');
+    builder.append(threat.mime_type);
+    builder.append('|');
+    builder.append(threat.file_hash);
+
+    // Use the string's hash trait for a quick hash
+    auto input_string = MUST(builder.to_string());
+    auto hash_value = Traits<String>::hash(input_string);
+
+    return MUST(String::formatted("{:x}", hash_value));
+}
+
 ErrorOr<Optional<PolicyGraph::Policy>> PolicyGraph::match_policy(ThreatMetadata const& threat)
 {
+    // Check cache first
+    auto cache_key = compute_cache_key(threat);
+    auto cached_result = m_cache.get_cached(cache_key);
+    if (cached_result.has_value()) {
+        // Cache hit
+        auto policy_id = cached_result.value();
+        if (!policy_id.has_value()) {
+            // Cached "no match"
+            return Optional<Policy> {};
+        }
+
+        // Cached policy ID - fetch and return policy
+        auto policy_result = get_policy(policy_id.value());
+        if (policy_result.is_error()) {
+            // Policy was deleted or invalid, invalidate cache entry
+            m_cache.cache_policy(cache_key, {});
+            // Fall through to normal query
+        } else {
+            // Update hit statistics
+            auto now = UnixDateTime::now().milliseconds_since_epoch();
+            m_database->execute_statement(m_statements.increment_hit_count, {}, now, policy_id.value());
+            return policy_result.value();
+        }
+    }
+
+    // Cache miss - perform database query
     auto now = UnixDateTime::now().milliseconds_since_epoch();
 
     // Priority 1: Match by file hash (most specific)
@@ -399,6 +512,8 @@ ErrorOr<Optional<PolicyGraph::Policy>> PolicyGraph::match_policy(ThreatMetadata 
         if (match.has_value()) {
             // Update hit statistics
             m_database->execute_statement(m_statements.increment_hit_count, {}, now, match->id);
+            // Cache the match
+            m_cache.cache_policy(cache_key, match->id);
             return match;
         }
     }
@@ -450,6 +565,8 @@ ErrorOr<Optional<PolicyGraph::Policy>> PolicyGraph::match_policy(ThreatMetadata 
 
         if (match.has_value()) {
             m_database->execute_statement(m_statements.increment_hit_count, {}, now, match->id);
+            // Cache the match
+            m_cache.cache_policy(cache_key, match->id);
             return match;
         }
     }
@@ -501,11 +618,14 @@ ErrorOr<Optional<PolicyGraph::Policy>> PolicyGraph::match_policy(ThreatMetadata 
 
         if (match.has_value()) {
             m_database->execute_statement(m_statements.increment_hit_count, {}, now, match->id);
+            // Cache the match
+            m_cache.cache_policy(cache_key, match->id);
             return match;
         }
     }
 
-    // No matching policy found
+    // No matching policy found - cache the miss
+    m_cache.cache_policy(cache_key, {});
     return Optional<Policy> {};
 }
 
@@ -637,6 +757,10 @@ ErrorOr<void> PolicyGraph::cleanup_expired_policies()
 {
     auto now = UnixDateTime::now().milliseconds_since_epoch();
     m_database->execute_statement(m_statements.delete_expired_policies, {}, now);
+
+    // Invalidate cache since policies changed
+    m_cache.invalidate();
+
     return {};
 }
 
@@ -689,6 +813,34 @@ String PolicyGraph::action_to_string(PolicyAction action)
         return "quarantine"_string;
     }
     VERIFY_NOT_REACHED();
+}
+
+// Memory optimization implementations
+
+ErrorOr<void> PolicyGraph::cleanup_old_threats(u64 days_to_keep)
+{
+    // Calculate cutoff timestamp
+    auto now = UnixDateTime::now();
+    auto cutoff_timestamp = now.seconds_since_epoch() - (days_to_keep * 24 * 60 * 60);
+    auto cutoff_ms = cutoff_timestamp * 1000;
+
+    dbgln("PolicyGraph: Cleaning up threats older than {} days (cutoff: {})", days_to_keep, cutoff_ms);
+
+    // Delete old threats
+    m_database->execute_statement(m_statements.delete_old_threats, {}, cutoff_ms);
+
+    return {};
+}
+
+ErrorOr<void> PolicyGraph::vacuum_database()
+{
+    dbgln("PolicyGraph: Vacuuming database to reclaim space");
+
+    // VACUUM command compacts the SQLite database
+    auto vacuum_stmt = TRY(m_database->prepare_statement("VACUUM;"sv));
+    m_database->execute_statement(vacuum_stmt, {});
+
+    return {};
 }
 
 }

@@ -10,7 +10,9 @@
 #include <AK/JsonParser.h>
 #include <AK/JsonValue.h>
 #include <AK/StringBuilder.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
+#include <LibThreading/BackgroundAction.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
@@ -161,6 +163,48 @@ ErrorOr<ByteString> SecurityTap::send_scan_request(
     }
 
     return ByteString(bytes_read);
+}
+
+void SecurityTap::async_inspect_download(
+    DownloadMetadata const& metadata,
+    ReadonlyBytes content,
+    ScanCallback callback)
+{
+    // For very large files, skip scanning to avoid performance impact
+    constexpr size_t MAX_SCAN_SIZE = 100 * 1024 * 1024; // 100MB
+    if (content.size() > MAX_SCAN_SIZE) {
+        dbgln("SecurityTap: Skipping scan for large file ({}MB) - async", content.size() / (1024 * 1024));
+        Core::EventLoop::current().deferred_invoke([callback = move(callback)]() mutable {
+            callback(ScanResult { .is_threat = false, .alert_json = {} });
+        });
+        return;
+    }
+
+    // Copy metadata and content for background thread
+    DownloadMetadata metadata_copy = metadata;
+    ByteBuffer content_buffer;
+    auto buffer_result = ByteBuffer::copy(content);
+    if (buffer_result.is_error()) {
+        Core::EventLoop::current().deferred_invoke([callback = move(callback), error = buffer_result.release_error()]() mutable {
+            callback(move(error));
+        });
+        return;
+    }
+    content_buffer = buffer_result.release_value();
+
+    // Perform scan in background thread using Threading::BackgroundAction
+    // Note: We need to capture 'this' carefully since BackgroundAction expects specific signature
+    [[maybe_unused]] auto action = Threading::BackgroundAction<ScanResult>::construct(
+        [this, metadata_copy = move(metadata_copy), content_buffer = move(content_buffer)](auto&) -> ErrorOr<ScanResult> {
+            // This runs in background thread - perform blocking scan
+            return inspect_download(metadata_copy, content_buffer.bytes());
+        },
+        [callback = move(callback)](ScanResult result) -> ErrorOr<void> {
+            // This runs back in main event loop - deliver result via callback
+            callback(move(result));
+            return {};
+        }
+    );
 }
 
 }

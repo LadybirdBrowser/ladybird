@@ -240,4 +240,150 @@ ErrorOr<QuarantineMetadata> Quarantine::read_metadata(String const& quarantine_i
     return metadata;
 }
 
+ErrorOr<Vector<QuarantineMetadata>> Quarantine::list_all_entries()
+{
+    Vector<QuarantineMetadata> entries;
+
+    auto quarantine_dir = TRY(get_quarantine_directory());
+    auto quarantine_dir_byte_string = quarantine_dir.to_byte_string();
+
+    // Check if directory exists
+    if (!FileSystem::exists(quarantine_dir_byte_string)) {
+        dbgln("Quarantine: Directory does not exist: {}", quarantine_dir);
+        return entries; // Return empty vector
+    }
+
+    // Iterate through directory looking for .json metadata files
+    TRY(Core::Directory::for_each_entry(quarantine_dir_byte_string, Core::DirIterator::SkipParentAndBaseDir, [&](auto const& entry, auto const&) -> ErrorOr<IterationDecision> {
+        // Only process .json files
+        if (!entry.name.ends_with(".json"sv))
+            return IterationDecision::Continue;
+
+        // Extract quarantine ID (remove .json extension)
+        auto quarantine_id_byte = entry.name.substring(0, entry.name.length() - 5);
+        auto quarantine_id_result = String::from_byte_string(quarantine_id_byte);
+
+        if (quarantine_id_result.is_error()) {
+            dbgln("Quarantine: Failed to convert quarantine ID: {}", entry.name);
+            return IterationDecision::Continue;
+        }
+
+        auto quarantine_id = quarantine_id_result.release_value();
+
+        // Read metadata
+        auto metadata_result = read_metadata(quarantine_id);
+        if (metadata_result.is_error()) {
+            dbgln("Quarantine: Failed to read metadata for {}: {}", quarantine_id, metadata_result.error());
+            return IterationDecision::Continue;
+        }
+
+        entries.append(metadata_result.release_value());
+        return IterationDecision::Continue;
+    }));
+
+    dbgln("Quarantine: Found {} quarantined files", entries.size());
+    return entries;
+}
+
+ErrorOr<void> Quarantine::restore_file(String const& quarantine_id, String const& destination_dir)
+{
+    auto quarantine_dir = TRY(get_quarantine_directory());
+
+    // Build source paths
+    StringBuilder source_file_builder;
+    source_file_builder.append(quarantine_dir);
+    source_file_builder.append('/');
+    source_file_builder.append(quarantine_id);
+    source_file_builder.append(".bin"sv);
+    auto source_file = TRY(source_file_builder.to_string());
+
+    // Check if quarantined file exists
+    if (!FileSystem::exists(source_file)) {
+        return Error::from_string_literal("Quarantined file does not exist");
+    }
+
+    // Read metadata to get original filename
+    auto metadata = TRY(read_metadata(quarantine_id));
+
+    // Build destination path
+    StringBuilder dest_path_builder;
+    dest_path_builder.append(destination_dir);
+    dest_path_builder.append('/');
+    dest_path_builder.append(metadata.filename);
+    auto dest_path = TRY(dest_path_builder.to_string());
+
+    // Check if destination already exists
+    if (FileSystem::exists(dest_path)) {
+        // Append number to make unique
+        for (int i = 1; i < 1000; i++) {
+            StringBuilder unique_dest_builder;
+            unique_dest_builder.append(destination_dir);
+            unique_dest_builder.append('/');
+            unique_dest_builder.append(metadata.filename);
+            unique_dest_builder.appendff("_({})", i);
+            auto unique_dest = TRY(unique_dest_builder.to_string());
+
+            if (!FileSystem::exists(unique_dest)) {
+                dest_path = unique_dest;
+                break;
+            }
+        }
+    }
+
+    // Move file from quarantine to destination
+    dbgln("Quarantine: Restoring {} to {}", source_file, dest_path);
+    TRY(FileSystem::move_file(dest_path, source_file, FileSystem::PreserveMode::Nothing));
+
+    // Restore normal permissions (owner read/write: rw-------)
+    TRY(Core::System::chmod(dest_path, 0600));
+
+    // Delete metadata file
+    StringBuilder metadata_path_builder;
+    metadata_path_builder.append(quarantine_dir);
+    metadata_path_builder.append('/');
+    metadata_path_builder.append(quarantine_id);
+    metadata_path_builder.append(".json"sv);
+    auto metadata_path = TRY(metadata_path_builder.to_string());
+
+    TRY(FileSystem::remove(metadata_path, FileSystem::RecursionMode::Disallowed));
+
+    dbgln("Quarantine: Successfully restored file to {}", dest_path);
+    return {};
+}
+
+ErrorOr<void> Quarantine::delete_file(String const& quarantine_id)
+{
+    auto quarantine_dir = TRY(get_quarantine_directory());
+
+    // Build file paths
+    StringBuilder file_path_builder;
+    file_path_builder.append(quarantine_dir);
+    file_path_builder.append('/');
+    file_path_builder.append(quarantine_id);
+    file_path_builder.append(".bin"sv);
+    auto file_path = TRY(file_path_builder.to_string());
+
+    StringBuilder metadata_path_builder;
+    metadata_path_builder.append(quarantine_dir);
+    metadata_path_builder.append('/');
+    metadata_path_builder.append(quarantine_id);
+    metadata_path_builder.append(".json"sv);
+    auto metadata_path = TRY(metadata_path_builder.to_string());
+
+    // Delete quarantined file (if it exists)
+    if (FileSystem::exists(file_path)) {
+        TRY(FileSystem::remove(file_path, FileSystem::RecursionMode::Disallowed));
+        dbgln("Quarantine: Deleted file {}", file_path);
+    }
+
+    // Delete metadata file (if it exists)
+    if (FileSystem::exists(metadata_path)) {
+        TRY(FileSystem::remove(metadata_path, FileSystem::RecursionMode::Disallowed));
+        dbgln("Quarantine: Deleted metadata {}", metadata_path);
+    }
+
+    dbgln("Quarantine: Successfully deleted quarantine entry {}", quarantine_id);
+    return {};
+}
+
 }

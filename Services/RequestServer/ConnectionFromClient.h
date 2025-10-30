@@ -55,6 +55,15 @@ private:
     // Security policy enforcement (Phase 3 Day 19)
     virtual void enforce_security_policy(i32 request_id, ByteString action) override;
 
+    // Sentinel security system status
+    virtual Messages::RequestServer::GetSentinelStatusResponse get_sentinel_status() override;
+
+    // Quarantine management (Phase 4 Day 24)
+    virtual Messages::RequestServer::ListQuarantineEntriesResponse list_quarantine_entries() override;
+    virtual Messages::RequestServer::RestoreQuarantineFileResponse restore_quarantine_file(ByteString quarantine_id, ByteString destination_dir) override;
+    virtual Messages::RequestServer::DeleteQuarantineFileResponse delete_quarantine_file(ByteString quarantine_id) override;
+    virtual Messages::RequestServer::GetQuarantineDirectoryResponse get_quarantine_directory() override;
+
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void clear_cache() override;

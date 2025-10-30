@@ -1,0 +1,6 @@
+<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+  <!-- VPN shield icon -->
+  <path d="M 8 2 L 3 5 L 3 10 L 8 14 L 13 10 L 13 5 Z" fill="#2196F3" stroke="#1565C0" stroke-width="1"/>
+  <!-- Checkmark -->
+  <path d="M 6 8 L 7.5 10 L 11 6" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

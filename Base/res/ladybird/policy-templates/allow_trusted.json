@@ -1,0 +1,40 @@
+{
+  "name": "Allow Downloads from Trusted Domain",
+  "description": "Whitelist all downloads from a trusted domain, bypassing security scanning. Use this template for corporate CDNs, trusted software vendors, or internal file servers.",
+  "category": "Whitelist",
+  "variables": [
+    {
+      "name": "domain",
+      "label": "Trusted domain",
+      "type": "text",
+      "placeholder": "downloads.company.com",
+      "required": true,
+      "validation": "^[a-zA-Z0-9][a-zA-Z0-9-_.]*\\.[a-zA-Z]{2,}$",
+      "helpText": "Enter the trusted domain name to whitelist"
+    }
+  ],
+  "policies": [
+    {
+      "ruleName": "Allow all from trusted: ${domain}",
+      "match_pattern": {
+        "url_pattern": "https://${domain}/*",
+        "file_hash": null,
+        "mime_type": null
+      },
+      "action": "Allow"
+    },
+    {
+      "ruleName": "Allow all from trusted: ${domain} (HTTP)",
+      "match_pattern": {
+        "url_pattern": "http://${domain}/*",
+        "file_hash": null,
+        "mime_type": null
+      },
+      "action": "Allow"
+    }
+  ],
+  "example": {
+    "domain": "cdn.trusted-vendor.com"
+  },
+  "warning": "Only use this template for fully trusted sources. Whitelisted domains bypass all security scanning."
+}

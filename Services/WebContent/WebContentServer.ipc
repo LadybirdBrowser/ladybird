@@ -142,6 +142,9 @@ endpoint WebContentServer
     // Network audit log retrieval
     get_network_audit(u64 page_id) => (Vector<ByteString> audit_entries, size_t total_bytes_sent, size_t total_bytes_received)
 
+    // Security policy enforcement
+    enforce_security_policy(i32 request_id, ByteString action) =|
+
     system_time_zone_changed() =|
     cookies_changed(Vector<Web::Cookie::Cookie> cookies) =|
 }

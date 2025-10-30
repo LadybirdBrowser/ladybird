@@ -5,9 +5,12 @@
  */
 
 #include <LibCore/ArgsParser.h>
+#include <LibCore/StandardPaths.h>
+#include <LibRequests/RequestClient.h>
 #include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/QuarantineManagerDialog.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -173,6 +176,98 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 void Application::display_error_dialog(StringView error_message) const
 {
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
+}
+
+void Application::on_quarantine_manager_requested() const
+{
+    dbgln("Application: Opening Quarantine Manager dialog");
+
+    // Get quarantine directory and entries from RequestServer via IPC
+    auto& request_client = WebView::Application::request_server_client();
+
+    auto directory_path = request_client.get_quarantine_directory();
+    auto entries_json_list = request_client.list_quarantine_entries();
+
+    // Parse quarantine entries from JSON
+    Vector<QuarantineManagerDialog::QuarantineEntry> entries;
+
+    for (auto const& entry_json_str : entries_json_list) {
+        auto json_result = JsonValue::from_string(entry_json_str);
+        if (json_result.is_error()) {
+            dbgln("Failed to parse quarantine entry JSON: {}", json_result.error());
+            continue;
+        }
+
+        auto json = json_result.release_value();
+        if (!json.is_object())
+            continue;
+
+        auto obj = json.as_object();
+
+        QuarantineManagerDialog::QuarantineEntry entry;
+        entry.quarantine_id = obj.get_string("quarantine_id"sv).value_or({}).to_byte_string();
+        entry.filename = obj.get_string("filename"sv).value_or({}).to_byte_string();
+        entry.original_url = obj.get_string("original_url"sv).value_or({}).to_byte_string();
+        entry.detection_time = obj.get_string("detection_time"sv).value_or({}).to_byte_string();
+        entry.sha256 = obj.get_string("sha256"sv).value_or({}).to_byte_string();
+        entry.file_size = obj.get_u64("file_size"sv).value_or(0);
+
+        // Parse rule names array
+        auto rules_array = obj.get_array("rule_names"sv);
+        if (rules_array.has_value()) {
+            for (size_t i = 0; i < rules_array->size(); i++) {
+                auto rule = rules_array->at(i);
+                if (rule.is_string()) {
+                    entry.rule_names.append(rule.as_string().to_byte_string());
+                }
+            }
+        }
+
+        entries.append(move(entry));
+    }
+
+    // Create and show the dialog
+    auto* dialog = new QuarantineManagerDialog(m_active_window);
+    dialog->set_quarantine_entries(entries);
+    dialog->set_quarantine_directory(directory_path);
+
+    // Connect signals for restore and delete operations
+    QObject::connect(dialog, &QuarantineManagerDialog::restore_requested,
+        [](ByteString quarantine_id) {
+            dbgln("Restore requested for: {}", quarantine_id);
+
+            // Get downloads directory
+            auto downloads_dir = ByteString::formatted("{}/Downloads", Core::StandardPaths::home_directory());
+
+            // Call RequestServer IPC to restore file
+            auto& request_client = WebView::Application::request_server_client();
+            auto success = request_client.restore_quarantine_file(quarantine_id, downloads_dir);
+
+            if (success) {
+                QMessageBox::information(nullptr, "Restore Complete",
+                    QString("File restored to Downloads directory."));
+            } else {
+                QMessageBox::critical(nullptr, "Restore Failed",
+                    QString("Failed to restore file from quarantine."));
+            }
+        });
+
+    QObject::connect(dialog, &QuarantineManagerDialog::delete_requested,
+        [](ByteString quarantine_id) {
+            dbgln("Delete requested for: {}", quarantine_id);
+
+            // Call RequestServer IPC to delete file
+            auto& request_client = WebView::Application::request_server_client();
+            auto success = request_client.delete_quarantine_file(quarantine_id);
+
+            if (!success) {
+                QMessageBox::critical(nullptr, "Delete Failed",
+                    QString("Failed to delete file from quarantine."));
+            }
+        });
+
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
 }
 
 Utf16String Application::clipboard_text() const

@@ -563,9 +563,9 @@ TEST_CASE(tor_proxy_isolation)
 **Current Status**: Todo 2 (Design) - COMPLETE
 
 **Next Steps**:
-1. ✅ Create ProxyConfig.h - DONE
-2. ✅ Create NetworkIdentity.h/cpp - DONE
-3. ✅ Create design documentation - DONE
+1.  Create ProxyConfig.h - DONE
+2.  Create NetworkIdentity.h/cpp - DONE
+3.  Create design documentation - DONE
 4. Update CMakeLists.txt to compile new files
 5. Write unit tests
 6. Integrate with ConnectionFromClient (Todo 3)

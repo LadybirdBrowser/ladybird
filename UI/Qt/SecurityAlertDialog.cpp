@@ -144,6 +144,11 @@ void SecurityAlertDialog::setup_ui()
     connect(m_always_allow_button, &QPushButton::clicked, this, &SecurityAlertDialog::on_always_allow_clicked);
     button_layout->addWidget(m_always_allow_button);
 
+    m_quarantine_button = new QPushButton("🔒 Quarantine", this);
+    m_quarantine_button->setToolTip("Isolate this file in quarantine for analysis");
+    connect(m_quarantine_button, &QPushButton::clicked, this, &SecurityAlertDialog::on_quarantine_clicked);
+    button_layout->addWidget(m_quarantine_button);
+
     main_layout->addLayout(button_layout);
 
     // Remember decision checkbox
@@ -186,6 +191,17 @@ void SecurityAlertDialog::on_always_allow_clicked()
     m_decision = UserDecision::AlwaysAllow;
 
     // If "Always Allow" is clicked, automatically check "Remember"
+    m_remember_checkbox->setChecked(true);
+
+    emit userDecided(m_decision);
+    accept();
+}
+
+void SecurityAlertDialog::on_quarantine_clicked()
+{
+    m_decision = UserDecision::Quarantine;
+
+    // If "Quarantine" is clicked, automatically check "Remember"
     m_remember_checkbox->setChecked(true);
 
     emit userDecided(m_decision);

@@ -77,6 +77,7 @@ public:
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
+    virtual void on_quarantine_manager_requested() const;
 
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
     virtual Utf16String clipboard_text() const;

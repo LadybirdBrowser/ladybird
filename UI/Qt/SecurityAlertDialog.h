@@ -32,7 +32,8 @@ public:
     enum class UserDecision {
         Block,
         AllowOnce,
-        AlwaysAllow
+        AlwaysAllow,
+        Quarantine
     };
 
     explicit SecurityAlertDialog(ThreatDetails const& details, QWidget* parent = nullptr);
@@ -48,6 +49,7 @@ private:
     void on_block_clicked();
     void on_allow_once_clicked();
     void on_always_allow_clicked();
+    void on_quarantine_clicked();
 
     QString severity_icon() const;
     QString severity_color() const;
@@ -68,6 +70,7 @@ private:
     QPushButton* m_block_button;
     QPushButton* m_allow_once_button;
     QPushButton* m_always_allow_button;
+    QPushButton* m_quarantine_button;
 };
 
 }

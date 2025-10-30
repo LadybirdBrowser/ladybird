@@ -11,6 +11,7 @@ add_library(sentinelservice STATIC ${SOURCES})
 
 add_executable(Sentinel main.cpp)
 add_executable(TestPolicyGraph TestPolicyGraph.cpp)
+add_executable(TestPhase3Integration TestPhase3Integration.cpp)
 
 target_include_directories(sentinelservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(sentinelservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
@@ -29,6 +30,7 @@ else()
     target_link_libraries(sentinelservice PRIVATE ${YARA_LIBRARY})
 endif()
 
-target_link_libraries(sentinelservice PRIVATE LibCore LibDatabase LibFileSystem LibIPC)
+target_link_libraries(sentinelservice PRIVATE LibCore LibCrypto LibDatabase LibFileSystem LibIPC)
 target_link_libraries(Sentinel PRIVATE sentinelservice LibCore LibMain)
 target_link_libraries(TestPolicyGraph PRIVATE sentinelservice LibCore LibMain)
+target_link_libraries(TestPhase3Integration PRIVATE sentinelservice LibCore LibMain LibFileSystem)

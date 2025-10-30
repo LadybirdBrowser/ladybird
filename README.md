@@ -19,13 +19,34 @@ This fork extends Ladybird with:
 - **ENS**: Ethereum Name Service resolution for `.eth` domains
 - **Gateway Fallback**: Automatic failover between local and public IPFS gateways
 
-### Malware Detection (Sentinel)
-- **YARA-based Scanning**: Real-time malware detection during downloads
-- **Security Alerts**: User-facing dialog for threat notifications
-- **Policy Enforcement**: Block, quarantine, or allow downloads based on user decisions
-- **PolicyGraph Database**: Persistent storage for security policies and threat history
-- **Quarantine System**: Secure isolation of malicious files with metadata tracking
-- **Note**: Educational implementation, not security-audited
+### Built-in Security (Sentinel)
+
+Sentinel provides local malware scanning for downloads using YARA rules. All processing is done locally with no external communication.
+
+#### Features
+
+- YARA-based malware detection during downloads
+- Policy-based enforcement (Block, Quarantine, Allow)
+- Local processing only
+- File quarantine system
+- Security dashboard at `about:security`
+
+#### Usage
+
+1. Sentinel starts with Ladybird
+2. Security alerts appear when threats are detected
+3. Choose action: Block, Quarantine, or Allow
+4. Enable "Remember this decision" to create a policy
+5. Manage policies at `about:security`
+
+#### Documentation
+
+- [User Guide](docs/SENTINEL_USER_GUIDE.md)
+- [Policy Management Guide](docs/SENTINEL_POLICY_GUIDE.md)
+- [YARA Rules Guide](docs/SENTINEL_YARA_RULES.md)
+- [Architecture Documentation](docs/SENTINEL_ARCHITECTURE.md)
+
+Note: Educational implementation, not security-audited.
 
 ### Experimental Security (Educational)
 - IPC rate limiting and validated decoding
@@ -139,7 +160,7 @@ Join [Ladybird's Discord server](https://discord.gg/nvfjVJ4Svh) to participate i
 
 ## Fork Disclaimer
 
-⚠️ This fork contains experimental features for educational purposes:
+ This fork contains experimental features for educational purposes:
 
 - Not security-audited
 - May contain bugs or vulnerabilities

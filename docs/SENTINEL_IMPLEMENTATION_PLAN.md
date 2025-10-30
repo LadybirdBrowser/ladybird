@@ -87,7 +87,7 @@ This document outlines the implementation plan for **Ladybird Sentinel**, a secu
 - Sentinel daemon (new process)
 - Policy Graph database
 - Policy Enforcer hooks in browser UI
-- Review UI (`ladybird://security`)
+- Review UI (`about:security`)
 
 ---
 
@@ -248,7 +248,7 @@ CREATE INDEX idx_enforcement_timestamp ON enforcement_log(timestamp);
 
 #### Component 5: Review UI
 
-**URL**: `ladybird://security`
+**URL**: `about:security`
 
 **Sections**:
 1. **Pending Alerts**: Awaiting user decision (Amplification Candidates)
@@ -336,7 +336,7 @@ CREATE INDEX idx_enforcement_timestamp ON enforcement_log(timestamp);
 - [ ] Add "Create Policy" flow from alert
 - [ ] Implement policy approval/rejection
 - [ ] Add quarantine notification banner
-- [ ] Create `ladybird://security` WebUI page
+- [ ] Create `about:security` WebUI page
 - [ ] Display pending alerts and active policies
 
 **Phase 6: Integration Testing** (Week 4)
@@ -689,7 +689,7 @@ option(ENABLE_SENTINEL "Enable Sentinel security subsystem" ON)
 **Alerts**:
 - Non-blocking notifications
 - User can dismiss or create policy
-- History in `ladybird://security`
+- History in `about:security`
 
 **Power Users**:
 - Custom YARA rules
@@ -702,14 +702,14 @@ option(ENABLE_SENTINEL "Enable Sentinel security subsystem" ON)
 
 ### 11.1 Milestone 0.1 Acceptance Criteria
 
-1. ✅ Sentinel daemon compiles and runs on Linux, macOS, Windows
-2. ✅ Browser intercepts downloads and sends to Sentinel
-3. ✅ YARA detection triggers alert in browser UI
-4. ✅ User can create policy from alert
-5. ✅ Subsequent matching downloads auto-quarantine
-6. ✅ `ladybird://security` displays policies and enforcement history
-7. ✅ No crashes or hangs during normal browsing
-8. ✅ Download speed impact < 5% for files < 10MB
+1.  Sentinel daemon compiles and runs on Linux, macOS, Windows
+2.  Browser intercepts downloads and sends to Sentinel
+3.  YARA detection triggers alert in browser UI
+4.  User can create policy from alert
+5.  Subsequent matching downloads auto-quarantine
+6.  `about:security` displays policies and enforcement history
+7.  No crashes or hangs during normal browsing
+8.  Download speed impact < 5% for files < 10MB
 
 ### 11.2 Real-World Validation
 
@@ -746,7 +746,7 @@ option(ENABLE_SENTINEL "Enable Sentinel security subsystem" ON)
 ## 14. Next Steps
 
 **Immediate (This Week)**:
-1. ✅ Get stakeholder approval on architecture
+1.  Get stakeholder approval on architecture
 2. Create feature branch: `feature/sentinel-mvp`
 3. Set up Sentinel directory structure
 4. Add YARA dependency to vcpkg manifest

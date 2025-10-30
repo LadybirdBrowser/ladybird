@@ -33,7 +33,9 @@ set(16x16_ICONS
     select-all.png
     settings.png
     spoof.png
+    tor-onion.png
     trash-can.png
+    vpn-shield.png
     zoom-in.png
     zoom-out.png
     zoom-reset.png
@@ -71,6 +73,7 @@ set(ABOUT_PAGES
     about.html
     newtab.html
     processes.html
+    security.html
     settings.html
 )
 list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
@@ -103,6 +106,14 @@ set(CONFIG_RESOURCES
     BrowserContentFilters.txt
 )
 list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/default-config/")
+
+set(POLICY_TEMPLATES
+    block_executables.json
+    quarantine_domain.json
+    block_hash.json
+    allow_trusted.json
+)
+list(TRANSFORM POLICY_TEMPLATES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/policy-templates/")
 
 function(copy_resource_set subdir)
     cmake_parse_arguments(PARSE_ARGV 1 "COPY" "" "TARGET;DESTINATION" "RESOURCES")
@@ -188,6 +199,10 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
+    copy_resource_set(ladybird/policy-templates RESOURCES ${POLICY_TEMPLATES}
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+
     add_dependencies(${bundle_target} "${bundle_target}_build_resource_files")
 endfunction()
 
@@ -204,4 +219,5 @@ function(install_ladybird_resources destination component)
     install(FILES ${ABOUT_SETTINGS_RESOURCES} DESTINATION "${destination}/ladybird/about-pages/settings" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
     install(FILES ${CONFIG_RESOURCES} DESTINATION "${destination}/ladybird/default-config" COMPONENT ${component})
+    install(FILES ${POLICY_TEMPLATES} DESTINATION "${destination}/ladybird/policy-templates" COMPONENT ${component})
 endfunction()

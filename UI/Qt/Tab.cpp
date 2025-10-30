@@ -7,10 +7,12 @@
  */
 
 #include <AK/JsonParser.h>
+#include <LibCore/StandardPaths.h>
 #include <LibIPC/NetworkIdentity.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/URL.h>
 #include <Services/Sentinel/PolicyGraph.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
@@ -18,6 +20,7 @@
 #include <UI/Qt/NetworkAuditDialog.h>
 #include <UI/Qt/ProxySettingsDialog.h>
 #include <UI/Qt/SecurityAlertDialog.h>
+#include <UI/Qt/SecurityNotificationBanner.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -92,7 +95,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_tor_toggle_action = new QAction(this);
     m_tor_toggle_action->setCheckable(true);
     m_tor_toggle_action->setChecked(false);
-    m_tor_toggle_action->setText("Tor");  // Show "Tor" text on button
+    m_tor_toggle_action->setIcon(load_icon_from_uri("resource://icons/16x16/tor-onion.png"sv));
     m_tor_toggle_action->setToolTip("Enable Tor for this tab");
     QObject::connect(m_tor_toggle_action, &QAction::triggered, this, [this](bool checked) {
         if (checked) {
@@ -135,7 +138,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_vpn_toggle_action = new QAction(this);
     m_vpn_toggle_action->setCheckable(true);
     m_vpn_toggle_action->setChecked(false);
-    m_vpn_toggle_action->setText("VPN");
+    m_vpn_toggle_action->setIcon(load_icon_from_uri("resource://icons/16x16/vpn-shield.png"sv));
     m_vpn_toggle_action->setToolTip("Enable VPN/Proxy for this tab");
     QObject::connect(m_vpn_toggle_action, &QAction::triggered, this, [this](bool checked) {
         if (checked) {
@@ -402,10 +405,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_dialog = new SecurityAlertDialog(details, &view());
         auto* security_dialog = qobject_cast<SecurityAlertDialog*>(m_dialog.data());
 
-        QObject::connect(security_dialog, &SecurityAlertDialog::userDecided, this, [security_dialog, alert_obj, request_id](SecurityAlertDialog::UserDecision decision) {
-            // TODO Phase 3 Day 19: Send enforcement decision via IPC
-            // For now, just log the decision
-            QString decision_str;
+        QObject::connect(security_dialog, &SecurityAlertDialog::userDecided, this, [this, security_dialog, alert_obj, request_id](SecurityAlertDialog::UserDecision decision) {
+            // Map UserDecision enum to action strings for IPC
+            ByteString decision_str;
             switch (decision) {
             case SecurityAlertDialog::UserDecision::Block:
                 decision_str = "block";
@@ -416,16 +418,33 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             case SecurityAlertDialog::UserDecision::AlwaysAllow:
                 decision_str = "allow";
                 break;
+            case SecurityAlertDialog::UserDecision::Quarantine:
+                decision_str = "quarantine";
+                break;
             }
 
             dbgln("Tab: User security decision for request {}: {} (remember: {})",
-                  request_id, decision_str.toUtf8().data(), security_dialog->should_remember());
+                  request_id, decision_str.characters(), security_dialog->should_remember());
 
             // Phase 3 Day 19: Create policy in PolicyGraph if remember is checked
             if (security_dialog->should_remember()) {
-                // Only create policies for Block and AlwaysAllow (not AllowOnce)
+                // Only create policies for Block, AlwaysAllow, and Quarantine (not AllowOnce)
                 if (decision == SecurityAlertDialog::UserDecision::Block ||
-                    decision == SecurityAlertDialog::UserDecision::AlwaysAllow) {
+                    decision == SecurityAlertDialog::UserDecision::AlwaysAllow ||
+                    decision == SecurityAlertDialog::UserDecision::Quarantine) {
+
+                    // Extract file hash for deduplication
+                    auto file_hash = alert_obj.get_string("file_hash"sv).value_or(""_string);
+
+                    // Rate limiting: Check if we can create another policy
+                    if (!check_policy_rate_limit(file_hash)) {
+                        QMessageBox::warning(this, "Rate Limit Exceeded",
+                            "Too many security policies created recently. Please wait a moment before creating more policies.",
+                            QMessageBox::Ok);
+                        // Still enforce the decision via IPC, just don't save the policy
+                        view().client().async_enforce_security_policy(request_id, decision_str);
+                        return;
+                    }
 
                     // Extract URL and rule from alert JSON
                     auto url = alert_obj.get_string("url"sv).value_or(""_string);
@@ -442,6 +461,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                     Sentinel::PolicyGraph::PolicyAction action;
                     if (decision == SecurityAlertDialog::UserDecision::Block) {
                         action = Sentinel::PolicyGraph::PolicyAction::Block;
+                    } else if (decision == SecurityAlertDialog::UserDecision::Quarantine) {
+                        action = Sentinel::PolicyGraph::PolicyAction::Quarantine;
                     } else {
                         action = Sentinel::PolicyGraph::PolicyAction::Allow;
                     }
@@ -450,7 +471,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                     Sentinel::PolicyGraph::Policy policy {
                         .rule_name = rule_name,
                         .url_pattern = url_pattern,
-                        .file_hash = {},
+                        .file_hash = file_hash,
                         .mime_type = {},
                         .action = action,
                         .created_at = UnixDateTime::now(),
@@ -459,26 +480,92 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                         .last_hit = {}
                     };
 
-                    // Get PolicyGraph instance and create policy
-                    auto pg_result = Sentinel::PolicyGraph::create("/tmp/sentinel");
+                    // Get PolicyGraph instance and create policy using proper data directory
+                    auto data_dir = MUST(String::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory()));
+                    auto pg_result = Sentinel::PolicyGraph::create(data_dir.to_byte_string());
                     if (pg_result.is_error()) {
                         dbgln("Failed to access PolicyGraph: {}", pg_result.error());
+                        QMessageBox::critical(this, "Policy Database Error",
+                            QString("Failed to access security policy database:\n%1\n\nYour security preference will not be remembered.")
+                                .arg(QString::fromUtf8(pg_result.error().string_literal().characters_without_null_termination())),
+                            QMessageBox::Ok);
                     } else {
                         auto& policy_graph = pg_result.value();
                         auto policy_result = policy_graph.create_policy(policy);
 
                         if (policy_result.is_error()) {
                             dbgln("Failed to create policy: {}", policy_result.error());
+                            QMessageBox::critical(this, "Policy Creation Error",
+                                QString("Failed to save security policy:\n%1\n\nYour security preference will not be remembered.")
+                                    .arg(QString::fromUtf8(policy_result.error().string_literal().characters_without_null_termination())),
+                                QMessageBox::Ok);
                         } else {
                             dbgln("Created policy: {} {} for {}",
-                                action == Sentinel::PolicyGraph::PolicyAction::Allow ? "Allow" : "Block",
+                                action == Sentinel::PolicyGraph::PolicyAction::Allow ? "Allow" : (action == Sentinel::PolicyGraph::PolicyAction::Quarantine ? "Quarantine" : "Block"),
                                 rule_name.to_byte_string().characters(), url_pattern.to_byte_string().characters());
+
+                            // Phase 4 Day 22-23: Show notification banner for policy creation
+                            auto filename_str = alert_obj.get_string("filename"sv).value_or("file"_string);
+                            auto domain = [&]() -> String {
+                                if (auto parsed_url = WebView::sanitize_url(url); parsed_url.has_value()) {
+                                    auto host = parsed_url->serialized_host();
+                                    if (!host.is_empty())
+                                        return host;
+                                }
+                                return "unknown"_string;
+                            }();
+
+                            SecurityNotificationBanner::NotificationType notif_type;
+                            String message;
+                            if (action == Sentinel::PolicyGraph::PolicyAction::Block) {
+                                notif_type = SecurityNotificationBanner::NotificationType::Block;
+                                message = "Security policy created: Block future downloads"_string;
+                            } else if (action == Sentinel::PolicyGraph::PolicyAction::Quarantine) {
+                                notif_type = SecurityNotificationBanner::NotificationType::Quarantine;
+                                message = "Security policy created: Quarantine future downloads"_string;
+                            } else {
+                                notif_type = SecurityNotificationBanner::NotificationType::PolicyCreated;
+                                message = "Security policy created: Allow future downloads"_string;
+                            }
+
+                            auto details = MUST(String::formatted("{} from {}", filename_str, domain));
+                            m_window->show_security_notification(notif_type, message, details, {});
                         }
                     }
                 }
             }
 
-            // TODO Phase 3 Day 19: Call view().client().async_enforce_security_policy(request_id, decision_str);
+            // Phase 3 Day 19-21: Send enforcement decision to RequestServer via IPC
+            view().client().async_enforce_security_policy(request_id, decision_str);
+
+            // Phase 4 Day 22-23: Show notification for immediate enforcement actions
+            if (!security_dialog->should_remember()) {
+                // Only show notification for block/quarantine immediate actions (no policy saved)
+                auto filename_str = alert_obj.get_string("filename"sv).value_or("file"_string);
+                auto url = alert_obj.get_string("url"sv).value_or(""_string);
+                auto domain = [&]() -> String {
+                    if (auto parsed_url = WebView::sanitize_url(url); parsed_url.has_value()) {
+                        auto host = parsed_url->serialized_host();
+                        if (!host.is_empty())
+                            return host;
+                    }
+                    return "unknown"_string;
+                }();
+
+                if (decision == SecurityAlertDialog::UserDecision::Block) {
+                    auto message = "Download blocked by security alert"_string;
+                    auto details = MUST(String::formatted("{} from {}", filename_str, domain));
+                    m_window->show_security_notification(
+                        SecurityNotificationBanner::NotificationType::Block,
+                        message, details, {});
+                } else if (decision == SecurityAlertDialog::UserDecision::Quarantine) {
+                    auto message = "Download quarantined for review"_string;
+                    auto details = MUST(String::formatted("{} from {}", filename_str, domain));
+                    m_window->show_security_notification(
+                        SecurityNotificationBanner::NotificationType::Quarantine,
+                        message, details, {});
+                }
+            }
         });
 
         QObject::connect(m_dialog, &QDialog::finished, this, [this]() {
@@ -812,6 +899,42 @@ void Tab::open_network_audit_dialog()
     dialog->exec();
 
     delete dialog;
+}
+
+bool Tab::check_policy_rate_limit(String const& file_hash)
+{
+    auto now = UnixDateTime::now();
+    auto cutoff_time = UnixDateTime::from_seconds_since_epoch(now.seconds_since_epoch() - RATE_LIMIT_WINDOW_SECONDS);
+
+    // Remove old entries outside the time window
+    m_policy_creation_history.remove_all_matching([&](PolicyCreationEntry const& entry) {
+        return entry.timestamp < cutoff_time;
+    });
+
+    // Check for duplicate file hash (prevent creating multiple policies for same file)
+    if (!file_hash.is_empty()) {
+        for (auto const& entry : m_policy_creation_history) {
+            if (entry.file_hash == file_hash) {
+                dbgln("Tab: Rate limit - duplicate policy for file hash {}", file_hash);
+                return false; // Already have a policy for this file
+            }
+        }
+    }
+
+    // Check if we've hit the rate limit
+    if (m_policy_creation_history.size() >= MAX_POLICIES_PER_MINUTE) {
+        dbgln("Tab: Rate limit exceeded - {} policies in last {} seconds",
+              m_policy_creation_history.size(), RATE_LIMIT_WINDOW_SECONDS);
+        return false;
+    }
+
+    // Add new entry to history
+    m_policy_creation_history.append(PolicyCreationEntry {
+        .timestamp = now,
+        .file_hash = file_hash
+    });
+
+    return true;
 }
 
 }

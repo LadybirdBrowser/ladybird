@@ -1,0 +1,39 @@
+{
+  "name": "Quarantine All Downloads from Domain",
+  "description": "Quarantine all file downloads from a specific domain for security analysis. Use this template for untrusted or suspicious sites where files need manual review before use.",
+  "category": "Security",
+  "variables": [
+    {
+      "name": "domain",
+      "label": "Domain to quarantine",
+      "type": "text",
+      "placeholder": "untrusted-site.com",
+      "required": true,
+      "validation": "^[a-zA-Z0-9][a-zA-Z0-9-_.]*\\.[a-zA-Z]{2,}$",
+      "helpText": "Enter the domain name to quarantine all downloads from"
+    }
+  ],
+  "policies": [
+    {
+      "ruleName": "Quarantine all files from ${domain}",
+      "match_pattern": {
+        "url_pattern": "https://${domain}/*",
+        "file_hash": null,
+        "mime_type": null
+      },
+      "action": "Quarantine"
+    },
+    {
+      "ruleName": "Quarantine all files from ${domain} (HTTP)",
+      "match_pattern": {
+        "url_pattern": "http://${domain}/*",
+        "file_hash": null,
+        "mime_type": null
+      },
+      "action": "Quarantine"
+    }
+  ],
+  "example": {
+    "domain": "questionable-downloads.net"
+  }
+}

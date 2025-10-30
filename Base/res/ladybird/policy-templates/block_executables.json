@@ -1,0 +1,57 @@
+{
+  "name": "Block Executables from Suspicious Domain",
+  "description": "Block executable files (.exe, .msi, .bat, .dll) from specific domain. Use this template to prevent malware distribution from untrusted sites.",
+  "category": "Security",
+  "variables": [
+    {
+      "name": "domain",
+      "label": "Domain to block",
+      "type": "text",
+      "placeholder": "example.com",
+      "required": true,
+      "validation": "^[a-zA-Z0-9][a-zA-Z0-9-_.]*\\.[a-zA-Z]{2,}$",
+      "helpText": "Enter the domain name to block executable downloads from"
+    }
+  ],
+  "policies": [
+    {
+      "ruleName": "Block .exe from ${domain}",
+      "match_pattern": {
+        "url_pattern": "https://${domain}/*.exe",
+        "file_hash": null,
+        "mime_type": "application/x-msdownload"
+      },
+      "action": "Block"
+    },
+    {
+      "ruleName": "Block .msi from ${domain}",
+      "match_pattern": {
+        "url_pattern": "https://${domain}/*.msi",
+        "file_hash": null,
+        "mime_type": "application/x-msi"
+      },
+      "action": "Block"
+    },
+    {
+      "ruleName": "Block .bat from ${domain}",
+      "match_pattern": {
+        "url_pattern": "https://${domain}/*.bat",
+        "file_hash": null,
+        "mime_type": "application/x-bat"
+      },
+      "action": "Block"
+    },
+    {
+      "ruleName": "Block .dll from ${domain}",
+      "match_pattern": {
+        "url_pattern": "https://${domain}/*.dll",
+        "file_hash": null,
+        "mime_type": "application/x-msdownload"
+      },
+      "action": "Block"
+    }
+  ],
+  "example": {
+    "domain": "suspicious-site.com"
+  }
+}

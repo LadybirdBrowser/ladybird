@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -15,6 +16,26 @@
 #include <LibDatabase/Database.h>
 
 namespace Sentinel {
+
+// LRU cache for policy query optimization
+class PolicyGraphCache {
+public:
+    PolicyGraphCache(size_t max_size = 1000)
+        : m_max_size(max_size)
+    {
+    }
+
+    Optional<Optional<int>> get_cached(String const& key);
+    void cache_policy(String const& key, Optional<int> policy_id);
+    void invalidate();
+
+private:
+    void update_lru(String const& key);
+
+    HashMap<String, Optional<int>> m_cache;
+    Vector<String> m_lru_order;
+    size_t m_max_size;
+};
 
 class PolicyGraph {
 public:
@@ -88,6 +109,10 @@ public:
     ErrorOr<u64> get_policy_count();
     ErrorOr<u64> get_threat_count();
 
+    // Memory optimization
+    ErrorOr<void> cleanup_old_threats(u64 days_to_keep = 30);
+    ErrorOr<void> vacuum_database();
+
 private:
     struct Statements {
         // Policy CRUD
@@ -115,15 +140,21 @@ private:
         Database::StatementID delete_expired_policies { 0 };
         Database::StatementID count_policies { 0 };
         Database::StatementID count_threats { 0 };
+
+        // Memory optimization
+        Database::StatementID delete_old_threats { 0 };
     };
 
     PolicyGraph(NonnullRefPtr<Database::Database>, Statements);
+
+    String compute_cache_key(ThreatMetadata const& threat) const;
 
     static PolicyAction string_to_action(String const& action_str);
     static String action_to_string(PolicyAction action);
 
     NonnullRefPtr<Database::Database> m_database;
     Statements m_statements;
+    PolicyGraphCache m_cache;
 };
 
 }
