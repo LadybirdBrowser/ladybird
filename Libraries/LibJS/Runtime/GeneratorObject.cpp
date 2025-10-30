@@ -84,13 +84,13 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
     // Loosely based on step 4 of https://tc39.es/ecma262/#sec-generatorstart mixed with https://tc39.es/ecma262/#sec-generatoryield at the end.
 
     auto generated_value = [](Value value) -> Value {
-        if (value.is_cell())
+        if (value.is_cell() && value.as_cell().is_generator_result())
             return static_cast<GeneratorResult const&>(value.as_cell()).result();
         return value.is_special_empty_value() ? js_undefined() : value;
     };
 
     auto generated_continuation = [&](Value value) -> Optional<size_t> {
-        if (value.is_cell()) {
+        if (value.is_cell() && value.as_cell().is_generator_result()) {
             auto number_value = static_cast<GeneratorResult const&>(value.as_cell()).continuation();
             if (number_value.is_null())
                 return {};
@@ -108,11 +108,10 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
     // We should never enter `execute` again after the generator is complete.
     VERIFY(next_block.has_value());
 
-    auto next_result = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_function->bytecode_executable(), next_block, compleion_cell);
+    auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_function->bytecode_executable(), next_block, compleion_cell);
 
     vm.pop_execution_context();
 
-    auto result_value = move(next_result.value);
     if (result_value.is_throw_completion()) {
         // Uncaught exceptions disable the generator.
         m_generator_state = GeneratorState::Completed;

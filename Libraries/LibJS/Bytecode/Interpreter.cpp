@@ -256,12 +256,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 13. If result.[[Type]] is normal, then
     if (executable) {
         // a. Set result to Completion(Evaluation of script).
-        auto result_or_error = run_executable(*script_context, *executable, {}, {});
-        if (result_or_error.value.is_error())
-            result = result_or_error.value.release_error();
-        else {
-            result = result_or_error.return_register_value.is_special_empty_value() ? normal_completion(js_undefined()) : result_or_error.return_register_value;
-        }
+        result = run_executable(*script_context, *executable, {}, {});
 
         // b. If result is a normal completion and result.[[Value]] is empty, then
         if (result.type() == Completion::Type::Normal && result.value().is_special_empty_value()) {
@@ -707,7 +702,7 @@ Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) co
     return m_running_execution_context->identifier_table.data()[index.value];
 }
 
-Interpreter::ResultAndReturnRegister Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
+ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {}", &executable);
 
@@ -754,17 +749,23 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(ExecutionContex
         }
     }
 
-    auto return_value = js_undefined();
-    if (!reg(Register::return_value()).is_special_empty_value())
-        return_value = reg(Register::return_value());
+    Value return_value;
+    if (auto return_register_value = reg(Register::return_value()); !return_register_value.is_special_empty_value())
+        return_value = return_register_value;
+    else {
+        return_value = reg(Register::accumulator());
+        if (return_value.is_special_empty_value())
+            return_value = js_undefined();
+    }
+
     auto exception = reg(Register::exception());
 
     vm().run_queued_promise_jobs();
     vm().finish_execution_generation();
 
-    if (!exception.is_special_empty_value())
-        return { throw_completion(exception), registers_and_constants_and_locals_and_arguments[0] };
-    return { return_value, registers_and_constants_and_locals_and_arguments[0] };
+    if (!exception.is_special_empty_value()) [[unlikely]]
+        return throw_completion(exception);
+    return return_value;
 }
 
 void Interpreter::enter_unwind_context()
