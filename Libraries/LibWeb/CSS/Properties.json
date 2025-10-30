@@ -1192,7 +1192,6 @@
     ]
   },
   "bottom": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2338,7 +2337,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "auto",
     "positional-value-list-shorthand": true,
@@ -2359,7 +2357,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-block": {
-    "strip-whitespace": true,
     "initial": "auto",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2377,7 +2374,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-block-end": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "block-end"
@@ -2386,7 +2382,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-block-start": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "block-start"
@@ -2395,7 +2390,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline": {
-    "strip-whitespace": true,
     "initial": "auto",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2413,7 +2407,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline-end": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "inline-end"
@@ -2422,7 +2415,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "inset-inline-start": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "inset",
       "mapping": "inline-start"
@@ -2463,7 +2455,6 @@
     ]
   },
   "left": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3457,7 +3448,6 @@
     ]
   },
   "right": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3910,7 +3900,6 @@
     ]
   },
   "top": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
