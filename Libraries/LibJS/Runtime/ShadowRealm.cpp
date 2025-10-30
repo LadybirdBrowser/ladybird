@@ -175,12 +175,11 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     // 11. If result.[[Type]] is normal, then
     if (!eval_result.is_throw_completion()) {
         // a. Set result to the result of evaluating body.
-        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*eval_context, *executable, {});
-        if (result_and_return_register.value.is_error()) {
-            result = result_and_return_register.value.release_error();
+        auto result_or_error = vm.bytecode_interpreter().run_executable(*eval_context, *executable, {});
+        if (result_or_error.is_error()) {
+            result = result_or_error.release_error();
         } else {
-            // Resulting value is in the accumulator.
-            result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
+            result = result_or_error.value();
         }
     }
 

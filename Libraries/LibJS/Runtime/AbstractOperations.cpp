@@ -735,11 +735,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     Optional<Value> eval_result;
 
-    auto result_or_error = vm.bytecode_interpreter().run_executable(*eval_context, *executable, {});
-    if (result_or_error.value.is_error())
-        return result_or_error.value.release_error();
-
-    eval_result = result_or_error.return_register_value;
+    eval_result = TRY(vm.bytecode_interpreter().run_executable(*eval_context, *executable, {}));
 
     // 32. If result.[[Type]] is normal and result.[[Value]] is empty, then
     //     a. Set result to NormalCompletion(undefined).

@@ -743,11 +743,11 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
         Completion result;
 
-        auto result_and_return_register = vm.bytecode_interpreter().run_executable(*module_context, *executable, {});
-        if (result_and_return_register.value.is_error()) {
-            result = result_and_return_register.value.release_error();
+        auto result_or_error = vm.bytecode_interpreter().run_executable(*module_context, *executable, {});
+        if (result_or_error.is_error()) {
+            result = result_or_error.release_error();
         } else {
-            result = result_and_return_register.return_register_value.is_special_empty_value() ? js_undefined() : result_and_return_register.return_register_value;
+            result = result_or_error.value().is_special_empty_value() ? js_undefined() : result_or_error.release_value();
         }
 
         // d. Let env be moduleContext's LexicalEnvironment.

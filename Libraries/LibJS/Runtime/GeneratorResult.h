@@ -31,6 +31,7 @@ public:
     [[nodiscard]] bool is_await() const { return m_is_await; }
 
 private:
+    virtual bool is_generator_result() const override { return true; }
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
     bool m_is_await { false };

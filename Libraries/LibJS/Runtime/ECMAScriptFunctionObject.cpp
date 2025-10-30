@@ -823,7 +823,7 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
             if (maybe_executable.is_error())
                 result = maybe_executable.release_error();
             else
-                result = vm.bytecode_interpreter().run_executable(vm.running_execution_context(), *maybe_executable.value(), {}).value;
+                result = vm.bytecode_interpreter().run_executable(vm.running_execution_context(), *maybe_executable.value(), {});
         }
         // c. Else,
         else {
@@ -886,13 +886,7 @@ template void async_function_start(VM&, PromiseCapability const&, GC::Function<C
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
 ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(VM& vm, ExecutionContext& context)
 {
-    auto result_and_frame = vm.bytecode_interpreter().run_executable(context, *bytecode_executable(), {});
-
-    if (result_and_frame.value.is_error()) [[unlikely]] {
-        return result_and_frame.value.release_error();
-    }
-
-    auto result = result_and_frame.value.release_value();
+    auto result = TRY(vm.bytecode_interpreter().run_executable(context, *bytecode_executable(), {}));
 
     // NOTE: Running the bytecode should eventually return a completion.
     // Until it does, we assume "return" and include the undefined fallback from the call site.
