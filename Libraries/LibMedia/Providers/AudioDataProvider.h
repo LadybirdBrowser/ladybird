@@ -88,7 +88,7 @@ private:
 
         void seek(AK::Duration timestamp, SeekCompletionHandler&&);
 
-        [[nodiscard]] Sync::MutexLocker take_lock() const { return Sync::MutexLocker(m_mutex); }
+        [[nodiscard]] Sync::MutexLocker<Sync::RecursiveMutex> take_lock() const { return Sync::MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }
 
         AudioDecoder const& decoder() const { return *m_decoder; }
@@ -104,8 +104,8 @@ private:
 
         NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
 
-        mutable Sync::Mutex m_mutex;
-        mutable Sync::ConditionVariable m_wait_condition { m_mutex };
+        mutable Sync::RecursiveMutex m_mutex;
+        mutable Sync::RecursiveConditionVariable m_wait_condition { m_mutex };
         RequestedState m_requested_state { RequestedState::None };
 
         NonnullRefPtr<Demuxer> m_demuxer;
