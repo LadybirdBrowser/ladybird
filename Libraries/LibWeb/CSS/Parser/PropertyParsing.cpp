@@ -474,10 +474,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return ParseError::SyntaxError;
         }
 
-        // FIXME: Stop removing whitespace here. It's less helpful than it seems.
-        if (property_requires_whitespace_stripped_before_parsing(property_id) && token.is(Token::Type::Whitespace))
-            continue;
-
         if (token.is_function())
             token.function().contains_arbitrary_substitution_function(substitution_presence);
         else if (token.is_block())

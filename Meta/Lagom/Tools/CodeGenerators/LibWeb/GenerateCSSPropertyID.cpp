@@ -290,9 +290,6 @@ bool property_affects_layout(PropertyID);
 bool property_affects_stacking_context(PropertyID);
 bool property_needs_layout_for_getcomputedstyle(PropertyID);
 
-// FIXME: Temporary until all property parsing handles whitespace correctly.
-bool property_requires_whitespace_stripped_before_parsing(PropertyID);
-
 constexpr PropertyID first_property_id = PropertyID::@first_property_id@;
 constexpr PropertyID last_property_id = PropertyID::@last_property_id@;
 constexpr PropertyID first_inherited_shorthand_property_id = PropertyID::@first_inherited_shorthand_property_id@;
@@ -713,30 +710,6 @@ bool property_needs_layout_for_getcomputedstyle(PropertyID property_id)
             member_generator.append(R"~~~(
     case PropertyID::@name:titlecase@:
 )~~~");
-        }
-    });
-
-    generator.append(R"~~~(
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool property_requires_whitespace_stripped_before_parsing(PropertyID property_id)
-{
-    switch (property_id) {
-)~~~");
-
-    properties.for_each_member([&](auto& name, auto& value) {
-        auto property = value.as_object();
-        if (is_legacy_alias(property))
-            return;
-
-        if (property.get_bool("strip-whitespace"sv) == true) {
-            auto member_generator = generator.fork();
-            member_generator.set("name:titlecase", title_casify(name));
-            member_generator.appendln("    case PropertyID::@name:titlecase@:"sv);
         }
     });
 
