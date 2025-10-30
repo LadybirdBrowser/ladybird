@@ -3237,7 +3237,6 @@
     ]
   },
   "place-content": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "longhands": [
@@ -3246,7 +3245,6 @@
     ]
   },
   "place-items": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "longhands": [
@@ -3255,7 +3253,6 @@
     ]
   },
   "place-self": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "normal",
     "longhands": [
