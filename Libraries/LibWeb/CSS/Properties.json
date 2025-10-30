@@ -3327,7 +3327,6 @@
     ]
   },
   "quotes": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
