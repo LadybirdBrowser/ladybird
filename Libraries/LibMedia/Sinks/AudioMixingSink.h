@@ -15,8 +15,8 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Sinks/AudioSink.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 
 namespace Media {
 
@@ -50,17 +50,17 @@ private:
         void emplace(AudioMixingSink& sink) { m_ptr = &sink; }
         RefPtr<AudioMixingSink> take_strong() const
         {
-            Threading::MutexLocker locker { m_mutex };
+            Sync::MutexLocker locker { m_mutex };
             return m_ptr;
         }
         void revoke()
         {
-            Threading::MutexLocker locker { m_mutex };
+            Sync::MutexLocker locker { m_mutex };
             m_ptr = nullptr;
         }
 
     private:
-        mutable Threading::Mutex m_mutex;
+        mutable Sync::Mutex m_mutex;
         AudioMixingSink* m_ptr { nullptr };
     };
 
@@ -80,8 +80,8 @@ private:
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<AudioMixingSinkWeakReference> m_weak_self;
 
-    Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_wait_condition { m_mutex };
+    Sync::Mutex m_mutex;
+    Sync::ConditionVariable m_wait_condition { m_mutex };
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     Audio::SampleSpecification m_sample_specification;
     bool m_playing { false };

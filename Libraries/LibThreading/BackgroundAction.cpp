@@ -6,8 +6,8 @@
  */
 
 #include <AK/Queue.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/BackgroundAction.h>
-#include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
 
 static pthread_mutex_t s_mutex = PTHREAD_MUTEX_INITIALIZER;

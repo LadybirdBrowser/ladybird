@@ -14,8 +14,8 @@
 #include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibThreading/Mutex.h>
-#include <LibThreading/RWLock.h>
+#include <LibSync/Mutex.h>
+#include <LibSync/RWLock.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/EventLoopImplementationQtEventTarget.h>
 
@@ -31,7 +31,7 @@ namespace Ladybird {
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;
 static HashMap<pthread_t, ThreadData*> s_thread_data;
-static Threading::RWLock s_thread_data_lock;
+static Sync::RWLock s_thread_data_lock;
 static thread_local Optional<pthread_t> s_thread_id;
 
 struct ThreadData {
@@ -41,7 +41,7 @@ struct ThreadData {
             s_thread_id = pthread_self();
         if (!s_this_thread_data) {
             s_this_thread_data = make<ThreadData>();
-            Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+            Sync::RWLockLocker<Sync::LockMode::Write> locker(s_thread_data_lock);
             s_thread_data.set(s_thread_id.value(), s_this_thread_data.ptr());
         }
         return *s_this_thread_data;
@@ -49,17 +49,17 @@ struct ThreadData {
 
     static ThreadData* for_thread(pthread_t thread_id)
     {
-        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        Sync::RWLockLocker<Sync::LockMode::Read> locker(s_thread_data_lock);
         return s_thread_data.get(thread_id).value_or(nullptr);
     }
 
     ~ThreadData()
     {
-        Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+        Sync::RWLockLocker<Sync::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id.value());
     }
 
-    Threading::Mutex mutex;
+    Sync::Mutex mutex;
     HashMap<Core::Notifier*, NonnullOwnPtr<QSocketNotifier>> notifiers;
 };
 
@@ -317,7 +317,7 @@ void EventLoopManagerQt::register_notifier(Core::Notifier& notifier)
 
     {
         auto& thread_data = ThreadData::the();
-        Threading::MutexLocker locker(thread_data.mutex);
+        Sync::MutexLocker locker(thread_data.mutex);
         thread_data.notifiers.set(&notifier, move(socket_notifier));
     }
     notifier.set_owner_thread(s_thread_id.value());
@@ -328,7 +328,7 @@ void EventLoopManagerQt::unregister_notifier(Core::Notifier& notifier)
     auto* thread_data = ThreadData::for_thread(notifier.owner_thread());
     if (!thread_data)
         return;
-    Threading::MutexLocker locker(thread_data->mutex);
+    Sync::MutexLocker locker(thread_data->mutex);
     auto deleted_notifier = thread_data->notifiers.take(&notifier).release_value();
     if (QThread::currentThread() != deleted_notifier->thread()) {
         auto* deleted_notifier_ptr = deleted_notifier.ptr();

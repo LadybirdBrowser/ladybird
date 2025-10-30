@@ -18,7 +18,7 @@ void ExternalContentSource::update(RefPtr<Gfx::ImmutableBitmap> bitmap)
 {
     RefPtr<Gfx::ImmutableBitmap> old;
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         old = move(m_bitmap);
         m_bitmap = move(bitmap);
     }
@@ -28,14 +28,14 @@ void ExternalContentSource::clear()
 {
     RefPtr<Gfx::ImmutableBitmap> old;
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         old = move(m_bitmap);
     }
 }
 
 RefPtr<Gfx::ImmutableBitmap> ExternalContentSource::current_bitmap() const
 {
-    Threading::MutexLocker const locker { m_mutex };
+    Sync::MutexLocker const locker { m_mutex };
     return m_bitmap;
 }
 

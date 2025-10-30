@@ -16,7 +16,7 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/Timer.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 struct OwnHandle {
     HANDLE handle = NULL;

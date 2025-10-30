@@ -48,11 +48,11 @@ endfunction()
 
 # Select UI Framework
 if (ENABLE_QT)
-   add_subdirectory(Qt)
+    add_subdirectory(Qt)
 elseif (APPLE)
-   add_subdirectory(AppKit)
+    add_subdirectory(AppKit)
 elseif(ANDROID)
-   add_subdirectory(Android)
+    add_subdirectory(Android)
 else()
     # TODO: Check for other GUI frameworks here when we move them in-tree
     return()
@@ -68,7 +68,7 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
-set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibURL)
+set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibURL LibSync)
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
