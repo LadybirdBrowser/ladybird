@@ -125,8 +125,10 @@ void initialize_main_thread_vm(AgentType type)
     };
 
     // 8.1.6.3 HostGetCodeForEval(argument), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetcodeforeval(argument)
-    s_main_thread_vm->host_get_code_for_eval = [](JS::Object const&) -> GC::Ptr<JS::PrimitiveString> {
-        // FIXME: 1. If argument is a TrustedScript object, then return argument's data.
+    s_main_thread_vm->host_get_code_for_eval = [](JS::Object const& argument) -> GC::Ptr<JS::PrimitiveString> {
+        // 1. If argument is a TrustedScript object, then return argument's data.
+        if (auto const* trusted_script = as_if<TrustedTypes::TrustedScript>(argument); trusted_script)
+            return JS::PrimitiveString::create(argument.vm(), trusted_script->to_string());
 
         // 2. Otherwise, return no-code.
         return {};
