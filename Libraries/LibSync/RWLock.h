@@ -11,7 +11,7 @@
 #include <AK/Types.h>
 #include <pthread.h>
 
-namespace Threading {
+namespace Sync {
 
 class RWLock {
     AK_MAKE_NONCOPYABLE(RWLock);
