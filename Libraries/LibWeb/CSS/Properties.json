@@ -3085,7 +3085,6 @@
     ]
   },
   "overflow": {
-    "strip-whitespace": true,
     "longhands": [
       "overflow-x",
       "overflow-y"
@@ -3098,21 +3097,18 @@
     ]
   },
   "overflow-block": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "overflow",
       "mapping": "block-xy"
     }
   },
   "overflow-inline": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "overflow",
       "mapping": "inline-xy"
     }
   },
   "overflow-wrap": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -3123,7 +3119,6 @@
     ]
   },
   "overflow-x": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
@@ -3135,7 +3130,6 @@
     ]
   },
   "overflow-y": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
