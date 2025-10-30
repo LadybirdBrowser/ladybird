@@ -267,7 +267,7 @@ struct ThreadData {
         s_thread_data.remove(s_thread_id);
     }
 
-    Sync::Mutex mutex;
+    Sync::RecursiveMutex mutex;
 
     // Each thread has its own timers, notifiers and a wake pipe.
     TimeoutSet timeouts;

@@ -52,7 +52,7 @@ public:
     void unlock() { m_mutex.unlock(); }
 
 private:
-    Sync::Mutex m_mutex;
+    Sync::RecursiveMutex m_mutex;
 };
 
 }
