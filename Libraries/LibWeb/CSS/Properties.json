@@ -3525,7 +3525,6 @@
     ]
   },
   "stroke": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3535,7 +3534,6 @@
     ]
   },
   "stroke-dasharray": {
-    "strip-whitespace": true,
     "animation-type": "custom",
     "inherited": true,
     "initial": "none",
@@ -3543,7 +3541,6 @@
     "percentages-resolve-to": "length"
   },
   "stroke-dashoffset": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3574,7 +3571,6 @@
     ]
   },
   "stroke-miterlimit": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3584,7 +3580,6 @@
     ]
   },
   "stroke-opacity": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -3594,7 +3589,6 @@
     ]
   },
   "stroke-width": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
