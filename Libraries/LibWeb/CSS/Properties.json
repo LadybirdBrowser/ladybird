@@ -1636,7 +1636,6 @@
     ]
   },
   "cursor": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
