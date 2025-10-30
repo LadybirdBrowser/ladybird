@@ -1255,7 +1255,6 @@
     ]
   },
   "clip": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1270,7 +1269,6 @@
     ]
   },
   "clip-path": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
     "affects-stacking-context": true,
