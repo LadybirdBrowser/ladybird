@@ -11,8 +11,8 @@
 #include <AK/Forward.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 
 namespace Media {
 
@@ -80,8 +80,8 @@ private:
     };
     DecoderErrorOr<size_t> read_at(Cursor&, size_t position, Bytes&, AllowPositionAtEnd);
 
-    Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_state_changed { m_mutex };
+    Sync::Mutex m_mutex;
+    Sync::ConditionVariable m_state_changed { m_mutex };
     ByteBuffer m_buffer;
     Optional<u64> m_expected_size;
     Atomic<bool> m_closed { false };
