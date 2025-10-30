@@ -199,11 +199,9 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
 }
 
 // https://drafts.csswg.org/css-syntax/#serialization
-String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values, InsertWhitespace insert_whitespace)
+String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values)
 {
     // FIXME: There are special rules here where we should insert a comment between certain tokens. Do that!
-    if (insert_whitespace == InsertWhitespace::Yes)
-        return MUST(Infra::strip_and_collapse_whitespace(MUST(String::join(' ', component_values))));
     return MUST(String::join(""sv, component_values));
 }
 

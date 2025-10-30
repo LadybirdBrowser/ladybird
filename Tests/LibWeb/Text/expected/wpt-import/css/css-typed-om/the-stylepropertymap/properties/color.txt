@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 37 tests
 
-35 Pass
-2 Fail
+36 Pass
+1 Fail
 Pass	Can set 'color' to CSS-wide keywords: initial
 Pass	Can set 'color' to CSS-wide keywords: inherit
 Pass	Can set 'color' to CSS-wide keywords: unset
 Pass	Can set 'color' to CSS-wide keywords: revert
-Fail	Can set 'color' to var() references:  var(--A)
+Pass	Can set 'color' to var() references:  var(--A)
 Fail	Can set 'color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'color' to a length: 0px throws TypeError
 Pass	Setting 'color' to a length: -3.14em throws TypeError
