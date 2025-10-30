@@ -2568,17 +2568,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // 5. Add or modify CSS-defined animations
     process_animation_definitions(computed_style, abstract_element);
 
-    // FIXME: Support multiple entries for `animation` properties
-    // Animation declarations [css-animations-2]
-    auto animation_name = [&]() -> Optional<String> {
-        auto const& animation_name = computed_style->property(PropertyID::AnimationName);
-        if (animation_name.is_keyword() && animation_name.to_keyword() == Keyword::None)
-            return OptionalNone {};
-        if (animation_name.is_string())
-            return animation_name.as_string().string_value().to_string();
-        return animation_name.to_string(SerializationMode::Normal);
-    }();
-
     auto animations = abstract_element.element().get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
