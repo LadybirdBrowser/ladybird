@@ -380,7 +380,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 
         handle_End: {
             auto& instruction = *reinterpret_cast<Op::End const*>(&bytecode[program_counter]);
-            accumulator() = get(instruction.value());
+            reg(Register::return_value()) = get(instruction.value());
             return;
         }
 
@@ -720,7 +720,6 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     context.registers_and_constants_and_locals_arguments = context.registers_and_constants_and_locals_and_arguments_span();
 
     reg(Register::accumulator()) = initial_accumulator_value;
-    reg(Register::return_value()) = js_special_empty_value();
 
     // NOTE: We only copy the `this` value from ExecutionContext if it's not already set.
     //       If we are re-entering an async/generator context, the `this` value
@@ -749,22 +748,16 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
         }
     }
 
-    Value return_value;
-    if (auto return_register_value = reg(Register::return_value()); !return_register_value.is_special_empty_value())
-        return_value = return_register_value;
-    else {
-        return_value = reg(Register::accumulator());
-        if (return_value.is_special_empty_value())
-            return_value = js_undefined();
-    }
-
-    auto exception = reg(Register::exception());
-
     vm().run_queued_promise_jobs();
     vm().finish_execution_generation();
 
+    auto exception = reg(Register::exception());
     if (!exception.is_special_empty_value()) [[unlikely]]
         return throw_completion(exception);
+
+    auto return_value = reg(Register::return_value());
+    if (return_value.is_special_empty_value())
+        return_value = js_undefined();
     return return_value;
 }
 
