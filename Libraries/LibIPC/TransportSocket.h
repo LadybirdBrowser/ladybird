@@ -12,10 +12,10 @@
 #include <LibCore/Socket.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
 #include <LibIPC/File.h>
-#include <LibThreading/ConditionVariable.h>
+#include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
-#include <LibThreading/MutexProtected.h>
-#include <LibThreading/RWLock.h>
+#include <LibSync/MutexProtected.h>
+#include <LibSync/RWLock.h>
 
 namespace IPC {
 
@@ -39,8 +39,8 @@ public:
 private:
     AllocatingMemoryStream m_stream;
     Vector<int> m_fds;
-    Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_condition { m_mutex };
+    Sync::Mutex m_mutex;
+    Sync::ConditionVariable m_condition { m_mutex };
     bool m_running { true };
 };
 
@@ -91,7 +91,7 @@ private:
     void stop_send_thread();
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
-    mutable Threading::RWLock m_socket_rw_lock;
+    mutable Sync::RWLock m_socket_rw_lock;
     ByteBuffer m_unprocessed_bytes;
     Queue<File> m_unprocessed_fds;
 

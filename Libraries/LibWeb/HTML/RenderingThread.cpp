@@ -18,7 +18,7 @@ RenderingThread::RenderingThread()
 {
     // FIXME: Come up with a better "event loop exited" notification mechanism.
     m_main_thread_exit_promise->on_rejection = [this](Error const&) -> void {
-        Threading::MutexLocker const locker { m_rendering_task_mutex };
+        Sync::MutexLocker const locker { m_rendering_task_mutex };
         m_exit = true;
         m_rendering_task_ready_wake_condition.signal();
     };
@@ -54,7 +54,7 @@ void RenderingThread::rendering_thread_loop()
 {
     while (true) {
         auto task = [this]() -> Optional<Task> {
-            Threading::MutexLocker const locker { m_rendering_task_mutex };
+            Sync::MutexLocker const locker { m_rendering_task_mutex };
             while (m_rendering_tasks.is_empty() && !m_exit) {
                 m_rendering_task_ready_wake_condition.wait();
             }
@@ -77,7 +77,7 @@ void RenderingThread::rendering_thread_loop()
 
 void RenderingThread::enqueue_rendering_task(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshotByDisplayList&& scroll_state_snapshot_by_display_list, NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Function<void()>&& callback)
 {
-    Threading::MutexLocker const locker { m_rendering_task_mutex };
+    Sync::MutexLocker const locker { m_rendering_task_mutex };
     m_rendering_tasks.enqueue(Task { move(display_list), move(scroll_state_snapshot_by_display_list), move(painting_surface), move(callback) });
     m_rendering_task_ready_wake_condition.signal();
 }
