@@ -89,7 +89,7 @@ private:
 
         void seek(AK::Duration timestamp, SeekCompletionHandler&&);
 
-        [[nodiscard]] Sync::MutexLocker take_lock() const { return Sync::MutexLocker(m_mutex); }
+        [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }
 
         AudioDecoder const& decoder() const { return *m_decoder; }

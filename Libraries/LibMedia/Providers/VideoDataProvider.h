@@ -95,7 +95,7 @@ private:
         void push_data_and_decode_some_frames();
         bool is_blocked() const;
 
-        [[nodiscard]] Sync::MutexLocker take_lock() const { return Sync::MutexLocker(m_mutex); }
+        [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }
 
     private:
