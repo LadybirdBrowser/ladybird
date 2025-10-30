@@ -277,6 +277,14 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-play-state
+Bindings::AnimationPlayState Animation::play_state_for_bindings() const
+{
+    if (m_owning_element)
+        m_owning_element->document().update_style();
+
+    return play_state();
+}
+
 Bindings::AnimationPlayState Animation::play_state() const
 {
     // The play state of animation, animation, at a given moment is the state corresponding to the first matching
