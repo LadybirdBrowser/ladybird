@@ -42,7 +42,7 @@ void AudioMixingSink::deferred_create_playback_stream(Track const& track)
         if (!optional_track_mixing_data.has_value())
             return;
 
-        Threading::MutexLocker locker { self->m_mutex };
+        Sync::MutexLocker locker { self->m_mutex };
         auto& track_mixing_data = optional_track_mixing_data.release_value();
         if (track_mixing_data.current_block.is_empty())
             track_mixing_data.current_block = track_mixing_data.provider->retrieve_block();
@@ -58,7 +58,7 @@ void AudioMixingSink::deferred_create_playback_stream(Track const& track)
 
 void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider> const& provider)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_track_mixing_datas.remove(track);
     if (provider == nullptr)
         return;
@@ -94,8 +94,6 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
         VERIFY(buffer.size() >= float_buffer_size);
         auto float_buffer = buffer.reinterpret<float>();
         float_buffer.fill(0.0f);
-
-        Threading::MutexLocker mixing_data_locker { self->m_mutex };
 
         if (sample_rate != self->m_playback_stream_sample_rate || channel_count != self->m_playback_stream_channel_count)
             return buffer.trim(0);
@@ -268,7 +266,7 @@ void AudioMixingSink::set_time(AK::Duration time)
                     self->m_temporary_time = {};
 
                     {
-                        Threading::MutexLocker mixing_locker { self->m_mutex };
+                        Sync::MutexLocker mixing_locker { self->m_mutex };
                         self->m_next_sample_to_write = time.to_time_units(1, self->m_playback_stream_sample_rate);
                     }
 
