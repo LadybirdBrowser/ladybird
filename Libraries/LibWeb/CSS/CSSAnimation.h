@@ -19,7 +19,8 @@ class CSSAnimation : public Animations::Animation {
 public:
     static GC::Ref<CSSAnimation> create(JS::Realm&);
 
-    FlyString const& animation_name() const { return id(); }
+    FlyString const& animation_name() const { return m_animation_name; }
+    void set_animation_name(FlyString const& animation_name) { m_animation_name = animation_name; }
 
     virtual Animations::AnimationClass animation_class() const override;
     virtual Optional<int> class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
@@ -30,6 +31,9 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     virtual bool is_css_animation() const override { return true; }
+
+    // https://drafts.csswg.org/css-animations-2/#dom-cssanimation-animationname
+    FlyString m_animation_name;
 };
 
 }
