@@ -8,9 +8,9 @@
 
 #include <AK/Concepts.h>
 #include <AK/Noncopyable.h>
-#include <LibThreading/RWLock.h>
+#include <LibSync/RWLock.h>
 
-namespace Threading {
+namespace Sync {
 
 template<typename T>
 class RWLockProtected {

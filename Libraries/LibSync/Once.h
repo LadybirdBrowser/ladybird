@@ -8,12 +8,12 @@
 
 #include <AK/Atomic.h>
 #include <AK/Concepts.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
-namespace Threading {
+namespace Sync {
 
 struct OnceFlag {
-    Mutex mutex;
+    Sync::Mutex mutex;
     Atomic<bool> has_been_called { false };
 };
 
@@ -21,7 +21,7 @@ template<VoidFunction Callable>
 void call_once(OnceFlag& flag, Callable&& callable)
 {
     if (!flag.has_been_called.load(MemoryOrder::memory_order_acquire)) {
-        MutexLocker lock(flag.mutex);
+        Sync::MutexLocker lock(flag.mutex);
 
         // Another thread may have called the function while we were waiting on the mutex
         // The mutex guarantees exclusivity so we can use relaxed ordering

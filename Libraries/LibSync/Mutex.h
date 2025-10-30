@@ -10,30 +10,19 @@
 #include <AK/Assertions.h>
 #include <AK/Noncopyable.h>
 #include <AK/Types.h>
+#include <LibSync/Export.h>
 #include <pthread.h>
 
-namespace Threading {
+namespace Sync {
 
-class Mutex {
+class SYNC_API Mutex {
     AK_MAKE_NONCOPYABLE(Mutex);
     AK_MAKE_NONMOVABLE(Mutex);
     friend class ConditionVariable;
 
 public:
-    Mutex()
-        : m_lock_count(0)
-    {
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&m_mutex, &attr);
-        pthread_mutexattr_destroy(&attr);
-    }
-    ~Mutex()
-    {
-        VERIFY(m_lock_count == 0);
-        pthread_mutex_destroy(&m_mutex);
-    }
+    Mutex();
+    ~Mutex();
 
     void lock();
     void unlock();
@@ -43,7 +32,7 @@ private:
     unsigned m_lock_count { 0 };
 };
 
-class [[nodiscard]] MutexLocker {
+class [[nodiscard]] SYNC_API MutexLocker {
     AK_MAKE_NONCOPYABLE(MutexLocker);
     AK_MAKE_NONMOVABLE(MutexLocker);
 
