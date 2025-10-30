@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, kleines Filmröllchen <malu.bertsch@gmail.com>
+ * Copyright (c) 2025, Ryszard Goc <ryszardgoc@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,35 +10,65 @@
 
 #include <AK/Assertions.h>
 #include <AK/Noncopyable.h>
+#include <AK/Platform.h>
 #include <AK/Types.h>
 #include <LibSync/Export.h>
-#include <pthread.h>
+#include <LibSync/Policy.h>
 
 namespace Sync {
 
-class SYNC_API Mutex {
-    AK_MAKE_NONCOPYABLE(Mutex);
-    AK_MAKE_NONMOVABLE(Mutex);
+namespace Detail {
+
+struct MutexImpl;
+
+}
+
+class SYNC_API PlatformMutex {
+    AK_MAKE_NONCOPYABLE(PlatformMutex);
+    AK_MAKE_NONMOVABLE(PlatformMutex);
     friend class ConditionVariable;
 
 public:
-    Mutex();
-    ~Mutex();
-
     void lock();
     void unlock();
 
+protected:
+    PlatformMutex();
+    virtual ~PlatformMutex();
+
+    Detail::MutexImpl& impl() { return *reinterpret_cast<Detail::MutexImpl*>(m_storage); }
+    Detail::MutexImpl const& impl() const { return *reinterpret_cast<Detail::MutexImpl const*>(m_storage); }
+
 private:
-    pthread_mutex_t m_mutex;
-    unsigned m_lock_count { 0 };
+#ifdef AK_OS_WINDOWS
+    static constexpr u64 PTHREAD_MUTEX_SIZE = 8;
+#elifdef AK_OS_MACOS
+    static constexpr u64 PTHREAD_MUTEX_SIZE = 64;
+#else
+    static constexpr u64 PTHREAD_MUTEX_SIZE = 40;
+#endif
+    alignas(void*) char m_storage[PTHREAD_MUTEX_SIZE];
 };
+
+template<typename RecursivePolicy, typename InterprocessPolicy>
+class SYNC_API MutexBase : public PlatformMutex {
+public:
+    MutexBase();
+
+    virtual ~MutexBase() = default;
+};
+
+using Mutex = MutexBase<PolicyNonRecursive, PolicyIntraprocess>;
+using RecursiveMutex = MutexBase<PolicyRecursive, PolicyIntraprocess>;
+using InterprocessMutex = MutexBase<PolicyNonRecursive, PolicyInterprocess>;
+using InterprocessRecursiveMutex = MutexBase<PolicyRecursive, PolicyInterprocess>;
 
 class [[nodiscard]] SYNC_API MutexLocker {
     AK_MAKE_NONCOPYABLE(MutexLocker);
     AK_MAKE_NONMOVABLE(MutexLocker);
 
 public:
-    ALWAYS_INLINE explicit MutexLocker(Mutex& mutex)
+    ALWAYS_INLINE explicit MutexLocker(PlatformMutex& mutex)
         : m_mutex(mutex)
     {
         lock();
@@ -50,23 +81,7 @@ public:
     ALWAYS_INLINE void lock() { m_mutex.lock(); }
 
 private:
-    Mutex& m_mutex;
+    PlatformMutex& m_mutex;
 };
-
-ALWAYS_INLINE void Mutex::lock()
-{
-    pthread_mutex_lock(&m_mutex);
-    m_lock_count++;
-}
-
-ALWAYS_INLINE void Mutex::unlock()
-{
-    VERIFY(m_lock_count > 0);
-    // FIXME: We need to protect the lock count with the mutex itself.
-    // This may be bad because we're not *technically* unlocked yet,
-    // but we're not handling any errors from pthread_mutex_unlock anyways.
-    m_lock_count--;
-    pthread_mutex_unlock(&m_mutex);
-}
 
 }
