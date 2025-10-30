@@ -8,8 +8,8 @@
 
 #include <AK/Debug.h>
 #include <AK/Variant.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 namespace Threading {
@@ -158,8 +158,8 @@ private:
     }
 
     RefPtr<Threading::Thread> m_thread;
-    Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_condition;
+    Sync::Mutex m_mutex;
+    Sync::ConditionVariable m_condition;
     WorkerState m_state { State::Idle };
     bool m_stop { false };
 #if WORKER_THREAD_DEBUG
