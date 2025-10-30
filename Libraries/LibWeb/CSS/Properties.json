@@ -2544,7 +2544,6 @@
     ]
   },
   "margin": {
-    "strip-whitespace": true,
     "inherited": false,
     "initial": "0",
     "positional-value-list-shorthand": true,
@@ -2568,7 +2567,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-block": {
-    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2586,7 +2584,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-block-end": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "block-end"
@@ -2594,7 +2591,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-block-start": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "block-start"
@@ -2602,7 +2598,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-bottom": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2620,7 +2615,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline": {
-    "strip-whitespace": true,
     "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
@@ -2638,7 +2632,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline-end": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "inline-end"
@@ -2646,7 +2639,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-inline-start": {
-    "strip-whitespace": true,
     "logical-alias-for": {
       "group": "margin",
       "mapping": "inline-start"
@@ -2654,7 +2646,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-left": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2672,7 +2663,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-right": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2690,7 +2680,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-top": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
