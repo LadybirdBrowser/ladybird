@@ -14,7 +14,7 @@ interface Animation : EventTarget {
     attribute double? startTime;
     attribute double? currentTime;
     attribute double playbackRate;
-    readonly attribute AnimationPlayState playState;
+    [ImplementedAs=play_state_for_bindings] readonly attribute AnimationPlayState playState;
     readonly attribute AnimationReplaceState replaceState;
     readonly attribute boolean pending;
     readonly attribute Promise<Animation> ready;

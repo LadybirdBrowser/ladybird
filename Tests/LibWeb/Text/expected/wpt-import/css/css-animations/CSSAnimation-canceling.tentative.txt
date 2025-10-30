@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+4 Pass
+5 Fail
+Fail	Animated style is cleared after canceling a running CSS animation
+Fail	Animated style is cleared after canceling a filling CSS animation
+Pass	After canceling an animation, it can still be seeked
+Fail	After canceling an animation, it can still be re-used
+Fail	After canceling an animation, updating animation properties doesn't make it live again
+Fail	After canceling an animation, updating animation-play-state doesn't make it live again
+Pass	Setting animation-name to 'none' cancels the animation
+Pass	Setting display:none on an element cancel its animations
+Pass	Setting display:none on an ancestor element cancels animations on descendants
