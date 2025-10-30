@@ -3584,14 +3584,16 @@ RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentVal
     Vector<PropertyID> remaining_longhands { PropertyID::ListStyleImage, PropertyID::ListStylePosition, PropertyID::ListStyleType };
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (auto const& peek = tokens.next_token(); peek.is_ident("none"sv)) {
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // none
             found_nones++;
             continue;
         }
 
         auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+        tokens.discard_whitespace();
         if (!property_and_value.has_value())
             return nullptr;
         auto& value = property_and_value->style_value;
