@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="help" href="https://w3c.github.io/webappsec-csp/#can-compile-strings">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <meta http-equiv="Content-Security-Policy"
+        content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+  let policy = trustedTypes.createPolicy("p", { createScript: s => s });
+
+  // Define a default policy that rename variables Xn to Yn.
+  function renameVariableXtoY(s) { return s.replace(/X([1-9]+)/g, "Y$1"); }
+  trustedTypes.createPolicy("default", {
+    createScript: s => renameVariableXtoY(s)
+  });
+
+  // As in eval-function-constructor.html we consider two kind of untrusted
+  // arguments: plain string or TrustedScript with a forged toString().
+  const untrusted_argument_factory = {
+    "plain string": arg_value => arg_value,
+    "TrustedScript with forged toString()": arg_value => Object.assign(
+      policy.createScript(arg_value), { toString: () => ` ${arg_value} ` })
+  };
+
+  for (const [untrusted_argument_name, untrusted_argument_builder] of
+       Object.entries(untrusted_argument_factory)) {
+    const args = ["X1", "X2", "X3 = 5", "return (X1+X2)*X3;"];
+    // Wrap the function arguments into TrustedTypes, except for the one at the
+    // specified index. That argument will cause isTrusted=false in
+    // EnsureCSPDoesNotBlockStringCompilation and so "Get Trusted Type
+    // compliant string" will be executed on the function text, which use Xn
+    // variables. Consequently, the default policy will modify the function text
+    // which will cause an EvalError to be thrown.
+    args.forEach((_, index) => {
+      test(t => {
+        let mixed_args = args.map((arg_value, arg_index) =>
+          arg_index == index ? untrusted_argument_builder(arg_value)
+                             : policy.createScript(arg_value));
+        assert_throws_js(EvalError, _ => new Function(...mixed_args));
+      }, `${untrusted_argument_name} at index ${index} (default policy modifying the function text).`);
+    });
+
+    // Do the same but apply the variable renaming before building the function,
+    // so that the default policy won't modify the function text anymore. In
+    // that case, the function is built without error.
+    const argsWithY = args.map(renameVariableXtoY);
+    argsWithY.forEach((_, index) => {
+      test(t => {
+        let mixed_args = argsWithY.map((arg_value, arg_index) =>
+          arg_index == index ? untrusted_argument_builder(arg_value)
+                             : policy.createScript(arg_value));
+        const f = new Function(...mixed_args);
+        assert_equals(f(1,2,3), 9);
+        assert_equals(f(1,2), 15);
+      }, `${untrusted_argument_name} at index ${index} (default policy leaving the function text unchanged).`);
+    });
+  }
+</script>

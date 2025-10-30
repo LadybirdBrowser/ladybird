@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	eval of TrustedScript works.
+Pass	indirect eval of TrustedScript works.
+Pass	eval of string works.
+Pass	eval of !TrustedScript and !string works.
+Pass	Function constructor of TrustedScript works.
+Pass	Function constructor of string works.
+Pass	Function constructor of all TrustedScripts works.
+Pass	Function constructor of all strings works.
+Pass	Function constructor of string and TrustedScript works.
+Pass	Async Function constructor of TrustedScript works.
+Pass	AsyncFunction constructor of string works.
+Pass	AsyncFunction constructor of all TrustedScripts works.
+Pass	AsyncFunction constructor of all strings works.
+Pass	AsyncFunction constructor of string and TrustedScript works.
+Pass	GeneratorFunction constructor of TrustedScript works.
+Pass	GeneratorFunction constructor of string works.
+Pass	GeneratorFunction constructor of all TrustedScripts works.
+Pass	GeneratorFunction constructor of all strings works.
+Pass	GeneratorFunction constructor of string and TrustedScript works.
+Pass	AsyncGeneratorFunction constructor of TrustedScript works.
+Pass	AsyncGeneratorFunction constructor of string works.
+Pass	AsyncGeneratorFunction constructor of all TrustedScripts works.
+Pass	AsyncGeneratorFunction constructor of all strings works.
+Pass	AsyncGeneratorFunction constructor of string and TrustedScript works.

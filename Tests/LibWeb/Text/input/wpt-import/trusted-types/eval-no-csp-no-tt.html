@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <script nonce="abc" src="support/helper.sub.js"></script>
+  <!-- No CSP header. -->
+</head>
+<body>
+<script nonce="abc">
+  const p = trustedTypes.createPolicy("p", {createScript: s => s});
+
+  test(t => {
+    assert_equals(eval(p.createScript('1+1')), 2);
+  }, "eval of TrustedScript works.");
+
+  test(t => {
+    assert_equals(eval?.(p.createScript('1+1')), 2);
+  }, "indirect eval of TrustedScript works.");
+
+  test(t => {
+    assert_equals(eval('1+1'), 2);
+  }, "eval of string works.");
+
+  test(t => {
+    assert_equals(eval?.('1+1'), 2);
+  }, "indirect eval of string works.");
+
+  test(t => {
+    assert_equals(eval(42), 42);
+    assert_object_equals(eval({}), {});
+    assert_equals(eval(null), null);
+    assert_equals(eval(undefined), undefined);
+   }, "eval of !TrustedScript and !string works.");
+
+  test(t => {
+    assert_equals(new Function(p.createScript('return 1+1'))(), 2);
+  }, "Function constructor of TrustedScript works.");
+
+  test(t => {
+    assert_equals(new Function(p.createScript('val'),p.createScript('return val+1'))(1), 2);
+  }, "Function constructor of all TrustedScripts works.");
+
+  test(t => {
+    assert_equals(new Function('return 1+1')(), 2);
+  }, "Function constructor of string works.");
+
+  test(t => {
+    assert_equals(new Function('val', 'return val+1')(1), 2);
+  }, "Function constructor of all strings works.");
+
+  test(t => {
+    assert_equals(new Function('val', p.createScript('return val+1'))(1), 2);
+  }, "Function constructor of string and TrustedScript works.");
+</script>
+

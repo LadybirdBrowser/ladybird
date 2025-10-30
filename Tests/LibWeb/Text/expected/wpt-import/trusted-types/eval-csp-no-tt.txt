@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	eval of TrustedScript works.
+Pass	indirect eval of TrustedScript works.
+Pass	eval of string works.
+Pass	indirect eval of string works.
+Pass	eval of !TrustedScript and !string works.
+Pass	Function constructor of TrustedScript works.
+Pass	Function constructor of string works.
