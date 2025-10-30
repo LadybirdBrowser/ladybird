@@ -714,8 +714,7 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     context.global_declarative_environment = realm().global_environment().declarative_record();
     context.identifier_table = executable.identifier_table->identifiers();
 
-    u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
-    VERIFY(registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
+    ASSERT(executable.registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
 
     context.registers_and_constants_and_locals_arguments = context.registers_and_constants_and_locals_and_arguments_span();
 
