@@ -18,8 +18,8 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/Track.h>
 #include <LibSync/ConditionVariable.h>
-#include <LibThreading/Forward.h>
 #include <LibSync/Mutex.h>
+#include <LibThreading/Forward.h>
 
 namespace Media {
 
