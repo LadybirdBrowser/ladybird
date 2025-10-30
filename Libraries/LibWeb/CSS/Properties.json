@@ -3635,7 +3635,6 @@
     ]
   },
   "text-decoration": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "inherited": false,
     "initial": "none",
@@ -3656,7 +3655,6 @@
     ]
   },
   "text-decoration-line": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "FIXME: This property is not supposed to be inherited, but we currently rely on inheritance to propagate decorations into line boxes.",
@@ -3667,7 +3665,6 @@
     ]
   },
   "text-decoration-style": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3677,7 +3674,6 @@
     ]
   },
   "text-decoration-thickness": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3693,7 +3689,6 @@
     "percentages-resolve-to": "length"
   },
   "text-indent": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "0",
@@ -3754,7 +3749,6 @@
     ]
   },
   "text-underline-offset": {
-    "strip-whitespace": true,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
@@ -3768,7 +3762,6 @@
     "percentages-resolve-to": "length"
   },
   "text-underline-position": {
-    "strip-whitespace": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3778,7 +3771,6 @@
     ]
   },
   "text-wrap": {
-    "strip-whitespace": true,
     "inherited": true,
     "initial": "wrap",
     "longhands": [
