@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['scrollbar-gutter'] = "auto" should set the property value
+Pass	e.style['scrollbar-gutter'] = "stable" should set the property value
+Pass	e.style['scrollbar-gutter'] = "stable both-edges" should set the property value
+Pass	e.style['scrollbar-gutter'] = "both-edges stable" should set the property value

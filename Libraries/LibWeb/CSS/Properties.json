@@ -3445,14 +3445,12 @@
     "affects-stacking-context": true
   },
   "scrollbar-color": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": "yes",
     "initial": "auto"
   },
   "scrollbar-gutter": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "This property should affect layout per-spec, but ladybird always uses overlay scrollbars so it doesn't in practice.",
@@ -3460,7 +3458,6 @@
     "initial": "auto"
   },
   "scrollbar-width": {
-    "strip-whitespace": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
