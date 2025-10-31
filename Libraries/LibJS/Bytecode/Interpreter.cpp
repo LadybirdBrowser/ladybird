@@ -705,7 +705,7 @@ Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) co
     return m_running_execution_context->identifier_table.data()[index.value];
 }
 
-ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
+ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point)
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {}", &executable);
 
@@ -718,8 +718,6 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     context.identifier_table = executable.identifier_table->identifiers();
 
     ASSERT(executable.registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
-
-    reg(Register::accumulator()) = initial_accumulator_value;
 
     // NOTE: We only copy the `this` value from ExecutionContext if it's not already set.
     //       If we are re-entering an async/generator context, the `this` value
