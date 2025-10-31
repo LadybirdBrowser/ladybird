@@ -1919,6 +1919,7 @@ public:
 
     Call(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::Call)
+        , m_length(round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * arguments.size()))
         , m_dst(dst)
         , m_callee(callee)
         , m_this_value(this_value)
@@ -1930,10 +1931,7 @@ public:
     }
 
     size_t length() const { return length_impl(); }
-    size_t length_impl() const
-    {
-        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
-    }
+    size_t length_impl() const { return m_length; }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -1954,6 +1952,7 @@ public:
     }
 
 private:
+    u32 m_length { 0 };
     Operand m_dst;
     Operand m_callee;
     Operand m_this_value;
@@ -1968,6 +1967,7 @@ public:
 
     CallBuiltin(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Builtin builtin, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::CallBuiltin)
+        , m_length(round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * arguments.size()))
         , m_dst(dst)
         , m_callee(callee)
         , m_this_value(this_value)
@@ -1980,10 +1980,7 @@ public:
     }
 
     size_t length() const { return length_impl(); }
-    size_t length_impl() const
-    {
-        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
-    }
+    size_t length_impl() const { return m_length; }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -2006,6 +2003,7 @@ public:
     }
 
 private:
+    u32 m_length { 0 };
     Operand m_dst;
     Operand m_callee;
     Operand m_this_value;
@@ -2021,6 +2019,7 @@ public:
 
     CallConstruct(Operand dst, Operand callee, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::CallConstruct)
+        , m_length(round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * arguments.size()))
         , m_dst(dst)
         , m_callee(callee)
         , m_argument_count(arguments.size())
@@ -2031,10 +2030,7 @@ public:
     }
 
     size_t length() const { return length_impl(); }
-    size_t length_impl() const
-    {
-        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
-    }
+    size_t length_impl() const { return m_length; }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -2053,6 +2049,7 @@ public:
     }
 
 private:
+    u32 m_length { 0 };
     Operand m_dst;
     Operand m_callee;
     u32 m_argument_count { 0 };
@@ -2066,6 +2063,7 @@ public:
 
     CallDirectEval(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::CallDirectEval)
+        , m_length(round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * arguments.size()))
         , m_dst(dst)
         , m_callee(callee)
         , m_this_value(this_value)
@@ -2077,10 +2075,7 @@ public:
     }
 
     size_t length() const { return length_impl(); }
-    size_t length_impl() const
-    {
-        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
-    }
+    size_t length_impl() const { return m_length; }
 
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
@@ -2101,6 +2096,7 @@ public:
     }
 
 private:
+    u32 m_length { 0 };
     Operand m_dst;
     Operand m_callee;
     Operand m_this_value;
