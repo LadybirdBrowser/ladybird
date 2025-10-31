@@ -5145,35 +5145,39 @@ RefPtr<StyleValue const> Parser::parse_scrollbar_color_value(TokenStream<Compone
 RefPtr<StyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<ComponentValue>& tokens)
 {
     // auto | stable && both-edges?
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
 
     auto transaction = tokens.begin_transaction();
 
     auto parse_stable = [&]() -> Optional<bool> {
-        auto transaction = tokens.begin_transaction();
+        auto stable_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("auto"sv)) {
-            transaction.commit();
+            stable_transaction.commit();
             return false;
-        } else if (ident.equals_ignoring_ascii_case("stable"sv)) {
-            transaction.commit();
+        }
+        if (ident.equals_ignoring_ascii_case("stable"sv)) {
+            stable_transaction.commit();
             return true;
         }
         return {};
     };
 
     auto parse_both_edges = [&]() -> Optional<bool> {
-        auto transaction = tokens.begin_transaction();
+        auto edges_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("both-edges"sv)) {
-            transaction.commit();
+            edges_transaction.commit();
             return true;
         }
         return {};
@@ -5190,6 +5194,7 @@ RefPtr<StyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<Compon
             return nullptr;
     }
 
+    tokens.discard_whitespace();
     if (tokens.has_next_token())
         return nullptr;
 
