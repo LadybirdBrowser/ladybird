@@ -84,7 +84,7 @@ public:
     Optional<size_t> scheduled_jump;
     GC::Ptr<Object> global_object;
     GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
-    ReadonlySpan<Utf16FlyString> identifier_table;
+    Utf16FlyString const* identifier_table { nullptr };
 
     u32 program_counter { 0 };
 

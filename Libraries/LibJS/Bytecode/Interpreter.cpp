@@ -702,7 +702,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 
 Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) const
 {
-    return m_running_execution_context->identifier_table.data()[index.value];
+    return m_running_execution_context->identifier_table[index.value];
 }
 
 ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point)
@@ -715,7 +715,7 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     context.executable = executable;
     context.global_object = realm().global_object();
     context.global_declarative_environment = realm().global_environment().declarative_record();
-    context.identifier_table = executable.identifier_table->identifiers();
+    context.identifier_table = executable.identifier_table->identifiers().data();
 
     ASSERT(executable.registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
 
