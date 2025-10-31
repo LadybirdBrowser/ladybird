@@ -82,7 +82,6 @@ public:
     Optional<size_t> scheduled_jump;
     GC::Ptr<Object> global_object;
     GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
-    Span<Value> registers_and_constants_and_locals_arguments;
     ReadonlySpan<Utf16FlyString> identifier_table;
 
     u32 program_counter { 0 };

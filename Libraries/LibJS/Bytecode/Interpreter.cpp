@@ -167,12 +167,12 @@ Interpreter::~Interpreter()
 
 ALWAYS_INLINE Value Interpreter::get(Operand op) const
 {
-    return m_running_execution_context->registers_and_constants_and_locals_arguments.data()[op.index()];
+    return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.index()];
 }
 
 ALWAYS_INLINE void Interpreter::set(Operand op, Value value)
 {
-    m_running_execution_context->registers_and_constants_and_locals_arguments.data()[op.index()] = value;
+    m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.index()] = value;
 }
 
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
@@ -715,8 +715,6 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     context.identifier_table = executable.identifier_table->identifiers();
 
     ASSERT(executable.registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
-
-    context.registers_and_constants_and_locals_arguments = context.registers_and_constants_and_locals_and_arguments_span();
 
     reg(Register::accumulator()) = initial_accumulator_value;
 

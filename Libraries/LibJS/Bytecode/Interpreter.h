@@ -45,11 +45,11 @@ public:
     ALWAYS_INLINE Value& saved_return_value() { return reg(Register::saved_return_value()); }
     Value& reg(Register const& r)
     {
-        return m_running_execution_context->registers_and_constants_and_locals_arguments.data()[r.index()];
+        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[r.index()];
     }
     Value reg(Register const& r) const
     {
-        return m_running_execution_context->registers_and_constants_and_locals_arguments.data()[r.index()];
+        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[r.index()];
     }
 
     [[nodiscard]] Value get(Operand) const;
