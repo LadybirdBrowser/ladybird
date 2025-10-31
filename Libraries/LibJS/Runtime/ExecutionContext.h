@@ -111,7 +111,7 @@ public:
     {
         if (index >= arguments.size()) [[unlikely]]
             return js_undefined();
-        return arguments[index];
+        return arguments.data()[index];
     }
 
     Value& local(size_t index)
