@@ -34,7 +34,7 @@ public:
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     WebIDL::UnsignedLong size() const;
-    WebIDL::ExceptionOr<void> set_size(WebIDL::UnsignedLong);
+    void set_size(WebIDL::UnsignedLong);
 
     GC::Ptr<HTMLOptionsCollection> const& options();
 

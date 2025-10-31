@@ -1465,7 +1465,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
 
                 // 2. Set the color attribute of new parent to the result of applying the rules for serializing simple color
                 //    values to new value (interpreted as a simple color).
-                MUST(new_parent->set_attribute(HTML::AttributeNames::color, new_value_color->to_string_without_alpha()));
+                new_parent->set_attribute_value(HTML::AttributeNames::color, new_value_color->to_string_without_alpha());
             }
         }
 
@@ -1473,7 +1473,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         //    ownerDocument of node, then set the face attribute of new parent to new value.
         if (command == CommandNames::fontName) {
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
-            MUST(new_parent->set_attribute(HTML::AttributeNames::face, *new_value));
+            new_parent->set_attribute_value(HTML::AttributeNames::face, new_value.value().to_utf8_but_should_be_ported_to_utf16());
         }
     }
 
@@ -1483,7 +1483,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::a, Namespace::HTML));
 
         // 2. Set the href attribute of new parent to new value.
-        MUST(new_parent->set_attribute(HTML::AttributeNames::href, *new_value));
+        new_parent->set_attribute_value(HTML::AttributeNames::href, new_value.value().to_utf8_but_should_be_ported_to_utf16());
 
         // 3. Let ancestor be node's parent.
         GC::Ptr<DOM::Node> ancestor = node->parent();
@@ -1516,7 +1516,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
         // * xx-large: 6
         // * xxx-large: 7
         auto size = font_sizes.first_index_of(new_value.value()).value() + 1;
-        MUST(new_parent->set_attribute(HTML::AttributeNames::size, String::number(size)));
+        new_parent->set_attribute_value(HTML::AttributeNames::size, String::number(size));
     }
 
     // 13. If command is "subscript" or "superscript" and new value is "subscript", let new parent be the result of
@@ -3793,7 +3793,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
 
     // 5. Copy all attributes of element to replacement element, in order.
     element->for_each_attribute([&replacement_element](FlyString const& name, String const& value) {
-        MUST(replacement_element->set_attribute(name, value));
+        replacement_element->set_attribute_value(name, value);
     });
 
     // 6. While element has children, append the first child of element as the last child of replacement element, preserving ranges.

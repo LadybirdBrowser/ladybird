@@ -38,8 +38,8 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     auto& canvas = as<HTML::HTMLCanvasElement>(*canvas_element);
 
     // FIXME: Handle DevicePixelRatio in HiDPI mode.
-    MUST(canvas.set_width(paint_width));
-    MUST(canvas.set_height(paint_height));
+    canvas.set_width(paint_width);
+    canvas.set_height(paint_height);
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
     MUST(canvas.create_2d_context({}));

@@ -258,7 +258,7 @@ void DOMTokenList::set_value(String const& value)
     if (!associated_element)
         return;
 
-    MUST(associated_element->set_attribute(m_associated_attribute, value));
+    associated_element->set_attribute_value(m_associated_attribute, value);
 }
 
 WebIDL::ExceptionOr<void> DOMTokenList::validate_token(StringView token) const
@@ -294,7 +294,7 @@ void DOMTokenList::run_update_steps()
         return;
 
     // 2. Set an attribute value for the associated element using associated attribute’s local name and the result of running the ordered set serializer for token set.
-    MUST(associated_element->set_attribute(m_associated_attribute, serialize_ordered_set()));
+    associated_element->set_attribute_value(m_associated_attribute, serialize_ordered_set());
 }
 
 Optional<JS::Value> DOMTokenList::item_value(size_t index) const

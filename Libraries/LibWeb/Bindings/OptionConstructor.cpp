@@ -69,14 +69,14 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
     // 4. If value is given, then set an attribute value for option using "value" and value.
     if (!vm.argument(1).is_undefined()) {
         auto value = TRY(vm.argument(1).to_string(vm));
-        MUST(option_element->set_attribute(HTML::AttributeNames::value, value));
+        option_element->set_attribute_value(HTML::AttributeNames::value, value);
     }
 
     // 5. If defaultSelected is true, then set an attribute value for option using "selected" and the empty string.
     if (vm.argument_count() > 2) {
         auto default_selected = vm.argument(2).to_boolean();
         if (default_selected) {
-            MUST(option_element->set_attribute(HTML::AttributeNames::selected, String {}));
+            option_element->set_attribute_value(HTML::AttributeNames::selected, String {});
         }
     }
 

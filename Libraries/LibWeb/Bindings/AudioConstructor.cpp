@@ -49,7 +49,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
     auto audio = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML); }));
 
     // 3. Set an attribute value for audio using "preload" and "auto".
-    MUST(audio->set_attribute(HTML::AttributeNames::preload, "auto"_string));
+    audio->set_attribute_value(HTML::AttributeNames::preload, "auto"_string);
 
     auto src_value = vm.argument(0);
 
@@ -57,7 +57,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
     //    (This will cause the user agent to invoke the object's resource selection algorithm before returning.)
     if (!src_value.is_undefined()) {
         auto src = TRY(src_value.to_string(vm));
-        MUST(audio->set_attribute(HTML::AttributeNames::src, move(src)));
+        audio->set_attribute_value(HTML::AttributeNames::src, move(src));
     }
 
     // 5. Return audio.

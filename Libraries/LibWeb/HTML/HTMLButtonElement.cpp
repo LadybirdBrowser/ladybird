@@ -93,10 +93,10 @@ String HTMLButtonElement::type_for_bindings() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
-WebIDL::ExceptionOr<void> HTMLButtonElement::set_type_for_bindings(String const& type)
+void HTMLButtonElement::set_type_for_bindings(String const& type)
 {
     // The type setter steps are to set the type content attribute to the given value.
-    return set_attribute(HTML::AttributeNames::type, type);
+    set_attribute_value(HTML::AttributeNames::type, type);
 }
 
 void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -339,9 +339,9 @@ String HTMLButtonElement::command() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:dom-button-command-2
-WebIDL::ExceptionOr<void> HTMLButtonElement::set_command(String const& value)
+void HTMLButtonElement::set_command(String const& value)
 {
-    return set_attribute(AttributeNames::command, value);
+    set_attribute_value(AttributeNames::command, value);
 }
 
 }

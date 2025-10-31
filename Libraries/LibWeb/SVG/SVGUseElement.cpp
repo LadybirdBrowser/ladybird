@@ -193,10 +193,10 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone)
             // on the instance root element. However, if the computed value for the property on the ‘use’ element is
             // auto, then the property is computed as normal for the element instance.
             if (has_attribute(AttributeNames::width)) {
-                MUST(cloned_element.set_attribute(AttributeNames::width, get_attribute_value(AttributeNames::width)));
+                cloned_element.set_attribute_value(AttributeNames::width, get_attribute_value(AttributeNames::width));
             }
             if (has_attribute(AttributeNames::height)) {
-                MUST(cloned_element.set_attribute(AttributeNames::height, get_attribute_value(AttributeNames::height)));
+                cloned_element.set_attribute_value(AttributeNames::height, get_attribute_value(AttributeNames::height));
             }
         }
         shadow_root()->append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();

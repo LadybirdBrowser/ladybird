@@ -21,10 +21,10 @@ public:
     virtual ~HTMLMarqueeElement() override;
 
     WebIDL::UnsignedLong scroll_amount();
-    WebIDL::ExceptionOr<void> set_scroll_amount(WebIDL::UnsignedLong);
+    void set_scroll_amount(WebIDL::UnsignedLong);
 
     WebIDL::UnsignedLong scroll_delay();
-    WebIDL::ExceptionOr<void> set_scroll_delay(WebIDL::UnsignedLong);
+    void set_scroll_delay(WebIDL::UnsignedLong);
 
 private:
     HTMLMarqueeElement(DOM::Document&, DOM::QualifiedName);

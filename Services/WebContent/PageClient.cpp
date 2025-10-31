@@ -442,9 +442,9 @@ void PageClient::select_dropdown_closed(Optional<u32> const& selected_item_id)
     page().select_dropdown_closed(selected_item_id);
 }
 
-Web::WebIDL::ExceptionOr<void> PageClient::toggle_media_play_state()
+void PageClient::toggle_media_play_state()
 {
-    return page().toggle_media_play_state();
+    page().toggle_media_play_state();
 }
 
 void PageClient::toggle_media_mute_state()
@@ -452,14 +452,14 @@ void PageClient::toggle_media_mute_state()
     page().toggle_media_mute_state();
 }
 
-Web::WebIDL::ExceptionOr<void> PageClient::toggle_media_loop_state()
+void PageClient::toggle_media_loop_state()
 {
-    return page().toggle_media_loop_state();
+    page().toggle_media_loop_state();
 }
 
-Web::WebIDL::ExceptionOr<void> PageClient::toggle_media_controls_state()
+void PageClient::toggle_media_controls_state()
 {
-    return page().toggle_media_controls_state();
+    page().toggle_media_controls_state();
 }
 
 void PageClient::set_user_style(String source)

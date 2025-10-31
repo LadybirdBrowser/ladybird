@@ -770,7 +770,7 @@ void ConnectionFromClient::add_dom_node_attributes(u64 page_id, Web::UniqueNodeI
 
     for (auto const& attribute : attributes) {
         // NOTE: We ignore invalid attributes for now, but we may want to send feedback to the user that this failed.
-        (void)element.set_attribute(attribute.name, attribute.value);
+        element.set_attribute_value(attribute.name, attribute.value);
     }
 
     async_did_finish_editing_dom_node(page_id, element.unique_id());
@@ -792,7 +792,7 @@ void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNo
             should_remove_attribute = false;
 
         // NOTE: We ignore invalid attributes for now, but we may want to send feedback to the user that this failed.
-        (void)element.set_attribute(attribute.name, attribute.value);
+        element.set_attribute_value(attribute.name, attribute.value);
     }
 
     if (should_remove_attribute)
@@ -1299,7 +1299,7 @@ void ConnectionFromClient::retrieved_clipboard_entries(u64 page_id, u64 request_
 void ConnectionFromClient::toggle_media_play_state(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().toggle_media_play_state().release_value_but_fixme_should_propagate_errors();
+        page->page().toggle_media_play_state();
 }
 
 void ConnectionFromClient::toggle_media_mute_state(u64 page_id)
@@ -1311,13 +1311,13 @@ void ConnectionFromClient::toggle_media_mute_state(u64 page_id)
 void ConnectionFromClient::toggle_media_loop_state(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().toggle_media_loop_state().release_value_but_fixme_should_propagate_errors();
+        page->page().toggle_media_loop_state();
 }
 
 void ConnectionFromClient::toggle_media_controls_state(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().toggle_media_controls_state().release_value_but_fixme_should_propagate_errors();
+        page->page().toggle_media_controls_state();
 }
 
 void ConnectionFromClient::toggle_page_mute_state(u64 page_id)

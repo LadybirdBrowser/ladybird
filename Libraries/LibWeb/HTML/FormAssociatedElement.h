@@ -138,7 +138,7 @@ public:
     virtual void clear_algorithm();
 
     String form_action() const;
-    WebIDL::ExceptionOr<void> set_form_action(String const&);
+    void set_form_action(String const&);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
     bool report_validity();

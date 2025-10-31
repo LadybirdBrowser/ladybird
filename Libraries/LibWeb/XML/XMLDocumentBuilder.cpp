@@ -164,23 +164,37 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
         if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
             // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
             if (!attribute.key.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
-                if (!node->set_attribute_ns(Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), Utf16String::from_utf8(attribute.value)).is_error())
+                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                if (!maybe_extracted_qualified_name.is_error()) {
+                    auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
+                    node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
                     continue;
+                }
             }
+
             m_has_error = true;
         } else if (attribute.key.contains(':')) {
-            if (auto ns = namespace_for_name(attribute.key); ns.has_value()) {
-                if (!node->set_attribute_ns(ns.value(), MUST(String::from_byte_string(attribute.key)), Utf16String::from_utf8(attribute.value)).is_error())
+            if (auto namespace_for_key = namespace_for_name(attribute.key); namespace_for_key.has_value()) {
+                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), namespace_for_key, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                if (!maybe_extracted_qualified_name.is_error()) {
+                    auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
+                    node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
                     continue;
-            } else if (attribute.key.starts_with("xml:"sv)) {
-                if (auto maybe_error = node->set_attribute_ns(Namespace::XML, MUST(String::from_byte_string(attribute.key)), Utf16String::from_utf8(attribute.value)); !maybe_error.is_error())
-                    continue;
+                }
             }
+
+            if (attribute.key.starts_with("xml:"sv)) {
+                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XML, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                if (!maybe_extracted_qualified_name.is_error()) {
+                    auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
+                    node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
+                    continue;
+                }
+            }
+
             m_has_error = true;
         } else {
-            if (!node->set_attribute(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))).is_error())
-                continue;
-            m_has_error = true;
+            node->set_attribute_value(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value)));
         }
     }
 

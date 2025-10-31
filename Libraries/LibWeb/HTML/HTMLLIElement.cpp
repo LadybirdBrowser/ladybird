@@ -52,6 +52,11 @@ WebIDL::Long HTMLLIElement::value()
     return 0;
 }
 
+void HTMLLIElement::set_value(WebIDL::Long value)
+{
+    set_attribute_value(AttributeNames::value, String::number(value));
+}
+
 bool HTMLLIElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

@@ -22,10 +22,12 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(contentStyleType, "contentStyleType")       \
     __ENUMERATE_SVG_ATTRIBUTE(cx, "cx")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(cy, "cy")                                   \
+    __ENUMERATE_SVG_ATTRIBUTE(d, "d")                                     \
     __ENUMERATE_SVG_ATTRIBUTE(diffuseConstant, "diffuseConstant")         \
     __ENUMERATE_SVG_ATTRIBUTE(dx, "dx")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(dy, "dy")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(edgeMode, "edgeMode")                       \
+    __ENUMERATE_SVG_ATTRIBUTE(fill, "fill")                               \
     __ENUMERATE_SVG_ATTRIBUTE(filterUnits, "filterUnits")                 \
     __ENUMERATE_SVG_ATTRIBUTE(fr, "fr")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(fx, "fx")                                   \
@@ -104,6 +106,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(x2, "x2")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(xChannelSelector, "xChannelSelector")       \
     __ENUMERATE_SVG_ATTRIBUTE(xlink_href, "xlink:href")                   \
+    __ENUMERATE_SVG_ATTRIBUTE(xmlns, "xmlns")                             \
     __ENUMERATE_SVG_ATTRIBUTE(y, "y")                                     \
     __ENUMERATE_SVG_ATTRIBUTE(y1, "y1")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(y2, "y2")                                   \

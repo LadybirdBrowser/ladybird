@@ -40,6 +40,11 @@ private:
     virtual void processing_instruction(StringView target, StringView data) override;
     virtual void document_end() override;
 
+    struct NamespaceAndPrefix {
+        FlyString ns;
+        Optional<ByteString> prefix;
+    };
+
     Optional<FlyString> namespace_for_name(XML::Name const&);
 
     GC::Ref<DOM::Document> m_document;
@@ -48,11 +53,6 @@ private:
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
     StringBuilder m_text_builder { StringBuilder::Mode::UTF16 };
-
-    struct NamespaceAndPrefix {
-        FlyString ns;
-        Optional<ByteString> prefix;
-    };
 
     struct NamespaceStackEntry {
         Vector<NamespaceAndPrefix, 2> namespaces;

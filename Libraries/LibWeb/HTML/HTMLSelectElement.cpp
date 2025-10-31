@@ -110,11 +110,11 @@ WebIDL::UnsignedLong HTMLSelectElement::size() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
+void HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 {
     if (size > 2147483647)
         size = 0;
-    return set_attribute(HTML::AttributeNames::size, String::number(size));
+    set_attribute_value(HTML::AttributeNames::size, String::number(size));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-options
@@ -590,29 +590,36 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     set_shadow_root(shadow_root);
 
     auto border = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    MUST(border->set_attribute(HTML::AttributeNames::style, R"~~~(
+    border->set_attribute_value(HTML::AttributeNames::style, R"~~~(
         display: flex;
         align-items: center;
         height: 100%;
-    )~~~"_string));
+    )~~~"_string);
     MUST(shadow_root->append_child(border));
 
     m_inner_text_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    MUST(m_inner_text_element->set_attribute(HTML::AttributeNames::style, R"~~~(
+    m_inner_text_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
         flex: 1;
-    )~~~"_string));
+    )~~~"_string);
     MUST(border->append_child(*m_inner_text_element));
 
-    // FIXME: Find better way to add chevron icon
-    static constexpr auto chevron_svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentcolor\" d=\"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z\"/></svg>"sv;
-
     m_chevron_icon_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    MUST(m_chevron_icon_element->set_attribute(HTML::AttributeNames::style, R"~~~(
+    m_chevron_icon_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
         width: 16px;
         height: 16px;
         margin-left: 4px;
-    )~~~"_string));
-    MUST(m_chevron_icon_element->set_inner_html(Utf16String::from_utf8(chevron_svg)));
+    )~~~"_string);
+
+    auto chevron_svg_element = DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG).release_value_but_fixme_should_propagate_errors();
+    chevron_svg_element->set_attribute_value(SVG::AttributeNames::xmlns, Namespace::SVG.to_string());
+    chevron_svg_element->set_attribute_value(SVG::AttributeNames::viewBox, "0 0 24 24"_string);
+    MUST(m_chevron_icon_element->append_child(chevron_svg_element));
+
+    auto chevron_path_element = DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG).release_value_but_fixme_should_propagate_errors();
+    chevron_path_element->set_attribute_value(SVG::AttributeNames::fill, "currentcolor"_string);
+    chevron_path_element->set_attribute_value(SVG::AttributeNames::d, "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"_string);
+    MUST(chevron_svg_element->append_child(chevron_path_element));
+
     MUST(border->append_child(*m_chevron_icon_element));
 
     update_inner_text_element();
@@ -633,7 +640,7 @@ void HTMLSelectElement::update_inner_text_element()
     // Update inner text element to the label of the selected option
     for (auto const& option_element : m_cached_list_of_options) {
         if (option_element->selected()) {
-            MUST(m_inner_text_element->set_text_content(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label()))));
+            m_inner_text_element->string_replace_all(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label())));
             return;
         }
     }

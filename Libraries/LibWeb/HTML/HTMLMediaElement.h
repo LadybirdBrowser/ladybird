@@ -48,7 +48,7 @@ public:
     void set_decoder_error(String error_message);
 
     String const& current_src() const { return m_current_src; }
-    WebIDL::ExceptionOr<void> select_resource();
+    void select_resource();
 
     enum class NetworkState : u16 {
         Empty,
@@ -106,9 +106,9 @@ public:
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> play();
-    WebIDL::ExceptionOr<void> pause();
-    WebIDL::ExceptionOr<void> toggle_playback();
+    GC::Ref<WebIDL::Promise> play();
+    void pause();
+    void toggle_playback();
 
     double volume() const { return m_volume; }
     WebIDL::ExceptionOr<void> set_volume(double);
@@ -138,7 +138,7 @@ public:
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
-    WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
+    bool handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
 
     enum class MediaComponent {
         PlaybackButton,
@@ -203,8 +203,8 @@ private:
     void set_ready_state(ReadyState);
 
     void on_playback_manager_state_change();
-    WebIDL::ExceptionOr<void> play_element();
-    WebIDL::ExceptionOr<void> pause_element();
+    void play_element();
+    void pause_element();
     void seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
     void finish_seeking_element();
     void notify_about_playing();

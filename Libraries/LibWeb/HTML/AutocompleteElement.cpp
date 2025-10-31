@@ -48,11 +48,10 @@ String AutocompleteElement::autocomplete() const
     return details.value;
 }
 
-WebIDL::ExceptionOr<void> AutocompleteElement::set_autocomplete(String const& value)
+void AutocompleteElement::set_autocomplete(String const& value)
 {
     // The autocomplete IDL attribute [...] on setting, must reflect the content attribute of the same name.
-    TRY(autocomplete_element_to_html_element().set_attribute(AttributeNames::autocomplete, value));
-    return {};
+    autocomplete_element_to_html_element().set_attribute_value(AttributeNames::autocomplete, value);
 }
 
 enum class Category {

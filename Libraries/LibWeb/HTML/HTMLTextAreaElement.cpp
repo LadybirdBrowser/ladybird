@@ -117,7 +117,7 @@ void HTMLTextAreaElement::reset_algorithm()
     set_raw_value(child_text_content());
 
     if (m_text_node) {
-        MUST(m_text_node->set_text_content(m_raw_value));
+        MUST(m_text_node->replace_data(0, m_text_node->length_in_utf16_code_units(), m_raw_value));
         update_placeholder_visibility();
     }
 }
@@ -191,7 +191,7 @@ void HTMLTextAreaElement::set_value(Utf16String const& value)
     //    the text control, unselecting any selected text and resetting the selection direction to "none".
     if (api_value() != old_api_value) {
         if (m_text_node) {
-            m_text_node->set_data(m_raw_value);
+            MUST(m_text_node->replace_data(0, m_text_node->length_in_utf16_code_units(), m_raw_value));
             update_placeholder_visibility();
 
             set_the_selection_range(m_text_node->length(), m_text_node->length());
@@ -244,7 +244,8 @@ WebIDL::Long HTMLTextAreaElement::max_length() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_max_length(WebIDL::Long value)
 {
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
-    return set_attribute(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(realm(), value)));
+    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(realm(), value)));
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-minlength
@@ -261,7 +262,8 @@ WebIDL::Long HTMLTextAreaElement::min_length() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_min_length(WebIDL::Long value)
 {
     // The minLength IDL attribute must reflect the minlength content attribute, limited to only non-negative numbers.
-    return set_attribute(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(realm(), value)));
+    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(realm(), value)));
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-cols
@@ -275,12 +277,12 @@ unsigned HTMLTextAreaElement::cols() const
     return 20;
 }
 
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(WebIDL::UnsignedLong cols)
+void HTMLTextAreaElement::set_cols(WebIDL::UnsignedLong cols)
 {
     if (cols == 0 || cols > 2147483647)
         cols = 20;
 
-    return set_attribute(HTML::AttributeNames::cols, String::number(cols));
+    set_attribute_value(HTML::AttributeNames::cols, String::number(cols));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-rows
@@ -294,12 +296,12 @@ WebIDL::UnsignedLong HTMLTextAreaElement::rows() const
     return 2;
 }
 
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(WebIDL::UnsignedLong rows)
+void HTMLTextAreaElement::set_rows(WebIDL::UnsignedLong rows)
 {
     if (rows == 0 || rows > 2147483647)
         rows = 2;
 
-    return set_attribute(HTML::AttributeNames::rows, String::number(rows));
+    set_attribute_value(HTML::AttributeNames::rows, String::number(rows));
 }
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const
@@ -347,10 +349,9 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = realm().create<DOM::Text>(document(), Utf16String {});
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
-    MUST(m_text_node->set_text_content(m_raw_value));
+    m_text_node = realm().create<DOM::Text>(document(), m_raw_value);
     handle_maxlength_attribute();
     MUST(m_inner_text_element->append_child(*m_text_node));
 
@@ -403,7 +404,7 @@ void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const* metada
     if (!m_dirty_value) {
         set_raw_value(child_text_content());
         if (m_text_node)
-            MUST(m_text_node->set_text_content(m_raw_value));
+            m_text_node->set_data(m_raw_value);
         update_placeholder_visibility();
     }
 }

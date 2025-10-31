@@ -64,10 +64,10 @@ public:
     void set_window_position(Web::DevicePixelPoint);
     void set_window_size(Web::DevicePixelSize);
 
-    Web::WebIDL::ExceptionOr<void> toggle_media_play_state();
+    void toggle_media_play_state();
     void toggle_media_mute_state();
-    Web::WebIDL::ExceptionOr<void> toggle_media_loop_state();
-    Web::WebIDL::ExceptionOr<void> toggle_media_controls_state();
+    void toggle_media_loop_state();
+    void toggle_media_controls_state();
 
     void alert_closed();
     void confirm_closed(bool accepted);
