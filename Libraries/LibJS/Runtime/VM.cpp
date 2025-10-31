@@ -753,20 +753,21 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     finish_loading_imported_module(referrer, module_request, payload, module);
 }
 
-static GC::Ptr<CachedSourceRange> get_source_range(ExecutionContext const* context)
+static GC::Ptr<CachedSourceRange> get_source_range(ExecutionContext* context)
 {
     // native function
     if (!context->executable)
         return {};
 
-    if (!context->cached_source_range
-        || context->cached_source_range->program_counter != context->program_counter) {
+    if (!context->rare_data()
+        || !context->rare_data()->cached_source_range
+        || context->rare_data()->cached_source_range->program_counter != context->program_counter) {
         auto unrealized_source_range = context->executable->source_range_at(context->program_counter);
-        context->cached_source_range = context->executable->heap().allocate<CachedSourceRange>(
+        context->ensure_rare_data()->cached_source_range = context->executable->heap().allocate<CachedSourceRange>(
             context->program_counter,
             move(unrealized_source_range));
     }
-    return context->cached_source_range;
+    return context->rare_data()->cached_source_range;
 }
 
 Vector<StackTraceElement> VM::stack_trace() const

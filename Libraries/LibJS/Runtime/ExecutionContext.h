@@ -45,6 +45,8 @@ public:
     Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;
 
+    mutable GC::Ptr<CachedSourceRange> cached_source_range;
+
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
     GC::Ptr<Cell> context_owner;
 
@@ -89,8 +91,6 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
     // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
     u32 skip_when_determining_incumbent_counter { 0 };
-
-    mutable GC::Ptr<CachedSourceRange> cached_source_range;
 
     Optional<Value> this_value;
 

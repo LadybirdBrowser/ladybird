@@ -144,7 +144,6 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(variable_environment);
     visitor.visit(lexical_environment);
     visitor.visit(private_environment);
-    visitor.visit(cached_source_range);
     visitor.visit(m_rare_data);
     if (this_value.has_value())
         visitor.visit(*this_value);
@@ -161,6 +160,7 @@ void ExecutionContextRareData::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(context_owner);
+    visitor.visit(cached_source_range);
     for (auto& context : unwind_contexts) {
         visitor.visit(context.lexical_environment);
     }
