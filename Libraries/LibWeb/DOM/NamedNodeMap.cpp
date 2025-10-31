@@ -195,15 +195,14 @@ Attr const* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_
     return nullptr;
 }
 
-// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
-// https://whatpr.org/dom/1268.html#concept-element-attributes-set
+// https://dom.spec.whatwg.org/#concept-element-attributes-set
 WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 {
     // 1. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
     //    with attr’s local name, attr’s namespace, element, and attr’s value
     auto const verifiedValue = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
         attribute.local_name(),
-        attribute.namespace_uri().has_value() ? Utf16String::from_utf8(attribute.namespace_uri().value()) : Optional<Utf16String>(),
+        attribute.namespace_uri().map<Utf16String (*)(FlyString const&)>(Utf16String::from_utf8),
         associated_element(),
         Utf16String::from_utf8(attribute.value())));
 
