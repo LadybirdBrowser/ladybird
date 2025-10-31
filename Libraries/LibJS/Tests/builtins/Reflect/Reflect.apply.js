@@ -23,9 +23,7 @@ describe("errors", () => {
 describe("normal behavior", () => {
     test("calling built-in functions", () => {
         expect(Reflect.apply(String.prototype.charAt, "foo", [0])).toBe("f");
-        expect(Reflect.apply(Array.prototype.indexOf, ["hello", 123, "foo", "bar"], ["foo"])).toBe(
-            2
-        );
+        expect(Reflect.apply(Array.prototype.indexOf, ["hello", 123, "foo", "bar"], ["foo"])).toBe(2);
     });
 
     test("|this| argument is forwarded to called function", () => {

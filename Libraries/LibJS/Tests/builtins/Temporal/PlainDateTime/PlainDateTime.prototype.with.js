@@ -10,10 +10,7 @@ describe("correct behavior", () => {
             [{ year: 2021, month: 7 }, new Temporal.PlainDateTime(2021, 7, 1)],
             [{ year: 2021, month: 7, day: 6 }, new Temporal.PlainDateTime(2021, 7, 6)],
             [{ year: 2021, monthCode: "M07", day: 6 }, new Temporal.PlainDateTime(2021, 7, 6)],
-            [
-                { hour: 18, minute: 14, second: 47 },
-                new Temporal.PlainDateTime(1970, 1, 1, 18, 14, 47),
-            ],
+            [{ hour: 18, minute: 14, second: 47 }, new Temporal.PlainDateTime(1970, 1, 1, 18, 14, 47)],
             [
                 {
                     year: 2021,

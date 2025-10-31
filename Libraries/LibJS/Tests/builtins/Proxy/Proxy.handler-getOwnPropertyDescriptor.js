@@ -1,13 +1,8 @@
 describe("[Call][GetOwnProperty]] trap normal behavior", () => {
     test("forwarding when not defined in handler", () => {
+        expect(Object.getOwnPropertyDescriptor(new Proxy({}, { getOwnPropertyDescriptor: null }), "a")).toBeUndefined();
         expect(
-            Object.getOwnPropertyDescriptor(new Proxy({}, { getOwnPropertyDescriptor: null }), "a")
-        ).toBeUndefined();
-        expect(
-            Object.getOwnPropertyDescriptor(
-                new Proxy({}, { getOwnPropertyDescriptor: undefined }),
-                "a"
-            )
+            Object.getOwnPropertyDescriptor(new Proxy({}, { getOwnPropertyDescriptor: undefined }), "a")
         ).toBeUndefined();
         expect(Object.getOwnPropertyDescriptor(new Proxy({}, {}), "a")).toBeUndefined();
     });

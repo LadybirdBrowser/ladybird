@@ -232,11 +232,9 @@ describe("correct behavior", () => {
     });
 
     test("timeZoneName", () => {
-        ["short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"].forEach(
-            timeZoneName => {
-                const en = new Intl.DateTimeFormat("en", { timeZoneName: timeZoneName });
-                expect(en.resolvedOptions().timeZoneName).toBe(timeZoneName);
-            }
-        );
+        ["short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"].forEach(timeZoneName => {
+            const en = new Intl.DateTimeFormat("en", { timeZoneName: timeZoneName });
+            expect(en.resolvedOptions().timeZoneName).toBe(timeZoneName);
+        });
     });
 });

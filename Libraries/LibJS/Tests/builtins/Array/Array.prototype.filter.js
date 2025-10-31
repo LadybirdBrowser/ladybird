@@ -51,12 +51,6 @@ describe("normal behavior", () => {
             return arr.filter(el => el.toLowerCase().indexOf(query.toLowerCase()) !== -1);
         };
         expect(filterItems(fruits, "Berry")).toEqual(["Blueberry", "Raspberry"]);
-        expect(filterItems(fruits, "P")).toEqual([
-            "Apple",
-            "Grape",
-            "Peach",
-            "Pineapple",
-            "Raspberry",
-        ]);
+        expect(filterItems(fruits, "P")).toEqual(["Apple", "Grape", "Peach", "Pineapple", "Raspberry"]);
     });
 });

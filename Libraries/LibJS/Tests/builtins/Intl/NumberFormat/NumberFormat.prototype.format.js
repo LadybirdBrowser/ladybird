@@ -82,21 +82,11 @@ describe("style=decimal", () => {
         expect(en.format(12.3456)).toBe("12.3456");
         expect(en.format(12.34567)).toBe("12.3457");
         expect(en.format(12.34561)).toBe("12.3456");
-        expect(en.format(0.00000000000000000000000000000123)).toBe(
-            "0.000000000000000000000000000001230"
-        );
-        expect(en.format(-0.00000000000000000000000000000123)).toBe(
-            "-0.000000000000000000000000000001230"
-        );
-        expect(en.format(12344501000000000000000000000000000)).toBe(
-            "12,344,500,000,000,000,000,000,000,000,000,000"
-        );
-        expect(en.format(-12344501000000000000000000000000000)).toBe(
-            "-12,344,500,000,000,000,000,000,000,000,000,000"
-        );
-        expect(en.format(12344501000000000000000000000000000n)).toBe(
-            "12,344,500,000,000,000,000,000,000,000,000,000"
-        );
+        expect(en.format(0.00000000000000000000000000000123)).toBe("0.000000000000000000000000000001230");
+        expect(en.format(-0.00000000000000000000000000000123)).toBe("-0.000000000000000000000000000001230");
+        expect(en.format(12344501000000000000000000000000000)).toBe("12,344,500,000,000,000,000,000,000,000,000,000");
+        expect(en.format(-12344501000000000000000000000000000)).toBe("-12,344,500,000,000,000,000,000,000,000,000,000");
+        expect(en.format(12344501000000000000000000000000000n)).toBe("12,344,500,000,000,000,000,000,000,000,000,000");
         expect(en.format(-12344501000000000000000000000000000n)).toBe(
             "-12,344,500,000,000,000,000,000,000,000,000,000"
         );
@@ -211,9 +201,7 @@ describe("style=decimal", () => {
         expect(ar.format(123)).toBe("\u0661\u0662\u0663\u0623\u0633\u0660");
         expect(ar.format(1234)).toBe("\u0661\u066b\u0662\u0663\u0664\u0623\u0633\u0663");
         expect(ar.format(12345)).toBe("\u0661\u0662\u066b\u0663\u0664\u0665\u0623\u0633\u0663");
-        expect(ar.format(123456)).toBe(
-            "\u0661\u0662\u0663\u066b\u0664\u0665\u0666\u0623\u0633\u0663"
-        );
+        expect(ar.format(123456)).toBe("\u0661\u0662\u0663\u066b\u0664\u0665\u0666\u0623\u0633\u0663");
         expect(ar.format(1234567)).toBe("\u0661\u066b\u0662\u0663\u0665\u0623\u0633\u0666");
         expect(ar.format(0.1)).toBe("\u0661\u0660\u0660\u0623\u0633\u061c-\u0663");
         expect(ar.format(0.12)).toBe("\u0661\u0662\u0660\u0623\u0633\u061c-\u0663");
@@ -563,16 +551,10 @@ describe("style=decimal", () => {
         expect(nf("en", undefined, 2, undefined, 2).format(1.23)).toBe("1.2");
         expect(nf("en", undefined, 3, undefined, 1).format(1.23)).toBe("1.2");
 
-        expect(nf("ar-u-nu-arab", 2, undefined, 2, undefined).format(1)).toBe(
-            "\u0661\u066b\u0660\u0660"
-        );
+        expect(nf("ar-u-nu-arab", 2, undefined, 2, undefined).format(1)).toBe("\u0661\u066b\u0660\u0660");
         expect(nf("ar-u-nu-arab", 3, undefined, 1, undefined).format(1)).toBe("\u0661\u066b\u0660");
-        expect(nf("ar-u-nu-arab", undefined, 2, undefined, 2).format(1.23)).toBe(
-            "\u0661\u066b\u0662"
-        );
-        expect(nf("ar-u-nu-arab", undefined, 3, undefined, 1).format(1.23)).toBe(
-            "\u0661\u066b\u0662"
-        );
+        expect(nf("ar-u-nu-arab", undefined, 2, undefined, 2).format(1.23)).toBe("\u0661\u066b\u0662");
+        expect(nf("ar-u-nu-arab", undefined, 3, undefined, 1).format(1.23)).toBe("\u0661\u066b\u0662");
     });
 
     test("roundingPriority=morePrecision", () => {
@@ -592,15 +574,9 @@ describe("style=decimal", () => {
         expect(nf("en", undefined, 3, undefined, 1).format(1.23)).toBe("1.23");
 
         expect(nf("ar-u-nu-arab", 2, undefined, 2, undefined).format(1)).toBe("\u0661\u066b\u0660");
-        expect(nf("ar-u-nu-arab", 3, undefined, 1, undefined).format(1)).toBe(
-            "\u0661\u066b\u0660\u0660"
-        );
-        expect(nf("ar-u-nu-arab", undefined, 2, undefined, 2).format(1.23)).toBe(
-            "\u0661\u066b\u0662\u0663"
-        );
-        expect(nf("ar-u-nu-arab", undefined, 3, undefined, 1).format(1.23)).toBe(
-            "\u0661\u066b\u0662\u0663"
-        );
+        expect(nf("ar-u-nu-arab", 3, undefined, 1, undefined).format(1)).toBe("\u0661\u066b\u0660\u0660");
+        expect(nf("ar-u-nu-arab", undefined, 2, undefined, 2).format(1.23)).toBe("\u0661\u066b\u0662\u0663");
+        expect(nf("ar-u-nu-arab", undefined, 3, undefined, 1).format(1.23)).toBe("\u0661\u066b\u0662\u0663");
     });
 
     test("roundingMode=ceil", () => {

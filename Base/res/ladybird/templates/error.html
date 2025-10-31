@@ -1,58 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Error!</title>
-    <style>
-        :root {
-            color-scheme: light dark;
-            font-family: system-ui, sans-serif;
-        }
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            margin: 0;
-            padding: 1rem;
-            text-align: center;
-        }
-        header {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2rem;
-            margin-bottom: 1rem;
-        }
-        svg {
-            height: 64px;
-            width: auto;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 1.5;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-        h1 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
-        p {
-            font-size: 1rem;
-            color: #555;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.5 21.5">
-            <path d="M11.75.75h-9c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-13l-5-5z"/>
-            <path d="M10.75.75v4c0 1.1.9 2 2 2h4M5.75 9.75v2M11.75 9.75v2M5.75 16.75c1-2.67 5-2.67 6 0"/>
-        </svg>
-        <h1>Failed to load %failed_url%</h1>
-    </header>
-    <p>%error_message%</p>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Error!</title>
+        <style>
+            :root {
+                color-scheme: light dark;
+                font-family: system-ui, sans-serif;
+            }
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                box-sizing: border-box;
+                margin: 0;
+                padding: 1rem;
+                text-align: center;
+            }
+            header {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2rem;
+                margin-bottom: 1rem;
+            }
+            svg {
+                height: 64px;
+                width: auto;
+                stroke: currentColor;
+                fill: none;
+                stroke-width: 1.5;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+            h1 {
+                margin: 0;
+                font-size: 1.5rem;
+            }
+            p {
+                font-size: 1rem;
+                color: #555;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.5 21.5">
+                <path d="M11.75.75h-9c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-13l-5-5z" />
+                <path d="M10.75.75v4c0 1.1.9 2 2 2h4M5.75 9.75v2M11.75 9.75v2M5.75 16.75c1-2.67 5-2.67 6 0" />
+            </svg>
+            <h1>Failed to load %failed_url%</h1>
+        </header>
+        <p>%error_message%</p>
+    </body>
 </html>

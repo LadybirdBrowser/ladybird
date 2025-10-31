@@ -14,10 +14,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             FinalizationRegistry();
-        }).toThrowWithMessage(
-            TypeError,
-            "FinalizationRegistry constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "FinalizationRegistry constructor must be called with 'new'");
     });
 });
 

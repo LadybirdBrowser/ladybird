@@ -4,10 +4,7 @@ const doTest = (operatorName, executeOperation) => {
 
         expect(() => {
             executeOperation(1n, value);
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot use ${operatorName} operator with BigInt${messageSuffix}`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot use ${operatorName} operator with BigInt${messageSuffix}`);
     });
 };
 

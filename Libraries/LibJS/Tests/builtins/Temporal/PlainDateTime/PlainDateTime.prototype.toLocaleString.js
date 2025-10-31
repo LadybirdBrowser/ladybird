@@ -4,18 +4,7 @@ describe("correct behavior", () => {
     });
 
     test("basic functionality", () => {
-        const plainDateTime = new Temporal.PlainDateTime(
-            2021,
-            11,
-            3,
-            1,
-            33,
-            5,
-            100,
-            200,
-            300,
-            "gregory"
-        );
+        const plainDateTime = new Temporal.PlainDateTime(2021, 11, 3, 1, 33, 5, 100, 200, 300, "gregory");
         expect(plainDateTime.toLocaleString()).toBe("11/3/2021, 1:33:05 AM");
     });
 });

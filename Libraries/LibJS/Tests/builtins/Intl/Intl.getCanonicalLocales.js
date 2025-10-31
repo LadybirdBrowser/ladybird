@@ -20,17 +20,11 @@ describe("errors", () => {
     test("duplicate variant subtags", () => {
         expect(() => {
             Intl.getCanonicalLocales("en-posix-POSIX");
-        }).toThrowWithMessage(
-            RangeError,
-            "en-posix-POSIX is not a structurally valid language tag"
-        );
+        }).toThrowWithMessage(RangeError, "en-posix-POSIX is not a structurally valid language tag");
 
         expect(() => {
             Intl.getCanonicalLocales("en-POSIX-POSIX");
-        }).toThrowWithMessage(
-            RangeError,
-            "en-POSIX-POSIX is not a structurally valid language tag"
-        );
+        }).toThrowWithMessage(RangeError, "en-POSIX-POSIX is not a structurally valid language tag");
     });
 
     test("improperly placed separator", () => {
@@ -70,10 +64,7 @@ describe("errors", () => {
     test("duplicate transformed extension variant subtags", () => {
         expect(() => {
             Intl.getCanonicalLocales("en-t-en-POSIX-POSIX");
-        }).toThrowWithMessage(
-            RangeError,
-            "en-t-en-POSIX-POSIX is not a structurally valid language tag"
-        );
+        }).toThrowWithMessage(RangeError, "en-t-en-POSIX-POSIX is not a structurally valid language tag");
     });
 });
 
@@ -111,9 +102,7 @@ describe("normal behavior", () => {
 
     test("duplicate Unicode locale extension keywords", () => {
         expect(Intl.getCanonicalLocales("en-us-u-1k-aaa-1k-bbb")).toEqual(["en-US-u-1k-aaa"]);
-        expect(Intl.getCanonicalLocales("en-us-u-1k-aaa-2k-ccc-1k-bbb")).toEqual([
-            "en-US-u-1k-aaa-2k-ccc",
-        ]);
+        expect(Intl.getCanonicalLocales("en-us-u-1k-aaa-2k-ccc-1k-bbb")).toEqual(["en-US-u-1k-aaa-2k-ccc"]);
     });
 
     test("canonicalize locale objects", () => {

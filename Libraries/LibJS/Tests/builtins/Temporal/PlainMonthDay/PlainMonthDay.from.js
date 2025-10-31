@@ -40,10 +40,7 @@ describe("correct behavior", () => {
         for (const value of values) {
             expect(() => {
                 Temporal.PlainMonthDay.from(value);
-            }).not.toThrowWithMessage(
-                RangeError,
-                "MM-DD string format can only be used with the iso8601 calendar"
-            );
+            }).not.toThrowWithMessage(RangeError, "MM-DD string format can only be used with the iso8601 calendar");
         }
     });
 });
@@ -95,9 +92,7 @@ describe("errors", () => {
             Temporal.PlainMonthDay.from("2023-02-10T22:56[u-ca=ladybird]");
         } catch (e) {
             expect(e).toBeInstanceOf(RangeError);
-            expect(e.message).not.toBe(
-                "MM-DD string format can only be used with the iso8601 calendar"
-            );
+            expect(e.message).not.toBe("MM-DD string format can only be used with the iso8601 calendar");
             expect(e.message).toBe("Invalid calendar identifier 'ladybird'");
         }
     });

@@ -31,10 +31,7 @@ test("parsing can pass", () => {
 
 test("parsing can fail", () => {
     let binary = new Uint8Array([0, 0x32, 0x73, 0x6d]);
-    expect(() => parseWebAssemblyModule(binary)).toThrow(
-        SyntaxError,
-        "Incorrect module magic (did not match \\0asm)"
-    );
+    expect(() => parseWebAssemblyModule(binary)).toThrow(SyntaxError, "Incorrect module magic (did not match \\0asm)");
 });
 
 test("file reading can pass", () => {

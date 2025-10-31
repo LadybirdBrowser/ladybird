@@ -300,10 +300,7 @@
     <body>
         <header>
             <picture>
-                <source
-                    srcset="resource://icons/128x128/app-browser.png"
-                    media="(prefers-color-scheme: dark)"
-                />
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
                 <img src="resource://icons/128x128/app-browser-dark.png" />
             </picture>
             <h1>Ladybird Settings</h1>
@@ -350,9 +347,7 @@
 
                 <div class="card-group">
                     <label for="autocomplete-engine">Search Suggestions</label>
-                    <p class="description">
-                        Select the engine that will provide search suggestions.
-                    </p>
+                    <p class="description">Select the engine that will provide search suggestions.</p>
                     <select id="autocomplete-engine">
                         <option value="">Disable search suggestions</option>
                         <hr />
@@ -379,9 +374,7 @@
             <div class="card-body">
                 <div class="card-group">
                     <div class="inline-container">
-                        <label for="global-privacy-control-toggle">
-                            Enable Global Privacy Control
-                        </label>
+                        <label for="global-privacy-control-toggle">Enable Global Privacy Control</label>
                         <input id="global-privacy-control-toggle" type="checkbox" switch />
                     </div>
                     <p class="description">Tell websites not to sell or share your data.</p>
@@ -471,11 +464,7 @@
                 <div class="form-group">
                     <label for="search-custom-url">Search URL</label>
                     <p class="description">Use %s as a placeholder for the search query</p>
-                    <input
-                        id="search-custom-url"
-                        type="url"
-                        placeholder="https://example.com/search?q=%s"
-                    />
+                    <input id="search-custom-url" type="url" placeholder="https://example.com/search?q=%s" />
                 </div>
                 <div class="dialog-controls">
                     <button id="search-custom-add" class="primary-button">Add&nbsp;Engine</button>
@@ -502,9 +491,7 @@
                 </div>
             </div>
             <div class="dialog-footer">
-                <button id="site-settings-remove-all" class="secondary-button">
-                    Remove All Sites
-                </button>
+                <button id="site-settings-remove-all" class="secondary-button">Remove All Sites</button>
             </div>
         </dialog>
 

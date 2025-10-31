@@ -34,18 +34,7 @@ describe("correct behavior", () => {
     test("PlainDateTime instance argument", () => {
         const timeZone = "UTC";
         const calendar = "gregory";
-        const plainDateTime = new Temporal.PlainDateTime(
-            2021,
-            11,
-            7,
-            0,
-            20,
-            5,
-            100,
-            200,
-            300,
-            calendar
-        );
+        const plainDateTime = new Temporal.PlainDateTime(2021, 11, 7, 0, 20, 5, 100, 200, 300, calendar);
         plainDateTime.timeZone = timeZone;
         const createdZoneDateTime = Temporal.ZonedDateTime.from(plainDateTime);
 
@@ -96,9 +85,7 @@ describe("correct behavior", () => {
     });
 
     test("from string", () => {
-        const zonedDateTime = Temporal.ZonedDateTime.from(
-            "2021-11-07T00:20:05.100200300+00:00[UTC][u-ca=iso8601]"
-        );
+        const zonedDateTime = Temporal.ZonedDateTime.from("2021-11-07T00:20:05.100200300+00:00[UTC][u-ca=iso8601]");
 
         expect(zonedDateTime).toBeInstanceOf(Temporal.ZonedDateTime);
         expect(zonedDateTime.timeZoneId).toBe("UTC");

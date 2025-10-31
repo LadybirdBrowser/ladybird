@@ -159,27 +159,12 @@ test("unknown private name gives SyntaxError", () => {
 });
 
 // OSS-FUZZ Issue 53363: top level unknown private names seg faults
-expect(() => eval(`#n`)).toThrowWithMessage(
-    SyntaxError,
-    "Reference to undeclared private field or method '#n'"
-);
-expect(() => eval(`obj.#n`)).toThrowWithMessage(
-    SyntaxError,
-    "Reference to undeclared private field or method '#n'"
-);
-expect(() => eval(`this.#n`)).toThrowWithMessage(
-    SyntaxError,
-    "Reference to undeclared private field or method '#n'"
-);
+expect(() => eval(`#n`)).toThrowWithMessage(SyntaxError, "Reference to undeclared private field or method '#n'");
+expect(() => eval(`obj.#n`)).toThrowWithMessage(SyntaxError, "Reference to undeclared private field or method '#n'");
+expect(() => eval(`this.#n`)).toThrowWithMessage(SyntaxError, "Reference to undeclared private field or method '#n'");
 expect(() => eval(`if (#n) 1;`)).toThrowWithMessage(
     SyntaxError,
     "Reference to undeclared private field or method '#n'"
 );
-expect(() => eval(`1?.#n`)).toThrowWithMessage(
-    SyntaxError,
-    "Reference to undeclared private field or method '#n'"
-);
-expect(() => eval(`1?.n.#n`)).toThrowWithMessage(
-    SyntaxError,
-    "Reference to undeclared private field or method '#n'"
-);
+expect(() => eval(`1?.#n`)).toThrowWithMessage(SyntaxError, "Reference to undeclared private field or method '#n'");
+expect(() => eval(`1?.n.#n`)).toThrowWithMessage(SyntaxError, "Reference to undeclared private field or method '#n'");

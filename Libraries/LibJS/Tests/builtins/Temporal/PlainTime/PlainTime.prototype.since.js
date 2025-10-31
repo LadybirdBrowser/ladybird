@@ -66,10 +66,7 @@ describe("errors", () => {
             const other = new Temporal.PlainTime();
             expect(() => {
                 plainTime.since(other, { smallestUnit });
-            }).toThrowWithMessage(
-                RangeError,
-                `${smallestUnit} is not a valid value for option smallestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${smallestUnit} is not a valid value for option smallestUnit`);
         }
     });
 
@@ -80,10 +77,7 @@ describe("errors", () => {
             const other = new Temporal.PlainTime();
             expect(() => {
                 plainTime.since(other, { largestUnit });
-            }).toThrowWithMessage(
-                RangeError,
-                `${largestUnit} is not a valid value for option largestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${largestUnit} is not a valid value for option largestUnit`);
         }
     });
 });

@@ -16,8 +16,7 @@ const didNotHoistClass = (() => {
     return 0;
 })();
 
-export const passed =
-    returnsOne() + hasStaticFieldTwo.two + shouldBeHoisted() + didNotHoistClass === expectedValue;
+export const passed = returnsOne() + hasStaticFieldTwo.two + shouldBeHoisted() + didNotHoistClass === expectedValue;
 
 export function shouldBeHoisted() {
     return 3;

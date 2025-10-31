@@ -28,10 +28,7 @@ describe("errors", () => {
         test(`requires at least one argument (${T.name})`, () => {
             expect(() => {
                 new T().findLast();
-            }).toThrowWithMessage(
-                TypeError,
-                "TypedArray.prototype.findLast() requires at least one argument"
-            );
+            }).toThrowWithMessage(TypeError, "TypedArray.prototype.findLast() requires at least one argument");
         });
 
         test(`callback must be a function (${T.name})`, () => {

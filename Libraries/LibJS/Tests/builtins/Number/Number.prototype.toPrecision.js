@@ -21,10 +21,7 @@ describe("errors", () => {
         [-Infinity, 0, 101, Infinity].forEach(value => {
             expect(() => {
                 (0).toPrecision(value);
-            }).toThrowWithMessage(
-                RangeError,
-                "Precision must be an integer no less than 1, and no greater than 100"
-            );
+            }).toThrowWithMessage(RangeError, "Precision must be an integer no less than 1, and no greater than 100");
         });
     });
 });

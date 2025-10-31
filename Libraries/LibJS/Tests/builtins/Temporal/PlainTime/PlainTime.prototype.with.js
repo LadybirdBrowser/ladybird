@@ -1,17 +1,6 @@
-const PLAIN_TIME_PROPERTIES = [
-    "hour",
-    "minute",
-    "second",
-    "millisecond",
-    "microsecond",
-    "nanosecond",
-];
+const PLAIN_TIME_PROPERTIES = ["hour", "minute", "second", "millisecond", "microsecond", "nanosecond"];
 
-const REJECTED_CALENDAR_TYPES_THREE_ARGUMENTS = [
-    Temporal.PlainDate,
-    Temporal.PlainDateTime,
-    Temporal.PlainTime,
-];
+const REJECTED_CALENDAR_TYPES_THREE_ARGUMENTS = [Temporal.PlainDate, Temporal.PlainDateTime, Temporal.PlainTime];
 
 const REJECTED_CALENDAR_TYPES_TWO_ARGUMENTS = [Temporal.PlainMonthDay, Temporal.PlainYearMonth];
 
@@ -116,16 +105,10 @@ describe("errors", () => {
         for (const property of PLAIN_TIME_PROPERTIES) {
             expect(() => {
                 new Temporal.PlainTime().with({ [property]: Infinity });
-            }).toThrowWithMessage(
-                RangeError,
-                `Invalid value Infinity for time field '${property}'`
-            );
+            }).toThrowWithMessage(RangeError, `Invalid value Infinity for time field '${property}'`);
             expect(() => {
                 new Temporal.PlainTime().with({ [property]: -Infinity });
-            }).toThrowWithMessage(
-                RangeError,
-                `Invalid value -Infinity for time field '${property}'`
-            );
+            }).toThrowWithMessage(RangeError, `Invalid value -Infinity for time field '${property}'`);
         }
     });
 

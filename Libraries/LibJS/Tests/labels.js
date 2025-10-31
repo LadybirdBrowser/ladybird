@@ -177,10 +177,7 @@ test("invalid label usage", () => {
                 }
             }
         `)
-    ).toThrowWithMessage(
-        SyntaxError,
-        "labelled continue statement cannot use non iterating statement"
-    );
+    ).toThrowWithMessage(SyntaxError, "labelled continue statement cannot use non iterating statement");
 
     expect(() =>
         eval(`

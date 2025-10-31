@@ -121,30 +121,21 @@ describe("errors", () => {
 
         expect(() => {
             Temporal.Duration.compare(duration1, duration2);
-        }).toThrowWithMessage(
-            RangeError,
-            "A starting point is required for comparing calendar units"
-        );
+        }).toThrowWithMessage(RangeError, "A starting point is required for comparing calendar units");
 
         const duration3 = new Temporal.Duration(0, 3);
         const duration4 = new Temporal.Duration(0, 4);
 
         expect(() => {
             Temporal.Duration.compare(duration3, duration4);
-        }).toThrowWithMessage(
-            RangeError,
-            "A starting point is required for comparing calendar units"
-        );
+        }).toThrowWithMessage(RangeError, "A starting point is required for comparing calendar units");
 
         const duration5 = new Temporal.Duration(0, 0, 5);
         const duration6 = new Temporal.Duration(0, 0, 6);
 
         expect(() => {
             Temporal.Duration.compare(duration5, duration6);
-        }).toThrowWithMessage(
-            RangeError,
-            "A starting point is required for comparing calendar units"
-        );
+        }).toThrowWithMessage(RangeError, "A starting point is required for comparing calendar units");
 
         // Still throws if year/month/week of one the duration objects is non-zero.
         const duration7 = new Temporal.Duration(0, 0, 0, 7);
@@ -152,20 +143,14 @@ describe("errors", () => {
 
         expect(() => {
             Temporal.Duration.compare(duration7, duration8);
-        }).toThrowWithMessage(
-            RangeError,
-            "A starting point is required for comparing calendar units"
-        );
+        }).toThrowWithMessage(RangeError, "A starting point is required for comparing calendar units");
 
         const duration9 = new Temporal.Duration(0, 0, 9);
         const duration10 = new Temporal.Duration(0, 0, 0, 10);
 
         expect(() => {
             Temporal.Duration.compare(duration9, duration10);
-        }).toThrowWithMessage(
-            RangeError,
-            "A starting point is required for comparing calendar units"
-        );
+        }).toThrowWithMessage(RangeError, "A starting point is required for comparing calendar units");
     });
 
     test("sub-minute time zone offset mismatch (unambiguous time zone transition)", () => {
@@ -176,19 +161,13 @@ describe("errors", () => {
             Temporal.Duration.compare(duration1, duration2, {
                 relativeTo: "1970-01-01T00:00:00-00:44:40[Africa/Monrovia]",
             });
-        }).toThrowWithMessage(
-            RangeError,
-            "Invalid offset for the provided date and time in the current time zone"
-        );
+        }).toThrowWithMessage(RangeError, "Invalid offset for the provided date and time in the current time zone");
 
         expect(() => {
             Temporal.Duration.compare(duration1, duration2, {
                 relativeTo: "1970-01-01T00:00:00-00:45:00[Africa/Monrovia]",
             });
-        }).toThrowWithMessage(
-            RangeError,
-            "Invalid offset for the provided date and time in the current time zone"
-        );
+        }).toThrowWithMessage(RangeError, "Invalid offset for the provided date and time in the current time zone");
     });
 
     test("sub-minute time zone offset mismatch (ambiguous time zone transition)", () => {
@@ -199,9 +178,6 @@ describe("errors", () => {
             Temporal.Duration.compare(duration1, duration2, {
                 relativeTo: "1952-10-15T23:59:59-11:19:50[Pacific/Niue]",
             });
-        }).toThrowWithMessage(
-            RangeError,
-            "Invalid offset for the provided date and time in the current time zone"
-        );
+        }).toThrowWithMessage(RangeError, "Invalid offset for the provided date and time in the current time zone");
     });
 });

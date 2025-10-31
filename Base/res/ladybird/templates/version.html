@@ -1,58 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>About %browser_name%</title>
-    <style>
-        html {
-            color-scheme: light dark;
-        }
-        img {
-            float: left;
-            margin-right: 10px;
-            height: 48px;
-        }
-        th {
-            text-align: right;
-        }
-        td {
-            font-family: monospace;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <picture>
-            <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)">
-            <img src="resource://icons/128x128/app-browser-dark.png">
-        </picture>
-        <h1>About %browser_name%</h1>
-    </header>
-    <table>
-        <tr>
-            <th>Version:</th>
-            <td>%browser_version%</td>
-        </tr>
-        <tr>
-            <th>Arch:</th>
-            <td>%arch_name%</td>
-        </tr>
-        <tr>
-            <th>Operating System:</th>
-            <td>%os_name%</td>
-        </tr>
-        <tr>
-            <th>User Agent:</th>
-            <td>%user_agent%</td>
-        </tr>
-        <tr>
-            <th>Command Line:</th>
-            <td>%command_line%</td>
-        </tr>
-        <tr>
-            <th>Executable Path:</th>
-            <td>%executable_path%</td>
-        </tr>
-    </table>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <title>About %browser_name%</title>
+        <style>
+            html {
+                color-scheme: light dark;
+            }
+            img {
+                float: left;
+                margin-right: 10px;
+                height: 48px;
+            }
+            th {
+                text-align: right;
+            }
+            td {
+                font-family: monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>About %browser_name%</h1>
+        </header>
+        <table>
+            <tr>
+                <th>Version:</th>
+                <td>%browser_version%</td>
+            </tr>
+            <tr>
+                <th>Arch:</th>
+                <td>%arch_name%</td>
+            </tr>
+            <tr>
+                <th>Operating System:</th>
+                <td>%os_name%</td>
+            </tr>
+            <tr>
+                <th>User Agent:</th>
+                <td>%user_agent%</td>
+            </tr>
+            <tr>
+                <th>Command Line:</th>
+                <td>%command_line%</td>
+            </tr>
+            <tr>
+                <th>Executable Path:</th>
+                <td>%executable_path%</td>
+            </tr>
+        </table>
+    </body>
 </html>

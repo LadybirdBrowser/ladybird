@@ -10,7 +10,6 @@ if (keys[1] !== "*") throw new Error('Expected keys[1] === "*"');
 
 if (keys[2] !== "default") throw new Error('Expected keys[2] === "default"');
 
-if (keys.indexOf(Symbol.toStringTag) <= 2)
-    throw new Error("Expected Symbol.toStringTag to be behind string keys");
+if (keys.indexOf(Symbol.toStringTag) <= 2) throw new Error("Expected Symbol.toStringTag to be behind string keys");
 
 export const passed = true;

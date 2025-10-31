@@ -2,10 +2,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             Intl.RelativeTimeFormat();
-        }).toThrowWithMessage(
-            TypeError,
-            "Intl.RelativeTimeFormat constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "Intl.RelativeTimeFormat constructor must be called with 'new'");
     });
 
     test("structurally invalid tag", () => {

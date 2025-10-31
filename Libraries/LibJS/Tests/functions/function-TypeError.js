@@ -22,26 +22,17 @@ test("calling undefined object key", () => {
 test("calling object", () => {
     expect(() => {
         Math();
-    }).toThrowWithMessage(
-        TypeError,
-        "[object MathObject] is not a function (evaluated from 'Math')"
-    );
+    }).toThrowWithMessage(TypeError, "[object MathObject] is not a function (evaluated from 'Math')");
 });
 
 test("constructing object", () => {
     expect(() => {
         new Math();
-    }).toThrowWithMessage(
-        TypeError,
-        "[object MathObject] is not a constructor (evaluated from 'Math')"
-    );
+    }).toThrowWithMessage(TypeError, "[object MathObject] is not a constructor (evaluated from 'Math')");
 });
 
 test("constructing native function", () => {
     expect(() => {
         new isNaN();
-    }).toThrowWithMessage(
-        TypeError,
-        "[object NativeFunction] is not a constructor (evaluated from 'isNaN')"
-    );
+    }).toThrowWithMessage(TypeError, "[object NativeFunction] is not a constructor (evaluated from 'isNaN')");
 });

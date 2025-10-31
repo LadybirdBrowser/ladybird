@@ -105,9 +105,7 @@ describe("correct behaviour", () => {
         unhandledExceptionGenerator
             .next("bad10")
             .then(() => {
-                expect().fail(
-                    "Unhandled exception generator did NOT throw an unhandled exception."
-                );
+                expect().fail("Unhandled exception generator did NOT throw an unhandled exception.");
             })
             .catch(e => {
                 expect(e).toBe(1337);
@@ -123,9 +121,7 @@ describe("correct behaviour", () => {
                 expect(iteratorResult.done).toBeTrue();
             })
             .catch(e => {
-                expect().fail(
-                    "Unhandled exception generator threw an unhandled exception in Completed state."
-                );
+                expect().fail("Unhandled exception generator threw an unhandled exception in Completed state.");
             });
         runQueuedPromiseJobs();
     });

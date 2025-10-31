@@ -33,36 +33,22 @@ test("integer digits", () => {
 
     expect(1n.toLocaleString("ar-u-nu-arab", { minimumIntegerDigits: 2 })).toBe("\u0660\u0661");
     expect(12n.toLocaleString("ar-u-nu-arab", { minimumIntegerDigits: 2 })).toBe("\u0661\u0662");
-    expect(123n.toLocaleString("ar-u-nu-arab", { minimumIntegerDigits: 2 })).toBe(
-        "\u0661\u0662\u0663"
-    );
+    expect(123n.toLocaleString("ar-u-nu-arab", { minimumIntegerDigits: 2 })).toBe("\u0661\u0662\u0663");
 });
 
 test("significant digits", () => {
-    expect(
-        1n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("1.000");
-    expect(
-        12n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("12.00");
-    expect(
-        123n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("123.0");
-    expect(
-        1234n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("1,234");
-    expect(
-        12345n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("12,345");
-    expect(
-        123456n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("123,456");
-    expect(
-        1234567n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("1,234,570");
-    expect(
-        1234561n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })
-    ).toBe("1,234,560");
+    expect(1n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe("1.000");
+    expect(12n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe("12.00");
+    expect(123n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe("123.0");
+    expect(1234n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe("1,234");
+    expect(12345n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe("12,345");
+    expect(123456n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe("123,456");
+    expect(1234567n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe(
+        "1,234,570"
+    );
+    expect(1234561n.toLocaleString("en", { minimumSignificantDigits: 4, maximumSignificantDigits: 6 })).toBe(
+        "1,234,560"
+    );
 
     expect(
         1n.toLocaleString("ar-u-nu-arab", {

@@ -337,10 +337,7 @@ test("Nested try/catch/finally with labelled continue", () => {
 
                                 expect(() => {
                                     continueTry;
-                                }).toThrowWithMessage(
-                                    ReferenceError,
-                                    "'continueTry' is not defined"
-                                );
+                                }).toThrowWithMessage(ReferenceError, "'continueTry' is not defined");
 
                                 expect(foo).toBe(0);
                                 expect(j).toBe(1);
@@ -361,10 +358,7 @@ test("Nested try/catch/finally with labelled continue", () => {
 
                             expect(() => {
                                 beforeContinueTry;
-                            }).toThrowWithMessage(
-                                ReferenceError,
-                                "'beforeContinueTry' is not defined"
-                            );
+                            }).toThrowWithMessage(ReferenceError, "'beforeContinueTry' is not defined");
 
                             expect(() => {
                                 continueTry;

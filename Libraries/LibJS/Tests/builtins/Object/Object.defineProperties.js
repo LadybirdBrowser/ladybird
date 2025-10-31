@@ -4,10 +4,7 @@ test("length is 2", () => {
 
 describe("errors", () => {
     test("non-object argument", () => {
-        expect(() => Object.defineProperties(42, {})).toThrowWithMessage(
-            TypeError,
-            "Object argument is not an object"
-        );
+        expect(() => Object.defineProperties(42, {})).toThrowWithMessage(TypeError, "Object argument is not an object");
     });
 });
 

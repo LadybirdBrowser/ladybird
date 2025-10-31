@@ -126,10 +126,7 @@ describe("errors", () => {
     test("roundingPriority option is invalid", () => {
         expect(() => {
             new Intl.PluralRules("en", { roundingPriority: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option roundingPriority"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option roundingPriority");
     });
 
     test("roundingMode option is invalid", () => {
@@ -157,10 +154,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.PluralRules("en", { roundingIncrement: 5, minimumSignificantDigits: 1 });
-        }).toThrowWithMessage(
-            TypeError,
-            "5 is not a valid rounding increment for rounding type significantDigits"
-        );
+        }).toThrowWithMessage(TypeError, "5 is not a valid rounding increment for rounding type significantDigits");
 
         expect(() => {
             new Intl.PluralRules("en", {
@@ -168,19 +162,13 @@ describe("errors", () => {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 3,
             });
-        }).toThrowWithMessage(
-            RangeError,
-            "5 is not a valid rounding increment for inequal min/max fraction digits"
-        );
+        }).toThrowWithMessage(RangeError, "5 is not a valid rounding increment for inequal min/max fraction digits");
     });
 
     test("trailingZeroDisplay option is invalid", () => {
         expect(() => {
             new Intl.PluralRules("en", { trailingZeroDisplay: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option trailingZeroDisplay"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option trailingZeroDisplay");
     });
 });
 
@@ -262,31 +250,21 @@ describe("normal behavior", () => {
     });
 
     test("all valid roundingMode options", () => {
-        [
-            "ceil",
-            "floor",
-            "expand",
-            "trunc",
-            "halfCeil",
-            "halfFloor",
-            "halfExpand",
-            "halfTrunc",
-            "halfEven",
-        ].forEach(roundingMode => {
-            expect(() => {
-                new Intl.PluralRules("en", { roundingMode: roundingMode });
-            }).not.toThrow();
-        });
-    });
-
-    test("all valid roundingIncrement options", () => {
-        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000].forEach(
-            roundingIncrement => {
+        ["ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven"].forEach(
+            roundingMode => {
                 expect(() => {
-                    new Intl.PluralRules("en", { roundingIncrement: roundingIncrement });
+                    new Intl.PluralRules("en", { roundingMode: roundingMode });
                 }).not.toThrow();
             }
         );
+    });
+
+    test("all valid roundingIncrement options", () => {
+        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000].forEach(roundingIncrement => {
+            expect(() => {
+                new Intl.PluralRules("en", { roundingIncrement: roundingIncrement });
+            }).not.toThrow();
+        });
     });
 
     test("all valid trailingZeroDisplay options", () => {

@@ -1,5 +1,4 @@
-const getIteratorPrototype = () =>
-    Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
+const getIteratorPrototype = () => Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
 
 test("prototype of %IteratorPrototype% is %ObjectPrototype%", () => {
     let itProto = getIteratorPrototype();

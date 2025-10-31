@@ -17,19 +17,12 @@ test("JSON.rawJSON basic functionality", () => {
 
     expect(JSON.stringify({ 42: JSON.rawJSON(37) })).toBe('{"42":37}');
     expect(JSON.stringify({ x: JSON.rawJSON(1), y: JSON.rawJSON(2) })).toBe('{"x":1,"y":2}');
-    expect(JSON.stringify({ x: { x: JSON.rawJSON(1), y: JSON.rawJSON(2) } })).toBe(
-        '{"x":{"x":1,"y":2}}'
-    );
+    expect(JSON.stringify({ x: { x: JSON.rawJSON(1), y: JSON.rawJSON(2) } })).toBe('{"x":{"x":1,"y":2}}');
 
     expect(JSON.stringify([JSON.rawJSON(1), JSON.rawJSON(1.1)])).toBe("[1,1.1]");
-    expect(
-        JSON.stringify([
-            JSON.rawJSON('"1"'),
-            JSON.rawJSON(true),
-            JSON.rawJSON(null),
-            JSON.rawJSON(false),
-        ])
-    ).toBe('["1",true,null,false]');
+    expect(JSON.stringify([JSON.rawJSON('"1"'), JSON.rawJSON(true), JSON.rawJSON(null), JSON.rawJSON(false)])).toBe(
+        '["1",true,null,false]'
+    );
     expect(JSON.stringify([{ x: JSON.rawJSON(1), y: JSON.rawJSON(1) }])).toBe('[{"x":1,"y":1}]');
 });
 

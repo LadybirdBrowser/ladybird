@@ -9,14 +9,11 @@ describe("correct behavior", () => {
     });
 
     test("Instant string argument", () => {
-        expect(Temporal.Instant.from("1975-02-02T14:25:36.123456789Z").epochNanoseconds).toBe(
+        expect(Temporal.Instant.from("1975-02-02T14:25:36.123456789Z").epochNanoseconds).toBe(160583136123456789n);
+        // Time zone is not validated
+        expect(Temporal.Instant.from("1975-02-02T14:25:36.123456789Z[Custom/TimeZone]").epochNanoseconds).toBe(
             160583136123456789n
         );
-        // Time zone is not validated
-        expect(
-            Temporal.Instant.from("1975-02-02T14:25:36.123456789Z[Custom/TimeZone]")
-                .epochNanoseconds
-        ).toBe(160583136123456789n);
 
         // Accepts but ignores the calendar.
         let result = null;

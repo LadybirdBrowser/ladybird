@@ -5,12 +5,10 @@ describe("correct behavior", () => {
 
     test("basic functionality", () => {
         const zonedDateTime = new Temporal.ZonedDateTime(1111111111111n, "UTC");
-        expect(zonedDateTime.round({ smallestUnit: "second" }).epochNanoseconds).toBe(
-            1111000000000n
+        expect(zonedDateTime.round({ smallestUnit: "second" }).epochNanoseconds).toBe(1111000000000n);
+        expect(zonedDateTime.round({ smallestUnit: "second", roundingMode: "ceil" }).epochNanoseconds).toBe(
+            1112000000000n
         );
-        expect(
-            zonedDateTime.round({ smallestUnit: "second", roundingMode: "ceil" }).epochNanoseconds
-        ).toBe(1112000000000n);
         expect(
             zonedDateTime.round({
                 smallestUnit: "minute",
@@ -29,9 +27,7 @@ describe("correct behavior", () => {
 
     test("string argument is implicitly converted to options object", () => {
         const zonedDateTime = new Temporal.ZonedDateTime(1111111111111n, "UTC");
-        expect(
-            zonedDateTime.round("second").equals(zonedDateTime.round({ smallestUnit: "second" }))
-        ).toBeTrue();
+        expect(zonedDateTime.round("second").equals(zonedDateTime.round({ smallestUnit: "second" }))).toBeTrue();
     });
 });
 
@@ -53,20 +49,14 @@ describe("errors", () => {
         const zonedDateTime = new Temporal.ZonedDateTime(1n, "UTC");
         expect(() => {
             zonedDateTime.round({ smallestUnit: "second", roundingMode: "serenityOS" });
-        }).toThrowWithMessage(
-            RangeError,
-            "serenityOS is not a valid value for option roundingMode"
-        );
+        }).toThrowWithMessage(RangeError, "serenityOS is not a valid value for option roundingMode");
     });
 
     test("invalid smallest unit", () => {
         const zonedDateTime = new Temporal.ZonedDateTime(1n, "UTC");
         expect(() => {
             zonedDateTime.round({ smallestUnit: "serenityOS" });
-        }).toThrowWithMessage(
-            RangeError,
-            "serenityOS is not a valid value for option smallestUnit"
-        );
+        }).toThrowWithMessage(RangeError, "serenityOS is not a valid value for option smallestUnit");
     });
 
     test("increment may not be NaN", () => {
@@ -86,9 +76,6 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "0 is not a valid value for option roundingIncrement");
         expect(() => {
             zonedDateTime.round({ smallestUnit: "second", roundingIncrement: Infinity });
-        }).toThrowWithMessage(
-            RangeError,
-            "Infinity is not a valid value for option roundingIncrement"
-        );
+        }).toThrowWithMessage(RangeError, "Infinity is not a valid value for option roundingIncrement");
     });
 });

@@ -73,9 +73,7 @@ test("canonical format: ECMA date time string format", () => {
     expect("1980-10-01T10:34:56.789Z").toBe(new Date("1980-10T12:34:56.789+0200").toISOString());
     expect("1980-10-11T10:34:56.789Z").toBe(new Date("1980-10-11T12:34:56.789+0200").toISOString());
 
-    expect("1980-10-11T10:34:54.789Z").toBe(
-        new Date("1980-10-11T12:34:56.789+020002").toISOString()
-    );
+    expect("1980-10-11T10:34:54.789Z").toBe(new Date("1980-10-11T12:34:56.789+020002").toISOString());
 
     // Timezone offset HH:MM
     expect("1980-01-01T10:34:00.000Z").toBe(new Date("1980T12:34+02:00").toISOString());
@@ -88,9 +86,7 @@ test("canonical format: ECMA date time string format", () => {
 
     expect("1980-01-01T10:34:56.789Z").toBe(new Date("1980T12:34:56.789+02:00").toISOString());
     expect("1980-10-01T10:34:56.789Z").toBe(new Date("1980-10T12:34:56.789+02:00").toISOString());
-    expect("1980-10-11T10:34:56.789Z").toBe(
-        new Date("1980-10-11T12:34:56.789+02:00").toISOString()
-    );
+    expect("1980-10-11T10:34:56.789Z").toBe(new Date("1980-10-11T12:34:56.789+02:00").toISOString());
 
     setTimeZone(originalTimeZone);
 });
@@ -109,12 +105,8 @@ test('canonical format: ECMA + ISO8601 extensions ("simplified" ISO8601)', () =>
     expect("1980-10-11T10:34:11.000Z").toBe(new Date("1980-10-11T12:34:56+02:00:45").toISOString());
 
     expect("1980-01-01T10:34:11.789Z").toBe(new Date("1980T12:34:56.789+02:00:45").toISOString());
-    expect("1980-10-01T10:34:11.789Z").toBe(
-        new Date("1980-10T12:34:56.789+02:00:45").toISOString()
-    );
-    expect("1980-10-11T10:34:11.789Z").toBe(
-        new Date("1980-10-11T12:34:56.789+02:00:45").toISOString()
-    );
+    expect("1980-10-01T10:34:11.789Z").toBe(new Date("1980-10T12:34:56.789+02:00:45").toISOString());
+    expect("1980-10-11T10:34:11.789Z").toBe(new Date("1980-10-11T12:34:56.789+02:00:45").toISOString());
 
     // The ECMA date-time string format requires literal uppercase 'T' and 'Z'.
     // Chrome also accepts lowercase.
@@ -126,37 +118,19 @@ test('canonical format: ECMA + ISO8601 extensions ("simplified" ISO8601)', () =>
     // Timezone offset HH:MM:SS.Ns
     expect("1980-01-01T10:33:14.322Z").toBe(new Date("1980T12:34+02:00:45.678").toISOString());
     expect("1980-10-01T10:33:14.322Z").toBe(new Date("1980-10T12:34+02:00:45.678").toISOString());
-    expect("1980-10-11T10:33:14.322Z").toBe(
-        new Date("1980-10-11T12:34+02:00:45.678").toISOString()
-    );
+    expect("1980-10-11T10:33:14.322Z").toBe(new Date("1980-10-11T12:34+02:00:45.678").toISOString());
 
     expect("1980-01-01T10:34:10.322Z").toBe(new Date("1980T12:34:56+02:00:45.678").toISOString());
-    expect("1980-10-01T10:34:10.322Z").toBe(
-        new Date("1980-10T12:34:56+02:00:45.678").toISOString()
-    );
-    expect("1980-10-11T10:34:10.322Z").toBe(
-        new Date("1980-10-11T12:34:56+02:00:45.678").toISOString()
-    );
+    expect("1980-10-01T10:34:10.322Z").toBe(new Date("1980-10T12:34:56+02:00:45.678").toISOString());
+    expect("1980-10-11T10:34:10.322Z").toBe(new Date("1980-10-11T12:34:56+02:00:45.678").toISOString());
 
-    expect("1980-01-01T10:34:11.111Z").toBe(
-        new Date("1980T12:34:56.789+02:00:45.678").toISOString()
-    );
-    expect("1980-10-01T10:34:11.111Z").toBe(
-        new Date("1980-10T12:34:56.789+02:00:45.678").toISOString()
-    );
-    expect("1980-10-11T10:34:11.111Z").toBe(
-        new Date("1980-10-11T12:34:56.789+02:00:45.678").toISOString()
-    );
+    expect("1980-01-01T10:34:11.111Z").toBe(new Date("1980T12:34:56.789+02:00:45.678").toISOString());
+    expect("1980-10-01T10:34:11.111Z").toBe(new Date("1980-10T12:34:56.789+02:00:45.678").toISOString());
+    expect("1980-10-11T10:34:11.111Z").toBe(new Date("1980-10-11T12:34:56.789+02:00:45.678").toISOString());
 
-    expect("1980-01-01T10:34:11.666Z").toBe(
-        new Date("1980T12:34:56.789+02:00:45.123456879").toISOString()
-    );
-    expect("1980-10-01T10:34:11.666Z").toBe(
-        new Date("1980-10T12:34:56.789+02:00:45.123456879").toISOString()
-    );
-    expect("1980-10-11T10:34:11.666Z").toBe(
-        new Date("1980-10-11T12:34:56.789+02:00:45.123456879").toISOString()
-    );
+    expect("1980-01-01T10:34:11.666Z").toBe(new Date("1980T12:34:56.789+02:00:45.123456879").toISOString());
+    expect("1980-10-01T10:34:11.666Z").toBe(new Date("1980-10T12:34:56.789+02:00:45.123456879").toISOString());
+    expect("1980-10-11T10:34:11.666Z").toBe(new Date("1980-10-11T12:34:56.789+02:00:45.123456879").toISOString());
 
     // Expanded years https://tc39.es/ecma262/#sec-expanded-years
     expect("2023-01-01T00:00:00.000Z").toBe(new Date("+002023").toISOString());
@@ -168,40 +142,20 @@ test('canonical format: ECMA + ISO8601 extensions ("simplified" ISO8601)', () =>
     expect("2023-10-11T19:34:56.789Z").toBe(new Date("+002023-10-11T12:34:56.789").toISOString());
     expect("2023-10-11T12:34:56.000Z").toBe(new Date("+002023-10-11T12:34:56Z").toISOString());
     expect("2023-10-11T12:34:56.789Z").toBe(new Date("+002023-10-11T12:34:56.789Z").toISOString());
-    expect("2023-10-11T10:34:56.789Z").toBe(
-        new Date("+002023-10-11T12:34:56.789+0200").toISOString()
-    );
-    expect("2023-10-11T10:34:56.789Z").toBe(
-        new Date("+002023-10-11T12:34:56.789+02:00").toISOString()
-    );
-    expect("2023-10-11T10:34:11.666Z").toBe(
-        new Date("+002023-10-11T12:34:56.789+02:00:45.123").toISOString()
-    );
-    expect("2023-10-11T10:34:11.666Z").toBe(
-        new Date("+002023-10-11T12:34:56.789+02:00:45.123456789").toISOString()
-    );
+    expect("2023-10-11T10:34:56.789Z").toBe(new Date("+002023-10-11T12:34:56.789+0200").toISOString());
+    expect("2023-10-11T10:34:56.789Z").toBe(new Date("+002023-10-11T12:34:56.789+02:00").toISOString());
+    expect("2023-10-11T10:34:11.666Z").toBe(new Date("+002023-10-11T12:34:56.789+02:00:45.123").toISOString());
+    expect("2023-10-11T10:34:11.666Z").toBe(new Date("+002023-10-11T12:34:56.789+02:00:45.123456789").toISOString());
 
     expect("-002023-10-11T00:00:00.000Z").toBe(new Date("-002023-10-11").toISOString());
     expect("-002023-10-11T20:46:28.000Z").toBe(new Date("-002023-10-11T12:34").toISOString());
     expect("-002023-10-11T20:47:24.000Z").toBe(new Date("-002023-10-11T12:34:56").toISOString());
-    expect("-002023-10-11T20:47:24.789Z").toBe(
-        new Date("-002023-10-11T12:34:56.789").toISOString()
-    );
-    expect("-002023-10-11T10:34:56.789Z").toBe(
-        new Date("-002023-10-11T12:34:56.789+0200").toISOString()
-    );
-    expect("-002023-10-11T10:34:56.789Z").toBe(
-        new Date("-002023-10-11T12:34:56.789+02:00").toISOString()
-    );
-    expect("-002023-10-11T10:34:11.789Z").toBe(
-        new Date("-002023-10-11T12:34:56.789+02:00:45").toISOString()
-    );
-    expect("-002023-10-11T10:34:11.666Z").toBe(
-        new Date("-002023-10-11T12:34:56.789+02:00:45.123").toISOString()
-    );
-    expect("-002023-10-11T10:34:11.666Z").toBe(
-        new Date("-002023-10-11T12:34:56.789+02:00:45.123456789").toISOString()
-    );
+    expect("-002023-10-11T20:47:24.789Z").toBe(new Date("-002023-10-11T12:34:56.789").toISOString());
+    expect("-002023-10-11T10:34:56.789Z").toBe(new Date("-002023-10-11T12:34:56.789+0200").toISOString());
+    expect("-002023-10-11T10:34:56.789Z").toBe(new Date("-002023-10-11T12:34:56.789+02:00").toISOString());
+    expect("-002023-10-11T10:34:11.789Z").toBe(new Date("-002023-10-11T12:34:56.789+02:00:45").toISOString());
+    expect("-002023-10-11T10:34:11.666Z").toBe(new Date("-002023-10-11T12:34:56.789+02:00:45.123").toISOString());
+    expect("-002023-10-11T10:34:11.666Z").toBe(new Date("-002023-10-11T12:34:56.789+02:00:45.123456789").toISOString());
 
     expect("0000-02-03T12:34:56.789Z").toBe(new Date("+000000-02-03T12:34:56.789Z").toISOString());
 
@@ -219,9 +173,7 @@ test("canonical format: Date.toString", () => {
     const originalTimeZone = setTimeZone("America/Vancouver");
 
     expect("1999-12-08T12:34:56.000Z").toBe(new Date("Wed Dec 08 1999 12:34:56 GMT").toISOString()); // Clint Eastwood elected mayor of Carmel
-    expect("1999-12-08T20:34:56.000Z").toBe(
-        new Date("Wed Dec 08 1999 12:34:56 GMT-0800").toISOString()
-    );
+    expect("1999-12-08T20:34:56.000Z").toBe(new Date("Wed Dec 08 1999 12:34:56 GMT-0800").toISOString());
     expect("1999-12-08T20:34:56.000Z").toBe(
         new Date("Wed Dec 08 1999 12:34:56 GMT-0800 (Pacific Standard Time)").toISOString()
     );
@@ -234,12 +186,8 @@ test("canonical format: Date.toString", () => {
 });
 
 test("canonical format: Date.toUTCString", () => {
-    expect("1999-12-08T08:00:00.000Z").toBe(
-        new Date("Wed, 08 Dec 1999 08:00:00 GMT").toISOString()
-    );
-    expect("1999-12-08T08:00:00.000Z").toBe(
-        new Date("Thu, 08 Dec 1999 08:00:00 GMT").toISOString()
-    ); // Wrong weekday is ignored
+    expect("1999-12-08T08:00:00.000Z").toBe(new Date("Wed, 08 Dec 1999 08:00:00 GMT").toISOString());
+    expect("1999-12-08T08:00:00.000Z").toBe(new Date("Thu, 08 Dec 1999 08:00:00 GMT").toISOString()); // Wrong weekday is ignored
 });
 
 test("ambiguous date: 1 number", () => {
@@ -573,12 +521,8 @@ test("timezone offset", () => {
     expect("2019-07-18T08:01:00.000Z").toBe(new Date("07/18/2019 11:22 +3:21").toISOString());
 
     expect("2019-07-18T08:00:51.000Z").toBe(new Date("07/18/2019 11:22 +03:21:09").toISOString()); // Chrome and Firefox do not support seconds in timezone offset
-    expect("2019-07-18T08:00:50.877Z").toBe(
-        new Date("07/18/2019 11:22 +03:21:09.123").toISOString()
-    );
-    expect("2019-07-18T08:00:50.877Z").toBe(
-        new Date("07/18/2019 11:22 +03:21:09.12345678").toISOString()
-    ); // Truncate to milliseconds
+    expect("2019-07-18T08:00:50.877Z").toBe(new Date("07/18/2019 11:22 +03:21:09.123").toISOString());
+    expect("2019-07-18T08:00:50.877Z").toBe(new Date("07/18/2019 11:22 +03:21:09.12345678").toISOString()); // Truncate to milliseconds
 
     expect("2019-07-18T08:22:00.000Z").toBe(new Date("07/18/2019 11:22 GMT+03").toISOString());
     expect("2019-07-18T08:22:00.000Z").toBe(new Date("07/18/2019 11:22 UTC+03").toISOString());
@@ -654,9 +598,7 @@ test("us timezones", () => {
     expect("2025-02-23T12:34:00.000Z").toBe(new Date("23 feb 2025 12:34 UTC").toISOString());
     expect("2025-02-23T12:34:00.000Z").toBe(new Date("23 feb 2025 12:34 Z").toISOString());
 
-    expect("2025-02-23T18:34:00.000Z").toBe(
-        new Date("23 EST feb PDT 2025 CST 12:34").toISOString()
-    ); // For multiple occurrences, the last one wins
+    expect("2025-02-23T18:34:00.000Z").toBe(new Date("23 EST feb PDT 2025 CST 12:34").toISOString()); // For multiple occurrences, the last one wins
     expect("2022-02-12T20:34:00.000Z").toBe(new Date("2/12/22 12:34 +0100 PST").toISOString()); // Timezone name wins after timezone offset.
 
     expect(Date.parse("12-Dec-2024 15:30:00 PT")).toBeNaN(); // Non-qualified timezone names ("PT"="Pacific Time"; no S/D) are not recognized
@@ -682,9 +624,7 @@ test("weekdays", () => {
     expect("2024-12-05T08:00:00.000Z").toBe(new Date("Thurnip Dec 5 2024").toISOString());
     expect("2024-12-05T08:00:00.000Z").toBe(new Date("Mon Dec 5 2024").toISOString()); // Incorrect weekday is ignored.
     expect("2024-12-05T08:00:00.000Z").toBe(new Date("Theater Dec 5 2024").toISOString()); // Anything before the first number is ignored.
-    expect("2024-12-05T08:00:00.000Z").toBe(
-        new Date("Mon Tue Wed Dec Thu YMCA 5 2024").toISOString()
-    );
+    expect("2024-12-05T08:00:00.000Z").toBe(new Date("Mon Tue Wed Dec Thu YMCA 5 2024").toISOString());
 
     expect(Date.parse("Mon Dec Tue 5 Wed 2024")).toBeNaN(); // Weekday names (or any other word) fail after the first number
     expect(Date.parse("Mon Dec Tue 5 Wed 2024 Thu")).toBeNaN();
@@ -696,15 +636,9 @@ test("timezone name", () => {
     // Compatible with Chrome and Firefox. Anything that is not a closing bracket following an open bracket is ignored.
     const originalTimeZone = setTimeZone("America/Vancouver");
 
-    expect("2020-12-05T20:23:00.000Z").toBe(
-        new Date("Thu Dec 5 2020 12:23 -0800 (America/Vancouver)").toISOString()
-    );
-    expect("2020-12-05T20:23:00.000Z").toBe(
-        new Date("Thu Dec 5 2020 12:23 -0800 (America/Chicago)").toISOString()
-    ); // Incorrect time zone name.
-    expect("2020-12-05T20:23:00.000Z").toBe(
-        new Date("Thu Dec 5 2020 12:23 (America/Chicago)").toISOString()
-    ); // Missing timezone offset makes it local time. Timezone name is ignored.
+    expect("2020-12-05T20:23:00.000Z").toBe(new Date("Thu Dec 5 2020 12:23 -0800 (America/Vancouver)").toISOString());
+    expect("2020-12-05T20:23:00.000Z").toBe(new Date("Thu Dec 5 2020 12:23 -0800 (America/Chicago)").toISOString()); // Incorrect time zone name.
+    expect("2020-12-05T20:23:00.000Z").toBe(new Date("Thu Dec 5 2020 12:23 (America/Chicago)").toISOString()); // Missing timezone offset makes it local time. Timezone name is ignored.
     expect("2020-12-05T20:23:00.000Z").toBe(
         new Date(
             "Thu Dec 5 2020 12:23 -0800 (Whatever alpha 123 numerics or punctuation $# ({}[] works )"
@@ -731,9 +665,7 @@ test("garbage", () => {
     // Accept punctuation at any point before time.
     // Firefox fails in some conditions before time.
     // Chrome is finnicky on interior punctuation.
-    expect("2204-01-20T02:32:00.000Z").toBe(
-        new Date("2204 //. -/, Jan ./- 20 ..- 10:32 GMT+08:00").toISOString()
-    );
+    expect("2204-01-20T02:32:00.000Z").toBe(new Date("2204 //. -/, Jan ./- 20 ..- 10:32 GMT+08:00").toISOString());
 
     // Chrome does not accept punctuation after time. Firefox accepts some. We accept punctuation.
     expect("2204-01-29T18:30:00.000Z").toBe(new Date("2204 Jan 29 10:30 /--/").toISOString());
@@ -756,18 +688,10 @@ test("multiple month names", () => {
     const originalTimeZone = setTimeZone("America/Vancouver");
 
     // Multiple month names are accepted. Last one wins.
-    expect("1981-03-23T22:56:00.000Z").toBe(
-        new Date("March 23, 1981 14:56 GMT-08:00").toISOString()
-    );
-    expect("1981-04-23T22:56:00.000Z").toBe(
-        new Date("March 23, Apr 1981 14:56 GMT-08:00").toISOString()
-    );
-    expect("1981-05-23T22:56:00.000Z").toBe(
-        new Date("March 23, Apron 1981 mAY 14:56 GMT-08:00").toISOString()
-    );
-    expect("1981-06-23T22:56:00.000Z").toBe(
-        new Date("March 23, Apron 1981 mAY 14:56 junuary GMT-08:00").toISOString()
-    );
+    expect("1981-03-23T22:56:00.000Z").toBe(new Date("March 23, 1981 14:56 GMT-08:00").toISOString());
+    expect("1981-04-23T22:56:00.000Z").toBe(new Date("March 23, Apr 1981 14:56 GMT-08:00").toISOString());
+    expect("1981-05-23T22:56:00.000Z").toBe(new Date("March 23, Apron 1981 mAY 14:56 GMT-08:00").toISOString());
+    expect("1981-06-23T22:56:00.000Z").toBe(new Date("March 23, Apron 1981 mAY 14:56 junuary GMT-08:00").toISOString());
     expect("1981-07-23T22:56:00.000Z").toBe(
         new Date("March 23, Apron 1981 mAY 14:56 junuary GMT-08:00 Julie").toISOString()
     );

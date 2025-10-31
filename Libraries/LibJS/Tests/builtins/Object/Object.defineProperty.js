@@ -188,10 +188,7 @@ describe("errors", () => {
                 get() {},
                 value: 9,
             });
-        }).toThrowWithMessage(
-            TypeError,
-            "Accessor property descriptor cannot specify a value or writable key"
-        );
+        }).toThrowWithMessage(TypeError, "Accessor property descriptor cannot specify a value or writable key");
     });
 
     test("cannot define 'value' and 'set' in the same descriptor", () => {
@@ -202,10 +199,7 @@ describe("errors", () => {
                 set() {},
                 writable: true,
             });
-        }).toThrowWithMessage(
-            TypeError,
-            "Accessor property descriptor cannot specify a value or writable key"
-        );
+        }).toThrowWithMessage(TypeError, "Accessor property descriptor cannot specify a value or writable key");
     });
 
     test("redefine non-configurable accessor", () => {

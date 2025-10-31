@@ -21,9 +21,9 @@ describe("correct behavior", () => {
         for (const [input, expected] of values) {
             expect(Intl.DurationFormat.supportedLocalesOf(input)).toEqual(expected);
             // "best fit" (implementation defined) just uses the same implementation as "lookup" at the moment
-            expect(
-                Intl.DurationFormat.supportedLocalesOf(input, { localeMatcher: "best fit" })
-            ).toEqual(Intl.DurationFormat.supportedLocalesOf(input, { localeMatcher: "lookup" }));
+            expect(Intl.DurationFormat.supportedLocalesOf(input, { localeMatcher: "best fit" })).toEqual(
+                Intl.DurationFormat.supportedLocalesOf(input, { localeMatcher: "lookup" })
+            );
         }
     });
 });

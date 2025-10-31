@@ -53,21 +53,9 @@ describe("ability to work with generic non-array objects", () => {
         }
         {
             const o = { length: 5, 0: "foo", 1: "bar", 3: "baz" };
-            expect(Array.prototype.slice.call(o)).toEqual([
-                "foo",
-                "bar",
-                undefined,
-                "baz",
-                undefined,
-            ]);
+            expect(Array.prototype.slice.call(o)).toEqual(["foo", "bar", undefined, "baz", undefined]);
             expect(Array.prototype.slice.call(o, 0, 3)).toEqual(["foo", "bar", undefined]);
-            expect(Array.prototype.slice.call(o, 0, 15)).toEqual([
-                "foo",
-                "bar",
-                undefined,
-                "baz",
-                undefined,
-            ]);
+            expect(Array.prototype.slice.call(o, 0, 15)).toEqual(["foo", "bar", undefined, "baz", undefined]);
 
             expect(Array.prototype.slice.call(o, 1)).toEqual(["bar", undefined, "baz", undefined]);
             expect(Array.prototype.slice.call(o, 15)).toEqual([]);
@@ -89,13 +77,9 @@ describe("ability to work with generic non-array objects", () => {
         expect(Array.prototype.join.call({ length: "foo" })).toBe("");
         expect(Array.prototype.join.call({ length: 3 })).toBe(",,");
         expect(Array.prototype.join.call({ length: 2, 0: "foo", 1: "bar" })).toBe("foo,bar");
-        expect(Array.prototype.join.call({ length: 2, 0: "foo", 1: "bar", 2: "baz" })).toBe(
-            "foo,bar"
-        );
+        expect(Array.prototype.join.call({ length: 2, 0: "foo", 1: "bar", 2: "baz" })).toBe("foo,bar");
         expect(Array.prototype.join.call({ length: 3, 1: "bar" }, "~")).toBe("~bar~");
-        expect(Array.prototype.join.call({ length: 3, 0: "foo", 1: "bar", 2: "baz" }, "~")).toBe(
-            "foo~bar~baz"
-        );
+        expect(Array.prototype.join.call({ length: 3, 0: "foo", 1: "bar", 2: "baz" }, "~")).toBe("foo~bar~baz");
     });
 
     test("toString", () => {
@@ -120,9 +104,7 @@ describe("ability to work with generic non-array objects", () => {
         expect(Array.prototype.lastIndexOf.call({ length: 1, 2: "foo" }, "foo")).toBe(-1);
         expect(Array.prototype.lastIndexOf.call({ length: 5, 2: "foo" }, "foo")).toBe(2);
         expect(Array.prototype.lastIndexOf.call({ length: 5, 2: "foo", 4: "foo" }, "foo")).toBe(4);
-        expect(Array.prototype.lastIndexOf.call({ length: 5, 2: "foo", 4: "foo" }, "foo", -2)).toBe(
-            2
-        );
+        expect(Array.prototype.lastIndexOf.call({ length: 5, 2: "foo", 4: "foo" }, "foo", -2)).toBe(2);
     });
 
     test("includes", () => {
@@ -279,13 +261,7 @@ describe("ability to work with generic non-array objects", () => {
             3: "baz",
             [Symbol.isConcatSpreadable]: true,
         };
-        expect(Array.prototype.concat.call(spreadable)).toEqual([
-            "foo",
-            "bar",
-            undefined,
-            "baz",
-            undefined,
-        ]);
+        expect(Array.prototype.concat.call(spreadable)).toEqual(["foo", "bar", undefined, "baz", undefined]);
         expect(Array.prototype.concat.call(spreadable, [1, 2])).toEqual([
             "foo",
             "bar",

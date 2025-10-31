@@ -27,8 +27,5 @@ test("invalid ArrayBuffer maximum size option", () => {
 test("ArrayBuffer size exceeds maximum size", () => {
     expect(() => {
         new ArrayBuffer(10, { maxByteLength: 5 });
-    }).toThrowWithMessage(
-        RangeError,
-        "ArrayBuffer byte length of 10 exceeds the max byte length of 5"
-    );
+    }).toThrowWithMessage(RangeError, "ArrayBuffer byte length of 10 exceeds the max byte length of 5");
 });

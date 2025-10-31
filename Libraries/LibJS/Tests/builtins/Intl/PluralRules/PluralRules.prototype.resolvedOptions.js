@@ -116,32 +116,22 @@ describe("correct behavior", () => {
         const en1 = new Intl.PluralRules("en");
         expect(en1.resolvedOptions().roundingMode).toBe("halfExpand");
 
-        [
-            "ceil",
-            "floor",
-            "expand",
-            "trunc",
-            "halfCeil",
-            "halfFloor",
-            "halfExpand",
-            "halfTrunc",
-            "halfEven",
-        ].forEach(roundingMode => {
-            const en2 = new Intl.PluralRules("en", { roundingMode: roundingMode });
-            expect(en2.resolvedOptions().roundingMode).toBe(roundingMode);
-        });
+        ["ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven"].forEach(
+            roundingMode => {
+                const en2 = new Intl.PluralRules("en", { roundingMode: roundingMode });
+                expect(en2.resolvedOptions().roundingMode).toBe(roundingMode);
+            }
+        );
     });
 
     test("rounding increment", () => {
         const en1 = new Intl.PluralRules("en");
         expect(en1.resolvedOptions().roundingIncrement).toBe(1);
 
-        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000].forEach(
-            roundingIncrement => {
-                const en2 = new Intl.PluralRules("en", { roundingIncrement: roundingIncrement });
-                expect(en2.resolvedOptions().roundingIncrement).toBe(roundingIncrement);
-            }
-        );
+        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000].forEach(roundingIncrement => {
+            const en2 = new Intl.PluralRules("en", { roundingIncrement: roundingIncrement });
+            expect(en2.resolvedOptions().roundingIncrement).toBe(roundingIncrement);
+        });
     });
 
     test("trailing zero display", () => {

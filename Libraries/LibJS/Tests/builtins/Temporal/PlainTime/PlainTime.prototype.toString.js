@@ -29,9 +29,7 @@ describe("correct behavior", () => {
         }
 
         // Ignored when smallestUnit is given
-        expect(plainTime.toString({ smallestUnit: "minute", fractionalSecondDigits: 9 })).toBe(
-            "18:14"
-        );
+        expect(plainTime.toString({ smallestUnit: "minute", fractionalSecondDigits: 9 })).toBe("18:14");
     });
 
     test("smallestUnit option", () => {

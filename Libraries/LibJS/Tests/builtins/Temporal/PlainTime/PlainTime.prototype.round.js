@@ -64,9 +64,7 @@ describe("correct behavior", () => {
 
     test("string argument is implicitly converted to options object", () => {
         const plainTime = new Temporal.PlainTime(18, 15, 9, 100, 200, 300);
-        expect(
-            plainTime.round("minute").equals(plainTime.round({ smallestUnit: "minute" }))
-        ).toBeTrue();
+        expect(plainTime.round("minute").equals(plainTime.round({ smallestUnit: "minute" }))).toBeTrue();
     });
 });
 
@@ -88,20 +86,14 @@ describe("errors", () => {
         expect(() => {
             const plainTime = new Temporal.PlainTime(18, 15, 9, 100, 200, 300);
             plainTime.round({ smallestUnit: "second", roundingMode: "serenityOS" });
-        }).toThrowWithMessage(
-            RangeError,
-            "serenityOS is not a valid value for option roundingMode"
-        );
+        }).toThrowWithMessage(RangeError, "serenityOS is not a valid value for option roundingMode");
     });
 
     test("invalid smallest unit", () => {
         expect(() => {
             const plainTime = new Temporal.PlainTime(18, 15, 9, 100, 200, 300);
             plainTime.round({ smallestUnit: "serenityOS" });
-        }).toThrowWithMessage(
-            RangeError,
-            "serenityOS is not a valid value for option smallestUnit"
-        );
+        }).toThrowWithMessage(RangeError, "serenityOS is not a valid value for option smallestUnit");
     });
 
     test("increment may not be NaN", () => {
@@ -121,10 +113,7 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "0 is not a valid value for option roundingIncrement");
         expect(() => {
             plainTime.round({ smallestUnit: "second", roundingIncrement: Infinity });
-        }).toThrowWithMessage(
-            RangeError,
-            "Infinity is not a valid value for option roundingIncrement"
-        );
+        }).toThrowWithMessage(RangeError, "Infinity is not a valid value for option roundingIncrement");
         expect(() => {
             plainTime.round({ smallestUnit: "hours", roundingIncrement: 24 });
         }).toThrowWithMessage(RangeError, "24 is not a valid value for option roundingIncrement");

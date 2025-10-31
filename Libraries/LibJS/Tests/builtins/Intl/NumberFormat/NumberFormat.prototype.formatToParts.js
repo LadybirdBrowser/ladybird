@@ -301,9 +301,7 @@ describe("style=decimal", () => {
         expect(enIn.formatToParts(1234567)).toEqual([{ type: "integer", value: "1234567" }]);
 
         const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: false });
-        expect(ar.formatToParts(123456)).toEqual([
-            { type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666" },
-        ]);
+        expect(ar.formatToParts(123456)).toEqual([{ type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666" }]);
         expect(ar.formatToParts(1234567)).toEqual([
             { type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666\u0667" },
         ]);
@@ -1623,9 +1621,7 @@ describe("bigint", () => {
         expect(en.formatToParts(123456n)).toEqual([{ type: "integer", value: "123456" }]);
 
         const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: false });
-        expect(ar.formatToParts(123456n)).toEqual([
-            { type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666" },
-        ]);
+        expect(ar.formatToParts(123456n)).toEqual([{ type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666" }]);
     });
 
     test("significant digits", () => {

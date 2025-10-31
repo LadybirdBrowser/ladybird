@@ -7,10 +7,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             AsyncDisposableStack();
-        }).toThrowWithMessage(
-            TypeError,
-            "AsyncDisposableStack constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "AsyncDisposableStack constructor must be called with 'new'");
     });
 });
 

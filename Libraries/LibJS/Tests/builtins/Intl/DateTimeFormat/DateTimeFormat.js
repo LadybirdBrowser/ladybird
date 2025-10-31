@@ -51,10 +51,7 @@ describe("errors", () => {
         ["hello!", "+1", "+1:02", "+01:02:03"].forEach(timeZone => {
             expect(() => {
                 new Intl.DateTimeFormat("en", { timeZone: timeZone });
-            }).toThrowWithMessage(
-                RangeError,
-                `${timeZone} is not a valid value for option timeZone`
-            );
+            }).toThrowWithMessage(RangeError, `${timeZone} is not a valid value for option timeZone`);
         });
     });
 
@@ -65,10 +62,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { era: "narrow", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option era cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option era cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("year option is invalid", () => {
@@ -78,10 +72,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { year: "numeric", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option year cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option year cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("month option is invalid", () => {
@@ -91,10 +82,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { month: "numeric", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option month cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option month cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("weekday option is invalid", () => {
@@ -104,10 +92,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { weekday: "narrow", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option weekday cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option weekday cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("day option is invalid", () => {
@@ -117,10 +102,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { day: "numeric", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option day cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option day cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("dayPeriod option is invalid", () => {
@@ -130,10 +112,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { dayPeriod: "narrow", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option dayPeriod cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option dayPeriod cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("hour option is invalid", () => {
@@ -143,10 +122,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { hour: "numeric", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option hour cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option hour cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("minute option is invalid", () => {
@@ -156,10 +132,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { minute: "numeric", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option minute cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option minute cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("second option is invalid", () => {
@@ -169,10 +142,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.DateTimeFormat("en", { second: "numeric", dateStyle: "long" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option second cannot be set when also providing dateStyle or timeStyle"
-        );
+        }).toThrowWithMessage(TypeError, "Option second cannot be set when also providing dateStyle or timeStyle");
     });
 
     test("fractionalSecondDigits option is invalid", () => {
@@ -366,13 +336,11 @@ describe("normal behavior", () => {
     });
 
     test("all valid timeZoneName options", () => {
-        ["short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"].forEach(
-            timeZoneName => {
-                expect(() => {
-                    new Intl.DateTimeFormat("en", { timeZoneName: timeZoneName });
-                }).not.toThrow();
-            }
-        );
+        ["short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"].forEach(timeZoneName => {
+            expect(() => {
+                new Intl.DateTimeFormat("en", { timeZoneName: timeZoneName });
+            }).not.toThrow();
+        });
     });
 
     test("all valid formatMatcher options", () => {

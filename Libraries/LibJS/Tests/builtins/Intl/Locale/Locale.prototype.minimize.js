@@ -28,7 +28,5 @@ test("normal behavior", () => {
 
 test("keywords are preserved", () => {
     expect(new Intl.Locale("en-Latn-US-u-ca-abc").minimize().toString()).toBe("en-u-ca-abc");
-    expect(new Intl.Locale("en-Latn-US", { calendar: "abc" }).minimize().toString()).toBe(
-        "en-u-ca-abc"
-    );
+    expect(new Intl.Locale("en-Latn-US", { calendar: "abc" }).minimize().toString()).toBe("en-u-ca-abc");
 });

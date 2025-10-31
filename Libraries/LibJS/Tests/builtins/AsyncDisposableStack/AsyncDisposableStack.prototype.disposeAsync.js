@@ -80,9 +80,6 @@ describe("basic functionality", () => {
             },
         });
 
-        expect(async () => await stack.disposeAsync()).toThrowWithMessage(
-            ExpectationError,
-            "fail in dispose"
-        );
+        expect(async () => await stack.disposeAsync()).toThrowWithMessage(ExpectationError, "fail in dispose");
     });
 });

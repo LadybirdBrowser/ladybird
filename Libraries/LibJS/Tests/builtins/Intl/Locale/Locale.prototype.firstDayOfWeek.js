@@ -9,10 +9,7 @@ describe("errors", () => {
         [123456789, "a", "longerthan8chars"].forEach(value => {
             expect(() => {
                 new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek;
-            }).toThrowWithMessage(
-                RangeError,
-                `${value} is not a valid value for option firstDayOfWeek`
-            );
+            }).toThrowWithMessage(RangeError, `${value} is not a valid value for option firstDayOfWeek`);
         });
     });
 });
@@ -27,20 +24,14 @@ describe("normal behavior", () => {
             expect(new Intl.Locale("en", { firstDayOfWeek: day }).firstDayOfWeek).toBe(day);
             expect(new Intl.Locale("en", { firstDayOfWeek: index }).firstDayOfWeek).toBe(day);
 
-            expect(new Intl.Locale("en-u-fw-mon", { firstDayOfWeek: day }).firstDayOfWeek).toBe(
-                day
-            );
-            expect(new Intl.Locale("en-u-fw-mon", { firstDayOfWeek: index }).firstDayOfWeek).toBe(
-                day
-            );
+            expect(new Intl.Locale("en-u-fw-mon", { firstDayOfWeek: day }).firstDayOfWeek).toBe(day);
+            expect(new Intl.Locale("en-u-fw-mon", { firstDayOfWeek: index }).firstDayOfWeek).toBe(day);
         });
     });
 
     test("non-standard options", () => {
         [100, Infinity, NaN, "hello", 152n, true].forEach(value => {
-            expect(new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek).toBe(
-                value.toString()
-            );
+            expect(new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek).toBe(value.toString());
         });
     });
 });

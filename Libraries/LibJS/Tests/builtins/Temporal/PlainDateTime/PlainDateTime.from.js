@@ -129,10 +129,7 @@ describe("errors", () => {
             [{ year: 0, month: 1, day: 1, hour: 24 }, "Invalid plain time"],
             [{ year: 0, month: 1, day: 1, hour: 0, minute: 60 }, "Invalid plain time"],
             [{ year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 60 }, "Invalid plain time"],
-            [
-                { year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0, millisecond: 1000 },
-                "Invalid plain time",
-            ],
+            [{ year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0, millisecond: 1000 }, "Invalid plain time"],
             [
                 {
                     year: 0,
