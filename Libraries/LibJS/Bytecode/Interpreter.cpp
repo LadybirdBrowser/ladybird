@@ -380,7 +380,10 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
 
         handle_End: {
             auto& instruction = *reinterpret_cast<Op::End const*>(&bytecode[program_counter]);
-            reg(Register::return_value()) = get(instruction.value());
+            auto value = get(instruction.value());
+            if (value.is_special_empty_value())
+                value = js_undefined();
+            reg(Register::return_value()) = value;
             return;
         }
 
@@ -489,7 +492,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                         auto& unwind_context = unwind_contexts.last();
                         VERIFY(unwind_context.executable == &current_executable());
                         reg(Register::saved_return_value()) = reg(Register::return_value());
-                        reg(Register::return_value()) = js_special_empty_value();
+                        reg(Register::return_value()) = js_undefined();
                         program_counter = finalizer.value();
                         // the unwind_context will be pop'ed when entering the finally block
                         goto start;
@@ -752,10 +755,7 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     if (!exception.is_special_empty_value()) [[unlikely]]
         return throw_completion(exception);
 
-    auto return_value = reg(Register::return_value());
-    if (return_value.is_special_empty_value())
-        return_value = js_undefined();
-    return return_value;
+    return reg(Register::return_value());
 }
 
 void Interpreter::enter_unwind_context()
