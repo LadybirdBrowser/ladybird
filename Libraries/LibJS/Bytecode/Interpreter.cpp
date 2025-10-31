@@ -311,8 +311,8 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
     auto& handler = handlers->handler_offset;
     auto& finalizer = handlers->finalizer_offset;
 
-    VERIFY(!running_execution_context().unwind_contexts.is_empty());
-    auto& unwind_context = running_execution_context().unwind_contexts.last();
+    auto& unwind_contexts = running_execution_context().ensure_rare_data()->unwind_contexts;
+    auto& unwind_context = unwind_contexts.last();
     VERIFY(unwind_context.executable == &current_executable());
 
     if (handler.has_value()) {
@@ -485,8 +485,8 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                 do_return(saved_return_value());
                 if (auto handlers = executable.exception_handlers_for_offset(program_counter); handlers.has_value()) {
                     if (auto finalizer = handlers.value().finalizer_offset; finalizer.has_value()) {
-                        VERIFY(!running_execution_context.unwind_contexts.is_empty());
-                        auto& unwind_context = running_execution_context.unwind_contexts.last();
+                        auto& unwind_contexts = running_execution_context.ensure_rare_data()->unwind_contexts;
+                        auto& unwind_context = unwind_contexts.last();
                         VERIFY(unwind_context.executable == &current_executable());
                         reg(Register::saved_return_value()) = reg(Register::return_value());
                         reg(Register::return_value()) = js_special_empty_value();
@@ -497,7 +497,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
                 }
                 return;
             }
-            auto const old_scheduled_jump = running_execution_context.previously_scheduled_jumps.take_last();
+            auto const old_scheduled_jump = running_execution_context.ensure_rare_data()->previously_scheduled_jumps.take_last();
             if (m_running_execution_context->scheduled_jump.has_value()) {
                 program_counter = m_running_execution_context->scheduled_jump.value();
                 m_running_execution_context->scheduled_jump = {};
@@ -762,23 +762,23 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
 
 void Interpreter::enter_unwind_context()
 {
-    running_execution_context().unwind_contexts.empend(
+    running_execution_context().ensure_rare_data()->unwind_contexts.empend(
         current_executable(),
         running_execution_context().lexical_environment);
-    running_execution_context().previously_scheduled_jumps.append(m_running_execution_context->scheduled_jump);
+    running_execution_context().rare_data()->previously_scheduled_jumps.append(m_running_execution_context->scheduled_jump);
     m_running_execution_context->scheduled_jump = {};
 }
 
 void Interpreter::leave_unwind_context()
 {
-    running_execution_context().unwind_contexts.take_last();
+    running_execution_context().rare_data()->unwind_contexts.take_last();
 }
 
 void Interpreter::catch_exception(Operand dst)
 {
     set(dst, reg(Register::exception()));
     reg(Register::exception()) = js_special_empty_value();
-    auto& context = running_execution_context().unwind_contexts.last();
+    auto& context = running_execution_context().rare_data()->unwind_contexts.last();
     VERIFY(!context.handler_called);
     VERIFY(context.executable == &current_executable());
     context.handler_called = true;
@@ -787,19 +787,19 @@ void Interpreter::catch_exception(Operand dst)
 
 void Interpreter::restore_scheduled_jump()
 {
-    m_running_execution_context->scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
+    m_running_execution_context->scheduled_jump = running_execution_context().rare_data()->previously_scheduled_jumps.take_last();
 }
 
 void Interpreter::leave_finally()
 {
     reg(Register::exception()) = js_special_empty_value();
-    m_running_execution_context->scheduled_jump = running_execution_context().previously_scheduled_jumps.take_last();
+    m_running_execution_context->scheduled_jump = running_execution_context().rare_data()->previously_scheduled_jumps.take_last();
 }
 
 void Interpreter::enter_object_environment(Object& object)
 {
     auto& old_environment = running_execution_context().lexical_environment;
-    running_execution_context().saved_lexical_environments.append(old_environment);
+    running_execution_context().ensure_rare_data()->saved_lexical_environments.append(old_environment);
     running_execution_context().lexical_environment = new_object_environment(object, true, old_environment);
 }
 
@@ -1593,7 +1593,7 @@ inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value supe
 
     // NOTE: NewClass expects classEnv to be active lexical environment
     auto* class_environment = vm.lexical_environment();
-    vm.running_execution_context().lexical_environment = vm.running_execution_context().saved_lexical_environments.take_last();
+    vm.running_execution_context().lexical_environment = vm.running_execution_context().rare_data()->saved_lexical_environments.take_last();
 
     Optional<Utf16FlyString> binding_name;
     Utf16FlyString class_name;
@@ -2416,7 +2416,7 @@ void CreateLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) 
         return environment;
     };
     auto& running_execution_context = interpreter.running_execution_context();
-    running_execution_context.saved_lexical_environments.append(make_and_swap_envs(running_execution_context.lexical_environment));
+    running_execution_context.ensure_rare_data()->saved_lexical_environments.append(make_and_swap_envs(running_execution_context.lexical_environment));
     if (m_dst.has_value())
         interpreter.set(*m_dst, running_execution_context.lexical_environment);
 }
@@ -3161,7 +3161,7 @@ ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(Bytecode::Interpreter& interpre
 void LeaveLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& running_execution_context = interpreter.running_execution_context();
-    running_execution_context.lexical_environment = running_execution_context.saved_lexical_environments.take_last();
+    running_execution_context.lexical_environment = running_execution_context.rare_data()->saved_lexical_environments.take_last();
 }
 
 void LeavePrivateEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
