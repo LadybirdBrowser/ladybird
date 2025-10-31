@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
-Fail	iframe.srcdoc assigned via policy (successful HTML transformation).
+5 Pass
+Pass	iframe.srcdoc assigned via policy (successful HTML transformation).
 Pass	`iframe.srcdoc = string` throws.
 Pass	`iframe.srcdoc = null` throws.
 Pass	`iframe.srcdoc = string` assigned via default policy (successful HTML transformation).

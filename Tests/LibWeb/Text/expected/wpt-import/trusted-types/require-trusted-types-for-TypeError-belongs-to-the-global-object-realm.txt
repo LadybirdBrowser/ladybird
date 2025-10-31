@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Setting innerHTML on a node inserted by the parser.
-Fail	Setting innerHTML on a node adopted from a subframe.
+Pass	Setting innerHTML on a node adopted from a subframe.
