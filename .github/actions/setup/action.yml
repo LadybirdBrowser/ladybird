@@ -53,13 +53,6 @@ runs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
 
-        # FIXME: https://github.com/WebAssembly/wabt/issues/2533
-        #        wabt doesn't have binary releases for arm64 Linux
-        curl -f -L -o wabt-1.0.35-ubuntu-20.04.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
-        tar -xzf ./wabt-1.0.35-ubuntu-20.04.tar.gz
-        rm ./wabt-1.0.35-ubuntu-20.04.tar.gz
-        echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
-
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: maxim-lobanov/setup-xcode@v1
@@ -117,7 +110,21 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils libtool llvm@20 nasm ninja pkg-config qt unzip wabt
+        brew install autoconf autoconf-archive automake bash ccache coreutils libtool llvm@20 nasm ninja pkg-config qt unzip
+
+    - name: 'Install wabt'
+      shell: bash
+      run: |
+        if ${{ inputs.os == 'Linux' }} ; then
+          curl -f -L -o wabt-1.0.35.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+        else
+          curl -f -L -o wabt-1.0.35.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-macos-14.tar.gz
+        fi
+
+        tar -xzf ./wabt-1.0.35.tar.gz
+        rm ./wabt-1.0.35.tar.gz
+
+        echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
