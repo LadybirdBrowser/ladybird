@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/Export.h>
 
 namespace Web::SVG {
@@ -18,21 +19,21 @@ class WEB_API SVGAnimatedString final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(SVGAnimatedString);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedString> create(JS::Realm&, GC::Ref<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
+    [[nodiscard]] static GC::Ref<SVGAnimatedString> create(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
     virtual ~SVGAnimatedString() override;
 
     String base_val() const;
     void set_base_val(String const& base_val);
 
 private:
-    SVGAnimatedString(JS::Realm&, GC::Ref<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value);
+    SVGAnimatedString(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<SVGElement> m_element;
-    FlyString m_reflected_attribute;
-    Optional<FlyString> m_deprecated_reflected_attribute;
+    DOM::QualifiedName m_reflected_attribute;
+    Optional<DOM::QualifiedName> m_deprecated_reflected_attribute;
     Optional<FlyString> m_initial_value;
 };
 

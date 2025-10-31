@@ -55,7 +55,7 @@ void SVGFEBlendElement::attribute_changed(FlyString const& name, Optional<String
 GC::Ref<SVGAnimatedString> SVGFEBlendElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, AttributeNames::in);
+        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
 
     return *m_in1;
 }
@@ -63,7 +63,7 @@ GC::Ref<SVGAnimatedString> SVGFEBlendElement::in1()
 GC::Ref<SVGAnimatedString> SVGFEBlendElement::in2()
 {
     if (!m_in2)
-        m_in2 = SVGAnimatedString::create(realm(), *this, AttributeNames::in2);
+        m_in2 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in2, OptionalNone {}, OptionalNone {} });
 
     return *m_in2;
 }

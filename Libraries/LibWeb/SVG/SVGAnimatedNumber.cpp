@@ -15,14 +15,14 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGAnimatedNumber);
 
 GC::Ref<SVGAnimatedNumber> SVGAnimatedNumber::create(JS::Realm& realm, GC::Ref<SVGElement> element,
-    FlyString reflected_attribute, float initial_value, SupportsSecondValue supports_second_value,
+    DOM::QualifiedName reflected_attribute, float initial_value, SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
 {
     return realm.create<SVGAnimatedNumber>(realm, element, move(reflected_attribute), initial_value,
         supports_second_value, value_represented);
 }
 
-SVGAnimatedNumber::SVGAnimatedNumber(JS::Realm& realm, GC::Ref<SVGElement> element, FlyString reflected_attribute,
+SVGAnimatedNumber::SVGAnimatedNumber(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute,
     float initial_value, SupportsSecondValue supports_second_value, ValueRepresented value_represented)
     : PlatformObject(realm)
     , m_element(element)
@@ -55,7 +55,7 @@ void SVGAnimatedNumber::set_base_val(float new_value)
     if (m_supports_second_value == SupportsSecondValue::Yes) {
         // 1. Let current be the value of the reflected attribute (using the attribute's initial value if it is not
         //    present or invalid).
-        auto current = m_element->get_attribute_value(m_reflected_attribute);
+        auto current = m_element->get_attribute_value(m_reflected_attribute.local_name(), m_reflected_attribute.namespace_());
         auto current_values = MUST(current.split(' '));
 
         // 2. Let first be the first number in current.
@@ -93,7 +93,7 @@ void SVGAnimatedNumber::set_base_val(float new_value)
     //    (given the implementation's supported Precisionreal number precision), joined and separated by a single U+0020
     //    SPACE character.
     auto new_attribute_value = MUST(String::join(' ', new_));
-    m_element->set_attribute_value(m_reflected_attribute, new_attribute_value);
+    m_element->set_attribute_value(m_reflected_attribute.local_name(), new_attribute_value, m_reflected_attribute.prefix(), m_reflected_attribute.namespace_());
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedNumber__animVal
@@ -116,7 +116,7 @@ float SVGAnimatedNumber::get_base_or_anim_value() const
 {
     // 1. Let value be the value of the reflected attribute (using the attribute's initial value if it is not present or
     //    invalid).
-    auto value = m_element->get_attribute_value(m_reflected_attribute);
+    auto value = m_element->get_attribute_value(m_reflected_attribute.local_name(), m_reflected_attribute.namespace_());
 
     // 2. If the reflected attribute is defined to take an number followed by an optional second number, then:
     if (m_supports_second_value == SupportsSecondValue::Yes) {
