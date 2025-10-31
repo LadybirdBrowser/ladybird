@@ -114,11 +114,6 @@ public:
         return arguments.data()[index];
     }
 
-    Value& local(size_t index)
-    {
-        return registers_and_constants_and_locals_and_arguments()[index];
-    }
-
     Span<Value> arguments;
 
     // NOTE: Rarely used data members go here to keep the size of ExecutionContext down,
