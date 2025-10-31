@@ -90,7 +90,7 @@ test("currying", () => {
 
 test("with comma operator", () => {
     let foo, bar;
-    (foo = bar), baz => {};
+    ((foo = bar), baz => {});
     expect(foo).toBe(undefined);
     expect(bar).toBe(undefined);
 });
