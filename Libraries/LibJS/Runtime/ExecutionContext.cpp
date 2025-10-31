@@ -14,6 +14,8 @@
 
 namespace JS {
 
+GC_DEFINE_ALLOCATOR(CachedSourceRange);
+
 class ExecutionContextAllocator {
 public:
     NonnullOwnPtr<ExecutionContext> allocate(u32 registers_and_constants_and_locals_count, u32 arguments_count)
@@ -143,6 +145,7 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(lexical_environment);
     visitor.visit(private_environment);
     visitor.visit(context_owner);
+    visitor.visit(cached_source_range);
     if (this_value.has_value())
         visitor.visit(*this_value);
     visitor.visit(executable);

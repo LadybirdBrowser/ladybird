@@ -753,7 +753,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     finish_loading_imported_module(referrer, module_request, payload, module);
 }
 
-static RefPtr<CachedSourceRange> get_source_range(ExecutionContext const* context)
+static GC::Ptr<CachedSourceRange> get_source_range(ExecutionContext const* context)
 {
     // native function
     if (!context->executable)
@@ -762,9 +762,9 @@ static RefPtr<CachedSourceRange> get_source_range(ExecutionContext const* contex
     if (!context->cached_source_range
         || context->cached_source_range->program_counter != context->program_counter) {
         auto unrealized_source_range = context->executable->source_range_at(context->program_counter);
-        context->cached_source_range = adopt_ref(*new CachedSourceRange(
+        context->cached_source_range = context->executable->heap().allocate<CachedSourceRange>(
             context->program_counter,
-            move(unrealized_source_range)));
+            move(unrealized_source_range));
     }
     return context->cached_source_range;
 }

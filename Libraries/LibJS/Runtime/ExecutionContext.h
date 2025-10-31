@@ -21,12 +21,17 @@ namespace JS {
 
 using ScriptOrModule = Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>;
 
-struct CachedSourceRange : public RefCounted<CachedSourceRange> {
+class CachedSourceRange final : public GC::Cell {
+    GC_CELL(CachedSourceRange, GC::Cell);
+    GC_DECLARE_ALLOCATOR(CachedSourceRange);
+
+public:
     CachedSourceRange(size_t program_counter, Variant<UnrealizedSourceRange, SourceRange> source_range)
         : program_counter(program_counter)
         , source_range(move(source_range))
     {
     }
+
     size_t program_counter { 0 };
     Variant<UnrealizedSourceRange, SourceRange> source_range;
 };
@@ -70,7 +75,7 @@ public:
     // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
     u32 skip_when_determining_incumbent_counter { 0 };
 
-    mutable RefPtr<CachedSourceRange> cached_source_range;
+    mutable GC::Ptr<CachedSourceRange> cached_source_range;
 
     Optional<Value> this_value;
 
@@ -145,7 +150,7 @@ private:
 
 struct StackTraceElement {
     ExecutionContext* execution_context;
-    RefPtr<CachedSourceRange> source_range;
+    GC::Root<CachedSourceRange> source_range;
 };
 
 }
