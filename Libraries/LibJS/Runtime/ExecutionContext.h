@@ -36,7 +36,7 @@ public:
     Variant<UnrealizedSourceRange, SourceRange> source_range;
 };
 
-class ExecutionContextRareData final : public GC::Cell {
+class JS_API ExecutionContextRareData final : public GC::Cell {
     GC_CELL(ExecutionContextRareData, GC::Cell);
     GC_DECLARE_ALLOCATOR(ExecutionContextRareData);
 
@@ -44,6 +44,9 @@ public:
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;
     Vector<GC::Ptr<Environment>> saved_lexical_environments;
+
+    // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
+    GC::Ptr<Cell> context_owner;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -81,9 +84,6 @@ public:
     GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
     Span<Value> registers_and_constants_and_locals_arguments;
     ReadonlySpan<Utf16FlyString> identifier_table;
-
-    // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
-    GC::Ptr<Cell> context_owner;
 
     u32 program_counter { 0 };
 

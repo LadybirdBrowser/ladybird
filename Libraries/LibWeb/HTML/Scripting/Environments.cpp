@@ -38,7 +38,7 @@ void Environment::visit_edges(Cell::Visitor& visitor)
 EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> realm_execution_context)
     : m_realm_execution_context(move(realm_execution_context))
 {
-    m_realm_execution_context->context_owner = this;
+    m_realm_execution_context->ensure_rare_data()->context_owner = this;
 
     // Register with the responsible event loop so we can perform step 4 of "perform a microtask checkpoint".
     responsible_event_loop().register_environment_settings_object({}, *this);
