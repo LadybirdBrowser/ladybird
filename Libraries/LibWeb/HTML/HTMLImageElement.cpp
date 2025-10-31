@@ -242,11 +242,11 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLImageElement::set_width(WebIDL::UnsignedLong width)
+void HTMLImageElement::set_width(WebIDL::UnsignedLong width)
 {
     if (width > 2147483647)
         width = 0;
-    return set_attribute(HTML::AttributeNames::width, String::number(width));
+    set_attribute_value(HTML::AttributeNames::width, String::number(width));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
@@ -273,11 +273,11 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLImageElement::set_height(WebIDL::UnsignedLong height)
+void HTMLImageElement::set_height(WebIDL::UnsignedLong height)
 {
     if (height > 2147483647)
         height = 0;
-    return set_attribute(HTML::AttributeNames::height, String::number(height));
+    set_attribute_value(HTML::AttributeNames::height, String::number(height));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalwidth

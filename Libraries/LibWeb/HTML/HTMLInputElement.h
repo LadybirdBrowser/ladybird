@@ -76,7 +76,7 @@ public:
 
     StringView type() const;
     TypeAttributeState type_state() const { return m_type; }
-    WebIDL::ExceptionOr<void> set_type(String const&);
+    void set_type(String const&);
 
     String default_value() const { return get_attribute_value(HTML::AttributeNames::value); }
 
@@ -139,10 +139,10 @@ public:
     WebIDL::ExceptionOr<void> set_size(WebIDL::UnsignedLong value);
 
     WebIDL::UnsignedLong height() const;
-    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong value);
+    void set_height(WebIDL::UnsignedLong value);
 
     WebIDL::UnsignedLong width() const;
-    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong value);
+    void set_width(WebIDL::UnsignedLong value);
 
     struct SelectedCoordinate {
         int x { 0 };

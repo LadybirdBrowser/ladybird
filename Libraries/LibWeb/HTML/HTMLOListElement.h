@@ -24,10 +24,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::list; }
 
     WebIDL::Long start();
-    void set_start(WebIDL::Long start)
-    {
-        MUST(set_attribute(AttributeNames::start, String::number(start)));
-    }
+    void set_start(WebIDL::Long start);
 
     AK::Checked<i32> starting_value() const;
 

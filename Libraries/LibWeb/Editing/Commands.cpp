@@ -86,7 +86,7 @@ bool command_create_link_action(DOM::Document& document, Utf16String const& valu
                 return IterationDecision::Break;
             if (auto* anchor = as_if<HTML::HTMLAnchorElement>(*ancestor); anchor && anchor->is_editable()
                 && anchor->has_attribute(HTML::AttributeNames::href))
-                MUST(anchor->set_href(value.to_utf8_but_should_be_ported_to_utf16()));
+                anchor->set_href(value.to_utf8_but_should_be_ported_to_utf16());
             visited_ancestors.set(ancestor.ptr());
             return IterationDecision::Continue;
         });
@@ -1324,7 +1324,7 @@ bool command_insert_image_action(DOM::Document& document, Utf16String const& val
     auto img = MUST(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
 
     // 7. Run setAttribute("src", value) on img.
-    MUST(img->set_attribute(HTML::AttributeNames::src, value));
+    img->set_attribute_value(HTML::AttributeNames::src, value.to_utf8_but_should_be_ported_to_utf16());
 
     // 8. Run insertNode(img) on range.
     MUST(range->insert_node(img));
@@ -1690,7 +1690,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
 
     // 23. Copy all attributes of container to new container.
     container_element.for_each_attribute([&new_container](FlyString const& name, String const& value) {
-        MUST(new_container->set_attribute(name, value));
+        new_container->set_attribute_value(name, value);
     });
 
     // 24. If new container has an id attribute, unset it.

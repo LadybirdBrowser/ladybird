@@ -515,21 +515,19 @@ void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint p
     client().page_did_request_media_context_menu(position, target, modifiers, menu);
 }
 
-WebIDL::ExceptionOr<void> Page::toggle_media_play_state()
+void Page::toggle_media_play_state()
 {
     auto media_element = media_context_menu_element();
     if (!media_element)
-        return {};
+        return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
     HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->potentially_playing())
-        TRY(media_element->pause());
+        media_element->pause();
     else
-        TRY(media_element->play());
-
-    return {};
+        media_element->play();
 }
 
 void Page::toggle_media_mute_state()
@@ -544,11 +542,11 @@ void Page::toggle_media_mute_state()
     media_element->set_muted(!media_element->muted());
 }
 
-WebIDL::ExceptionOr<void> Page::toggle_media_loop_state()
+void Page::toggle_media_loop_state()
 {
     auto media_element = media_context_menu_element();
     if (!media_element)
-        return {};
+        return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
     HTML::TemporaryExecutionContext execution_context { media_element->realm() };
@@ -556,25 +554,21 @@ WebIDL::ExceptionOr<void> Page::toggle_media_loop_state()
     if (media_element->has_attribute(HTML::AttributeNames::loop))
         media_element->remove_attribute(HTML::AttributeNames::loop);
     else
-        TRY(media_element->set_attribute(HTML::AttributeNames::loop, String {}));
-
-    return {};
+        media_element->set_attribute_value(HTML::AttributeNames::loop, String {});
 }
 
-WebIDL::ExceptionOr<void> Page::toggle_media_controls_state()
+void Page::toggle_media_controls_state()
 {
     auto media_element = media_context_menu_element();
     if (!media_element)
-        return {};
+        return;
 
     HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->has_attribute(HTML::AttributeNames::controls))
         media_element->remove_attribute(HTML::AttributeNames::controls);
     else
-        TRY(media_element->set_attribute(HTML::AttributeNames::controls, String {}));
-
-    return {};
+        media_element->set_attribute_value(HTML::AttributeNames::controls, String {});
 }
 
 void Page::toggle_page_mute_state()

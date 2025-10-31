@@ -20,10 +20,10 @@ public:
     virtual ~HTMLProgressElement() override;
 
     double value() const;
-    WebIDL::ExceptionOr<void> set_value(double);
+    void set_value(double);
 
     WebIDL::Double max() const;
-    WebIDL::ExceptionOr<void> set_max(WebIDL::Double value);
+    void set_max(WebIDL::Double value);
 
     double position() const;
 

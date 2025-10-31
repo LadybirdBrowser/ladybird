@@ -149,13 +149,13 @@ public:
 
     Optional<String> lang() const;
 
-    WebIDL::ExceptionOr<void> set_attribute(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, String> const& value);
-    WebIDL::ExceptionOr<void> set_attribute(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, String> const& value);
 
-    WebIDL::ExceptionOr<void> set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
     void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
-    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node(Attr&);
-    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns(Attr&);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_for_bindings(Attr&);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns_for_bindings(Attr&);
 
     void append_attribute(FlyString const& name, String const& value);
     void append_attribute(Attr&);
@@ -336,20 +336,9 @@ public:
     ErrorOr<void> scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> = {});
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
-#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                              \
-    Optional<String> name() const override                                       \
-    {                                                                            \
-        return get_attribute(ARIA::AttributeNames::name);                        \
-    }                                                                            \
-                                                                                 \
-    WebIDL::ExceptionOr<void> set_##name(Optional<String> const& value) override \
-    {                                                                            \
-        if (value.has_value())                                                   \
-            TRY(set_attribute(ARIA::AttributeNames::name, *value));              \
-        else                                                                     \
-            remove_attribute(ARIA::AttributeNames::name);                        \
-        return {};                                                               \
-    }
+#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
+    virtual Optional<String> name() const override; \
+    virtual void set_##name(Optional<String> const& value) override;
     ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 

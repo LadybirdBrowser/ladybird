@@ -446,17 +446,17 @@ String HTMLHyperlinkElementUtils::href() const
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-href
-WebIDL::ExceptionOr<void> HTMLHyperlinkElementUtils::set_href(String href)
+void HTMLHyperlinkElementUtils::set_href(String href)
 {
     // The href attribute's setter must set this element's href content attribute's value to the given value.
-    return set_hyperlink_element_utils_href(move(href));
+    set_hyperlink_element_utils_href(move(href));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#update-href
 void HTMLHyperlinkElementUtils::update_href()
 {
     // To update href, set the element's href content attribute's value to the element's url, serialized.
-    MUST(set_hyperlink_element_utils_href(m_url->serialize()));
+    set_hyperlink_element_utils_href(m_url->serialize());
 }
 
 bool HTMLHyperlinkElementUtils::cannot_navigate() const

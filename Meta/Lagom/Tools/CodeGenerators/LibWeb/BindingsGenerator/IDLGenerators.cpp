@@ -4395,7 +4395,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     if (!cpp_value)
         impl->remove_attribute("@attribute.reflect_name@"_fly_string);
     else
-        MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, String {}));
+        impl->set_attribute_value("@attribute.reflect_name@"_fly_string, String {});
 )~~~");
                 } else if (attribute.type->name() == "unsigned long") {
                     // The setter steps are:
@@ -4411,11 +4411,11 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     u32 new_value = minimum;
     if (cpp_value >= minimum && cpp_value <= 2147483647)
         new_value = cpp_value;
-    MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, String::number(new_value)));
+    impl->set_attribute_value("@attribute.reflect_name@"_fly_string, String::number(new_value));
 )~~~");
                 } else if (attribute.type->is_integer() && !attribute.type->is_nullable()) {
                     attribute_generator.append(R"~~~(
-    MUST(impl->set_attribute("@attribute.reflect_name@"_fly_string, String::number(cpp_value)));
+    impl->set_attribute_value("@attribute.reflect_name@"_fly_string, String::number(cpp_value));
 )~~~");
                 }
                 // If a reflected IDL attribute has the type T?, where T is either Element or an interface that inherits
@@ -4431,18 +4431,18 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     static auto content_attribute = "@attribute.reflect_name@"_fly_string;
 
     if (!cpp_value) {
-        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@({}); }));
+        impl->set_@attribute.cpp_name@({});
         impl->remove_attribute(content_attribute);
         return JS::js_undefined();
     }
 )~~~");
                     // 2. Run this's set the content attribute with the empty string.
                     attribute_generator.append(R"~~~(
-    MUST(impl->set_attribute(content_attribute, String {}));
+    impl->set_attribute_value(content_attribute, String {});
 )~~~");
                     // 3. Set this's explicitly set attr-element to a weak reference to the given value.
                     attribute_generator.append(R"~~~(
-    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(*cpp_value); }));
+    impl->set_@attribute.cpp_name@(*cpp_value);
 )~~~");
                 }
                 // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface
@@ -4457,7 +4457,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     static auto content_attribute = "@attribute.reflect_name@"_fly_string;
 
     if (!cpp_value.has_value()) {
-        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@({}); }));
+        impl->set_@attribute.cpp_name@({});
         impl->remove_attribute(content_attribute);
         return JS::js_undefined();
     }
@@ -4465,7 +4465,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
                     // 2. Run this's set the content attribute with the empty string.
                     attribute_generator.append(R"~~~(
-    MUST(impl->set_attribute(content_attribute, String {}));
+    impl->set_attribute_value(content_attribute, String {});
 )~~~");
 
                     // 3. Let elements be an empty list.
@@ -4480,18 +4480,18 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         elements.unchecked_append(*element);
     }
 
-    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(move(elements)); }));
+    impl->set_@attribute.cpp_name@(move(elements));
 )~~~");
                 } else if (attribute.type->is_nullable()) {
                     attribute_generator.append(R"~~~(
     if (!cpp_value.has_value())
         impl->remove_attribute("@attribute.reflect_name@"_fly_string);
     else
-        TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value.value()); }));
+        impl->set_attribute_value("@attribute.reflect_name@"_fly_string, cpp_value.value());
 )~~~");
                 } else {
                     attribute_generator.append(R"~~~(
-    TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_attribute("@attribute.reflect_name@"_fly_string, cpp_value); }));
+    impl->set_attribute_value("@attribute.reflect_name@"_fly_string, cpp_value);
 )~~~");
                 }
 

@@ -53,10 +53,10 @@ public:
     virtual RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const override;
 
     WebIDL::UnsignedLong width() const;
-    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
+    void set_width(WebIDL::UnsignedLong);
 
     WebIDL::UnsignedLong height() const;
-    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
+    void set_height(WebIDL::UnsignedLong);
 
     unsigned natural_width() const;
     unsigned natural_height() const;

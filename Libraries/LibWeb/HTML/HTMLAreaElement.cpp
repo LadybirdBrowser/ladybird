@@ -59,9 +59,9 @@ Optional<String> HTMLAreaElement::hyperlink_element_utils_href() const
     return attribute(HTML::AttributeNames::href);
 }
 
-WebIDL::ExceptionOr<void> HTMLAreaElement::set_hyperlink_element_utils_href(String href)
+void HTMLAreaElement::set_hyperlink_element_utils_href(String href)
 {
-    return set_attribute(HTML::AttributeNames::href, move(href));
+    set_attribute_value(HTML::AttributeNames::href, move(href));
 }
 
 Optional<String> HTMLAreaElement::hyperlink_element_utils_referrerpolicy() const

@@ -96,12 +96,12 @@ public:
     bool constructing_entry_list() const { return m_constructing_entry_list; }
     void set_constructing_entry_list(bool value) { m_constructing_entry_list = value; }
 
-    WebIDL::ExceptionOr<void> set_method(String const&);
+    void set_method(String const&);
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
     String action() const;
-    WebIDL::ExceptionOr<void> set_action(String const&);
+    void set_action(String const&);
 
     FormAssociatedElement* default_button() const;
 

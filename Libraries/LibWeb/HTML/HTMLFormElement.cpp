@@ -692,10 +692,10 @@ GC::Ref<DOM::DOMTokenList> HTMLFormElement::rel_list()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-method
-WebIDL::ExceptionOr<void> HTMLFormElement::set_method(String const& method)
+void HTMLFormElement::set_method(String const& method)
 {
     // The method and enctype IDL attributes must reflect the respective content attributes of the same name, limited to only known values.
-    return set_attribute(AttributeNames::method, method);
+    set_attribute_value(AttributeNames::method, method);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-action
@@ -715,9 +715,9 @@ String HTMLFormElement::action() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-action
-WebIDL::ExceptionOr<void> HTMLFormElement::set_action(String const& value)
+void HTMLFormElement::set_action(String const& value)
 {
-    return set_attribute(AttributeNames::action, value);
+    set_attribute_value(AttributeNames::action, value);
 }
 
 void HTMLFormElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
