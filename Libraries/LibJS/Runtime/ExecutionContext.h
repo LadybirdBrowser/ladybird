@@ -36,12 +36,25 @@ public:
     Variant<UnrealizedSourceRange, SourceRange> source_range;
 };
 
+class ExecutionContextRareData final : public GC::Cell {
+    GC_CELL(ExecutionContextRareData, GC::Cell);
+    GC_DECLARE_ALLOCATOR(ExecutionContextRareData);
+
+public:
+    Vector<Bytecode::UnwindInfo> unwind_contexts;
+    Vector<Optional<size_t>> previously_scheduled_jumps;
+    Vector<GC::Ptr<Environment>> saved_lexical_environments;
+
+private:
+    virtual void visit_edges(Cell::Visitor&) override;
+};
+
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct JS_API ExecutionContext {
     static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_constants_and_locals_count, u32 arguments_count);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 
-    ~ExecutionContext();
+    ~ExecutionContext() = default;
 
     void visit_edges(Cell::Visitor&);
 
@@ -50,6 +63,9 @@ private:
 
 public:
     ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count);
+
+    GC::Ptr<ExecutionContextRareData> rare_data() const { return m_rare_data; }
+    GC::Ref<ExecutionContextRareData> ensure_rare_data();
 
     void operator delete(void* ptr);
 
@@ -105,9 +121,9 @@ public:
 
     Span<Value> arguments;
 
-    Vector<Bytecode::UnwindInfo> unwind_contexts;
-    Vector<Optional<size_t>> previously_scheduled_jumps;
-    Vector<GC::Ptr<Environment>> saved_lexical_environments;
+    // NOTE: Rarely used data members go here to keep the size of ExecutionContext down,
+    //       and to avoid needing an ExecutionContext destructor in the common case.
+    GC::Ptr<ExecutionContextRareData> m_rare_data;
 
     u32 passed_argument_count { 0 };
 
@@ -122,21 +138,19 @@ private:
     u32 registers_and_constants_and_locals_and_arguments_count { 0 };
 };
 
-#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context,  \
-    registers_and_constants_and_locals_count,                                                \
-    arguments_count)                                                                         \
-    auto execution_context_size = sizeof(JS::ExecutionContext)                               \
-        + (((registers_and_constants_and_locals_count) + (arguments_count))                  \
-            * sizeof(JS::Value));                                                            \
-                                                                                             \
-    void* execution_context_memory = alloca(execution_context_size);                         \
-                                                                                             \
-    execution_context = new (execution_context_memory)                                       \
-        JS::ExecutionContext((registers_and_constants_and_locals_count), (arguments_count)); \
-                                                                                             \
-    ScopeGuard run_execution_context_destructor([execution_context] {                        \
-        execution_context->~ExecutionContext();                                              \
-    })
+static_assert(IsTriviallyDestructible<ExecutionContext>);
+
+#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context, \
+    registers_and_constants_and_locals_count,                                               \
+    arguments_count)                                                                        \
+    auto execution_context_size = sizeof(JS::ExecutionContext)                              \
+        + (((registers_and_constants_and_locals_count) + (arguments_count))                 \
+            * sizeof(JS::Value));                                                           \
+                                                                                            \
+    void* execution_context_memory = alloca(execution_context_size);                        \
+                                                                                            \
+    execution_context = new (execution_context_memory)                                      \
+        JS::ExecutionContext((registers_and_constants_and_locals_count), (arguments_count));
 
 #define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context, registers_and_constants_and_locals_count, \
     arguments_count)                                                                                            \
