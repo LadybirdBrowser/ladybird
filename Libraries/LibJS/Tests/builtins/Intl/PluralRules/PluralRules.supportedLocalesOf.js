@@ -21,9 +21,9 @@ describe("correct behavior", () => {
         for (const [input, expected] of values) {
             expect(Intl.PluralRules.supportedLocalesOf(input)).toEqual(expected);
             // "best fit" (implementation defined) just uses the same implementation as "lookup" at the moment
-            expect(
-                Intl.PluralRules.supportedLocalesOf(input, { localeMatcher: "best fit" })
-            ).toEqual(Intl.PluralRules.supportedLocalesOf(input, { localeMatcher: "lookup" }));
+            expect(Intl.PluralRules.supportedLocalesOf(input, { localeMatcher: "best fit" })).toEqual(
+                Intl.PluralRules.supportedLocalesOf(input, { localeMatcher: "lookup" })
+            );
         }
     });
 });

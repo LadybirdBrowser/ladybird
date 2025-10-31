@@ -13,8 +13,7 @@ try {
     importedLexVariable = 0;
     passed = false;
 } catch (e) {
-    if (!(e instanceof TypeError))
-        throw new Error("Expected importedLexVariable = 0; to throw TypeError got " + e);
+    if (!(e instanceof TypeError)) throw new Error("Expected importedLexVariable = 0; to throw TypeError got " + e);
 }
 
 import { value as importedLexVariable } from "./accessing-lex-import-before-decl.mjs";

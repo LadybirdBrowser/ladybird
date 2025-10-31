@@ -17,9 +17,7 @@ describe("correct behavior", () => {
     });
 
     test("Duration instance argument", () => {
-        const duration = Temporal.Duration.from(
-            new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        );
+        const duration = Temporal.Duration.from(new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
         expectDurationOneToTen(duration);
     });
 
@@ -62,17 +60,11 @@ describe("errors", () => {
 
         expect(() => {
             Temporal.Duration.from({ years: "foo" });
-        }).toThrowWithMessage(
-            RangeError,
-            "Invalid value for duration property 'years': must be an integer, got foo"
-        );
+        }).toThrowWithMessage(RangeError, "Invalid value for duration property 'years': must be an integer, got foo");
 
         expect(() => {
             Temporal.Duration.from({ years: NaN });
-        }).toThrowWithMessage(
-            RangeError,
-            "Invalid value for duration property 'years': must be an integer, got NaN"
-        );
+        }).toThrowWithMessage(RangeError, "Invalid value for duration property 'years': must be an integer, got NaN");
     });
 
     test("invalid duration string", () => {

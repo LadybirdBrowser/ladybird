@@ -4,10 +4,7 @@ test("length is 2", () => {
 
 describe("errors", () => {
     test("non-object prototype value", () => {
-        expect(() => Object.create(42)).toThrowWithMessage(
-            TypeError,
-            "Prototype must be an object or null"
-        );
+        expect(() => Object.create(42)).toThrowWithMessage(TypeError, "Prototype must be an object or null");
     });
 });
 

@@ -134,14 +134,7 @@ describe("errors", () => {
         const dateOne = new Temporal.PlainDate(2021, 11, 14);
         const dateTwo = new Temporal.PlainDate(2022, 12, 25);
 
-        const disallowedUnits = [
-            "hour",
-            "minute",
-            "second",
-            "millisecond",
-            "microsecond",
-            "nanosecond",
-        ];
+        const disallowedUnits = ["hour", "minute", "second", "millisecond", "microsecond", "nanosecond"];
 
         for (const smallestUnit of disallowedUnits) {
             const singularSmallestUnitOptions = { smallestUnit };
@@ -149,17 +142,11 @@ describe("errors", () => {
 
             expect(() => {
                 dateOne.until(dateTwo, singularSmallestUnitOptions);
-            }).toThrowWithMessage(
-                RangeError,
-                `${smallestUnit} is not a valid value for option smallestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${smallestUnit} is not a valid value for option smallestUnit`);
 
             expect(() => {
                 dateOne.until(dateTwo, pluralSmallestUnitOptions);
-            }).toThrowWithMessage(
-                RangeError,
-                `${smallestUnit} is not a valid value for option smallestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${smallestUnit} is not a valid value for option smallestUnit`);
         }
 
         for (const largestUnit of disallowedUnits) {
@@ -168,17 +155,11 @@ describe("errors", () => {
 
             expect(() => {
                 dateOne.until(dateTwo, singularLargestUnitOptions);
-            }).toThrowWithMessage(
-                RangeError,
-                `${largestUnit} is not a valid value for option largestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${largestUnit} is not a valid value for option largestUnit`);
 
             expect(() => {
                 dateOne.until(dateTwo, pluralLargestUnitOptions);
-            }).toThrowWithMessage(
-                RangeError,
-                `${largestUnit} is not a valid value for option largestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${largestUnit} is not a valid value for option largestUnit`);
         }
     });
 

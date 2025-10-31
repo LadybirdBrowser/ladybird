@@ -26,9 +26,7 @@ test("basic functionality", () => {
         return value;
     });
 
-    expect(string).toBe(
-        '{"var1":"foo","var2":42,"arr":[1,2,{"nested":{},"x":20}],"obj":{"subarr":[3,4,5]}}'
-    );
+    expect(string).toBe('{"var1":"foo","var2":42,"arr":[1,2,{"nested":{},"x":20}],"obj":{"subarr":[3,4,5]}}');
 
     string = JSON.stringify(o, ["var1", "var1", "var2", "obj"]);
     expect(string).toBe('{"var1":"foo","var2":42,"obj":{}}');

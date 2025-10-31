@@ -94,10 +94,7 @@ describe("rounding modes", () => {
         1546935756_123_456_789n /* 2019-01-08T08:22:36.123456789+00:00 */,
         "UTC"
     );
-    const later = new Temporal.ZonedDateTime(
-        1631018380_987_654_289n /* 2021-09-07T12:39:40.987654289+00:00 */,
-        "UTC"
-    );
+    const later = new Temporal.ZonedDateTime(1631018380_987_654_289n /* 2021-09-07T12:39:40.987654289+00:00 */, "UTC");
 
     test("'ceil' rounding mode", () => {
         const expected = [

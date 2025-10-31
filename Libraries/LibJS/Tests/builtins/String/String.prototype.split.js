@@ -2,21 +2,7 @@ test("basic functionality", () => {
     expect(String.prototype.split).toHaveLength(2);
 
     expect("hello friends".split()).toEqual(["hello friends"]);
-    expect("hello friends".split("")).toEqual([
-        "h",
-        "e",
-        "l",
-        "l",
-        "o",
-        " ",
-        "f",
-        "r",
-        "i",
-        "e",
-        "n",
-        "d",
-        "s",
-    ]);
+    expect("hello friends".split("")).toEqual(["h", "e", "l", "l", "o", " ", "f", "r", "i", "e", "n", "d", "s"]);
     expect("hello friends".split(" ")).toEqual(["hello", "friends"]);
 
     expect("a,b,c,d".split(",")).toEqual(["a", "b", "c", "d"]);

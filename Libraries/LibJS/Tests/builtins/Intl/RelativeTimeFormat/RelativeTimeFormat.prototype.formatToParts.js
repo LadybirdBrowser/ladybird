@@ -61,9 +61,7 @@ describe("correct behavior", () => {
             { type: "literal", value: " seconds" },
         ]);
 
-        expect(ar.formatToParts(-1, "second")).toEqual([
-            { type: "literal", value: "قبل ثانية واحدة" },
-        ]);
+        expect(ar.formatToParts(-1, "second")).toEqual([{ type: "literal", value: "قبل ثانية واحدة" }]);
     });
 
     test("minute", () => {
@@ -73,9 +71,7 @@ describe("correct behavior", () => {
             { type: "literal", value: " minutes" },
         ]);
 
-        expect(ar.formatToParts(-1, "minute")).toEqual([
-            { type: "literal", value: "قبل دقيقة واحدة" },
-        ]);
+        expect(ar.formatToParts(-1, "minute")).toEqual([{ type: "literal", value: "قبل دقيقة واحدة" }]);
     });
 
     test("hour", () => {
@@ -85,9 +81,7 @@ describe("correct behavior", () => {
             { type: "literal", value: " hours" },
         ]);
 
-        expect(ar.formatToParts(-1, "hour")).toEqual([
-            { type: "literal", value: "قبل ساعة واحدة" },
-        ]);
+        expect(ar.formatToParts(-1, "hour")).toEqual([{ type: "literal", value: "قبل ساعة واحدة" }]);
     });
 
     test("day", () => {
@@ -107,9 +101,7 @@ describe("correct behavior", () => {
             { type: "literal", value: " weeks" },
         ]);
 
-        expect(ar.formatToParts(-1, "week")).toEqual([
-            { type: "literal", value: "الأسبوع الماضي" },
-        ]);
+        expect(ar.formatToParts(-1, "week")).toEqual([{ type: "literal", value: "الأسبوع الماضي" }]);
     });
 
     test("month", () => {
@@ -129,9 +121,7 @@ describe("correct behavior", () => {
             { type: "literal", value: " quarters" },
         ]);
 
-        expect(ar.formatToParts(-1, "quarter")).toEqual([
-            { type: "literal", value: "الربع الأخير" },
-        ]);
+        expect(ar.formatToParts(-1, "quarter")).toEqual([{ type: "literal", value: "الربع الأخير" }]);
     });
 
     test("year", () => {

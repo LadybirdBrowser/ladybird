@@ -2,10 +2,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             Intl.DurationFormat();
-        }).toThrowWithMessage(
-            TypeError,
-            "Intl.DurationFormat constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "Intl.DurationFormat constructor must be called with 'new'");
     });
 
     test("structurally invalid tag", () => {
@@ -137,10 +134,7 @@ describe("errors", () => {
     test("millisecondsDisplay option is invalid", () => {
         expect(() => {
             new Intl.DurationFormat("en", { millisecondsDisplay: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option millisecondsDisplay"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option millisecondsDisplay");
     });
 
     test("microseconds option is invalid", () => {
@@ -152,10 +146,7 @@ describe("errors", () => {
     test("microsecondsDisplay option is invalid", () => {
         expect(() => {
             new Intl.DurationFormat("en", { microsecondsDisplay: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option microsecondsDisplay"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option microsecondsDisplay");
     });
 
     test("nanoseconds option is invalid", () => {
@@ -167,10 +158,7 @@ describe("errors", () => {
     test("nanosecondsDisplay option is invalid", () => {
         expect(() => {
             new Intl.DurationFormat("en", { nanosecondsDisplay: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option nanosecondsDisplay"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option nanosecondsDisplay");
     });
 });
 

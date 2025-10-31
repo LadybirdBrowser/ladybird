@@ -60,22 +60,11 @@ test("parsing strings", () => {
 });
 
 test("parsing NaN", () => {
-    [
-        "",
-        [],
-        [],
-        true,
-        false,
-        null,
-        undefined,
-        NaN,
-        "foo123",
-        "foo+123",
-        "fooInfinity",
-        "foo+Infinity",
-    ].forEach(value => {
-        expect(parseFloat(value)).toBeNaN();
-    });
+    ["", [], [], true, false, null, undefined, NaN, "foo123", "foo+123", "fooInfinity", "foo+Infinity"].forEach(
+        value => {
+            expect(parseFloat(value)).toBeNaN();
+        }
+    );
 
     expect(parseFloat()).toBeNaN();
     expect(parseFloat("", 123, Infinity)).toBeNaN();

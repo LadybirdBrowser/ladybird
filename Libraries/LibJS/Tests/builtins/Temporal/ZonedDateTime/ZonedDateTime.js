@@ -2,10 +2,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             Temporal.ZonedDateTime();
-        }).toThrowWithMessage(
-            TypeError,
-            "Temporal.ZonedDateTime constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "Temporal.ZonedDateTime constructor must be called with 'new'");
     });
 
     test("out-of-range epoch nanoseconds value", () => {

@@ -27,7 +27,8 @@ describe("correct behavior", () => {
 
         expect(o.foo).toBe("bar");
         expect(o["foo"]).toBe("bar");
-        expect(o.qux).toBe(10), expect(o.hello).toBe("friends");
+        expect(o.qux).toBe(10);
+        expect(o.hello).toBe("friends");
         expect(o["hello"]).toBe("friends");
     });
 
@@ -247,15 +248,11 @@ describe("naming of anon functions", () => {
     });
 
     test("getter has name", () => {
-        expect(Object.getOwnPropertyDescriptor({ get func() {} }, "func").get.name).toBe(
-            "get func"
-        );
+        expect(Object.getOwnPropertyDescriptor({ get func() {} }, "func").get.name).toBe("get func");
     });
 
     test("setter has name", () => {
-        expect(Object.getOwnPropertyDescriptor({ set func(v) {} }, "func").set.name).toBe(
-            "set func"
-        );
+        expect(Object.getOwnPropertyDescriptor({ set func(v) {} }, "func").set.name).toBe("set func");
     });
 
     test("anon function property", () => {

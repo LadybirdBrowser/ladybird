@@ -6,12 +6,9 @@ describe("correct behavior", () => {
     test("basic functionality", () => {
         const instant = new Temporal.Instant(1111111111111n);
         expect(instant.round({ smallestUnit: "second" }).epochNanoseconds).toBe(1111000000000n);
+        expect(instant.round({ smallestUnit: "second", roundingMode: "ceil" }).epochNanoseconds).toBe(1112000000000n);
         expect(
-            instant.round({ smallestUnit: "second", roundingMode: "ceil" }).epochNanoseconds
-        ).toBe(1112000000000n);
-        expect(
-            instant.round({ smallestUnit: "minute", roundingIncrement: 30, roundingMode: "floor" })
-                .epochNanoseconds
+            instant.round({ smallestUnit: "minute", roundingIncrement: 30, roundingMode: "floor" }).epochNanoseconds
         ).toBe(0n);
         expect(
             instant.round({
@@ -53,9 +50,7 @@ describe("correct behavior", () => {
 
     test("string argument is implicitly converted to options object", () => {
         const instant = new Temporal.Instant(1111111111111n);
-        expect(
-            instant.round("second").equals(instant.round({ smallestUnit: "second" }))
-        ).toBeTrue();
+        expect(instant.round("second").equals(instant.round({ smallestUnit: "second" }))).toBeTrue();
     });
 });
 

@@ -59,12 +59,8 @@ describe("correct behavior", () => {
         const startOfDayZonedDateTime = zonedDateTime.startOfDay();
         const withPlainTimeZonedDateTime = zonedDateTime.withPlainTime();
 
-        expect(startOfDayZonedDateTime.epochNanoseconds).toBe(
-            withPlainTimeZonedDateTime.epochNanoseconds
-        );
-        expect(startOfDayZonedDateTime.epochMilliseconds).toBe(
-            withPlainTimeZonedDateTime.epochMilliseconds
-        );
+        expect(startOfDayZonedDateTime.epochNanoseconds).toBe(withPlainTimeZonedDateTime.epochNanoseconds);
+        expect(startOfDayZonedDateTime.epochMilliseconds).toBe(withPlainTimeZonedDateTime.epochMilliseconds);
         expect(startOfDayZonedDateTime.year).toBe(withPlainTimeZonedDateTime.year);
         expect(startOfDayZonedDateTime.month).toBe(withPlainTimeZonedDateTime.month);
         expect(startOfDayZonedDateTime.monthCode).toBe(withPlainTimeZonedDateTime.monthCode);
@@ -84,9 +80,7 @@ describe("correct behavior", () => {
         expect(startOfDayZonedDateTime.monthsInYear).toBe(withPlainTimeZonedDateTime.monthsInYear);
         expect(startOfDayZonedDateTime.inLeapYear).toBe(withPlainTimeZonedDateTime.inLeapYear);
         expect(startOfDayZonedDateTime.offset).toBe(withPlainTimeZonedDateTime.offset);
-        expect(startOfDayZonedDateTime.offsetNanoseconds).toBe(
-            withPlainTimeZonedDateTime.offsetNanoseconds
-        );
+        expect(startOfDayZonedDateTime.offsetNanoseconds).toBe(withPlainTimeZonedDateTime.offsetNanoseconds);
     });
 
     test("from plain time string", () => {

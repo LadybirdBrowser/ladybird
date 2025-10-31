@@ -11,8 +11,6 @@ describe("normal behavior", () => {
         expect(new Intl.Locale("en").numberingSystem).toBeUndefined();
         expect(new Intl.Locale("en-u-nu-abc").numberingSystem).toBe("abc");
         expect(new Intl.Locale("en", { numberingSystem: "abc" }).numberingSystem).toBe("abc");
-        expect(new Intl.Locale("en-u-nu-abc", { numberingSystem: "def" }).numberingSystem).toBe(
-            "def"
-        );
+        expect(new Intl.Locale("en-u-nu-abc", { numberingSystem: "def" }).numberingSystem).toBe("def");
     });
 });

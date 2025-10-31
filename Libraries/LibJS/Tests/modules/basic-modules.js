@@ -3,9 +3,7 @@
 
 function validTestModule(filename) {
     if (!filename.endsWith(".mjs") || !filename.startsWith("./")) {
-        throw new ExpectationError(
-            `Expected module name to start with './' and end with '.mjs' but got '${filename}'`
-        );
+        throw new ExpectationError(`Expected module name to start with './' and end with '.mjs' but got '${filename}'`);
     }
 }
 
@@ -207,12 +205,9 @@ describe("in- and exports", () => {
         expectModulePassed("./anon-func-decl-default-export.mjs");
     });
 
-    test.xfail(
-        "can have top level using declarations which trigger at the end of running a module",
-        () => {
-            expectModulePassed("./top-level-dispose.mjs");
-        }
-    );
+    test.xfail("can have top level using declarations which trigger at the end of running a module", () => {
+        expectModulePassed("./top-level-dispose.mjs");
+    });
 
     test("can export default a RegExp", () => {
         const result = expectModulePassed("./default-regexp-export.mjs");
@@ -250,10 +245,7 @@ describe("failing modules cascade", () => {
     });
 
     test("importing a file re exports nothing from a file with a syntax error fails", () => {
-        expectedModuleToThrowSyntaxError(
-            "./exporting-nothing-from-failing.mjs",
-            failingModuleError
-        );
+        expectedModuleToThrowSyntaxError("./exporting-nothing-from-failing.mjs", failingModuleError);
     });
 });
 

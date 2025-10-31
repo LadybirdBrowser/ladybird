@@ -39,12 +39,8 @@ describe("correct behavior", () => {
         expect({ *foo() {} }.foo.toString()).toBe("*foo() {}");
         expect({ async foo() {} }.foo.toString()).toBe("async foo() {}");
         expect({ async *foo() {} }.foo.toString()).toBe("async *foo() {}");
-        expect(Object.getOwnPropertyDescriptor({ get foo() {} }, "foo").get.toString()).toBe(
-            "get foo() {}"
-        );
-        expect(Object.getOwnPropertyDescriptor({ set foo(x) {} }, "foo").set.toString()).toBe(
-            "set foo(x) {}"
-        );
+        expect(Object.getOwnPropertyDescriptor({ get foo() {} }, "foo").get.toString()).toBe("get foo() {}");
+        expect(Object.getOwnPropertyDescriptor({ set foo(x) {} }, "foo").set.toString()).toBe("set foo(x) {}");
     });
 
     test("arrow function", () => {
@@ -127,9 +123,9 @@ describe("correct behavior", () => {
         // Built-in functions
         expect(console.debug.toString()).toBe("function debug() { [native code] }");
         expect(Function.toString()).toBe("function Function() { [native code] }");
-        expect(
-            Object.getOwnPropertyDescriptor(Intl.NumberFormat.prototype, "format").get.toString()
-        ).toBe("function get format() { [native code] }");
+        expect(Object.getOwnPropertyDescriptor(Intl.NumberFormat.prototype, "format").get.toString()).toBe(
+            "function get format() { [native code] }"
+        );
 
         const values = [
             // Callable Proxy

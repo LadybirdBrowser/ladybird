@@ -13,46 +13,31 @@ function anonymous(
 test("LINE FEED is a line terminator", () => {
     expect(() => {
         Function("\n\n@");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)");
 });
 
 test("CARRIAGE RETURN is a line terminator", () => {
     expect(() => {
         Function("\r\r@");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)");
 });
 
 test("LINE SEPARATOR is a line terminator", () => {
     expect(() => {
         Function("  @");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)");
 });
 
 test("PARAGRAPH SEPARATOR is a line terminator", () => {
     expect(() => {
         Function("  @");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)");
 });
 
 test("CR LF is counted as only one line terminator", () => {
     expect(() => {
         Function("\r\n\r\n@");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Invalid. Expected CurlyClose (line: 4, column: 1)");
 });
 
 test("LF/CR are not allowed in string literal", () => {
@@ -70,10 +55,7 @@ test("LS/PS are allowed in string literal", () => {
 test("line terminators can be mixed (but please don't)", () => {
     expect(() => {
         Function("\r \r\n \n\r@");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Invalid. Expected CurlyClose (line: 8, column: 1)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Invalid. Expected CurlyClose (line: 8, column: 1)");
 });
 
 test("all line terminators are valid for line continuations", () => {

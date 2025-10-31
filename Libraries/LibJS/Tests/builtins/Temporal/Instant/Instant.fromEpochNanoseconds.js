@@ -6,21 +6,17 @@ describe("correct behavior", () => {
     test("basic functionality", () => {
         expect(Temporal.Instant.fromEpochNanoseconds(0n).epochNanoseconds).toBe(0n);
         expect(Temporal.Instant.fromEpochNanoseconds(1n).epochNanoseconds).toBe(1n);
-        expect(Temporal.Instant.fromEpochNanoseconds(999_999_999n).epochNanoseconds).toBe(
-            999_999_999n
+        expect(Temporal.Instant.fromEpochNanoseconds(999_999_999n).epochNanoseconds).toBe(999_999_999n);
+        expect(Temporal.Instant.fromEpochNanoseconds(8_640_000_000_000_000_000_000n).epochNanoseconds).toBe(
+            8_640_000_000_000_000_000_000n
         );
-        expect(
-            Temporal.Instant.fromEpochNanoseconds(8_640_000_000_000_000_000_000n).epochNanoseconds
-        ).toBe(8_640_000_000_000_000_000_000n);
 
         expect(Temporal.Instant.fromEpochNanoseconds(-0n).epochNanoseconds).toBe(0n);
         expect(Temporal.Instant.fromEpochNanoseconds(-1n).epochNanoseconds).toBe(-1n);
-        expect(Temporal.Instant.fromEpochNanoseconds(-999_999_999n).epochNanoseconds).toBe(
-            -999_999_999n
+        expect(Temporal.Instant.fromEpochNanoseconds(-999_999_999n).epochNanoseconds).toBe(-999_999_999n);
+        expect(Temporal.Instant.fromEpochNanoseconds(-8_640_000_000_000_000_000_000n).epochNanoseconds).toBe(
+            -8_640_000_000_000_000_000_000n
         );
-        expect(
-            Temporal.Instant.fromEpochNanoseconds(-8_640_000_000_000_000_000_000n).epochNanoseconds
-        ).toBe(-8_640_000_000_000_000_000_000n);
     });
 });
 

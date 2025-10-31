@@ -37,9 +37,7 @@ describe("styles", () => {
 
     test("percent", () => {
         expect((0.234).toLocaleString("en", { style: "percent" })).toBe("23%");
-        expect((0.234).toLocaleString("ar-u-nu-arab", { style: "percent" })).toBe(
-            "\u0662\u0663\u066a\u061c"
-        );
+        expect((0.234).toLocaleString("ar-u-nu-arab", { style: "percent" })).toBe("\u0662\u0663\u066a\u061c");
     });
 
     test("currency", () => {

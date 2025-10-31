@@ -3,9 +3,6 @@ describe("errors", () => {
         const timeZone = "UTC";
         expect(() => {
             new Temporal.ZonedDateTime(0n, timeZone).valueOf();
-        }).toThrowWithMessage(
-            TypeError,
-            "Cannot convert Temporal.ZonedDateTime to a primitive value"
-        );
+        }).toThrowWithMessage(TypeError, "Cannot convert Temporal.ZonedDateTime to a primitive value");
     });
 });

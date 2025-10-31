@@ -139,7 +139,5 @@ test("Test toString and valueOf are only called once", () => {
     expect(object[2]).toBe("f");
     expect(object[4]).toBe("g");
     expect(object[8]).toBe("h");
-    expect(Object.getOwnPropertyNames(object) + "").toBe(
-        ["0", "2", "4", "8", "a", "b", "c", "d"] + ""
-    );
+    expect(Object.getOwnPropertyNames(object) + "").toBe(["0", "2", "4", "8", "a", "b", "c", "d"] + "");
 });

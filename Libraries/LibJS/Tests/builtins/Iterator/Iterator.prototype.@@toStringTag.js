@@ -12,10 +12,7 @@ describe("errors", () => {
     test("cannot set the built-in Iterator's toStringTag", () => {
         expect(() => {
             Iterator.prototype[Symbol.toStringTag] = sentinel;
-        }).toThrowWithMessage(
-            TypeError,
-            "Cannot write to non-writable property '[object IteratorPrototype]'"
-        );
+        }).toThrowWithMessage(TypeError, "Cannot write to non-writable property '[object IteratorPrototype]'");
     });
 });
 

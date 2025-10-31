@@ -65,18 +65,7 @@ describe("errors", () => {
         );
 
         expect(() => {
-            const plainDateTime = new Temporal.PlainDateTime(
-                1972,
-                1,
-                1,
-                8,
-                45,
-                56,
-                123,
-                345,
-                789,
-                "gregory"
-            );
+            const plainDateTime = new Temporal.PlainDateTime(1972, 1, 1, 8, 45, 56, 123, 345, 789, "gregory");
             formatter.formatRangeToParts(plainDateTime, plainDateTime);
         }).toThrowWithMessage(
             RangeError,
@@ -98,19 +87,13 @@ describe("errors", () => {
         expect(() => {
             const plainDate = new Temporal.PlainDate(1972, 1, 1, "gregory");
             new Intl.DateTimeFormat().formatRangeToParts(plainDate, 0);
-        }).toThrowWithMessage(
-            TypeError,
-            "Cannot format a date-time range with different date-time types"
-        );
+        }).toThrowWithMessage(TypeError, "Cannot format a date-time range with different date-time types");
 
         expect(() => {
             const plainYearMonth = new Temporal.PlainYearMonth(1972, 1, "gregory");
             const plainMonthDay = new Temporal.PlainMonthDay(1, 1, "gregory");
             new Intl.DateTimeFormat().formatRangeToParts(plainYearMonth, plainMonthDay);
-        }).toThrowWithMessage(
-            TypeError,
-            "Cannot format a date-time range with different date-time types"
-        );
+        }).toThrowWithMessage(TypeError, "Cannot format a date-time range with different date-time types");
     });
 
     test("Temporal fields must overlap formatter", () => {

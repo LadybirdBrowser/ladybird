@@ -29,14 +29,11 @@ describe("normal behavior", () => {
 
     test("merges objects", () => {
         const s = Symbol();
-        expect(
-            Object.assign(
-                {},
-                { foo: 0, bar: "baz" },
-                { [s]: [1, 2, 3] },
-                { foo: 1 },
-                { [42]: "test" }
-            )
-        ).toEqual({ foo: 1, bar: "baz", [s]: [1, 2, 3], 42: "test" });
+        expect(Object.assign({}, { foo: 0, bar: "baz" }, { [s]: [1, 2, 3] }, { foo: 1 }, { [42]: "test" })).toEqual({
+            foo: 1,
+            bar: "baz",
+            [s]: [1, 2, 3],
+            42: "test",
+        });
     });
 });

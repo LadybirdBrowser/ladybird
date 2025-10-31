@@ -25,10 +25,7 @@ describe("correct behavior", () => {
             [[1, 2, 3, 4, 5, 6, 7, 8], "P1Y2M3W4DT5H6M7.008S"],
             [[1, 2, 3, 4, 5, 6, 7, 8, 9], "P1Y2M3W4DT5H6M7.008009S"],
             [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "P1Y2M3W4DT5H6M7.00800901S"],
-            [
-                [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
-                "P100Y200M300W400DT500H600M700.800901S",
-            ],
+            [[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], "P100Y200M300W400DT500H600M700.800901S"],
             [[-1], "-P1Y"],
         ];
         for (const [args, expected] of values) {
@@ -44,9 +41,7 @@ describe("correct behavior", () => {
             ["nanosecond", "P1Y2M3W4DT5H6M7.008010000S"],
         ];
         for (const [smallestUnit, expected] of values) {
-            expect(
-                new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 10).toString({ smallestUnit })
-            ).toBe(expected);
+            expect(new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 10).toString({ smallestUnit })).toBe(expected);
         }
     });
 
@@ -85,10 +80,7 @@ describe("errors", () => {
         for (const smallestUnit of values) {
             expect(() => {
                 new Temporal.Duration(0).toString({ smallestUnit });
-            }).toThrowWithMessage(
-                RangeError,
-                `${smallestUnit} is not a valid value for option smallestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${smallestUnit} is not a valid value for option smallestUnit`);
         }
     });
 });

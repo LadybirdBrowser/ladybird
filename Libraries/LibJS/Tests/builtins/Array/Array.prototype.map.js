@@ -32,11 +32,7 @@ describe("normal behavior", () => {
     });
 
     test("can map based on callback return value", () => {
-        expect(
-            [undefined, null, true, "foo", 42, {}].map(
-                (value, index) => "" + index + " -> " + value
-            )
-        ).toEqual([
+        expect([undefined, null, true, "foo", 42, {}].map((value, index) => "" + index + " -> " + value)).toEqual([
             "0 -> undefined",
             "1 -> null",
             "2 -> true",

@@ -20,38 +20,12 @@ describe("Array.prototype.sort", () => {
 
         // mix of data, including empty slots and undefined
         arr = ["2", Infinity, null, null, , undefined, 5, , undefined, null, 54, "5"];
-        expect(arr.sort()).toEqual([
-            "2",
-            5,
-            "5",
-            54,
-            Infinity,
-            null,
-            null,
-            null,
-            undefined,
-            undefined,
-            ,
-            ,
-        ]);
+        expect(arr.sort()).toEqual(["2", 5, "5", 54, Infinity, null, null, null, undefined, undefined, , ,]);
         expect(arr.length).toEqual(12);
 
         // undefined compare function
         arr = ["2", Infinity, null, null, , undefined, 5n, , undefined, null, 54, "5"];
-        expect(arr.sort(undefined)).toEqual([
-            "2",
-            5n,
-            "5",
-            54,
-            Infinity,
-            null,
-            null,
-            null,
-            undefined,
-            undefined,
-            ,
-            ,
-        ]);
+        expect(arr.sort(undefined)).toEqual(["2", 5n, "5", 54, Infinity, null, null, null, undefined, undefined, , ,]);
         expect(arr.length).toEqual(12);
 
         // numeric data with compare function to sort numerically
@@ -123,10 +97,7 @@ describe("Array.prototype.sort", () => {
         expect([].sort(expectNoCallCompareFunction)).toEqual([]);
         expect([1].sort(expectNoCallCompareFunction)).toEqual([1]);
         expect([1, undefined].sort(expectNoCallCompareFunction)).toEqual([1, undefined]);
-        expect([undefined, undefined].sort(expectNoCallCompareFunction)).toEqual([
-            undefined,
-            undefined,
-        ]);
+        expect([undefined, undefined].sort(expectNoCallCompareFunction)).toEqual([undefined, undefined]);
         expect([, , 1, ,].sort(expectNoCallCompareFunction)).toEqual([1, , , ,]);
         expect([undefined, , 1, , undefined, ,].sort(expectNoCallCompareFunction)).toEqual([
             1,

@@ -11,18 +11,14 @@ describe("correct behavior", () => {
         expect(plainMonthDay.toString({ calendarName: "auto" })).toBe("07-06");
         expect(plainMonthDay.toString({ calendarName: "always" })).toBe("1972-07-06[u-ca=iso8601]");
         expect(plainMonthDay.toString({ calendarName: "never" })).toBe("07-06");
-        expect(plainMonthDay.toString({ calendarName: "critical" })).toBe(
-            "1972-07-06[!u-ca=iso8601]"
-        );
+        expect(plainMonthDay.toString({ calendarName: "critical" })).toBe("1972-07-06[!u-ca=iso8601]");
 
         plainMonthDay = new Temporal.PlainMonthDay(7, 6, "gregory", 2021);
         expect(plainMonthDay.toString()).toBe("2021-07-06[u-ca=gregory]");
         expect(plainMonthDay.toString({ calendarName: "auto" })).toBe("2021-07-06[u-ca=gregory]");
         expect(plainMonthDay.toString({ calendarName: "always" })).toBe("2021-07-06[u-ca=gregory]");
         expect(plainMonthDay.toString({ calendarName: "never" })).toBe("2021-07-06");
-        expect(plainMonthDay.toString({ calendarName: "critical" })).toBe(
-            "2021-07-06[!u-ca=gregory]"
-        );
+        expect(plainMonthDay.toString({ calendarName: "critical" })).toBe("2021-07-06[!u-ca=gregory]");
     });
 });
 

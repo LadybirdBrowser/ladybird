@@ -36,10 +36,7 @@ describe("errors", () => {
 
         expect(() => {
             buffer.resize(11);
-        }).toThrowWithMessage(
-            RangeError,
-            "ArrayBuffer byte length of 11 exceeds the max byte length of 10"
-        );
+        }).toThrowWithMessage(RangeError, "ArrayBuffer byte length of 11 exceeds the max byte length of 10");
     });
 });
 

@@ -86,9 +86,7 @@ describe("tagged template literal functionality", () => {
         }
         var name = "SerenityOS";
         var rating = "great";
-        expect(review`${name} is a ${rating} project!`).toBe(
-            "**SerenityOS** is a _great_ project!"
-        );
+        expect(review`${name} is a ${rating} project!`).toBe("**SerenityOS** is a _great_ project!");
     });
 
     test("template object structure", () => {

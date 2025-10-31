@@ -26,9 +26,7 @@ describe("normal behavior", () => {
         expect(new SuppressedError().toString()).toBe("SuppressedError");
         expect(new SuppressedError(1).toString()).toBe("SuppressedError");
         expect(new SuppressedError(1, 1).toString()).toBe("SuppressedError");
-        expect(new SuppressedError(undefined, undefined, "Foo").toString()).toBe(
-            "SuppressedError: Foo"
-        );
+        expect(new SuppressedError(undefined, undefined, "Foo").toString()).toBe("SuppressedError: Foo");
         expect(new SuppressedError(1, 1, "Foo").toString()).toBe("SuppressedError: Foo");
         expect(Object.hasOwn(new SuppressedError(), "error")).toBeTrue();
         expect(Object.hasOwn(new SuppressedError(), "suppressed")).toBeTrue();
@@ -39,10 +37,7 @@ describe("normal behavior", () => {
 
     test("converts message to string", () => {
         expect(new SuppressedError(undefined, undefined, 1)).toHaveProperty("message", "1");
-        expect(new SuppressedError(undefined, undefined, {})).toHaveProperty(
-            "message",
-            "[object Object]"
-        );
+        expect(new SuppressedError(undefined, undefined, {})).toHaveProperty("message", "[object Object]");
     });
 
     test("supports options object with cause", () => {

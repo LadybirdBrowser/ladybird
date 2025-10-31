@@ -2,10 +2,7 @@ describe("errors", () => {
     test("invalid pattern", () => {
         expect(() => {
             RegExp("[");
-        }).toThrowWithMessage(
-            SyntaxError,
-            "RegExp compile error: Error during parsing of regular expression:"
-        );
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: Error during parsing of regular expression:");
     });
 
     test("invalid flag", () => {
@@ -116,26 +113,7 @@ test("Unicode properties of strings", () => {
         }).not.toThrow();
     }
 
-    const matchStrings = [
-        "0",
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "8",
-        "A",
-        "B",
-        "D",
-        "E",
-        "F",
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-    ];
+    const matchStrings = ["0", "1", "2", "3", "4", "5", "8", "A", "B", "D", "E", "F", "a", "b", "c", "d", "e", "f"];
 
     const nonMatchStrings = [
         "6\uFE0F\u20E3",

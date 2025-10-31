@@ -35,9 +35,7 @@ describe("correct behavior", () => {
         }
 
         // Ignored when smallestUnit is given
-        expect(instant.toString({ smallestUnit: "minute", fractionalSecondDigits: 9 })).toBe(
-            "2021-07-06T23:42Z"
-        );
+        expect(instant.toString({ smallestUnit: "minute", fractionalSecondDigits: 9 })).toBe("2021-07-06T23:42Z");
     });
 
     test("smallestUnit option", () => {

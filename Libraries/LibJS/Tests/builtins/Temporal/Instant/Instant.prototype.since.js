@@ -20,12 +20,8 @@ describe("errors", () => {
 });
 
 describe("rounding modes", () => {
-    const earlier = new Temporal.Instant(
-        217178610_123_456_789n /* 1976-11-18T15:23:30.123456789Z */
-    );
-    const later = new Temporal.Instant(
-        1572345998_271_986_289n /* 2019-10-29T10:46:38.271986289Z */
-    );
+    const earlier = new Temporal.Instant(217178610_123_456_789n /* 1976-11-18T15:23:30.123456789Z */);
+    const later = new Temporal.Instant(1572345998_271_986_289n /* 2019-10-29T10:46:38.271986289Z */);
     const largestUnit = "hours";
 
     test("'ceil' rounding mode", () => {

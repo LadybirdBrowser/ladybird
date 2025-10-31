@@ -1,65 +1,67 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <title>Index of %path%</title>
-    <style>
-        html {
-            color-scheme: light dark;
-        }
+    <head>
+        <meta charset="UTF-8" />
+        <title>Index of %path%</title>
+        <style>
+            html {
+                color-scheme: light dark;
+            }
 
-        header {
-            margin-bottom: 10px;
-        }
+            header {
+                margin-bottom: 10px;
+            }
 
-        h1 {
-            display: inline;
-        }
+            h1 {
+                display: inline;
+            }
 
-        a {
-            text-decoration: none;
-        }
+            a {
+                text-decoration: none;
+            }
 
-        a:focus,
-        a:hover {
-            text-decoration: underline;
-        }
+            a:focus,
+            a:hover {
+                text-decoration: underline;
+            }
 
-        table {
-            font-family: monospace;
-        }
+            table {
+                font-family: monospace;
+            }
 
-        .folder,
-        .file,
-        .open-parent {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            margin-right: 5px;
-            background-size: contain;
-        }
+            .folder,
+            .file,
+            .open-parent {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                margin-right: 5px;
+                background-size: contain;
+            }
 
-        .folder {
-            background-image: url('resource://icons/32x32/filetype-folder.png');
-        }
+            .folder {
+                background-image: url("resource://icons/32x32/filetype-folder.png");
+            }
 
-        .file {
-            background-image: url('resource://icons/32x32/filetype-unknown.png');
-        }
+            .file {
+                background-image: url("resource://icons/32x32/filetype-unknown.png");
+            }
 
-        .open-parent {
-            background-image: url('resource://icons/16x16/open-parent-directory.png');
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <span class="folder" style="width: 24px; height: 24px;"></span>
-        <h1>Index of %path%</h1>
-    </header>
-    <p><a href="%parent_url%"><span class="open-parent"></span>Open Parent Directory</a></p>
-    <hr>
-    %contents%
-    <hr>
-</body>
+            .open-parent {
+                background-image: url("resource://icons/16x16/open-parent-directory.png");
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <span class="folder" style="width: 24px; height: 24px"></span>
+            <h1>Index of %path%</h1>
+        </header>
+        <p>
+            <a href="%parent_url%"><span class="open-parent"></span>Open Parent Directory</a>
+        </p>
+        <hr />
+        %contents%
+        <hr />
+    </body>
 </html>

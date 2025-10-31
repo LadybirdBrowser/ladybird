@@ -1,8 +1,7 @@
 test("basic functionality", () => {
     [Array, BigInt, Boolean, Date, Error, Function, Number, Object, String].forEach(constructor => {
         expect(constructor.prototype.constructor).toBe(constructor);
-        if (constructor !== BigInt)
-            expect(Reflect.construct(constructor, []).constructor).toBe(constructor);
+        if (constructor !== BigInt) expect(Reflect.construct(constructor, []).constructor).toBe(constructor);
     });
 
     let o = {};

@@ -21,10 +21,7 @@ describe("errors", () => {
         expect(() => {
             const typedArray = new Float32Array(4);
             Atomics.wait(typedArray, 0, 0, 0);
-        }).toThrowWithMessage(
-            TypeError,
-            "Typed array Float32Array element type is not Int32 or BigInt64"
-        );
+        }).toThrowWithMessage(TypeError, "Typed array Float32Array element type is not Int32 or BigInt64");
     });
 
     test("non-shared ArrayBuffer", () => {

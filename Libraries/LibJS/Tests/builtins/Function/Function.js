@@ -21,12 +21,8 @@ describe("correct behavior", () => {
         expect(new Function("foo", "bar", "return foo + bar")(1, 2)).toBe(3);
         expect(new Function("foo", "bar,baz", "return foo + bar + baz")(1, 2, 3)).toBe(6);
         expect(new Function("foo", "bar", "baz", "return foo + bar + baz")(1, 2, 3)).toBe(6);
-        expect(new Function("foo", "if (foo) { return 42; } else { return 'bar'; }")(true)).toBe(
-            42
-        );
-        expect(new Function("foo", "if (foo) { return 42; } else { return 'bar'; }")(false)).toBe(
-            "bar"
-        );
+        expect(new Function("foo", "if (foo) { return 42; } else { return 'bar'; }")(true)).toBe(42);
+        expect(new Function("foo", "if (foo) { return 42; } else { return 'bar'; }")(false)).toBe("bar");
         expect(new Function("return typeof Function()")()).toBe("function");
         expect(new Function("x", "return function (y) { return x + y };")(1)(2)).toBe(3);
 
@@ -49,10 +45,7 @@ describe("errors", () => {
             // FIXME: The position is odd though, I'd expect `line: 2, column: 2` and `line: 3, column: 1`...
             // > eval("\n[")   // Uncaught exception: [SyntaxError] Unexpected token Eof. Expected BracketClose (line: 2, column: 2)
             // > eval("\n[\n") // Uncaught exception: [SyntaxError] Unexpected token Eof. Expected BracketClose (line: 2, column: 3)
-            .toThrowWithMessage(
-                SyntaxError,
-                "Unexpected token Eof. Expected BracketClose (line: 2, column: 3)"
-            );
+            .toThrowWithMessage(SyntaxError, "Unexpected token Eof. Expected BracketClose (line: 2, column: 3)");
     });
 
     test("parameters and body must be valid standalone", () => {

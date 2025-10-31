@@ -65,18 +65,7 @@ describe("errors", () => {
         );
 
         expect(() => {
-            const plainDateTime = new Temporal.PlainDateTime(
-                1972,
-                1,
-                1,
-                8,
-                45,
-                56,
-                123,
-                345,
-                789,
-                "gregory"
-            );
+            const plainDateTime = new Temporal.PlainDateTime(1972, 1, 1, 8, 45, 56, 123, 345, 789, "gregory");
             formatter.formatRange(plainDateTime, plainDateTime);
         }).toThrowWithMessage(
             RangeError,
@@ -98,19 +87,13 @@ describe("errors", () => {
         expect(() => {
             const plainDate = new Temporal.PlainDate(1972, 1, 1, "gregory");
             new Intl.DateTimeFormat().formatRange(plainDate, 0);
-        }).toThrowWithMessage(
-            TypeError,
-            "Cannot format a date-time range with different date-time types"
-        );
+        }).toThrowWithMessage(TypeError, "Cannot format a date-time range with different date-time types");
 
         expect(() => {
             const plainYearMonth = new Temporal.PlainYearMonth(1972, 1, "gregory");
             const plainMonthDay = new Temporal.PlainMonthDay(1, 1, "gregory");
             new Intl.DateTimeFormat().formatRange(plainYearMonth, plainMonthDay);
-        }).toThrowWithMessage(
-            TypeError,
-            "Cannot format a date-time range with different date-time types"
-        );
+        }).toThrowWithMessage(TypeError, "Cannot format a date-time range with different date-time types");
     });
 
     test("Temporal fields must overlap formatter", () => {
@@ -346,8 +329,6 @@ describe("Temporal objects", () => {
     test("Temporal.Instant", () => {
         const instant1 = new Temporal.Instant(601546251000000000n);
         const instant2 = new Temporal.Instant(1732740069000000000n);
-        expect(formatter.formatRange(instant1, instant2)).toBe(
-            "1989-01-23, 8:10:51 AM – 2024-11-27, 8:41:09 PM"
-        );
+        expect(formatter.formatRange(instant1, instant2)).toBe("1989-01-23, 8:10:51 AM – 2024-11-27, 8:41:09 PM");
     });
 });

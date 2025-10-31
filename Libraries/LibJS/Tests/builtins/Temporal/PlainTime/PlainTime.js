@@ -2,10 +2,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             Temporal.PlainTime();
-        }).toThrowWithMessage(
-            TypeError,
-            "Temporal.PlainTime constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "Temporal.PlainTime constructor must be called with 'new'");
     });
 
     test("cannot pass Infinity", () => {

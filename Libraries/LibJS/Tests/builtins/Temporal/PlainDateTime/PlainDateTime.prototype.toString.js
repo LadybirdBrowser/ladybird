@@ -30,9 +30,7 @@ describe("correct behavior", () => {
         }
 
         // Ignored when smallestUnit is given
-        expect(plainDateTime.toString({ smallestUnit: "minute", fractionalSecondDigits: 9 })).toBe(
-            "2021-11-03T01:33"
-        );
+        expect(plainDateTime.toString({ smallestUnit: "minute", fractionalSecondDigits: 9 })).toBe("2021-11-03T01:33");
     });
 
     test("smallestUnit option", () => {

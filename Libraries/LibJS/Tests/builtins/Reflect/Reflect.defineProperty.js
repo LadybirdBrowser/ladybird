@@ -45,9 +45,7 @@ describe("normal behavior", () => {
         var o = {};
 
         expect(o.foo).toBeUndefined();
-        expect(
-            Reflect.defineProperty(o, "foo", { value: 1, configurable: true, writable: true })
-        ).toBeTrue();
+        expect(Reflect.defineProperty(o, "foo", { value: 1, configurable: true, writable: true })).toBeTrue();
         expect(o.foo).toBe(1);
         expect(Reflect.defineProperty(o, "foo", { value: 2 })).toBeTrue();
         expect(o.foo).toBe(2);
@@ -57,9 +55,7 @@ describe("normal behavior", () => {
         var o = {};
 
         expect(o.foo).toBeUndefined();
-        expect(
-            Reflect.defineProperty(o, "foo", { value: 1, configurable: true, writable: false })
-        ).toBeTrue();
+        expect(Reflect.defineProperty(o, "foo", { value: 1, configurable: true, writable: false })).toBeTrue();
         expect(o.foo).toBe(1);
         expect(Reflect.defineProperty(o, "foo", { value: 2 })).toBeTrue();
         expect(o.foo).toBe(2);
@@ -69,9 +65,7 @@ describe("normal behavior", () => {
         var o = {};
 
         expect(o.foo).toBeUndefined();
-        expect(
-            Reflect.defineProperty(o, "foo", { value: 1, configurable: false, writable: false })
-        ).toBeTrue();
+        expect(Reflect.defineProperty(o, "foo", { value: 1, configurable: false, writable: false })).toBeTrue();
         expect(o.foo).toBe(1);
         expect(Reflect.defineProperty(o, "foo", { value: 2 })).toBeFalse();
         expect(o.foo).toBe(1);

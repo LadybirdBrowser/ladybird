@@ -83,10 +83,7 @@ class ExpectationError extends Error {
             this.__doMatcher(() => {
                 this.__expect(
                     Object.is(this.target, value),
-                    () =>
-                        `toBe: expected _${valueToString(value)}_, got _${valueToString(
-                            this.target
-                        )}_`
+                    () => `toBe: expected _${valueToString(value)}_, got _${valueToString(this.target)}_`
                 );
             });
         }
@@ -123,10 +120,7 @@ class ExpectationError extends Error {
         }
 
         toHaveSize(size) {
-            this.__expect(
-                typeof this.target.size === "number",
-                () => "toHaveSize: target.size not of type number"
-            );
+            this.__expect(typeof this.target.size === "number", () => "toHaveSize: target.size not of type number");
 
             this.__doMatcher(() => {
                 this.__expect(Object.is(this.target.size, size));
@@ -154,10 +148,7 @@ class ExpectationError extends Error {
 
                 if (Array.isArray(property)) {
                     for (let key of property) {
-                        this.__expect(
-                            object !== undefined && object !== null,
-                            "got undefined or null as array key"
-                        );
+                        this.__expect(object !== undefined && object !== null, "got undefined or null as array key");
                         object = object[key];
                     }
                 } else {
@@ -168,9 +159,7 @@ class ExpectationError extends Error {
                 if (value !== undefined)
                     this.__expect(
                         deepEquals(object, value),
-                        `value does not equal property ${valueToString(object)} vs ${valueToString(
-                            value
-                        )}`
+                        `value does not equal property ${valueToString(object)} vs ${valueToString(value)}`
                     );
             });
         }
@@ -195,10 +184,7 @@ class ExpectationError extends Error {
 
         toBeNull() {
             this.__doMatcher(() => {
-                this.__expect(
-                    this.target === null,
-                    `Expected target to be null got ${valueToString(this.target)}`
-                );
+                this.__expect(this.target === null, `Expected target to be null got ${valueToString(this.target)}`);
             });
         }
 
@@ -206,10 +192,7 @@ class ExpectationError extends Error {
             this.__doMatcher(() => {
                 this.__expect(
                     this.target === undefined,
-                    () =>
-                        `toBeUndefined: expected target to be undefined, got _${valueToString(
-                            this.target
-                        )}_`
+                    () => `toBeUndefined: expected target to be undefined, got _${valueToString(this.target)}_`
                 );
             });
         }
@@ -309,10 +292,7 @@ class ExpectationError extends Error {
             this.__doMatcher(() => {
                 this.__expect(
                     deepEquals(this.target, value),
-                    () =>
-                        `Expected _${valueToString(value)}_, but got _${valueToString(
-                            this.target
-                        )}_`
+                    () => `Expected _${valueToString(value)}_, but got _${valueToString(this.target)}_`
                 );
             });
         }
@@ -353,10 +333,7 @@ class ExpectationError extends Error {
                         );
                     }
                 }
-                this.__expect(
-                    threw,
-                    `Expected ${this.target.toString()} to throw but it didn't throw anything`
-                );
+                this.__expect(threw, `Expected ${this.target.toString()} to throw but it didn't throw anything`);
             });
         }
 
@@ -422,9 +399,7 @@ class ExpectationError extends Error {
             try {
                 result = eval(this.target);
             } catch (e) {
-                throw new ExpectationError(
-                    `Expected _${valueToString(this.target)}_ to eval but it failed with ${e}`
-                );
+                throw new ExpectationError(`Expected _${valueToString(this.target)}_ to eval but it failed with ${e}`);
             }
 
             this.__doMatcher(() => {
@@ -524,9 +499,7 @@ class ExpectationError extends Error {
                 this.__expect(
                     this.target.done === true,
                     () =>
-                        `toGiveIteratorResultDone: expected 'done' to be _true_ got ${valueToString(
-                            this.target.done
-                        )}`
+                        `toGiveIteratorResultDone: expected 'done' to be _true_ got ${valueToString(this.target.done)}`
                 );
                 this.__expect(
                     this.target.value === undefined,

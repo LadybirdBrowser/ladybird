@@ -84,9 +84,7 @@ describe("correct behavior", () => {
 
     test("string argument is implicitly converted to options object", () => {
         const plainDateTime = new Temporal.PlainDateTime(2021, 11, 3, 18, 8, 10, 100, 200, 300);
-        expect(
-            plainDateTime.round("minute").equals(plainDateTime.round({ smallestUnit: "minute" }))
-        ).toBeTrue();
+        expect(plainDateTime.round("minute").equals(plainDateTime.round({ smallestUnit: "minute" }))).toBeTrue();
     });
 
     test("range boundary conditions", () => {
@@ -130,20 +128,14 @@ describe("errors", () => {
         expect(() => {
             const plainDateTime = new Temporal.PlainDateTime(2021, 11, 3, 18, 8, 10, 100, 200, 300);
             plainDateTime.round({ smallestUnit: "second", roundingMode: "serenityOS" });
-        }).toThrowWithMessage(
-            RangeError,
-            "serenityOS is not a valid value for option roundingMode"
-        );
+        }).toThrowWithMessage(RangeError, "serenityOS is not a valid value for option roundingMode");
     });
 
     test("invalid smallest unit", () => {
         expect(() => {
             const plainDateTime = new Temporal.PlainDateTime(2021, 11, 3, 18, 8, 10, 100, 200, 300);
             plainDateTime.round({ smallestUnit: "serenityOS" });
-        }).toThrowWithMessage(
-            RangeError,
-            "serenityOS is not a valid value for option smallestUnit"
-        );
+        }).toThrowWithMessage(RangeError, "serenityOS is not a valid value for option smallestUnit");
     });
 
     test("increment may not be NaN", () => {
@@ -163,9 +155,6 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "0 is not a valid value for option roundingIncrement");
         expect(() => {
             plainDateTime.round({ smallestUnit: "second", roundingIncrement: Infinity });
-        }).toThrowWithMessage(
-            RangeError,
-            "Infinity is not a valid value for option roundingIncrement"
-        );
+        }).toThrowWithMessage(RangeError, "Infinity is not a valid value for option roundingIncrement");
     });
 });

@@ -45,12 +45,8 @@ describe("correct behavior", () => {
     });
 
     test("dateStyle may be set", () => {
-        expect(d0.toLocaleDateString("en", { dateStyle: "full", timeZone: "UTC" })).toBe(
-            "Tuesday, December 7, 2021"
-        );
-        expect(d1.toLocaleDateString("en", { dateStyle: "full", timeZone: "UTC" })).toBe(
-            "Monday, January 23, 1989"
-        );
+        expect(d0.toLocaleDateString("en", { dateStyle: "full", timeZone: "UTC" })).toBe("Tuesday, December 7, 2021");
+        expect(d1.toLocaleDateString("en", { dateStyle: "full", timeZone: "UTC" })).toBe("Monday, January 23, 1989");
 
         expect(d0.toLocaleDateString("ar-u-nu-arab", { dateStyle: "full", timeZone: "UTC" })).toBe(
             "الثلاثاء، ٧ ديسمبر ٢٠٢١"

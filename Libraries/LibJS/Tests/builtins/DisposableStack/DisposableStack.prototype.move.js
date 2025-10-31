@@ -54,9 +54,6 @@ describe("throws errors", () => {
         stack.dispose();
         expect(stack.disposed).toBeTrue();
 
-        expect(() => stack.move()).toThrowWithMessage(
-            ReferenceError,
-            "DisposableStack already disposed values"
-        );
+        expect(() => stack.move()).toThrowWithMessage(ReferenceError, "DisposableStack already disposed values");
     });
 });

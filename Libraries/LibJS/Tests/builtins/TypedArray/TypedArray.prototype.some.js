@@ -18,10 +18,7 @@ describe("errors", () => {
         test(`requires at least one argument (${T.name})`, () => {
             expect(() => {
                 new T().some();
-            }).toThrowWithMessage(
-                TypeError,
-                "TypedArray.prototype.some() requires at least one argument"
-            );
+            }).toThrowWithMessage(TypeError, "TypedArray.prototype.some() requires at least one argument");
         });
 
         test(`callback must be a function (${T.name})`, () => {

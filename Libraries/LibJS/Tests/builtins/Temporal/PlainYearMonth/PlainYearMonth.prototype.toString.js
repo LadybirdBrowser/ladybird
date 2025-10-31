@@ -9,24 +9,16 @@ describe("correct behavior", () => {
         plainYearMonth = new Temporal.PlainYearMonth(2021, 7);
         expect(plainYearMonth.toString()).toBe("2021-07");
         expect(plainYearMonth.toString({ calendarName: "auto" })).toBe("2021-07");
-        expect(plainYearMonth.toString({ calendarName: "always" })).toBe(
-            "2021-07-01[u-ca=iso8601]"
-        );
+        expect(plainYearMonth.toString({ calendarName: "always" })).toBe("2021-07-01[u-ca=iso8601]");
         expect(plainYearMonth.toString({ calendarName: "never" })).toBe("2021-07");
-        expect(plainYearMonth.toString({ calendarName: "critical" })).toBe(
-            "2021-07-01[!u-ca=iso8601]"
-        );
+        expect(plainYearMonth.toString({ calendarName: "critical" })).toBe("2021-07-01[!u-ca=iso8601]");
 
         plainYearMonth = new Temporal.PlainYearMonth(2021, 7, "gregory", 6);
         expect(plainYearMonth.toString()).toBe("2021-07-06[u-ca=gregory]");
         expect(plainYearMonth.toString({ calendarName: "auto" })).toBe("2021-07-06[u-ca=gregory]");
-        expect(plainYearMonth.toString({ calendarName: "always" })).toBe(
-            "2021-07-06[u-ca=gregory]"
-        );
+        expect(plainYearMonth.toString({ calendarName: "always" })).toBe("2021-07-06[u-ca=gregory]");
         expect(plainYearMonth.toString({ calendarName: "never" })).toBe("2021-07-06");
-        expect(plainYearMonth.toString({ calendarName: "critical" })).toBe(
-            "2021-07-06[!u-ca=gregory]"
-        );
+        expect(plainYearMonth.toString({ calendarName: "critical" })).toBe("2021-07-06[!u-ca=gregory]");
 
         plainYearMonth = new Temporal.PlainYearMonth(0, 1);
         expect(plainYearMonth.toString()).toBe("0000-01");

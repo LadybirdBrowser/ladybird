@@ -52,48 +52,24 @@ describe("errors", () => {
     });
 
     test("disallowed smallestUnit option values", () => {
-        const values = [
-            "week",
-            "day",
-            "hour",
-            "minute",
-            "second",
-            "millisecond",
-            "microsecond",
-            "nanosecond",
-        ];
+        const values = ["week", "day", "hour", "minute", "second", "millisecond", "microsecond", "nanosecond"];
         for (const smallestUnit of values) {
             const plainYearMonth = new Temporal.PlainYearMonth(1970, 1);
             const other = new Temporal.PlainYearMonth(1970, 1);
             expect(() => {
                 plainYearMonth.since(other, { smallestUnit });
-            }).toThrowWithMessage(
-                RangeError,
-                `${smallestUnit} is not a valid value for option smallestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${smallestUnit} is not a valid value for option smallestUnit`);
         }
     });
 
     test("disallowed largestUnit option values", () => {
-        const values = [
-            "week",
-            "day",
-            "hour",
-            "minute",
-            "second",
-            "millisecond",
-            "microsecond",
-            "nanosecond",
-        ];
+        const values = ["week", "day", "hour", "minute", "second", "millisecond", "microsecond", "nanosecond"];
         for (const largestUnit of values) {
             const plainYearMonth = new Temporal.PlainYearMonth(1970, 1);
             const other = new Temporal.PlainYearMonth(1970, 1);
             expect(() => {
                 plainYearMonth.since(other, { largestUnit });
-            }).toThrowWithMessage(
-                RangeError,
-                `${largestUnit} is not a valid value for option largestUnit`
-            );
+            }).toThrowWithMessage(RangeError, `${largestUnit} is not a valid value for option largestUnit`);
         }
     });
 

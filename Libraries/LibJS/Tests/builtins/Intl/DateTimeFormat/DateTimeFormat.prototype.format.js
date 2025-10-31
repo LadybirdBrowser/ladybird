@@ -58,9 +58,7 @@ describe("errors", () => {
         );
 
         expect(() => {
-            formatter.format(
-                new Temporal.PlainDateTime(1972, 1, 1, 8, 45, 56, 123, 345, 789, "gregory")
-            );
+            formatter.format(new Temporal.PlainDateTime(1972, 1, 1, 8, 45, 56, 123, 345, 789, "gregory"));
         }).toThrowWithMessage(
             RangeError,
             "Cannot format Temporal.PlainDateTime with calendar 'gregory' in locale with calendar 'iso8601'"

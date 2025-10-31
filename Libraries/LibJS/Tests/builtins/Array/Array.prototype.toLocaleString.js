@@ -65,8 +65,6 @@ describe("normal behavior", () => {
         expect([12, 34].toLocaleString("ar-u-nu-arab")).toBe("\u0661\u0662,\u0663\u0664");
 
         expect([0.234].toLocaleString("en", { style: "percent" })).toBe("23%");
-        expect([0.234].toLocaleString("ar-u-nu-arab", { style: "percent" })).toBe(
-            "\u0662\u0663\u066a\u061c"
-        );
+        expect([0.234].toLocaleString("ar-u-nu-arab", { style: "percent" })).toBe("\u0662\u0663\u066a\u061c");
     });
 });

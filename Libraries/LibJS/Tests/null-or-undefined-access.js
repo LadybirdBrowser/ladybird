@@ -26,31 +26,19 @@ test("null/undefined object key", () => {
 
         expect(() => {
             foo.bar.baz;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "baz" on ${value} object "foo.bar"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "baz" on ${value} object "foo.bar"`);
 
         expect(() => {
             foo.bar.baz = 1;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "baz" on ${value} object "foo.bar"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "baz" on ${value} object "foo.bar"`);
 
         expect(() => {
             foo["bar"].baz;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "baz" on ${value} object "foo['bar']"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "baz" on ${value} object "foo['bar']"`);
 
         expect(() => {
             foo["bar"].baz = 1;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "baz" on ${value} object "foo['bar']"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "baz" on ${value} object "foo['bar']"`);
     });
 });
 
@@ -61,30 +49,18 @@ test("null/undefined array index", () => {
 
         expect(() => {
             foo[0].bar;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "bar" on ${value} object "foo[0]"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "bar" on ${value} object "foo[0]"`);
 
         expect(() => {
             foo[0].bar = 1;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "bar" on ${value} object "foo[0]"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "bar" on ${value} object "foo[0]"`);
 
         expect(() => {
             foo[index].bar;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "bar" on ${value} object "foo[index]"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "bar" on ${value} object "foo[index]"`);
 
         expect(() => {
             foo[index].bar = 1;
-        }).toThrowWithMessage(
-            TypeError,
-            `Cannot access property "bar" on ${value} object "foo[index]"`
-        );
+        }).toThrowWithMessage(TypeError, `Cannot access property "bar" on ${value} object "foo[index]"`);
     });
 });

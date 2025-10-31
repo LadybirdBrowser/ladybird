@@ -112,31 +112,19 @@ test("typed array from ArrayBuffer with custom length and offset", () => {
 test("typed array from ArrayBuffer errors", () => {
     expect(() => {
         new Uint16Array(new ArrayBuffer(1));
-    }).toThrowWithMessage(
-        RangeError,
-        "Invalid buffer length for Uint16Array: must be a multiple of 2, got 1"
-    );
+    }).toThrowWithMessage(RangeError, "Invalid buffer length for Uint16Array: must be a multiple of 2, got 1");
 
     expect(() => {
         new Uint16Array(new ArrayBuffer(), 1);
-    }).toThrowWithMessage(
-        RangeError,
-        "Invalid byte offset for Uint16Array: must be a multiple of 2, got 1"
-    );
+    }).toThrowWithMessage(RangeError, "Invalid byte offset for Uint16Array: must be a multiple of 2, got 1");
 
     expect(() => {
         new Uint16Array(new ArrayBuffer(), 2);
-    }).toThrowWithMessage(
-        RangeError,
-        "Typed array byte offset 2 is out of range for buffer with length 0"
-    );
+    }).toThrowWithMessage(RangeError, "Typed array byte offset 2 is out of range for buffer with length 0");
 
     expect(() => {
         new Uint16Array(new ArrayBuffer(7), 2, 3);
-    }).toThrowWithMessage(
-        RangeError,
-        "Typed array range 2:8 is out of range for buffer with length 7"
-    );
+    }).toThrowWithMessage(RangeError, "Typed array range 2:8 is out of range for buffer with length 7");
 });
 
 test("typed array from TypedArray", () => {

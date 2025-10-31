@@ -50,14 +50,10 @@ describe("normal behavior", () => {
         expect(shadowRealm.evaluate("(function () {})")).toHaveLength(0);
         expect(shadowRealm.evaluate("(function (foo, bar) {})")).toHaveLength(2);
         expect(
-            shadowRealm.evaluate(
-                "Object.defineProperty(function () {}, 'length', { get() { return -Infinity } })"
-            )
+            shadowRealm.evaluate("Object.defineProperty(function () {}, 'length', { get() { return -Infinity } })")
         ).toHaveLength(0);
         expect(
-            shadowRealm.evaluate(
-                "Object.defineProperty(function () {}, 'length', { get() { return Infinity } })"
-            )
+            shadowRealm.evaluate("Object.defineProperty(function () {}, 'length', { get() { return Infinity } })")
         ).toHaveLength(Infinity);
 
         for (const property of ["name", "length"]) {
@@ -70,18 +66,12 @@ describe("normal behavior", () => {
                     });
                     `
                 );
-            }).toThrowWithMessage(
-                TypeError,
-                "Trying to copy target name and length did not complete normally"
-            );
+            }).toThrowWithMessage(TypeError, "Trying to copy target name and length did not complete normally");
         }
 
         expect(() => {
             shadowRealm.evaluate("(function () { throw Error(); })")();
-        }).toThrowWithMessage(
-            TypeError,
-            "Call of wrapped target function did not complete normally"
-        );
+        }).toThrowWithMessage(TypeError, "Call of wrapped target function did not complete normally");
     });
 });
 

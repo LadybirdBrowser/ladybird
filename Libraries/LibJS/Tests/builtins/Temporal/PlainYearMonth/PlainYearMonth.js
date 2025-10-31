@@ -2,10 +2,7 @@ describe("errors", () => {
     test("called without new", () => {
         expect(() => {
             Temporal.PlainYearMonth();
-        }).toThrowWithMessage(
-            TypeError,
-            "Temporal.PlainYearMonth constructor must be called with 'new'"
-        );
+        }).toThrowWithMessage(TypeError, "Temporal.PlainYearMonth constructor must be called with 'new'");
     });
 
     test("cannot pass Infinity", () => {

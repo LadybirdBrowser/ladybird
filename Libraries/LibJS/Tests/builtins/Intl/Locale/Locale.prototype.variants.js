@@ -8,10 +8,7 @@ describe("errors", () => {
     test("duplicate variants", () => {
         expect(() => {
             new Intl.Locale("en-abcde-abcde");
-        }).toThrowWithMessage(
-            RangeError,
-            "en-abcde-abcde is not a structurally valid language tag"
-        );
+        }).toThrowWithMessage(RangeError, "en-abcde-abcde is not a structurally valid language tag");
 
         expect(() => {
             new Intl.Locale("en", { variants: "abcde-abcde" });

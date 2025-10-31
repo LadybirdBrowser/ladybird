@@ -132,7 +132,8 @@ const __httpTestServer = (function () {
 })();
 
 function httpTestServer() {
-    if (!__httpTestServer)
+    if (!__httpTestServer) {
         throw new Error("window.internals must be exposed to use HTTPTestServer");
+    }
     return __httpTestServer;
 }

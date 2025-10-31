@@ -4,9 +4,7 @@ describe("correct behavior", () => {
     });
 
     test("basic functionality", () => {
-        expect(new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).toJSON()).toBe(
-            "P1Y2M3W4DT5H6M7.00800901S"
-        );
+        expect(new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).toJSON()).toBe("P1Y2M3W4DT5H6M7.00800901S");
     });
 });
 

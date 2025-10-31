@@ -20,10 +20,7 @@ test("returns value of last value-producing statement", () => {
 test("syntax error", () => {
     expect(() => {
         eval("{");
-    }).toThrowWithMessage(
-        SyntaxError,
-        "Unexpected token Eof. Expected CurlyClose (line: 1, column: 2)"
-    );
+    }).toThrowWithMessage(SyntaxError, "Unexpected token Eof. Expected CurlyClose (line: 1, column: 2)");
 });
 
 test("returns 1st argument unless 1st argument is a string", () => {

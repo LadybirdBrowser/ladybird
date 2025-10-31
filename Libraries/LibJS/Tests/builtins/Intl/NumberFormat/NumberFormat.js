@@ -44,10 +44,7 @@ describe("errors", () => {
     test("currency option is undefined when required ", () => {
         expect(() => {
             new Intl.NumberFormat("en", { style: "currency" });
-        }).toThrowWithMessage(
-            TypeError,
-            "Option currency must be defined when option style is currency"
-        );
+        }).toThrowWithMessage(TypeError, "Option currency must be defined when option style is currency");
     });
 
     test("currency option is invalid ", () => {
@@ -85,10 +82,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.NumberFormat("en", { unit: "acre-per-bit-per-byte" });
-        }).toThrowWithMessage(
-            RangeError,
-            "acre-per-bit-per-byte is not a valid value for option unit"
-        );
+        }).toThrowWithMessage(RangeError, "acre-per-bit-per-byte is not a valid value for option unit");
     });
 
     test("unitDisplay option is invalid ", () => {
@@ -218,10 +212,7 @@ describe("errors", () => {
     test("roundingPriority option is invalid", () => {
         expect(() => {
             new Intl.NumberFormat("en", { roundingPriority: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option roundingPriority"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option roundingPriority");
     });
 
     test("roundingMode option is invalid", () => {
@@ -249,10 +240,7 @@ describe("errors", () => {
 
         expect(() => {
             new Intl.NumberFormat("en", { roundingIncrement: 5, minimumSignificantDigits: 1 });
-        }).toThrowWithMessage(
-            TypeError,
-            "5 is not a valid rounding increment for rounding type significantDigits"
-        );
+        }).toThrowWithMessage(TypeError, "5 is not a valid rounding increment for rounding type significantDigits");
 
         expect(() => {
             new Intl.NumberFormat("en", {
@@ -260,19 +248,13 @@ describe("errors", () => {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 3,
             });
-        }).toThrowWithMessage(
-            RangeError,
-            "5 is not a valid rounding increment for inequal min/max fraction digits"
-        );
+        }).toThrowWithMessage(RangeError, "5 is not a valid rounding increment for inequal min/max fraction digits");
     });
 
     test("trailingZeroDisplay option is invalid", () => {
         expect(() => {
             new Intl.NumberFormat("en", { trailingZeroDisplay: "hello!" });
-        }).toThrowWithMessage(
-            RangeError,
-            "hello! is not a valid value for option trailingZeroDisplay"
-        );
+        }).toThrowWithMessage(RangeError, "hello! is not a valid value for option trailingZeroDisplay");
     });
 });
 
@@ -434,31 +416,21 @@ describe("normal behavior", () => {
     });
 
     test("all valid roundingMode options", () => {
-        [
-            "ceil",
-            "floor",
-            "expand",
-            "trunc",
-            "halfCeil",
-            "halfFloor",
-            "halfExpand",
-            "halfTrunc",
-            "halfEven",
-        ].forEach(roundingMode => {
-            expect(() => {
-                new Intl.NumberFormat("en", { roundingMode: roundingMode });
-            }).not.toThrow();
-        });
-    });
-
-    test("all valid roundingIncrement options", () => {
-        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000].forEach(
-            roundingIncrement => {
+        ["ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven"].forEach(
+            roundingMode => {
                 expect(() => {
-                    new Intl.NumberFormat("en", { roundingIncrement: roundingIncrement });
+                    new Intl.NumberFormat("en", { roundingMode: roundingMode });
                 }).not.toThrow();
             }
         );
+    });
+
+    test("all valid roundingIncrement options", () => {
+        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000].forEach(roundingIncrement => {
+            expect(() => {
+                new Intl.NumberFormat("en", { roundingIncrement: roundingIncrement });
+            }).not.toThrow();
+        });
     });
 
     test("all valid trailingZeroDisplay options", () => {

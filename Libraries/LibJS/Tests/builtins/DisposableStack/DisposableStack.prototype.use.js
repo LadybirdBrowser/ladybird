@@ -53,10 +53,7 @@ describe("throws errors", () => {
     test("if added object does not have a dispose method throws type error", () => {
         const stack = new DisposableStack();
         [{}, [], { f() {} }].forEach(value => {
-            expect(() => stack.use(value)).toThrowWithMessage(
-                TypeError,
-                "does not have dispose method"
-            );
+            expect(() => stack.use(value)).toThrowWithMessage(TypeError, "does not have dispose method");
         });
 
         expect(stack.disposed).toBeFalse();

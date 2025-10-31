@@ -6,21 +6,17 @@ describe("correct behavior", () => {
     test("basic functionality", () => {
         expect(Temporal.Instant.fromEpochMilliseconds(0).epochMilliseconds).toBe(0);
         expect(Temporal.Instant.fromEpochMilliseconds(1).epochMilliseconds).toBe(1);
-        expect(Temporal.Instant.fromEpochMilliseconds(999_999_999).epochMilliseconds).toBe(
-            999_999_999
+        expect(Temporal.Instant.fromEpochMilliseconds(999_999_999).epochMilliseconds).toBe(999_999_999);
+        expect(Temporal.Instant.fromEpochMilliseconds(8_640_000_000_000_000).epochMilliseconds).toBe(
+            8_640_000_000_000_000
         );
-        expect(
-            Temporal.Instant.fromEpochMilliseconds(8_640_000_000_000_000).epochMilliseconds
-        ).toBe(8_640_000_000_000_000);
 
         expect(Temporal.Instant.fromEpochMilliseconds(-0).epochMilliseconds).toBe(0);
         expect(Temporal.Instant.fromEpochMilliseconds(-1).epochMilliseconds).toBe(-1);
-        expect(Temporal.Instant.fromEpochMilliseconds(-999_999_999).epochMilliseconds).toBe(
-            -999_999_999
+        expect(Temporal.Instant.fromEpochMilliseconds(-999_999_999).epochMilliseconds).toBe(-999_999_999);
+        expect(Temporal.Instant.fromEpochMilliseconds(-8_640_000_000_000_000).epochMilliseconds).toBe(
+            -8_640_000_000_000_000
         );
-        expect(
-            Temporal.Instant.fromEpochMilliseconds(-8_640_000_000_000_000).epochMilliseconds
-        ).toBe(-8_640_000_000_000_000);
     });
 });
 
