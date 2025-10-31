@@ -603,8 +603,14 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     )~~~"_string));
     MUST(border->append_child(*m_inner_text_element));
 
-    // FIXME: Find better way to add chevron icon
-    static constexpr auto chevron_svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentcolor\" d=\"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z\"/></svg>"sv;
+    auto chevron_svg = DOM::create_element(document(), HTML::TagNames::svg, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+    MUST(chevron_svg->set_attribute(SVG::AttributeNames::viewBox, "0 0 24 24"_string));
+    MUST(chevron_svg->set_attribute("xmlns"_fly_string, "http://www.w3.org/2000/svg"_string));
+
+    auto chevron_path = DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG).release_value_but_fixme_should_propagate_errors();
+    MUST(chevron_path->set_attribute("fill"_fly_string, "currentcolor"_string));
+    MUST(chevron_path->set_attribute("d"_fly_string, "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"_string));
+    MUST(chevron_svg->append_child(*chevron_path));
 
     m_chevron_icon_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(m_chevron_icon_element->set_attribute(HTML::AttributeNames::style, R"~~~(
@@ -612,7 +618,8 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
         height: 16px;
         margin-left: 4px;
     )~~~"_string));
-    MUST(m_chevron_icon_element->set_inner_html(Utf16String::from_utf8(chevron_svg)));
+
+    MUST(m_chevron_icon_element->append_child(*chevron_svg));
     MUST(border->append_child(*m_chevron_icon_element));
 
     update_inner_text_element();
