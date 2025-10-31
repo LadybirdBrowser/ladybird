@@ -58,6 +58,8 @@ public:
     Value do_yield(Value value, Optional<Label> continuation);
     void do_return(Value value)
     {
+        if (value.is_special_empty_value())
+            value = js_undefined();
         reg(Register::return_value()) = value;
         reg(Register::exception()) = js_special_empty_value();
     }
