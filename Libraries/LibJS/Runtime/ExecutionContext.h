@@ -67,7 +67,14 @@ private:
     friend class ExecutionContextAllocator;
 
 public:
-    ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count);
+    ALWAYS_INLINE ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count)
+    {
+        registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_count + arguments_count;
+        auto* registers_and_constants_and_locals_and_arguments = this->registers_and_constants_and_locals_and_arguments();
+        for (size_t i = 0; i < registers_and_constants_and_locals_count; ++i)
+            registers_and_constants_and_locals_and_arguments[i] = js_special_empty_value();
+        arguments = { registers_and_constants_and_locals_and_arguments + registers_and_constants_and_locals_count, arguments_count };
+    }
 
     GC::Ptr<ExecutionContextRareData> rare_data() const { return m_rare_data; }
     GC::Ref<ExecutionContextRareData> ensure_rare_data();
