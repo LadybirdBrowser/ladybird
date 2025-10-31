@@ -180,6 +180,11 @@ String HTMLObjectElement::data() const
     return maybe_url->to_string();
 }
 
+void HTMLObjectElement::set_data(String const& data)
+{
+    set_attribute_value(HTML::AttributeNames::data, data);
+}
+
 GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     switch (m_representation) {

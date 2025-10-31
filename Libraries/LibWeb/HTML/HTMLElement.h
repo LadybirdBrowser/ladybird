@@ -158,7 +158,7 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 
-    WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
+    void set_popover(Optional<String> value);
     Optional<String> popover() const;
     Optional<String> opened_in_popover_mode() const { return m_opened_in_popover_mode; }
 
@@ -186,7 +186,7 @@ public:
     bool is_inert() const { return m_inert; }
 
     bool draggable() const;
-    void set_draggable(bool draggable) { MUST(set_attribute(HTML::AttributeNames::draggable, draggable ? "true"_string : "false"_string)); }
+    void set_draggable(bool draggable);
 
     virtual bool is_valid_invoker_command(String&) { return false; }
     virtual void invoker_command_steps(DOM::Element&, String&) { }

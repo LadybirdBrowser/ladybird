@@ -162,26 +162,24 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
         });
 }
 
-WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
+void HTMLCanvasElement::set_width(unsigned value)
 {
     if (value > 2147483647)
         value = 300;
 
-    TRY(set_attribute(HTML::AttributeNames::width, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::width, String::number(value));
     notify_context_about_canvas_size_change();
     reset_context_to_default_state();
-    return {};
 }
 
-WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong value)
+void HTMLCanvasElement::set_height(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 150;
 
-    TRY(set_attribute(HTML::AttributeNames::height, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::height, String::number(value));
     notify_context_about_canvas_size_change();
     reset_context_to_default_state();
-    return {};
 }
 
 void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)

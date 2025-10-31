@@ -36,10 +36,7 @@ public:
     }
 
     WebIDL::Long value();
-    void set_value(WebIDL::Long value)
-    {
-        MUST(set_attribute(AttributeNames::value, String::number(value)));
-    }
+    void set_value(WebIDL::Long value);
 
     virtual bool is_html_li_element() const override { return true; }
 

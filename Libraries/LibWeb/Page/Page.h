@@ -194,10 +194,10 @@ public:
         bool is_looping { false };
     };
     void did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu const&);
-    WebIDL::ExceptionOr<void> toggle_media_play_state();
+    void toggle_media_play_state();
     void toggle_media_mute_state();
-    WebIDL::ExceptionOr<void> toggle_media_loop_state();
-    WebIDL::ExceptionOr<void> toggle_media_controls_state();
+    void toggle_media_loop_state();
+    void toggle_media_controls_state();
 
     HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();

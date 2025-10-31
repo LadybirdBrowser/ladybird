@@ -167,7 +167,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
         return WebIDL::InvalidCharacterError::create(realm(), "Name is not a valid attribute local name."_utf16);
 
     // 5. Set an attribute value for the DOMStringMap's associated element using name and value.
-    TRY(m_associated_element->set_attribute(data_name, value));
+    m_associated_element->set_attribute_value(data_name, value);
 
     return {};
 }

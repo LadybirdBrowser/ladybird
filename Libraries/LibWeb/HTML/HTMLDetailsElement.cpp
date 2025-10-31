@@ -243,7 +243,7 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     // The third child element is either a link or style element with the following styles for the default summary:
     auto style = TRY(DOM::create_element(document(), HTML::TagNames::style, Namespace::HTML));
-    MUST(style->set_text_content(R"~~~(
+    auto style_text = realm.create<DOM::Text>(document(), R"~~~(
         :host summary {
             display: list-item;
             counter-increment: list-item 0;
@@ -252,7 +252,8 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
         :host([open]) summary {
             list-style-type: disclosure-open;
         }
-    )~~~"_utf16));
+    )~~~"_utf16);
+    MUST(style->append_child(style_text));
     MUST(shadow_root->append_child(style));
 
     m_summary_slot = static_cast<HTML::HTMLSlotElement&>(*summary_slot);
@@ -300,14 +301,14 @@ void HTMLDetailsElement::update_shadow_tree_style()
         return;
 
     if (has_attribute(HTML::AttributeNames::open)) {
-        MUST(m_descendants_slot->set_attribute(HTML::AttributeNames::style, R"~~~(
+        m_descendants_slot->set_attribute_value(HTML::AttributeNames::style, R"~~~(
             display: block;
-        )~~~"_string));
+        )~~~"_string);
     } else {
-        MUST(m_descendants_slot->set_attribute(HTML::AttributeNames::style, R"~~~(
+        m_descendants_slot->set_attribute_value(HTML::AttributeNames::style, R"~~~(
             display: block;
             content-visibility: hidden;
-        )~~~"_string));
+        )~~~"_string);
     }
 
     shadow_root()->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::DetailsElementOpenedOrClosed);

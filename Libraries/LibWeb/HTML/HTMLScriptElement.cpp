@@ -787,7 +787,7 @@ void HTMLScriptElement::set_async(bool async)
 
     // 2. If the given value is true, then set this's async content attribute to the empty string.
     if (async) {
-        MUST(set_attribute(HTML::AttributeNames::async, ""_string));
+        set_attribute_value(HTML::AttributeNames::async, ""_string);
     }
     // 3. Otherwise, remove this's async content attribute.
     else {

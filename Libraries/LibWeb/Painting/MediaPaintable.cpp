@@ -337,7 +337,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
 
     if (cached_layout_boxes.control_box_rect.has_value() && cached_layout_boxes.control_box_rect->contains(position_adjusted_by_scroll_offset)) {
         if (cached_layout_boxes.playback_button_rect.has_value() && cached_layout_boxes.playback_button_rect->contains(position_adjusted_by_scroll_offset)) {
-            media_element.toggle_playback().release_value_but_fixme_should_propagate_errors();
+            media_element.toggle_playback();
             return DispatchEventOfSameName::Yes;
         }
 
@@ -350,7 +350,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
             return DispatchEventOfSameName::No;
     }
 
-    media_element.toggle_playback().release_value_but_fixme_should_propagate_errors();
+    media_element.toggle_playback();
     return DispatchEventOfSameName::Yes;
 }
 

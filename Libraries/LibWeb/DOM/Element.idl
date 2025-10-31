@@ -54,8 +54,8 @@ interface Element : Node {
     sequence<DOMString> getAttributeNames();
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
-    [CEReactions] undefined setAttributeNS([FlyString] DOMString? namespace , [FlyString] DOMString qualifiedName , (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute_for_bindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute_ns_for_bindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
@@ -64,8 +64,8 @@ interface Element : Node {
 
     Attr? getAttributeNode([FlyString] DOMString qualifiedName);
     Attr? getAttributeNodeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions] Attr? setAttributeNode(Attr attr);
-    [CEReactions] Attr? setAttributeNodeNS(Attr attr);
+    [CEReactions, ImplementedAs=set_attribute_node_for_bindings] Attr? setAttributeNode(Attr attr);
+    [CEReactions, ImplementedAs=set_attribute_node_ns_for_bindings] Attr? setAttributeNodeNS(Attr attr);
     [CEReactions] Attr removeAttributeNode(Attr attr);
 
     ShadowRoot attachShadow(ShadowRootInit init);

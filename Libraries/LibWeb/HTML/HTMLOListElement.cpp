@@ -52,6 +52,11 @@ WebIDL::Long HTMLOListElement::start()
     return 1;
 }
 
+void HTMLOListElement::set_start(WebIDL::Long start)
+{
+    set_attribute_value(AttributeNames::start, String::number(start));
+}
+
 // https://html.spec.whatwg.org/multipage/grouping-content.html#concept-ol-start
 AK::Checked<i32> HTMLOListElement::starting_value() const
 {

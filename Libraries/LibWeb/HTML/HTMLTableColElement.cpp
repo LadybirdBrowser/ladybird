@@ -44,11 +44,11 @@ WebIDL::UnsignedLong HTMLTableColElement::span() const
     return 1;
 }
 
-WebIDL::ExceptionOr<void> HTMLTableColElement::set_span(unsigned int value)
+void HTMLTableColElement::set_span(unsigned int value)
 {
     if (value > 2147483647)
         value = 1;
-    return set_attribute(HTML::AttributeNames::span, String::number(value));
+    set_attribute_value(HTML::AttributeNames::span, String::number(value));
 }
 
 bool HTMLTableColElement::is_presentational_hint(FlyString const& name) const

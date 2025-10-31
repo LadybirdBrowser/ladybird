@@ -34,8 +34,8 @@ public:
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
 
-    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
+    void set_width(WebIDL::UnsignedLong);
+    void set_height(WebIDL::UnsignedLong);
 
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 

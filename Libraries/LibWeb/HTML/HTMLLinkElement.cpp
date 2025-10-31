@@ -111,8 +111,7 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
 
 void HTMLLinkElement::set_media(String media)
 {
-    (void)set_attribute(HTML::AttributeNames::media, media);
-
+    set_attribute_value(HTML::AttributeNames::media, media);
     if (auto sheet = m_loaded_style_sheet)
         sheet->set_media(move(media));
 }

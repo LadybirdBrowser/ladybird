@@ -18,7 +18,7 @@ public:
     virtual ~HTMLBaseElement() override;
 
     String href() const;
-    WebIDL::ExceptionOr<void> set_href(String const& href);
+    void set_href(String const& href);
 
     URL::URL const& frozen_base_url() const { return m_frozen_base_url; }
 
