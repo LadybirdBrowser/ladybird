@@ -102,15 +102,6 @@ void ExecutionContext::operator delete(void* ptr)
     s_execution_context_allocator->deallocate(ptr, execution_context->registers_and_constants_and_locals_and_arguments_count);
 }
 
-ExecutionContext::ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count)
-{
-    registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_count + arguments_count;
-    auto* registers_and_constants_and_locals_and_arguments = this->registers_and_constants_and_locals_and_arguments();
-    for (size_t i = 0; i < registers_and_constants_and_locals_count; ++i)
-        registers_and_constants_and_locals_and_arguments[i] = js_special_empty_value();
-    arguments = { registers_and_constants_and_locals_and_arguments + registers_and_constants_and_locals_count, arguments_count };
-}
-
 NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
 {
     auto copy = create(registers_and_constants_and_locals_and_arguments_count, arguments.size());
