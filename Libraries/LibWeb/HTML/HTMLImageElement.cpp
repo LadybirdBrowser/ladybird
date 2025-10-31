@@ -78,8 +78,13 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
 
     if (m_document_observer) {
         m_document_observer->set_document(document());
-        if (!old_document.is_fully_active() && document().is_fully_active())
-            m_document_observer->document_became_active()->function()();
+        if (!old_document.is_fully_active() && document().is_fully_active()) {
+            if (m_document_observer->document_became_active())
+                m_document_observer->document_became_active()->function()();
+        } else if (old_document.is_fully_active() && !document().is_fully_active()) {
+            if (m_document_observer->document_became_inactive())
+                m_document_observer->document_became_inactive()->function()();
+        }
     }
 }
 
@@ -336,7 +341,7 @@ String HTMLImageElement::current_src() const
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode()
 {
     auto& realm = this->realm();
 
@@ -344,89 +349,101 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Queue a microtask to perform the following steps:
-    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, promise, &realm]() mutable {
+    queue_a_microtask(&document(), GC::create_function(realm.heap(), [this, promise, &realm] mutable {
         // 1. Let global be this's relevant global object.
         auto& global = relevant_global_object(*this);
 
-        auto reject_if_document_not_fully_active = [this, promise, &realm]() -> bool {
-            if (this->document().is_fully_active())
-                return false;
-
-            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_utf16);
+        auto reject_promise = GC::create_function(realm.heap(), [promise, &realm](Utf16String message) {
+            auto exception = WebIDL::EncodingError::create(realm, message);
             HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
-            return true;
-        };
-
-        auto reject_if_current_request_state_broken = [this, promise, &realm]() {
-            if (this->current_request().state() != ImageRequest::State::Broken)
-                return false;
-
-            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_utf16);
-            HTML::TemporaryExecutionContext context(realm);
-            WebIDL::reject_promise(realm, promise, exception);
-            return true;
-        };
+        });
 
         // 2. If any of the following are true:
         //    - this's node document is not fully active;
         //    - or this's current request's state is broken,
         //    then reject promise with an "EncodingError" DOMException.
-        if (reject_if_document_not_fully_active() || reject_if_current_request_state_broken()) {
+        if (!this->document().is_fully_active()) {
+            reject_promise->function()("Node document is not fully active"_utf16);
             return;
         }
 
-        // 3. Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, promise, &realm, &global] {
-            Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, promise, &realm, &global] {
-                auto queue_reject_task = [promise, &realm, &global](Utf16String message) {
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = move(message)] {
-                        auto exception = WebIDL::EncodingError::create(realm, message);
-                        HTML::TemporaryExecutionContext context(realm);
-                        WebIDL::reject_promise(realm, promise, exception);
-                    }));
-                };
+        if (this->current_request().state() == ImageRequest::State::Broken) {
+            reject_promise->function()("Current request state is broken"_utf16);
+            return;
+        }
 
-                // -> This img element's node document stops being fully active
-                if (!document().is_fully_active()) {
-                    // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-                    queue_reject_task("Node document not fully active"_utf16);
-                    return true;
-                }
-
-                auto state = this->current_request().state();
-
-                // -> FIXME: This img element's current request changes or is mutated
-                if (false) {
-                    // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-                    queue_reject_task("Current request changed or was mutated"_utf16);
-                    return true;
-                }
-
-                // -> This img element's current request's state becomes broken
-                if (state == ImageRequest::State::Broken) {
-                    // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-                    queue_reject_task("Current request state is broken"_utf16);
-                    return true;
-                }
-
-                // -> This img element's current request's state becomes completely available
-                if (state == ImageRequest::State::CompletelyAvailable) {
-                    // FIXME: Decode the image.
-                    // FIXME: If decoding does not need to be performed for this image (for example because it is a vector graphic) or the decoding process completes successfully, then queue a global task on the DOM manipulation task source with global to resolve promise with undefined.
-                    // FIXME: If decoding fails (for example due to invalid image data), then queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
-
-                    // NOTE: For now we just resolve it.
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise] {
-                        HTML::TemporaryExecutionContext context(realm);
-                        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
-                    }));
-                    return true;
-                }
-
-                return false;
+        auto queue_reject_task = GC::create_function(realm.heap(), [&realm, &global, reject_promise](Utf16String message) {
+            queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [reject_promise, message = move(message)] {
+                reject_promise->function()(move(message));
             }));
-        }));
+        });
+
+        // 3. Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
+        auto check_decoding_state = GC::create_function(realm.heap(), [this, queue_reject_task, &global, &realm, promise] {
+            // -> This img element's node document stops being fully active
+            if (!document().is_fully_active()) {
+                // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
+                queue_reject_task->function()("Node document not fully active"_utf16);
+                return true;
+            }
+
+            // -> FIXME: This img element's current request changes or is mutated
+            if (false) {
+                // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
+                queue_reject_task->function()("Current request changed or was mutated"_utf16);
+                return true;
+            }
+
+            auto state = this->current_request().state();
+
+            // -> This img element's current request's state becomes broken
+            if (state == ImageRequest::State::Broken) {
+                // Queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
+                queue_reject_task->function()("Current request state is broken"_utf16);
+                return true;
+            }
+
+            // -> This img element's current request's state becomes completely available
+            if (state == ImageRequest::State::CompletelyAvailable) {
+                // FIXME: Decode the image.
+                // FIXME: If decoding does not need to be performed for this image (for example because it is a vector graphic) or the decoding process completes successfully, then queue a global task on the DOM manipulation task source with global to resolve promise with undefined.
+                // FIXME: If decoding fails (for example due to invalid image data), then queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
+
+                // NOTE: For now we just resolve it.
+                queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise] {
+                    HTML::TemporaryExecutionContext context(realm);
+                    WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+                }));
+                return true;
+            }
+
+            return false;
+        });
+
+        bool currently_ready = check_decoding_state->function()();
+        if (!currently_ready) {
+            auto check_state_callback = GC::create_function(realm.heap(), [this, check_decoding_state] {
+                bool ready_now = check_decoding_state->function()();
+                if (ready_now) {
+                    this->current_request().set_state_changed_callback(nullptr);
+                    m_document_observer->set_document_became_inactive({});
+                }
+            });
+
+            // FIXME: These should really be add, not set
+            this->current_request().set_state_changed_callback(check_state_callback);
+
+            if (!m_document_observer)
+                m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
+
+            if (!m_document_observer->document_became_inactive()) {
+                // FIXME: These should really be add, not set
+                m_document_observer->set_document_became_inactive([check_state_callback] {
+                    check_state_callback->function()();
+                });
+            }
+        }
     }));
 
     // 3. Return promise.
@@ -506,10 +523,9 @@ void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe
         // 2. Wait until the element's node document is fully active.
         // 3. If another instance of this algorithm for this img element was started after this instance
         //    (even if it aborted and is no longer running), then return.
-        if (m_document_observer)
-            return;
+        if (!m_document_observer)
+            m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
 
-        m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
         m_document_observer->set_document_became_active([this, restart_animations, maybe_omit_events]() {
             // 4. Queue a microtask to continue this algorithm.
             queue_a_microtask(&document(), GC::create_function(this->heap(), [this, restart_animations, maybe_omit_events]() {
