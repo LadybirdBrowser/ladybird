@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 72 tests
 
-68 Pass
-4 Fail
+72 Pass
 Pass	TT disabled: script.src
             = TrustedScript on a
             connected element
@@ -132,11 +131,11 @@ Pass	TT enabled: div.innerHTML
             = String on a
             non-connected element
             
-Fail	TT enabled: iframe.srcdoc
+Pass	TT enabled: iframe.srcdoc
             = TrustedHTML on a
             connected element
             
-Fail	TT enabled: iframe.srcdoc
+Pass	TT enabled: iframe.srcdoc
             = TrustedHTML on a
             non-connected element
             
@@ -228,11 +227,11 @@ Pass	TT enabled: div.innerHTML
             = String on a
             non-connected element
             after removing the "require-trusted-types-for 'script' directive
-Fail	TT enabled: iframe.srcdoc
+Pass	TT enabled: iframe.srcdoc
             = TrustedHTML on a
             connected element
             after removing the "require-trusted-types-for 'script' directive
-Fail	TT enabled: iframe.srcdoc
+Pass	TT enabled: iframe.srcdoc
             = TrustedHTML on a
             non-connected element
             after removing the "require-trusted-types-for 'script' directive

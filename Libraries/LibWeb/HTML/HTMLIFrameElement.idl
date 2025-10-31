@@ -1,6 +1,7 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/Scripting/Fetching.idl>
 #import <DOM/Document.idl>
+#import <TrustedTypes/TrustedHTML.idl>
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#htmliframeelement
 [Exposed=Window]
@@ -9,7 +10,7 @@ interface HTMLIFrameElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect, URL] attribute USVString src;
-    [CEReactions, Reflect] attribute DOMString srcdoc;
+    [CEReactions] attribute (TrustedHTML or Utf16DOMString) srcdoc;
     [CEReactions, Reflect] attribute DOMString name;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
     [CEReactions, Reflect] attribute DOMString allow;
