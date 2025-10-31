@@ -1,4 +1,5 @@
 #import <DOM/Document.idl>
+#import <TrustedTypes/TrustedHTML.idl>
 
 enum DOMParserSupportedType {
     "text/html",
@@ -13,5 +14,5 @@ enum DOMParserSupportedType {
 interface DOMParser {
     constructor();
 
-    Document parseFromString(Utf16DOMString string, DOMParserSupportedType type);
+    Document parseFromString((TrustedHTML or Utf16DOMString) string, DOMParserSupportedType type);
 };
