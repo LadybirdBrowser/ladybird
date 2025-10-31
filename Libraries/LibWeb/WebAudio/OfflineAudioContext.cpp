@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
+#include <LibWeb/WebAudio/OfflineAudioCompletionEvent.h>
 #include <LibWeb/WebAudio/OfflineAudioContext.h>
 
 namespace Web::WebAudio {
@@ -138,9 +139,11 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
 
         // 4.2: Queue a media element task to fire an event named complete at the OfflineAudioContext using OfflineAudioCompletionEvent
         //      whose renderedBuffer property is set to [[rendered buffer]].
-        // FIXME: Need to implement OfflineAudioCompletionEvent.
         queue_a_media_element_task(GC::create_function(heap(), [&realm, this]() {
-            this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::complete));
+            Web::WebAudio::OfflineAudioCompletionEventInit init {};
+            init.rendered_buffer = this->m_rendered_buffer;
+
+            this->dispatch_event(OfflineAudioCompletionEvent::create(realm, HTML::EventNames::complete, { init }));
         }));
     }));
 }

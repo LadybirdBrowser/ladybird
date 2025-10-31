@@ -7,9 +7,16 @@
         const audioContext = new OfflineAudioContext(1, 1, 44100)
         println(`${audioContext.renderQuantumSize}`);
 
-        // Second call must reject with InvalidStateError
-        await audioContext.startRendering();
+        // Listen for OfflineAudioCompletionEvent
+        const eventPromise = new Promise(r => audioContext.addEventListener('complete', r));
 
+        const buffer = await audioContext.startRendering();
+        const audioCompletionEvent = await eventPromise;
+
+        // Completion event should return rendered buffer
+        println(audioCompletionEvent.renderedBuffer.length === buffer.length)
+
+        // Second call must reject with InvalidStateError
         try {
             await audioContext.startRendering();
             println('FAIL: started rendering on repeated call');
