@@ -35,7 +35,7 @@ void SVGFEColorMatrixElement::visit_edges(Cell::Visitor& visitor)
 GC::Ref<SVGAnimatedString> SVGFEColorMatrixElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, AttributeNames::in);
+        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
     return *m_in1;
 }
 
@@ -62,7 +62,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGFEColorMatrixElement::type() const
 GC::Ref<SVGAnimatedString> SVGFEColorMatrixElement::values()
 {
     if (!m_values)
-        m_values = SVGAnimatedString::create(realm(), *this, AttributeNames::values);
+        m_values = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::values, OptionalNone {}, OptionalNone {} });
     return *m_values;
 }
 

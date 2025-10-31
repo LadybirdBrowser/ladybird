@@ -37,7 +37,7 @@ void SVGFEGaussianBlurElement::visit_edges(Cell::Visitor& visitor)
 GC::Ref<SVGAnimatedString> SVGFEGaussianBlurElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, AttributeNames::in);
+        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
 
     return *m_in1;
 }
@@ -46,7 +46,7 @@ GC::Ref<SVGAnimatedString> SVGFEGaussianBlurElement::in1()
 GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_x()
 {
     if (!m_std_deviation_x) {
-        m_std_deviation_x = SVGAnimatedNumber::create(realm(), *this, AttributeNames::stdDeviation, 0.f,
+        m_std_deviation_x = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::stdDeviation, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::First);
     }
     return *m_std_deviation_x;
@@ -56,7 +56,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_x()
 GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_y()
 {
     if (!m_std_deviation_y) {
-        m_std_deviation_y = SVGAnimatedNumber::create(realm(), *this, AttributeNames::stdDeviation, 0.f,
+        m_std_deviation_y = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::stdDeviation, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::Second);
     }
     return *m_std_deviation_y;

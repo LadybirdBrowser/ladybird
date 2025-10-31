@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 
@@ -31,7 +32,12 @@ public:
         //      deprecated attribute.
         if (!m_href_animated_string) {
             auto& this_svg_element = as<SVGElement>(*this);
-            m_href_animated_string = SVGAnimatedString::create(this_svg_element.realm(), this_svg_element, AttributeNames::href, supports_xlink_href == SupportsXLinkHref::Yes ? Optional<FlyString> { AttributeNames::xlink_href } : OptionalNone {});
+            m_href_animated_string = SVGAnimatedString::create(this_svg_element.realm(),
+                this_svg_element,
+                DOM::QualifiedName { AttributeNames::href, OptionalNone {}, OptionalNone {} },
+                supports_xlink_href == SupportsXLinkHref::Yes
+                    ? Optional<DOM::QualifiedName> { DOM::QualifiedName { AttributeNames::href, "xlink"_fly_string, Namespace::XLink } }
+                    : OptionalNone {});
         }
         return *m_href_animated_string;
     }

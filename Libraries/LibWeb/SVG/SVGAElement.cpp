@@ -66,7 +66,7 @@ i32 SVGAElement::default_tab_index_value() const
 GC::Ref<SVGAnimatedString> SVGAElement::target()
 {
     if (!m_target)
-        m_target = SVGAnimatedString::create(realm(), *this, HTML::AttributeNames::target);
+        m_target = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { HTML::AttributeNames::target, OptionalNone {}, OptionalNone {} });
     return *m_target;
 }
 
