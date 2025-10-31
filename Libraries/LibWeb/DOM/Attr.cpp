@@ -70,41 +70,34 @@ void Attr::set_owner_element(Element* owner_element)
     m_owner_element = owner_element;
 }
 
-// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
-// https://whatpr.org/dom/1268.html#set-an-existing-attribute-value
+// https://dom.spec.whatwg.org/#set-an-existing-attribute-value
 WebIDL::ExceptionOr<void> Attr::set_value(String value)
 {
-    // 1. If attribute’s element is null, then set attribute’s value to value.
+    // 1. If attribute’s element is null, then set attribute’s value to value and return.
     if (!owner_element()) {
         m_value = move(value);
+        return {};
     }
-    // 2. Otherwise:
-    else {
-        // 1. Let element be attribute’s element.
-        auto const* element = owner_element();
 
-        // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value with
-        //    attribute’s local name, attribute’s namespace, element, and value.
-        auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
-            local_name(),
-            namespace_uri().has_value() ? Utf16String::from_utf8(namespace_uri().value()) : Optional<Utf16String>(),
-            *element,
-            Utf16String::from_utf8(value)));
+    // 2. Let element be attribute’s element.
+    auto const& element = *owner_element();
 
-        // 3. If attribute’s element is null, then set attribute’s value to verifiedValue, and return.
-        if (!owner_element()) {
-            m_value = verified_value.to_utf8_but_should_be_ported_to_utf16();
-            return {};
-        }
+    // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value with
+    //    attribute’s local name, attribute’s namespace, element, and value.
+    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+        local_name(),
+        namespace_uri().has_value() ? Utf16String::from_utf8(namespace_uri().value()) : Optional<Utf16String>(),
+        element,
+        Utf16String::from_utf8(value)));
 
-        // 4. If attribute’s element is not element, then return.
-        if (owner_element() != element) {
-            return {};
-        }
-
-        // 5. Change attribute to verifiedValue.
-        change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
+    // 4. If attribute’s element is null, then set attribute’s value to verifiedValue, and return.
+    if (!owner_element()) {
+        m_value = verified_value.to_utf8_but_should_be_ported_to_utf16();
+        return {};
     }
+
+    // 5. Change attribute to verifiedValue.
+    change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
 
     return {};
 }
