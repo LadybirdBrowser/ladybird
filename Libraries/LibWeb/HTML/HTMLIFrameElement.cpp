@@ -19,6 +19,8 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 
 namespace Web::HTML {
 
@@ -303,6 +305,33 @@ void HTMLIFrameElement::set_current_navigation_was_lazy_loaded(bool value)
     // An iframe element whose current navigation was lazy loaded boolean is false potentially delays the load event.
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:potentially-delays-the-load-event
     set_potentially_delays_the_load_event(!value);
+}
+
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-srcdoc
+TrustedTypes::TrustedHTMLOrString HTMLIFrameElement::srcdoc()
+{
+    // 1. Let attribute be the result of running get an attribute by namespace and local name given null, srcdoc's
+    //    local name, and this.
+    // 2. If attribute is null, then return the empty string.
+    // 3. Return attribute's value.
+    return Utf16String::from_utf8(get_attribute_value(AttributeNames::srcdoc));
+}
+
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-srcdoc
+WebIDL::ExceptionOr<void> HTMLIFrameElement::set_srcdoc(TrustedTypes::TrustedHTMLOrString const& value)
+{
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //      TrustedHTML, this's relevant global object, the given value, "HTMLIFrameElement srcdoc", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(*this),
+        value,
+        TrustedTypes::InjectionSink::HTMLIFrameElementsrcdoc,
+        TrustedTypes::Script.to_string()));
+
+    // 2. Set an attribute value given this, srcdoc's local name, and compliantString.
+    set_attribute_value(AttributeNames::srcdoc, compliant_string.to_utf8_but_should_be_ported_to_utf16());
+    return {};
 }
 
 }

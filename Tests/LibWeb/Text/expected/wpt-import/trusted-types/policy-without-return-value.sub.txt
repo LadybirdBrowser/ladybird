@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+3 Pass
+1 Fail
 Fail	createHTML with a policy that returns undefined DOMParser
-Fail	createHTML with a policy that returns undefined iframe.srcdoc
+Pass	createHTML with a policy that returns undefined iframe.srcdoc
 Pass	createScript with a policy that returns undefined <div onload>
 Pass	createScriptURL with a policy that returns undefined script.src
