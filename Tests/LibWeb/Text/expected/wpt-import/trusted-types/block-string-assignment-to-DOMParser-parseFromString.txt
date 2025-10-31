@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
-Fail	document.innerText assigned via policy (successful HTML transformation).
+5 Pass
+Pass	document.innerText assigned via policy (successful HTML transformation).
 Pass	`document.innerText = string` throws.
 Pass	'document.innerText = null' throws
 Pass	'document.innerText = string' assigned via default policy (successful HTML transformation).
