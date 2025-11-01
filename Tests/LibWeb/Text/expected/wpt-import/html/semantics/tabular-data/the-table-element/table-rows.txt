@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Children of table
+Pass	Children of thead
+Pass	Children of tbody
+Pass	Children of tfoot
+Pass	Complicated case
