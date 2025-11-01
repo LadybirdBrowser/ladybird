@@ -40,6 +40,16 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
     auto default_fixed_width_font_name = generic_font_name(Web::Platform::GenericFont::UiMonospace);
     m_default_fixed_width_font = Gfx::FontDatabase::the().get(default_fixed_width_font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
     VERIFY(m_default_fixed_width_font);
+
+    if (is_layout_test_mode) {
+        m_symbol_font_names = { "Noto Emoji"_fly_string };
+    } else {
+#ifdef AK_OS_MACOS
+        m_symbol_font_names = { "Apple Color Emoji"_fly_string, "Apple Symbols"_fly_string };
+#else
+        m_symbol_font_names = { "Noto Color Emoji"_fly_string, "Noto Sans Symbols"_fly_string };
+#endif
+    }
 }
 
 FontPlugin::~FontPlugin() = default;
@@ -54,21 +64,9 @@ Gfx::Font& FontPlugin::default_fixed_width_font()
     return *m_default_fixed_width_font;
 }
 
-RefPtr<Gfx::Font> FontPlugin::default_emoji_font(float point_size)
+Vector<FlyString> FontPlugin::symbol_font_names()
 {
-    FlyString default_emoji_font_name;
-
-    if (m_is_layout_test_mode) {
-        default_emoji_font_name = "Noto Emoji"_fly_string;
-    } else {
-#ifdef AK_OS_MACOS
-        default_emoji_font_name = "Apple Color Emoji"_fly_string;
-#else
-        default_emoji_font_name = "Noto Color Emoji"_fly_string;
-#endif
-    }
-
-    return Gfx::FontDatabase::the().get(default_emoji_font_name, point_size, 400, Gfx::FontWidth::Normal, 0);
+    return m_symbol_font_names;
 }
 
 #ifdef USE_FONTCONFIG
