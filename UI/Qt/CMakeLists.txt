@@ -27,6 +27,7 @@ if (WIN32)
 qt_deploy_runtime_dependencies(
     EXECUTABLE $<TARGET_FILE:ladybird>
     PLUGINS_DIR $<TARGET_FILE_DIR:ladybird>
+    NO_TRANSLATIONS
 )
 ")
 
