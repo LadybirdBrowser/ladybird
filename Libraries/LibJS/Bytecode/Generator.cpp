@@ -462,7 +462,17 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         auto end_offset = unlinked_handler.end_offset;
         auto handler_offset = unlinked_handler.handler ? block_offsets.get(unlinked_handler.handler).value() : Optional<size_t> {};
         auto finalizer_offset = unlinked_handler.finalizer ? block_offsets.get(unlinked_handler.finalizer).value() : Optional<size_t> {};
-        linked_exception_handlers.append({ start_offset, end_offset, handler_offset, finalizer_offset });
+
+        auto maybe_exception_handler_to_merge_with = linked_exception_handlers.find_if([&](Executable::ExceptionHandlers const& exception_handler) {
+            return exception_handler.end_offset == start_offset && exception_handler.handler_offset == handler_offset && exception_handler.finalizer_offset == finalizer_offset;
+        });
+
+        if (!maybe_exception_handler_to_merge_with.is_end()) {
+            auto& exception_handler_to_merge_with = *maybe_exception_handler_to_merge_with;
+            exception_handler_to_merge_with.end_offset = end_offset;
+        } else {
+            linked_exception_handlers.append({ start_offset, end_offset, handler_offset, finalizer_offset });
+        }
     }
 
     quick_sort(linked_exception_handlers, [](auto const& a, auto const& b) {
