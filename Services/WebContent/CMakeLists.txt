@@ -39,7 +39,7 @@ add_executable(WebContent main.cpp)
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)
-    lagom_windows_bin(WebContent)
+    lagom_windows_bin(WebContent CONSOLE)
 endif()
 
 

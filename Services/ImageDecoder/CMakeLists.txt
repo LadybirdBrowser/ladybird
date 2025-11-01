@@ -26,5 +26,5 @@ target_link_libraries(ImageDecoder PRIVATE imagedecoderservice LibCore LibMain L
 target_link_libraries(imagedecoderservice PRIVATE LibCore LibGfx LibIPC LibImageDecoderClient LibMain LibThreading)
 
 if (WIN32)
-    lagom_windows_bin(ImageDecoder)
+    lagom_windows_bin(ImageDecoder CONSOLE)
 endif()
