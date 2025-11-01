@@ -2436,6 +2436,11 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
             return JS::js_null();
         return JS::Value(m_framebuffer_binding);
     }
+    case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_FRAGMENT_SHADER_DERIVATIVE_HINT, 1, nullptr, &result);
+        return JS::Value(result);
+    }
     case GL_FRONT_FACE: {
         GLint result { 0 };
         glGetIntegervRobustANGLE(GL_FRONT_FACE, 1, nullptr, &result);
@@ -2530,6 +2535,21 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         glGetIntegervRobustANGLE(GL_PACK_ALIGNMENT, 1, nullptr, &result);
         return JS::Value(result);
     }
+    case GL_PACK_ROW_LENGTH: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_PACK_ROW_LENGTH, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_PACK_SKIP_ROWS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_PACK_SKIP_ROWS, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_PACK_SKIP_PIXELS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_PACK_SKIP_PIXELS, 1, nullptr, &result);
+        return JS::Value(result);
+    }
     case GL_POLYGON_OFFSET_FACTOR: {
         GLfloat result { 0.0f };
         glGetFloatvRobustANGLE(GL_POLYGON_OFFSET_FACTOR, 1, nullptr, &result);
@@ -2544,6 +2564,11 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         GLfloat result { 0.0f };
         glGetFloatvRobustANGLE(GL_POLYGON_OFFSET_UNITS, 1, nullptr, &result);
         return JS::Value(result);
+    }
+    case GL_RASTERIZER_DISCARD: {
+        GLboolean result { GL_FALSE };
+        glGetBooleanvRobustANGLE(GL_RASTERIZER_DISCARD, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
     }
     case GL_RED_BITS: {
         GLint result { 0 };
@@ -2583,6 +2608,11 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         GLfloat result { 0.0f };
         glGetFloatvRobustANGLE(GL_SAMPLE_COVERAGE_VALUE, 1, nullptr, &result);
         return JS::Value(result);
+    }
+    case GL_SAMPLER_BINDING: {
+        GLint handle { 0 };
+        glGetIntegervRobustANGLE(GL_SAMPLER_BINDING, 1, nullptr, &handle);
+        return WebGLSampler::create(m_realm, *this, handle);
     }
     case GL_SAMPLES: {
         GLint result { 0 };
@@ -2710,6 +2740,31 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_UNPACK_ALIGNMENT: {
         GLint result { 0 };
         glGetIntegervRobustANGLE(GL_UNPACK_ALIGNMENT, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_IMAGE_HEIGHT: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_IMAGE_HEIGHT, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_ROW_LENGTH: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_ROW_LENGTH, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_SKIP_IMAGES: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_SKIP_IMAGES, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_SKIP_PIXELS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_SKIP_PIXELS, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_SKIP_ROWS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_SKIP_ROWS, 1, nullptr, &result);
         return JS::Value(result);
     }
     case GL_VENDOR: {
