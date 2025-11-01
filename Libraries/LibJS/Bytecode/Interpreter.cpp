@@ -2833,49 +2833,61 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
     VERIFY_NOT_REACHED();
 }
 
-// NOTE: This is a macro instead of an inline function because it needs to alloca() in the callers scope.
-#define IMPLEMENT_CALL_INSTRUCTION(call_type, callee, this_value)                                                                                                                                                                    \
-    TRY(throw_if_needed_for_call(interpreter, callee, call_type, m_expression_string));                                                                                                                                              \
-    auto& function = callee.as_function();                                                                                                                                                                                           \
-    ExecutionContext* callee_context = nullptr;                                                                                                                                                                                      \
-    size_t registers_and_constants_and_locals_count = 0;                                                                                                                                                                             \
-    size_t argument_count = m_argument_count;                                                                                                                                                                                        \
-    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));                                                                                                                                    \
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_constants_and_locals_count, max(m_argument_count, argument_count));                                                               \
-    auto* callee_context_argument_values = callee_context->arguments.data();                                                                                                                                                         \
-    auto const callee_context_argument_count = callee_context->arguments.size();                                                                                                                                                     \
-    for (size_t i = 0; i < m_argument_count; ++i)                                                                                                                                                                                    \
-        callee_context_argument_values[i] = interpreter.get(m_arguments[i]);                                                                                                                                                         \
-    for (size_t i = m_argument_count; i < callee_context_argument_count; ++i)                                                                                                                                                        \
-        callee_context_argument_values[i] = js_undefined();                                                                                                                                                                          \
-    callee_context->passed_argument_count = m_argument_count;                                                                                                                                                                        \
-    Value retval;                                                                                                                                                                                                                    \
-    if (call_type == CallType::DirectEval && callee == interpreter.realm().intrinsics().eval_function()) {                                                                                                                           \
-        retval = TRY(perform_eval(interpreter.vm(), !callee_context->arguments.is_empty() ? callee_context->arguments[0] : js_undefined(), strict() == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct)); \
-    } else if (call_type == CallType::Construct) {                                                                                                                                                                                   \
-        retval = TRY(function.internal_construct(*callee_context, function));                                                                                                                                                        \
-    } else {                                                                                                                                                                                                                         \
-        retval = TRY(function.internal_call(*callee_context, this_value));                                                                                                                                                           \
-    }                                                                                                                                                                                                                                \
-    interpreter.set(m_dst, retval);                                                                                                                                                                                                  \
+template<CallType call_type>
+static ThrowCompletionOr<void> execute_call(
+    Bytecode::Interpreter& interpreter,
+    Value callee,
+    Value this_value,
+    ReadonlySpan<Operand> arguments,
+    Operand dst,
+    Optional<StringTableIndex> const& expression_string,
+    Strict strict)
+{
+    TRY(throw_if_needed_for_call(interpreter, callee, call_type, expression_string));
+
+    auto& function = callee.as_function();
+
+    ExecutionContext* callee_context = nullptr;
+    size_t registers_and_constants_and_locals_count = 0;
+    size_t argument_count = arguments.size();
+    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_constants_and_locals_count, max(arguments.size(), argument_count));
+
+    auto* callee_context_argument_values = callee_context->arguments.data();
+    auto const callee_context_argument_count = callee_context->arguments.size();
+    auto const insn_argument_count = arguments.size();
+
+    for (size_t i = 0; i < insn_argument_count; ++i)
+        callee_context_argument_values[i] = interpreter.get(arguments[i]);
+    for (size_t i = insn_argument_count; i < callee_context_argument_count; ++i)
+        callee_context_argument_values[i] = js_undefined();
+    callee_context->passed_argument_count = insn_argument_count;
+
+    Value retval;
+    if (call_type == CallType::DirectEval && callee == interpreter.realm().intrinsics().eval_function()) {
+        retval = TRY(perform_eval(interpreter.vm(), !callee_context->arguments.is_empty() ? callee_context->arguments[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+    } else if (call_type == CallType::Construct) {
+        retval = TRY(function.internal_construct(*callee_context, function));
+    } else {
+        retval = TRY(function.internal_call(*callee_context, this_value));
+    }
+    interpreter.set(dst, retval);
     return {};
+}
 
 ThrowCompletionOr<void> Call::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto callee = interpreter.get(m_callee);
-    IMPLEMENT_CALL_INSTRUCTION(CallType::Call, callee, interpreter.get(m_this_value));
+    return execute_call<CallType::Call>(interpreter, interpreter.get(m_callee), interpreter.get(m_this_value), { m_arguments, m_argument_count }, m_dst, m_expression_string, strict());
 }
 
 NEVER_INLINE ThrowCompletionOr<void> CallConstruct::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto callee = interpreter.get(m_callee);
-    IMPLEMENT_CALL_INSTRUCTION(CallType::Construct, callee, Value());
+    return execute_call<CallType::Construct>(interpreter, interpreter.get(m_callee), js_undefined(), { m_arguments, m_argument_count }, m_dst, m_expression_string, strict());
 }
 
 ThrowCompletionOr<void> CallDirectEval::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto callee = interpreter.get(m_callee);
-    IMPLEMENT_CALL_INSTRUCTION(CallType::DirectEval, callee, Value());
+    return execute_call<CallType::DirectEval>(interpreter, interpreter.get(m_callee), interpreter.get(m_this_value), { m_arguments, m_argument_count }, m_dst, m_expression_string, strict());
 }
 
 ThrowCompletionOr<void> CallBuiltin::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -2887,7 +2899,7 @@ ThrowCompletionOr<void> CallBuiltin::execute_impl(Bytecode::Interpreter& interpr
         return {};
     }
 
-    IMPLEMENT_CALL_INSTRUCTION(CallType::Call, callee, interpreter.get(m_this_value));
+    return execute_call<CallType::Call>(interpreter, callee, interpreter.get(m_this_value), { m_arguments, m_argument_count }, m_dst, m_expression_string, strict());
 }
 
 template<CallType call_type>
