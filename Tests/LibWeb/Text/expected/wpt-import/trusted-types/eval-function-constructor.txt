@@ -1,0 +1,70 @@
+Harness status: OK
+
+Found 65 tests
+
+65 Pass
+Pass	Function constructor with mixed plain and trusted strings, mask #0
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #0
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #0
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #0
+Pass	Function constructor with mixed plain and trusted strings, mask #1
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #1
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #1
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #1
+Pass	Function constructor with mixed plain and trusted strings, mask #2
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #2
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #2
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #2
+Pass	Function constructor with mixed plain and trusted strings, mask #3
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #3
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #3
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #3
+Pass	Function constructor with mixed plain and trusted strings, mask #4
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #4
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #4
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #4
+Pass	Function constructor with mixed plain and trusted strings, mask #5
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #5
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #5
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #5
+Pass	Function constructor with mixed plain and trusted strings, mask #6
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #6
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #6
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #6
+Pass	Function constructor with mixed plain and trusted strings, mask #7
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #7
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #7
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #7
+Pass	Function constructor with mixed plain and trusted strings, mask #8
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #8
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #8
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #8
+Pass	Function constructor with mixed plain and trusted strings, mask #9
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #9
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #9
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #9
+Pass	Function constructor with mixed plain and trusted strings, mask #10
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #10
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #10
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #10
+Pass	Function constructor with mixed plain and trusted strings, mask #11
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #11
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #11
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #11
+Pass	Function constructor with mixed plain and trusted strings, mask #12
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #12
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #12
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #12
+Pass	Function constructor with mixed plain and trusted strings, mask #13
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #13
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #13
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #13
+Pass	Function constructor with mixed plain and trusted strings, mask #14
+Pass	AsyncFunction constructor with mixed plain and trusted strings, mask #14
+Pass	GeneratorFunction constructor with mixed plain and trusted strings, mask #14
+Pass	AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #14
+Pass	Function constructor with mixed plain and trusted strings, mask #15
+Pass	Function constructor with trusted strings, and a forged toString() for the one at index 0
+Pass	Function constructor with trusted strings, and a forged toString() for the one at index 1
+Pass	Function constructor with trusted strings, and a forged toString() for the one at index 2
+Pass	Function constructor with trusted strings, and a forged toString() for the one at index 3
