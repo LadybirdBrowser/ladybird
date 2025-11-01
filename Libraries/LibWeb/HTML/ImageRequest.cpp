@@ -44,6 +44,7 @@ void ImageRequest::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_shared_resource_request);
     visitor.visit(m_page);
     visitor.visit(m_image_data);
+    visitor.visit(m_state_change_callback);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#img-available
@@ -66,6 +67,9 @@ ImageRequest::State ImageRequest::state() const
 void ImageRequest::set_state(State state)
 {
     m_state = state;
+
+    if (m_state_change_callback)
+        m_state_change_callback->function()();
 }
 
 void ImageRequest::set_current_url(JS::Realm& realm, String url)
@@ -132,6 +136,11 @@ void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on
 {
     VERIFY(m_shared_resource_request);
     m_shared_resource_request->add_callbacks(move(on_finish), move(on_fail));
+}
+
+void ImageRequest::set_state_changed_callback(GC::Ptr<GC::Function<void()>> callback)
+{
+    m_state_change_callback = callback;
 }
 
 }

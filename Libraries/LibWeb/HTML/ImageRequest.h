@@ -56,6 +56,7 @@ public:
 
     void fetch_image(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
+    void set_state_changed_callback(GC::Ptr<GC::Function<void()>> callback);
 
     GC::Ptr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }
 
@@ -87,6 +88,8 @@ private:
     Optional<Gfx::FloatSize> m_preferred_density_corrected_dimensions;
 
     GC::Ptr<SharedResourceRequest> m_shared_resource_request;
+
+    GC::Ptr<GC::Function<void()>> m_state_change_callback;
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request
