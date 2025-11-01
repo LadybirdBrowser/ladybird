@@ -116,11 +116,8 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String property_name)
             // value on this"
             // Ensure style is computed on the element before we try to read it, so we can check custom properties.
             element.document().update_style();
-            if (property->is_custom_property()) {
-                if (element.get_custom_property(property->name()))
-                    return true;
-                return element.document().registered_custom_properties().contains(property->name());
-            }
+            if (property->is_custom_property())
+                return element.get_custom_property(property->name()) != nullptr;
             return true;
         },
         [&property](GC::Ref<CSSStyleDeclaration>& declaration) {
@@ -143,15 +140,8 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             // Ensure style is computed on the element before we try to read it.
             element.document().update_style();
 
-            // Some custom properties set on the element might also be in the registered custom properties set, so we
-            // want the size of the union of the two sets.
-            HashTable<FlyString> custom_properties;
-            for (auto const& key : element.custom_properties().keys())
-                custom_properties.set(key);
-            for (auto const& [key, _] : element.document().registered_custom_properties())
-                custom_properties.set(key);
-
-            return number_of_longhand_properties + custom_properties.size();
+            // All custom properties applicable to this element are set at this point.
+            return number_of_longhand_properties + element.computed_properties()->custom_properties().size();
         },
         [](GC::Ref<CSSStyleDeclaration> const& declaration) { return declaration->length(); });
 }
@@ -166,17 +156,12 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
             // value on this"
             // Ensure style is computed on the element before we try to read it.
             element.document().update_style();
-            if (property.is_custom_property()) {
-                if (auto custom_property = element.get_custom_property(property.name()))
-                    return custom_property;
-                if (auto registered_custom_property = element.document().registered_custom_properties().get(property.name()); registered_custom_property.has_value())
-                    return registered_custom_property.value()->initial_style_value();
-                return nullptr;
-            }
+            // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
+            if (auto computed_properties = element.computed_properties()) {
+                if (property.is_custom_property())
+                    return element.get_custom_property(property.name());
 
-            if (property.id() >= first_longhand_property_id && property.id() <= last_longhand_property_id) {
-                // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
-                if (auto computed_properties = element.computed_properties())
+                if (property.id() >= first_longhand_property_id && property.id() <= last_longhand_property_id)
                     return computed_properties->property(property.id());
             }
 

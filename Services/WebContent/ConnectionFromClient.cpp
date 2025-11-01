@@ -330,12 +330,12 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "dump-all-resolved-styles") {
-        auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style, OrderedHashMap<FlyString, Web::CSS::StyleProperty> const& custom_properties) {
+        auto dump_style = [](String const& title, Web::CSS::ComputedProperties const& style) {
             dbgln("+ {}", title);
             for (size_t i = to_underlying(Web::CSS::first_longhand_property_id); i < to_underlying(Web::CSS::last_longhand_property_id); ++i) {
                 dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), style.property(static_cast<Web::CSS::PropertyID>(i)).to_string(Web::CSS::SerializationMode::Normal));
             }
-            for (auto const& [name, property] : custom_properties) {
+            for (auto const& [name, property] : style.custom_properties()) {
                 dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));
             }
             dbgln("---");
@@ -350,12 +350,12 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                     nodes_to_visit.enqueue(child.ptr());
                 if (auto* element = as_if<Web::DOM::Element>(node)) {
                     auto styles = doc->style_computer().compute_style({ *element });
-                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_properties({}));
+                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles);
 
                     for (auto pseudo_element_index = 0; pseudo_element_index < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount); ++pseudo_element_index) {
                         auto pseudo_element_type = static_cast<Web::CSS::PseudoElement>(pseudo_element_index);
                         if (auto pseudo_element = element->get_pseudo_element(pseudo_element_type); pseudo_element.has_value() && pseudo_element->computed_properties()) {
-                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties(), pseudo_element->custom_properties());
+                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties());
                         }
                     }
                 }
@@ -483,17 +483,9 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     auto serialize_computed_style = [&]() {
         JsonObject serialized;
 
-        properties->for_each_property([&](auto property_id, auto& value) {
-            serialized.set(
-                Web::CSS::string_from_property_id(property_id),
-                value.to_string(Web::CSS::SerializationMode::Normal));
+        properties->for_each_property(Web::CSS::ComputedProperties::IncludeCustomProperties::Yes, [&](auto const& property, auto& value) {
+            serialized.set(property.name(), value.to_string(Web::CSS::SerializationMode::Normal));
         });
-
-        // FIXME: Custom properties are not yet included in ComputedProperties, so add them manually.
-        auto custom_properties = element.custom_properties(pseudo_element);
-        for (auto const& [name, value] : custom_properties) {
-            serialized.set(name, value.value->to_string(Web::CSS::SerializationMode::Normal));
-        }
 
         return serialized;
     };

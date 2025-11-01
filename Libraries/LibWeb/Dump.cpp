@@ -420,8 +420,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             String value;
         };
         Vector<NameAndValue> properties;
-        as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property([&](auto property_id, auto& value) {
-            properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::SerializationMode::Normal) });
+        as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property(CSS::ComputedProperties::IncludeCustomProperties::Yes, [&](auto const& property, auto& value) {
+            properties.append({ property.name(), value.to_string(CSS::SerializationMode::Normal) });
         });
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
 
@@ -828,7 +828,7 @@ void dump_style_properties(StringBuilder& builder, CSS::CSSStyleProperties const
     builder.appendff("Declarations ({}):\n", declaration.length());
     for (auto& property : declaration.properties()) {
         indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::SerializationMode::Normal));
+        builder.appendff("  {}: '{}'", property.name_and_id.name(), property.value->to_string(CSS::SerializationMode::Normal));
         if (property.important == CSS::Important::Yes)
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');
