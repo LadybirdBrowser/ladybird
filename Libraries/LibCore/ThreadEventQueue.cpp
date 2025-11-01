@@ -10,7 +10,8 @@
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
+#include <LibSync/Once.h>
 #include <errno.h>
 #include <pthread.h>
 
@@ -34,18 +35,18 @@ struct ThreadEventQueue::Private {
         NonnullOwnPtr<Event> event;
     };
 
-    Threading::Mutex mutex;
+    Sync::Mutex mutex;
     Vector<QueuedEvent> queued_events;
     Vector<NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>, 16> pending_promises;
     bool warned_promise_count { false };
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
-static pthread_once_t s_current_thread_event_queue_key_once = PTHREAD_ONCE_INIT;
+static Sync::OnceFlag s_current_thread_event_queue_key_once {};
 
 ThreadEventQueue& ThreadEventQueue::current()
 {
-    pthread_once(&s_current_thread_event_queue_key_once, [] {
+    Sync::call_once(s_current_thread_event_queue_key_once, [] {
         pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
             if (value)
                 delete static_cast<ThreadEventQueue*>(value);
@@ -70,7 +71,7 @@ ThreadEventQueue::~ThreadEventQueue() = default;
 void ThreadEventQueue::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event> event)
 {
     {
-        Threading::MutexLocker lock(m_private->mutex);
+        Sync::MutexLocker lock(m_private->mutex);
         m_private->queued_events.empend(receiver, move(event));
     }
     Core::EventLoopManager::the().did_post_event();
@@ -78,13 +79,13 @@ void ThreadEventQueue::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<C
 
 void ThreadEventQueue::add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>> promise)
 {
-    Threading::MutexLocker lock(m_private->mutex);
+    Sync::MutexLocker lock(m_private->mutex);
     m_private->pending_promises.append(move(promise));
 }
 
 void ThreadEventQueue::cancel_all_pending_jobs()
 {
-    Threading::MutexLocker lock(m_private->mutex);
+    Sync::MutexLocker lock(m_private->mutex);
     for (auto const& promise : m_private->pending_promises)
         promise->reject(Error::from_errno(ECANCELED));
 
@@ -95,7 +96,7 @@ size_t ThreadEventQueue::process()
 {
     decltype(m_private->queued_events) events;
     {
-        Threading::MutexLocker locker(m_private->mutex);
+        Sync::MutexLocker locker(m_private->mutex);
         events = move(m_private->queued_events);
         m_private->pending_promises.remove_all_matching([](auto& job) { return job->is_resolved() || job->is_rejected(); });
     }
@@ -124,7 +125,7 @@ size_t ThreadEventQueue::process()
     }
 
     {
-        Threading::MutexLocker locker(m_private->mutex);
+        Sync::MutexLocker locker(m_private->mutex);
         if (m_private->pending_promises.size() > 30 && !m_private->warned_promise_count) {
             m_private->warned_promise_count = true;
             dbgln("ThreadEventQueue::process: Job queue wasn't designed for this load ({} promises)", m_private->pending_promises.size());
@@ -135,7 +136,7 @@ size_t ThreadEventQueue::process()
 
 bool ThreadEventQueue::has_pending_events() const
 {
-    Threading::MutexLocker locker(m_private->mutex);
+    Sync::MutexLocker locker(m_private->mutex);
     return !m_private->queued_events.is_empty();
 }
 

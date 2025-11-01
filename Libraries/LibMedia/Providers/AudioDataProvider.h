@@ -17,9 +17,9 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Track.h>
-#include <LibThreading/ConditionVariable.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Forward.h>
-#include <LibThreading/Mutex.h>
 
 namespace Media {
 
@@ -64,7 +64,7 @@ private:
         bool is_stopped() const;
         void seek(AK::Duration timestamp, SeekCompletionHandler&&);
 
-        [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
+        [[nodiscard]] Sync::MutexLocker take_lock() { return Sync::MutexLocker(m_mutex); }
         void wake() { m_wait_condition.broadcast(); }
 
         AudioDecoder const& decoder() const { return *m_decoder; }
@@ -73,8 +73,8 @@ private:
     private:
         Core::EventLoop& m_main_thread_event_loop;
 
-        Threading::Mutex m_mutex;
-        Threading::ConditionVariable m_wait_condition { m_mutex };
+        Sync::Mutex m_mutex;
+        Sync::ConditionVariable m_wait_condition { m_mutex };
         Atomic<bool> m_exit { false };
 
         NonnullRefPtr<MutexedDemuxer> m_demuxer;

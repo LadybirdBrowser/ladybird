@@ -7,7 +7,7 @@
 #include "PulseAudioWrappers.h"
 
 #include <AK/WeakPtr.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Audio {
 
@@ -20,7 +20,7 @@ WeakPtr<PulseAudioContext> PulseAudioContext::weak_instance()
 
 ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::instance()
 {
-    static Threading::Mutex instantiation_mutex;
+    static Sync::Mutex instantiation_mutex;
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
     auto atexit_result = atexit([]() {
@@ -31,7 +31,7 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::instance()
         return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
     }
 
-    auto instantiation_locker = Threading::MutexLocker(instantiation_mutex);
+    auto instantiation_locker = Sync::MutexLocker(instantiation_mutex);
 
     auto the_instance = weak_instance();
     RefPtr<PulseAudioContext> strong_instance_pointer = the_instance.strong_ref();
