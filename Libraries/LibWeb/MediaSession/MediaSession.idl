@@ -1,0 +1,69 @@
+// https://w3c.github.io/mediasession/#the-mediasession-interface
+
+enum MediaSessionPlaybackState {
+  "none",
+  "paused",
+  "playing"
+};
+
+enum MediaSessionAction {
+  "play",
+  "pause",
+  "seekbackward",
+  "seekforward",
+  "previoustrack",
+  "nexttrack",
+  "skipad",
+  "stop",
+  "seekto",
+  "togglemicrophone",
+  "togglecamera",
+  "togglescreenshare",
+  "hangup",
+  "previousslide",
+  "nextslide",
+  "enterpictureinpicture",
+  "voiceactivity"
+};
+
+enum MediaSessionEnterPictureInPictureReason {
+  "other",
+  "useraction",
+  "contentoccluded"
+};
+
+callback MediaSessionActionHandler = undefined(MediaSessionActionDetails details);
+
+[Exposed=Window]
+interface MediaSession {
+  attribute MediaMetadata? metadata;
+
+  attribute MediaSessionPlaybackState playbackState;
+
+  undefined setActionHandler(MediaSessionAction action, MediaSessionActionHandler? handler);
+
+  undefined setPositionState(optional MediaPositionState state = {});
+
+  Promise<undefined> setMicrophoneActive(boolean active);
+
+  Promise<undefined> setCameraActive(boolean active);
+
+  Promise<undefined> setScreenshareActive(boolean active);
+};
+
+// https://w3c.github.io/mediasession/#the-mediasessionactiondetails-dictionary
+dictionary MediaSessionActionDetails {
+  required MediaSessionAction action;
+  double seekOffset;
+  double seekTime;
+  boolean fastSeek;
+  boolean isActivating;
+  MediaSessionEnterPictureInPictureReason enterPictureInPictureReason;
+};
+
+// https://w3c.github.io/mediasession/#the-mediapositionstate-dictionary
+dictionary MediaPositionState {
+  unrestricted double duration;
+  double playbackRate;
+  double position;
+};

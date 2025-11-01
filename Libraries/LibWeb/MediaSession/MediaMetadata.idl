@@ -1,0 +1,20 @@
+#import <MediaSession/ChapterInformation.idl>
+
+// https://www.w3.org/TR/mediasession/#the-mediametadata-interface
+dictionary MediaMetadataInit {
+    DOMString title = "";
+    DOMString artist = "";
+    DOMString album = "";
+    sequence<MediaImage> artwork = [];
+    sequence<ChapterInformationInit> chapterInfo = [];
+};
+
+[Exposed=Window]
+interface MediaMetadata {
+    constructor(optional MediaMetadataInit init = {});
+    attribute DOMString title;
+    attribute DOMString artist;
+    attribute DOMString album;
+    attribute FrozenArray<object> artwork;
+    [SameObject] readonly attribute FrozenArray<ChapterInformation> chapterInfo;
+};
