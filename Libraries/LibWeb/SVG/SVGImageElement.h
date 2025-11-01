@@ -64,7 +64,7 @@ private:
 
     Optional<URL::URL> m_href;
 
-    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
+    GC::Ptr<HTML::ImageRequest> m_image_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 
