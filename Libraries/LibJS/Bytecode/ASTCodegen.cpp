@@ -1434,8 +1434,10 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
     auto is_iterator_exhausted = generator.allocate_register();
     generator.emit_mov(is_iterator_exhausted, generator.add_constant(Value(false)));
 
-    auto iterator = generator.allocate_register();
-    generator.emit<Bytecode::Op::GetIterator>(iterator, input_array);
+    auto iterator_object = generator.allocate_register();
+    auto iterator_next_method = generator.allocate_register();
+    auto iterator_done_property = generator.allocate_register();
+    generator.emit<Bytecode::Op::GetIterator>(iterator_object, iterator_next_method, iterator_done_property, input_array);
     bool first = true;
 
     auto assign_value_to_alias = [&](auto& alias, ScopedOperand value) {
@@ -1469,7 +1471,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
 
             if (first) {
                 // The iterator has not been called, and is thus known to be not exhausted
-                generator.emit<Bytecode::Op::IteratorToArray>(value, iterator);
+                generator.emit<Bytecode::Op::IteratorToArray>(value, iterator_object, iterator_next_method, iterator_done_property);
             } else {
                 auto& if_exhausted_block = generator.make_block();
                 auto& if_not_exhausted_block = generator.make_block();
@@ -1487,7 +1489,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
                 generator.emit<Bytecode::Op::Jump>(Bytecode::Label { continuation_block });
 
                 generator.switch_to_basic_block(if_not_exhausted_block);
-                generator.emit<Bytecode::Op::IteratorToArray>(value, iterator);
+                generator.emit<Bytecode::Op::IteratorToArray>(value, iterator_object, iterator_next_method, iterator_done_property);
                 generator.emit<Bytecode::Op::Jump>(Bytecode::Label { continuation_block });
 
                 generator.switch_to_basic_block(continuation_block);
@@ -1510,7 +1512,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
         }
 
         auto value = generator.allocate_register();
-        generator.emit<Bytecode::Op::IteratorNextUnpack>(value, is_iterator_exhausted, iterator);
+        generator.emit<Bytecode::Op::IteratorNextUnpack>(value, is_iterator_exhausted, iterator_object, iterator_next_method, iterator_done_property);
 
         // We still have to check for exhaustion here. If the iterator is exhausted,
         // we need to bail before trying to get the value
@@ -1571,7 +1573,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_array_binding_pattern_byte
         Bytecode::Label { not_done_block });
 
     generator.switch_to_basic_block(not_done_block);
-    generator.emit<Bytecode::Op::IteratorClose>(iterator, Completion::Type::Normal, Optional<Value> {});
+    generator.emit<Bytecode::Op::IteratorClose>(iterator_object, iterator_next_method, iterator_done_property, Completion::Type::Normal, Optional<Value> {});
     generator.emit<Bytecode::Op::Jump>(Bytecode::Label { done_block });
 
     generator.switch_to_basic_block(done_block);
@@ -1980,17 +1982,12 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         auto value = TRY(m_argument->generate_bytecode(generator)).value();
 
         // 4. Let iteratorRecord be ? GetIterator(value, generatorKind).
-        auto iterator_record = generator.allocate_register();
-        auto iterator_hint = generator.is_in_async_generator_function() ? IteratorHint::Async : IteratorHint::Sync;
-        generator.emit<Bytecode::Op::GetIterator>(iterator_record, value, iterator_hint);
-
         // 5. Let iterator be iteratorRecord.[[Iterator]].
         auto iterator = generator.allocate_register();
-        generator.emit<Bytecode::Op::GetObjectFromIteratorRecord>(iterator, iterator_record);
-
-        // Cache iteratorRecord.[[NextMethod]] for use in step 7.a.i.
         auto next_method = generator.allocate_register();
-        generator.emit<Bytecode::Op::GetNextMethodFromIteratorRecord>(next_method, iterator_record);
+        auto iterator_done_property = generator.allocate_register();
+        auto iterator_hint = generator.is_in_async_generator_function() ? IteratorHint::Async : IteratorHint::Sync;
+        generator.emit<Bytecode::Op::GetIterator>(iterator, next_method, iterator_done_property, value, iterator_hint);
 
         // 6. Let received be NormalCompletion(undefined).
         // See get_received_completion_type_and_value above.
@@ -2165,11 +2162,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
         // 3. If generatorKind is async, perform ? AsyncIteratorClose(iteratorRecord, closeCompletion).
         if (generator.is_in_async_generator_function()) {
             // FIXME: This performs `await` outside of the generator!
-            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator_record, Completion::Type::Normal, Optional<Value> {});
+            generator.emit<Bytecode::Op::AsyncIteratorClose>(iterator, next_method, done, Completion::Type::Normal, Optional<Value> {});
         }
         // 4. Else, perform ? IteratorClose(iteratorRecord, closeCompletion).
         else {
-            generator.emit<Bytecode::Op::IteratorClose>(iterator_record, Completion::Type::Normal, Optional<Value> {});
+            generator.emit<Bytecode::Op::IteratorClose>(iterator, next_method, done, Completion::Type::Normal, Optional<Value> {});
         }
 
         // 5. NOTE: The next step throws a TypeError to indicate that there was a yield* protocol violation: iterator does not have a throw method.
@@ -3049,7 +3046,9 @@ enum class IterationKind {
 struct ForInOfHeadEvaluationResult {
     bool is_destructuring { false };
     LHSKind lhs_kind { LHSKind::Assignment };
-    Optional<ScopedOperand> iterator;
+    Optional<ScopedOperand> iterator_object;
+    Optional<ScopedOperand> iterator_next_method;
+    Optional<ScopedOperand> iterator_done_property;
 };
 static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_head_evaluation(Bytecode::Generator& generator, IterationKind iteration_kind, Variant<NonnullRefPtr<ASTNode const>, NonnullRefPtr<BindingPattern const>> const& lhs, NonnullRefPtr<ASTNode const> const& rhs)
 {
@@ -3122,7 +3121,9 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
     // 5. Let exprValue be ? GetValue(exprRef).
     // NOTE: No need to store this anywhere.
 
-    auto iterator = generator.allocate_register();
+    auto iterator_object = generator.allocate_register();
+    auto iterator_next_method = generator.allocate_register();
+    auto iterator_done_property = generator.allocate_register();
 
     // 6. If iterationKind is enumerate, then
     if (iteration_kind == IterationKind::Enumerate) {
@@ -3144,7 +3145,7 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
         // c. Let iterator be EnumerateObjectProperties(obj).
         // d. Let nextMethod be ! GetV(iterator, "next").
         // e. Return the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
-        generator.emit<Bytecode::Op::GetObjectPropertyIterator>(iterator, object);
+        generator.emit<Bytecode::Op::GetObjectPropertyIterator>(iterator_object, iterator_next_method, iterator_done_property, object);
     }
     // 7. Else,
     else {
@@ -3154,10 +3155,12 @@ static Bytecode::CodeGenerationErrorOr<ForInOfHeadEvaluationResult> for_in_of_he
         auto iterator_kind = iteration_kind == IterationKind::AsyncIterate ? IteratorHint::Async : IteratorHint::Sync;
 
         // d. Return ? GetIterator(exprValue, iteratorKind).
-        generator.emit<Bytecode::Op::GetIterator>(iterator, object, iterator_kind);
+        generator.emit<Bytecode::Op::GetIterator>(iterator_object, iterator_next_method, iterator_done_property, object, iterator_kind);
     }
 
-    result.iterator = iterator;
+    result.iterator_object = iterator_object;
+    result.iterator_next_method = iterator_next_method;
+    result.iterator_done_property = iterator_done_property;
     return result;
 }
 
@@ -3199,7 +3202,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
     auto done = generator.allocate_register();
 
     if (iterator_kind == IteratorHint::Sync) {
-        generator.emit<Bytecode::Op::IteratorNextUnpack>(next_value, done, *head_result.iterator);
+        generator.emit<Bytecode::Op::IteratorNextUnpack>(next_value, done, *head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property);
 
         auto& loop_continue = generator.make_block();
         generator.emit_jump_if(
@@ -3209,7 +3212,7 @@ static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> for_in_of_body_e
         generator.switch_to_basic_block(loop_continue);
     } else {
         auto next_result = generator.allocate_register();
-        generator.emit<Bytecode::Op::IteratorNext>(next_result, *head_result.iterator);
+        generator.emit<Bytecode::Op::IteratorNext>(next_result, *head_result.iterator_object, *head_result.iterator_next_method, *head_result.iterator_done_property);
 
         // b. If iteratorKind is async, set nextResult to ? Await(nextResult).
         auto received_completion = generator.allocate_register();

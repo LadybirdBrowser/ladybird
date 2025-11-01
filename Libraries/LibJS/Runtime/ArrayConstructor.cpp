@@ -341,7 +341,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
         else if (using_sync_iterator) {
             // i. Set iteratorRecord to ? CreateAsyncFromSyncIterator(GetIterator(asyncItems, sync, usingSyncIterator)).
             // FIXME: The Array.from proposal is out of date - it should be using GetIteratorFromMethod.
-            iterator_record = create_async_from_sync_iterator(vm, TRY(get_iterator_from_method(vm, async_items, *using_sync_iterator)));
+            auto iterator_record_impl = create_async_from_sync_iterator(vm, TRY(get_iterator_from_method(vm, async_items, *using_sync_iterator)));
+            iterator_record = vm.heap().allocate<IteratorRecord>(iterator_record_impl.iterator, iterator_record_impl.next_method, iterator_record_impl.done);
         }
 
         // h. If iteratorRecord is not undefined, then

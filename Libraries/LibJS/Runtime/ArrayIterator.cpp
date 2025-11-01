@@ -37,10 +37,10 @@ void ArrayIterator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_array);
 }
 
-BuiltinIterator* ArrayIterator::as_builtin_iterator_if_next_is_not_redefined(IteratorRecord const& iterator_record)
+BuiltinIterator* ArrayIterator::as_builtin_iterator_if_next_is_not_redefined(Value next_method)
 {
-    if (iterator_record.next_method.is_object()) {
-        auto const& next_function = iterator_record.next_method.as_object();
+    if (next_method.is_object()) {
+        auto const& next_function = next_method.as_object();
         if (next_function.is_native_function()) {
             auto const& native_function = static_cast<NativeFunction const&>(next_function);
             if (native_function.is_array_prototype_next_builtin())
