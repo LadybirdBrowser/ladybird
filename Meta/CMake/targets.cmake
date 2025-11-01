@@ -42,10 +42,14 @@ function(lagom_subsystem_windows target_name)
 endfunction()
 
 function(lagom_windows_bin target_name)
-    cmake_parse_arguments(PARSE_ARGV 2 LAGOM_WINDOWS_BIN "CONSOLE" "" "")
+    cmake_parse_arguments(LAGOM_WINDOWS_BIN "CONSOLE" "" "" ${ARGN})
     lagom_copy_runtime_dlls(${target_name})
     if (NOT LAGOM_WINDOWS_BIN_CONSOLE)
         lagom_subsystem_windows(${target_name})
+    else()
+        set_target_properties(${target_name} PROPERTIES
+            WIN32_EXECUTABLE FALSE
+        )
     endif()
 endfunction()
 
