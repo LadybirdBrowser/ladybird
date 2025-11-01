@@ -78,6 +78,7 @@ enum class InvalidateLayoutTreeReason {
     X(CanvasRenderingContext2DSetStrokeStyle) \
     X(CanvasSetFillStyle)                     \
     X(CursorBlinkTimer)                       \
+    X(ChildDocumentStyleUpdate)               \
     X(Debugging)                              \
     X(DocumentElementFromPoint)               \
     X(DocumentElementsFromPoint)              \

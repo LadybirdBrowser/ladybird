@@ -1,0 +1,196 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Canceling a CSS animation</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes translateAnim {
+  to { transform: translate(100px) }
+}
+@keyframes marginLeftAnim {
+  to { margin-left: 100px }
+}
+@keyframes marginLeftAnim100To200 {
+  from { margin-left: 100px }
+  to { margin-left: 200px }
+}
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: translateAnim 100s' });
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  assert_not_equals(getComputedStyle(div).transform, 'none',
+                    'transform style is animated before canceling');
+  animation.cancel();
+  assert_equals(getComputedStyle(div).transform, 'none',
+                'transform style is no longer animated after canceling');
+}, 'Animated style is cleared after canceling a running CSS animation');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: translateAnim 100s forwards' });
+  const animation = div.getAnimations()[0];
+  animation.finish();
+
+  await animation.ready;
+
+  assert_not_equals(getComputedStyle(div).transform, 'none',
+                    'transform style is filling before canceling');
+  animation.cancel();
+  assert_equals(getComputedStyle(div).transform, 'none',
+                'fill style is cleared after canceling');
+}, 'Animated style is cleared after canceling a filling CSS animation');
+
+test(t => {
+  const div = addDiv(t, { style: 'animation: marginLeftAnim 100s linear' });
+  const animation = div.getAnimations()[0];
+  animation.cancel();
+
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is not animated after canceling');
+
+  animation.currentTime = 50 * 1000;
+  assert_equals(getComputedStyle(div).marginLeft, '50px',
+                'margin-left style is updated when canceled animation is'
+                + ' seeked');
+}, 'After canceling an animation, it can still be seeked');
+
+promise_test(async t => {
+  const div =
+    addDiv(t, { style: 'animation: marginLeftAnim100To200 100s linear' });
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  animation.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is not animated after canceling');
+  animation.play();
+  assert_equals(getComputedStyle(div).marginLeft, '100px',
+                'margin-left style is animated after re-starting animation');
+
+  await animation.ready;
+
+  assert_equals(animation.playState, 'running',
+                'Animation succeeds in running after being re-started');
+}, 'After canceling an animation, it can still be re-used');
+
+test(t => {
+  const div =
+    addDiv(t, { style: 'animation: marginLeftAnim100To200 100s linear' });
+  const animation = div.getAnimations()[0];
+  animation.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is not animated after canceling');
+
+  // Trigger a change to some animation properties and check that this
+  // doesn't cause the animation to become live again
+  div.style.animationDuration = '200s';
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is still not animated after updating'
+                + ' animation-duration');
+  assert_equals(animation.playState, 'idle',
+                'Animation is still idle after updating animation-duration');
+}, 'After canceling an animation, updating animation properties doesn\'t make'
+   + ' it live again');
+
+test(t => {
+  const div =
+    addDiv(t, { style: 'animation: marginLeftAnim100To200 100s linear' });
+  const animation = div.getAnimations()[0];
+  animation.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is not animated after canceling');
+
+  // Make some changes to animation-play-state and check that the
+  // animation doesn't become live again. This is because it should be
+  // possible to cancel an animation from script such that all future
+  // changes to style are ignored.
+
+  // Redundant change
+  div.style.animationPlayState = 'running';
+  assert_equals(animation.playState, 'idle',
+                'Animation is still idle after a redundant change to'
+                + ' animation-play-state');
+
+  // Pause
+  div.style.animationPlayState = 'paused';
+  assert_equals(animation.playState, 'idle',
+                'Animation is still idle after setting'
+                + ' animation-play-state: paused');
+
+  // Play
+  div.style.animationPlayState = 'running';
+  assert_equals(animation.playState, 'idle',
+                'Animation is still idle after re-setting'
+                + ' animation-play-state: running');
+
+}, 'After canceling an animation, updating animation-play-state doesn\'t'
+   + ' make it live again');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: translateAnim 10s both' });
+  div.style.marginLeft = '0px';
+
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  assert_equals(animation.playState, 'running');
+
+  div.style.animationName = 'none';
+  flushComputedStyle(div);
+
+  await waitForFrame();
+
+  assert_equals(animation.playState, 'idle');
+  assert_equals(getComputedStyle(div).marginLeft, '0px');
+}, 'Setting animation-name to \'none\' cancels the animation');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: translateAnim 10s both' });
+  const animation = div.getAnimations()[0];
+
+  await animation.ready;
+
+  assert_equals(animation.playState, 'running');
+
+  div.style.display = 'none';
+
+  await waitForFrame();
+
+  assert_equals(animation.playState, 'idle');
+  assert_equals(getComputedStyle(div).marginLeft, '0px');
+}, 'Setting display:none on an element cancel its animations');
+
+promise_test(async t => {
+  const parentDiv = addDiv(t);
+  const childDiv  = document.createElement('div');
+  parentDiv.appendChild(childDiv);
+
+  childDiv.setAttribute('style', 'animation: translateAnim 10s both');
+  flushComputedStyle(childDiv);
+
+  const animation = childDiv.getAnimations()[0];
+
+  await animation.ready;
+
+  assert_equals(animation.playState, 'running');
+
+  parentDiv.style.display = 'none';
+  await waitForFrame();
+
+  assert_equals(animation.playState, 'idle');
+  assert_equals(getComputedStyle(childDiv).marginLeft, '0px');
+}, 'Setting display:none on an ancestor element cancels animations on ' +
+   'descendants');
+
+</script>

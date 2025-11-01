@@ -48,6 +48,7 @@ public:
     double playback_rate() const { return m_playback_rate; }
     WebIDL::ExceptionOr<void> set_playback_rate(double value);
 
+    Bindings::AnimationPlayState play_state_for_bindings() const;
     Bindings::AnimationPlayState play_state() const;
 
     bool is_relevant() const;

@@ -1235,7 +1235,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
         // animation-name property and the animation uses a valid @keyframes rule
         auto animation = CSSAnimation::create(document.realm());
-        animation->set_id(animation_properties.name);
+        animation->set_animation_name(animation_properties.name);
         animation->set_timeline(document.timeline());
         animation->set_owning_element(element);
 
@@ -1314,13 +1314,9 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         };
 
         if (property_value->is_keyword()) {
-            auto keyword = property_value->as_keyword().keyword();
-            if (keyword == Keyword::None) {
-                properties.append({});
-                continue;
-            }
-            if (keyword == Keyword::All)
-                properties_for_this_transition = expanded_longhands_for_shorthand(PropertyID::All);
+            VERIFY(property_value->to_keyword() == Keyword::None);
+            properties.append({});
+            continue;
         } else {
             auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
             if (!maybe_property.has_value()) {
@@ -2572,17 +2568,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // 5. Add or modify CSS-defined animations
     process_animation_definitions(computed_style, abstract_element);
 
-    // FIXME: Support multiple entries for `animation` properties
-    // Animation declarations [css-animations-2]
-    auto animation_name = [&]() -> Optional<String> {
-        auto const& animation_name = computed_style->property(PropertyID::AnimationName);
-        if (animation_name.is_keyword() && animation_name.to_keyword() == Keyword::None)
-            return OptionalNone {};
-        if (animation_name.is_string())
-            return animation_name.as_string().string_value().to_string();
-        return animation_name.to_string(SerializationMode::Normal);
-    }();
-
     auto animations = abstract_element.element().get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
@@ -2782,6 +2767,9 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
+                    if (!is_animatable_property(it.property_id))
+                        continue;
+
                     // Unresolved properties will be resolved in collect_animation_into()
                     for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {
                         animated_properties.set(shorthand_id);

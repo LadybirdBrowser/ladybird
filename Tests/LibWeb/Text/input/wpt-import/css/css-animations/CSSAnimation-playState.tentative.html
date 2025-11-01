@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSAnimation.playState</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#cssanimation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes anim { }
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const div = addDiv(t, { 'style': 'animation: anim 100s' });
+  const animation = div.getAnimations()[0];
+  assert_true(animation.pending);
+  assert_equals(animation.playState, 'running');
+  assert_equals(animation.startTime, null);
+}, 'A new CSS animation is initially play-pending');
+
+test(t => {
+  const div = addDiv(t, { 'style': 'animation: anim 1000s paused' });
+  const animation = div.getAnimations()[0];
+  assert_equals(animation.playState, 'paused');
+}, 'Animation returns correct playState when paused');
+
+test(t => {
+  const div = addDiv(t, { 'style': 'animation: anim 1000s' });
+  const animation = div.getAnimations()[0];
+  animation.pause();
+  assert_equals(animation.playState, 'paused');
+}, 'Animation.playState updates when paused by script');
+
+test(t => {
+  const div = addDiv(t, { 'style': 'animation: anim 1000s paused' });
+  const animation = div.getAnimations()[0];
+  div.style.animationPlayState = 'running';
+
+  // This test also checks that calling playState flushes style
+  assert_equals(animation.playState, 'running',
+                'Animation.playState reports running after updating'
+                + ' animation-play-state (got: ' + animation.playState + ')');
+}, 'Animation.playState updates when resumed by setting style');
+
+test(t => {
+  const div = addDiv(t, { 'style': 'animation: anim 1000s' });
+  const animation = div.getAnimations()[0];
+  animation.cancel();
+  assert_equals(animation.playState, 'idle');
+}, 'Animation returns correct playState when canceled');
+
+</script>
