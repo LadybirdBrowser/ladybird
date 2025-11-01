@@ -196,6 +196,7 @@ public:
     JS::Value get_shader_parameter(GC::Root<WebGLShader> shader, WebIDL::UnsignedLong pname);
     GC::Root<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
+    Optional<String> get_shader_source(GC::Root<WebGLShader> shader);
     GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
     void hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode);
     bool is_buffer(GC::Root<WebGLBuffer> buffer);

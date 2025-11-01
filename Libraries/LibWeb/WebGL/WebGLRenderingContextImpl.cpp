@@ -1642,6 +1642,30 @@ Optional<String> WebGLRenderingContextImpl::get_shader_info_log(GC::Root<WebGLSh
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 }
 
+Optional<String> WebGLRenderingContextImpl::get_shader_source(GC::Root<WebGLShader> shader)
+{
+    m_context->make_current();
+
+    GLuint shader_handle = 0;
+    if (shader) {
+        auto handle_or_error = shader->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return {};
+        }
+        shader_handle = handle_or_error.release_value();
+    }
+
+    GLint shader_source_length = 0;
+    glGetShaderiv(shader_handle, GL_SHADER_SOURCE_LENGTH, &shader_source_length);
+    if (!shader_source_length)
+        return String {};
+
+    auto shader_source = MUST(ByteBuffer::create_uninitialized(shader_source_length));
+    glGetShaderSource(shader_handle, shader_source_length, nullptr, reinterpret_cast<GLchar*>(shader_source.data()));
+    return String::from_utf8_without_validation(ReadonlyBytes { shader_source.data(), static_cast<size_t>(shader_source_length - 1) });
+}
+
 GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> program, String name)
 {
     m_context->make_current();
