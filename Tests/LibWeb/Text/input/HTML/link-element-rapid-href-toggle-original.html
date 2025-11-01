@@ -1,0 +1,19 @@
+<!doctype html>
+<link id="l" rel="stylesheet" href="a.css">
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    const l = document.getElementById('l');
+
+    println('Starting rapid href changes...');
+
+    l.removeAttribute('href');
+    l.setAttribute('href', '  page.html  ');
+    l.setAttribute('href', 'ht!tp://example.com');
+
+    setTimeout(() => {
+        println('Test completed without crash');
+        done();
+    }, 100);
+});
+</script>

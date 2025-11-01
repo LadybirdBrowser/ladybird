@@ -1,0 +1,33 @@
+<!doctype html>
+<link id="l1" rel="stylesheet">
+<link id="l2" rel="stylesheet">
+<link id="l3" rel="stylesheet">
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    const l1 = document.getElementById('l1');
+    const l2 = document.getElementById('l2');
+    const l3 = document.getElementById('l3');
+
+    println('Starting multi-element rapid changes test...');
+
+    for (let i = 0; i < 5; i++) {
+        l1.setAttribute('href', `style1-${i}.css`);
+        l2.setAttribute('href', `style2-${i}.css`);
+        l3.setAttribute('href', `style3-${i}.css`);
+    }
+
+    l1.removeAttribute('href');
+    l2.setAttribute('href', 'ht!tp://bad');
+    l3.setAttribute('href', '');
+
+    l1.setAttribute('href', 'final1.css');
+    l2.setAttribute('href', 'final2.css');
+    l3.setAttribute('href', 'final3.css');
+
+    setTimeout(() => {
+        println('Survived multi-element stress test');
+        done();
+    }, 200);
+});
+</script>
