@@ -256,6 +256,11 @@ bool WebGL2RenderingContext::ext_texture_filter_anisotropic_extension_enabled() 
     return !!m_ext_texture_filter_anisotropic;
 }
 
+bool WebGL2RenderingContext::angle_instanced_arrays_extension_enabled() const
+{
+    return false;
+}
+
 ReadonlySpan<WebIDL::UnsignedLong> WebGL2RenderingContext::enabled_compressed_texture_formats() const
 {
     return m_enabled_compressed_texture_formats;

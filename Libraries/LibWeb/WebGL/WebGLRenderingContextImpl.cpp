@@ -1692,6 +1692,65 @@ GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(G
     return WebGLUniformLocation::create(m_realm, location);
 }
 
+JS::Value WebGLRenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
+{
+    switch (pname) {
+    case GL_CURRENT_VERTEX_ATTRIB: {
+        Array<GLfloat, 4> result;
+        result.fill(0);
+        glGetVertexAttribfvRobustANGLE(index, GL_CURRENT_VERTEX_ATTRIB, result.size(), nullptr, result.data());
+
+        auto byte_buffer = MUST(ByteBuffer::copy(result.span().reinterpret<u8>()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
+        return JS::Float32Array::create(m_realm, result.size(), array_buffer);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING: {
+        GLint handle { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, 1, nullptr, &handle);
+        return WebGLBuffer::create(m_realm, *this, handle);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE: {
+        if (angle_instanced_arrays_extension_enabled()) {
+            GLint result { 0 };
+            glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE, 1, nullptr, &result);
+            return JS::Value(result);
+        }
+
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_ENABLED: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_ENABLED, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_NORMALIZED: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_SIZE: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_SIZE, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_STRIDE: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_STRIDE, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_TYPE: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_TYPE, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    default:
+        dbgln("Unknown WebGL vertex attrib name: 0x{:04x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+}
+
 void WebGLRenderingContextImpl::hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode)
 {
     m_context->make_current();

@@ -198,6 +198,7 @@ public:
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
     Optional<String> get_shader_source(GC::Root<WebGLShader> shader);
     GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
+    JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
     void hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode);
     bool is_buffer(GC::Root<WebGLBuffer> buffer);
     bool is_enabled(WebIDL::UnsignedLong cap);

@@ -131,7 +131,7 @@ interface mixin WebGLRenderingContextBase {
 
     WebGLUniformLocation? getUniformLocation(WebGLProgram program, DOMString name);
 
-    [FIXME] any getVertexAttrib(GLuint index, GLenum pname);
+    any getVertexAttrib(GLuint index, GLenum pname);
 
     [FIXME] GLintptr getVertexAttribOffset(GLuint index, GLenum pname);
 
