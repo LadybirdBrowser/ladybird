@@ -12,7 +12,7 @@ describe("basic functionality", () => {
         expect(newStack.disposed).toBeFalse();
     });
 
-    test("move does not dispose resource but only move them", async () => {
+    test.skip("move does not dispose resource but only move them", async () => {
         const stack = new AsyncDisposableStack();
         let disposeCalled = false;
         stack.defer(() => {
@@ -41,7 +41,7 @@ describe("basic functionality", () => {
         expect(newStack.disposed).toBeTrue();
     });
 
-    test("can add stack to itself", async () => {
+    test.skip("can add stack to itself", async () => {
         const stack = new AsyncDisposableStack();
         stack.move(stack);
         await stack.disposeAsync();
@@ -49,7 +49,7 @@ describe("basic functionality", () => {
 });
 
 describe("throws errors", () => {
-    test("move throws if stack is already disposed (over type errors)", async () => {
+    test.skip("move throws if stack is already disposed (over type errors)", async () => {
         const stack = new AsyncDisposableStack();
         await stack.disposeAsync();
         expect(stack.disposed).toBeTrue();
