@@ -46,6 +46,9 @@ interface Navigator {
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;
+
+    // https://w3c.github.io/battery/
+    [SecureContext] Promise<BatteryManager> getBattery();
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
