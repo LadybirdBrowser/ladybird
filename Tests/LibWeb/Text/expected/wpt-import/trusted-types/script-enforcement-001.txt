@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 34 tests
+
+34 Pass
+Pass	The HTMLScriptElement is initially trusted.
+Pass	Script source set via TrustedScript sink HTMLScriptElement.innerText keeps trustworthiness.
+Pass	Script source set via HTMLElement.innerText drops trustworthiness.
+Pass	Script source set via TrustedScript sink HTMLScriptElement.textContent keeps trustworthiness.
+Pass	Script source set Node.textContent drops trustworthiness.
+Pass	Script source set via TrustedScript sink HTMLScriptElement.text keeps trustworthiness.
+Pass	Script source set via TrustedHTML sink Element.innerHTML drops trustworthiness.
+Pass	Script source set via TrustedHTML sink Element.setHTMLUnsafe() drops trustworthiness.
+Pass	Splitting script source via Text.splitText() keeps trustworthiness.
+Pass	Normalizing script source via Element.normalize() keeps trustworthiness.
+Pass	Script source set via Node.nodeValue drops trustworthiness.
+Pass	Setting script source via CharacterData.data drops trustworthiness.
+Pass	Setting script source via CharacterData.appendData() drops trustworthiness.
+Pass	Setting script source via CharacterData.insertData() drops trustworthiness.
+Pass	Setting script source via CharacterData.replaceData() drops trustworthiness.
+Pass	Setting script source via CharacterData.deleteData() drops trustworthiness.
+Pass	Setting script source via CharacterData.before() drops trustworthiness.
+Pass	Setting script source via CharacterData.after() drops trustworthiness.
+Pass	Setting script source via CharacterData.remove() drops trustworthiness.
+Pass	Setting script source via CharacterData.replaceWith() drops trustworthiness.
+Pass	Setting script source via Node.appendChild() drops trustworthiness.
+Pass	Setting script source via Node.insertBefore() drops trustworthiness.
+Pass	Setting script source via Node.replaceChild() drops trustworthiness.
+Pass	Setting script source via Node.removeChild() drops trustworthiness.
+Pass	Setting script source via Element.prepend() drops trustworthiness.
+Pass	Setting script source via Element.append() drops trustworthiness.
+Pass	Setting script source via Element.replaceChildren() drops trustworthiness.
+Pass	Setting script source via Element.moveBefore() drops trustworthiness.
+Pass	Setting script source via TrustedHTML sink Node.insertAdjacentHTML() drops trustworthiness.
+Pass	Setting script source via Node.insertAdjacentText() drops trustworthiness.
+Pass	Setting script source via Range.insertNode() drops trustworthiness.
+Pass	Setting script source via Range.deleteContents() drops trustworthiness.
+Pass	Cloning a script via Node.cloneNode() drops trustworthiness.
+Pass	Cloning a script via Range.cloneContents() drops trustworthiness.

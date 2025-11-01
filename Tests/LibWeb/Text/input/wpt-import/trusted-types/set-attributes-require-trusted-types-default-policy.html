@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js" ></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./support/namespaces.js"></script>
+<script src="./support/attributes.js"></script>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<script>
+  // Create a default policy that check its arguments and transform its input.
+  const input_string = "unsafe_input";
+  const output_string = "safe_output";
+  let seenSinkName;
+  function resetSeenSinkName() {
+    seenSinkName = undefined;
+  }
+  function createTrustedType(type) {
+    return function(input, trustedTypeName, sinkName) {
+      assert_equals(input, input_string);
+      assert_equals(trustedTypeName, type);
+      assert_equals(seenSinkName, undefined);
+      seenSinkName = sinkName;
+      return output_string;
+    }
+  }
+  trustedTypes.createPolicy("default", {
+    createHTML: createTrustedType("TrustedHTML"),
+    createScript: createTrustedType("TrustedScript"),
+    createScriptURL: createTrustedType("TrustedScriptURL")
+  });
+
+  // Set an attribute for each testcase of trustedTypeDataForAttribute. The CSP
+  // rule will force the default policy for those corresponding to trusted
+  // type sinks.
+  attributeSetterData.forEach(setterData => {
+    trustedTypeDataForAttribute.forEach(testData => {
+      if (testData.attrNS && !setterData.acceptNS) return;
+      test(t => {
+        t.add_cleanup(resetSeenSinkName);
+        let element = testData.element();
+        setterData.runSetter(element, testData.attrNS, testData.attrName,
+                             input_string, testData.type);
+        let value = element.getAttributeNS(testData.attrNS, testData.attrName);
+        if (testData.type != null) {
+          // This is a trusted type sink and default policy applies.
+          assert_equals(seenSinkName, testData.sink);
+          assert_equals(value, output_string);
+        } else {
+          // Otherwise, this works normally.
+          assert_equals(seenSinkName, undefined);
+          assert_equals(value, input_string);
+        }
+    }, `${setterData.api} \
+${testData.type ? 'applies' : 'does not apply'} default policy for \
+elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''}\
+attrName=${testData.attrName}`);
+    });
+  });
+
+  // For attributes that are trusted type sinks, try setting them to a value
+  // that has the expected trusted type.
+  attributeSetterData.forEach(setterData => {
+    trustedTypeDataForAttribute.forEach(testData => {
+      if (testData.attrNS && !setterData.acceptNS) return;
+      if (!testData.type) return;
+      test(t => {
+        t.add_cleanup(resetSeenSinkName);
+        let element = testData.element();
+        let trustedInput = createTrustedOutput(testData.type, input_string);
+        setterData.runSetter(element, testData.attrNS, testData.attrName,
+                             trustedInput, testData.type);
+        let value = element.getAttributeNS(testData.attrNS, testData.attrName);
+        if (setterData.acceptTrustedTypeArgumentInIDL) {
+          // Passing a trusted type should work normally.
+          assert_equals(seenSinkName, undefined);
+          assert_equals(value, input_string);
+        } else {
+          // TrustedType arguments will be converted to a string when passed
+          // to this setter, so the default policy applies.
+          assert_equals(seenSinkName, testData.sink);
+          assert_equals(value, output_string);
+        }
+      }, `${setterData.api} \
+${!setterData.acceptTrustedTypeArgumentInIDL ? 'applies' : 'does not apply'} \
+default policy for elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''} \
+attrName=${testData.attrName} and a ${testData.type} input.`);
+    });
+  });
+</script>
