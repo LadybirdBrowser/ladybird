@@ -11,7 +11,8 @@
 
 static WebView::SearchEngine s_test_engine {
     .name = "Test"_string,
-    .query_url = "https://ecosia.org/search?q=%s"_string
+    .query_url = "https://ecosia.org/search?q=%s"_string,
+    .bang = "ec"_string,
 };
 
 static void compare_url_parts(StringView url, WebView::URLParts const& expected)
