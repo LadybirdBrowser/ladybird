@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+14 Pass
+3 Fail
+Pass	img src and srcset omitted
+Pass	img src and srcset omitted on newly-created image
+Pass	img src and srcset omitted on newly-created-and-inserted image
+Pass	img src and srcset omitted on newly-created-via-innerHTML image
+Pass	img src empty and srcset omitted
+Pass	img src empty and srcset omitted on newly-created image
+Pass	img src empty and srcset omitted on newly-created-and-inserted image
+Pass	img src empty and srcset omitted on newly-created-via-innerHTML image
+Pass	img src and srcset omitted on image after it started a load
+Pass	async src complete test
+Fail	async srcset complete test
+Pass	IDL attribute complete cannot "randomly" change during a task
+Pass	async src broken test
+Pass	async src removal test
+Fail	async srcset removal test
+Pass	async src available image lookup test
+Fail	async pending request test
