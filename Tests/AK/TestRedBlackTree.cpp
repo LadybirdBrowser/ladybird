@@ -57,7 +57,7 @@ TEST_CASE(key_ordered_iteration)
         keys[i] = i;
     }
     for (size_t i = 0; i < amount; i++) {
-        swap(keys[i], keys[get_random<size_t>() % amount]);
+        swap(keys[i], keys[crypto_random<size_t>() % amount]);
     }
 
     // insert random keys

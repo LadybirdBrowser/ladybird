@@ -741,7 +741,7 @@ ErrorOr<Result<FileStat>> Implementation::impl$fd_filestat_get(Configuration&, F
 ErrorOr<Result<void>> Implementation::impl$random_get(Configuration& configuration, Pointer<u8> buf, Size buf_len)
 {
     auto buffer_slice = TRY(slice_typed_memory(configuration, buf, buf_len));
-    fill_with_random(buffer_slice);
+    crypto_randombytes_buf(buffer_slice);
 
     return Result<void> {};
 }

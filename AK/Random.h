@@ -18,25 +18,25 @@
 
 namespace AK {
 
-void fill_with_random([[maybe_unused]] Bytes bytes);
+void crypto_randombytes_buf([[maybe_unused]] Bytes bytes);
 
 template<typename T>
-inline T get_random()
+inline T crypto_random()
 {
     T t;
-    fill_with_random({ &t, sizeof(T) });
+    crypto_randombytes_buf({ &t, sizeof(T) });
     return t;
 }
 
-u32 get_random_uniform(u32 max_bounds);
-u64 get_random_uniform_64(u64 max_bounds);
+u32 crypto_random_uniform(u32 max_bounds);
+u64 crypto_random_uniform_64(u64 max_bounds);
 
 template<typename Collection>
 inline void shuffle(Collection& collection)
 {
     // Fisher-Yates shuffle
     for (size_t i = collection.size() - 1; i >= 1; --i) {
-        size_t j = get_random_uniform(i + 1);
+        size_t j = crypto_random_uniform(i + 1);
         AK::swap(collection[i], collection[j]);
     }
 }
@@ -44,8 +44,8 @@ inline void shuffle(Collection& collection)
 }
 
 #if USING_AK_GLOBALLY
-using AK::fill_with_random;
-using AK::get_random;
-using AK::get_random_uniform;
+using AK::crypto_random;
+using AK::crypto_random_uniform;
+using AK::crypto_randombytes_buf;
 using AK::shuffle;
 #endif

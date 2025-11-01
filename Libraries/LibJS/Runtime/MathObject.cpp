@@ -10,7 +10,6 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/Function.h>
 #include <AK/Random.h>
-#include <LibCrypto/SecureRandom.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -812,9 +811,9 @@ public:
     XorShift128PlusRNG()
     {
         // Splitmix64 is used as xorshift is sensitive to being seeded with all 0s
-        u64 seed = Crypto::get_secure_random<u64>();
+        u64 seed = AK::crypto_random<u64>();
         m_low = splitmix64(seed);
-        seed = Crypto::get_secure_random<u64>();
+        seed = AK::crypto_random<u64>();
         m_high = splitmix64(seed);
     }
 

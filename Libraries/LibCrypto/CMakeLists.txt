@@ -21,7 +21,6 @@ set(SOURCES
     Hash/SHA2.cpp
     PK/RSA.cpp
     PK/EC.cpp
-    SecureRandom.cpp
 )
 
 ladybird_lib(LibCrypto crypto)

@@ -85,7 +85,7 @@ TEST_CASE(gzip_decompress_repeat_around_buffer)
 TEST_CASE(gzip_round_trip)
 {
     auto original = ByteBuffer::create_uninitialized(1024).release_value();
-    fill_with_random(original);
+    crypto_randombytes_buf(original);
     auto compressed = TRY_OR_FAIL(Compress::GzipCompressor::compress_all(original));
     auto uncompressed = TRY_OR_FAIL(Compress::GzipDecompressor::decompress_all(compressed));
     EXPECT(uncompressed == original);

@@ -260,7 +260,7 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
     };
 
     // The boundary used by the user agent in generating the return value of this algorithm is the multipart/form-data boundary string.
-    auto boundary = TRY(String::formatted("---------------------------{}", get_random<u64>()));
+    auto boundary = TRY(String::formatted("---------------------------{}", crypto_random<u64>()));
     StringBuilder builder;
     // 1. For each entry of entry list:
     for (auto const& entry : entry_list) {

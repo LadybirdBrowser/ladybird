@@ -495,7 +495,7 @@ public:
         } else {
             m_pending_lookups.with_read_locked([&](auto& lookups) {
                 do
-                    fill_with_random({ &query.header.id, sizeof(query.header.id) });
+                    crypto_randombytes_buf({ &query.header.id, sizeof(query.header.id) });
                 while (lookups->find(query.header.id) != nullptr);
             });
         }

@@ -120,7 +120,7 @@ TEST_CASE(deflate_decompress_zeroes)
 TEST_CASE(deflate_round_trip_store)
 {
     auto original = ByteBuffer::create_uninitialized(1024).release_value();
-    fill_with_random(original);
+    crypto_randombytes_buf(original);
     auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original));
     auto uncompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
     EXPECT(uncompressed == original);
@@ -129,7 +129,7 @@ TEST_CASE(deflate_round_trip_store)
 TEST_CASE(deflate_round_trip_compress)
 {
     auto original = ByteBuffer::create_zeroed(2048).release_value();
-    fill_with_random(original.bytes().trim(1024)); // we pre-filled the second half with 0s to make sure we test back references as well
+    crypto_randombytes_buf(original.bytes().trim(1024)); // we pre-filled the second half with 0s to make sure we test back references as well
     // Since the different levels just change how much time is spent looking for better matches, just use fast here to reduce test time
     auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original));
     auto uncompressed = TRY_OR_FAIL(Compress::DeflateDecompressor::decompress_all(compressed));
@@ -140,7 +140,7 @@ TEST_CASE(deflate_round_trip_compress_large)
 {
     // Compress a buffer larger than the maximum block size to test the sliding window mechanism
     auto original = TRY_OR_FAIL(ByteBuffer::create_uninitialized((32 * KiB - 1) * 2));
-    fill_with_random(original);
+    crypto_randombytes_buf(original);
 
     // Since the different levels just change how much time is spent looking for better matches, just use fast here to reduce test time
     auto compressed = TRY_OR_FAIL(Compress::DeflateCompressor::compress_all(original));

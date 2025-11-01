@@ -30,7 +30,7 @@ public:
         VERIFY(m_allocated_ids.size() < (INT32_MAX - 2));
         int id = 0;
         for (;;) {
-            id = static_cast<int>(get_random_uniform(NumericLimits<int>::max()));
+            id = static_cast<int>(crypto_random_uniform(NumericLimits<int>::max()));
             if (id < m_minimum_value)
                 continue;
             if (m_allocated_ids.set(id) == AK::HashSetResult::InsertedNewEntry)

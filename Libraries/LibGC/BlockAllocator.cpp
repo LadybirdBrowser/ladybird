@@ -52,7 +52,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
 {
     if (!m_blocks.is_empty()) {
         // To reduce predictability, take a random block from the cache.
-        size_t random_index = get_random_uniform(m_blocks.size());
+        size_t random_index = crypto_random_uniform(m_blocks.size());
         auto* block = m_blocks.unstable_take(random_index);
         ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::block_size);
         LSAN_REGISTER_ROOT_REGION(block, HeapBlock::block_size);

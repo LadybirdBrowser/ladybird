@@ -296,7 +296,7 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
-    auto connect_only_request_id = get_random<i32>();
+    auto connect_only_request_id = crypto_random<i32>();
 
     auto request = Request::connect(connect_only_request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
     m_active_requests.set(connect_only_request_id, move(request));

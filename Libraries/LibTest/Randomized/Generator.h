@@ -24,7 +24,7 @@ namespace Randomized {
 // Based on: https://dotat.at/@/2023-06-23-random-double.html
 inline f64 get_random_probability()
 {
-    return static_cast<f64>(AK::get_random<u64>() >> 11) * 0x1.0p-53;
+    return static_cast<f64>(AK::crypto_random<u64>() >> 11) * 0x1.0p-53;
 }
 
 // Generators take random bits from the RandomnessSource and return a value
@@ -52,7 +52,7 @@ inline u64 number_u64(u64 max)
     u64 random = Test::randomness_source().draw_value(max, [&]() {
         // `clamp` to guard against integer overflow
         u64 exclusive_bound = AK::clamp(max + 1, max, NumericLimits<u64>::max());
-        return AK::get_random_uniform_64(exclusive_bound);
+        return AK::crypto_random_uniform_64(exclusive_bound);
     });
     return random;
 }
@@ -400,7 +400,7 @@ inline u32 number_u32(u32 max)
     u32 random = Test::randomness_source().draw_value(max, [&]() {
         // `clamp` to guard against integer overflow
         u32 exclusive_bound = AK::clamp(max + 1, max, NumericLimits<u32>::max());
-        return AK::get_random_uniform(exclusive_bound);
+        return AK::crypto_random_uniform(exclusive_bound);
     });
     return random;
 }
