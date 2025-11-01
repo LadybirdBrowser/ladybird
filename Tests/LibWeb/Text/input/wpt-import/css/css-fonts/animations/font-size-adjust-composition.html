@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size-adjust composition</title>
+<link rel="author" title="ChangSeok Oh" href="mailto:changseok@webkit.org">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop">
+<meta name="assert" content="font-size-adjust supports animation with two value font metrics">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body></body>
+
+<script>
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "none",
+  addTo: "2.0",
+}, [
+  {at: -0.5, expect: "none"},
+  {at: 0, expect: "none"},
+  {at: 0.5, expect: "2.5"},
+  {at: 1, expect: "2.5"},
+  {at: 1.5, expect: "2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "0.0",
+  addTo: "2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.5"},
+  {at: 0.5, expect: "1.5"},
+  {at: 1, expect: "2.5"},
+  {at: 1.5, expect: "3.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "0.0",
+  addTo: "2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.0"},
+  {at: 0.5, expect: "1.25"},
+  {at: 1, expect: "2.5"},
+  {at: 1.5, expect: "3.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "0.0",
+  replaceTo: "2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.5"},
+  {at: 0.5, expect: "1.25"},
+  {at: 1, expect: "2.0"},
+  {at: 1.5, expect: "2.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "2.0",
+  addTo: "none",
+}, [
+  {at: -0.5, expect: "2.0"},
+  {at: 0, expect: "2.0"},
+  {at: 0.5, expect: "none"},
+  {at: 1, expect: "none"},
+  {at: 1.5, expect: "none"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ex-height 0.5",
+  replaceFrom: "none",
+  addTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "none"},
+  {at: 0, expect: "none"},
+  {at: 0.5, expect: "2.5"},
+  {at: 1, expect: "2.5"},
+  {at: 1.5, expect: "2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ex-height 0.5",
+  addFrom: "ex-height 0",
+  addTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.5"},
+  {at: 0.5, expect: "1.5"},
+  {at: 1, expect: "2.5"},
+  {at: 1.5, expect: "3.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ex-height 0.5",
+  replaceFrom: "ex-height 0",
+  addTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.0"},
+  {at: 0.5, expect: "1.25"},
+  {at: 1, expect: "2.5"},
+  {at: 1.5, expect: "3.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ex-height 0.5",
+  addFrom: "ex-height 0",
+  replaceTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.5"},
+  {at: 0.5, expect: "1.25"},
+  {at: 1, expect: "2.0"},
+  {at: 1.5, expect: "2.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ex-height 0.5",
+  replaceFrom: "ex-height 2.0",
+  addTo: "none",
+}, [
+  {at: -0.5, expect: "2.0"},
+  {at: 0, expect: "2.0"},
+  {at: 0.5, expect: "none"},
+  {at: 1, expect: "none"},
+  {at: 1.5, expect: "none"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "cap-height 0.5",
+  replaceFrom: "none",
+  addTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "none"},
+  {at: 0, expect: "none"},
+  {at: 0.5, expect: "cap-height 2.5"},
+  {at: 1, expect: "cap-height 2.5"},
+  {at: 1.5, expect: "cap-height 2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "cap-height 0.5",
+  addFrom: "cap-height 0",
+  addTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0.0"},
+  {at: 0, expect: "cap-height 0.5"},
+  {at: 0.5, expect: "cap-height 1.5"},
+  {at: 1, expect: "cap-height 2.5"},
+  {at: 1.5, expect: "cap-height 3.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "cap-height 0.5",
+  replaceFrom: "cap-height 0",
+  addTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0.0"},
+  {at: 0, expect: "cap-height 0.0"},
+  {at: 0.5, expect: "cap-height 1.25"},
+  {at: 1, expect: "cap-height 2.5"},
+  {at: 1.5, expect: "cap-height 3.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "cap-height 0.5",
+  addFrom: "cap-height 0.0",
+  replaceTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0.0"},
+  {at: 0, expect: "cap-height 0.5"},
+  {at: 0.5, expect: "cap-height 1.25"},
+  {at: 1, expect: "cap-height 2"},
+  {at: 1.5, expect: "cap-height 2.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "cap-height 0.5",
+  replaceFrom: "cap-height 2.0",
+  addTo: "none",
+}, [
+  {at: -0.5, expect: "cap-height 2.0"},
+  {at: 0, expect: "cap-height 2.0"},
+  {at: 0.5, expect: "none"},
+  {at: 1, expect: "none"},
+  {at: 1.5, expect: "none"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ch-width 0.5",
+  replaceFrom: "none",
+  addTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "none"},
+  {at: 0, expect: "none"},
+  {at: 0.5, expect: "ch-width 2.5"},
+  {at: 1, expect: "ch-width 2.5"},
+  {at: 1.5, expect: "ch-width 2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ch-width 0.5",
+  addFrom: "ch-width 0",
+  addTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0.0"},
+  {at: 0, expect: "ch-width 0.5"},
+  {at: 0.5, expect: "ch-width 1.5"},
+  {at: 1, expect: "ch-width 2.5"},
+  {at: 1.5, expect: "ch-width 3.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ch-width 0.5",
+  replaceFrom: "ch-width 0",
+  addTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0.0"},
+  {at: 0, expect: "ch-width 0.0"},
+  {at: 0.5, expect: "ch-width 1.25"},
+  {at: 1, expect: "ch-width 2.5"},
+  {at: 1.5, expect: "ch-width 3.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ch-width 0.5",
+  addFrom: "ch-width 0",
+  replaceTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0.0"},
+  {at: 0, expect: "ch-width 0.5"},
+  {at: 0.5, expect: "ch-width 1.25"},
+  {at: 1, expect: "ch-width 2"},
+  {at: 1.5, expect: "ch-width 2.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ch-width 0.5",
+  replaceFrom: "ch-width 2.0",
+  addTo: "none",
+}, [
+  {at: -0.5, expect: "ch-width 2.0"},
+  {at: 0, expect: "ch-width 2.0"},
+  {at: 0.5, expect: "none"},
+  {at: 1, expect: "none"},
+  {at: 1.5, expect: "none"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-width 0.5",
+  replaceFrom: "none",
+  addTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "none"},
+  {at: 0, expect: "none"},
+  {at: 0.5, expect: "ic-width 2.5"},
+  {at: 1, expect: "ic-width 2.5"},
+  {at: 1.5, expect: "ic-width 2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-width 0.5",
+  addFrom: "ic-width 0",
+  addTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0.0"},
+  {at: 0, expect: "ic-width 0.5"},
+  {at: 0.5, expect: "ic-width 1.5"},
+  {at: 1, expect: "ic-width 2.5"},
+  {at: 1.5, expect: "ic-width 3.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-width 0.5",
+  replaceFrom: "ic-width 0",
+  addTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0.0"},
+  {at: 0, expect: "ic-width 0.0"},
+  {at: 0.5, expect: "ic-width 1.25"},
+  {at: 1, expect: "ic-width 2.5"},
+  {at: 1.5, expect: "ic-width 3.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-width 0.5",
+  addFrom: "ic-width 0",
+  replaceTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0.0"},
+  {at: 0, expect: "ic-width 0.5"},
+  {at: 0.5, expect: "ic-width 1.25"},
+  {at: 1, expect: "ic-width 2"},
+  {at: 1.5, expect: "ic-width 2.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-width 0.5",
+  replaceFrom: "ic-width 2.0",
+  addTo: "none",
+}, [
+  {at: -0.5, expect: "ic-width 2.0"},
+  {at: 0, expect: "ic-width 2.0"},
+  {at: 0.5, expect: "none"},
+  {at: 1, expect: "none"},
+  {at: 1.5, expect: "none"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-height 0.5",
+  replaceFrom: "none",
+  addTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "none"},
+  {at: 0, expect: "none"},
+  {at: 0.5, expect: "ic-height 2.5"},
+  {at: 1, expect: "ic-height 2.5"},
+  {at: 1.5, expect: "ic-height 2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-height 0.5",
+  addFrom: "ic-height 0",
+  addTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0.0"},
+  {at: 0, expect: "ic-height 0.5"},
+  {at: 0.5, expect: "ic-height 1.5"},
+  {at: 1, expect: "ic-height 2.5"},
+  {at: 1.5, expect: "ic-height 3.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-height 0.5",
+  replaceFrom: "ic-height 0",
+  addTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0.0"},
+  {at: 0, expect: "ic-height 0.0"},
+  {at: 0.5, expect: "ic-height 1.25"},
+  {at: 1, expect: "ic-height 2.5"},
+  {at: 1.5, expect: "ic-height 3.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-height 0.5",
+  addFrom: "ic-height 0",
+  replaceTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0.0"},
+  {at: 0, expect: "ic-height 0.5"},
+  {at: 0.5, expect: "ic-height 1.25"},
+  {at: 1, expect: "ic-height 2"},
+  {at: 1.5, expect: "ic-height 2.75"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "ic-height 0.5",
+  replaceFrom: "ic-height 2.0",
+  addTo: "none",
+}, [
+  {at: -0.5, expect: "ic-height 2.0"},
+  {at: 0, expect: "ic-height 2.0"},
+  {at: 0.5, expect: "none"},
+  {at: 1, expect: "none"},
+  {at: 1.5, expect: "none"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ex-height 0.0",
+  addTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "0.5"},
+  {at: 0, expect: "0.5"},
+  {at: 0.5, expect: "cap-height 2.0"},
+  {at: 1, expect: "cap-height 2.0"},
+  {at: 1.5, expect: "cap-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ex-height 0.0",
+  replaceTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.0"},
+  {at: 0.5, expect: "cap-height 2.0"},
+  {at: 1, expect: "cap-height 2.0"},
+  {at: 1.5, expect: "cap-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ex-height 0",
+  addTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "0.0"},
+  {at: 0, expect: "0.0"},
+  {at: 0.5, expect: "cap-height 2.0"},
+  {at: 1, expect: "cap-height 2.0"},
+  {at: 1.5, expect: "cap-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ex-height 0",
+  replaceTo: "cap-height 2.0",
+}, [
+  {at: -0.5, expect: "0.5"},
+  {at: 0, expect: "0.5"},
+  {at: 0.5, expect: "cap-height 2.0"},
+  {at: 1, expect: "cap-height 2.0"},
+  {at: 1.5, expect: "cap-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "cap-height 0.0",
+  addTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0.0"},
+  {at: 0, expect: "cap-height 0.0"},
+  {at: 0.5, expect: "ch-width 2.0"},
+  {at: 1, expect: "ch-width 2.0"},
+  {at: 1.5, expect: "ch-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "cap-height 0.0",
+  replaceTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0.0"},
+  {at: 0, expect: "cap-height 0.0"},
+  {at: 0.5, expect: "ch-width 2.0"},
+  {at: 1, expect: "ch-width 2.0"},
+  {at: 1.5, expect: "ch-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "cap-height 0",
+  addTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0.0"},
+  {at: 0, expect: "cap-height 0.0"},
+  {at: 0.5, expect: "ch-width 2.0"},
+  {at: 1, expect: "ch-width 2.0"},
+  {at: 1.5, expect: "ch-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "cap-height 0",
+  replaceTo: "ch-width 2.0",
+}, [
+  {at: -0.5, expect: "cap-height 0"},
+  {at: 0, expect: "cap-height 0"},
+  {at: 0.5, expect: "ch-width 2.0"},
+  {at: 1, expect: "ch-width 2.0"},
+  {at: 1.5, expect: "ch-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ch-width 0.0",
+  addTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0.0"},
+  {at: 0, expect: "ch-width 0.0"},
+  {at: 0.5, expect: "ic-width 2.0"},
+  {at: 1, expect: "ic-width 2.0"},
+  {at: 1.5, expect: "ic-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ch-width 0.0",
+  replaceTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0.0"},
+  {at: 0, expect: "ch-width 0.0"},
+  {at: 0.5, expect: "ic-width 2.0"},
+  {at: 1, expect: "ic-width 2.0"},
+  {at: 1.5, expect: "ic-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ch-width 0",
+  addTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0.0"},
+  {at: 0, expect: "ch-width 0.0"},
+  {at: 0.5, expect: "ic-width 2.0"},
+  {at: 1, expect: "ic-width 2.0"},
+  {at: 1.5, expect: "ic-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ch-width 0",
+  replaceTo: "ic-width 2.0",
+}, [
+  {at: -0.5, expect: "ch-width 0"},
+  {at: 0, expect: "ch-width 0"},
+  {at: 0.5, expect: "ic-width 2.0"},
+  {at: 1, expect: "ic-width 2.0"},
+  {at: 1.5, expect: "ic-width 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ic-width 0.0",
+  addTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0.0"},
+  {at: 0, expect: "ic-width 0.0"},
+  {at: 0.5, expect: "ic-height 2.0"},
+  {at: 1, expect: "ic-height 2.0"},
+  {at: 1.5, expect: "ic-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ic-width 0.0",
+  replaceTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0.0"},
+  {at: 0, expect: "ic-width 0.0"},
+  {at: 0.5, expect: "ic-height 2.0"},
+  {at: 1, expect: "ic-height 2.0"},
+  {at: 1.5, expect: "ic-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ic-width 0",
+  addTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0.0"},
+  {at: 0, expect: "ic-width 0.0"},
+  {at: 0.5, expect: "ic-height 2.0"},
+  {at: 1, expect: "ic-height 2.0"},
+  {at: 1.5, expect: "ic-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ic-width 0",
+  replaceTo: "ic-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-width 0"},
+  {at: 0, expect: "ic-width 0"},
+  {at: 0.5, expect: "ic-height 2.0"},
+  {at: 1, expect: "ic-height 2.0"},
+  {at: 1.5, expect: "ic-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ic-height 0.0",
+  addTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0.0"},
+  {at: 0, expect: "ic-height 0.0"},
+  {at: 0.5, expect: "ex-height 2.5"},
+  {at: 1, expect: "ex-height 2.5"},
+  {at: 1.5, expect: "ex-height 2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ic-height 0.0",
+  replaceTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0.0"},
+  {at: 0, expect: "ic-height 0.0"},
+  {at: 0.5, expect: "ex-height 2.0"},
+  {at: 1, expect: "ex-height 2.0"},
+  {at: 1.5, expect: "ex-height 2.0"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  replaceFrom: "ic-height 0",
+  addTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0.0"},
+  {at: 0, expect: "ic-height 0.0"},
+  {at: 0.5, expect: "ex-height 2.5"},
+  {at: 1, expect: "ex-height 2.5"},
+  {at: 1.5, expect: "ex-height 2.5"},
+]);
+
+test_composition({
+  property: 'font-size-adjust',
+  underlying: "0.5",
+  addFrom: "ic-height 0",
+  replaceTo: "ex-height 2.0",
+}, [
+  {at: -0.5, expect: "ic-height 0"},
+  {at: 0, expect: "ic-height 0"},
+  {at: 0.5, expect: "ex-height 2.0"},
+  {at: 1, expect: "ex-height 2.0"},
+  {at: 1.5, expect: "ex-height 2.0"},
+]);
+</script>
+</body>
