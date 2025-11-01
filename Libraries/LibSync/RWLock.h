@@ -9,48 +9,72 @@
 #include <AK/Assertions.h>
 #include <AK/Noncopyable.h>
 #include <AK/Types.h>
-#include <pthread.h>
+#include <LibSync/Export.h>
+#include <LibSync/Policy.h>
 
 namespace Sync {
 
-class RWLock {
-    AK_MAKE_NONCOPYABLE(RWLock);
-    AK_MAKE_NONMOVABLE(RWLock);
+namespace Detail {
+
+struct RWLockImpl;
+
+}
+
+class SYNC_API PlatformRWLock {
+    AK_MAKE_NONCOPYABLE(PlatformRWLock);
+    AK_MAKE_NONMOVABLE(PlatformRWLock);
 
 public:
-    RWLock()
-    {
-        pthread_rwlock_init(&m_rwlock, nullptr);
-    }
+    bool try_lock_read();
+    bool try_lock_write();
 
-    ~RWLock()
-    {
-        VERIFY(!m_write_locked);
-        pthread_rwlock_destroy(&m_rwlock);
-    }
-
+    // Recursively acquiring a RWLock is not supported
     void lock_read();
     void lock_write();
 
     void unlock();
 
+protected:
+    PlatformRWLock();
+    virtual ~PlatformRWLock();
+
+    Detail::RWLockImpl& impl() { return *reinterpret_cast<Detail::RWLockImpl*>(m_storage); }
+    Detail::RWLockImpl const& impl() const { return *reinterpret_cast<Detail::RWLockImpl const*>(m_storage); }
+
 private:
-    pthread_rwlock_t m_rwlock;
-    bool m_write_locked { false };
-    bool m_read_locked_with_write_lock { false };
+#ifdef AK_OS_WINDOWS
+    static constexpr u64 PTHREAD_RWLOCK_SIZE = 8;
+#elifdef AK_OS_MACOS
+    static constexpr u64 PTHREAD_RWLOCK_SIZE = 200;
+#else
+    static constexpr u64 PTHREAD_RWLOCK_SIZE = 56;
+#endif
+    alignas(void*) char m_storage[PTHREAD_RWLOCK_SIZE];
 };
 
-enum class LockMode {
+template<typename InterprocessPolicy>
+class SYNC_API RWLockBase : public PlatformRWLock {
+public:
+    RWLockBase();
+
+    virtual ~RWLockBase() = default;
+};
+
+using RWLock = RWLockBase<PolicyIntraprocess>;
+using InterprocessRWLock = RWLockBase<PolicyInterprocess>;
+
+enum class LockMode : u8 {
     Read,
     Write,
 };
+
 template<LockMode mode>
-class RWLockLocker {
+class SYNC_API RWLockLocker {
     AK_MAKE_NONCOPYABLE(RWLockLocker);
     AK_MAKE_NONMOVABLE(RWLockLocker);
 
 public:
-    ALWAYS_INLINE explicit RWLockLocker(RWLock& l)
+    ALWAYS_INLINE explicit RWLockLocker(PlatformRWLock& l)
         : m_lock(l)
     {
         lock();
@@ -75,34 +99,7 @@ public:
     }
 
 private:
-    RWLock& m_lock;
+    PlatformRWLock& m_lock;
 };
-
-ALWAYS_INLINE void RWLock::lock_read()
-{
-    auto rc = pthread_rwlock_rdlock(&m_rwlock);
-    if (rc == EDEADLK) {
-        // We're already holding the write lock, so we can just return.
-        m_read_locked_with_write_lock = true;
-    } else {
-        VERIFY(rc == 0);
-    }
-}
-
-ALWAYS_INLINE void RWLock::lock_write()
-{
-    auto rc = pthread_rwlock_wrlock(&m_rwlock);
-    VERIFY(rc == 0);
-    m_write_locked = true;
-}
-
-ALWAYS_INLINE void RWLock::unlock()
-{
-    m_write_locked = false;
-    auto needs_unlock = !m_read_locked_with_write_lock;
-    m_read_locked_with_write_lock = false;
-    if (needs_unlock)
-        pthread_rwlock_unlock(&m_rwlock);
-}
 
 }
