@@ -2929,6 +2929,12 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_PAUSED, 1, nullptr, &result);
         return JS::Value(result == GL_TRUE);
     }
+    case COMPRESSED_TEXTURE_FORMATS: {
+        auto formats = enabled_compressed_texture_formats();
+        auto byte_buffer = MUST(ByteBuffer::copy(formats.data(), formats.reinterpret<u8 const>().size()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
+        return JS::Uint32Array::create(m_realm, formats.size(), array_buffer);
+    }
     case UNPACK_FLIP_Y_WEBGL:
         return JS::Value(m_unpack_flip_y);
     case MAX_CLIENT_WAIT_TIMEOUT_WEBGL: {

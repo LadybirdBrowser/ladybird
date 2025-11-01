@@ -1501,6 +1501,12 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         set_error(GL_INVALID_ENUM);
         return JS::js_null();
     }
+    case COMPRESSED_TEXTURE_FORMATS: {
+        auto formats = enabled_compressed_texture_formats();
+        auto byte_buffer = MUST(ByteBuffer::copy(formats.data(), formats.reinterpret<u8 const>().size()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
+        return JS::Uint32Array::create(m_realm, formats.size(), array_buffer);
+    }
     case UNPACK_FLIP_Y_WEBGL:
         return JS::Value(m_unpack_flip_y);
     default:
