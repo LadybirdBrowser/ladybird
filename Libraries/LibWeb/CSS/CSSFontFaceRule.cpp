@@ -60,23 +60,23 @@ String CSSFontFaceRule::serialized() const
     // 1. The string "@font-face {", followed by a single SPACE (U+0020).
     builder.append("@font-face { "sv);
 
-    // 2. The string "font-family:", followed by a single SPACE (U+0020).
-    builder.append("font-family: "sv);
-
-    // 3. The result of performing serialize a string on the rule’s font family name.
-    builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(SerializationMode::Normal));
-
-    // 4. The string ";", i.e., SEMICOLON (U+003B).
-    builder.append(';');
+    if (auto font_family = descriptors.descriptor(DescriptorID::FontFamily)) {
+        // 2. The string "font-family:", followed by a single SPACE (U+0020).
+        builder.append("font-family: "sv);
+        // 3. The result of performing serialize a string on the rule’s font family name.
+        builder.append(descriptors.descriptor(DescriptorID::FontFamily)->to_string(SerializationMode::Normal));
+        // 4. The string ";", i.e., SEMICOLON (U+003B).
+        builder.append(';');
+    }
 
     // 5. If the rule’s associated source list is not empty, follow these substeps:
+    //    followed by the result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
+    //    followed by the string ";", i.e., SEMICOLON (U+003B).
     if (auto sources = descriptors.descriptor(DescriptorID::Src)) {
         // 1. A single SPACE (U+0020), followed by the string "src:", followed by a single SPACE (U+0020).
         builder.append(" src: "sv);
-
         // 2. The result of invoking serialize a comma-separated list on performing serialize a URL or serialize a LOCAL for each source on the source list.
         builder.append(sources->to_string(SerializationMode::Normal));
-
         // 3. The string ";", i.e., SEMICOLON (U+003B).
         builder.append(';');
     }
