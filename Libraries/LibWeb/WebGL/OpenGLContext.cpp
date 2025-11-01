@@ -545,9 +545,13 @@ Vector<String> OpenGLContext::get_supported_extensions()
 
     make_current();
 
+    auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS));
+    StringView extensions_view(extensions_string, strlen(extensions_string));
+    auto extensions_list = extensions_view.split_view(' ');
+
     auto const* requestable_extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE));
     StringView requestable_extensions_view(requestable_extensions_string, strlen(requestable_extensions_string));
-    auto requestable_extensions = requestable_extensions_view.split_view(' ');
+    extensions_list.extend(requestable_extensions_view.split_view(' '));
 
     Vector<String> extensions;
     for (auto const& available_extension : s_available_webgl_extensions) {
@@ -556,11 +560,11 @@ Vector<String> OpenGLContext::get_supported_extensions()
 
         if (supported) {
             for (auto const& required_extension : available_extension.required_angle_extensions) {
-                auto maybe_required_extension = requestable_extensions.find_if([&](StringView requestable_extension) {
+                auto maybe_required_extension = extensions_list.find_if([&](StringView requestable_extension) {
                     return required_extension == requestable_extension;
                 });
 
-                if (maybe_required_extension == requestable_extensions.end()) {
+                if (maybe_required_extension == extensions_list.end()) {
                     supported = false;
                     break;
                 }
