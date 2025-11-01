@@ -3015,7 +3015,7 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
         auto navigable = this->navigable();
         if (navigable && navigable->is_traversable()) {
             if (!is_decoded_svg()) {
-                HTML::HTMLLinkElement::load_fallback_favicon_if_needed(*this).release_value_but_fixme_should_propagate_errors();
+                HTML::HTMLLinkElement::load_fallback_favicon_if_needed(*this);
             }
             navigable->traversable_navigable()->page().client().page_did_finish_loading(url());
         } else {

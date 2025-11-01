@@ -118,7 +118,7 @@ public:
     Variant<Empty, Traversal, String> ongoing_navigation() const { return m_ongoing_navigation; }
     void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation);
 
-    WebIDL::ExceptionOr<void> populate_session_history_entry_document(
+    void populate_session_history_entry_document(
         GC::Ptr<SessionHistoryEntry> entry,
         SourceSnapshotParams const& source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,

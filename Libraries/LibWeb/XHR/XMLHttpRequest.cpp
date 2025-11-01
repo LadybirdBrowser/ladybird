@@ -849,7 +849,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         };
 
         // 10. Set this’s fetch controller to the result of fetching req with processRequestBodyChunkLength set to processRequestBodyChunkLength, processRequestEndOfBody set to processRequestEndOfBody, and processResponse set to processResponse.
-        m_fetch_controller = TRY(Fetch::Fetching::fetch(
+        m_fetch_controller = Fetch::Fetching::fetch(
             realm,
             request,
             Fetch::Infrastructure::FetchAlgorithms::create(vm,
@@ -860,7 +860,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                     .process_response = move(process_response),
                     .process_response_end_of_body = {},
                     .process_response_consume_body = {},
-                })));
+                }));
 
         // 11. Let now be the present time.
         // 12. Run these steps in parallel:
@@ -905,7 +905,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         };
 
         // 3. Set this’s fetch controller to the result of fetching req with processResponseConsumeBody set to processResponseConsumeBody and useParallelQueue set to true.
-        m_fetch_controller = TRY(Fetch::Fetching::fetch(
+        m_fetch_controller = Fetch::Fetching::fetch(
             realm,
             request,
             Fetch::Infrastructure::FetchAlgorithms::create(vm,
@@ -917,7 +917,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                     .process_response_end_of_body = {},
                     .process_response_consume_body = move(process_response_consume_body),
                 }),
-            Fetch::Fetching::UseParallelQueue::Yes));
+            Fetch::Fetching::UseParallelQueue::Yes);
 
         // 4. Let now be the present time.
         // 5. Pause until either processedResponse is true or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
