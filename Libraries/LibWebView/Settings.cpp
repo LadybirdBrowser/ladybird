@@ -33,6 +33,7 @@ static constexpr auto search_engine_key = "searchEngine"sv;
 static constexpr auto search_engine_custom_key = "custom"sv;
 static constexpr auto search_engine_name_key = "name"sv;
 static constexpr auto search_engine_url_key = "url"sv;
+static constexpr auto search_engine_bang_key = "bang"sv;
 
 static constexpr auto autocomplete_engine_key = "autocompleteEngine"sv;
 static constexpr auto autocomplete_engine_name_key = "name"sv;
@@ -336,6 +337,7 @@ Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& sea
 
     auto name = search_engine.as_object().get_string(search_engine_name_key);
     auto url = search_engine.as_object().get_string(search_engine_url_key);
+    auto bang = search_engine.as_object().get_string(search_engine_bang_key);
     if (!name.has_value() || !url.has_value())
         return {};
 
@@ -343,7 +345,9 @@ Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& sea
     if (!parsed_url.has_value())
         return {};
 
-    return SearchEngine { .name = name.release_value(), .query_url = url.release_value() };
+    auto bangVal = bang.has_value() ? bang.release_value() : Optional<String> {}; // this doesnt feel like the best way
+
+    return SearchEngine { .name = name.release_value(), .query_url = url.release_value(), .bang = bangVal };
 }
 
 void Settings::add_custom_search_engine(SearchEngine search_engine)

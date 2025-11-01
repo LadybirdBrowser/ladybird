@@ -19,8 +19,10 @@ struct SearchEngine {
 
     String name;
     String query_url;
+    Optional<String> bang;
 };
 
 WEBVIEW_API ReadonlySpan<SearchEngine> builtin_search_engines();
+WEBVIEW_API Optional<SearchEngine const&> find_search_engine_by_bang(String bang);
 
 }
