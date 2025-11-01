@@ -2418,6 +2418,7 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
     if (match(TokenType::LeftBracket)) {
         consume();
 
+        auto initial_compares_size = compares.size();
         compares.append(CompareTypeAndValuePair { CharacterCompareType::Or, 0 });
 
         if (match(TokenType::Circumflex)) {
@@ -2429,12 +2430,13 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
         // ClassContents :: [empty]
         if (match(TokenType::RightBracket)) {
             consume();
+            auto added_compares = compares.size() - initial_compares_size;
             // Should only have at most an 'Inverse' (after an 'Or')
             if (m_parser_state.regex_options.has_flag_set(regex::AllFlags::UnicodeSets)) {
                 // In unicode sets mode, we can have an additional 'And'/'Or' before the 'Inverse'.
-                VERIFY(compares.size() <= 3);
+                VERIFY(added_compares <= 3);
             } else {
-                VERIFY(compares.size() <= 2);
+                VERIFY(added_compares <= 2);
             }
             compares.append(CompareTypeAndValuePair { CharacterCompareType::EndAndOr, 0 });
             return true;

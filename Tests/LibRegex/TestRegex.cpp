@@ -891,6 +891,7 @@ TEST_CASE(ECMA262_unicode_sets_match)
         { "[\\w&&\\d]"sv, "a"sv, false },
         { "[\\w&&\\d]"sv, "4"sv, true },
         { "([^\\:]+?)"sv, "a"sv, true },
+        { "[[a][]]"sv, "a"sv, true }, // ladybird#6647
     };
 
     for (auto& test : tests) {
