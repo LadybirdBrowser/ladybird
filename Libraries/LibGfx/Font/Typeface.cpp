@@ -7,6 +7,7 @@
 #include <harfbuzz/hb.h>
 
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 
@@ -47,10 +48,11 @@ Typeface::~Typeface()
         hb_blob_destroy(m_harfbuzz_blob);
 }
 
-NonnullRefPtr<Font> Typeface::font(float point_size) const
+NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations) const
 {
-    auto it = m_fonts.find(point_size);
-    if (it != m_fonts.end())
+    FontCacheKey key { point_size, variations.to_sorted_list() };
+
+    if (auto it = m_fonts.find(key); it != m_fonts.end())
         return *it->value;
 
     // FIXME: It might be nice to have a global cap on the number of fonts we cache
@@ -59,8 +61,15 @@ NonnullRefPtr<Font> Typeface::font(float point_size) const
     if (m_fonts.size() > max_cached_font_size_count)
         m_fonts.remove(m_fonts.begin());
 
-    auto font = adopt_ref(*new Font(*this, point_size, point_size));
-    m_fonts.set(point_size, font);
+    RefPtr<Typeface const> used_typeface = const_cast<Typeface*>(this);
+    if (!variations.is_empty()) {
+        if (auto const* skia_typeface = as_if<TypefaceSkia const>(this))
+            if (auto derived = skia_typeface->clone_with_variations(variations.to_sorted_list()))
+                used_typeface = move(derived);
+    }
+
+    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, DEFAULT_DPI, DEFAULT_DPI, variations));
+    m_fonts.set(key, font);
     return font;
 }
 

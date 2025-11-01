@@ -21,10 +21,11 @@
 
 namespace Gfx {
 
-Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
+Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations)
     : m_typeface(move(typeface))
     , m_point_width(point_width)
     , m_point_height(point_height)
+    , m_font_variation_settings(move(variations))
 {
     float const units_per_em = m_typeface->units_per_em();
     m_x_scale = (point_width * dpi_x) / (POINTS_PER_INCH * units_per_em);
@@ -114,6 +115,18 @@ hb_font_t* Font::harfbuzz_font() const
         m_harfbuzz_font = hb_font_create(typeface().harfbuzz_typeface());
         hb_font_set_scale(m_harfbuzz_font, pixel_size() * text_shaping_resolution, pixel_size() * text_shaping_resolution);
         hb_font_set_ptem(m_harfbuzz_font, point_size());
+
+        auto variations = m_font_variation_settings.axes;
+        if (!variations.is_empty()) {
+            Vector<hb_variation_t> hb_list;
+            hb_list.ensure_capacity(variations.size());
+
+            for (auto const& axis : variations) {
+                hb_list.unchecked_append(hb_variation_t { axis.key.to_u32(), axis.value });
+            }
+
+            hb_font_set_variations(m_harfbuzz_font, hb_list.data(), hb_list.size());
+        }
     }
     return m_harfbuzz_font;
 }

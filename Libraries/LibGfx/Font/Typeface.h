@@ -7,8 +7,10 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Font/FontData.h>
+#include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 
 #define POINTS_PER_INCH 72.0f
@@ -34,6 +36,24 @@ struct ScaledFontMetrics {
     }
 };
 
+struct FontCacheKey {
+    float point_size;
+    Vector<FontVariationAxis> axes;
+
+    bool operator==(FontCacheKey const& other) const
+    {
+        return point_size == other.point_size && axes == other.axes;
+    }
+
+    unsigned hash() const
+    {
+        auto h = pair_int_hash(int_hash(bit_cast<u32>(point_size)), axes.size());
+        for (auto const& axis : axes)
+            h = pair_int_hash(h, pair_int_hash(axis.tag.to_u32(), int_hash(bit_cast<u32>(axis.value))));
+        return h;
+    }
+};
+
 class Typeface : public RefCounted<Typeface> {
 public:
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, int ttc_index = 0);
@@ -51,7 +71,7 @@ public:
     virtual u16 width() const = 0;
     virtual u8 slope() const = 0;
 
-    [[nodiscard]] NonnullRefPtr<Font> font(float point_size) const;
+    [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}) const;
 
     hb_face_t* harfbuzz_typeface() const;
 
@@ -69,9 +89,17 @@ protected:
 private:
     OwnPtr<FontData> m_font_data;
 
-    mutable HashMap<float, NonnullRefPtr<Font>> m_fonts;
+    mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
 };
 
 }
+
+template<>
+struct AK::Traits<Gfx::FontCacheKey> : public AK::DefaultTraits<Gfx::FontCacheKey> {
+    static unsigned hash(Gfx::FontCacheKey const& key)
+    {
+        return key.hash();
+    }
+};
