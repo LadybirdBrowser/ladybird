@@ -27,7 +27,6 @@
 #    include <sys/resource.h>
 #    include <sys/socket.h>
 #    include <sys/time.h>
-#    include <sys/utsname.h>
 #    include <sys/wait.h>
 #    include <termios.h>
 #    include <utime.h>
@@ -140,7 +139,6 @@ struct WaitPidResult {
 };
 ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
 ErrorOr<void> fchown(int fd, uid_t, gid_t);
-ErrorOr<struct utsname> uname();
 #endif
 
 class AddressInfoVector {

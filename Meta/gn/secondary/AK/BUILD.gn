@@ -121,7 +121,6 @@ shared_library("AK") {
     "MemoryStream.cpp",
     "MemoryStream.h",
     "NeverDestroyed.h",
-    "NoAllocationGuard.h",
     "Noncopyable.h",
     "NonnullOwnPtr.h",
     "NonnullRefPtr.h",

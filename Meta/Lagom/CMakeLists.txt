@@ -82,12 +82,6 @@ include(lagom_compile_options)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (EMSCRIPTEN)
-    set(CMAKE_EXECUTABLE_SUFFIX ".js")
-    add_cxx_compile_options(-gsource-map)
-    add_cxx_link_options(--emrun "SHELL:-s ALLOW_MEMORY_GROWTH")
-endif()
-
 if (ENABLE_COMPILETIME_FORMAT_CHECK)
     add_compile_definitions(ENABLE_COMPILETIME_FORMAT_CHECK)
 endif()

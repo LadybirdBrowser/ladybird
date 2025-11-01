@@ -134,10 +134,6 @@ using pid_t = int;
 #    include <stdint.h>
 #    include <sys/types.h>
 
-#    ifdef __ptrdiff_t
-using __ptrdiff_t = __PTRDIFF_TYPE__;
-#    endif
-
 #    if defined(AK_OS_WINDOWS)
 using ssize_t = AK::Detail::MakeSigned<size_t>;
 using mode_t = unsigned short;

@@ -358,8 +358,6 @@ TEST_CASE(move_assign)
     EXPECT_EQ(second.size(), static_cast<size_t>(0));
     EXPECT_EQ(second.get(2), Optional<int>());
 
-    // 'Hashtable::operator=(Hashtable&&)' allocates temporarily an empty table,
-    // so we can't use NoAllocationGuard here. :(
     second = move(orig);
 
     EXPECT_EQ(orig.size(), static_cast<size_t>(0));

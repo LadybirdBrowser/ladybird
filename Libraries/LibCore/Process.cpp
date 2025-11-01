@@ -63,26 +63,22 @@ struct ArgvList {
 
 Process::Process(Process&& other)
     : m_pid(exchange(other.m_pid, 0))
-    , m_should_disown(exchange(other.m_should_disown, false))
 {
 }
 
 Process& Process::operator=(Process&& other)
 {
     m_pid = exchange(other.m_pid, 0);
-    m_should_disown = exchange(other.m_should_disown, false);
     return *this;
 }
 
 Process::~Process()
 {
-    (void)disown();
 }
 
 Process Process::current()
 {
     auto p = Process { getpid() };
-    p.m_should_disown = false;
     return p;
 }
 
@@ -97,15 +93,6 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     ScopeGuard cleanup_spawn_actions = [&] {
         posix_spawn_file_actions_destroy(&spawn_actions);
     };
-
-    if (options.working_directory.has_value()) {
-#ifdef AK_OS_SERENITY
-        CHECK(posix_spawn_file_actions_addchdir(&spawn_actions, options.working_directory->characters()));
-#else
-        // FIXME: Support ProcessSpawnOptions::working_directory n platforms that support it.
-        TODO();
-#endif
-    }
 
     for (auto const& file_action : options.file_actions) {
         TRY(file_action.visit(
@@ -143,21 +130,17 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process { pid };
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments)
 {
     auto process = TRY(spawn({
         .executable = path,
         .arguments = Vector<ByteString> { arguments },
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : Optional<ByteString> { working_directory },
     }));
-
-    if (keep_as_child == KeepAsChild::No)
-        TRY(process.disown());
 
     return process;
 }
 
-ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());
@@ -167,11 +150,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
     auto process = TRY(spawn({
         .executable = path,
         .arguments = backing_strings,
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : Optional<ByteString> { working_directory },
     }));
-
-    if (keep_as_child == KeepAsChild::No)
-        TRY(process.disown());
 
     return process;
 }
@@ -192,25 +171,6 @@ ErrorOr<String> Process::get_name()
 #else
     // FIXME: Implement Process::get_name() for other platforms.
     return "???"_string;
-#endif
-}
-
-ErrorOr<void> Process::set_name([[maybe_unused]] StringView name, [[maybe_unused]] SetThreadName set_thread_name)
-{
-#if defined(AK_OS_SERENITY)
-    int rc = set_process_name(name.characters_without_null_termination(), name.length());
-    if (rc != 0)
-        return Error::from_syscall("set_process_name"sv, rc);
-    if (set_thread_name == SetThreadName::No)
-        return {};
-
-    rc = prctl(PR_SET_THREAD_NAME, gettid(), name.characters_without_null_termination(), name.length());
-    if (rc != 0)
-        return Error::from_syscall("set_thread_name"sv, rc);
-    return {};
-#else
-    // FIXME: Implement Process::set_name() for other platforms.
-    return {};
 #endif
 }
 
@@ -323,22 +283,7 @@ pid_t Process::pid() const
     return m_pid;
 }
 
-ErrorOr<void> Process::disown()
-{
-    if (m_pid != 0 && m_should_disown) {
-#ifdef AK_OS_SERENITY
-        TRY(System::disown(m_pid));
-#else
-        // FIXME: Support disown outside Serenity.
-#endif
-        m_should_disown = false;
-        return {};
-    } else {
-        return Error::from_errno(EINVAL);
-    }
-}
-
-ErrorOr<int> Process::wait_for_termination()
+ErrorOr<int> Process::wait_for_termination() const
 {
     VERIFY(m_pid > 0);
 
@@ -358,7 +303,6 @@ ErrorOr<int> Process::wait_for_termination()
         VERIFY_NOT_REACHED();
     }
 
-    m_should_disown = false;
     return exit_code;
 }
 
