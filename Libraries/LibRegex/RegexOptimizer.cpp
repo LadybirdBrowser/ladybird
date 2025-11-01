@@ -430,9 +430,18 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
     temporary_inverse = false;
     reset_temporary_inverse = false;
     inverse = false;
-    auto in_or = false; // We're in an OR block, so we should wait for the EndAndOr to decide if we would match.
-    auto matched_in_or = false;
-    auto inverse_matched_in_or = false;
+    struct DisjunctionState {
+        bool in_or = false; // We're in an OR block, so we should wait for the EndAndOr to decide if we would match.
+        bool matched_in_or = false;
+        bool inverse_matched_in_or = false;
+    };
+
+    Vector<DisjunctionState, 2> disjunction_stack;
+    disjunction_stack.empend();
+
+    auto in_or = [&] -> bool& { return disjunction_stack.last().in_or; };
+    auto matched_in_or = [&] -> bool& { return disjunction_stack.last().matched_in_or; };
+    auto inverse_matched_in_or = [&] -> bool& { return disjunction_stack.last().inverse_matched_in_or; };
 
     for (auto const& pair : rhs) {
         if (reset_temporary_inverse) {
@@ -452,7 +461,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
                 dbgln("  {}", character_class_name(char_class));
             for (auto& char_class : lhs_negated_char_classes)
                 dbgln("  ^{}", character_class_name(char_class));
-            dbgln("}}, in or: {}, matched in or: {}, inverse matched in or: {}", in_or, matched_in_or, inverse_matched_in_or);
+            dbgln("}}, in or: {}, matched in or: {}, inverse matched in or: {}", in_or(), matched_in_or(), inverse_matched_in_or());
         }
 
         switch (pair.type) {
@@ -465,20 +474,20 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             break;
         case CharacterCompareType::AnyChar:
             // Special case: if not inverted, AnyChar is always in the range.
-            if (!in_or && !current_lhs_inversion_state())
+            if (!in_or() && !current_lhs_inversion_state())
                 return true;
-            if (in_or) {
-                matched_in_or = true;
-                inverse_matched_in_or = false;
+            if (in_or()) {
+                matched_in_or() = true;
+                inverse_matched_in_or() = false;
             }
             break;
         case CharacterCompareType::Char: {
             auto matched = range_contains(pair.value);
-            if (!in_or && (current_lhs_inversion_state() ^ matched))
+            if (!in_or() && (current_lhs_inversion_state() ^ matched))
                 return true;
-            if (in_or) {
-                matched_in_or |= matched;
-                inverse_matched_in_or |= !matched;
+            if (in_or()) {
+                matched_in_or() |= matched;
+                inverse_matched_in_or() |= !matched;
             }
             break;
         }
@@ -488,23 +497,23 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             return true;
         case CharacterCompareType::CharClass: {
             auto contains = char_class_contains(static_cast<CharClass>(pair.value));
-            if (!in_or && (current_lhs_inversion_state() ^ contains))
+            if (!in_or() && (current_lhs_inversion_state() ^ contains))
                 return true;
-            if (in_or) {
-                matched_in_or |= contains;
-                inverse_matched_in_or |= !contains;
+            if (in_or()) {
+                matched_in_or() |= contains;
+                inverse_matched_in_or() |= !contains;
             }
             break;
         }
         case CharacterCompareType::CharRange: {
             auto range = CharRange(pair.value);
             auto contains = range_contains(range);
-            if (!in_or && (contains ^ current_lhs_inversion_state()))
+            if (!in_or() && (contains ^ current_lhs_inversion_state()))
                 return true;
 
-            if (in_or) {
-                matched_in_or |= contains;
-                inverse_matched_in_or |= !contains;
+            if (in_or()) {
+                matched_in_or() |= contains;
+                inverse_matched_in_or() |= !contains;
             }
 
             break;
@@ -525,16 +534,16 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
                 return true;
             if (has_any_unicode_property && !lhs_unicode_properties.is_empty() && !lhs_negated_unicode_properties.is_empty()) {
                 auto contains = lhs_unicode_properties.contains(static_cast<Unicode::Property>(pair.value));
-                if (!in_or && (current_lhs_inversion_state() ^ contains))
+                if (!in_or() && (current_lhs_inversion_state() ^ contains))
                     return true;
 
                 auto inverse_contains = lhs_negated_unicode_properties.contains(static_cast<Unicode::Property>(pair.value));
-                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
+                if (!in_or() && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
 
-                if (in_or) {
-                    matched_in_or |= contains;
-                    inverse_matched_in_or |= inverse_contains;
+                if (in_or()) {
+                    matched_in_or() |= contains;
+                    inverse_matched_in_or() |= inverse_contains;
                 }
             }
             break;
@@ -543,14 +552,14 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
                 return true;
             if (has_any_unicode_property && !lhs_unicode_general_categories.is_empty() && !lhs_negated_unicode_general_categories.is_empty()) {
                 auto contains = lhs_unicode_general_categories.contains(static_cast<Unicode::GeneralCategory>(pair.value));
-                if (!in_or && (current_lhs_inversion_state() ^ contains))
+                if (!in_or() && (current_lhs_inversion_state() ^ contains))
                     return true;
                 auto inverse_contains = lhs_negated_unicode_general_categories.contains(static_cast<Unicode::GeneralCategory>(pair.value));
-                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
+                if (!in_or() && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
-                if (in_or) {
-                    matched_in_or |= contains;
-                    inverse_matched_in_or |= inverse_contains;
+                if (in_or()) {
+                    matched_in_or() |= contains;
+                    inverse_matched_in_or() |= inverse_contains;
                 }
             }
             break;
@@ -559,14 +568,14 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
                 return true;
             if (has_any_unicode_property && !lhs_unicode_scripts.is_empty() && !lhs_negated_unicode_scripts.is_empty()) {
                 auto contains = lhs_unicode_scripts.contains(static_cast<Unicode::Script>(pair.value));
-                if (!in_or && (current_lhs_inversion_state() ^ contains))
+                if (!in_or() && (current_lhs_inversion_state() ^ contains))
                     return true;
                 auto inverse_contains = lhs_negated_unicode_scripts.contains(static_cast<Unicode::Script>(pair.value));
-                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
+                if (!in_or() && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
-                if (in_or) {
-                    matched_in_or |= contains;
-                    inverse_matched_in_or |= inverse_contains;
+                if (in_or()) {
+                    matched_in_or() |= contains;
+                    inverse_matched_in_or() |= inverse_contains;
                 }
             }
             break;
@@ -575,33 +584,34 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
                 return true;
             if (has_any_unicode_property && !lhs_unicode_script_extensions.is_empty() && !lhs_negated_unicode_script_extensions.is_empty()) {
                 auto contains = lhs_unicode_script_extensions.contains(static_cast<Unicode::Script>(pair.value));
-                if (!in_or && (current_lhs_inversion_state() ^ contains))
+                if (!in_or() && (current_lhs_inversion_state() ^ contains))
                     return true;
                 auto inverse_contains = lhs_negated_unicode_script_extensions.contains(static_cast<Unicode::Script>(pair.value));
-                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
+                if (!in_or() && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
-                if (in_or) {
-                    matched_in_or |= contains;
-                    inverse_matched_in_or |= inverse_contains;
+                if (in_or()) {
+                    matched_in_or() |= contains;
+                    inverse_matched_in_or() |= inverse_contains;
                 }
             }
             break;
         case CharacterCompareType::Or:
-            in_or = true;
+            disjunction_stack.empend(true);
             break;
-        case CharacterCompareType::EndAndOr:
+        case CharacterCompareType::EndAndOr: {
             // FIXME: Handle And when we support it below.
-            VERIFY(in_or);
-            in_or = false;
+            VERIFY(in_or());
+            auto state = disjunction_stack.take_last();
             if (current_lhs_inversion_state()) {
-                if (!inverse_matched_in_or)
+                if (!state.inverse_matched_in_or)
                     return true;
             } else {
-                if (matched_in_or)
+                if (state.matched_in_or)
                     return true;
             }
 
             break;
+        }
         case CharacterCompareType::And:
             // FIXME: These are too difficult to handle, so bail out.
             return true;

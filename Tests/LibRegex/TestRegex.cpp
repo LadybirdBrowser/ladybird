@@ -738,6 +738,9 @@ TEST_CASE(ECMA262_match)
         { "((?<x>a)|(?<x>b))"sv, "aa"sv, false },
         // Insensitive charclasses should accept upper/lowercase in pattern (lookup table should still be ordered if insensitive lookup is used), ladybird#5399.
         { "[aBc]"sv, "b"sv, true, ECMAScriptFlags::Insensitive },
+        // Optimizer bug: nested 'or' compare ops caused a crash, ladybird#6647.
+        { "([[[]]])*0"sv, ""sv, false, ECMAScriptFlags::UnicodeSets },
+        { "(([[[]]]{2,})\\s)*"sv, ""sv, true, (ECMAScriptFlags::UnicodeSets | ECMAScriptFlags::Global).value() },
     };
 
     for (auto& test : tests) {
