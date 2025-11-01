@@ -112,9 +112,9 @@ void HTMLLinkElement::inserted()
     }
 }
 
-WebIDL::ExceptionOr<void> HTMLLinkElement::set_as(String const& value)
+void HTMLLinkElement::set_as(String const& value)
 {
-    return set_attribute(HTML::AttributeNames::as, move(value));
+    set_attribute_value(HTML::AttributeNames::as, move(value));
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-link-rellist
@@ -137,7 +137,7 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
 
 void HTMLLinkElement::set_media(String media)
 {
-    (void)set_attribute(HTML::AttributeNames::media, media);
+    set_attribute_value(HTML::AttributeNames::media, media);
     if (auto sheet = m_loaded_style_sheet)
         sheet->set_media(media);
 }

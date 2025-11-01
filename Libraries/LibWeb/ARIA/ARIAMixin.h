@@ -34,7 +34,7 @@ public:
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
     virtual Optional<String> name() const = 0;      \
-    virtual WebIDL::ExceptionOr<void> set_##name(Optional<String> const&) = 0;
+    virtual void set_##name(Optional<String> const&) = 0;
     ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 

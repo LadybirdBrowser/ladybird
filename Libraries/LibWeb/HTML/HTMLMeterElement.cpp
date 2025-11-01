@@ -54,11 +54,10 @@ double HTMLMeterElement::value() const
     return clamp(candidate_value, min(), max());
 }
 
-WebIDL::ExceptionOr<void> HTMLMeterElement::set_value(double value)
+void HTMLMeterElement::set_value(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::value, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::value, String::number(value));
     update_meter_value_element();
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-minimum
@@ -72,11 +71,10 @@ double HTMLMeterElement::min() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLMeterElement::set_min(double value)
+void HTMLMeterElement::set_min(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::min, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::min, String::number(value));
     update_meter_value_element();
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-maximum
@@ -93,11 +91,10 @@ double HTMLMeterElement::max() const
     return AK::max(candidate_max, min());
 }
 
-WebIDL::ExceptionOr<void> HTMLMeterElement::set_max(double value)
+void HTMLMeterElement::set_max(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::max, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::max, String::number(value));
     update_meter_value_element();
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-low
@@ -116,11 +113,10 @@ double HTMLMeterElement::low() const
     return clamp(candidate_low, min(), max());
 }
 
-WebIDL::ExceptionOr<void> HTMLMeterElement::set_low(double value)
+void HTMLMeterElement::set_low(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::low, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::low, String::number(value));
     update_meter_value_element();
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-high
@@ -139,11 +135,10 @@ double HTMLMeterElement::high() const
     return clamp(candidate_high, low(), max());
 }
 
-WebIDL::ExceptionOr<void> HTMLMeterElement::set_high(double value)
+void HTMLMeterElement::set_high(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::high, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::high, String::number(value));
     update_meter_value_element();
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-optimum
@@ -162,11 +157,10 @@ double HTMLMeterElement::optimum() const
     return clamp(candidate_optimum, min(), max());
 }
 
-WebIDL::ExceptionOr<void> HTMLMeterElement::set_optimum(double value)
+void HTMLMeterElement::set_optimum(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::optimum, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::optimum, String::number(value));
     update_meter_value_element();
-    return {};
 }
 
 void HTMLMeterElement::inserted()

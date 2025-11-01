@@ -122,9 +122,9 @@ void HTMLElement::set_translate(bool new_value)
     // On setting, it must set the content attribute's value to "yes" if the new value is true, and set the content
     // attribute's value to "no" otherwise.
     if (new_value)
-        MUST(set_attribute(HTML::AttributeNames::translate, "yes"_string));
+        set_attribute_value(HTML::AttributeNames::translate, "yes"_string);
     else
-        MUST(set_attribute(HTML::AttributeNames::translate, "no"_string));
+        set_attribute_value(HTML::AttributeNames::translate, "no"_string);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
@@ -144,7 +144,7 @@ StringView HTMLElement::dir() const
 
 void HTMLElement::set_dir(String const& dir)
 {
-    MUST(set_attribute(HTML::AttributeNames::dir, dir));
+    set_attribute_value(HTML::AttributeNames::dir, dir);
 }
 
 bool HTMLElement::is_focusable() const
@@ -183,15 +183,15 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         return {};
     }
     if (content_editable.equals_ignoring_ascii_case("true"sv)) {
-        MUST(set_attribute(HTML::AttributeNames::contenteditable, "true"_string));
+        set_attribute_value(HTML::AttributeNames::contenteditable, "true"_string);
         return {};
     }
     if (content_editable.equals_ignoring_ascii_case("plaintext-only"sv)) {
-        MUST(set_attribute(HTML::AttributeNames::contenteditable, "plaintext-only"_string));
+        set_attribute_value(HTML::AttributeNames::contenteditable, "plaintext-only"_string);
         return {};
     }
     if (content_editable.equals_ignoring_ascii_case("false"sv)) {
-        MUST(set_attribute(HTML::AttributeNames::contenteditable, "false"_string));
+        set_attribute_value(HTML::AttributeNames::contenteditable, "false"_string);
         return {};
     }
     return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
@@ -879,7 +879,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String> const& given_value)
     if (given_value.has<String>()) {
         auto const& string = given_value.get<String>();
         if (string.equals_ignoring_ascii_case("until-found"sv)) {
-            MUST(set_attribute(HTML::AttributeNames::hidden, "until-found"_string));
+            set_attribute_value(HTML::AttributeNames::hidden, "until-found"_string);
             return;
         }
         // 3. Otherwise, if the given value is the empty string, then remove the hidden attribute.
@@ -910,7 +910,7 @@ void HTMLElement::set_hidden(Variant<bool, double, String> const& given_value)
         }
     }
     // 7. Otherwise, set the hidden attribute to the empty string.
-    MUST(set_attribute(HTML::AttributeNames::hidden, ""_string));
+    set_attribute_value(HTML::AttributeNames::hidden, ""_string);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-click
@@ -1189,15 +1189,14 @@ Optional<String> HTMLElement::popover() const
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
-WebIDL::ExceptionOr<void> HTMLElement::set_popover(Optional<String> value)
+void HTMLElement::set_popover(Optional<String> value)
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The popover IDL attribute must reflect the popover attribute, limited to only known values.
     if (value.has_value())
-        return set_attribute(HTML::AttributeNames::popover, value.release_value());
-
-    remove_attribute(HTML::AttributeNames::popover);
-    return {};
+        set_attribute_value(HTML::AttributeNames::popover, value.release_value());
+    else
+        remove_attribute(HTML::AttributeNames::popover);
 }
 
 void HTMLElement::adjust_computed_style(CSS::ComputedProperties& style)
@@ -2143,6 +2142,11 @@ bool HTMLElement::draggable() const
     return false;
 }
 
+void HTMLElement::set_draggable(bool draggable)
+{
+    set_attribute_value(HTML::AttributeNames::draggable, draggable ? "true"_string : "false"_string);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-spellcheck
 bool HTMLElement::spellcheck() const
 {
@@ -2200,9 +2204,9 @@ void HTMLElement::set_spellcheck(bool spellcheck)
 {
     // On setting, if the new value is true, then the element's spellcheck content attribute must be set to "true", otherwise it must be set to "false".
     if (spellcheck)
-        MUST(set_attribute(HTML::AttributeNames::spellcheck, "true"_string));
+        set_attribute_value(HTML::AttributeNames::spellcheck, "true"_string);
     else
-        MUST(set_attribute(HTML::AttributeNames::spellcheck, "false"_string));
+        set_attribute_value(HTML::AttributeNames::spellcheck, "false"_string);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-writingsuggestions
@@ -2239,7 +2243,7 @@ String HTMLElement::writing_suggestions() const
 void HTMLElement::set_writing_suggestions(String const& given_value)
 {
     // 1. Set this's writingsuggestions content attribute to the given value.
-    MUST(set_attribute(HTML::AttributeNames::writingsuggestions, given_value));
+    set_attribute_value(HTML::AttributeNames::writingsuggestions, given_value);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#own-autocapitalization-hint
@@ -2332,7 +2336,7 @@ String HTMLElement::autocapitalize() const
 void HTMLElement::set_autocapitalize(String const& given_value)
 {
     // The autocapitalize setter steps are to set the autocapitalize content attribute to the given value.
-    MUST(set_attribute(HTML::AttributeNames::autocapitalize, given_value));
+    set_attribute_value(HTML::AttributeNames::autocapitalize, given_value);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#used-autocorrection-state
@@ -2390,9 +2394,9 @@ void HTMLElement::set_autocorrect(bool given_value)
 {
     // The setter steps are: if the given value is true, then the element's autocorrect attribute must be set to "on"; otherwise it must be set to "off".
     if (given_value)
-        MUST(set_attribute(HTML::AttributeNames::autocorrect, "on"_string));
+        set_attribute_value(HTML::AttributeNames::autocorrect, "on"_string);
     else
-        MUST(set_attribute(HTML::AttributeNames::autocorrect, "off"_string));
+        set_attribute_value(HTML::AttributeNames::autocorrect, "off"_string);
 }
 
 }

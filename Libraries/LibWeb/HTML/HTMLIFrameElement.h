@@ -38,6 +38,9 @@ public:
 
     SandboxingFlagSet iframe_sandboxing_flag_set() const { return m_iframe_sandboxing_flag_set; }
 
+    TrustedTypes::TrustedHTMLOrString srcdoc();
+    WebIDL::ExceptionOr<void> set_srcdoc(TrustedTypes::TrustedHTMLOrString const& value);
+
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

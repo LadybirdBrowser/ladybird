@@ -87,11 +87,11 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_amount()
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrollamount
-WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_amount(WebIDL::UnsignedLong value)
+void HTMLMarqueeElement::set_scroll_amount(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 6;
-    return set_attribute(HTML::AttributeNames::scrollamount, String::number(value));
+    set_attribute_value(HTML::AttributeNames::scrollamount, String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
@@ -106,11 +106,11 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_delay()
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
-WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_delay(WebIDL::UnsignedLong value)
+void HTMLMarqueeElement::set_scroll_delay(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 85;
-    return set_attribute(HTML::AttributeNames::scrolldelay, String::number(value));
+    set_attribute_value(HTML::AttributeNames::scrolldelay, String::number(value));
 }
 
 }

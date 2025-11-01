@@ -21,8 +21,8 @@ public:
     WebIDL::UnsignedLong col_span() const;
     WebIDL::UnsignedLong row_span() const;
 
-    WebIDL::ExceptionOr<void> set_col_span(WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<void> set_row_span(WebIDL::UnsignedLong);
+    void set_col_span(WebIDL::UnsignedLong);
+    void set_row_span(WebIDL::UnsignedLong);
 
     WebIDL::Long cell_index() const;
 

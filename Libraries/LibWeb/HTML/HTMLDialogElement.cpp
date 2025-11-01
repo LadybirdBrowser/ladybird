@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     queue_a_dialog_toggle_event_task("closed"_string, "open"_string, nullptr);
 
     // 6. Add an open attribute to this, whose value is the empty string.
-    TRY(set_attribute(AttributeNames::open, String {}));
+    set_attribute_value(AttributeNames::open, String {});
 
     // 7. Assert: this's node document's open dialogs list does not contain this.
     VERIFY(!m_document->open_dialogs_list().contains_slow(GC::Ref(*this)));
@@ -230,7 +230,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     subject.queue_a_dialog_toggle_event_task("closed"_string, "open"_string, source);
 
     // 11. Add an open attribute to subject, whose value is the empty string.
-    TRY(subject.set_attribute(AttributeNames::open, String {}));
+    subject.set_attribute_value(AttributeNames::open, String {});
 
     // 12. Set is modal of subject to true.
     subject.set_is_modal(true);

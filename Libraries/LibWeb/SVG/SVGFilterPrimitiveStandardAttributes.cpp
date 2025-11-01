@@ -46,7 +46,7 @@ template<typename IncludingClass>
 GC::Ref<SVGAnimatedString> SVGFilterPrimitiveStandardAttributes<IncludingClass>::result()
 {
     if (!m_result_animated_string)
-        m_result_animated_string = SVGAnimatedString::create(this_svg_element()->realm(), *this_svg_element(), AttributeNames::result);
+        m_result_animated_string = SVGAnimatedString::create(this_svg_element()->realm(), *this_svg_element(), DOM::QualifiedName { AttributeNames::result, OptionalNone {}, OptionalNone {} });
 
     return *m_result_animated_string;
 }

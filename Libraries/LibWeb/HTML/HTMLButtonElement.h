@@ -41,7 +41,7 @@ public:
 
     TypeAttributeState type_state() const;
     String type_for_bindings() const;
-    WebIDL::ExceptionOr<void> set_type_for_bindings(String const&);
+    void set_type_for_bindings(String const&);
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
@@ -81,7 +81,7 @@ public:
     virtual void activation_behavior(DOM::Event const&) override;
 
     String command() const;
-    WebIDL::ExceptionOr<void> set_command(String const&);
+    void set_command(String const&);
 
     GC::Ptr<DOM::Element> command_for_element() { return m_command_for_element; }
     void set_command_for_element(GC::Ptr<DOM::Element> value) { m_command_for_element = value; }

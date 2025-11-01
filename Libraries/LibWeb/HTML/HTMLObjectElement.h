@@ -37,7 +37,7 @@ public:
     virtual void form_associated_element_was_removed(DOM::Node*) override;
 
     String data() const;
-    void set_data(String const& data) { MUST(set_attribute(HTML::AttributeNames::data, data)); }
+    void set_data(String const& data);
 
     String type() const { return get_attribute_value(HTML::AttributeNames::type); }
 

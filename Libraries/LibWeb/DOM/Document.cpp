@@ -3189,7 +3189,7 @@ String Document::fg_color() const
 void Document::set_fg_color(String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        MUST(body_element->set_attribute(HTML::AttributeNames::text, value));
+        body_element->set_attribute_value(HTML::AttributeNames::text, value);
 }
 
 String Document::link_color() const
@@ -3202,7 +3202,7 @@ String Document::link_color() const
 void Document::set_link_color(String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        MUST(body_element->set_attribute(HTML::AttributeNames::link, value));
+        body_element->set_attribute_value(HTML::AttributeNames::link, value);
 }
 
 String Document::vlink_color() const
@@ -3215,7 +3215,7 @@ String Document::vlink_color() const
 void Document::set_vlink_color(String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        MUST(body_element->set_attribute(HTML::AttributeNames::vlink, value));
+        body_element->set_attribute_value(HTML::AttributeNames::vlink, value);
 }
 
 String Document::alink_color() const
@@ -3228,7 +3228,7 @@ String Document::alink_color() const
 void Document::set_alink_color(String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        MUST(body_element->set_attribute(HTML::AttributeNames::alink, value));
+        body_element->set_attribute_value(HTML::AttributeNames::alink, value);
 }
 
 String Document::bg_color() const
@@ -3241,7 +3241,7 @@ String Document::bg_color() const
 void Document::set_bg_color(String const& value)
 {
     if (auto* body_element = body(); body_element && !is<HTML::HTMLFrameSetElement>(*body_element))
-        MUST(body_element->set_attribute(HTML::AttributeNames::bgcolor, value));
+        body_element->set_attribute_value(HTML::AttributeNames::bgcolor, value);
 }
 
 String Document::dump_dom_tree_as_json() const

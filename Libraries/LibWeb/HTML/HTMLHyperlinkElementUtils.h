@@ -21,7 +21,7 @@ public:
     String origin() const;
 
     String href() const;
-    WebIDL::ExceptionOr<void> set_href(String);
+    void set_href(String);
 
     String protocol() const;
     void set_protocol(StringView);
@@ -54,7 +54,7 @@ protected:
     virtual DOM::Document& hyperlink_element_utils_document() = 0;
     virtual DOM::Element& hyperlink_element_utils_element() = 0;
     virtual Optional<String> hyperlink_element_utils_href() const = 0;
-    virtual WebIDL::ExceptionOr<void> set_hyperlink_element_utils_href(String) = 0;
+    virtual void set_hyperlink_element_utils_href(String) = 0;
     virtual Optional<String> hyperlink_element_utils_referrerpolicy() const = 0;
     virtual bool hyperlink_element_utils_is_html_anchor_element() const = 0;
     virtual bool hyperlink_element_utils_is_connected() const = 0;

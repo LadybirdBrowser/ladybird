@@ -122,10 +122,10 @@ String HTMLBaseElement::href() const
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href
-WebIDL::ExceptionOr<void> HTMLBaseElement::set_href(String const& href)
+void HTMLBaseElement::set_href(String const& href)
 {
     // The href IDL attribute, on setting, must set the href content attribute to the given new value.
-    return set_attribute(AttributeNames::href, href);
+    set_attribute_value(AttributeNames::href, href);
 }
 
 }

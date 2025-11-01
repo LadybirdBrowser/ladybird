@@ -230,10 +230,10 @@ String FormAssociatedElement::form_action() const
     return {};
 }
 
-WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& value)
+void FormAssociatedElement::set_form_action(String const& value)
 {
     auto& html_element = form_associated_element_to_html_element();
-    return html_element.set_attribute(HTML::AttributeNames::formaction, value);
+    html_element.set_attribute_value(HTML::AttributeNames::formaction, value);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity

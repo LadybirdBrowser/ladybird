@@ -296,7 +296,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     };
 
     auto style_element = TRY(DOM::create_element(document, HTML::TagNames::style, Namespace::HTML));
-    MUST(style_element->set_text_content(R"~~~(
+    style_element->string_replace_all(R"~~~(
         :root {
             background-color: #222;
         }
@@ -310,29 +310,29 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         img {
             background-color: #fff;
         }
-    )~~~"_utf16));
+    )~~~"_utf16);
     TRY(document->head()->append_child(style_element));
 
     auto url_string = document->url_string();
     if (type.is_image()) {
         auto img_element = TRY(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
-        TRY(img_element->set_attribute(HTML::AttributeNames::src, url_string));
+        img_element->set_attribute_value(HTML::AttributeNames::src, url_string);
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, url_string));
 
     } else if (type.type() == "video"sv) {
         auto video_element = TRY(DOM::create_element(document, HTML::TagNames::video, Namespace::HTML));
-        TRY(video_element->set_attribute(HTML::AttributeNames::src, url_string));
-        TRY(video_element->set_attribute(HTML::AttributeNames::autoplay, String {}));
-        TRY(video_element->set_attribute(HTML::AttributeNames::controls, String {}));
+        video_element->set_attribute_value(HTML::AttributeNames::src, url_string);
+        video_element->set_attribute_value(HTML::AttributeNames::autoplay, String {});
+        video_element->set_attribute_value(HTML::AttributeNames::controls, String {});
         TRY(document->body()->append_child(video_element));
         TRY(insert_title(document, url_string));
 
     } else if (type.type() == "audio"sv) {
         auto audio_element = TRY(DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML));
-        TRY(audio_element->set_attribute(HTML::AttributeNames::src, url_string));
-        TRY(audio_element->set_attribute(HTML::AttributeNames::autoplay, String {}));
-        TRY(audio_element->set_attribute(HTML::AttributeNames::controls, String {}));
+        audio_element->set_attribute_value(HTML::AttributeNames::src, url_string);
+        audio_element->set_attribute_value(HTML::AttributeNames::autoplay, String {});
+        audio_element->set_attribute_value(HTML::AttributeNames::controls, String {});
         TRY(document->body()->append_child(audio_element));
         TRY(insert_title(document, url_string));
 

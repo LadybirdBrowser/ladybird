@@ -19,7 +19,7 @@ public:
     virtual ~HTMLTableColElement() override;
 
     WebIDL::UnsignedLong span() const;
-    WebIDL::ExceptionOr<void> set_span(WebIDL::UnsignedLong);
+    void set_span(WebIDL::UnsignedLong);
 
 private:
     HTMLTableColElement(DOM::Document&, DOM::QualifiedName);

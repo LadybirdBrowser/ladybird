@@ -47,7 +47,7 @@ GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distan
 GC::Ref<SVGAnimatedNumber> SVGGeometryElement::path_length()
 {
     if (!m_path_length)
-        m_path_length = SVGAnimatedNumber::create(realm(), *this, AttributeNames::pathLength, 0.f);
+        m_path_length = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::pathLength, OptionalNone {}, OptionalNone {} }, 0.f);
     return *m_path_length;
 }
 

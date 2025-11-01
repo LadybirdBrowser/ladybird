@@ -99,9 +99,9 @@ Utf16String HTMLOptionElement::value() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
-WebIDL::ExceptionOr<void> HTMLOptionElement::set_value(Utf16String const& value)
+void HTMLOptionElement::set_value(Utf16String const& value)
 {
-    return set_attribute(HTML::AttributeNames::value, value);
+    set_attribute_value(HTML::AttributeNames::value, value.to_utf8_but_should_be_ported_to_utf16());
 }
 
 static void concatenate_descendants_text_content(DOM::Node const* node, StringBuilder& builder)
@@ -129,7 +129,7 @@ String HTMLOptionElement::label() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-label
 void HTMLOptionElement::set_label(String const& label)
 {
-    MUST(set_attribute(HTML::AttributeNames::label, label));
+    set_attribute_value(HTML::AttributeNames::label, label);
     // Note: this causes attribute_changed() to be called, which will update the <select>'s label
 }
 

@@ -157,11 +157,11 @@ WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
     return value;
 }
 
-WebIDL::ExceptionOr<void> HTMLTableCellElement::set_col_span(WebIDL::UnsignedLong value)
+void HTMLTableCellElement::set_col_span(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 1;
-    return set_attribute(HTML::AttributeNames::colspan, String::number(value));
+    set_attribute_value(HTML::AttributeNames::colspan, String::number(value));
 }
 
 // This implements step 9 in the spec here:
@@ -187,11 +187,11 @@ WebIDL::UnsignedLong HTMLTableCellElement::row_span() const
     return *optional_value;
 }
 
-WebIDL::ExceptionOr<void> HTMLTableCellElement::set_row_span(WebIDL::UnsignedLong value)
+void HTMLTableCellElement::set_row_span(WebIDL::UnsignedLong value)
 {
     if (value > 2147483647)
         value = 1;
-    return set_attribute(HTML::AttributeNames::rowspan, String::number(value));
+    set_attribute_value(HTML::AttributeNames::rowspan, String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-tdth-cellindex

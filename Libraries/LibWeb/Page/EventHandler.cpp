@@ -1305,7 +1305,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     auto focused_area = m_navigable->active_document()->focused_area();
     if (auto* media_element = as_if<HTML::HTMLMediaElement>(focused_area.ptr())) {
-        if (media_element->handle_keydown({}, key, modifiers).release_value_but_fixme_should_propagate_errors())
+        if (media_element->handle_keydown({}, key, modifiers))
             return EventResult::Handled;
     }
 

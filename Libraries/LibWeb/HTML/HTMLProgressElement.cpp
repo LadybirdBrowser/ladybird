@@ -51,14 +51,13 @@ double HTMLProgressElement::value() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLProgressElement::set_value(double value)
+void HTMLProgressElement::set_value(double value)
 {
     if (value < 0)
         value = 0;
 
-    TRY(set_attribute(HTML::AttributeNames::value, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::value, String::number(value));
     update_progress_value_element();
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-progress-max
@@ -72,14 +71,13 @@ WebIDL::Double HTMLProgressElement::max() const
     return 1;
 }
 
-WebIDL::ExceptionOr<void> HTMLProgressElement::set_max(double value)
+void HTMLProgressElement::set_max(double value)
 {
     if (value <= 0)
-        return {};
+        return;
 
-    TRY(set_attribute(HTML::AttributeNames::max, String::number(value)));
+    set_attribute_value(HTML::AttributeNames::max, String::number(value));
     update_progress_value_element();
-    return {};
 }
 
 double HTMLProgressElement::position() const

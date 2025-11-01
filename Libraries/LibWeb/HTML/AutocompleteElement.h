@@ -30,7 +30,7 @@ public:
 
     Vector<String> autocomplete_tokens() const;
     String autocomplete() const;
-    WebIDL::ExceptionOr<void> set_autocomplete(String const&);
+    void set_autocomplete(String const&);
 
     // Each input element to which the autocomplete attribute applies [...] has
     // an autofill hint set, an autofill scope, an autofill field name,
