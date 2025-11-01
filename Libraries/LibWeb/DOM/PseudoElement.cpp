@@ -44,4 +44,9 @@ void PseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
     m_counters_set = move(counters_set);
 }
 
+PseudoElementTreeNode::PseudoElementTreeNode(CSS::PseudoElement type)
+    : m_type(type)
+{
+}
+
 }
