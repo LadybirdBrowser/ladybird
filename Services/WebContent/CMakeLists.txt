@@ -39,9 +39,6 @@ add_executable(WebContent main.cpp)
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)
-    find_package(unofficial-angle REQUIRED CONFIG)
-    find_package(SQLite3 REQUIRED)
-    target_link_libraries(WebContent PRIVATE LibMedia LibTextCodec SQLite::SQLite3 unofficial::angle::libGLESv2)
     lagom_windows_bin(WebContent)
 endif()
 
