@@ -127,7 +127,7 @@ interface mixin WebGLRenderingContextBase {
 
     [FIXME] any getTexParameter(GLenum target, GLenum pname);
 
-    [FIXME] any getUniform(WebGLProgram program, WebGLUniformLocation location);
+    any getUniform(WebGLProgram program, WebGLUniformLocation location);
 
     WebGLUniformLocation? getUniformLocation(WebGLProgram program, DOMString name);
 

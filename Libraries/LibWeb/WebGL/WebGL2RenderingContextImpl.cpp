@@ -3102,6 +3102,12 @@ Optional<String> WebGL2RenderingContextImpl::get_shader_source(GC::Root<WebGLSha
     return String::from_utf8_without_validation(ReadonlyBytes { shader_source.data(), static_cast<size_t>(shader_source_length - 1) });
 }
 
+JS::Value WebGL2RenderingContextImpl::get_uniform(GC::Root<WebGLProgram>, GC::Root<WebGLUniformLocation>)
+{
+    dbgln("FIXME: Implement get_uniform");
+    return JS::Value(0);
+}
+
 GC::Root<WebGLUniformLocation> WebGL2RenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> program, String name)
 {
     m_context->make_current();
