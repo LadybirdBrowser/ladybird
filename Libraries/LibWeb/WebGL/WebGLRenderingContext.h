@@ -51,6 +51,8 @@ public:
     WebIDL::Long drawing_buffer_height() const;
 
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
+    virtual bool angle_instanced_arrays_extension_enabled() const override;
+    virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const override;
 
 private:
     virtual void initialize(JS::Realm&) override;
@@ -80,6 +82,8 @@ private:
     bool m_should_present { true };
 
     GLenum m_error { 0 };
+
+    Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
 
     // Extensions
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."

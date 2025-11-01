@@ -175,6 +175,11 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
     if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc"sv)) {
         if (!m_webgl_compressed_texture_s3tc_extension) {
             m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), this));
+
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT);
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT);
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT);
         }
 
         VERIFY(m_webgl_compressed_texture_s3tc_extension);
@@ -184,6 +189,11 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
     if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc_srgb"sv)) {
         if (!m_webgl_compressed_texture_s3tc_srgb_extension) {
             m_webgl_compressed_texture_s3tc_srgb_extension = MUST(Extensions::WebGLCompressedTextureS3tcSrgb::create(realm(), this));
+
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT);
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT);
+            m_enabled_compressed_texture_formats.append(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT);
         }
 
         VERIFY(m_webgl_compressed_texture_s3tc_srgb_extension);
@@ -244,6 +254,16 @@ WebIDL::Long WebGL2RenderingContext::drawing_buffer_height() const
 bool WebGL2RenderingContext::ext_texture_filter_anisotropic_extension_enabled() const
 {
     return !!m_ext_texture_filter_anisotropic;
+}
+
+bool WebGL2RenderingContext::angle_instanced_arrays_extension_enabled() const
+{
+    return false;
+}
+
+ReadonlySpan<WebIDL::UnsignedLong> WebGL2RenderingContext::enabled_compressed_texture_formats() const
+{
+    return m_enabled_compressed_texture_formats;
 }
 
 }

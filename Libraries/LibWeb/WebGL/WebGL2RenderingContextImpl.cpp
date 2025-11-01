@@ -2436,6 +2436,11 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
             return JS::js_null();
         return JS::Value(m_framebuffer_binding);
     }
+    case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_FRAGMENT_SHADER_DERIVATIVE_HINT, 1, nullptr, &result);
+        return JS::Value(result);
+    }
     case GL_FRONT_FACE: {
         GLint result { 0 };
         glGetIntegervRobustANGLE(GL_FRONT_FACE, 1, nullptr, &result);
@@ -2530,6 +2535,21 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         glGetIntegervRobustANGLE(GL_PACK_ALIGNMENT, 1, nullptr, &result);
         return JS::Value(result);
     }
+    case GL_PACK_ROW_LENGTH: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_PACK_ROW_LENGTH, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_PACK_SKIP_ROWS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_PACK_SKIP_ROWS, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_PACK_SKIP_PIXELS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_PACK_SKIP_PIXELS, 1, nullptr, &result);
+        return JS::Value(result);
+    }
     case GL_POLYGON_OFFSET_FACTOR: {
         GLfloat result { 0.0f };
         glGetFloatvRobustANGLE(GL_POLYGON_OFFSET_FACTOR, 1, nullptr, &result);
@@ -2544,6 +2564,11 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         GLfloat result { 0.0f };
         glGetFloatvRobustANGLE(GL_POLYGON_OFFSET_UNITS, 1, nullptr, &result);
         return JS::Value(result);
+    }
+    case GL_RASTERIZER_DISCARD: {
+        GLboolean result { GL_FALSE };
+        glGetBooleanvRobustANGLE(GL_RASTERIZER_DISCARD, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
     }
     case GL_RED_BITS: {
         GLint result { 0 };
@@ -2583,6 +2608,11 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         GLfloat result { 0.0f };
         glGetFloatvRobustANGLE(GL_SAMPLE_COVERAGE_VALUE, 1, nullptr, &result);
         return JS::Value(result);
+    }
+    case GL_SAMPLER_BINDING: {
+        GLint handle { 0 };
+        glGetIntegervRobustANGLE(GL_SAMPLER_BINDING, 1, nullptr, &handle);
+        return WebGLSampler::create(m_realm, *this, handle);
     }
     case GL_SAMPLES: {
         GLint result { 0 };
@@ -2710,6 +2740,31 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     case GL_UNPACK_ALIGNMENT: {
         GLint result { 0 };
         glGetIntegervRobustANGLE(GL_UNPACK_ALIGNMENT, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_IMAGE_HEIGHT: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_IMAGE_HEIGHT, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_ROW_LENGTH: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_ROW_LENGTH, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_SKIP_IMAGES: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_SKIP_IMAGES, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_SKIP_PIXELS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_SKIP_PIXELS, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_UNPACK_SKIP_ROWS: {
+        GLint result { 0 };
+        glGetIntegervRobustANGLE(GL_UNPACK_SKIP_ROWS, 1, nullptr, &result);
         return JS::Value(result);
     }
     case GL_VENDOR: {
@@ -2929,8 +2984,18 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         glGetBooleanvRobustANGLE(GL_TRANSFORM_FEEDBACK_PAUSED, 1, nullptr, &result);
         return JS::Value(result == GL_TRUE);
     }
+    case COMPRESSED_TEXTURE_FORMATS: {
+        auto formats = enabled_compressed_texture_formats();
+        auto byte_buffer = MUST(ByteBuffer::copy(formats.data(), formats.reinterpret<u8 const>().size()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
+        return JS::Uint32Array::create(m_realm, formats.size(), array_buffer);
+    }
     case UNPACK_FLIP_Y_WEBGL:
         return JS::Value(m_unpack_flip_y);
+    case MAX_CLIENT_WAIT_TIMEOUT_WEBGL: {
+        // FIXME: Make this an actual limit
+        return JS::js_infinity();
+    }
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -3068,6 +3133,36 @@ Optional<String> WebGL2RenderingContextImpl::get_shader_info_log(GC::Root<WebGLS
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 }
 
+Optional<String> WebGL2RenderingContextImpl::get_shader_source(GC::Root<WebGLShader> shader)
+{
+    m_context->make_current();
+
+    GLuint shader_handle = 0;
+    if (shader) {
+        auto handle_or_error = shader->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return {};
+        }
+        shader_handle = handle_or_error.release_value();
+    }
+
+    GLint shader_source_length = 0;
+    glGetShaderiv(shader_handle, GL_SHADER_SOURCE_LENGTH, &shader_source_length);
+    if (!shader_source_length)
+        return String {};
+
+    auto shader_source = MUST(ByteBuffer::create_uninitialized(shader_source_length));
+    glGetShaderSource(shader_handle, shader_source_length, nullptr, reinterpret_cast<GLchar*>(shader_source.data()));
+    return String::from_utf8_without_validation(ReadonlyBytes { shader_source.data(), static_cast<size_t>(shader_source_length - 1) });
+}
+
+JS::Value WebGL2RenderingContextImpl::get_uniform(GC::Root<WebGLProgram>, GC::Root<WebGLUniformLocation>)
+{
+    dbgln("FIXME: Implement get_uniform");
+    return JS::Value(0);
+}
+
 GC::Root<WebGLUniformLocation> WebGL2RenderingContextImpl::get_uniform_location(GC::Root<WebGLProgram> program, String name)
 {
     m_context->make_current();
@@ -3092,6 +3187,77 @@ GC::Root<WebGLUniformLocation> WebGL2RenderingContextImpl::get_uniform_location(
         return nullptr;
 
     return WebGLUniformLocation::create(m_realm, location);
+}
+
+JS::Value WebGL2RenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
+{
+    switch (pname) {
+    case GL_CURRENT_VERTEX_ATTRIB: {
+        Array<GLfloat, 4> result;
+        result.fill(0);
+        glGetVertexAttribfvRobustANGLE(index, GL_CURRENT_VERTEX_ATTRIB, result.size(), nullptr, result.data());
+
+        auto byte_buffer = MUST(ByteBuffer::copy(result.span().reinterpret<u8>()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
+        return JS::Float32Array::create(m_realm, result.size(), array_buffer);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING: {
+        GLint handle { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, 1, nullptr, &handle);
+        return WebGLBuffer::create(m_realm, *this, handle);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_DIVISOR: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_ENABLED: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_ENABLED, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_INTEGER: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_INTEGER, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_NORMALIZED: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, 1, nullptr, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_SIZE: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_SIZE, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_STRIDE: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_STRIDE, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_VERTEX_ATTRIB_ARRAY_TYPE: {
+        GLint result { 0 };
+        glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_TYPE, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    default:
+        dbgln("Unknown WebGL vertex attrib name: 0x{:04x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+}
+
+WebIDL::LongLong WebGL2RenderingContextImpl::get_vertex_attrib_offset(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
+{
+    if (pname != GL_VERTEX_ATTRIB_ARRAY_POINTER) {
+        set_error(GL_INVALID_ENUM);
+        return 0;
+    }
+
+    GLintptr result { 0 };
+    glGetVertexAttribPointervRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_POINTER, 1, nullptr, reinterpret_cast<void**>(&result));
+    return result;
 }
 
 void WebGL2RenderingContextImpl::hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode)

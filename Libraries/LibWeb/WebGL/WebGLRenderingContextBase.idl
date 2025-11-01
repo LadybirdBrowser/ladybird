@@ -123,17 +123,17 @@ interface mixin WebGLRenderingContextBase {
     WebGLShaderPrecisionFormat? getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
     DOMString? getShaderInfoLog(WebGLShader shader);
 
-    [FIXME] DOMString? getShaderSource(WebGLShader shader);
+    DOMString? getShaderSource(WebGLShader shader);
 
     [FIXME] any getTexParameter(GLenum target, GLenum pname);
 
-    [FIXME] any getUniform(WebGLProgram program, WebGLUniformLocation location);
+    any getUniform(WebGLProgram program, WebGLUniformLocation location);
 
     WebGLUniformLocation? getUniformLocation(WebGLProgram program, DOMString name);
 
-    [FIXME] any getVertexAttrib(GLuint index, GLenum pname);
+    any getVertexAttrib(GLuint index, GLenum pname);
 
-    [FIXME] GLintptr getVertexAttribOffset(GLuint index, GLenum pname);
+    GLintptr getVertexAttribOffset(GLuint index, GLenum pname);
 
     undefined hint(GLenum target, GLenum mode);
     GLboolean isBuffer(WebGLBuffer? buffer);
