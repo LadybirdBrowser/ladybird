@@ -66,6 +66,14 @@ public:
     [[nodiscard]] String const& navigation_api_id() const { return m_navigation_api_id; }
     void set_navigation_api_id(String navigation_api_id) { m_navigation_api_id = move(navigation_api_id); }
 
+    // Helper to copy identity fields from another entry when replacing
+    void copy_identity_from(SessionHistoryEntry const& other)
+    {
+        m_navigation_api_id = other.m_navigation_api_id;
+        m_navigation_api_key = other.m_navigation_api_key;
+        m_step = other.m_step;
+    }
+
     [[nodiscard]] ScrollRestorationMode scroll_restoration_mode() const { return m_scroll_restoration_mode; }
     void set_scroll_restoration_mode(ScrollRestorationMode scroll_restoration_mode) { m_scroll_restoration_mode = scroll_restoration_mode; }
 

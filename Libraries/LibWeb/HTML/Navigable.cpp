@@ -1653,10 +1653,13 @@ void Navigable::begin_navigation(NavigateParams params)
     //     - url equals navigable's active session history entry's URL with exclude fragments set to true; and
     //     - url's fragment is non-null,
     //     then:
+    // NOTE: We also check that this is not a reload (reload_pending). During a reload, even though the URL matches,
+    //       we need to fetch a fresh document rather than just scrolling to the fragment.
     if (document_resource.has<Empty>()
         && !response
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
-        && url.fragment().has_value()) {
+        && url.fragment().has_value()
+        && !active_session_history_entry()->document_state()->reload_pending()) {
         // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
         navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id);
 
@@ -1873,6 +1876,12 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
 
     // 7. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_session_history_entry() : nullptr;
+
+    // When replacing, preserve the navigation API ID, key, and step to maintain entry identity
+    // This ensures the Navigation API can still find and reference this entry after replacement
+    if (entry_to_replace) {
+        history_entry->copy_identity_from(*entry_to_replace);
+    }
 
     // 8. Let history be navigable's active document's history object.
     auto history = active_document()->history();
@@ -2112,6 +2121,10 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     history_entry->set_url(entry_to_replace->url());
     history_entry->set_document_state(document_state);
 
+    // Preserve the navigation API ID, key, and step from the entry being replaced
+    // This maintains entry identity across document reloads for the Navigation API
+    history_entry->copy_identity_from(*entry_to_replace);
+
     // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
     traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, user_involvement] {
         finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry);
@@ -2275,6 +2288,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
         //    then set historyEntry's navigation API key to entryToReplace's navigation API key.
         if (history_entry->document_state()->origin().has_value() && entry_to_replace->document_state()->origin().has_value() && history_entry->document_state()->origin()->is_same_origin(*entry_to_replace->document_state()->origin())) {
             history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+            // Also preserve the navigation API ID to maintain entry identity
+            history_entry->set_navigation_api_id(entry_to_replace->navigation_api_id());
         }
 
         // 4. Set targetStep to traversable's current session history step.
@@ -2320,6 +2335,12 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
 
     // 5. Let entryToReplace be activeEntry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_entry : nullptr;
+
+    // When replacing, preserve the navigation API ID, key, and step to maintain entry identity
+    // This ensures the Navigation API can still find and reference this entry after replacement
+    if (entry_to_replace) {
+        new_entry->copy_identity_from(*entry_to_replace);
+    }
 
     // 6. If historyHandling is "push", then:
     if (history_handling == HistoryHandlingBehavior::Push) {
