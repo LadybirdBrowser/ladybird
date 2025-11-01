@@ -8,6 +8,7 @@
  */
 
 #define AK_DONT_REPLACE_STD
+#define SK_SUPPORT_UNSPANNED_APIS
 
 #include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
