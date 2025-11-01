@@ -194,7 +194,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
         },
         [this, image_request = GC::Root { m_image_request }] {
             m_load_event_delayer.clear();
-
+            image_request->set_state(HTML::ImageRequest::State::Broken);
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
         });
 
@@ -212,7 +212,7 @@ GC::Ptr<Layout::Node> SVGImageElement::create_layout_node(GC::Ref<CSS::ComputedP
 
 bool SVGImageElement::is_image_available() const
 {
-    return m_resource_request && m_resource_request->image_data();
+    return m_image_request && m_image_request->image_data();
 }
 
 Optional<CSSPixels> SVGImageElement::intrinsic_width() const

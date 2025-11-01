@@ -39,6 +39,7 @@ public:
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize) const override;
     virtual void set_visible_in_viewport(bool) override { }
     virtual GC::Ptr<DOM::Element const> to_html_element() const override { return *this; }
+    GC::Ptr<HTML::ImageRequest> const& image_request() { return m_image_request; }
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);

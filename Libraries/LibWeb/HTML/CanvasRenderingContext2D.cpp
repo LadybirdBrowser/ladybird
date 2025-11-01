@@ -846,8 +846,9 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         },
         // FIXME: Don't duplicate this for HTMLImageElement and SVGImageElement.
         [](GC::Root<SVG::SVGImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
-            // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
-
+            // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
+            if (auto image_request = image_element->image_request(); image_request && image_request->state() == HTML::ImageRequest::State::Broken)
+                return WebIDL::InvalidStateError::create(image_element->realm(), "SVG image element state is broken"_utf16);
             // If image is not fully decodable, then return bad.
             if (!image_element->current_image_bitmap())
                 return { CanvasImageSourceUsability::Bad };
