@@ -80,7 +80,9 @@ namespace Web::CSS::Parser {
 
 RefPtr<StyleValue const> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
 {
+    tokens.discard_whitespace();
     auto first = parse_one_value(tokens);
+    tokens.discard_whitespace();
     if (!first || !tokens.has_next_token())
         return first;
 
@@ -91,8 +93,11 @@ RefPtr<StyleValue const> Parser::parse_comma_separated_value_list(TokenStream<Co
         if (!tokens.consume_a_token().is(Token::Type::Comma))
             return nullptr;
 
+        tokens.discard_whitespace();
+
         if (auto maybe_value = parse_one_value(tokens)) {
             values.append(maybe_value.release_nonnull());
+            tokens.discard_whitespace();
             continue;
         }
         return nullptr;
@@ -782,6 +787,8 @@ RefPtr<UnicodeRangeStyleValue const> Parser::parse_unicode_range_value(TokenStre
 
 RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number) && peek_token.token().number().is_integer()) {
         tokens.discard_a_token(); // integer
@@ -801,6 +808,8 @@ RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>
 
 RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number)) {
         tokens.discard_a_token(); // number
@@ -846,6 +855,8 @@ RefPtr<StyleValue const> Parser::parse_number_percentage_none_value(TokenStream<
 
 RefPtr<StyleValue const> Parser::parse_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Percentage)) {
         tokens.discard_a_token(); // percentage
@@ -866,6 +877,7 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
     // <anchor()> = anchor( <anchor-name>? && <anchor-side>, <length-percentage>? )
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     auto const& function_token = tokens.consume_a_token();
     if (!function_token.is_function("anchor"sv))
         return {};
@@ -926,6 +938,7 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
     if (!anchor_side_value)
         return {};
 
+    transaction.commit();
     return AnchorStyleValue::create(anchor_name, anchor_side_value.release_nonnull(), fallback_value);
 }
 
@@ -943,21 +956,45 @@ RefPtr<StyleValue const> Parser::parse_anchor_size(TokenStream<ComponentValue>& 
     static Array allowed_property_ids = {
         // inset properties
         PropertyID::Inset,
-        PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left,
-        PropertyID::InsetBlock, PropertyID::InsetBlockStart, PropertyID::InsetBlockEnd,
-        PropertyID::InsetInline, PropertyID::InsetInlineStart, PropertyID::InsetInlineEnd,
+        PropertyID::Top,
+        PropertyID::Right,
+        PropertyID::Bottom,
+        PropertyID::Left,
+        PropertyID::InsetBlock,
+        PropertyID::InsetBlockStart,
+        PropertyID::InsetBlockEnd,
+        PropertyID::InsetInline,
+        PropertyID::InsetInlineStart,
+        PropertyID::InsetInlineEnd,
         // margin properties
         PropertyID::Margin,
-        PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft,
-        PropertyID::MarginBlock, PropertyID::MarginBlockStart, PropertyID::MarginBlockEnd,
-        PropertyID::MarginInline, PropertyID::MarginInlineStart, PropertyID::MarginInlineEnd,
+        PropertyID::MarginTop,
+        PropertyID::MarginRight,
+        PropertyID::MarginBottom,
+        PropertyID::MarginLeft,
+        PropertyID::MarginBlock,
+        PropertyID::MarginBlockStart,
+        PropertyID::MarginBlockEnd,
+        PropertyID::MarginInline,
+        PropertyID::MarginInlineStart,
+        PropertyID::MarginInlineEnd,
         // sizing properties
-        PropertyID::Width, PropertyID::MinWidth, PropertyID::MaxWidth,
-        PropertyID::Height, PropertyID::MinHeight, PropertyID::MaxHeight,
-        PropertyID::BlockSize, PropertyID::MinBlockSize, PropertyID::MaxBlockSize,
-        PropertyID::InlineSize, PropertyID::MinInlineSize, PropertyID::MaxInlineSize,
+        PropertyID::Width,
+        PropertyID::MinWidth,
+        PropertyID::MaxWidth,
+        PropertyID::Height,
+        PropertyID::MinHeight,
+        PropertyID::MaxHeight,
+        PropertyID::BlockSize,
+        PropertyID::MinBlockSize,
+        PropertyID::MaxBlockSize,
+        PropertyID::InlineSize,
+        PropertyID::MinInlineSize,
+        PropertyID::MaxInlineSize,
         // self-alignment properties
-        PropertyID::AlignSelf, PropertyID::JustifySelf, PropertyID::PlaceSelf,
+        PropertyID::AlignSelf,
+        PropertyID::JustifySelf,
+        PropertyID::PlaceSelf,
         // FIXME: position-anchor
         // FIXME: position-area
     };
@@ -1037,6 +1074,8 @@ RefPtr<StyleValue const> Parser::parse_anchor_size(TokenStream<ComponentValue>& 
 
 RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1066,6 +1105,8 @@ RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& 
 
 RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1098,6 +1139,8 @@ RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<Compon
 
 RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1118,6 +1161,8 @@ RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& t
 
 RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1138,6 +1183,8 @@ RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValu
 
 RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1161,6 +1208,8 @@ RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<Co
 
 RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1206,6 +1255,8 @@ RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>&
 
 RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1254,6 +1305,8 @@ RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<Compo
 
 RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1279,6 +1332,8 @@ RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentVal
 
 RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1299,6 +1354,8 @@ RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& t
 
 RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
+
     if (tokens.next_token().is(Token::Type::Dimension)) {
         auto transaction = tokens.begin_transaction();
         auto& dimension_token = tokens.consume_a_token().token();
@@ -1322,6 +1379,7 @@ RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<Compone
 
 RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Ident)) {
         auto keyword = keyword_from_string(peek_token.token().ident());
@@ -2482,6 +2540,7 @@ RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& 
 
 RefPtr<StringStyleValue const> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
 {
+    tokens.discard_whitespace();
     auto const& peek = tokens.next_token();
     if (peek.is(Token::Type::String)) {
         tokens.discard_a_token();
@@ -3630,6 +3689,7 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
         return GridSize { Size::make_length_percentage(fixed_breadth.value()) };
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return {};
 
@@ -3674,6 +3734,7 @@ Optional<GridLineNames> Parser::parse_grid_line_names(TokenStream<ComponentValue
 
     auto transactions = tokens.begin_transaction();
     GridLineNames line_names;
+    tokens.discard_whitespace();
     auto const& token = tokens.consume_a_token();
     if (!token.is_block() || !token.block().is_square())
         return line_names;
@@ -3695,6 +3756,7 @@ Optional<GridLineNames> Parser::parse_grid_line_names(TokenStream<ComponentValue
 size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTrackSizeList& output, GridTrackParser const& track_parsing_callback, AllowTrailingLineNamesForEachTrack allow_trailing_line_names_for_each_track)
 {
     size_t parsed_tracks_count = 0;
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         auto transaction = tokens.begin_transaction();
         auto line_names = parse_grid_line_names(tokens);
@@ -3718,6 +3780,7 @@ size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTr
         }
         transaction.commit();
         parsed_tracks_count++;
+        tokens.discard_whitespace();
     }
 
     if (allow_trailing_line_names_for_each_track == AllowTrailingLineNamesForEachTrack::No) {
@@ -3732,6 +3795,7 @@ size_t Parser::parse_track_list_impl(TokenStream<ComponentValue>& tokens, GridTr
 Optional<GridRepeat> Parser::parse_grid_track_repeat_impl(TokenStream<ComponentValue>& tokens, GridRepeatTypeParser const& repeat_type_parser, GridTrackParser const& repeat_track_parser)
 {
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
         return {};
@@ -3776,6 +3840,7 @@ Optional<GridRepeat> Parser::parse_grid_track_repeat_impl(TokenStream<ComponentV
 Optional<ExplicitGridTrack> Parser::parse_grid_minmax(TokenStream<ComponentValue>& tokens, GridMinMaxParamParser const& min_parser, GridMinMaxParamParser const& max_parser)
 {
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
         return {};
@@ -3845,6 +3910,7 @@ Optional<GridRepeat> Parser::parse_grid_auto_repeat(TokenStream<ComponentValue>&
     // <auto-repeat> = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
 
     GridRepeatTypeParser parse_repeat_type = [](TokenStream<ComponentValue>& tokens) -> Optional<GridRepeatParams> {
+        tokens.discard_whitespace();
         auto const& first_token = tokens.consume_a_token();
         if (!first_token.is_token() || !first_token.token().is(Token::Type::Ident))
             return {};
@@ -3889,7 +3955,7 @@ Optional<GridRepeat> Parser::parse_grid_fixed_repeat(TokenStream<ComponentValue>
 Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentValue>& tokens)
 {
     // <track-size> = <track-breadth> | minmax( <inflexible-breadth> , <track-breadth> ) | fit-content( <length-percentage [0,∞]> )
-
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return {};
 
@@ -3931,7 +3997,7 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
 Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentValue>& tokens)
 {
     // <fixed-size> = <fixed-breadth> | minmax( <fixed-breadth> , <track-breadth> ) | minmax( <inflexible-breadth> , <fixed-breadth> )
-
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return {};
 
@@ -4003,6 +4069,7 @@ GridTrackSizeList Parser::parse_grid_auto_track_list(TokenStream<ComponentValue>
     };
 
     parse_zero_or_more_fixed_tracks();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         if (parsed_track_count == 0)
             return {};
@@ -4051,9 +4118,9 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
     Optional<IntegerOrCalculated> parsed_integer;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
-    if (tokens.remaining_token_count() == 1 && tokens.next_token().is_ident("auto"sv)) {
-        tokens.discard_a_token();
+    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto)) {
         transaction.commit();
         return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_auto());
     }
@@ -4063,13 +4130,14 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
             if (is_span)
                 return nullptr;
 
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // span
 
             // NOTE: "span" must not appear in between <custom-ident> and <integer>
             if (tokens.has_next_token() && (parsed_custom_ident.has_value() || parsed_integer.has_value()))
                 return nullptr;
 
             is_span = true;
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -4078,6 +4146,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
                 return nullptr;
 
             parsed_custom_ident = maybe_parsed_custom_ident->to_string();
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -4086,6 +4155,7 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
                 return nullptr;
 
             parsed_integer = maybe_parsed_integer;
+            tokens.discard_whitespace();
             continue;
         }
 

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 239 tests
 
-191 Pass
-48 Fail
+199 Pass
+40 Fail
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid
@@ -25,12 +25,12 @@ Pass	syntax:'*', initialValue:'"' is valid
 Pass	syntax:'*', initialValue:'default' is valid
 Pass	syntax:'<length>', initialValue:'0' is valid
 Pass	syntax:'<length>', initialValue:'10px /*:)*/' is valid
-Fail	syntax:'<length>', initialValue:' calc(-2px)' is valid
+Pass	syntax:'<length>', initialValue:' calc(-2px)' is valid
 Pass	syntax:'<length>', initialValue:'calc(2px*4 + 10px)' is valid
 Pass	syntax:'<length>', initialValue:'7.1e-4cm' is valid
 Pass	syntax:'<length>', initialValue:'calc(7in - 12px)' is valid
 Pass	syntax:'<length>+', initialValue:'2px 7px calc(8px)' is valid
-Fail	syntax:'<length>#', initialValue:'2px, 7px, calc(8px)' is valid
+Pass	syntax:'<length>#', initialValue:'2px, 7px, calc(8px)' is valid
 Pass	syntax:'<percentage>', initialValue:'-9.3e3%' is valid
 Pass	syntax:'<length-percentage>', initialValue:'-54%' is valid
 Pass	syntax:'<length-percentage>', initialValue:'0' is valid
@@ -60,22 +60,22 @@ Pass	syntax:'<transform-function>+', initialValue:'translateX(2px) rotate(42deg)
 Pass	syntax:'<transform-list>', initialValue:'scale(2)' is valid
 Pass	syntax:'<transform-list>', initialValue:'translateX(2px) rotate(20deg)' is valid
 Pass	syntax:'<string>', initialValue:''foo bar'' is valid
-Fail	syntax:'<string>', initialValue:' 'foo bar' ' is valid
+Pass	syntax:'<string>', initialValue:' 'foo bar' ' is valid
 Pass	syntax:'<string>', initialValue:''foo bar' is valid
 Pass	syntax:'<string>', initialValue:''"foo" bar'' is valid
 Pass	syntax:'<string>', initialValue:'"bar baz"' is valid
 Pass	syntax:'<string>', initialValue:'"bar 'baz'"' is valid
 Pass	syntax:'<string>', initialValue:'"bar 'baz'' is valid
 Pass	syntax:'<string>+', initialValue:''foo' 'bar'' is valid
-Fail	syntax:'<string>#', initialValue:''foo', 'bar'' is valid
+Pass	syntax:'<string>#', initialValue:''foo', 'bar'' is valid
 Pass	syntax:'<string>+ | <string>#', initialValue:''foo' 'bar'' is valid
 Pass	syntax:'<string>+ | <string>#', initialValue:' 'foo' 'bar'' is valid
 Pass	syntax:'<string>+ | <string>#', initialValue:''foo' "bar"' is valid
 Pass	syntax:'<string>+ | <string>#', initialValue:''foo' "bar' is valid
-Fail	syntax:'<string># | <string>+', initialValue:''foo', 'bar'' is valid
-Fail	syntax:'<string># | <string>+', initialValue:''foo', 'bar' ' is valid
-Fail	syntax:'<string># | <string>+', initialValue:'"foo", 'bar'' is valid
-Fail	syntax:'<string># | <string>+', initialValue:'"foo", 'bar' is valid
+Pass	syntax:'<string># | <string>+', initialValue:''foo', 'bar'' is valid
+Pass	syntax:'<string># | <string>+', initialValue:''foo', 'bar' ' is valid
+Pass	syntax:'<string># | <string>+', initialValue:'"foo", 'bar'' is valid
+Pass	syntax:'<string># | <string>+', initialValue:'"foo", 'bar' is valid
 Pass	syntax:'<color>', initialValue:'rgb(12, 34, 56)' is valid
 Pass	syntax:'<color>', initialValue:'lightgoldenrodyellow' is valid
 Pass	syntax:'<image>', initialValue:'url(a)' is valid

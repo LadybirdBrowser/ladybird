@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Overflow: parsing valid scrollbar-gutter declarations</title>
+<link rel="author" title="Felipe Erias Morandeira" href="mailto:felipeerias@gmail.com"/>
+<link rel="help" href="https://www.w3.org/TR/css-overflow-4/#scollbar-gutter-property"/>
+<meta name="assert" content="Parsing valid scrollbar-gutter declarations">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+
+<script>
+
+    test_valid_value("scrollbar-gutter", "auto");
+    test_valid_value("scrollbar-gutter", "stable");
+    test_valid_value("scrollbar-gutter", "stable both-edges");
+
+    test_valid_value("scrollbar-gutter", "both-edges stable", "stable both-edges");
+
+</script>

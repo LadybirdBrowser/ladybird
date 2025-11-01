@@ -186,6 +186,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return {};
     };
 
+    tokens.discard_whitespace();
     auto& peek_token = tokens.next_token();
 
     auto parse_for_type = [&](ValueType const type) -> Optional<PropertyAndValue> {
@@ -458,46 +459,57 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     return OptionalNone {};
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens, Optional<String> original_source_text)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, Optional<String> original_source_text)
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    Vector<ComponentValue> component_values;
     SubstitutionFunctionsPresence substitution_presence;
 
-    while (unprocessed_tokens.has_next_token()) {
-        auto const& token = unprocessed_tokens.consume_a_token();
+    tokens.mark();
+    while (tokens.has_next_token()) {
+        auto const& token = tokens.consume_a_token();
 
         if (token.is(Token::Type::Semicolon)) {
-            unprocessed_tokens.reconsume_current_input_token();
+            tokens.reconsume_current_input_token();
             return ParseError::SyntaxError;
         }
-
-        // FIXME: Stop removing whitespace here. It's less helpful than it seems.
-        if (property_id != PropertyID::Custom && token.is(Token::Type::Whitespace))
-            continue;
 
         if (token.is_function())
             token.function().contains_arbitrary_substitution_function(substitution_presence);
         else if (token.is_block())
             token.block().contains_arbitrary_substitution_function(substitution_presence);
-
-        component_values.append(token);
     }
+    tokens.restore_a_mark();
 
-    if (component_values.size() == 1) {
-        auto tokens = TokenStream { component_values };
-        if (auto parsed_value = parse_builtin_value(tokens))
+    auto parse_all_as = [](auto& tokens, auto&& callback) -> ParseErrorOr<NonnullRefPtr<StyleValue const>> {
+        tokens.discard_whitespace();
+        auto parsed_value = callback(tokens);
+        tokens.discard_whitespace();
+        if (parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    };
+
+    {
+        auto builtin_transaction = tokens.begin_transaction();
+        auto builtin = parse_all_as(tokens, [this](auto& tokens) { return parse_builtin_value(tokens); });
+        if (!builtin.is_error()) {
+            builtin_transaction.commit();
+            return builtin.release_value();
+        }
     }
 
-    if (property_id == PropertyID::Custom || substitution_presence.has_any())
+    if (property_id == PropertyID::Custom || substitution_presence.has_any()) {
+        Vector<ComponentValue> component_values;
+        while (tokens.has_next_token()) {
+            component_values.append(tokens.consume_a_token());
+        }
         return UnresolvedStyleValue::create(move(component_values), substitution_presence, original_source_text);
+    }
 
-    if (component_values.is_empty())
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token())
         return ParseError::SyntaxError;
-
-    auto tokens = TokenStream { component_values };
 
     // Special-case property handling
     switch (property_id) {
@@ -507,21 +519,13 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         //       is an invalid value which is a syntax error.
         return ParseError::SyntaxError;
     case PropertyID::AnchorName:
-        if (auto parsed_value = parse_anchor_name_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_anchor_name_value(tokens); });
     case PropertyID::AnchorScope:
-        if (auto parsed_value = parse_anchor_scope_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_anchor_scope_value(tokens); });
     case PropertyID::AspectRatio:
-        if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_aspect_ratio_value(tokens); });
     case PropertyID::Animation:
-        if (auto parsed_value = parse_animation_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_animation_value(tokens); });
     case PropertyID::AnimationComposition:
     case PropertyID::AnimationDelay:
     case PropertyID::AnimationDirection:
@@ -531,381 +535,219 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     case PropertyID::AnimationName:
     case PropertyID::AnimationPlayState:
     case PropertyID::AnimationTimingFunction:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackdropFilter:
     case PropertyID::Filter:
-        if (auto parsed_value = parse_filter_value_list_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_filter_value_list_value(tokens); });
     case PropertyID::Background:
-        if (auto parsed_value = parse_background_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_background_value(tokens); });
     case PropertyID::BackgroundAttachment:
     case PropertyID::BackgroundBlendMode:
     case PropertyID::BackgroundClip:
     case PropertyID::BackgroundImage:
     case PropertyID::BackgroundOrigin:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackgroundPosition:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); });
+        });
     case PropertyID::BackgroundPositionX:
     case PropertyID::BackgroundPositionY:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_position_x_or_y_value(tokens, property_id); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_position_x_or_y_value(tokens, property_id); });
+        });
     case PropertyID::BackgroundRepeat:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); });
+        });
     case PropertyID::BackgroundSize:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); });
+        });
     case PropertyID::Border:
     case PropertyID::BorderBlock:
     case PropertyID::BorderInline:
-        if (auto parsed_value = parse_border_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_border_value(property_id, tokens); });
     case PropertyID::BorderImage:
-        if (auto parsed_value = parse_border_image_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_image_value(tokens); });
     case PropertyID::BorderImageSlice:
-        if (auto parsed_value = parse_border_image_slice_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_image_slice_value(tokens); });
     case PropertyID::BorderTopLeftRadius:
     case PropertyID::BorderTopRightRadius:
     case PropertyID::BorderBottomRightRadius:
     case PropertyID::BorderBottomLeftRadius:
-        if (auto parsed_value = parse_border_radius_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_radius_value(tokens); });
     case PropertyID::BorderRadius:
-        if (auto parsed_value = parse_border_radius_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_border_radius_shorthand_value(tokens); });
     case PropertyID::BoxShadow:
-        if (auto parsed_value = parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Normal); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Normal); });
     case PropertyID::ColorScheme:
-        if (auto parsed_value = parse_color_scheme_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_color_scheme_value(tokens); });
     case PropertyID::Columns:
-        if (auto parsed_value = parse_columns_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_columns_value(tokens); });
     case PropertyID::Contain:
-        if (auto parsed_value = parse_contain_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_contain_value(tokens); });
     case PropertyID::ContainerType:
-        if (auto parsed_value = parse_container_type_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_container_type_value(tokens); });
     case PropertyID::Content:
-        if (auto parsed_value = parse_content_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_content_value(tokens); });
     case PropertyID::CounterIncrement:
-        if (auto parsed_value = parse_counter_increment_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_increment_value(tokens); });
     case PropertyID::CounterReset:
-        if (auto parsed_value = parse_counter_reset_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_reset_value(tokens); });
     case PropertyID::CounterSet:
-        if (auto parsed_value = parse_counter_set_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_set_value(tokens); });
     case PropertyID::Cursor:
-        if (auto parsed_value = parse_cursor_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_cursor_value(tokens); });
     case PropertyID::Display:
-        if (auto parsed_value = parse_display_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_display_value(tokens); });
     case PropertyID::Flex:
-        if (auto parsed_value = parse_flex_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_flex_shorthand_value(tokens); });
     case PropertyID::FlexFlow:
-        if (auto parsed_value = parse_flex_flow_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_flex_flow_value(tokens); });
     case PropertyID::Font:
-        if (auto parsed_value = parse_font_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_value(tokens); });
     case PropertyID::FontFamily:
-        if (auto parsed_value = parse_font_family_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_family_value(tokens); });
     case PropertyID::FontFeatureSettings:
-        if (auto parsed_value = parse_font_feature_settings_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_feature_settings_value(tokens); });
     case PropertyID::FontLanguageOverride:
-        if (auto parsed_value = parse_font_language_override_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_language_override_value(tokens); });
     case PropertyID::FontStyle:
-        if (auto parsed_value = parse_font_style_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_style_value(tokens); });
     case PropertyID::FontVariationSettings:
-        if (auto parsed_value = parse_font_variation_settings_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variation_settings_value(tokens); });
     case PropertyID::FontVariant:
-        if (auto parsed_value = parse_font_variant(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant(tokens); });
     case PropertyID::FontVariantAlternates:
-        if (auto parsed_value = parse_font_variant_alternates_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_alternates_value(tokens); });
     case PropertyID::FontVariantEastAsian:
-        if (auto parsed_value = parse_font_variant_east_asian_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_east_asian_value(tokens); });
     case PropertyID::FontVariantLigatures:
-        if (auto parsed_value = parse_font_variant_ligatures_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_ligatures_value(tokens); });
     case PropertyID::FontVariantNumeric:
-        if (auto parsed_value = parse_font_variant_numeric_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_font_variant_numeric_value(tokens); });
     case PropertyID::GridArea:
-        if (auto parsed_value = parse_grid_area_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_area_shorthand_value(tokens); });
     case PropertyID::GridAutoFlow:
-        if (auto parsed_value = parse_grid_auto_flow_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_auto_flow_value(tokens); });
     case PropertyID::GridColumn:
-        if (auto parsed_value = parse_grid_track_placement_shorthand_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::GridColumnEnd:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
-    case PropertyID::GridColumnStart:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
     case PropertyID::GridRow:
-        if (auto parsed_value = parse_grid_track_placement_shorthand_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_grid_track_placement_shorthand_value(property_id, tokens); });
+    case PropertyID::GridColumnEnd:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
+    case PropertyID::GridColumnStart:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
     case PropertyID::GridRowEnd:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
     case PropertyID::GridRowStart:
-        if (auto parsed_value = parse_grid_track_placement(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_placement(tokens); });
     case PropertyID::Grid:
-        if (auto parsed_value = parse_grid_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_shorthand_value(tokens); });
     case PropertyID::GridTemplate:
-        if (auto parsed_value = parse_grid_track_size_list_shorthand_value(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_size_list_shorthand_value(PropertyID::GridTemplate, tokens); });
     case PropertyID::GridTemplateAreas:
-        if (auto parsed_value = parse_grid_template_areas_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_template_areas_value(tokens); });
     case PropertyID::GridTemplateColumns:
-        if (auto parsed_value = parse_grid_track_size_list(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_size_list(tokens); });
     case PropertyID::GridTemplateRows:
-        if (auto parsed_value = parse_grid_track_size_list(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_track_size_list(tokens); });
     case PropertyID::GridAutoColumns:
-        if (auto parsed_value = parse_grid_auto_track_sizes(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_auto_track_sizes(tokens); });
     case PropertyID::GridAutoRows:
-        if (auto parsed_value = parse_grid_auto_track_sizes(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_grid_auto_track_sizes(tokens); });
     case PropertyID::ListStyle:
-        if (auto parsed_value = parse_list_style_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_list_style_value(tokens); });
     case PropertyID::MathDepth:
-        if (auto parsed_value = parse_math_depth_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_math_depth_value(tokens); });
     case PropertyID::Mask:
-        if (auto parsed_value = parse_mask_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_mask_value(tokens); });
     case PropertyID::MaskClip:
     case PropertyID::MaskComposite:
     case PropertyID::MaskImage:
     case PropertyID::MaskMode:
     case PropertyID::MaskOrigin:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::MaskPosition:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                return parse_position_value(tokens);
+            });
+        });
     case PropertyID::MaskRepeat:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_repeat_style_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                return parse_single_repeat_style_value(PropertyID::MaskRepeat, tokens);
+            });
+        });
     case PropertyID::MaskSize:
-        if (auto parsed_value = parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) { return parse_single_background_size_value(property_id, tokens); }))
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) {
+            return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                return parse_single_background_size_value(PropertyID::MaskSize, tokens);
+            });
+        });
     // FIXME: This can be removed once we have generic logic for parsing "positional-value-list-shorthand"s
     case PropertyID::Overflow:
-        if (auto parsed_value = parse_overflow_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_overflow_value(tokens); });
     case PropertyID::PaintOrder:
-        if (auto parsed_value = parse_paint_order_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_paint_order_value(tokens); });
     case PropertyID::PlaceContent:
-        if (auto parsed_value = parse_place_content_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_place_content_value(tokens); });
     case PropertyID::PlaceItems:
-        if (auto parsed_value = parse_place_items_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_place_items_value(tokens); });
     case PropertyID::PlaceSelf:
-        if (auto parsed_value = parse_place_self_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_place_self_value(tokens); });
     case PropertyID::PositionAnchor:
-        if (auto parsed_value = parse_position_anchor_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_anchor_value(tokens); });
     case PropertyID::PositionArea:
-        if (auto parsed_value = parse_position_area_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_area_value(tokens); });
     case PropertyID::PositionTryFallbacks:
-        if (auto parsed_value = parse_position_try_fallbacks_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_try_fallbacks_value(tokens); });
     case PropertyID::PositionVisibility:
-        if (auto parsed_value = parse_position_visibility_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_position_visibility_value(tokens); });
     case PropertyID::Quotes:
-        if (auto parsed_value = parse_quotes_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_quotes_value(tokens); });
     case PropertyID::Rotate:
-        if (auto parsed_value = parse_rotate_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_rotate_value(tokens); });
     case PropertyID::ScrollbarColor:
-        if (auto parsed_value = parse_scrollbar_color_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scrollbar_color_value(tokens); });
     case PropertyID::ScrollbarGutter:
-        if (auto parsed_value = parse_scrollbar_gutter_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scrollbar_gutter_value(tokens); });
     case PropertyID::ShapeOutside:
-        if (auto parsed_value = parse_shape_outside_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_shape_outside_value(tokens); });
     case PropertyID::StrokeDasharray:
-        if (auto parsed_value = parse_stroke_dasharray_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_stroke_dasharray_value(tokens); });
     case PropertyID::TextDecoration:
-        if (auto parsed_value = parse_text_decoration_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_decoration_value(tokens); });
     case PropertyID::TextDecorationLine:
-        if (auto parsed_value = parse_text_decoration_line_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_decoration_line_value(tokens); });
     case PropertyID::TextShadow:
-        if (auto parsed_value = parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); });
     case PropertyID::TextUnderlinePosition:
-        if (auto parsed_value = parse_text_underline_position_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_underline_position_value(tokens); });
     case PropertyID::TouchAction:
-        if (auto parsed_value = parse_touch_action_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_touch_action_value(tokens); });
     case PropertyID::TransformOrigin:
-        if (auto parsed_value = parse_transform_origin_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_transform_origin_value(tokens); });
     case PropertyID::Transition:
-        if (auto parsed_value = parse_transition_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_value(tokens); });
     case PropertyID::TransitionDelay:
-        if (auto parsed_value = parse_list_of_time_values(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
     case PropertyID::TransitionDuration:
-        if (auto parsed_value = parse_list_of_time_values(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_list_of_time_values(property_id, tokens); });
     case PropertyID::TransitionProperty:
-        if (auto parsed_value = parse_transition_property_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_property_value(tokens); });
     case PropertyID::TransitionTimingFunction:
-        if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_simple_comma_separated_value_list(PropertyID::TransitionTimingFunction, tokens); });
     case PropertyID::Translate:
-        if (auto parsed_value = parse_translate_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_translate_value(tokens); });
     case PropertyID::Scale:
-        if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scale_value(tokens); });
     case PropertyID::WhiteSpace:
-        if (auto parsed_value = parse_white_space_shorthand(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_white_space_shorthand(tokens); });
     case PropertyID::WhiteSpaceTrim:
-        if (auto parsed_value = parse_white_space_trim_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_white_space_trim_value(tokens); });
     case PropertyID::WillChange:
-        if (auto parsed_value = parse_will_change_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_will_change_value(tokens); });
 
     default:
         break;
@@ -918,41 +760,39 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return ParseError::SyntaxError;
     }
 
-    // If there's only 1 ComponentValue, we can only produce a single StyleValue.
-    if (component_values.size() == 1) {
-        auto stream = TokenStream { component_values };
-        if (auto parsed_value = parse_css_value_for_property(property_id, stream))
-            return parsed_value.release_nonnull();
-    } else {
+    {
+        auto transaction = tokens.begin_transaction();
         StyleValueVector parsed_values;
-        auto stream = TokenStream { component_values };
-        while (auto parsed_value = parse_css_value_for_property(property_id, stream)) {
+        while (auto parsed_value = parse_css_value_for_property(property_id, tokens)) {
             parsed_values.append(parsed_value.release_nonnull());
-            if (!stream.has_next_token())
+            tokens.discard_whitespace();
+            if (!tokens.has_next_token())
                 break;
         }
 
-        if (!stream.has_next_token()) {
-            // Some types (such as <ratio>) can be made from multiple ComponentValues, so if we only made 1 StyleValue, return it directly.
-            if (parsed_values.size() == 1)
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token()) {
+            if (parsed_values.size() == 1) {
+                transaction.commit();
                 return *parsed_values.take_first();
+            }
 
-            if (!parsed_values.is_empty() && parsed_values.size() <= property_maximum_value_count(property_id))
+            if (!parsed_values.is_empty() && parsed_values.size() <= property_maximum_value_count(property_id)) {
+                transaction.commit();
                 return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
+            }
         }
     }
 
-    // We have multiple values, but the property claims to accept only a single one, check if it's a shorthand property.
+    // We have more values than the property claims to allow. Check if it's a shorthand.
     auto unassigned_properties = longhands_for_shorthand(property_id);
     if (unassigned_properties.is_empty())
         return ParseError::SyntaxError;
 
-    auto stream = TokenStream { component_values };
-
     OrderedHashMap<UnderlyingType<PropertyID>, Vector<ValueComparingNonnullRefPtr<StyleValue const>>> assigned_values;
 
-    while (stream.has_next_token() && !unassigned_properties.is_empty()) {
-        auto property_and_value = parse_css_value_for_properties(unassigned_properties, stream);
+    while (tokens.has_next_token() && !unassigned_properties.is_empty()) {
+        auto property_and_value = parse_css_value_for_properties(unassigned_properties, tokens);
         if (property_and_value.has_value()) {
             auto property = property_and_value->property;
             auto value = property_and_value->style_value;
@@ -968,7 +808,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 
         // No property matched, so we're done.
         if constexpr (CSS_PARSER_DEBUG) {
-            dbgln("No property (from {} properties) matched {}", unassigned_properties.size(), stream.next_token().to_debug_string());
+            dbgln("No property (from {} properties) matched {}", unassigned_properties.size(), tokens.next_token().to_debug_string());
             for (auto id : unassigned_properties)
                 dbgln("    {}", string_from_property_id(id));
         }
@@ -978,8 +818,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     for (auto& property : unassigned_properties)
         assigned_values.ensure(to_underlying(property)).append(property_initial_value(property));
 
-    stream.discard_whitespace();
-    if (stream.has_next_token())
+    tokens.discard_whitespace();
+    if (tokens.has_next_token())
         return ParseError::SyntaxError;
 
     Vector<PropertyID> longhand_properties;
@@ -1460,6 +1300,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         remaining_layer_properties.unchecked_append(PropertyID::BackgroundRepeat);
     };
 
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (tokens.next_token().is(Token::Type::Comma)) {
             has_multiple_layers = true;
@@ -1467,6 +1308,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
                 return nullptr;
             complete_background_layer();
             tokens.discard_a_token();
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -1481,14 +1323,17 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         case PropertyID::BackgroundAttachment:
             VERIFY(!background_attachment);
             background_attachment = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         case PropertyID::BackgroundColor:
             VERIFY(!background_color);
             background_color = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         case PropertyID::BackgroundImage:
             VERIFY(!background_image);
             background_image = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         case PropertyID::BackgroundClip:
         case PropertyID::BackgroundOrigin: {
@@ -1505,6 +1350,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
             } else {
                 VERIFY_NOT_REACHED();
             }
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::BackgroundPosition: {
@@ -1515,15 +1361,19 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
 
             // Attempt to parse `/ <background-size>`
             auto background_size_transaction = tokens.begin_transaction();
+            tokens.discard_whitespace();
             auto& maybe_slash = tokens.consume_a_token();
             if (maybe_slash.is_delim('/')) {
+                tokens.discard_whitespace();
                 if (auto maybe_background_size = parse_single_background_size_value(PropertyID::BackgroundSize, tokens)) {
                     background_size_transaction.commit();
                     background_size = maybe_background_size.release_nonnull();
+                    tokens.discard_whitespace();
                     continue;
                 }
                 return nullptr;
             }
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::BackgroundRepeat: {
@@ -1531,6 +1381,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
             tokens.reconsume_current_input_token();
             if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 background_repeat = maybe_repeat.release_nonnull();
+                tokens.discard_whitespace();
                 continue;
             }
             return nullptr;
@@ -1921,8 +1772,10 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         return false;
     };
 
+    tokens.discard_whitespace();
     if (parse_fill(tokens))
         fill = true;
+    tokens.discard_whitespace();
 
     Vector<ValueComparingNonnullRefPtr<StyleValue const>> number_percentages;
     while (number_percentages.size() <= 4 && tokens.has_next_token()) {
@@ -1935,6 +1788,7 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         if (number_percentage->is_percentage() && !property_accepts_percentage(PropertyID::BorderImageSlice, number_percentage->as_percentage().percentage()))
             return nullptr;
         number_percentages.append(number_percentage.release_nonnull());
+        tokens.discard_whitespace();
     }
 
     switch (number_percentages.size()) {
@@ -1966,11 +1820,13 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         return nullptr;
     }
 
+    tokens.discard_whitespace();
     if (tokens.has_next_token() && parse_fill(tokens)) {
         if (fill)
             return nullptr;
 
         fill = true;
+        tokens.discard_whitespace();
     }
 
     transaction.commit();
@@ -1984,25 +1840,19 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
 
 RefPtr<StyleValue const> Parser::parse_border_radius_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() == 2) {
-        auto transaction = tokens.begin_transaction();
-        auto horizontal = parse_length_percentage_value(tokens);
-        auto vertical = parse_length_percentage_value(tokens);
-        if (horizontal && vertical) {
-            transaction.commit();
-            return BorderRadiusStyleValue::create(horizontal.release_nonnull(), vertical.release_nonnull());
-        }
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    auto horizontal = parse_length_percentage_value(tokens);
+    tokens.discard_whitespace();
+    auto vertical = parse_length_percentage_value(tokens);
+    if (horizontal && vertical) {
+        transaction.commit();
+        return BorderRadiusStyleValue::create(horizontal.release_nonnull(), vertical.release_nonnull());
     }
-
-    if (tokens.remaining_token_count() == 1) {
-        auto transaction = tokens.begin_transaction();
-        auto radius = parse_length_percentage_value(tokens);
-        if (radius) {
-            transaction.commit();
-            return BorderRadiusStyleValue::create(*radius, *radius);
-        }
+    if (horizontal) {
+        transaction.commit();
+        return BorderRadiusStyleValue::create(*horizontal, *horizontal);
     }
-
     return nullptr;
 }
 
@@ -2051,6 +1901,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
     StyleValueVector vertical_radii;
     bool reading_vertical = false;
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_delim('/')) {
@@ -2059,6 +1910,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
 
             reading_vertical = true;
             tokens.discard_a_token(); // `/`
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2074,6 +1926,7 @@ RefPtr<StyleValue const> Parser::parse_border_radius_shorthand_value(TokenStream
         } else {
             horizontal_radii.append(maybe_dimension.release_nonnull());
         }
+        tokens.discard_whitespace();
     }
 
     if (horizontal_radii.size() > 4 || vertical_radii.size() > 4
@@ -2104,28 +1957,33 @@ RefPtr<StyleValue const> Parser::parse_columns_value(TokenStream<ComponentValue>
 
     Vector<PropertyID> remaining_longhands { PropertyID::ColumnCount, PropertyID::ColumnWidth };
     int found_autos = 0;
-    int tokens_read = 0;
+    int values_read = 0;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_delim('/')) {
-            if (tokens_read == 0)
+            if (values_read == 0)
                 return nullptr;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // /
+            tokens.discard_whitespace();
+
             auto value = parse_css_value_for_property(PropertyID::ColumnHeight, tokens);
             if (!value)
                 return nullptr;
             column_height = value.release_nonnull();
 
+            tokens.discard_whitespace();
             if (tokens.has_next_token())
                 return nullptr;
             break;
         }
-        if (tokens_read == 2)
+        if (values_read == 2)
             return nullptr;
-        tokens_read++;
+        values_read++;
 
         auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+        tokens.discard_whitespace();
         if (!property_and_value.has_value())
             return nullptr;
         auto& value = property_and_value->style_value;
@@ -2193,6 +2051,7 @@ RefPtr<StyleValue const> Parser::parse_shadow_value(TokenStream<ComponentValue>&
 RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<ComponentValue>& tokens, ShadowStyleValue::ShadowType shadow_type)
 {
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     RefPtr<StyleValue const> color;
     RefPtr<StyleValue const> offset_x;
@@ -2206,6 +2065,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (color)
                 return nullptr;
             color = maybe_color.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2217,6 +2077,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             offset_x = maybe_offset_x;
 
             // vertical offset
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 return nullptr;
             auto maybe_offset_y = parse_length_value(tokens);
@@ -2225,6 +2086,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             offset_y = maybe_offset_y;
 
             // blur radius (optional)
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 break;
 
@@ -2240,6 +2102,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
                 return nullptr;
 
             // spread distance (optional)
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 break;
             auto maybe_spread_distance = parse_length_value(tokens);
@@ -2251,6 +2114,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
 
             spread_distance = maybe_spread_distance;
 
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2258,7 +2122,8 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (placement.has_value())
                 return nullptr;
             placement = ShadowPlacement::Inner;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // inset
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2334,26 +2199,33 @@ RefPtr<StyleValue const> Parser::parse_shape_outside_value(TokenStream<Component
     return StyleValueList::create({ basic_shape_value.release_nonnull(), shape_box_value.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
+// https://drafts.csswg.org/css-transforms-2/#propdef-rotate
 RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)
 {
-    // Value:	none | <angle> | [ x | y | z | <number>{3} ] && <angle>
+    // none | <angle> | [ x | y | z | <number>{3} ] && <angle>
 
-    if (tokens.remaining_token_count() == 1) {
-        // "none"
-        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-            return none;
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
-        // <angle>
-        if (auto angle = parse_angle_value(tokens))
-            return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { angle.release_nonnull() });
+    auto transaction = tokens.begin_transaction();
+
+    auto angle = parse_angle_value(tokens);
+    tokens.discard_whitespace();
+
+    // <angle>
+    if (angle && !tokens.has_next_token()) {
+        transaction.commit();
+        return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { angle.release_nonnull() });
     }
 
     auto parse_one_of_xyz = [&]() -> Optional<ComponentValue const&> {
-        auto transaction = tokens.begin_transaction();
+        auto xyz_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& axis = tokens.consume_a_token();
 
         if (axis.is_ident("x"sv) || axis.is_ident("y"sv) || axis.is_ident("z"sv)) {
-            transaction.commit();
+            xyz_transaction.commit();
             return axis;
         }
 
@@ -2361,34 +2233,28 @@ RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>&
     };
 
     // [ x | y | z ] && <angle>
-    if (tokens.remaining_token_count() == 2) {
-        // Try parsing `x <angle>`
-        if (auto axis = parse_one_of_xyz(); axis.has_value()) {
-            if (auto angle = parse_angle_value(tokens); angle) {
-                if (axis->is_ident("x"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-                if (axis->is_ident("y"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-                if (axis->is_ident("z"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
-            }
+    if (auto axis = parse_one_of_xyz(); axis.has_value()) {
+        tokens.discard_whitespace();
+
+        if (!angle)
+            angle = parse_angle_value(tokens);
+
+        if (angle) {
+            transaction.commit();
+            if (axis->is_ident("x"sv))
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
+            if (axis->is_ident("y"sv))
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
+            if (axis->is_ident("z"sv))
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
+            VERIFY_NOT_REACHED();
         }
 
-        // Try parsing `<angle> x`
-        if (auto angle = parse_angle_value(tokens); angle) {
-            if (auto axis = parse_one_of_xyz(); axis.has_value()) {
-                if (axis->is_ident("x"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
-                if (axis->is_ident("y"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
-                if (axis->is_ident("z"sv))
-                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
-            }
-        }
+        return nullptr;
     }
 
     auto parse_three_numbers = [&]() -> Optional<StyleValueVector> {
-        auto transaction = tokens.begin_transaction();
+        auto numbers_transaction = tokens.begin_transaction();
         StyleValueVector numbers;
         for (size_t i = 0; i < 3; ++i) {
             if (auto number = parse_number_value(tokens); number) {
@@ -2397,27 +2263,24 @@ RefPtr<StyleValue const> Parser::parse_rotate_value(TokenStream<ComponentValue>&
                 return {};
             }
         }
-        transaction.commit();
+        numbers_transaction.commit();
         return numbers;
     };
 
     // <number>{3} && <angle>
-    if (tokens.remaining_token_count() == 4) {
-        // Try parsing <number>{3} <angle>
-        if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
-            if (auto angle = parse_angle_value(tokens); angle) {
-                auto numbers = maybe_numbers.release_value();
-                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
-            }
+    if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
+        tokens.discard_whitespace();
+
+        if (!angle)
+            angle = parse_angle_value(tokens);
+
+        if (angle) {
+            auto numbers = maybe_numbers.release_value();
+            transaction.commit();
+            return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
         }
 
-        // Try parsing <angle> <number>{3}
-        if (auto angle = parse_angle_value(tokens); angle) {
-            if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
-                auto numbers = maybe_numbers.release_value();
-                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
-            }
-        }
+        return nullptr;
     }
 
     return nullptr;
@@ -2476,15 +2339,10 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
         }
     };
 
-    if (tokens.remaining_token_count() == 1) {
-        auto transaction = tokens.begin_transaction();
-        if (auto keyword = parse_keyword_value(tokens)) {
-            if (is_single_value_keyword(keyword->to_keyword())) {
-                transaction.commit();
-                return keyword;
-            }
-        }
-    }
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none.release_nonnull();
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal.release_nonnull();
 
     auto transaction = tokens.begin_transaction();
 
@@ -2492,13 +2350,15 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
     StyleValueVector alt_text_values;
     bool in_alt_text = false;
 
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         auto& next = tokens.next_token();
         if (next.is_delim('/')) {
             if (in_alt_text || content_values.is_empty())
                 return nullptr;
             in_alt_text = true;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // /
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2511,6 +2371,7 @@ RefPtr<StyleValue const> Parser::parse_content_value(TokenStream<ComponentValue>
             } else {
                 content_values.append(style_value.release_nonnull());
             }
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2820,11 +2681,13 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
     // font-variant and font-width aren't included because we have special parsing rules for them in font.
     auto remaining_longhands = Vector { PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight };
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_ident("normal"sv)) {
             normal_count++;
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // normal
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2850,6 +2713,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
                     property_initial_value(PropertyID::FontVariantNumeric),
                     property_initial_value(PropertyID::FontVariantPosition),
                 });
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -2861,6 +2725,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
                 if (keyword_to_font_width(keyword->to_keyword()).has_value()) {
                     font_width_transaction.commit();
                     font_width = keyword.release_nonnull();
+                    tokens.discard_whitespace();
                     continue;
                 }
             }
@@ -2878,12 +2743,14 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             font_size = value.release_nonnull();
 
             // Consume `/ line-height` if present
+            tokens.discard_whitespace();
             if (tokens.next_token().is_delim('/')) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // /
                 auto maybe_line_height = parse_css_value_for_property(PropertyID::LineHeight, tokens);
                 if (!maybe_line_height)
                     return nullptr;
                 line_height = maybe_line_height.release_nonnull();
+                tokens.discard_whitespace();
             }
 
             // Consume font-families
@@ -2892,16 +2759,19 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             if (!maybe_font_families || tokens.has_next_token())
                 return nullptr;
             font_families = maybe_font_families.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::FontStyle: {
             VERIFY(!font_style);
             font_style = FontStyleStyleValue::create(*keyword_to_font_style(value.release_nonnull()->to_keyword()));
+            tokens.discard_whitespace();
             continue;
         }
         case PropertyID::FontWeight: {
             VERIFY(!font_weight);
             font_weight = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         }
         default:
@@ -3710,14 +3580,16 @@ RefPtr<StyleValue const> Parser::parse_list_style_value(TokenStream<ComponentVal
     Vector<PropertyID> remaining_longhands { PropertyID::ListStyleImage, PropertyID::ListStylePosition, PropertyID::ListStyleType };
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (auto const& peek = tokens.next_token(); peek.is_ident("none"sv)) {
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // none
             found_nones++;
             continue;
         }
 
         auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+        tokens.discard_whitespace();
         if (!property_and_value.has_value())
             return nullptr;
         auto& value = property_and_value->style_value;
@@ -3876,13 +3748,15 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
         remaining_layer_properties.unchecked_append(PropertyID::MaskMode);
     };
 
+    tokens.discard_whitespace();
     while (tokens.has_next_token()) {
         if (tokens.next_token().is(Token::Type::Comma)) {
             has_multiple_layers = true;
             if (!mask_layer_is_valid())
                 return nullptr;
             complete_mask_layer();
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // ,
+            tokens.discard_whitespace();
             continue;
         }
 
@@ -3898,6 +3772,7 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
         case PropertyID::MaskImage:
             VERIFY(!mask_image);
             mask_image = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         // <position> [ / <bg-size> ]?
         case PropertyID::MaskPosition: {
@@ -3906,15 +3781,18 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
 
             // Attempt to parse `/ <bg-size>`
             auto mask_size_transaction = tokens.begin_transaction();
-            auto const& maybe_slash = tokens.consume_a_token();
-            if (maybe_slash.is_delim('/')) {
+            tokens.discard_whitespace();
+            if (auto const& maybe_slash = tokens.consume_a_token(); maybe_slash.is_delim('/')) {
+                tokens.discard_whitespace();
                 if (auto maybe_mask_size = parse_single_background_size_value(PropertyID::MaskSize, tokens)) {
                     mask_size_transaction.commit();
+                    tokens.discard_whitespace();
                     mask_size = maybe_mask_size.release_nonnull();
                     continue;
                 }
                 return nullptr;
             }
+            tokens.discard_whitespace();
             continue;
         }
         // <repeat-style>
@@ -3923,6 +3801,7 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
             tokens.reconsume_current_input_token();
             if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 mask_repeat = maybe_repeat.release_nonnull();
+                tokens.discard_whitespace();
                 continue;
             }
             return nullptr;
@@ -3946,17 +3825,20 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
             } else {
                 VERIFY_NOT_REACHED();
             }
+            tokens.discard_whitespace();
             continue;
         }
         // <compositing-operator>
         case PropertyID::MaskComposite:
             VERIFY(!mask_composite);
             mask_composite = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         // <masking-mode>
         case PropertyID::MaskMode:
             VERIFY(!mask_mode);
             mask_mode = value.release_nonnull();
+            tokens.discard_whitespace();
             continue;
         default:
             VERIFY_NOT_REACHED();
@@ -4644,21 +4526,17 @@ RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>&
 {
     // https://www.w3.org/TR/css-content-3/#quotes-property
     // auto | none | [ <string> <string> ]+
-    auto transaction = tokens.begin_transaction();
 
-    if (tokens.remaining_token_count() == 1) {
-        auto keyword = parse_keyword_value(tokens);
-        if (keyword && property_accepts_keyword(PropertyID::Quotes, keyword->to_keyword())) {
-            transaction.commit();
-            return keyword;
-        }
-        return nullptr;
-    }
+    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return auto_keyword.release_nonnull();
+
+    if (auto none_keyword = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none_keyword.release_nonnull();
+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     // Parse an even number of <string> values.
-    if (tokens.remaining_token_count() % 2 != 0)
-        return nullptr;
-
     StyleValueVector string_values;
     while (tokens.has_next_token()) {
         auto maybe_string = parse_string_value(tokens);
@@ -4666,7 +4544,11 @@ RefPtr<StyleValue const> Parser::parse_quotes_value(TokenStream<ComponentValue>&
             return nullptr;
 
         string_values.append(maybe_string.release_nonnull());
+        tokens.discard_whitespace();
     }
+
+    if (string_values.size() % 2 != 0)
+        return nullptr;
 
     transaction.commit();
     return StyleValueList::create(move(string_values), StyleValueList::Separator::Space);
@@ -4950,6 +4832,13 @@ RefPtr<StyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentV
 // https://www.w3.org/TR/css-transforms-1/#propdef-transform-origin
 RefPtr<StyleValue const> Parser::parse_transform_origin_value(TokenStream<ComponentValue>& tokens)
 {
+    //   [ left | center | right | top | bottom | <length-percentage> ]
+    // |
+    //   [ left | center | right | <length-percentage> ]
+    //   [ top | center | bottom | <length-percentage> ] <length>?
+    // |
+    //   [[ center | left | right ] && [ center | top | bottom ]] <length>?
+
     enum class Axis {
         None,
         X,
@@ -4991,34 +4880,31 @@ RefPtr<StyleValue const> Parser::parse_transform_origin_value(TokenStream<Compon
     };
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
 
     auto make_list = [&transaction](NonnullRefPtr<StyleValue const> const& x_value, NonnullRefPtr<StyleValue const> const& y_value, NonnullRefPtr<StyleValue const> const& z_value) -> NonnullRefPtr<StyleValueList> {
         transaction.commit();
         return StyleValueList::create(StyleValueVector { x_value, y_value, z_value }, StyleValueList::Separator::Space);
     };
 
-    static StyleValue const& zero_value = LengthStyleValue::create(Length::make_px(0));
+    NonnullRefPtr<StyleValue const> const zero_value = LengthStyleValue::create(Length::make_px(0));
 
-    if (tokens.remaining_token_count() == 1) {
-        auto single_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
-        if (!single_value.has_value())
-            return nullptr;
+    auto first_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
+    if (!first_value.has_value())
+        return nullptr;
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token()) {
         // If only one value is specified, the second value is assumed to be center.
-        // FIXME: If one or two values are specified, the third value is assumed to be 0px.
-        switch (single_value->axis) {
+        switch (first_value->axis) {
         case Axis::None:
         case Axis::X:
-            return make_list(single_value->offset, KeywordStyleValue::create(Keyword::Center), zero_value);
+            return make_list(first_value->offset, KeywordStyleValue::create(Keyword::Center), zero_value);
         case Axis::Y:
-            return make_list(KeywordStyleValue::create(Keyword::Center), single_value->offset, zero_value);
+            return make_list(KeywordStyleValue::create(Keyword::Center), first_value->offset, zero_value);
         }
         VERIFY_NOT_REACHED();
     }
 
-    if (tokens.remaining_token_count() > 3)
-        return nullptr;
-
-    auto first_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
     auto second_value = to_axis_offset(parse_css_value_for_property(PropertyID::TransformOrigin, tokens));
     auto third_value = parse_length_value(tokens);
 
@@ -5160,20 +5046,23 @@ RefPtr<StyleValue const> Parser::parse_transition_property_value(TokenStream<Com
     return StyleValueList::create(move(transition_properties), StyleValueList::Separator::Comma);
 }
 
+// https://drafts.csswg.org/css-transforms-2/#propdef-translate
 RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() == 1) {
-        // "none"
-        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-            return none;
-    }
+    // none | <length-percentage> [ <length-percentage> <length>? ]?
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
     auto transaction = tokens.begin_transaction();
 
+    // <length-percentage> [ <length-percentage> <length>? ]?
     auto maybe_x = parse_length_percentage_value(tokens);
     if (!maybe_x)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), LengthStyleValue::create(Length::make_px(0)) });
@@ -5183,6 +5072,7 @@ RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValu
     if (!maybe_y)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
@@ -5197,20 +5087,23 @@ RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValu
     return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate3d, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
 }
 
+// https://drafts.csswg.org/css-transforms-2/#propdef-scale
 RefPtr<StyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& tokens)
 {
-    if (tokens.remaining_token_count() == 1) {
-        // "none"
-        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-            return none;
-    }
+    // none | [ <number> | <percentage> ]{1,3}
+
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
 
     auto transaction = tokens.begin_transaction();
 
+    // [ <number> | <percentage> ]{1,3}
     auto maybe_x = parse_number_percentage_value(tokens);
     if (!maybe_x)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { *maybe_x, *maybe_x });
@@ -5220,6 +5113,7 @@ RefPtr<StyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& 
     if (!maybe_y)
         return nullptr;
 
+    tokens.discard_whitespace();
     if (!tokens.has_next_token()) {
         transaction.commit();
         return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
@@ -5263,35 +5157,39 @@ RefPtr<StyleValue const> Parser::parse_scrollbar_color_value(TokenStream<Compone
 RefPtr<StyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<ComponentValue>& tokens)
 {
     // auto | stable && both-edges?
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
 
     auto transaction = tokens.begin_transaction();
 
     auto parse_stable = [&]() -> Optional<bool> {
-        auto transaction = tokens.begin_transaction();
+        auto stable_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("auto"sv)) {
-            transaction.commit();
+            stable_transaction.commit();
             return false;
-        } else if (ident.equals_ignoring_ascii_case("stable"sv)) {
-            transaction.commit();
+        }
+        if (ident.equals_ignoring_ascii_case("stable"sv)) {
+            stable_transaction.commit();
             return true;
         }
         return {};
     };
 
     auto parse_both_edges = [&]() -> Optional<bool> {
-        auto transaction = tokens.begin_transaction();
+        auto edges_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("both-edges"sv)) {
-            transaction.commit();
+            edges_transaction.commit();
             return true;
         }
         return {};
@@ -5308,6 +5206,7 @@ RefPtr<StyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<Compon
             return nullptr;
     }
 
+    tokens.discard_whitespace();
     if (tokens.has_next_token())
         return nullptr;
 
@@ -5329,16 +5228,19 @@ RefPtr<StyleValue const> Parser::parse_grid_track_placement_shorthand_value(Prop
     auto end_property = (property_id == PropertyID::GridColumn) ? PropertyID::GridColumnEnd : PropertyID::GridRowEnd;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     NonnullRawPtr<ComponentValue const> current_token = tokens.consume_a_token();
 
     Vector<ComponentValue> track_start_placement_tokens;
     while (true) {
         if (current_token->is_delim('/')) {
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 return nullptr;
             break;
         }
         track_start_placement_tokens.append(current_token);
+        tokens.discard_whitespace();
         if (!tokens.has_next_token())
             break;
         current_token = tokens.consume_a_token();
@@ -5349,6 +5251,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_placement_shorthand_value(Prop
         current_token = tokens.consume_a_token();
         while (true) {
             track_end_placement_tokens.append(current_token);
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 break;
             current_token = tokens.consume_a_token();
@@ -5415,7 +5318,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(Prop
         if (auto parsed_template_rows_values = parse_grid_track_size_list(tokens)) {
             tokens.discard_whitespace();
             if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // /
                 tokens.discard_whitespace();
                 if (auto parsed_template_columns_values = parse_grid_track_size_list(tokens)) {
                     transaction.commit();
@@ -5436,9 +5339,9 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(Prop
         Vector<ComponentValue> area_tokens;
 
         GridTrackParser parse_grid_track = [&](TokenStream<ComponentValue>& tokens) -> Optional<ExplicitGridTrack> {
+            tokens.discard_whitespace();
             if (!tokens.has_next_token())
                 return {};
-            tokens.discard_whitespace();
             auto const& token = tokens.consume_a_token();
             if (!token.is(Token::Type::String))
                 return {};
@@ -5463,7 +5366,7 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list_shorthand_value(Prop
 
             RefPtr columns_track_list = property_initial_value(PropertyID::GridTemplateColumns);
             if (tokens.has_next_token() && tokens.next_token().is_delim('/')) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // /
                 tokens.discard_whitespace();
                 if (auto parsed_columns = parse_explicit_track_list(tokens); !parsed_columns.is_empty()) {
                     transaction.commit();
@@ -5491,11 +5394,13 @@ RefPtr<StyleValue const> Parser::parse_grid_area_shorthand_value(TokenStream<Com
     auto transaction = tokens.begin_transaction();
 
     auto parse_placement_tokens = [&](Vector<ComponentValue>& placement_tokens, bool check_for_delimiter = true) -> void {
+        tokens.discard_whitespace();
         while (tokens.has_next_token()) {
             auto& current_token = tokens.consume_a_token();
             if (check_for_delimiter && current_token.is_delim('/'))
                 break;
             placement_tokens.append(current_token);
+            tokens.discard_whitespace();
         }
     };
 
@@ -5588,11 +5493,11 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         for (int i = 0; i < 2 && tokens.has_next_token(); ++i) {
             auto const& token = tokens.next_token();
             if (token.is_ident("auto-flow"sv) && !found_auto_flow) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // auto-flow
                 tokens.discard_whitespace();
                 found_auto_flow = true;
             } else if (token.is_ident("dense"sv) && dense == GridAutoFlowStyleValue::Dense::No) {
-                tokens.discard_a_token();
+                tokens.discard_a_token(); // dense
                 tokens.discard_whitespace();
                 dense = GridAutoFlowStyleValue::Dense::Yes;
             } else {
@@ -5622,7 +5527,7 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         tokens.discard_whitespace();
         if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
             return nullptr;
-        tokens.discard_a_token();
+        tokens.discard_a_token(); // /
         tokens.discard_whitespace();
 
         auto grid_template_columns = parse_grid_track_size_list(tokens);
@@ -5647,7 +5552,7 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
         tokens.discard_whitespace();
         if (!tokens.has_next_token() || !tokens.next_token().is_delim('/'))
             return nullptr;
-        tokens.discard_a_token();
+        tokens.discard_a_token(); // /
         tokens.discard_whitespace();
 
         auto grid_auto_flow = parse_auto_flow_and_dense(GridAutoFlowStyleValue::Axis::Column);
@@ -5700,6 +5605,7 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
     Optional<size_t> column_count;
 
     auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
     while (tokens.has_next_token() && tokens.next_token().is(Token::Type::String)) {
         Vector<String> grid_area_columns;
         auto string = tokens.consume_a_token().token().string().code_points();
@@ -5730,6 +5636,7 @@ RefPtr<StyleValue const> Parser::parse_grid_template_areas_value(TokenStream<Com
         }
 
         grid_area_rows.append(move(grid_area_columns));
+        tokens.discard_whitespace();
     }
 
     // FIXME: If a named grid area spans multiple grid cells, but those cells do not form a single filled-in rectangle, the declaration is invalid.
@@ -5766,29 +5673,32 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
     auto transaction = tokens.begin_transaction();
 
     auto parse_axis = [&]() -> Optional<GridAutoFlowStyleValue::Axis> {
-        auto transaction = tokens.begin_transaction();
+        auto axis_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("row"sv)) {
-            transaction.commit();
+            axis_transaction.commit();
             return GridAutoFlowStyleValue::Axis::Row;
-        } else if (ident.equals_ignoring_ascii_case("column"sv)) {
-            transaction.commit();
+        }
+        if (ident.equals_ignoring_ascii_case("column"sv)) {
+            axis_transaction.commit();
             return GridAutoFlowStyleValue::Axis::Column;
         }
         return {};
     };
 
     auto parse_dense = [&]() -> Optional<GridAutoFlowStyleValue::Dense> {
-        auto transaction = tokens.begin_transaction();
+        auto dense_transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
         if (ident.equals_ignoring_ascii_case("dense"sv)) {
-            transaction.commit();
+            dense_transaction.commit();
             return GridAutoFlowStyleValue::Dense::Yes;
         }
         return {};
@@ -5802,6 +5712,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
         axis = parse_axis();
     }
 
+    tokens.discard_whitespace();
     if (tokens.has_next_token())
         return nullptr;
 
@@ -5817,22 +5728,21 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<Componen
     // none
     {
         auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
         if (tokens.has_next_token() && tokens.next_token().is_ident("none"sv)) {
-            tokens.discard_a_token();
+            tokens.discard_a_token(); // none
             transaction.commit();
             return GridTrackSizeListStyleValue::make_none();
         }
     }
 
     // <auto-track-list>
-    auto auto_track_list = parse_grid_auto_track_list(tokens);
-    if (!auto_track_list.is_empty()) {
+    if (auto auto_track_list = parse_grid_auto_track_list(tokens); !auto_track_list.is_empty()) {
         return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(auto_track_list)));
     }
 
     // <track-list>
-    auto track_list = parse_grid_track_list(tokens);
-    if (!track_list.is_empty()) {
+    if (auto track_list = parse_grid_track_list(tokens); !track_list.is_empty()) {
         return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(track_list)));
     }
 
