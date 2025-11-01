@@ -1,7 +1,7 @@
 if (WIN32)
-    set(SOURCES MutexWindows.cpp ConditionVariableWindows.cpp)
+    set(SOURCES MutexWindows.cpp ConditionVariableWindows.cpp RWLockWindows.cpp)
 else()
-    set(SOURCES ConditionVariable.cpp)
+    set(SOURCES MutexPosix.cpp ConditionVariablePosix.cpp RWLockPosix.cpp)
 endif()
 
 ladybird_lib(LibSync sync EXPLICIT_SYMBOL_EXPORT)
