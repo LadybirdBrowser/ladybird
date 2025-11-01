@@ -115,6 +115,7 @@ public:
     JS::Value get_uniform(GC::Root<WebGLProgram> program, GC::Root<WebGLUniformLocation> location);
     GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
     JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
+    WebIDL::LongLong get_vertex_attrib_offset(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
     void hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode);
     bool is_buffer(GC::Root<WebGLBuffer> buffer);
     bool is_enabled(WebIDL::UnsignedLong cap);

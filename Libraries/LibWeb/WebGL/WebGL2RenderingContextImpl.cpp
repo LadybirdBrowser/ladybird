@@ -3193,6 +3193,18 @@ JS::Value WebGL2RenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong ind
     }
 }
 
+WebIDL::LongLong WebGL2RenderingContextImpl::get_vertex_attrib_offset(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
+{
+    if (pname != GL_VERTEX_ATTRIB_ARRAY_POINTER) {
+        set_error(GL_INVALID_ENUM);
+        return 0;
+    }
+
+    GLintptr result { 0 };
+    glGetVertexAttribPointervRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_POINTER, 1, nullptr, reinterpret_cast<void**>(&result));
+    return result;
+}
+
 void WebGL2RenderingContextImpl::hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode)
 {
     m_context->make_current();
