@@ -275,6 +275,7 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
+        "ThreadSanitizer": build_root_dir / "threadsanitizer",
         "Swift_Release": build_root_dir / "swift",
         "Windows_CI": build_root_dir / "release",
         "Windows_Experimental": build_root_dir / "debug",
