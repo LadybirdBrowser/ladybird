@@ -2931,6 +2931,10 @@ JS::Value WebGL2RenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     }
     case UNPACK_FLIP_Y_WEBGL:
         return JS::Value(m_unpack_flip_y);
+    case MAX_CLIENT_WAIT_TIMEOUT_WEBGL: {
+        // FIXME: Make this an actual limit
+        return JS::js_infinity();
+    }
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
