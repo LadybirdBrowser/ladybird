@@ -15,6 +15,7 @@
 namespace Web::WebGL {
 
 static constexpr int UNPACK_FLIP_Y_WEBGL = 0x9240;
+static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::ImageData>, GC::Root<HTML::HTMLImageElement>, GC::Root<HTML::HTMLCanvasElement>, GC::Root<HTML::OffscreenCanvas>, GC::Root<HTML::HTMLVideoElement>>;
