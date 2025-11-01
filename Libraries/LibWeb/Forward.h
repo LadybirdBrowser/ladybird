@@ -1016,6 +1016,12 @@ class PerformanceResourceTiming;
 
 }
 
+namespace Web::SanitizerAPI {
+
+class Sanitizer;
+
+}
+
 namespace Web::Selection {
 
 class Selection;

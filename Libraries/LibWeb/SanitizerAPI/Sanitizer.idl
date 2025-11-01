@@ -1,0 +1,27 @@
+#import <SanitizerAPI/SanitizerConfig.idl>
+
+// https://wicg.github.io/sanitizer-api/#enumdef-sanitizerpresets
+enum SanitizerPresets { "default" };
+
+// https://wicg.github.io/sanitizer-api/#sanitizer
+[Exposed=Window]
+interface Sanitizer {
+    // TODO: IDLGenerator does not support yet default values based on enums
+    // constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
+    constructor(optional (SanitizerConfig or SanitizerPresets) configuration);
+
+    // Query configuration:
+    [FIXME] SanitizerConfig get();
+
+    // Modify a Sanitizer’s lists and fields:
+    [FIXME] boolean allowElement(SanitizerElementWithAttributes element);
+    [FIXME] boolean removeElement(SanitizerElement element);
+    [FIXME] boolean replaceElementWithChildren(SanitizerElement element);
+    [FIXME] boolean allowAttribute(SanitizerAttribute attribute);
+    [FIXME] boolean removeAttribute(SanitizerAttribute attribute);
+    boolean setComments(boolean allow);
+    boolean setDataAttributes(boolean allow);
+
+    // Remove markup that executes script.
+    [FIXME] boolean removeUnsafe();
+};
