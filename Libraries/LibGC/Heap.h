@@ -38,6 +38,8 @@ public:
     explicit Heap(void* private_data, AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots);
     ~Heap();
 
+    static Heap& the();
+
     template<typename T, typename... Args>
     Ref<T> allocate(Args&&... args)
     {
