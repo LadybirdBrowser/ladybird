@@ -14,6 +14,7 @@
 
 namespace Web::WebGL {
 
+static constexpr int COMPRESSED_TEXTURE_FORMATS = 0x86A3;
 static constexpr int UNPACK_FLIP_Y_WEBGL = 0x9240;
 static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 
@@ -32,6 +33,7 @@ public:
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
     virtual OpenGLContext& context() = 0;
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const = 0;
+    virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const = 0;
 
     template<typename T>
     static ErrorOr<Span<T>> get_offset_span(Span<T> src_span, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)
