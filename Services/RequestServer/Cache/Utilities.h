@@ -23,6 +23,21 @@ bool is_header_exempted_from_storage(StringView name);
 
 AK::Duration calculate_freshness_lifetime(HTTP::HeaderMap const&);
 AK::Duration calculate_age(HTTP::HeaderMap const&, UnixDateTime request_time, UnixDateTime response_time);
-bool is_response_fresh(AK::Duration freshness_lifetime, AK::Duration current_age);
+
+enum class CacheLifetimeStatus {
+    Fresh,
+    Expired,
+    MustRevalidate,
+};
+CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderMap const&, AK::Duration freshness_lifetime, AK::Duration current_age);
+
+struct RevalidationAttributes {
+    static RevalidationAttributes create(HTTP::HeaderMap const&);
+
+    Optional<ByteString> etag;
+    Optional<UnixDateTime> last_modified;
+};
+
+void update_header_fields(HTTP::HeaderMap&, HTTP::HeaderMap const&);
 
 }

@@ -109,8 +109,10 @@ private:
     static size_t on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data);
     static size_t on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data);
 
+    ErrorOr<void> inform_client_request_started();
     void transfer_headers_to_client_if_needed();
     ErrorOr<void> write_queued_bytes_without_blocking();
+    ErrorOr<void> revalidation_failed();
 
     u32 acquire_status_code() const;
     Requests::RequestTimingInfo acquire_timing_info() const;

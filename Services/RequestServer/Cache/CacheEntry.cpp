@@ -4,11 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/JsonArray.h>
-#include <AK/JsonArraySerializer.h>
-#include <AK/JsonObject.h>
-#include <AK/JsonObjectSerializer.h>
-#include <AK/JsonValue.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
@@ -35,8 +30,6 @@ ErrorOr<CacheHeader> CacheHeader::read_from_stream(Stream& stream)
     header.status_code = TRY(stream.read_value<u32>());
     header.reason_phrase_size = TRY(stream.read_value<u32>());
     header.reason_phrase_hash = TRY(stream.read_value<u32>());
-    header.headers_size = TRY(stream.read_value<u32>());
-    header.headers_hash = TRY(stream.read_value<u32>());
     return header;
 }
 
@@ -49,8 +42,6 @@ ErrorOr<void> CacheHeader::write_to_stream(Stream& stream) const
     TRY(stream.write_value(status_code));
     TRY(stream.write_value(reason_phrase_size));
     TRY(stream.write_value(reason_phrase_hash));
-    TRY(stream.write_value(headers_size));
-    TRY(stream.write_value(headers_hash));
     return {};
 }
 
@@ -112,7 +103,7 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& response_headers)
 {
     if (m_marked_for_deletion) {
         close_and_destroy_cache_entry();
@@ -127,41 +118,27 @@ ErrorOr<void> CacheEntryWriter::write_headers(u32 status_code, Optional<String> 
     }
 
     auto result = [&]() -> ErrorOr<void> {
-        if (!is_cacheable(status_code, headers))
+        if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
-        if (auto freshness = calculate_freshness_lifetime(headers); freshness.is_negative() || freshness.is_zero())
+        auto freshness_lifetime = calculate_freshness_lifetime(response_headers);
+        auto current_age = calculate_age(response_headers, m_request_time, m_response_time);
+
+        // We can cache already-expired responses if there are other cache directives that allow us to revalidate the
+        // response on subsequent requests. For example, `Cache-Control: max-age=0, must-revalidate`.
+        if (cache_lifetime_status(response_headers, freshness_lifetime, current_age) == CacheLifetimeStatus::Expired)
             return Error::from_string_literal("Response has already expired");
-
-        StringBuilder builder;
-        auto headers_serializer = TRY(JsonArraySerializer<>::try_create(builder));
-
-        for (auto const& header : headers.headers()) {
-            if (is_header_exempted_from_storage(header.name))
-                continue;
-
-            auto header_serializer = TRY(headers_serializer.add_object());
-            TRY(header_serializer.add("name"sv, header.name));
-            TRY(header_serializer.add("value"sv, header.value));
-            TRY(header_serializer.finish());
-        }
-
-        TRY(headers_serializer.finish());
-        auto serialized_headers = builder.string_view();
-        m_cache_header.headers_size = serialized_headers.length();
-        m_cache_header.headers_hash = serialized_headers.hash();
 
         TRY(m_file->write_value(m_cache_header));
         TRY(m_file->write_until_depleted(m_url));
         if (reason_phrase.has_value())
             TRY(m_file->write_until_depleted(*reason_phrase));
-        TRY(m_file->write_until_depleted(serialized_headers));
 
         return {};
     }();
 
     if (result.is_error()) {
-        dbgln("\033[31;1mUnable to write headers to cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln("\033[31;1mUnable to write status/reason to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
         close_and_destroy_cache_entry();
@@ -194,7 +171,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush()
+ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap response_headers)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -208,13 +185,13 @@ ErrorOr<void> CacheEntryWriter::flush()
         return result.release_error();
     }
 
-    m_index.create_entry(m_cache_key, m_url, m_cache_footer.data_size, m_request_time, m_response_time);
+    m_index.create_entry(m_cache_key, m_url, move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
 
     dbgln("\033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 data_size)
+ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, HTTP::HeaderMap response_headers, u64 data_size)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
 
@@ -225,14 +202,13 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
 
     String url;
     Optional<String> reason_phrase;
-    HTTP::HeaderMap headers;
 
     auto result = [&]() -> ErrorOr<void> {
         cache_header = TRY(file->read_value<CacheHeader>());
 
         if (cache_header.magic != CacheHeader::CACHE_MAGIC)
             return Error::from_string_literal("Magic value mismatch");
-        if (cache_header.version != CacheHeader::CACHE_VERSION)
+        if (cache_header.version != CACHE_VERSION)
             return Error::from_string_literal("Version mismatch");
 
         url = TRY(String::from_stream(*file, cache_header.url_size));
@@ -245,28 +221,6 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
                 return Error::from_string_literal("Reason phrase hash mismatch");
         }
 
-        auto serialized_headers = TRY(String::from_stream(*file, cache_header.headers_size));
-        if (serialized_headers.hash() != cache_header.headers_hash)
-            return Error::from_string_literal("HTTP headers hash mismatch");
-
-        auto json_headers = TRY(JsonValue::from_string(serialized_headers));
-        if (!json_headers.is_array())
-            return Error::from_string_literal("Expected HTTP headers to be a JSON array");
-
-        TRY(json_headers.as_array().try_for_each([&](JsonValue const& header) -> ErrorOr<void> {
-            if (!header.is_object())
-                return Error::from_string_literal("Expected headers entry to be a JSON object");
-
-            auto name = header.as_object().get_string("name"sv);
-            auto value = header.as_object().get_string("value"sv);
-
-            if (!name.has_value() || !value.has_value())
-                return Error::from_string_literal("Missing/invalid data in headers entry");
-
-            headers.set(name->to_byte_string(), value->to_byte_string());
-            return {};
-        }));
-
         return {};
     }();
 
@@ -275,20 +229,36 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
         return result.release_error();
     }
 
-    auto data_offset = sizeof(CacheHeader) + cache_header.url_size + cache_header.reason_phrase_size + cache_header.headers_size;
+    auto data_offset = sizeof(CacheHeader) + cache_header.url_size + cache_header.reason_phrase_size;
 
-    return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(headers), data_offset, data_size });
+    return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
 }
 
-CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, HTTP::HeaderMap header_map, u64 data_offset, u64 data_size)
+CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, HTTP::HeaderMap response_headers, u64 data_offset, u64 data_size)
     : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_fd(fd)
     , m_reason_phrase(move(reason_phrase))
-    , m_headers(move(header_map))
+    , m_response_headers(move(response_headers))
     , m_data_offset(data_offset)
     , m_data_size(data_size)
 {
+}
+
+void CacheEntryReader::revalidation_succeeded(HTTP::HeaderMap const& response_headers)
+{
+    dbgln("\033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
+
+    update_header_fields(m_response_headers, response_headers);
+    m_index.update_response_headers(m_cache_key, m_response_headers);
+}
+
+void CacheEntryReader::revalidation_failed()
+{
+    dbgln("\033[33;1mCache revalidation failed for\033[0m {}", m_url);
+
+    remove();
+    close_and_destroy_cache_entry();
 }
 
 void CacheEntryReader::pipe_to(int pipe_fd, Function<void(u64)> on_complete, Function<void(u64)> on_error)

@@ -13,6 +13,7 @@
 #include <AK/Types.h>
 #include <LibCore/File.h>
 #include <LibHTTP/HeaderMap.h>
+#include <RequestServer/Cache/Version.h>
 #include <RequestServer/Forward.h>
 
 namespace RequestServer {
@@ -22,7 +23,6 @@ struct [[gnu::packed]] CacheHeader {
     ErrorOr<void> write_to_stream(Stream&) const;
 
     static constexpr auto CACHE_MAGIC = 0xcafef00du;
-    static constexpr auto CACHE_VERSION = 1;
 
     u32 magic { CACHE_MAGIC };
     u32 version { CACHE_VERSION };
@@ -33,9 +33,6 @@ struct [[gnu::packed]] CacheHeader {
     u32 status_code { 0 };
     u32 reason_phrase_size { 0 };
     u32 reason_phrase_hash { 0 };
-
-    u32 headers_size { 0 };
-    u32 headers_hash { 0 };
 };
 
 struct [[gnu::packed]] CacheFooter {
@@ -85,9 +82,9 @@ public:
     static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, UnixDateTime request_time);
     virtual ~CacheEntryWriter() override = default;
 
-    ErrorOr<void> write_headers(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&);
+    ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const&);
     ErrorOr<void> write_data(ReadonlyBytes);
-    ErrorOr<void> flush();
+    ErrorOr<void> flush(HTTP::HeaderMap);
 
 private:
     CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::OutputBufferedFile>, CacheHeader, UnixDateTime request_time);
@@ -100,14 +97,20 @@ private:
 
 class CacheEntryReader : public CacheEntry {
 public:
-    static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, u64 data_size);
+    static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, HTTP::HeaderMap, u64 data_size);
     virtual ~CacheEntryReader() override = default;
+
+    bool must_revalidate() const { return m_must_revalidate; }
+    void set_must_revalidate() { m_must_revalidate = true; }
+
+    void revalidation_succeeded(HTTP::HeaderMap const&);
+    void revalidation_failed();
 
     void pipe_to(int pipe_fd, Function<void(u64 bytes_piped)> on_complete, Function<void(u64 bytes_piped)> on_error);
 
     u32 status_code() const { return m_cache_header.status_code; }
     Optional<String> const& reason_phrase() const { return m_reason_phrase; }
-    HTTP::HeaderMap const& headers() const { return m_headers; }
+    HTTP::HeaderMap const& response_headers() const { return m_response_headers; }
 
 private:
     CacheEntryReader(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::File>, int fd, CacheHeader, Optional<String> reason_phrase, HTTP::HeaderMap, u64 data_offset, u64 data_size);
@@ -129,7 +132,9 @@ private:
     u64 m_bytes_piped { 0 };
 
     Optional<String> m_reason_phrase;
-    HTTP::HeaderMap m_headers;
+    HTTP::HeaderMap m_response_headers;
+
+    bool m_must_revalidate { false };
 
     u64 const m_data_offset { 0 };
     u64 const m_data_size { 0 };

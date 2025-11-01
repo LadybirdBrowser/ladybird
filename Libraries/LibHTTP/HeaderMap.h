@@ -34,6 +34,15 @@ public:
         m_headers.append({ move(name), move(value) });
     }
 
+    void remove(StringView name)
+    {
+        if (m_map.remove(name)) {
+            m_headers.remove_all_matching([&](Header const& header) {
+                return header.name.equals_ignoring_ascii_case(name);
+            });
+        }
+    }
+
     [[nodiscard]] bool contains(ByteString const& name) const
     {
         return m_map.contains(name);

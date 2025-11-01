@@ -10,6 +10,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/Cache/DiskCache.h>
+#include <RequestServer/Cache/Utilities.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
@@ -117,7 +118,7 @@ Request::~Request()
         curl_slist_free_all(string_list);
 
     if (m_cache_entry_writer.has_value())
-        (void)m_cache_entry_writer->flush();
+        (void)m_cache_entry_writer->flush(move(m_response_headers));
 }
 
 void Request::notify_request_unblocked(Badge<DiskCache>)
@@ -129,6 +130,19 @@ void Request::notify_request_unblocked(Badge<DiskCache>)
 
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
+    if (m_cache_entry_reader.has_value() && m_cache_entry_reader->must_revalidate()) {
+        if (acquire_status_code() == 304) {
+            m_cache_entry_reader->revalidation_succeeded(m_response_headers);
+            transition_to_state(State::ReadCache);
+            return;
+        }
+
+        if (revalidation_failed().is_error())
+            return;
+
+        transfer_headers_to_client_if_needed();
+    }
+
     m_curl_result_code = result_code;
 
     if (m_response_buffer.is_eof())
@@ -177,8 +191,13 @@ void Request::handle_initial_state()
         m_disk_cache->open_entry(*this).visit(
             [&](Optional<CacheEntryReader&> cache_entry_reader) {
                 m_cache_entry_reader = cache_entry_reader;
-                if (m_cache_entry_reader.has_value())
-                    transition_to_state(State::ReadCache);
+
+                if (m_cache_entry_reader.has_value()) {
+                    if (m_cache_entry_reader->must_revalidate())
+                        transition_to_state(State::DNSLookup);
+                    else
+                        transition_to_state(State::ReadCache);
+                }
             },
             [&](DiskCache::CacheHasOpenEntry) {
                 // If an existing entry is open for writing, we must wait for it to complete.
@@ -208,31 +227,18 @@ void Request::handle_initial_state()
 
 void Request::handle_read_cache_state()
 {
-#if defined(AK_OS_WINDOWS)
-    dbgln("FIXME: Request::handle_read_from_cache_state: Not implemented on Windows");
-    transition_to_state(State::Error);
-#else
     m_status_code = m_cache_entry_reader->status_code();
     m_reason_phrase = m_cache_entry_reader->reason_phrase();
-    m_response_headers = m_cache_entry_reader->headers();
+    m_response_headers = m_cache_entry_reader->response_headers();
 
-    auto pipe_or_error = RequestPipe::create();
-    if (pipe_or_error.is_error()) {
-        dbgln("Request::handle_read_from_cache_state: Failed to create pipe: {}", pipe_or_error.error());
-        transition_to_state(State::Error);
+    if (inform_client_request_started().is_error())
         return;
-    }
-
-    auto pipe = pipe_or_error.release_value();
-
-    m_client.async_request_started(m_request_id, IPC::File::adopt_fd(pipe.reader_fd()));
-    m_client_request_pipe = move(pipe);
 
     m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
     m_sent_response_headers_to_client = true;
 
     m_cache_entry_reader->pipe_to(
-        m_client_request_pipe.value().writer_fd(),
+        m_client_request_pipe->writer_fd(),
         [this](auto bytes_sent) {
             m_bytes_transferred_to_client = bytes_sent;
             m_curl_result_code = CURLE_OK;
@@ -246,7 +252,6 @@ void Request::handle_read_cache_state()
 
             transition_to_state(State::DNSLookup);
         });
-#endif
 }
 
 void Request::handle_dns_lookup_state()
@@ -308,27 +313,12 @@ void Request::handle_fetch_state()
         return;
     }
 
-    if (!m_start_offset_of_response_resumed_from_cache.has_value()) {
-        auto pipe_or_error = RequestPipe::create();
-        if (pipe_or_error.is_error()) {
-            dbgln("Request::handle_start_fetch_state: Failed to create pipe: {}", pipe_or_error.error());
-            transition_to_state(State::Error);
+    auto is_revalidation_request = m_cache_entry_reader.has_value() && m_cache_entry_reader->must_revalidate();
+
+    if (!m_start_offset_of_response_resumed_from_cache.has_value() && !is_revalidation_request) {
+        if (inform_client_request_started().is_error())
             return;
-        }
-
-        auto pipe = pipe_or_error.release_value();
-
-        m_client.async_request_started(m_request_id, IPC::File::adopt_fd(pipe.reader_fd()));
-        m_client_request_pipe = move(pipe);
     }
-
-    m_client_writer_notifier = Core::Notifier::construct(m_client_request_pipe.value().writer_fd(), Core::NotificationType::Write);
-    m_client_writer_notifier->set_enabled(false);
-
-    m_client_writer_notifier->on_activation = [this] {
-        if (auto result = write_queued_bytes_without_blocking(); result.is_error())
-            dbgln("Warning: Failed to write buffered request data (it's likely the client disappeared): {}", result.error());
-    };
 
     auto set_option = [&](auto option, auto value) {
         if (auto result = curl_easy_setopt(m_curl_easy_handle, option, value); result != CURLE_OK)
@@ -383,14 +373,28 @@ void Request::handle_fetch_state()
         }
     }
 
+    if (is_revalidation_request) {
+        auto revalidation_attributes = RevalidationAttributes::create(m_cache_entry_reader->response_headers());
+        VERIFY(revalidation_attributes.etag.has_value() || revalidation_attributes.last_modified.has_value());
+
+        if (revalidation_attributes.etag.has_value()) {
+            // There is no CURLOPT for If-None-Match, so we must set the header value directly.
+            auto header_string = ByteString::formatted("If-None-Match: {}", *revalidation_attributes.etag);
+            curl_headers = curl_slist_append(curl_headers, header_string.characters());
+        }
+
+        if (revalidation_attributes.last_modified.has_value()) {
+            set_option(CURLOPT_TIMECONDITION, CURL_TIMECOND_IFMODSINCE);
+            set_option(CURLOPT_TIMEVALUE, revalidation_attributes.last_modified->seconds_since_epoch());
+        }
+    } else if (m_start_offset_of_response_resumed_from_cache.has_value()) {
+        auto range = ByteString::formatted("{}-", *m_start_offset_of_response_resumed_from_cache);
+        set_option(CURLOPT_RANGE, range.characters());
+    }
+
     if (curl_headers) {
         set_option(CURLOPT_HTTPHEADER, curl_headers);
         m_curl_string_lists.append(curl_headers);
-    }
-
-    if (m_start_offset_of_response_resumed_from_cache.has_value()) {
-        auto range = ByteString::formatted("{}-", *m_start_offset_of_response_resumed_from_cache);
-        set_option(CURLOPT_RANGE, range.characters());
     }
 
     // FIXME: Set up proxy if applicable
@@ -493,6 +497,23 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
 size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data)
 {
     auto& request = *static_cast<Request*>(user_data);
+
+    if (request.m_cache_entry_reader.has_value() && request.m_cache_entry_reader->must_revalidate()) {
+        // If we arrive here, we did not receive an HTTP 304 response code. We must remove the cache entry and inform
+        // the client of the new response headers and data.
+        if (request.revalidation_failed().is_error())
+            return CURL_WRITEFUNC_ERROR;
+
+        request.m_disk_cache->create_entry(request).visit(
+            [&](Optional<CacheEntryWriter&> cache_entry_writer) {
+                request.m_cache_entry_writer = cache_entry_writer;
+            },
+            [&](DiskCache::CacheHasOpenEntry) {
+                // This should not be reachable, as cache revalidation holds an exclusive lock on the cache entry.
+                VERIFY_NOT_REACHED();
+            });
+    }
+
     request.transfer_headers_to_client_if_needed();
 
     auto total_size = size * nmemb;
@@ -511,6 +532,21 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
     return total_size;
 }
 
+ErrorOr<void> Request::inform_client_request_started()
+{
+    auto request_pipe = RequestPipe::create();
+    if (request_pipe.is_error()) {
+        dbgln("Request::handle_read_from_cache_state: Failed to create pipe: {}", request_pipe.error());
+        transition_to_state(State::Error);
+        return request_pipe.release_error();
+    }
+
+    m_client_request_pipe = request_pipe.release_value();
+    m_client.async_request_started(m_request_id, IPC::File::adopt_fd(m_client_request_pipe->reader_fd()));
+
+    return {};
+}
+
 void Request::transfer_headers_to_client_if_needed()
 {
     if (exchange(m_sent_response_headers_to_client, true))
@@ -520,13 +556,23 @@ void Request::transfer_headers_to_client_if_needed()
     m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_cache_entry_writer->write_headers(m_status_code, m_reason_phrase, m_response_headers).is_error())
+        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error())
             m_cache_entry_writer.clear();
     }
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()
 {
+    if (!m_client_writer_notifier) {
+        m_client_writer_notifier = Core::Notifier::construct(m_client_request_pipe->writer_fd(), Core::NotificationType::Write);
+        m_client_writer_notifier->set_enabled(false);
+
+        m_client_writer_notifier->on_activation = [this] {
+            if (auto result = write_queued_bytes_without_blocking(); result.is_error())
+                dbgln("Warning: Failed to write buffered request data (it's likely the client disappeared): {}", result.error());
+        };
+    }
+
     auto available_bytes = m_response_buffer.used_buffer_size();
 
     // If we've received a response to a range request that is not the partial content (206) we requested, we must
@@ -563,7 +609,7 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
     bytes_to_send.resize(available_bytes);
     m_response_buffer.peek_some(bytes_to_send);
 
-    auto result = m_client_request_pipe.value().write(bytes_to_send);
+    auto result = m_client_request_pipe->write(bytes_to_send);
     if (result.is_error()) {
         if (result.error().code() != EAGAIN)
             return result.release_error();
@@ -586,6 +632,15 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
     if (m_response_buffer.is_eof() && m_curl_result_code.has_value())
         transition_to_state(State::Complete);
 
+    return {};
+}
+
+ErrorOr<void> Request::revalidation_failed()
+{
+    m_cache_entry_reader->revalidation_failed();
+    m_cache_entry_reader.clear();
+
+    TRY(inform_client_request_started());
     return {};
 }
 
