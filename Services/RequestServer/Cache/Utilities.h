@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/LexicalPath.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
@@ -16,6 +17,7 @@ namespace RequestServer {
 
 String serialize_url_for_cache_storage(URL::URL const&);
 u64 create_cache_key(StringView url, StringView method);
+LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key);
 
 bool is_cacheable(StringView method);
 bool is_cacheable(u32 status_code, HTTP::HeaderMap const&);

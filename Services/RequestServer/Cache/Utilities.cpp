@@ -70,6 +70,11 @@ u64 create_cache_key(StringView url, StringView method)
     return result;
 }
 
+LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key)
+{
+    return cache_directory.append(MUST(String::formatted("{:016x}", cache_key)));
+}
+
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
 bool is_cacheable(StringView method)
 {
