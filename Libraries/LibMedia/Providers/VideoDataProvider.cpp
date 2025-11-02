@@ -334,18 +334,28 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
     //        before this functionality can exist.
 
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
-        auto locker = take_lock();
-        m_is_in_error_state = true;
-        while (!m_error_handler)
-            m_wait_condition.wait();
-        m_main_thread_event_loop.deferred_invoke([this, error = move(error)] mutable {
-            m_error_handler(move(error));
-        });
+        auto is_in_error_state = true;
+
+        {
+            auto locker = take_lock();
+            m_is_in_error_state = true;
+            while (!m_error_handler)
+                m_wait_condition.wait();
+            m_main_thread_event_loop.deferred_invoke([this, error = move(error)] mutable {
+                m_error_handler(move(error));
+            });
+        }
+
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Video Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (m_is_in_error_state) {
+        while (is_in_error_state) {
             if (handle_seek())
                 break;
-            m_wait_condition.wait();
+
+            {
+                auto locker = take_lock();
+                m_wait_condition.wait();
+                is_in_error_state = m_is_in_error_state;
+            }
         }
     };
 
@@ -382,14 +392,25 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
 
         {
-            auto locker = take_lock();
-            while (m_queue.size() >= m_queue_max_size) {
+            auto queue_size = [&] {
+                auto locker = take_lock();
+                return m_queue.size();
+            }();
+
+            while (queue_size >= m_queue_max_size) {
                 if (handle_seek())
                     return;
-                m_wait_condition.wait();
-                if (should_thread_exit())
-                    return;
+
+                {
+                    auto locker = take_lock();
+                    m_wait_condition.wait();
+                    if (should_thread_exit())
+                        return;
+                    queue_size = m_queue.size();
+                }
             }
+
+            auto locker = take_lock();
             queue_frame(TimedImage(frame->timestamp(), bitmap_result.release_value()));
         }
     }
