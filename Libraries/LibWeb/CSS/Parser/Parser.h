@@ -40,8 +40,6 @@
 
 namespace Web::CSS::Parser {
 
-class PropertyDependencyNode;
-
 namespace CalcParsing {
 
 struct Operator {
