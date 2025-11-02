@@ -47,6 +47,7 @@ public:
     Vector<Web::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url);
     Optional<Web::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
+    void expire_cookies_accessed_since(UnixDateTime since);
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
 private:
@@ -68,6 +69,7 @@ private:
 
         UnixDateTime purge_expired_cookies(Optional<AK::Duration> offset = {});
         void expire_and_purge_all_cookies();
+        void expire_and_purge_cookies_accessed_since(UnixDateTime since);
 
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 

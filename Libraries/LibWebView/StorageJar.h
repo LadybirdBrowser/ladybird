@@ -41,6 +41,7 @@ public:
     Optional<String> get_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key);
     StorageOperationError set_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& bottle_value);
     void remove_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& key);
+    void remove_items_accessed_since(UnixDateTime);
     void clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key);
     Vector<String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
@@ -50,6 +51,7 @@ private:
         Database::StatementID get_item { 0 };
         Database::StatementID set_item { 0 };
         Database::StatementID delete_item { 0 };
+        Database::StatementID delete_items_accessed_since { 0 };
         Database::StatementID update_last_access_time { 0 };
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
@@ -62,6 +64,7 @@ private:
         Optional<String> get_item(StorageLocation const& key);
         StorageOperationError set_item(StorageLocation const& key, String const& value);
         void delete_item(StorageLocation const& key);
+        void delete_items_accessed_since(UnixDateTime);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
@@ -79,6 +82,7 @@ private:
         Optional<String> get_item(StorageLocation const& key);
         StorageOperationError set_item(StorageLocation const& key, String const& value);
         void delete_item(StorageLocation const& key);
+        void delete_items_accessed_since(UnixDateTime);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
