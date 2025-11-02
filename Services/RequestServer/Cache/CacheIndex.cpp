@@ -101,6 +101,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ?;"sv));
+    statements.estimate_cache_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(data_size) + SUM(OCTET_LENGTH(response_headers)) FROM CacheIndex WHERE last_access_time >= ?;"sv));
 
     return CacheIndex { database, statements };
 }
@@ -186,6 +187,23 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
         cache_key);
 
     return m_entries.get(cache_key);
+}
+
+Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime since) const
+{
+    Requests::CacheSizes sizes;
+
+    m_database.execute_statement(
+        m_statements.estimate_cache_size_accessed_since,
+        [&](auto statement_id) { sizes.since_requested_time = m_database.result_column<u64>(statement_id, 0); },
+        since);
+
+    m_database.execute_statement(
+        m_statements.estimate_cache_size_accessed_since,
+        [&](auto statement_id) { sizes.total = m_database.result_column<u64>(statement_id, 0); },
+        UnixDateTime::earliest());
+
+    return sizes;
 }
 
 }

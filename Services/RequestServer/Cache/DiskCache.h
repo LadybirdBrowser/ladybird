@@ -27,6 +27,7 @@ public:
     Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(Request&);
     Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(Request&);
 
+    Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since) const;
     void clear_cache();
 
     LexicalPath const& cache_directory() { return m_cache_directory; }

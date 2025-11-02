@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <LibDatabase/Database.h>
 #include <LibHTTP/HeaderMap.h>
+#include <LibRequests/CacheSizes.h>
 
 namespace RequestServer {
 
@@ -42,6 +43,8 @@ public:
     void update_response_headers(u64 cache_key, HTTP::HeaderMap);
     void update_last_access_time(u64 cache_key);
 
+    Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since) const;
+
 private:
     struct Statements {
         Database::StatementID insert_entry { 0 };
@@ -50,6 +53,7 @@ private:
         Database::StatementID select_entry { 0 };
         Database::StatementID update_response_headers { 0 };
         Database::StatementID update_last_access_time { 0 };
+        Database::StatementID estimate_cache_size_accessed_since { 0 };
     };
 
     CacheIndex(Database::Database&, Statements);

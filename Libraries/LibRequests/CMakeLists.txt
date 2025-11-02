@@ -1,4 +1,5 @@
 set(SOURCES
+    CacheSizes.cpp
     NetworkError.h
     Request.cpp
     RequestClient.cpp

@@ -302,6 +302,16 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     m_active_requests.set(connect_only_request_id, move(request));
 }
 
+void ConnectionFromClient::estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since)
+{
+    Requests::CacheSizes sizes;
+
+    if (g_disk_cache.has_value())
+        sizes = g_disk_cache->estimate_cache_size_accessed_since(since);
+
+    async_estimated_cache_size(cache_size_estimation_id, sizes);
+}
+
 void ConnectionFromClient::clear_cache()
 {
     if (g_disk_cache.has_value())
