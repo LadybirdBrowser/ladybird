@@ -1087,6 +1087,7 @@ set(SOURCES
     WebGL/WebGLTransformFeedback.cpp
     WebGL/WebGLUniformLocation.cpp
     WebGL/WebGLVertexArrayObject.cpp
+    WebGPU/GPU.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp
     WebIDL/Buffers.cpp
@@ -1122,6 +1123,13 @@ set(WEBGPU_TARGETS)
 if (LADYBIRD_ENABLE_WEBGPU_DAWN_BACKEND)
     find_package(Dawn CONFIG REQUIRED)
     list(APPEND WEBGPU_TARGETS dawn::webgpu_dawn)
+    list(APPEND SOURCES
+        WebGPU/Native/Dawn/DawnNativeGPU.cpp
+    )
+else()
+    list(APPEND SOURCES
+        WebGPU/Native/Null/NullNativeGPU.cpp
+    )
 endif()
 
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
