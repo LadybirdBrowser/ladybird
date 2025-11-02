@@ -44,9 +44,9 @@ public:
 
 private:
     struct Statements {
+        Database::StatementID get_item { 0 };
         Database::StatementID set_item { 0 };
         Database::StatementID delete_item { 0 };
-        Database::StatementID get_item { 0 };
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
         Database::StatementID calculate_size_excluding_key { 0 };
@@ -54,8 +54,8 @@ private:
 
     class TransientStorage {
     public:
-        StorageOperationError set_item(StorageLocation const& key, String const& value);
         Optional<String> get_item(StorageLocation const& key);
+        StorageOperationError set_item(StorageLocation const& key, String const& value);
         void delete_item(StorageLocation const& key);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
@@ -65,8 +65,8 @@ private:
     };
 
     struct PersistedStorage {
-        StorageOperationError set_item(StorageLocation const& key, String const& value);
         Optional<String> get_item(StorageLocation const& key);
+        StorageOperationError set_item(StorageLocation const& key, String const& value);
         void delete_item(StorageLocation const& key);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
