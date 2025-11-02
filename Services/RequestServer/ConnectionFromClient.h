@@ -42,6 +42,7 @@ private:
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString, ByteString) override;
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
+    virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
     virtual void clear_cache() override;
 
     virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, HTTP::HeaderMap) override;

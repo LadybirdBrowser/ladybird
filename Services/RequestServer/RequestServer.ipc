@@ -22,6 +22,7 @@ endpoint RequestServer
 
     ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
+    estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|
     clear_cache() =|
 
     // Websocket Connection API

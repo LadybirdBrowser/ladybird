@@ -139,6 +139,11 @@ bool DiskCache::check_if_cache_has_open_entry(Request& request, u64 cache_key, C
     return false;
 }
 
+Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime since) const
+{
+    return m_index.estimate_cache_size_accessed_since(since);
+}
+
 void DiskCache::clear_cache()
 {
     for (auto const& [_, open_entries] : m_open_cache_entries) {
