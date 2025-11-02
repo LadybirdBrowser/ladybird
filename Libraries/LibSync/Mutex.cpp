@@ -6,8 +6,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Concepts.h>
 #include <AK/Diagnostics.h>
+#include <AK/Error.h>
+#include <AK/Format.h>
 #include <AK/Platform.h>
 #include <LibSync/Export.h>
 #include <LibSync/Mutex.h>
@@ -39,17 +42,38 @@ PlatformMutex::PlatformMutex()
 
 PlatformMutex::~PlatformMutex()
 {
-    pthread_mutex_destroy(&impl().mutex);
+    int rc = pthread_mutex_destroy(&impl().mutex);
+    if (rc != 0) {
+        warnln("pthread_mutex_destroy failed with: {}", Error::from_errno(rc));
+        VERIFY_NOT_REACHED();
+    }
+}
+
+void PlatformMutex::try_lock()
+{
+    int rc = pthread_mutex_trylock(&impl().mutex);
+    if (rc != 0) {
+        warnln("pthread_mutex_trylock failed with: {}", Error::from_errno(rc));
+        VERIFY_NOT_REACHED();
+    }
 }
 
 void PlatformMutex::lock()
 {
-    pthread_mutex_lock(&impl().mutex);
+    int rc = pthread_mutex_lock(&impl().mutex);
+    if (rc != 0) {
+        warnln("pthread_mutex_lock failed with: {}", Error::from_errno(rc));
+        VERIFY_NOT_REACHED();
+    }
 }
 
 void PlatformMutex::unlock()
 {
-    pthread_mutex_unlock(&impl().mutex);
+    int rc = pthread_mutex_unlock(&impl().mutex);
+    if (rc != 0) {
+        warnln("pthread_mutex_unlock failed with: {}", Error::from_errno(rc));
+        VERIFY_NOT_REACHED();
+    }
 }
 
 template<typename RecursivePolicy, typename InterprocessPolicy>
@@ -57,11 +81,18 @@ MutexBase<RecursivePolicy, InterprocessPolicy>::MutexBase()
 {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
-    if constexpr (IsSame<RecursivePolicy, PolicyRecursive>)
+    if constexpr (IsSame<RecursivePolicy, PolicyRecursive>) {
         pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    } else {
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+    }
     if constexpr (IsSame<InterprocessPolicy, PolicyInterprocess>)
         pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-    pthread_mutex_init(&impl().mutex, &attr);
+    int rc = pthread_mutex_init(&impl().mutex, &attr);
+    if (rc != 0) {
+        warnln("pthread_mutex_init failed with: {}", Error::from_errno(rc));
+        VERIFY_NOT_REACHED();
+    }
     pthread_mutexattr_destroy(&attr);
 }
 
