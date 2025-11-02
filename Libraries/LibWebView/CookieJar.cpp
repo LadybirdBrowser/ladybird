@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
@@ -231,6 +231,11 @@ Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, S
 void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
 {
     m_transient_storage.purge_expired_cookies(offset);
+}
+
+Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    return m_transient_storage.estimate_storage_size_accessed_since(since);
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
@@ -645,6 +650,21 @@ void CookieJar::TransientStorage::expire_and_purge_all_cookies()
     }
 
     purge_expired_cookies();
+}
+
+Requests::CacheSizes CookieJar::TransientStorage::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    Requests::CacheSizes sizes;
+
+    for (auto const& [key, value] : m_cookies) {
+        auto size = key.name.byte_count() + key.domain.byte_count() + key.path.byte_count() + value.value.byte_count();
+        sizes.total += size;
+
+        if (value.last_access_time >= since)
+            sizes.since_requested_time += size;
+    }
+
+    return sizes;
 }
 
 void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cookie)

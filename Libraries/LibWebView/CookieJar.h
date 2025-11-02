@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,7 @@
 #include <AK/Traits.h>
 #include <LibCore/Timer.h>
 #include <LibDatabase/Forward.h>
+#include <LibRequests/CacheSizes.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Forward.h>
@@ -46,6 +47,7 @@ public:
     Vector<Web::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url);
     Optional<Web::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
+    Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
 private:
     struct Statements {
@@ -66,6 +68,8 @@ private:
 
         UnixDateTime purge_expired_cookies(Optional<AK::Duration> offset = {});
         void expire_and_purge_all_cookies();
+
+        Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
         auto take_dirty_cookies() { return move(m_dirty_cookies); }
 
