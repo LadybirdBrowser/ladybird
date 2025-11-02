@@ -105,7 +105,6 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
         return;
     }
 
-    Threading::MutexLocker playback_stream_change_locker { m_mutex };
     auto callback = [=, weak_self = m_weak_self](Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count) -> ReadonlyBytes {
         auto self = weak_self->take_strong();
         if (!self)
