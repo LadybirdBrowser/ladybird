@@ -73,7 +73,7 @@ private:
     private:
         Core::EventLoop& m_main_thread_event_loop;
 
-        Sync::Mutex m_mutex;
+        Sync::RecursiveMutex m_mutex;
         Sync::ConditionVariable m_wait_condition { m_mutex };
         Atomic<bool> m_exit { false };
 

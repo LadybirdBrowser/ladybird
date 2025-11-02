@@ -82,7 +82,7 @@ private:
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<AudioMixingSinkWeakReference> m_weak_self;
 
-    Sync::Mutex m_mutex;
+    Sync::RecursiveMutex m_mutex;
     Sync::ConditionVariable m_wait_condition { m_mutex };
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     u32 m_playback_stream_sample_rate { 0 };
