@@ -29,19 +29,33 @@ namespace WebView {
 
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;
-static HashMap<pthread_t, ThreadData*> s_thread_data;
+#if defined(AK_OS_WINDOWS)
+#    define THREAD_ID_KEY intptr_t
+#else
+#    define THREAD_ID_KEY pthread_t
+#endif
+static HashMap<THREAD_ID_KEY, ThreadData*> s_thread_data;
 static Threading::RWLock s_thread_data_lock;
 static thread_local pthread_t s_thread_id;
+
+static THREAD_ID_KEY thread_id_key(pthread_t thread_id)
+{
+#if defined(AK_OS_WINDOWS)
+    return reinterpret_cast<intptr_t>(thread_id.p);
+#else
+    return thread_id;
+#endif
+}
 
 struct ThreadData {
     static ThreadData& the()
     {
-        if (s_thread_id == 0)
+        if (thread_id_key(s_thread_id) == 0)
             s_thread_id = pthread_self();
         if (!s_this_thread_data) {
             s_this_thread_data = make<ThreadData>();
             Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
-            s_thread_data.set(s_thread_id, s_this_thread_data.ptr());
+            s_thread_data.set(thread_id_key(s_thread_id), s_this_thread_data.ptr());
         }
         return *s_this_thread_data;
     }
@@ -49,13 +63,13 @@ struct ThreadData {
     static ThreadData* for_thread(pthread_t thread_id)
     {
         Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
-        return s_thread_data.get(thread_id).value_or(nullptr);
+        return s_thread_data.get(thread_id_key(thread_id)).value_or(nullptr);
     }
 
     ~ThreadData()
     {
         Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
-        s_thread_data.remove(s_thread_id);
+        s_thread_data.remove(thread_id_key(s_thread_id));
     }
 
     Threading::Mutex mutex;
