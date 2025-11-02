@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: random() in @keyframes</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#random">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @keyframes --anim {
+    from {
+        translate: 0px;
+        translate: random(2px, 200px);
+    }
+    to {
+        translate: 0px;
+    }
+  }
+  #target {
+    animation: --anim 1000s step-end;
+  }
+</style>
+<div id="target"></div>
+<script>
+  test(() => {
+    assert_not_equals(getComputedStyle(target).translate, "0px");
+  }, "random() is not ignored in keyframe");
+</script>

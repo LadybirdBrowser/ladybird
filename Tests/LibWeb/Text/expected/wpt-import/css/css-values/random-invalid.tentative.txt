@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	e.style['width'] = "random()" should not set the property value
+Pass	e.style['width'] = "random( )" should not set the property value
+Pass	e.style['width'] = "random(,)" should not set the property value
+Pass	e.style['width'] = "random(1px, )" should not set the property value
+Pass	e.style['width'] = "random(,1px)" should not set the property value
+Pass	e.style['width'] = "random(1px)" should not set the property value
+Pass	e.style['width'] = "random(1px,2px,)" should not set the property value
+Pass	e.style['width'] = "random(1px,2px,1px,)" should not set the property value
+Pass	e.style['width'] = "random(1px,2px,1px foo)" should not set the property value
+Pass	e.style['width'] = "random(foo, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(\"foo\", 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(\"--foo\", 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(element-shared foo, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(element-shared 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(1px, 2px, 1px, element-shared)" should not set the property value
+Pass	e.style['width'] = "random(--foo --bar, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(fixed 0.5 element-shared, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(fixed 0.5 auto, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(fixed 0.5 --foo, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(fixed 0.5px, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(fixed 0.5%, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(fixed -1, 1px, 2px)" should not set the property value
+Pass	e.style['width'] = "random(10deg, 20deg)" should not set the property value
