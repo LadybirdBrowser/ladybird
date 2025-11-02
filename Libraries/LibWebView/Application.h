@@ -83,6 +83,27 @@ public:
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
 
+    struct BrowsingDataSizes {
+        u64 cache_size_since_requested_time { 0 };
+        u64 total_cache_size { 0 };
+
+        u64 site_data_size_since_requested_time { 0 };
+        u64 total_site_data_size { 0 };
+    };
+    NonnullRefPtr<Core::Promise<BrowsingDataSizes>> estimate_browsing_data_size_accessed_since(UnixDateTime since);
+
+    struct ClearBrowsingDataOptions {
+        enum class Delete {
+            No,
+            Yes,
+        };
+
+        UnixDateTime since { UnixDateTime::earliest() };
+        Delete delete_cached_files { Delete::No };
+        Delete delete_site_data { Delete::No };
+    };
+    void clear_browsing_data(ClearBrowsingDataOptions const&);
+
     Action& reload_action() { return *m_reload_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
     Action& paste_action() { return *m_paste_action; }
