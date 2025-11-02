@@ -223,18 +223,28 @@ bool AudioDataProvider::ThreadData::handle_seek()
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
-        auto locker = take_lock();
-        m_is_in_error_state = true;
-        while (!m_error_handler)
-            m_wait_condition.wait();
-        m_main_thread_event_loop.deferred_invoke([this, error = move(error)] mutable {
-            m_error_handler(move(error));
-        });
+        auto is_in_error_state = true;
+
+        {
+            auto locker = take_lock();
+            m_is_in_error_state = true;
+            while (!m_error_handler)
+                m_wait_condition.wait();
+            m_main_thread_event_loop.deferred_invoke([this, error = move(error)] mutable {
+                m_error_handler(move(error));
+            });
+        }
+
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Audio Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (m_is_in_error_state) {
+        while (is_in_error_state) {
             if (handle_seek())
                 break;
-            m_wait_condition.wait();
+
+            {
+                auto locker = take_lock();
+                m_wait_condition.wait();
+                is_in_error_state = m_is_in_error_state;
+            }
         }
     };
 
@@ -256,14 +266,22 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
     }
 
     while (true) {
-        auto locker = take_lock();
+        auto queue_size = [&] {
+            auto locker = take_lock();
+            return m_queue.size();
+        }();
 
-        while (m_queue.size() >= m_queue_max_size) {
+        while (queue_size >= m_queue_max_size) {
             if (handle_seek())
                 return;
-            m_wait_condition.wait();
-            if (should_thread_exit())
-                return;
+
+            {
+                auto locker = take_lock();
+                m_wait_condition.wait();
+                if (should_thread_exit())
+                    return;
+                queue_size = m_queue.size();
+            }
         }
 
         auto block = AudioBlock();
@@ -277,6 +295,7 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 
         // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
 
+        auto locker = take_lock();
         VERIFY(!block.is_empty());
         m_queue.enqueue(move(block));
         VERIFY(!m_queue.tail().is_empty());
