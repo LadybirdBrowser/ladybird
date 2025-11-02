@@ -661,6 +661,52 @@ void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresen
     m_clipboard = move(entry);
 }
 
+NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estimate_browsing_data_size_accessed_since(UnixDateTime since)
+{
+    auto promise = Core::Promise<BrowsingDataSizes>::construct();
+
+    m_request_server_client->estimate_cache_size_accessed_since(since)
+        ->when_resolved([this, promise, since](Requests::CacheSizes cache_sizes) {
+            auto cookie_sizes = m_cookie_jar->estimate_storage_size_accessed_since(since);
+            auto storage_sizes = m_storage_jar->estimate_storage_size_accessed_since(since);
+
+            BrowsingDataSizes sizes;
+
+            sizes.cache_size_since_requested_time = cache_sizes.since_requested_time;
+            sizes.total_cache_size = cache_sizes.total;
+
+            sizes.site_data_size_since_requested_time = cookie_sizes.since_requested_time + storage_sizes.since_requested_time;
+            sizes.total_site_data_size = cookie_sizes.total + storage_sizes.total;
+
+            promise->resolve(sizes);
+        })
+        .when_rejected([promise](Error& error) {
+            promise->reject(move(error));
+        });
+
+    return promise;
+}
+
+void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
+{
+    if (options.delete_cached_files == ClearBrowsingDataOptions::Delete::Yes) {
+        m_request_server_client->async_remove_cache_entries_accessed_since(options.since);
+
+        // FIXME: Maybe we should forward the "since" parameter to the WebContent process, but the in-memory cache is
+        //        transient anyways, so just assuming they were all accessed in the last hour is fine for now.
+        ViewImplementation::for_each_view([](ViewImplementation& view) {
+            // FIXME: This should be promoted from a debug request to a proper endpoint.
+            view.debug_request("clear-cache"sv);
+            return IterationDecision::Continue;
+        });
+    }
+
+    if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
+        m_cookie_jar->expire_cookies_accessed_since(options.since);
+        m_storage_jar->remove_items_accessed_since(options.since);
+    }
+}
+
 void Application::initialize_actions()
 {
     auto debug_request = [this](auto request) {
