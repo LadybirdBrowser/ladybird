@@ -57,6 +57,7 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& databa
     statements.get_item = TRY(database.prepare_statement("SELECT bottle_value FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.set_item = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorage VALUES (?, ?, ?, ?, ?);"sv));
     statements.delete_item = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
+    statements.delete_items_accessed_since = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE last_access_time >= ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE WebStorage SET last_access_time = ? WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
@@ -125,6 +126,14 @@ void StorageJar::remove_item(StorageEndpointType storage_endpoint, String const&
         m_transient_storage.delete_item(storage_location);
 }
 
+void StorageJar::remove_items_accessed_since(UnixDateTime since)
+{
+    if (m_persisted_storage.has_value())
+        m_persisted_storage->delete_items_accessed_since(since);
+    else
+        m_transient_storage.delete_items_accessed_since(since);
+}
+
 void StorageJar::clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key)
 {
     if (m_persisted_storage.has_value())
@@ -179,6 +188,13 @@ StorageOperationError StorageJar::TransientStorage::set_item(StorageLocation con
 void StorageJar::TransientStorage::delete_item(StorageLocation const& key)
 {
     m_storage_items.remove(key);
+}
+
+void StorageJar::TransientStorage::delete_items_accessed_since(UnixDateTime since)
+{
+    m_storage_items.remove_all_matching([&](auto const&, auto const& entry) {
+        return entry.last_access_time >= since;
+    });
 }
 
 void StorageJar::TransientStorage::clear(StorageEndpointType storage_endpoint, String const& storage_key)
@@ -282,6 +298,11 @@ void StorageJar::PersistedStorage::delete_item(StorageLocation const& key)
         to_underlying(key.storage_endpoint),
         key.storage_key,
         key.bottle_key);
+}
+
+void StorageJar::PersistedStorage::delete_items_accessed_since(UnixDateTime since)
+{
+    database.execute_statement(statements.delete_items_accessed_since, {}, since);
 }
 
 void StorageJar::PersistedStorage::clear(StorageEndpointType storage_endpoint, String const& storage_key)
