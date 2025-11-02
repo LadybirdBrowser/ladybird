@@ -9,9 +9,9 @@
 #include <AK/Noncopyable.h>
 #include <AK/Queue.h>
 #include <LibCore/Promise.h>
-#include <LibThreading/ConditionVariable.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Forward.h>
-#include <LibThreading/Mutex.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 
@@ -50,8 +50,8 @@ private:
     // NOTE: Queue will only contain multiple items in case tasks were scheduled by screenshot requests.
     //       Otherwise, it will contain only one item at a time.
     Queue<Task> m_rendering_tasks;
-    Threading::Mutex m_rendering_task_mutex;
-    Threading::ConditionVariable m_rendering_task_ready_wake_condition { m_rendering_task_mutex };
+    Sync::Mutex m_rendering_task_mutex;
+    Sync::ConditionVariable m_rendering_task_ready_wake_condition { m_rendering_task_mutex };
 };
 
 }
