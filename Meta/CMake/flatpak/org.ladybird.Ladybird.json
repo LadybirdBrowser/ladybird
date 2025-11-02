@@ -657,7 +657,8 @@
         "-DENABLE_INSTALL_FREEDESKTOP_FILES=ON",
         "-DENABLE_INSTALL_HEADERS=OFF",
         "-DBUILD_TESTING=OFF",
-        "-DICU_ROOT=/app"
+        "-DICU_ROOT=/app",
+        "-DLADYBIRD_WEBGPU_BACKEND=Null"
       ]
     }
   ]
