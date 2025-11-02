@@ -704,7 +704,7 @@ inline constexpr bool IsHashCompatible<Utf16String, Utf16View> = true;
 
 }
 
-[[nodiscard]] ALWAYS_INLINE AK_STRING_VIEW_LITERAL_CONSTEVAL AK::Utf16View operator""sv(char16_t const* string, size_t length)
+[[nodiscard]] ALWAYS_INLINE consteval AK::Utf16View operator""sv(char16_t const* string, size_t length)
 {
     return { string, length };
 }
