@@ -29,6 +29,7 @@ class SYNC_API PlatformMutex {
     friend class ConditionVariable;
 
 public:
+    void try_lock();
     void lock();
     void unlock();
 
