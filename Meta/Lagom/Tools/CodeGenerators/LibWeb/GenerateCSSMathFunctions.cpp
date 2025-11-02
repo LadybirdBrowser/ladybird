@@ -359,57 +359,59 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     auto parameter_type_variable = MUST(String::formatted("argument_type_{}", parameter_index));
                     parameter_generator.set("type_check", generate_calculation_type_check(parameter_type_variable, parameter_type_string));
                     parameter_generator.append(R"~~~(
-        auto maybe_argument_type_@parameter_index@ = parameter_@parameter_index@->numeric_type();
-        if (!maybe_argument_type_@parameter_index@.has_value()) {
-            ErrorReporter::the().report(InvalidValueError {
-                .value_type = "@name:lowercase@()"_fly_string,
-                .value_string = stream.dump_string(),
-                .description = "Argument '@parameter_name@' couldn't determine its type."_string,
-            });
-            return nullptr;
-        }
-        auto argument_type_@parameter_index@ = maybe_argument_type_@parameter_index@.release_value();
+        if (parameter_@parameter_index@) {
+            auto maybe_argument_type_@parameter_index@ = parameter_@parameter_index@->numeric_type();
+            if (!maybe_argument_type_@parameter_index@.has_value()) {
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "@name:lowercase@()"_fly_string,
+                    .value_string = stream.dump_string(),
+                    .description = "Argument '@parameter_name@' couldn't determine its type."_string,
+                });
+                return nullptr;
+            }
+            auto argument_type_@parameter_index@ = maybe_argument_type_@parameter_index@.release_value();
 
-        if (!(@type_check@)) {
-            ErrorReporter::the().report(InvalidValueError {
-                .value_type = "@name:lowercase@()"_fly_string,
-                .value_string = stream.dump_string(),
-                .description = MUST(String::formatted("Argument '@parameter_name@' type ({}) is not an accepted type.", argument_type_@parameter_index@.dump())),
-            });
-            return nullptr;
-        }
+            if (!(@type_check@)) {
+                ErrorReporter::the().report(InvalidValueError {
+                    .value_type = "@name:lowercase@()"_fly_string,
+                    .value_string = stream.dump_string(),
+                    .description = MUST(String::formatted("Argument '@parameter_name@' type ({}) is not an accepted type.", argument_type_@parameter_index@.dump())),
+                });
+                return nullptr;
+            }
 
-        if (!determined_argument_type.has_value()) {
-            determined_argument_type = argument_type_@parameter_index@;
-        } else {
+            if (!determined_argument_type.has_value()) {
+                determined_argument_type = argument_type_@parameter_index@;
+            } else {
 )~~~");
 
                     if (requires_same_parameters) {
                         parameter_generator.append(R"~~~(
-            if (determined_argument_type != argument_type_@parameter_index@) {
-                ErrorReporter::the().report(InvalidValueError {
-                    .value_type = "@name:lowercase@()"_fly_string,
-                    .value_string = stream.dump_string(),
-                    .description = MUST(String::formatted("Argument '@parameter_name@' type ({}) doesn't match type of previous arguments ({}).", argument_type_@parameter_index@.dump(), determined_argument_type->dump())),
-                });
-                return nullptr;
-            }
+                if (determined_argument_type != argument_type_@parameter_index@) {
+                    ErrorReporter::the().report(InvalidValueError {
+                        .value_type = "@name:lowercase@()"_fly_string,
+                        .value_string = stream.dump_string(),
+                        .description = MUST(String::formatted("Argument '@parameter_name@' type ({}) doesn't match type of previous arguments ({}).", argument_type_@parameter_index@.dump(), determined_argument_type->dump())),
+                    });
+                    return nullptr;
+                }
 )~~~");
                     } else {
                         parameter_generator.append(R"~~~(
-            if (auto consistent_type = determined_argument_type->consistent_type(argument_type_@parameter_index@); consistent_type.has_value()) {
-                determined_argument_type = consistent_type.release_value();
-            } else {
-                ErrorReporter::the().report(InvalidValueError {
-                    .value_type = "@name:lowercase@()"_fly_string,
-                    .value_string = stream.dump_string(),
-                    .description = MUST(String::formatted("Argument '@parameter_name@' type ({}) is not consistent with type of previous arguments ({}).", argument_type_@parameter_index@.dump(), determined_argument_type->dump())),
-                });
-                return nullptr;
-            }
+                if (auto consistent_type = determined_argument_type->consistent_type(argument_type_@parameter_index@); consistent_type.has_value()) {
+                    determined_argument_type = consistent_type.release_value();
+                } else {
+                    ErrorReporter::the().report(InvalidValueError {
+                        .value_type = "@name:lowercase@()"_fly_string,
+                        .value_string = stream.dump_string(),
+                        .description = MUST(String::formatted("Argument '@parameter_name@' type ({}) is not consistent with type of previous arguments ({}).", argument_type_@parameter_index@.dump(), determined_argument_type->dump())),
+                    });
+                    return nullptr;
+                }
 )~~~");
                     }
                     parameter_generator.append(R"~~~(
+            }
         }
 )~~~");
                 }
@@ -435,7 +437,11 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     parameter_generator.set("release_value"sv, ""_string);
                 } else {
                     // NOTE: This assumes everything not handled above is a calculation node of some kind.
-                    parameter_generator.set("release_value"sv, ".release_nonnull()"_string);
+                    if (parameter.get_bool("required"sv).value() || parameter.get_string("default"sv).has_value()) {
+                        parameter_generator.set("release_value"sv, ".release_nonnull()"_string);
+                    } else {
+                        parameter_generator.set("release_value", ""_string);
+                    }
                 }
 
                 if (parameter_index == 0) {
