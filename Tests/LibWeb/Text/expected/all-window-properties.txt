@@ -166,6 +166,7 @@ FontFaceSet
 FormData
 FormDataEvent
 Function
+GPU
 GainNode
 Gamepad
 GamepadButton
