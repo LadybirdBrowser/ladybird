@@ -14,19 +14,45 @@ namespace WebView {
 // Quota size is specified in https://storage.spec.whatwg.org/#registered-storage-endpoints
 static constexpr size_t LOCAL_STORAGE_QUOTA = 5 * MiB;
 
+// Increment this version when needing to alter the WebStorage schema.
+static constexpr u32 WEB_STORAGE_VERSION = 2u;
+
+static constexpr u32 WEB_STORAGE_METADATA_KEY = 12389u;
+
 ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& database)
 {
     Statements statements {};
 
-    auto create_table = TRY(database.prepare_statement(R"#(
+    auto create_metadata_table = TRY(database.prepare_statement(R"#(
+        CREATE TABLE IF NOT EXISTS WebStorageMetadata (
+            metadata_key INTEGER,
+            version INTEGER,
+            PRIMARY KEY(metadata_key)
+        );
+    )#"sv));
+    database.execute_statement(create_metadata_table, {});
+
+    auto create_storage_table = TRY(database.prepare_statement(R"#(
         CREATE TABLE IF NOT EXISTS WebStorage (
             storage_endpoint INTEGER,
             storage_key TEXT,
             bottle_key TEXT,
             bottle_value TEXT,
             PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
-        );)#"sv));
-    database.execute_statement(create_table, {});
+        );
+    )#"sv));
+    database.execute_statement(create_storage_table, {});
+
+    auto read_storage_version = TRY(database.prepare_statement("SELECT version FROM WebStorageMetadata WHERE metadata_key = ?;"sv));
+    auto storage_version = 0u;
+
+    database.execute_statement(
+        read_storage_version,
+        [&](auto statement_id) { storage_version = database.result_column<u32>(statement_id, 0); },
+        WEB_STORAGE_METADATA_KEY);
+
+    if (storage_version != WEB_STORAGE_VERSION)
+        TRY(upgrade_database(database, storage_version));
 
     statements.get_item = TRY(database.prepare_statement("SELECT bottle_value FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.set_item = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorage VALUES (?, ?, ?, ?);"sv));
@@ -49,6 +75,14 @@ StorageJar::StorageJar(Optional<PersistedStorage> persisted_storage)
 }
 
 StorageJar::~StorageJar() = default;
+
+ErrorOr<void> StorageJar::upgrade_database(Database::Database& database, [[maybe_unused]] u32 current_version)
+{
+    auto set_storage_version = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorageMetadata VALUES (?, ?);"sv));
+    database.execute_statement(set_storage_version, {}, WEB_STORAGE_METADATA_KEY, WEB_STORAGE_VERSION);
+
+    return {};
+}
 
 Optional<String> StorageJar::get_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
 {
