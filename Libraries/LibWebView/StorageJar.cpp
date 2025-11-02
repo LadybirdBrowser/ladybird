@@ -60,7 +60,8 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& databa
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE WebStorage SET last_access_time = ? WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
-    statements.calculate_size_excluding_key = TRY(database.prepare_statement("SELECT SUM(LENGTH(bottle_key) + LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
+    statements.calculate_size_excluding_key = TRY(database.prepare_statement("SELECT SUM(OCTET_LENGTH(bottle_key) + OCTET_LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
+    statements.estimate_storage_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(OCTET_LENGTH(storage_key)) + SUM(OCTET_LENGTH(bottle_key)) + SUM(OCTET_LENGTH(bottle_value)) FROM WebStorage WHERE last_access_time >= ?;"sv));
 
     return adopt_own(*new StorageJar { PersistedStorage { database, statements } });
 }
@@ -139,6 +140,13 @@ Vector<String> StorageJar::get_all_keys(StorageEndpointType storage_endpoint, St
     return m_transient_storage.get_keys(storage_endpoint, storage_key);
 }
 
+Requests::CacheSizes StorageJar::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    if (m_persisted_storage.has_value())
+        return m_persisted_storage->estimate_storage_size_accessed_since(since);
+    return m_transient_storage.estimate_storage_size_accessed_since(since);
+}
+
 Optional<String> StorageJar::TransientStorage::get_item(StorageLocation const& key)
 {
     if (auto entry = m_storage_items.get(key); entry.has_value()) {
@@ -195,6 +203,21 @@ Vector<String> StorageJar::TransientStorage::get_keys(StorageEndpointType storag
     }
 
     return keys;
+}
+
+Requests::CacheSizes StorageJar::TransientStorage::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    Requests::CacheSizes sizes;
+
+    for (auto const& [key, entry] : m_storage_items) {
+        auto size = key.storage_key.byte_count() + key.bottle_key.byte_count() + entry.value.byte_count();
+        sizes.total += size;
+
+        if (entry.last_access_time >= since)
+            sizes.since_requested_time += size;
+    }
+
+    return sizes;
 }
 
 Optional<String> StorageJar::PersistedStorage::get_item(StorageLocation const& key)
@@ -283,6 +306,23 @@ Vector<String> StorageJar::PersistedStorage::get_keys(StorageEndpointType storag
         storage_key);
 
     return keys;
+}
+
+Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    Requests::CacheSizes sizes;
+
+    database.execute_statement(
+        statements.estimate_storage_size_accessed_since,
+        [&](auto statement_id) { sizes.since_requested_time = database.result_column<u64>(statement_id, 0); },
+        since);
+
+    database.execute_statement(
+        statements.estimate_storage_size_accessed_since,
+        [&](auto statement_id) { sizes.total = database.result_column<u64>(statement_id, 0); },
+        UnixDateTime::earliest());
+
+    return sizes;
 }
 
 }

@@ -11,6 +11,7 @@
 #include <AK/Time.h>
 #include <AK/Traits.h>
 #include <LibDatabase/Forward.h>
+#include <LibRequests/CacheSizes.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/StorageOperationError.h>
@@ -42,6 +43,7 @@ public:
     void remove_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& key);
     void clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key);
     Vector<String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+    Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
 private:
     struct Statements {
@@ -52,6 +54,7 @@ private:
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
         Database::StatementID calculate_size_excluding_key { 0 };
+        Database::StatementID estimate_storage_size_accessed_since { 0 };
     };
 
     class TransientStorage {
@@ -61,6 +64,7 @@ private:
         void delete_item(StorageLocation const& key);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
     private:
         struct Entry {
@@ -77,6 +81,7 @@ private:
         void delete_item(StorageLocation const& key);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
         Database::Database& database;
         Statements statements;
