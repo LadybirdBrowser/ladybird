@@ -77,6 +77,8 @@ private:
 
     explicit StorageJar(Optional<PersistedStorage>);
 
+    static ErrorOr<void> upgrade_database(Database::Database&, u32 current_version);
+
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;
 };
