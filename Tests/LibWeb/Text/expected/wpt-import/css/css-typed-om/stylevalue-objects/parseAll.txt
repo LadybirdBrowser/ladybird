@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	CSSStyleValue.parseAll() with a valid property returns a list with a single CSSStyleValue
 Pass	CSSStyleValue.parseAll() is not case sensitive
-Fail	CSSStyleValue.parseAll() with a valid list-valued property returns a list with a single CSSStyleValue
+Pass	CSSStyleValue.parseAll() with a valid list-valued property returns a list with a single CSSStyleValue
 Pass	CSSStyleValue.parseAll() with a valid shorthand property returns a CSSStyleValue
 Pass	CSSStyleValue.parseAll() with a valid custom property returns a list with a single CSSStyleValue
