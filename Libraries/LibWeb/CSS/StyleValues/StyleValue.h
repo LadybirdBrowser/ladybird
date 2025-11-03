@@ -211,6 +211,7 @@ public:
     virtual String to_string(SerializationMode) const = 0;
     virtual Vector<Parser::ComponentValue> tokenize() const;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const;
+    virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) { }
     virtual void visit_edges(JS::Cell::Visitor&) const { }
