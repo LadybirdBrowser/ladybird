@@ -348,6 +348,7 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
     // FIXME: This ignores h3 in the alt-svc header, as downgrading to HTTP/2 on failure is not yet supported.
     set_option(CURLOPT_ALTSVC_CTRL, CURLALTSVC_H1 | CURLALTSVC_H2);
+    set_option(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
 
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
     set_option(CURLOPT_FOLLOWLOCATION, 0);
