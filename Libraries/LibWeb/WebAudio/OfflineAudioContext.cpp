@@ -119,17 +119,16 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::start_renderi
 
 void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = this->realm();
     // To begin offline rendering, the following steps MUST happen on a rendering thread that is created for the occasion.
     // FIXME: 1: Given the current connections and scheduled changes, start rendering length sample-frames of audio into [[rendered buffer]]
     // FIXME: 2: For every render quantum, check and suspend rendering if necessary.
     // FIXME: 3: If a suspended context is resumed, continue to render the buffer.
     // 4: Once the rendering is complete, queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [&realm, promise, this]() {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
+        HTML::TemporaryExecutionContext context(this->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 4.1 Resolve the promise created by startRendering() with [[rendered buffer]].
-        WebIDL::resolve_promise(realm, promise, this->m_rendered_buffer);
+        WebIDL::resolve_promise(this->realm(), promise, this->m_rendered_buffer);
 
         // AD-HOC: Remove resolved promise from [[pending promises]]
         // https://github.com/WebAudio/web-audio-api/issues/2648
@@ -139,7 +138,7 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
 
         // 4.2: Queue a media element task to fire an event named complete at the OfflineAudioContext using OfflineAudioCompletionEvent
         //      whose renderedBuffer property is set to [[rendered buffer]].
-        queue_a_media_element_task(GC::create_function(heap(), [&realm, this]() {
+        queue_a_media_element_task(GC::create_function(heap(), [this]() {
             auto event_init = OfflineAudioCompletionEventInit {
                 {
                     .bubbles = false,
@@ -148,7 +147,7 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
                 },
                 this->m_rendered_buffer,
             };
-            auto event = MUST(OfflineAudioCompletionEvent::construct_impl(realm, HTML::EventNames::complete, event_init));
+            auto event = MUST(OfflineAudioCompletionEvent::construct_impl(this->realm(), HTML::EventNames::complete, event_init));
             this->dispatch_event(event);
         }));
     }));
