@@ -154,4 +154,15 @@ GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, FlyString const& asso
     return CSSStyleValue::create(realm, associated_property, *this);
 }
 
+// https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations
+StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const&) const
+{
+    // To subdivide into iterations a CSS value whole value for a property property, execute the following steps:
+    // 1. If property is a single-valued property, return a list containing whole value.
+    // 2. Otherwise, divide whole value into individual iterations, as appropriate for property, and return a list
+    //    containing the iterations in order.
+    // NB: We do this by type. By default, we assume step 1 applies. For step 2, override this method.
+    return StyleValueVector { *this };
+}
+
 }

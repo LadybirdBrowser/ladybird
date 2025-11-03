@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/CSSTransformValue.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 
 namespace Web::CSS {
@@ -117,6 +118,19 @@ GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, FlyString const& 
 
     // NB: Otherwise, there isn't an equivalent CSSStyleValue for StyleValueList, so just use the default.
     return Base::reify(realm, associated_property);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations
+StyleValueVector StyleValueList::subdivide_into_iterations(PropertyNameAndID const& property) const
+{
+    // To subdivide into iterations a CSS value whole value for a property property, execute the following steps:
+    // 1. If property is a single-valued property, return a list containing whole value.
+    if (property.is_custom_property() || !property_is_list_valued(property.id()))
+        return StyleValueVector { *this };
+
+    // 2. Otherwise, divide whole value into individual iterations, as appropriate for property, and return a list
+    //    containing the iterations in order.
+    return values();
 }
 
 }
