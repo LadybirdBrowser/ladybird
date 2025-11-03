@@ -125,9 +125,8 @@ Optional<MathFunction> math_function_from_string(StringView name)
 
 namespace Web::CSS::Parser {
 
-static Optional<RoundingStrategy> parse_rounding_strategy(Vector<ComponentValue> const& tokens)
+static Optional<RoundingStrategy> parse_rounding_strategy(TokenStream<ComponentValue>& stream)
 {
-    auto stream = TokenStream { tokens };
     stream.discard_whitespace();
     if (!stream.has_next_token())
         return {};
@@ -172,7 +171,8 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
         parsed_arguments.ensure_capacity(arguments.size());
 
         for (auto& argument : arguments) {
-            auto calculation_node = parse_a_calculation(argument, context);
+            TokenStream<ComponentValue> tokens { argument };
+            auto calculation_node = parse_a_calculation(tokens, context);
             if (!calculation_node) {
                 ErrorReporter::the().report(InvalidValueError {
                     .value_type = "@name:lowercase@()"_fly_string,
@@ -287,7 +287,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 if (parameter_type_string == "<rounding-strategy>") {
                     parameter_is_calculation = false;
                     parameter_generator.set("parameter_type", "RoundingStrategy"_string);
-                    parameter_generator.set("parse_function", "parse_rounding_strategy(arguments[argument_index])"_string);
+                    parameter_generator.set("parse_function", MUST(String::formatted("parse_rounding_strategy(tokens_{})", parameter_index)));
                     parameter_generator.set("check_function", ".has_value()"_string);
                     parameter_generator.set("release_function", ".release_value()"_string);
                     if (auto default_value = parameter.get_string("default"sv); default_value.has_value()) {
@@ -299,7 +299,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     // NOTE: This assumes everything not handled above is a calculation node of some kind.
                     parameter_is_calculation = true;
                     parameter_generator.set("parameter_type", "RefPtr<CalculationNode const>"_string);
-                    parameter_generator.set("parse_function", "parse_a_calculation(arguments[argument_index], context)"_string);
+                    parameter_generator.set("parse_function", MUST(String::formatted("parse_a_calculation(tokens_{}, context)", parameter_index)));
                     parameter_generator.set("check_function", " != nullptr"_string);
                     parameter_generator.set("release_function", ".release_nonnull()"_string);
 
@@ -334,6 +334,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 }
 
                 parameter_generator.append(R"~~~(
+            TokenStream tokens_@parameter_index@ { arguments[argument_index] };
             auto maybe_parsed_argument_@parameter_index@ = @parse_function@;
             if (maybe_parsed_argument_@parameter_index@@check_function@) {
                 parameter_@parameter_index@ = maybe_parsed_argument_@parameter_index@@release_function@;
