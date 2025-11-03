@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -57,6 +58,17 @@ void ComputedProperties::visit_edges(Visitor& visitor)
     visitor.visit(m_transition_property_source);
 }
 
+bool ComputedProperties::is_property_important(PropertyNameAndID const& property) const
+{
+    if (property.is_custom_property()) {
+        if (auto custom_property = m_custom_properties.get(property.name()); custom_property.has_value())
+            return custom_property->important == Important::Yes;
+        return false;
+    }
+
+    return is_property_important(property.id());
+}
+
 bool ComputedProperties::is_property_important(PropertyID property_id) const
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
@@ -74,6 +86,17 @@ void ComputedProperties::set_property_important(PropertyID property_id, Importan
         m_property_important[n / 8] |= (1 << (n % 8));
     else
         m_property_important[n / 8] &= ~(1 << (n % 8));
+}
+
+bool ComputedProperties::is_property_inherited(PropertyNameAndID const& property) const
+{
+    if (property.is_custom_property()) {
+        if (auto custom_property = m_custom_properties.get(property.name()); custom_property.has_value())
+            return custom_property->inherited == Inherited::Yes;
+        return false;
+    }
+
+    return is_property_inherited(property.id());
 }
 
 bool ComputedProperties::is_property_inherited(PropertyID property_id) const
@@ -112,6 +135,21 @@ void ComputedProperties::set_animated_property_inherited(PropertyID property_id,
         m_animated_property_inherited[n / 8] |= (1 << (n % 8));
     else
         m_animated_property_inherited[n / 8] &= ~(1 << (n % 8));
+}
+
+void ComputedProperties::set_property(PropertyNameAndID const& property, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
+{
+    if (property.is_custom_property()) {
+        m_custom_properties.set(property.name(),
+            {
+                .value = value,
+                .important = important,
+                .inherited = inherited,
+            });
+        return;
+    }
+
+    set_property(property.id(), value, inherited, important);
 }
 
 void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
@@ -156,6 +194,19 @@ void ComputedProperties::reset_animated_properties(Badge<Animations::KeyframeEff
     m_animated_property_values.clear();
 }
 
+StyleValue const& ComputedProperties::property(PropertyNameAndID const& property, WithAnimationsApplied return_animated_value) const
+{
+    if (property.is_custom_property()) {
+        if (auto result = custom_property(property.name(), return_animated_value))
+            return result.release_nonnull();
+        // NB: Registered custom properties already have their initial value computed, so if we don't know about this
+        //     property, then we know there is no initial value to look up.
+        return GuaranteedInvalidStyleValue::create();
+    }
+
+    return this->property(property.id(), return_animated_value);
+}
+
 StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
@@ -168,6 +219,14 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
 
     // By the time we call this method, all properties have values assigned.
     return *m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
+}
+
+RefPtr<StyleValue const> ComputedProperties::custom_property(FlyString const& name, WithAnimationsApplied) const
+{
+    // FIXME: Support animated custom properties.
+    if (auto custom_property = m_custom_properties.get(name); custom_property.has_value())
+        return custom_property->value;
+    return nullptr;
 }
 
 Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id) const

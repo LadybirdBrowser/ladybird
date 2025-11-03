@@ -10,7 +10,6 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/CascadedProperties.h>
-#include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -31,9 +30,6 @@ class WEB_API PseudoElement : public JS::Cell {
     GC::Ptr<CSS::ComputedProperties> computed_properties() const { return m_computed_properties; }
     void set_computed_properties(GC::Ptr<CSS::ComputedProperties> value) { m_computed_properties = value; }
 
-    OrderedHashMap<FlyString, CSS::StyleProperty> const& custom_properties() const { return m_custom_properties; }
-    void set_custom_properties(OrderedHashMap<FlyString, CSS::StyleProperty> value) { m_custom_properties = move(value); }
-
     bool has_non_empty_counters_set() const { return m_counters_set; }
     Optional<CSS::CountersSet const&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
@@ -48,7 +44,6 @@ private:
     GC::Ptr<Layout::NodeWithStyle> m_layout_node;
     GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
-    OrderedHashMap<FlyString, CSS::StyleProperty> m_custom_properties;
     OwnPtr<CSS::CountersSet> m_counters_set;
     CSSPixelPoint m_scroll_offset {};
 };

@@ -169,20 +169,20 @@ Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id)
 Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString const& custom_property_name) const
 {
     if (is_computed()) {
-        if (!owner_node().has_value())
+        auto element = owner_node();
+        if (!element.has_value())
             return {};
 
-        auto& element = owner_node()->element();
-        auto pseudo_element = owner_node()->pseudo_element();
+        element->document().update_style();
 
-        element.document().update_style();
-
-        auto const* element_to_check = &element;
-        while (element_to_check) {
-            if (auto property = element_to_check->custom_properties(pseudo_element).get(custom_property_name); property.has_value())
-                return *property;
-
-            element_to_check = element_to_check->parent_element();
+        if (auto computed_properties = element->computed_properties()) {
+            if (auto value = computed_properties->custom_properties().get(custom_property_name); value.has_value()) {
+                return StyleProperty {
+                    .name_and_id = PropertyNameAndID::from_name(custom_property_name).release_value(),
+                    .value = value->value,
+                    .important = value->important,
+                };
+            }
         }
 
         return {};
@@ -531,27 +531,16 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             abstract_element.document().update_style();
         }
 
-        // FIXME: Somehow get custom properties if there's no layout node.
-        if (property_name_and_id.is_custom_property()) {
-            if (auto maybe_value = abstract_element.get_custom_property(property_name_and_id.name())) {
-                return StyleProperty {
-                    .name_and_id = property_name_and_id,
-                    .value = maybe_value.release_nonnull(),
-                };
-            }
-            return {};
-        }
-
         if (!layout_node) {
             auto style = abstract_element.document().style_computer().compute_style(abstract_element);
 
             return StyleProperty {
                 .name_and_id = property_name_and_id,
-                .value = style->property(property_id),
+                .value = style->property(property_name_and_id),
             };
         }
 
-        auto value = style_value_for_computed_property(*layout_node, property_id);
+        auto value = style_value_for_computed_property(*layout_node, property_name_and_id);
         if (!value)
             return {};
         return StyleProperty {
@@ -583,25 +572,27 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
     return ColorStyleValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
 
-RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
+RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyNameAndID const& property) const
 {
     if (!owner_node().has_value()) {
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for CSSStyleProperties without owner node was requested");
         return nullptr;
     }
 
-    auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
+    if (property.is_custom_property())
+        return owner_node()->get_custom_property(property.name());
+
+    auto property_id = property.id();
+
+    auto used_value_for_property = [&layout_node, property](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         auto const& display = layout_node.computed_values().display();
         if (!display.is_none() && !display.is_contents() && layout_node.first_paintable()) {
             if (auto const* paintable_box = as_if<Painting::PaintableBox>(layout_node.first_paintable()))
                 return used_value_getter(*paintable_box);
-            dbgln("FIXME: Support getting used value for property `{}` on {}", string_from_property_id(property_id), layout_node.debug_description());
+            dbgln("FIXME: Support getting used value for property `{}` on {}", property.name(), layout_node.debug_description());
         }
         return {};
     };
-
-    auto& element = owner_node()->element();
-    auto pseudo_element = owner_node()->pseudo_element();
 
     auto used_value_for_inset = [&layout_node, used_value_for_property](LengthPercentageOrAuto const& start_side, LengthPercentageOrAuto const& end_side, Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         if (!layout_node.is_positioned())
@@ -617,15 +608,15 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return used_value_for_property(move(used_value_getter));
     };
 
-    auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> auto const& {
-        return element.computed_properties(pseudo_element)->property(property_id);
+    auto get_computed_value = [this](PropertyID property_id) -> auto const& {
+        return owner_node()->computed_properties()->property(property_id);
     };
 
     if (property_is_logical_alias(property_id)) {
-        auto computed_properties = element.computed_properties(pseudo_element);
-        return style_value_for_computed_property(
-            layout_node,
-            map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_properties->writing_mode(), computed_properties->direction() }));
+        auto computed_properties = owner_node()->computed_properties();
+        LogicalAliasMappingContext mapping_context { computed_properties->writing_mode(), computed_properties->direction() };
+        auto physical_property = PropertyNameAndID::from_id(map_logical_alias_to_physical_property(property_id, mapping_context));
+        return style_value_for_computed_property(layout_node, physical_property);
     }
 
     // A limited number of properties have special rules for producing their "resolved value".
@@ -901,8 +892,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return get_computed_value(property_id);
     }
     case PropertyID::Custom:
-        dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for custom properties was requested (?)");
-        return nullptr;
+        // Handled above.
+        VERIFY_NOT_REACHED();
     default:
         // For grid-template-columns and grid-template-rows the resolved value is the used value.
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
@@ -934,7 +925,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         StyleValueVector longhand_values;
         longhand_values.ensure_capacity(longhand_ids.size());
         for (auto longhand_id : longhand_ids)
-            longhand_values.append(style_value_for_computed_property(layout_node, longhand_id).release_nonnull());
+            longhand_values.append(style_value_for_computed_property(layout_node, PropertyNameAndID::from_id(longhand_id)).release_nonnull());
         return ShorthandStyleValue::create(property_id, move(longhand_ids), move(longhand_values));
     }
 }

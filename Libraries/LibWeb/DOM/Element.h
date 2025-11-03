@@ -261,9 +261,6 @@ public:
     GC::Ptr<ShadowRoot const> shadow_root() const { return m_shadow_root; }
     void set_shadow_root(GC::Ptr<ShadowRoot>);
 
-    void set_custom_properties(Optional<CSS::PseudoElement>, OrderedHashMap<FlyString, CSS::StyleProperty> custom_properties);
-    [[nodiscard]] OrderedHashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::PseudoElement>) const;
-
     // FIXME: None of these flags ever get unset should this element's style change so that it no longer relies on these
     //        things - doing so would potentially improve performance by avoiding unnecessary style invalidations.
     bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
@@ -577,7 +574,6 @@ private:
 
     GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
-    OrderedHashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;

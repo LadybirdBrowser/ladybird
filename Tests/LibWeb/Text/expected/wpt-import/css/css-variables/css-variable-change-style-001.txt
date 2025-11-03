@@ -2,13 +2,14 @@ Harness status: OK
 
 Found 9 tests
 
-9 Pass
+8 Pass
+1 Fail
 Pass	Test declaration changes on 'color' as variable
 Pass	Avoid masking differences on 'color' due to declaration changes
 Pass	Test changing 'color' value to become a css variable
 Pass	Test declaration changes on 'background-color' as variable
 Pass	Avoid masking differences on 'background-color' due to declaration changes
 Pass	Test changing 'background-color' value to become a css variable
-Pass	Test declaration changes on 'white-space' as variable
+Fail	Test declaration changes on 'white-space' as variable
 Pass	Avoid masking differences on 'white-space' due to declaration changes
 Pass	Test changing 'white-space' value to become a css variable

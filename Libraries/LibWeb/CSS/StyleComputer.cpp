@@ -1962,7 +1962,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
 LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::AbstractElement abstract_element, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
 {
-    auto normalize_value = [&](auto property_id, auto value) {
+    auto normalize_value_internal = [&](auto property_id, auto value) {
         if (!value || value->is_inherit() || value->is_unset()) {
             if (auto const inheritance_parent = abstract_element.element_to_inherit_style_from(); inheritance_parent.has_value()) {
                 value = inheritance_parent->computed_properties()->property(property_id);
@@ -1973,6 +1973,18 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
 
         if (value->is_initial())
             value = property_initial_value(property_id);
+
+        return value;
+    };
+
+    auto normalize_value = [&](auto property_id, auto value) {
+        value = normalize_value_internal(property_id, value);
+
+        if (value->is_unresolved()) {
+            value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), value->as_unresolved());
+            // This may have returned `unset`, so normalise that again.
+            value = normalize_value_internal(property_id, value);
+        }
 
         return value;
     };
@@ -2031,10 +2043,11 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
         return style.property(property_id);
     };
 
-    style.for_each_property([&](PropertyID property_id, auto& specified_value) {
-        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel());
+    // Custom properties have already been computed, so only compute regular properties here.
+    style.for_each_property(ComputedProperties::IncludeCustomProperties::No, [&](PropertyNameAndID const& property, auto& specified_value) {
+        auto const& computed_value = compute_value_of_property(property.id(), specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel());
 
-        style.set_property_without_modifying_flags(property_id, computed_value);
+        style.set_property_without_modifying_flags(property.id(), computed_value);
     });
 
     style.set_display_before_box_type_transformation(style.display());
@@ -2304,14 +2317,13 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     PseudoClassBitmap attempted_pseudo_class_matches;
     auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
 
-    auto old_custom_properties = abstract_element.custom_properties();
+    HashMap<FlyString, ComputedProperties::CustomProperty> old_custom_properties {};
+    if (abstract_element.computed_properties())
+        old_custom_properties = abstract_element.computed_properties()->custom_properties();
 
     auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element, mode, matching_rule_set);
     auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
     abstract_element.set_cascaded_properties(cascaded_properties);
-
-    // FIXME: Temporary stop-gap to be compatible with old system.
-    abstract_element.set_custom_properties(cascaded_properties->custom_properties());
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
@@ -2345,7 +2357,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     auto computed_properties = compute_properties(abstract_element, cascaded_properties, logical_alias_mapping_context);
     computed_properties->set_attempted_pseudo_class_matches(attempted_pseudo_class_matches);
 
-    if (did_change_custom_properties.has_value() && abstract_element.custom_properties() != old_custom_properties) {
+    if (did_change_custom_properties.has_value() && computed_properties->custom_properties() != old_custom_properties) {
         *did_change_custom_properties = true;
     }
 
@@ -2447,7 +2459,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 {
     auto computed_style = document().heap().allocate<ComputedProperties>();
 
-    // FIXME: Compute custom properties first.
+    // Compute the value of custom properties
+    compute_custom_properties(cascaded_properties, computed_style, abstract_element);
 
     // Resolve any UnresolvedStyleValue shorthands, to get the final cascaded longhand values.
     for (auto const& [shorthand_id, unresolved_shorthand_entry] : cascaded_properties.unresolved_shorthands()) {
@@ -2534,9 +2547,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             computed_style->set_transition_property_source(cascaded_properties.property_source(property));
         }
     }
-
-    // Compute the value of custom properties
-    compute_custom_properties(computed_style, abstract_element);
 
     // 2. Compute the math-depth property, since that might affect the font-size
     compute_math_depth(computed_style, abstract_element);
@@ -2963,60 +2973,115 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& property_name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
-    // https://drafts.csswg.org/css-variables/#propdef-
-    // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
-    // FIXME: These should probably be part of ComputedProperties.
-    auto& document = abstract_element.document();
+    auto property = PropertyNameAndID::from_name(property_name).release_value();
 
-    auto value = abstract_element.get_custom_property(name);
-    if (!value || value->is_initial())
-        return document.custom_property_initial_value(name);
-
-    // Unset is the same as inherit for inherited properties, and by default all custom properties are inherited.
-    // FIXME: Support non-inherited registered custom properties.
-    if (value->is_inherit() || value->is_unset()) {
-        auto element_to_inherit_style_from = abstract_element.element_to_inherit_style_from();
-        if (!element_to_inherit_style_from.has_value())
-            return document.custom_property_initial_value(name);
-        auto inherited_value = element_to_inherit_style_from->get_custom_property(name);
-        if (!inherited_value)
-            return document.custom_property_initial_value(name);
-        return inherited_value.release_nonnull();
+    if (auto cascaded_properties = abstract_element.cascaded_properties()) {
+        if (auto cascaded_value = cascaded_properties->property(property)) {
+            return resolve_custom_property_value(property, cascaded_value.release_nonnull(), abstract_element, guarded_contexts);
+        }
     }
 
-    if (value->is_revert()) {
-        // FIXME: Implement reverting custom properties.
-    }
-    if (value->is_revert_layer()) {
-        // FIXME: Implement reverting custom properties.
+    // Inherit if missing
+    auto registered_property = abstract_element.document().registered_custom_properties().get(property_name);
+    if (!registered_property.has_value() || registered_property.value()->inherits()) {
+        if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+            if (auto parent_value = parent->computed_properties()->custom_property(property_name)) {
+                return parent_value.release_nonnull();
+            }
+        }
     }
 
-    if (!value->is_unresolved() || !value->as_unresolved().contains_arbitrary_substitution_function())
-        return value.release_nonnull();
+    // Default to initial value
+    if (registered_property.has_value() && registered_property.value()->initial_style_value()) {
+        return resolve_custom_property_value(property, registered_property.value()->initial_style_value().release_nonnull(), abstract_element, guarded_contexts);
+    }
 
-    auto& unresolved = value->as_unresolved();
-    return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element, PropertyNameAndID::from_name(name).release_value(), unresolved, guarded_contexts);
+    return GuaranteedInvalidStyleValue::create();
 }
 
-void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::AbstractElement abstract_element) const
+NonnullRefPtr<StyleValue const> StyleComputer::resolve_custom_property_value(PropertyNameAndID const& property, StyleValue const& cascaded_value, DOM::AbstractElement const& abstract_element, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
+    auto resolve_css_wide_keywords = [&](NonnullRefPtr<StyleValue const> style_value) -> NonnullRefPtr<StyleValue const> {
+        auto registered_property = abstract_element.document().registered_custom_properties().get(property.name());
+        auto inherits = !registered_property.has_value() || registered_property.value()->inherits();
+
+        auto initial_value = [&] -> NonnullRefPtr<StyleValue const> {
+            if (registered_property.has_value() && registered_property.value()->initial_style_value())
+                return registered_property.value()->initial_style_value().release_nonnull();
+            return GuaranteedInvalidStyleValue::create();
+        };
+
+        if (style_value->is_inherit() || (inherits && style_value->is_unset())) {
+            if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+                if (auto parent_value = parent->get_custom_property(property.name()))
+                    return parent_value.release_nonnull();
+            }
+
+            return initial_value();
+        }
+
+        if (style_value->is_initial() || style_value->is_unset())
+            return initial_value();
+
+        // FIXME: revert, revert-layer.
+        return style_value;
+    };
+
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
-    // FIXME: These should probably be part of ComputedProperties.
-    auto custom_properties = abstract_element.custom_properties();
-    decltype(custom_properties) resolved_custom_properties;
+    if (!cascaded_value.is_unresolved() || !cascaded_value.as_unresolved().contains_arbitrary_substitution_function())
+        return resolve_css_wide_keywords(cascaded_value);
 
-    for (auto const& [name, style_property] : custom_properties) {
-        resolved_custom_properties.set(name,
-            StyleProperty {
-                .name_and_id = style_property.name_and_id,
-                .value = compute_value_of_custom_property(abstract_element, name),
-                .important = style_property.important,
-            });
+    auto result = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams {}, abstract_element, property, cascaded_value.as_unresolved(), guarded_contexts);
+    return resolve_css_wide_keywords(result);
+}
+
+void StyleComputer::compute_custom_properties(CascadedProperties const& cascaded_properties, ComputedProperties& computed_properties, DOM::AbstractElement const& abstract_element) const
+{
+    auto const& registered_properties = abstract_element.document().registered_custom_properties();
+    for (auto const& [custom_property_name, value] : cascaded_properties.custom_properties()) {
+        auto name_and_id = PropertyNameAndID::from_name(custom_property_name).release_value();
+        auto computed_value = resolve_custom_property_value(name_and_id, value.value, abstract_element);
+        auto inherited = ComputedProperties::Inherited::Yes;
+        if (auto registered = registered_properties.get(custom_property_name);
+            registered.has_value() && !registered.value()->inherits()) {
+            inherited = ComputedProperties::Inherited::No;
+        }
+
+        computed_properties.set_property(name_and_id, move(computed_value), inherited, value.important);
     }
-    abstract_element.set_custom_properties(move(resolved_custom_properties));
+
+    // Inherit custom properties that are missing. These are already computed so we don't need to compute them again.
+    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+        auto parent_custom_properties = parent->computed_properties()->custom_properties();
+        for (auto const& [custom_property_name, value] : parent_custom_properties) {
+            if (computed_properties.custom_property(custom_property_name))
+                continue;
+
+            // Skip non-inherited registered custom properties.
+            if (auto registered_property = registered_properties.get(custom_property_name);
+                registered_property.has_value() && !registered_property.value()->inherits()) {
+                continue;
+            }
+
+            computed_properties.set_property(PropertyNameAndID::from_name(custom_property_name).release_value(), value.value, ComputedProperties::Inherited::Yes, value.important);
+        }
+    }
+
+    // Fill in any missing initial values of registered custom properties.
+    for (auto const& [registered_property_name, property_rule] : registered_properties) {
+        if (!computed_properties.custom_property(registered_property_name) && property_rule->initial_style_value()) {
+            auto name_and_id = PropertyNameAndID::from_name(registered_property_name).release_value();
+            auto computed_value = resolve_custom_property_value(name_and_id, property_rule->initial_style_value().release_nonnull(), abstract_element);
+            computed_properties.set_property(
+                name_and_id,
+                property_rule->initial_style_value().release_nonnull(),
+                property_rule->inherits() ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No,
+                Important::No);
+        }
+    }
 }
 
 static CSSPixels line_width_keyword_to_css_pixels(Keyword keyword)

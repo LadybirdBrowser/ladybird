@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 29 tests
 
-29 Fail
-Fail	Initial value for <length> correctly computed [calc(10px + 15px)]
+1 Pass
+28 Fail
+Pass	Initial value for <length> correctly computed [calc(10px + 15px)]
 Fail	Initial value for <length> correctly computed [1in]
 Fail	Initial value for <length> correctly computed [2.54cm]
 Fail	Initial value for <length> correctly computed [25.4mm]

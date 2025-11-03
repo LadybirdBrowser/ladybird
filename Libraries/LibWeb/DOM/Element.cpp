@@ -3108,33 +3108,6 @@ PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
     return *(m_pseudo_element_data->get(type).value());
 }
 
-void Element::set_custom_properties(Optional<CSS::PseudoElement> pseudo_element, OrderedHashMap<FlyString, CSS::StyleProperty> custom_properties)
-{
-    if (!pseudo_element.has_value()) {
-        m_custom_properties = move(custom_properties);
-        return;
-    }
-
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-        return;
-    }
-
-    ensure_pseudo_element(pseudo_element.value()).set_custom_properties(move(custom_properties));
-}
-
-OrderedHashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    static OrderedHashMap<FlyString, CSS::StyleProperty> s_empty_custom_properties;
-
-    if (!pseudo_element.has_value())
-        return m_custom_properties;
-
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
-        return s_empty_custom_properties;
-
-    return ensure_pseudo_element(pseudo_element.value()).custom_properties();
-}
-
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
 void Element::scroll(double x, double y)
 {
