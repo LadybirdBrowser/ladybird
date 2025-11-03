@@ -4856,11 +4856,6 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
         return GuaranteedInvalidStyleValue::create();
 
     // 3. Parse result according to prop’s grammar. If this returns failure, prop is invalid at computed-value time; return.
-    // NB: Custom properties have no grammar as such, so we skip this step for them.
-    // FIXME: Parse according to @property syntax once we support that.
-    if (property.is_custom_property())
-        return UnresolvedStyleValue::create(move(result));
-
     auto expanded_value_tokens = TokenStream { result };
     auto parsed_value = parse_css_value(property.id(), expanded_value_tokens);
     if (parsed_value.is_error())
