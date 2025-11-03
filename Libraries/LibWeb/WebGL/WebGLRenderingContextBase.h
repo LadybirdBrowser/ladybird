@@ -12,6 +12,16 @@
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
 
+#define SET_ERROR_VALUE_IF_ERROR(expression, error_value) \
+    ({                                                    \
+        auto maybe_error = expression;                    \
+        if (maybe_error.is_error()) [[unlikely]] {        \
+            set_error(error_value);                       \
+            return;                                       \
+        }                                                 \
+        maybe_error.release_value();                      \
+    })
+
 namespace Web::WebGL {
 
 static constexpr int COMPRESSED_TEXTURE_FORMATS = 0x86A3;
