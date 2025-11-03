@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -39,6 +40,7 @@
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -105,6 +107,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
     visitor.visit(m_fetch_controller);
+    visitor.visit(m_media_source);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
 }
@@ -254,6 +257,18 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load()
     // When the load() method on a media element is invoked, the user agent must run the media element load algorithm.
     TRY(load_element());
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-srcobject
+void HTMLMediaElement::set_src_object(GC::Ptr<MediaSourceExtensions::MediaSource> media_source)
+{
+    // When the srcObject IDL attribute is set, the user agent must run the following steps:
+    // 1. Let object be the value being assigned to srcObject.
+    // 2. Set the element's assigned media provider object to object.
+    m_media_source = media_source;
+
+    // 3. Invoke the element's media element load algorithm.
+    load_element().release_value_but_fixme_should_propagate_errors();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-currenttime
@@ -577,7 +592,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
             m_fetch_controller->stop_fetch();
 
-        // FIXME: 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        // 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        if (m_media_source) {
+            // FIXME: Implement MediaSource detachment properly
+            m_media_source = nullptr;
+        }
 
         // 4. Forget the media element's media-resource-specific tracks.
         forget_media_resource_specific_tracks();
@@ -847,7 +866,10 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
         Optional<SelectMode> mode;
         GC::Ptr<HTMLSourceElement> candidate;
 
-        // 6. FIXME: ⌛ If the media element has an assigned media provider object, then let mode be object.
+        // 6. ⌛ If the media element has an assigned media provider object, then let mode be object.
+        if (m_media_source) {
+            mode = SelectMode::Object;
+        }
 
         // ⌛ Otherwise, if the media element has no assigned media provider object but has a src attribute, then let mode be attribute.
         if (has_attribute(HTML::AttributeNames::src)) {
@@ -883,10 +905,17 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
         switch (*mode) {
         // -> If mode is object
         case SelectMode::Object:
-            // FIXME: 1. ⌛ Set the currentSrc attribute to the empty string.
-            // FIXME: 2. End the synchronous section, continuing the remaining steps in parallel.
-            // FIXME: 3. Run the resource fetch algorithm with the assigned media provider object. If that algorithm returns without aborting this one,
-            //           then theload failed.
+            // 1. ⌛ Set the currentSrc attribute to the empty string.
+            m_current_src = String {};
+
+            // 2. End the synchronous section, continuing the remaining steps in parallel.
+            // 3. Run the resource fetch algorithm with the assigned media provider object.
+            queue_a_media_element_task([this]() {
+                VERIFY(m_media_source);
+                // Attach the MediaSource to this element
+                m_media_source->attach_to_media_element(*this);
+            });
+
             // FIXME: 4. Failed with media provider: Reaching this step indicates that the media resource failed to load. Take pending play promises and queue
             //           a media element task given the media element to run the dedicated media source failure steps with the result.
             // FIXME: 5. Wait for the task queued by the previous step to have executed.
@@ -990,14 +1019,25 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
     // 1. Let mode be remote.
     auto mode = FetchMode::Remote;
 
-    // FIXME: 2. If the algorithm was invoked with media provider object, then set mode to local.
-    //           Otherwise:
-    //           1. Let object be the result of obtaining a blob object using the URL record's blob URL entry and the media
-    //              element's node document's relevant settings object.
-    //           2. If object is a media provider object, then set mode to local.
-    // FIXME: 3. If mode is remote, then let the current media resource be the resource given by the URL record passed to this algorithm; otherwise, let the
-    //           current media resource be the resource given by the media provider object. Either way, the current media resource is now the element's media
-    //           resource.
+    // 2. If the algorithm was invoked with media provider object, then set mode to local.
+    //    Otherwise:
+    //    1. Let object be the result of obtaining a blob object using the URL record's blob URL entry and the media
+    //       element's node document's relevant settings object.
+    //    2. If object is a media provider object, then set mode to local.
+    if (url_record.scheme() == "blob"sv) {
+        auto blob_url_entry = FileAPI::resolve_a_blob_url(url_record);
+        if (blob_url_entry.has_value()) {
+            auto& entry_object = blob_url_entry->object;
+            if (entry_object.has<GC::Root<MediaSourceExtensions::MediaSource>>()) {
+                m_media_source = entry_object.get<GC::Root<MediaSourceExtensions::MediaSource>>();
+                mode = FetchMode::Local;
+            }
+        }
+    }
+
+    // 3. If mode is remote, then let the current media resource be the resource given by the URL record passed to this algorithm; otherwise, let the
+    //    current media resource be the resource given by the media provider object. Either way, the current media resource is now the element's media
+    //    resource.
     // FIXME: 4. Remove all media-resource-specific text tracks from the media element's list of pending text tracks, if any.
 
     // 5. Run the appropriate steps from the following list:
@@ -1110,7 +1150,6 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
 
     // -> Otherwise (mode is local)
     case FetchMode::Local:
-        // FIXME:
         // The resource described by the current media resource, if any, contains the media data. It is CORS-same-origin.
         //
         // If the current media resource is a raw data stream (e.g. from a File object), then to determine the format of the media resource, the user agent
@@ -1122,6 +1161,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         //
         // When the current media resource is permanently exhausted (e.g. all the bytes of a Blob have been processed), if there were no decoding errors,
         // then the user agent must move on to the final step below. This might never happen, e.g. if the current media resource is a MediaStream.
+
+        // For MediaSource, we need to attach it to this media element
+        if (m_media_source) {
+            m_media_source->attach_to_media_element(*this);
+        }
         break;
     }
 

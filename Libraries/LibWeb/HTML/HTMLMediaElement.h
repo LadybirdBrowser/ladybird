@@ -48,6 +48,10 @@ public:
     void set_decoder_error(String error_message);
 
     String const& current_src() const { return m_current_src; }
+
+    GC::Ptr<MediaSourceExtensions::MediaSource> src_object() const { return m_media_source; }
+    void set_src_object(GC::Ptr<MediaSourceExtensions::MediaSource>);
+
     WebIDL::ExceptionOr<void> select_resource();
 
     enum class NetworkState : u16 {
@@ -334,6 +338,9 @@ private:
     GC::Ptr<SourceElementSelector> m_source_element_selector;
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+
+    //  https://html.spec.whatwg.org/multipage/media.html#assigned-media-provider-object
+    GC::Ptr<MediaSourceExtensions::MediaSource> m_media_source;
 
     RefPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;

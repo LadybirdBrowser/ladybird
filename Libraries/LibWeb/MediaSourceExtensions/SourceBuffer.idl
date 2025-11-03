@@ -14,8 +14,8 @@ enum AppendMode {
 [Exposed=(Window,DedicatedWorker)]
 interface SourceBuffer : EventTarget {
     [FIXME] attribute AppendMode mode;
-    [FIXME] readonly  attribute boolean updating;
-    [FIXME] readonly  attribute TimeRanges buffered;
+    readonly  attribute boolean updating;
+    readonly attribute TimeRanges buffered;
     [FIXME] attribute double timestampOffset;
     [FIXME] readonly  attribute AudioTrackList audioTracks;
     [FIXME] readonly  attribute VideoTrackList videoTracks;
@@ -29,8 +29,8 @@ interface SourceBuffer : EventTarget {
     attribute EventHandler onerror;
     attribute EventHandler onabort;
 
-    [FIXME] undefined appendBuffer(BufferSource data);
-    [FIXME] undefined abort();
+    undefined appendBuffer(BufferSource data);
+    undefined abort();
     [FIXME] undefined changeType(DOMString type);
-    [FIXME] undefined remove(double start, unrestricted double end);
+    undefined remove(double start, unrestricted double end);
 };
