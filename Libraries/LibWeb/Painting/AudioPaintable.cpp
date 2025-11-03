@@ -35,7 +35,7 @@ void AudioPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         return;
 
     auto const& audio_element = as<HTML::HTMLAudioElement const>(*dom_node());
-    if (audio_element.should_paint())
+    if (!audio_element.should_paint())
         return;
 
     Base::paint(context, phase);
