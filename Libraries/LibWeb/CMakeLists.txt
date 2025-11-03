@@ -1052,6 +1052,7 @@ set(SOURCES
     WebGL/WebGLRenderingContext.cpp
     WebGL/WebGLRenderingContextBase.cpp
     WebGL/WebGLRenderingContextImpl.cpp
+    WebGL/WebGLRenderingContextOverloads.cpp
     WebGL/WebGLSampler.cpp
     WebGL/WebGLShader.cpp
     WebGL/WebGLShaderPrecisionFormat.cpp

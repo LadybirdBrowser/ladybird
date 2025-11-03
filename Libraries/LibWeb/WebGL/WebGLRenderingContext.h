@@ -12,12 +12,12 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
-#include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
+#include <LibWeb/WebGL/WebGLRenderingContextOverloads.h>
 
 namespace Web::WebGL {
 
 class WebGLRenderingContext final : public Bindings::PlatformObject
-    , public WebGLRenderingContextImpl {
+    , public WebGLRenderingContextOverloads {
     WEB_PLATFORM_OBJECT(WebGLRenderingContext, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
 

@@ -75,7 +75,7 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
 
 WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
     : PlatformObject(realm)
-    , WebGLRenderingContextImpl(realm, move(context))
+    , WebGLRenderingContextOverloads(realm, move(context))
     , m_canvas_element(canvas_element)
     , m_context_creation_parameters(context_creation_parameters)
     , m_actual_context_parameters(actual_context_parameters)
