@@ -29,27 +29,6 @@ public:
     virtual void present() = 0;
     virtual void needs_to_present() = 0;
     virtual void set_error(GLenum) = 0;
-    void buffer_data(WebIDL::UnsignedLong target, WebIDL::LongLong size, WebIDL::UnsignedLong usage);
-    void buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::BufferSource> data, WebIDL::UnsignedLong usage);
-    void buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong offset, GC::Root<WebIDL::BufferSource> data);
-    void compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> data);
-    void compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> data);
-    void read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels);
-    void tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels);
-    void tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source);
-    void tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels);
-    void tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source);
-    void uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List v);
-    void uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v);
-    void uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v);
-    void uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v);
-    void uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v);
-    void uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v);
-    void uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v);
-    void uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v);
-    void uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
-    void uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
-    void uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value);
     void active_texture(WebIDL::UnsignedLong texture);
     void attach_shader(GC::Root<WebGLProgram> program, GC::Root<WebGLShader> shader);
     void bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String name);
@@ -165,7 +144,6 @@ public:
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-private:
     GC::Ref<JS::Realm> m_realm;
     GC::Ptr<WebGLBuffer> m_array_buffer_binding;
     GC::Ptr<WebGLBuffer> m_element_array_buffer_binding;
