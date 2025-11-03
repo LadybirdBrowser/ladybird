@@ -103,6 +103,25 @@ private:
         return count;
     }
 
+    static void begin_audio_seeks(NonnullRefPtr<SeekData> const& seek_data)
+    {
+        seek_data->audio_seeks_in_flight = count_audio_tracks(seek_data->manager);
+
+        if (seek_data->audio_seeks_in_flight == 0) {
+            possibly_complete_seek(*seek_data);
+            return;
+        }
+
+        for (auto const& audio_track_data : seek_data->manager->m_audio_track_datas) {
+            if (seek_data->manager->m_audio_sink->provider(audio_track_data.track) == nullptr)
+                continue;
+            audio_track_data.provider->seek(seek_data->chosen_timestamp, [seek_data]() {
+                seek_data->audio_seeks_completed++;
+                possibly_complete_seek(*seek_data);
+            });
+        }
+    }
+
     void begin_seek()
     {
         auto seek_data = make_ref_counted<SeekData>(manager());
@@ -119,15 +138,7 @@ private:
 
         if (m_mode == SeekMode::Accurate || seek_data->video_seeks_in_flight == 0) {
             seek_data->chosen_timestamp = m_target_timestamp;
-            for (auto const& audio_track_data : manager().m_audio_track_datas) {
-                if (seek_data->manager->m_audio_sink->provider(audio_track_data.track) == nullptr)
-                    continue;
-                audio_track_data.provider->seek(seek_data->chosen_timestamp, [seek_data]() {
-                    seek_data->audio_seeks_completed++;
-                    possibly_complete_seek(*seek_data);
-                });
-            }
-
+            begin_audio_seeks(seek_data);
             if (m_mode != SeekMode::Accurate)
                 return;
         }
@@ -139,27 +150,10 @@ private:
                 seek_data->chosen_timestamp = max(seek_data->chosen_timestamp, provider_timestamp);
                 seek_data->video_seeks_completed++;
 
-                if (seek_mode == SeekMode::Accurate) {
+                if (seek_mode == SeekMode::Accurate)
                     possibly_complete_seek(*seek_data);
-                } else if (seek_data->video_seeks_completed == seek_data->video_seeks_in_flight) {
-                    // Since we're running this in a callback that can run any time after begin_seek() was called,
-                    // we need to ensure that our audio track count is up-to-date.
-                    seek_data->audio_seeks_in_flight = count_audio_tracks(*seek_data->manager);
-
-                    if (seek_data->audio_seeks_in_flight == 0) {
-                        possibly_complete_seek(*seek_data);
-                        return;
-                    }
-
-                    for (auto const& audio_track_data : seek_data->manager->m_audio_track_datas) {
-                        if (seek_data->manager->m_audio_sink->provider(audio_track_data.track) == nullptr)
-                            continue;
-                        audio_track_data.provider->seek(seek_data->chosen_timestamp, [seek_data]() {
-                            seek_data->audio_seeks_completed++;
-                            possibly_complete_seek(*seek_data);
-                        });
-                    }
-                }
+                else if (seek_data->video_seeks_completed == seek_data->video_seeks_in_flight)
+                    begin_audio_seeks(seek_data);
             });
         }
     }
