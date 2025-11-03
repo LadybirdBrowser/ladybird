@@ -41,7 +41,6 @@ public:
     void set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source);
     void update_cookie(Web::Cookie::Cookie);
     void dump_cookies();
-    void clear_all_cookies();
     Vector<Web::Cookie::Cookie> get_all_cookies();
     Vector<Web::Cookie::Cookie> get_all_cookies_webdriver(URL::URL const& url);
     Vector<Web::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url);
@@ -68,7 +67,6 @@ private:
         size_t size() const { return m_cookies.size(); }
 
         UnixDateTime purge_expired_cookies(Optional<AK::Duration> offset = {});
-        void expire_and_purge_all_cookies();
         void expire_and_purge_cookies_accessed_since(UnixDateTime since);
 
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;

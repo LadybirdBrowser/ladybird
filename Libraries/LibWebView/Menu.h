@@ -81,8 +81,6 @@ enum class ActionID {
     DumpGCGraph,
     ShowLineBoxBorders,
     CollectGarbage,
-    ClearCache,
-    ClearCookies,
     SpoofUserAgent,
     NavigatorCompatibilityMode,
     EnableScripting,
