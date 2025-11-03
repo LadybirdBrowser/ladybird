@@ -16,6 +16,7 @@ using GLuint = unsigned int;
 using GLint = int;
 using GLsizei = int;
 using GLintptr = long long;
+using GLchar = char;
 
 // FIXME: This should really be "struct __GLsync*", but the linker doesn't recognise it.
 //        Since this conflicts with the original definition of GLsync, the suffix "Internal" has been added.
