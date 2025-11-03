@@ -12,6 +12,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 #include <LibWeb/WebIDL/Types.h>
 
