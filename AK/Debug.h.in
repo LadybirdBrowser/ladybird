@@ -54,6 +54,10 @@
 #    cmakedefine01 CSS_TRANSITIONS_DEBUG
 #endif
 
+#ifndef CURL_DEBUG
+#    cmakedefine01 CURL_DEBUG
+#endif
+
 #ifndef DEVTOOLS_DEBUG
 #    cmakedefine01 DEVTOOLS_DEBUG
 #endif
