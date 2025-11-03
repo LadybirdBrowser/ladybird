@@ -538,7 +538,7 @@ private:
     RefPtr<StyleValue const> parse_will_change_value(TokenStream<ComponentValue>&);
 
     RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
-    RefPtr<CalculationNode const> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
+    RefPtr<CalculationNode const> parse_a_calculation(TokenStream<ComponentValue>&, CalculationContext const&);
 
     ParseErrorOr<NonnullRefPtr<Selector>> parse_complex_selector(TokenStream<ComponentValue>&, SelectorType);
     ParseErrorOr<Optional<Selector::CompoundSelector>> parse_compound_selector(TokenStream<ComponentValue>&);

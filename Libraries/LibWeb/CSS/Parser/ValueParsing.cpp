@@ -4420,8 +4420,10 @@ RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const&
 {
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
-    if (function.name.equals_ignoring_ascii_case("calc"sv))
-        return parse_a_calculation(function.value, context);
+    if (function.name.equals_ignoring_ascii_case("calc"sv)) {
+        TokenStream tokens { function.value };
+        return parse_a_calculation(tokens, context);
+    }
 
     if (auto maybe_function = parse_math_function(function, context)) {
         // NOTE: We have to simplify manually here, since parse_math_function() is a helper for calc() parsing
@@ -4480,7 +4482,8 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
 
             // 1. If leaf is a parenthesized simple block, replace leaf with the result of parsing a calculation from leaf’s contents.
             if (component_value->is_block() && component_value->block().is_paren()) {
-                auto leaf_calculation = parse_a_calculation(component_value->block().value, context);
+                TokenStream tokens { component_value->block().value };
+                auto leaf_calculation = parse_a_calculation(tokens, context);
                 if (!leaf_calculation)
                     return nullptr;
 
@@ -4576,13 +4579,16 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
 }
 
 // https://drafts.csswg.org/css-values-4/#parse-a-calculation
-RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue> const& original_values, CalculationContext const& context)
+RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentValue>& tokens, CalculationContext const& context)
 {
+    auto transaction = tokens.begin_transaction();
+
     // 1. Discard any <whitespace-token>s from values.
     // 2. An item in values is an “operator” if it’s a <delim-token> with the value "+", "-", "*", or "/". Otherwise, it’s a “value”.
 
     Vector<CalcParsing::Node> values;
-    for (auto const& value : original_values) {
+    while (tokens.has_next_token()) {
+        auto const& value = tokens.consume_a_token();
         if (value.is(Token::Type::Whitespace))
             continue;
         if (value.is(Token::Type::Delim)) {
@@ -4706,6 +4712,7 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue>
         return nullptr;
 
     // 6. Return the result of simplifying a calculation tree from values.
+    transaction.commit();
     return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {});
 }
 
