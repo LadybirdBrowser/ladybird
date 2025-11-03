@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -127,6 +128,16 @@ public:
     Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
 
 protected:
+    static Vector<GLchar> null_terminated_string(StringView string)
+    {
+        Vector<GLchar> result;
+        result.ensure_capacity(string.length() + 1);
+        for (auto c : string.bytes())
+            result.append(c);
+        result.append('\0');
+        return result;
+    }
+
     // UNPACK_FLIP_Y_WEBGL of type boolean
     //      If set, then during any subsequent calls to texImage2D or texSubImage2D, the source data is flipped along
     //      the vertical axis, so that conceptually the last row is the first one transferred. The initial value is false.

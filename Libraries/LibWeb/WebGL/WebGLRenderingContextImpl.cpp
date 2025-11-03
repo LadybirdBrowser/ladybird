@@ -33,15 +33,6 @@ extern "C" {
 
 namespace Web::WebGL {
 
-static Vector<GLchar> null_terminated_string(StringView string)
-{
-    Vector<GLchar> result;
-    for (auto c : string.bytes())
-        result.append(c);
-    result.append('\0');
-    return result;
-}
-
 WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
     : m_realm(realm)
     , m_context(move(context))
