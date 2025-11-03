@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 188 tests
+Found 202 tests
 
-160 Pass
-28 Fail
+167 Pass
+35 Fail
 Pass	Setting font-family to sans-serif should not prevent the font shorthand from serializing in specified style
 Pass	Setting font-family to sans-serif should not prevent the font shorthand from serializing in computed style
 Pass	Setting font-variant to initial should prevent the font shorthand from serializing in specified style
@@ -52,6 +52,20 @@ Pass	Setting font-stretch to normal should not prevent the font shorthand from s
 Pass	Setting font-stretch to normal should not prevent the font shorthand from serializing in computed style
 Pass	Setting font-stretch to 95% should prevent the font shorthand from serializing in specified style
 Pass	Setting font-stretch to 95% should prevent the font shorthand from serializing in computed style
+Fail	Setting font-size-adjust to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-size-adjust to initial should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-size-adjust to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-size-adjust to inherit should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-size-adjust to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-size-adjust to unset should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-size-adjust to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-size-adjust to revert should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-size-adjust to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-size-adjust to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-size-adjust to none should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-size-adjust to none should not prevent the font shorthand from serializing in computed style
+Fail	Setting font-size-adjust to 0 should prevent the font shorthand from serializing in specified style
+Fail	Setting font-size-adjust to 0 should prevent the font shorthand from serializing in computed style
 Fail	Setting font-kerning to initial should prevent the font shorthand from serializing in specified style
 Pass	Setting font-kerning to initial should not prevent the font shorthand from serializing in computed style
 Fail	Setting font-kerning to inherit should prevent the font shorthand from serializing in specified style
