@@ -55,8 +55,9 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& databa
         TRY(upgrade_database(database, storage_version));
 
     statements.get_item = TRY(database.prepare_statement("SELECT bottle_value FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
-    statements.set_item = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorage VALUES (?, ?, ?, ?);"sv));
+    statements.set_item = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorage VALUES (?, ?, ?, ?, ?);"sv));
     statements.delete_item = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
+    statements.update_last_access_time = TRY(database.prepare_statement("UPDATE WebStorage SET last_access_time = ? WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.calculate_size_excluding_key = TRY(database.prepare_statement("SELECT SUM(LENGTH(bottle_key) + LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
@@ -76,8 +77,19 @@ StorageJar::StorageJar(Optional<PersistedStorage> persisted_storage)
 
 StorageJar::~StorageJar() = default;
 
-ErrorOr<void> StorageJar::upgrade_database(Database::Database& database, [[maybe_unused]] u32 current_version)
+ErrorOr<void> StorageJar::upgrade_database(Database::Database& database, u32 current_version)
 {
+    // Track the version numbers for each schema change:
+    static constexpr u32 VERSION_ADDED_LAST_ACCESS_TIME = 2u;
+
+    if (current_version < VERSION_ADDED_LAST_ACCESS_TIME) {
+        auto add_last_access_time = TRY(database.prepare_statement("ALTER TABLE WebStorage ADD COLUMN last_access_time INTEGER;"sv));
+        database.execute_statement(add_last_access_time, {});
+
+        auto set_last_access_time = TRY(database.prepare_statement("UPDATE WebStorage SET last_access_time = ?;"sv));
+        database.execute_statement(set_last_access_time, {}, UnixDateTime::now());
+    }
+
     auto set_storage_version = TRY(database.prepare_statement("INSERT OR REPLACE INTO WebStorageMetadata VALUES (?, ?);"sv));
     database.execute_statement(set_storage_version, {}, WEB_STORAGE_METADATA_KEY, WEB_STORAGE_VERSION);
 
@@ -129,8 +141,11 @@ Vector<String> StorageJar::get_all_keys(StorageEndpointType storage_endpoint, St
 
 Optional<String> StorageJar::TransientStorage::get_item(StorageLocation const& key)
 {
-    if (auto value = m_storage_items.get(key); value.has_value())
-        return value.value();
+    if (auto entry = m_storage_items.get(key); entry.has_value()) {
+        entry->last_access_time = UnixDateTime::now();
+        return entry->value;
+    }
+
     return {};
 }
 
@@ -138,10 +153,10 @@ StorageOperationError StorageJar::TransientStorage::set_item(StorageLocation con
 {
     u64 current_size = 0;
 
-    for (auto const& [existing_key, existing_value] : m_storage_items) {
+    for (auto const& [existing_key, existing_entry] : m_storage_items) {
         if (existing_key.storage_endpoint == key.storage_endpoint && existing_key.storage_key == key.storage_key && existing_key.bottle_key != key.bottle_key) {
             current_size += existing_key.bottle_key.bytes().size();
-            current_size += existing_value.bytes().size();
+            current_size += existing_entry.value.bytes().size();
         }
     }
 
@@ -149,7 +164,7 @@ StorageOperationError StorageJar::TransientStorage::set_item(StorageLocation con
     if (current_size + new_size > LOCAL_STORAGE_QUOTA)
         return StorageOperationError::QuotaExceededError;
 
-    m_storage_items.set(key, value);
+    m_storage_items.set(key, { value, UnixDateTime::now() });
     return StorageOperationError::None;
 }
 
@@ -195,6 +210,16 @@ Optional<String> StorageJar::PersistedStorage::get_item(StorageLocation const& k
         key.storage_key,
         key.bottle_key);
 
+    if (result.has_value()) {
+        database.execute_statement(
+            statements.update_last_access_time,
+            {},
+            UnixDateTime::now(),
+            to_underlying(key.storage_endpoint),
+            key.storage_key,
+            key.bottle_key);
+    }
+
     return result;
 }
 
@@ -220,7 +245,8 @@ StorageOperationError StorageJar::PersistedStorage::set_item(StorageLocation con
         to_underlying(key.storage_endpoint),
         key.storage_key,
         key.bottle_key,
-        value);
+        value,
+        UnixDateTime::now());
 
     return StorageOperationError::None;
 }
