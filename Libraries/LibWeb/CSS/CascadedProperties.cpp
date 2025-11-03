@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,48 +28,52 @@ void CascadedProperties::visit_edges(Visitor& visitor)
             visitor.visit(entry.source);
         }
     }
+    for (auto const& [property_id, entries] : m_custom_properties) {
+        for (auto const& entry : entries) {
+            visitor.visit(entry.source);
+        }
+    }
 }
 
-void CascadedProperties::revert_property(PropertyID property_id, Important important, CascadeOrigin cascade_origin)
+void CascadedProperties::revert_property(PropertyNameAndID const& property, Important important, CascadeOrigin cascade_origin)
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
+    auto entries = get_entries(property);
+    if (!entries.has_value())
         return;
-    auto& entries = it->value;
-    entries.remove_all_matching([&](auto& entry) {
-        return entry.property.name_and_id.id() == property_id
+    entries->remove_all_matching([&](auto& entry) {
+        return entry.property.name_and_id == property
             && entry.property.important == important
             && cascade_origin == entry.origin;
     });
-    if (entries.is_empty())
-        m_properties.remove(it);
+    if (entries->is_empty())
+        remove_entry(property);
 }
 
-void CascadedProperties::revert_layer_property(PropertyID property_id, Important important, Optional<FlyString> layer_name)
+void CascadedProperties::revert_layer_property(PropertyNameAndID const& property, Important important, Optional<FlyString> layer_name)
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
+    auto entries = get_entries(property);
+    if (!entries.has_value())
         return;
-    auto& entries = it->value;
-    entries.remove_all_matching([&](auto& entry) {
-        return entry.property.name_and_id.id() == property_id
+    entries->remove_all_matching([&](auto& entry) {
+        return entry.property.name_and_id == property
             && entry.property.important == important
             && layer_name == entry.layer_name;
     });
-    if (entries.is_empty())
-        m_properties.remove(it);
+    if (entries->is_empty())
+        remove_entry(property);
 }
 
-void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source)
+void CascadedProperties::set_property(PropertyNameAndID const& property, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSSStyleDeclaration const> source)
 {
-    auto& entries = m_properties.ensure(property_id);
+    auto& entries = ensure_entry(property);
+    auto custom_name = property.is_custom_property() ? property.name() : ""_fly_string;
 
     for (auto& entry : entries.in_reverse()) {
         if (entry.origin == origin && entry.layer_name == layer_name) {
             if (entry.property.important == Important::Yes && important == Important::No)
                 return;
             entry.property = StyleProperty {
-                .name_and_id = PropertyNameAndID::from_id(property_id),
+                .name_and_id = property,
                 .value = value,
                 .important = important,
             };
@@ -78,7 +83,7 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
 
     entries.append(Entry {
         .property = StyleProperty {
-            .name_and_id = PropertyNameAndID::from_id(property_id),
+            .name_and_id = property,
             .value = value,
             .important = important,
         },
@@ -121,31 +126,64 @@ void CascadedProperties::set_property_from_presentational_hint(PropertyID proper
     });
 }
 
-RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) const
+RefPtr<StyleValue const> CascadedProperties::property(PropertyNameAndID const& property) const
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
-        return nullptr;
-
-    return it->value.last().property.value;
+    if (auto entries = get_entries(property); entries.has_value())
+        return entries->last().property.value;
+    return nullptr;
 }
 
-GC::Ptr<CSSStyleDeclaration const> CascadedProperties::property_source(PropertyID property_id) const
+GC::Ptr<CSSStyleDeclaration const> CascadedProperties::property_source(PropertyNameAndID const& property) const
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
-        return nullptr;
-
-    return it->value.last().source;
+    if (auto entries = get_entries(property); entries.has_value())
+        return entries->last().source;
+    return nullptr;
 }
 
-bool CascadedProperties::is_property_important(PropertyID property_id) const
+bool CascadedProperties::is_property_important(PropertyNameAndID const& property) const
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
-        return false;
+    if (auto entries = get_entries(property); entries.has_value())
+        return entries->last().property.important == Important::Yes;
+    return false;
+}
 
-    return it->value.last().property.important == Important::Yes;
+OrderedHashMap<FlyString, StyleProperty> CascadedProperties::custom_properties() const
+{
+    OrderedHashMap<FlyString, StyleProperty> results;
+    results.ensure_capacity(m_custom_properties.size());
+    for (auto const& [name, entry] : m_custom_properties) {
+        results.set(name, entry.last().property);
+    }
+    return results;
+}
+
+Optional<Vector<CascadedProperties::Entry>&> CascadedProperties::get_entries(PropertyNameAndID const& property)
+{
+    if (property.is_custom_property())
+        return m_custom_properties.get(property.name());
+    return m_properties.get(property.id());
+}
+
+Optional<Vector<CascadedProperties::Entry> const&> CascadedProperties::get_entries(PropertyNameAndID const& property) const
+{
+    if (property.is_custom_property())
+        return m_custom_properties.get(property.name());
+    return m_properties.get(property.id());
+}
+
+Vector<CascadedProperties::Entry>& CascadedProperties::ensure_entry(PropertyNameAndID const& property)
+{
+    if (property.is_custom_property())
+        return m_custom_properties.ensure(property.name());
+    return m_properties.ensure(property.id());
+}
+
+void CascadedProperties::remove_entry(PropertyNameAndID const& property)
+{
+    if (property.is_custom_property())
+        m_custom_properties.remove(property.name());
+    else
+        m_properties.remove(property.id());
 }
 
 }

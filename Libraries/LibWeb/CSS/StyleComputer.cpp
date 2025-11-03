@@ -737,25 +737,39 @@ void StyleComputer::cascade_declarations(
     ReadonlySpan<PropertyID> properties_to_cascade) const
 {
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
-        for (auto const& property : declaration.properties()) {
-
+        auto cascade_property = [&](StyleProperty const& property) {
             auto property_id = property.name_and_id.id();
             // OPTIMIZATION: If we've been asked to only cascade a specific set of properties, skip the rest.
             // FIXME: This skips shorthands whose longhands are in properties_to_cascade. However, we don't need that functionality (yet?)
             if (!properties_to_cascade.is_empty()) {
                 if (!properties_to_cascade.contains_slow(property_id))
-                    continue;
+                    return;
             }
 
             if (important != property.important)
-                continue;
+                return;
 
             if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property_id))
-                continue;
+                return;
 
             // Record any UnresolvedStyleValues in shorthands, so that we can expand them after custom properties are computed.
             if (property_is_shorthand(property_id) && property.value->is_unresolved()) {
                 cascaded_properties.set_unresolved_shorthand(property_id, property.value, important, cascade_origin, layer_name, declaration);
+            }
+
+            auto apply_property_value = [&](PropertyNameAndID const& property_name_and_id, StyleValue const& value) {
+                if (value.is_revert()) {
+                    cascaded_properties.revert_property(property_name_and_id, important, cascade_origin);
+                } else if (value.is_revert_layer()) {
+                    cascaded_properties.revert_layer_property(property_name_and_id, important, layer_name);
+                } else {
+                    cascaded_properties.set_property(property_name_and_id, value, important, cascade_origin, layer_name, declaration);
+                }
+            };
+
+            if (property.name_and_id.is_custom_property()) {
+                apply_property_value(property.name_and_id, property.value);
+                return;
             }
 
             for_each_property_expanding_shorthands(property_id, property.value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
@@ -769,15 +783,14 @@ void StyleComputer::cascade_declarations(
                     physical_property_id = longhand_id;
                 }
 
-                if (longhand_value.is_revert()) {
-                    cascaded_properties.revert_property(physical_property_id, important, cascade_origin);
-                } else if (longhand_value.is_revert_layer()) {
-                    cascaded_properties.revert_layer_property(physical_property_id, important, layer_name);
-                } else {
-                    cascaded_properties.set_property(physical_property_id, longhand_value, important, cascade_origin, layer_name, declaration);
-                }
+                apply_property_value(PropertyNameAndID::from_id(physical_property_id), longhand_value);
             });
-        }
+        };
+
+        for (auto const& property : declaration.properties())
+            cascade_property(property);
+        for (auto const& entry : declaration.custom_properties())
+            cascade_property(entry.value);
     };
 
     for (auto const& match : matching_rules) {
@@ -789,47 +802,6 @@ void StyleComputer::cascade_declarations(
             cascade_style_declaration(*inline_style);
         }
     }
-}
-
-static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<MatchingRule const*> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties)
-{
-    size_t needed_capacity = 0;
-    for (auto const& matching_rule : matching_rules)
-        needed_capacity += matching_rule->declaration().custom_properties().size();
-
-    if (!abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style())
-            needed_capacity += inline_style->custom_properties().size();
-    }
-
-    custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
-
-    OrderedHashMap<FlyString, StyleProperty> important_custom_properties;
-    for (auto const& matching_rule : matching_rules) {
-        for (auto const& it : matching_rule->declaration().custom_properties()) {
-            auto style_value = it.value.value;
-            if (style_value->is_revert_layer())
-                continue;
-
-            if (it.value.important == Important::Yes) {
-                important_custom_properties.set(it.key, it.value);
-            }
-            custom_properties.set(it.key, it.value);
-        }
-    }
-
-    if (!abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style()) {
-            for (auto const& it : inline_style->custom_properties()) {
-                if (it.value.important == Important::Yes) {
-                    important_custom_properties.set(it.key, it.value);
-                }
-                custom_properties.set(it.key, it.value);
-            }
-        }
-    }
-
-    custom_properties.update(important_custom_properties);
 }
 
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
@@ -2020,8 +1992,8 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
 
     // FIXME: Actually compute these values, not just cascade them.
 
-    auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyID::WritingMode));
-    auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyID::Direction));
+    auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyNameAndID::from_id(PropertyID::WritingMode)));
+    auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyNameAndID::from_id(PropertyID::Direction)));
 
     return LogicalAliasMappingContext {
         .writing_mode = keyword_to_writing_mode(writing_mode->to_keyword()).release_value(),
@@ -2134,7 +2106,7 @@ static void compute_text_align(ComputedProperties& style, DOM::AbstractElement a
             auto parent_cascaded = parent_element->cascaded_properties();
             if (!parent_computed || !parent_cascaded)
                 break;
-            if (parent_cascaded->property(PropertyID::TextAlign)) {
+            if (parent_cascaded->property(PropertyNameAndID::from_id(PropertyID::TextAlign))) {
                 auto const& style_value = parent_computed->property(PropertyID::TextAlign);
                 style.set_property(PropertyID::TextAlign, style_value, ComputedProperties::Inherited::Yes);
                 break;
@@ -2334,18 +2306,12 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
     auto old_custom_properties = abstract_element.custom_properties();
 
-    // Resolve all the CSS custom properties ("variables") for this element:
-    if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
-        OrderedHashMap<FlyString, StyleProperty> custom_properties;
-        for (auto& layer : matching_rule_set.author_rules) {
-            cascade_custom_properties(abstract_element, layer.rules, custom_properties);
-        }
-        abstract_element.set_custom_properties(move(custom_properties));
-    }
-
     auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element, mode, matching_rule_set);
     auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
     abstract_element.set_cascaded_properties(cascaded_properties);
+
+    // FIXME: Temporary stop-gap to be compatible with old system.
+    abstract_element.set_custom_properties(cascaded_properties->custom_properties());
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
@@ -2358,7 +2324,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
         // - content: none
         // - content: normal (for ::before and ::after)
         bool content_is_normal = false;
-        if (auto content_value = cascaded_properties->property(CSS::PropertyID::Content)) {
+        if (auto content_value = cascaded_properties->property(PropertyNameAndID::from_id(PropertyID::Content))) {
             if (content_value->is_keyword()) {
                 auto content = content_value->as_keyword().keyword();
                 if (content == CSS::Keyword::None)
@@ -2409,7 +2375,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 {
     // Check for `font-family: monospace`. Note that `font-family: monospace, AnythingElse` does not trigger this path.
     // Some CSS frameworks use `font-family: monospace, monospace` to work around this behavior.
-    auto font_family_value = cascaded_properties.property(CSS::PropertyID::FontFamily);
+    auto font_family_value = cascaded_properties.property(PropertyNameAndID::from_id(PropertyID::FontFamily));
     if (!font_family_value || !is_monospace(*font_family_value))
         return nullptr;
 
@@ -2429,7 +2395,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
     for (auto& ancestor : ancestors.in_reverse()) {
         auto& ancestor_cascaded_properties = *ancestor.cascaded_properties();
-        auto font_size_value = ancestor_cascaded_properties.property(CSS::PropertyID::FontSize);
+        auto font_size_value = ancestor_cascaded_properties.property(PropertyNameAndID::from_id(PropertyID::FontSize));
 
         if (!font_size_value)
             continue;
@@ -2503,16 +2469,17 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             }
 
             // We only want to overwrite pending-substitution values.
-            auto existing_longhand_value = cascaded_properties.property(physical_property_id);
+            auto physical_property = PropertyNameAndID::from_id(physical_property_id);
+            auto existing_longhand_value = cascaded_properties.property(physical_property);
             if (existing_longhand_value && !existing_longhand_value->is_pending_substitution())
                 return;
 
             if (longhand_value.is_revert()) {
-                cascaded_properties.revert_property(physical_property_id, important, cascade_origin);
+                cascaded_properties.revert_property(physical_property, important, cascade_origin);
             } else if (longhand_value.is_revert_layer()) {
-                cascaded_properties.revert_layer_property(physical_property_id, important, layer_name);
+                cascaded_properties.revert_layer_property(physical_property, important, layer_name);
             } else {
-                cascaded_properties.set_property(physical_property_id, longhand_value, important, cascade_origin, layer_name, declaration);
+                cascaded_properties.set_property(physical_property, longhand_value, important, cascade_origin, layer_name, declaration);
             }
         });
     }
@@ -2523,9 +2490,10 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
-        auto value = cascaded_properties.property(property_id);
+        auto property = PropertyNameAndID::from_id(property_id);
+        auto value = cascaded_properties.property(property);
         if (value && value->is_unresolved()) {
-            value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, abstract_element, PropertyNameAndID::from_id(property_id), value->as_unresolved());
+            value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, abstract_element, property, value->as_unresolved());
         }
         auto inherited = ComputedProperties::Inherited::No;
         Optional<NonnullRefPtr<StyleValue const>> animated_value;
@@ -2558,12 +2526,12 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (!value || value->is_initial() || value->is_unset())
             value = property_initial_value(property_id);
 
-        computed_style->set_property(property_id, value.release_nonnull(), inherited, cascaded_properties.is_property_important(property_id) ? Important::Yes : Important::No);
+        computed_style->set_property(property_id, value.release_nonnull(), inherited, cascaded_properties.is_property_important(property) ? Important::Yes : Important::No);
         if (animated_value.has_value())
             computed_style->set_animated_property(property_id, animated_value.value(), inherited);
 
         if (property_id == PropertyID::TransitionProperty) {
-            computed_style->set_transition_property_source(cascaded_properties.property_source(property_id));
+            computed_style->set_transition_property_source(cascaded_properties.property_source(property));
         }
     }
 

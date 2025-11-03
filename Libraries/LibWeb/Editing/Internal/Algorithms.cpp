@@ -3885,12 +3885,13 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     // 9. If property is null, return null.
     if (!property.has_value())
         return {};
+    auto property_with_name = CSS::PropertyNameAndID::from_id(property.value());
 
     // 10. If element has a style attribute set, and that attribute has the effect of setting property, return the value
     //     that it sets property to.
     // FIXME: Use property_in_style_attribute once it supports shorthands.
     if (auto inline_style = element->inline_style()) {
-        auto value = inline_style->get_property_value(string_from_property_id(property.value()));
+        auto value = inline_style->get_property_value(property_with_name.name());
         if (!value.is_empty())
             return Utf16String::from_utf8_without_validation(value);
     }
@@ -3902,8 +3903,7 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
         auto const& font_element = static_cast<HTML::HTMLFontElement&>(*element);
         auto cascaded_properties = font_element.document().heap().allocate<CSS::CascadedProperties>();
         font_element.apply_presentational_hints(cascaded_properties);
-        auto property_value = cascaded_properties->property(property.value());
-        if (property_value)
+        if (auto property_value = cascaded_properties->property(property_with_name))
             return Utf16String::from_utf8_without_validation(property_value->to_string(CSS::SerializationMode::Normal));
     }
 
