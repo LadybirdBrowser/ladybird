@@ -202,149 +202,270 @@ void WebGLRenderingContextImpl::uniform1fv(GC::Root<WebGLUniformLocation> locati
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_float32_list(v, /* src_offset= */ 0));
-    glUniform1fv(location->handle(), span.size(), span.data());
+    glUniform1fv(location_handle, span.size(), span.data());
 }
 
 void WebGLRenderingContextImpl::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_float32_list(v, /* src_offset= */ 0));
     if (span.size() % 2 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniform2fv(location->handle(), span.size() / 2, span.data());
+    glUniform2fv(location_handle, span.size() / 2, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_float32_list(v, /* src_offset= */ 0));
     if (span.size() % 3 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniform3fv(location->handle(), span.size() / 3, span.data());
+    glUniform3fv(location_handle, span.size() / 3, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_float32_list(v, /* src_offset= */ 0));
     if (span.size() % 4 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniform4fv(location->handle(), span.size() / 4, span.data());
+    glUniform4fv(location_handle, span.size() / 4, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_int32_list(v, /* src_offset= */ 0));
-    glUniform1iv(location->handle(), span.size(), span.data());
+    glUniform1iv(location_handle, span.size(), span.data());
 }
 
 void WebGLRenderingContextImpl::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_int32_list(v, /* src_offset= */ 0));
     if (span.size() % 2 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniform2iv(location->handle(), span.size() / 2, span.data());
+    glUniform2iv(location_handle, span.size() / 2, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_int32_list(v, /* src_offset= */ 0));
     if (span.size() % 3 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniform3iv(location->handle(), span.size() / 3, span.data());
+    glUniform3iv(location_handle, span.size() / 3, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     auto span = MUST(span_from_int32_list(v, /* src_offset= */ 0));
     if (span.size() % 4 != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniform4iv(location->handle(), span.size() / 4, span.data());
+    glUniform4iv(location_handle, span.size() / 4, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     constexpr auto matrix_size = 2 * 2;
     auto span = MUST(span_from_float32_list(value, /* src_offset= */ 0));
     if (span.size() % matrix_size != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniformMatrix2fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+    glUniformMatrix2fv(location_handle, span.size() / matrix_size, transpose, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     constexpr auto matrix_size = 3 * 3;
     auto span = MUST(span_from_float32_list(value, /* src_offset= */ 0));
     if (span.size() % matrix_size != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniformMatrix3fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+    glUniformMatrix3fv(location_handle, span.size() / matrix_size, transpose, span.data());
 }
 
 void WebGLRenderingContextImpl::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
 {
     m_context->make_current();
 
-    if (!location)
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
         return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
     constexpr auto matrix_size = 4 * 4;
     auto span = MUST(span_from_float32_list(value, /* src_offset= */ 0));
     if (span.size() % matrix_size != 0) [[unlikely]] {
         set_error(GL_INVALID_VALUE);
         return;
     }
-    glUniformMatrix4fv(location->handle(), span.size() / matrix_size, transpose, span.data());
+    glUniformMatrix4fv(location_handle, span.size() / matrix_size, transpose, span.data());
 }
 
 void WebGLRenderingContextImpl::active_texture(WebIDL::UnsignedLong texture)
@@ -1695,7 +1816,7 @@ GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(G
     if (location == -1)
         return nullptr;
 
-    return WebGLUniformLocation::create(m_realm, location);
+    return WebGLUniformLocation::create(m_realm, *this, location);
 }
 
 JS::Value WebGLRenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
@@ -2019,49 +2140,161 @@ void WebGLRenderingContextImpl::tex_parameteri(WebIDL::UnsignedLong target, WebI
 void WebGLRenderingContextImpl::uniform1f(GC::Root<WebGLUniformLocation> location, float x)
 {
     m_context->make_current();
-    glUniform1f(location ? location->handle() : 0, x);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform1f(location_handle, x);
 }
 
 void WebGLRenderingContextImpl::uniform2f(GC::Root<WebGLUniformLocation> location, float x, float y)
 {
     m_context->make_current();
-    glUniform2f(location ? location->handle() : 0, x, y);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform2f(location_handle, x, y);
 }
 
 void WebGLRenderingContextImpl::uniform3f(GC::Root<WebGLUniformLocation> location, float x, float y, float z)
 {
     m_context->make_current();
-    glUniform3f(location ? location->handle() : 0, x, y, z);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform3f(location_handle, x, y, z);
 }
 
 void WebGLRenderingContextImpl::uniform4f(GC::Root<WebGLUniformLocation> location, float x, float y, float z, float w)
 {
     m_context->make_current();
-    glUniform4f(location ? location->handle() : 0, x, y, z, w);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform4f(location_handle, x, y, z, w);
 }
 
 void WebGLRenderingContextImpl::uniform1i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x)
 {
     m_context->make_current();
-    glUniform1i(location ? location->handle() : 0, x);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform1i(location_handle, x);
 }
 
 void WebGLRenderingContextImpl::uniform2i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y)
 {
     m_context->make_current();
-    glUniform2i(location ? location->handle() : 0, x, y);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform2i(location_handle, x, y);
 }
 
 void WebGLRenderingContextImpl::uniform3i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z)
 {
     m_context->make_current();
-    glUniform3i(location ? location->handle() : 0, x, y, z);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform3i(location_handle, x, y, z);
 }
 
 void WebGLRenderingContextImpl::uniform4i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z, WebIDL::Long w)
 {
     m_context->make_current();
-    glUniform4i(location ? location->handle() : 0, x, y, z, w);
+
+    // "If the passed location is not null and was not obtained from the currently used program via an earlier call to
+    //  getUniformLocation, an INVALID_OPERATION error will be generated. If the passed location is null, the data
+    //  passed in will be silently ignored and no uniform variables will be changed."
+    if (!location) [[unlikely]]
+        return;
+
+    auto handle_or_error = location->handle(this);
+    if (handle_or_error.is_error()) [[unlikely]] {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto location_handle = handle_or_error.release_value();
+
+    glUniform4i(location_handle, x, y, z, w);
 }
 
 void WebGLRenderingContextImpl::use_program(GC::Root<WebGLProgram> program)

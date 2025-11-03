@@ -11,17 +11,20 @@
 #include <LibWeb/Bindings/WebGLUniformLocationPrototype.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 
+#include <GLES2/gl2.h>
+
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLUniformLocation);
 
-GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(JS::Realm& realm, GLuint handle)
+GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLUniformLocation>(realm, handle);
+    return realm.create<WebGLUniformLocation>(realm, context, handle);
 }
 
-WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm, GLuint handle)
+WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
     : Bindings::PlatformObject(realm)
+    , m_context(&context)
     , m_handle(handle)
 {
 }
@@ -32,6 +35,19 @@ void WebGLUniformLocation::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLUniformLocation);
     Base::initialize(realm);
+}
+
+void WebGLUniformLocation::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_context->gc_cell());
+}
+
+ErrorOr<GLint> WebGLUniformLocation::handle(WebGLRenderingContextBase const* context) const
+{
+    if (context == m_context) [[likely]]
+        return m_handle;
+    return Error::from_errno(GL_INVALID_OPERATION);
 }
 
 }

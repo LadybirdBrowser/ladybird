@@ -9,6 +9,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebGL/Types.h>
+#include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {
 
@@ -17,18 +18,22 @@ class WebGLUniformLocation final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(WebGLUniformLocation);
 
 public:
-    static GC::Ref<WebGLUniformLocation> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLUniformLocation> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
 
     virtual ~WebGLUniformLocation();
 
-    GLuint handle() const { return m_handle; }
+    ErrorOr<GLint> handle(WebGLRenderingContextBase const* context) const;
 
 protected:
-    explicit WebGLUniformLocation(JS::Realm&, GLuint handle);
+    explicit WebGLUniformLocation(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
 
-    GLuint m_handle { 0 };
+    // FIXME: It should be GC::Ptr instead of raw pointer, but we need to make WebGLRenderingContextBase inherit from PlatformObject first.
+    WebGLRenderingContextBase* m_context;
+
+    GLint m_handle { 0 };
 };
 
 }
