@@ -44,6 +44,8 @@ public:
     Vector<String> get_supported_extensions();
     void request_extension(char const* extension_name);
 
+    WebGLVersion webgl_version() const { return m_webgl_version; }
+
 private:
     NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Gfx::IntSize m_size;
