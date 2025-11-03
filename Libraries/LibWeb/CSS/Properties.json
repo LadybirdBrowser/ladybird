@@ -3802,7 +3802,6 @@
     "affects-layout": false,
     "affects-stacking-context": true,
     "percentages-resolve-to": "length",
-    "multiplicity": "list",
     "valid-types": [
       "transform-list"
     ],
