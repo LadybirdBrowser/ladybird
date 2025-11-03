@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Traits.h>
 #include <LibDatabase/Forward.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
@@ -47,6 +48,7 @@ private:
         Database::StatementID get_item { 0 };
         Database::StatementID set_item { 0 };
         Database::StatementID delete_item { 0 };
+        Database::StatementID update_last_access_time { 0 };
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
         Database::StatementID calculate_size_excluding_key { 0 };
@@ -61,7 +63,12 @@ private:
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
 
     private:
-        HashMap<StorageLocation, String> m_storage_items;
+        struct Entry {
+            String value;
+            UnixDateTime last_access_time;
+        };
+
+        HashMap<StorageLocation, Entry> m_storage_items;
     };
 
     struct PersistedStorage {
