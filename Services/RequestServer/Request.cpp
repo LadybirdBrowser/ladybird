@@ -339,6 +339,9 @@ void Request::handle_fetch_state()
 
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
     set_option(CURLOPT_FOLLOWLOCATION, 0);
+    if constexpr (CURL_DEBUG) {
+        set_option(CURLOPT_VERBOSE, 1);
+    }
 
 #if defined(AK_OS_WINDOWS)
     // Without explicitly using the OS Native CA cert store on Windows, https requests timeout with CURLE_PEER_FAILED_VERIFICATION
