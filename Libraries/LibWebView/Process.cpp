@@ -81,15 +81,26 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
         TRY(Core::System::unlink(pid_path));
         return OptionalNone {};
     }
+
     bool const process_not_found = [&pid]() {
 #if defined(AK_OS_WINDOWS)
         HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, *pid);
+        if (process_handle == nullptr)
+            return true;
+
+        // FIXME: We should create an RAII wrapper around HANDLE objects.
         ScopeGuard handle_guard = [&process_handle] { CloseHandle(process_handle); };
-        return process_handle == nullptr;
+        DWORD exit_code = 0;
+
+        if (GetExitCodeProcess(process_handle, &exit_code) == 0)
+            return true;
+
+        return exit_code != STILL_ACTIVE;
 #else
         return kill(*pid, 0) < 0;
 #endif
     }();
+
     if (process_not_found) {
         warnln("{} PID file '{}' exists with PID {}, but process cannot be found", process_name, pid_path, *pid);
         TRY(Core::System::unlink(pid_path));
