@@ -11,6 +11,14 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibGC/Root.h>
 
+namespace Media::FFmpeg {
+class MSEDemuxer;
+}
+
+namespace Media {
+class PlaybackManager;
+}
+
 namespace Web::MimeSniff {
 class MimeType;
 }
@@ -82,6 +90,11 @@ private:
 
     // Pending append buffer data
     Vector<ByteBuffer> m_pending_buffers;
+
+    // MSE decoder integration
+    RefPtr<Media::FFmpeg::MSEDemuxer> m_demuxer;
+    RefPtr<Media::PlaybackManager> m_playback_manager;
+    bool m_first_media_segment_appended { false };
 };
 
 }

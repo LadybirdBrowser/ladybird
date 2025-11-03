@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
@@ -17,6 +18,9 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibMedia/FFmpeg/MSEDemuxer.h>
+#include <LibMedia/PlaybackManager.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 
 namespace Web::MediaSourceExtensions {
 
@@ -147,6 +151,9 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(GC::Root<WebIDL::BufferSou
 
     auto buffer = buffer_result.release_value();
 
+    dbgln("MSE: append_buffer() called with {} bytes (pending buffers: {})",
+          buffer.size(), m_pending_buffers.size());
+
     // 7. Add data to the end of the input buffer
     MUST(m_pending_buffers.try_append(move(buffer)));
 
@@ -253,28 +260,114 @@ void SourceBuffer::schedule_update_end()
 
 void SourceBuffer::process_append_buffer()
 {
-    // FIXME: This is where we would:
-    // 1. Parse the media segments
-    // 2. Extract coded frames
-    // 3. Add them to track buffers
-    // 4. Update the buffered TimeRanges
+    // Get the buffered data to process
+    if (m_pending_buffers.is_empty()) {
+        // No data to process, just fire events
+        dbgln("MSE: process_append_buffer() - no pending buffers");
+        m_updating = false;
+        dispatch_event(DOM::Event::create(realm(), EventNames::update));
+        dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+        return;
+    }
 
-    // For now, we just simulate success by:
-    // 1. Clearing the pending buffers (they've been "processed")
-    m_pending_buffers.clear();
+    auto buffer_data = m_pending_buffers.take_first();
+    dbgln("MSE: process_append_buffer() - processing buffer of {} bytes ({} remaining)",
+          buffer_data.size(), m_pending_buffers.size());
 
-    // 2. Set updating to false
+    // First append: Initialize demuxer with initialization segment only
+    if (!m_demuxer) {
+        // Create MSEDemuxer
+        auto demuxer_result = Media::FFmpeg::MSEDemuxer::create();
+        if (demuxer_result.is_error()) {
+            dbgln("Failed to create MSEDemuxer: {}", demuxer_result.error());
+            m_updating = false;
+            dispatch_event(DOM::Event::create(realm(), EventNames::error));
+            dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+            return;
+        }
+        m_demuxer = demuxer_result.release_value();
+
+        // Append initialization segment (contains codec info but no frames)
+        auto init_result = m_demuxer->append_initialization_segment(buffer_data);
+        if (init_result.is_error()) {
+            dbgln("Failed to append initialization segment: {}", init_result.error());
+            m_updating = false;
+            dispatch_event(DOM::Event::create(realm(), EventNames::error));
+            dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+            return;
+        }
+
+        dbgln("MSE: Initialization segment appended. Waiting for first media segment before creating PlaybackManager.");
+    } else {
+        // Subsequent appends: Append media segments
+        auto append_result = m_demuxer->append_media_segment(buffer_data);
+        if (append_result.is_error()) {
+            dbgln("Failed to append media segment: {}", append_result.error());
+            m_updating = false;
+            dispatch_event(DOM::Event::create(realm(), EventNames::error));
+            dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+            return;
+        }
+
+        // After appending the FIRST media segment, create PlaybackManager
+        // This ensures FFmpeg has actual frame data before trying to read
+        if (!m_playback_manager) {
+            dbgln("MSE: First media segment appended. Creating PlaybackManager now that we have frame data.");
+
+            auto playback_manager_result = Media::PlaybackManager::try_create_for_mse(NonnullRefPtr { *m_demuxer });
+            if (playback_manager_result.is_error()) {
+                dbgln("Failed to create PlaybackManager: {}", playback_manager_result.error());
+                m_updating = false;
+                dispatch_event(DOM::Event::create(realm(), EventNames::error));
+                dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+                return;
+            }
+            m_playback_manager = playback_manager_result.release_value();
+
+            // Connect to HTMLMediaElement
+            if (m_media_source && m_media_source->media_element()) {
+                auto& media_element = *m_media_source->media_element();
+
+                // Pass PlaybackManager to HTMLMediaElement so it can control playback
+                media_element.set_mse_playback_manager(m_playback_manager);
+
+                // Get preferred video track
+                auto video_track = m_playback_manager->preferred_video_track();
+                if (video_track.has_value()) {
+                    // Get or create DisplayingVideoSink
+                    auto video_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(*video_track);
+
+                    // Store reference in HTMLMediaElement
+                    media_element.set_mse_video_sink(video_sink);
+                    dbgln("MSE: Connected video sink to HTMLMediaElement");
+                }
+
+                // Enable preferred audio track
+                auto audio_track = m_playback_manager->preferred_audio_track();
+                if (audio_track.has_value()) {
+                    m_playback_manager->enable_an_audio_track(*audio_track);
+                    dbgln("MSE: Enabled audio track");
+                }
+            }
+
+            m_first_media_segment_appended = true;
+        }
+    }
+
+    // Update buffered time ranges
+    // FIXME: Get actual buffered ranges from demuxer
+    // For now, just report that we have some data
+    m_buffered->add_range(0, m_demuxer->total_duration().value_or(AK::Duration::zero()).to_seconds());
+
+    // Success - fire events
     m_updating = false;
-
-    // 3. Fire update event
     dispatch_event(DOM::Event::create(realm(), EventNames::update));
 
-    // 4. Notify MediaSource that data was appended so it can update the HTMLMediaElement
+    // Notify MediaSource that data was appended
     if (m_media_source) {
         m_media_source->source_buffer_data_appended();
     }
 
-    // 5. Fire updateend event
     dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
 }
 

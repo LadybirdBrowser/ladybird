@@ -89,6 +89,70 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
     return playback_manager;
 }
 
+DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create_for_mse(NonnullRefPtr<Demuxer> inner_demuxer)
+{
+    // Wrap the MSEDemuxer in a MutexedDemuxer for thread safety
+    auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
+
+    // Create the weak wrapper
+    auto weak_playback_manager = DECODER_TRY_ALLOC(try_make_ref_counted<WeakPlaybackManager>());
+
+    // Create the video tracks and their data providers
+    auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
+
+    auto supported_video_tracks = VideoTracks();
+    auto supported_video_track_datas = VideoTrackDatas();
+    supported_video_tracks.ensure_capacity(all_video_tracks.size());
+    supported_video_track_datas.ensure_capacity(all_video_tracks.size());
+    for (auto const& track : all_video_tracks) {
+        auto video_data_provider_result = VideoDataProvider::try_create(demuxer, track);
+        if (video_data_provider_result.is_error())
+            continue;
+        supported_video_tracks.append(track);
+        supported_video_track_datas.empend(VideoTrackData(track, video_data_provider_result.release_value(), nullptr));
+    }
+    supported_video_tracks.shrink_to_fit();
+    supported_video_track_datas.shrink_to_fit();
+
+    // Create all the audio tracks, their data providers, and the audio output
+    auto all_audio_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Audio));
+
+    auto supported_audio_tracks = AudioTracks();
+    auto supported_audio_track_datas = AudioTrackDatas();
+    supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
+    supported_audio_track_datas.ensure_capacity(all_audio_tracks.size());
+    for (auto const& track : all_audio_tracks) {
+        auto audio_data_provider_result = AudioDataProvider::try_create(demuxer, track);
+        if (audio_data_provider_result.is_error())
+            continue;
+        auto audio_data_provider = audio_data_provider_result.release_value();
+        supported_audio_tracks.append(track);
+        supported_audio_track_datas.empend(AudioTrackData(track, move(audio_data_provider)));
+    }
+    supported_audio_tracks.shrink_to_fit();
+    supported_audio_track_datas.shrink_to_fit();
+
+    if (supported_video_tracks.is_empty() && supported_audio_tracks.is_empty())
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No supported video or audio tracks found"sv);
+
+    RefPtr<AudioMixingSink> audio_sink = nullptr;
+    if (!supported_audio_tracks.is_empty())
+        audio_sink = DECODER_TRY_ALLOC(AudioMixingSink::try_create());
+
+    // Create the time provider
+    auto time_provider = DECODER_TRY_ALLOC([&] -> ErrorOr<NonnullRefPtr<MediaTimeProvider>> {
+        if (audio_sink)
+            return TRY(try_make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*audio_sink));
+        return TRY(try_make_ref_counted<GenericTimeProvider>());
+    }());
+
+    auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas))));
+    weak_playback_manager->m_manager = playback_manager;
+    playback_manager->set_up_error_handlers();
+    playback_manager->m_handler = DECODER_TRY_ALLOC(try_make<PausedStateHandler>(*playback_manager));
+    return playback_manager;
+}
+
 PlaybackManager::PlaybackManager(NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<WeakPlaybackManager> const& weak_wrapper, NonnullRefPtr<MediaTimeProvider> const& time_provider, VideoTracks&& video_tracks, VideoTrackDatas&& video_track_datas, RefPtr<AudioMixingSink> const& audio_sink, AudioTracks&& audio_tracks, AudioTrackDatas&& audio_track_datas)
     : m_demuxer(demuxer)
     , m_weak_wrapper(weak_wrapper)

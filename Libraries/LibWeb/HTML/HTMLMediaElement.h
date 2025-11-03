@@ -141,6 +141,9 @@ public:
     void set_duration_from_media_source(Badge<MediaSourceExtensions::MediaSource>, double duration);
     void update_ready_state_from_media_source(Badge<MediaSourceExtensions::MediaSource>);
 
+    void set_mse_video_sink(RefPtr<Media::DisplayingVideoSink>);
+    void set_mse_playback_manager(RefPtr<Media::PlaybackManager>);
+
     void update_video_frame_and_timeline();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
@@ -178,7 +181,7 @@ public:
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
-    RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
+    RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const;
 
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
@@ -348,6 +351,10 @@ private:
     RefPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+
+    // MSE components for Media Source Extensions playback
+    RefPtr<Media::DisplayingVideoSink> m_mse_video_sink;
+    RefPtr<Media::PlaybackManager> m_mse_playback_manager;
 
     bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 

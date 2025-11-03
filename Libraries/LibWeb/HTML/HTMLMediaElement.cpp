@@ -1245,8 +1245,46 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
 }
 
+void HTMLMediaElement::set_mse_video_sink(RefPtr<Media::DisplayingVideoSink> sink)
+{
+    m_mse_video_sink = sink;
+}
+
+void HTMLMediaElement::set_mse_playback_manager(RefPtr<Media::PlaybackManager> manager)
+{
+    m_mse_playback_manager = manager;
+
+    // If we have a PlaybackManager, set up state change callback
+    if (m_mse_playback_manager) {
+        m_mse_playback_manager->on_playback_state_change = [this] {
+            on_playback_manager_state_change();
+        };
+        dbgln("MSE: PlaybackManager connected to HTMLMediaElement");
+    }
+}
+
+RefPtr<Media::DisplayingVideoSink> const& HTMLMediaElement::selected_video_track_sink() const
+{
+    // For MSE playback, use the MSE video sink if available
+    if (m_mse_video_sink)
+        return m_mse_video_sink;
+
+    // For regular playback, use the selected video track sink
+    return m_selected_video_track_sink;
+}
+
 void HTMLMediaElement::update_video_frame_and_timeline()
 {
+    // For Media Source Extensions playback, use the MSE video sink directly
+    if (m_mse_video_sink) {
+        auto sink_update_result = m_mse_video_sink->update();
+        bool needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        if (needs_display && paintable())
+            paintable()->set_needs_display();
+        return;
+    }
+
+    // Regular playback path
     if (!m_playback_manager)
         return;
 
@@ -1924,8 +1962,13 @@ void HTMLMediaElement::notify_about_playing()
         resolve_pending_play_promises(promises);
     });
 
-    if (m_playback_manager)
+    // Start playback on the appropriate playback manager
+    if (m_mse_playback_manager) {
+        m_mse_playback_manager->play();
+        dbgln("MSE: Started playback on MSE PlaybackManager");
+    } else if (m_playback_manager) {
         m_playback_manager->play();
+    }
 
     if (m_audio_tracks->has_enabled_track())
         document().page().client().page_did_change_audio_play_state(AudioPlayState::Playing);
@@ -1950,7 +1993,10 @@ void HTMLMediaElement::set_paused(bool paused)
     m_paused = paused;
 
     if (m_paused) {
-        if (m_playback_manager)
+        // Pause the appropriate playback manager
+        if (m_mse_playback_manager)
+            m_mse_playback_manager->pause();
+        else if (m_playback_manager)
             m_playback_manager->pause();
 
         if (m_audio_tracks->has_enabled_track())
@@ -2352,12 +2398,18 @@ void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, 
     if (display_time.has_value()) {
         if (potentially_playing() && !m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = true;
-            m_playback_manager->pause();
+            if (m_mse_playback_manager)
+                m_mse_playback_manager->pause();
+            else if (m_playback_manager)
+                m_playback_manager->pause();
         }
     } else if (!display_time.has_value()) {
         if (m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = false;
-            m_playback_manager->play();
+            if (m_mse_playback_manager)
+                m_mse_playback_manager->play();
+            else if (m_playback_manager)
+                m_playback_manager->play();
         }
     }
 
