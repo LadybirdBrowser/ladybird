@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -85,11 +86,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
     if (!whole_value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse '{}' as a value for '{}' property", css_text, property->name())) };
 
-    // FIXME: 4. Subdivide into iterations whole value, according to property, and let values be the result.
+    // 4. Subdivide into iterations whole value, according to property, and let values be the result.
+    auto values = whole_value->subdivide_into_iterations(property.value());
 
     // 5. For each value in values, replace it with the result of reifying value for property.
     GC::RootVector<GC::Ref<CSSStyleValue>> reified_values { vm.heap() };
-    reified_values.append(whole_value->reify(*vm.current_realm(), property->name()));
+    for (auto const& value : values) {
+        reified_values.append(value->reify(*vm.current_realm(), property->name()));
+    }
 
     // 6. If parseMultiple is false, return values[0]. Otherwise, return values.
     // FIXME: We need to somehow store the source css_text on the returned CSSStyleValue.
