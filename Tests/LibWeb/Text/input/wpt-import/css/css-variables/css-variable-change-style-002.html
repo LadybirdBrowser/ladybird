@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Variables Test: Style changes on properties using variables</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css-variables-1/#using-variables">
+<meta name="assert" content="A change in the custom property declaration must be propagated to all the descendants">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+    .test1 > div > div { color: var(--x); }
+    .test2 > div > div { background-color: var(--x); }
+    .test3 > div > div { white-space: var(--x); }
+</style>
+<div id="outer">
+    <div>
+        <div id="inner1"></div>
+    </div>
+    <div>
+        <div id="inner2"></div>
+    </div>
+    <div>
+        <div id="inner3"></div>
+    </div>
+</div>
+<script>
+    "use strict";
+
+    let colorValues = [
+        { Id: "case1", value: "red",   expected: "rgb(255, 0, 0)" },
+        { Id: "case2", value: "green", expected: "rgb(0, 128, 0)" },
+    ];
+    let whiteSpaceValues = [
+        { Id: "case1", value: "pre-wrap", expected: "pre-wrap" },
+        { Id: "case2", value: "nowrap",   expected: "nowrap" },
+    ];
+    let testcases = [
+        { property: "color",            className: "test1", values: colorValues, },
+        { property: "background-color", className: "test2", values: colorValues, },
+        { property: "white-space",      className: "test3", values: whiteSpaceValues},
+    ];
+
+    testcases.forEach(function (testcase) {
+        test( function () {
+            outer.className = testcase.className;
+            testcase.values.forEach(function (entry) {
+                document.body.style.cssText = "--x: " + entry.value;
+                let actualValue = getComputedStyle(inner1).getPropertyValue(testcase.property);
+                assert_equals(actualValue, entry.expected, entry.Id + "-1");
+                actualValue = getComputedStyle(inner2).getPropertyValue(testcase.property);
+                assert_equals(actualValue, entry.expected, entry.Id + "-2");
+                actualValue = getComputedStyle(inner3).getPropertyValue(testcase.property);
+                assert_equals(actualValue, entry.expected, entry.Id + "-3");
+            });
+        }, "Declaration changes on '" + testcase.property + "' propagate to all variable references");
+    });
+</script>

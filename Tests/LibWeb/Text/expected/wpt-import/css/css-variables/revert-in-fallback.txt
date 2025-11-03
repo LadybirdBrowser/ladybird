@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Fail	var(--unknown, revert) in custom property
+Pass	var(--unknown, revert) in shorthand
+Pass	var(--unknown, revert) in shorthand observed via longhand
+Pass	var(--unknown, revert) in longhand

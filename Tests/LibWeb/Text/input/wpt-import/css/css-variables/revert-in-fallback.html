@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>CSS Custom Properties: Using revert in fallbacks</title>
+<link rel="help" href="https://drafts.csswg.org/css-variables/#substitute-a-var">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  body.revert {
+    --x:FAIL;
+    margin: -1px;
+    display: grid;
+
+    --x: var(--unknown, revert);
+    margin: var(--unknown, revert);
+    display: var(--unknown, revert);
+  }
+</style>
+<html>
+  <body>
+    <pre id=out></pre>
+    <script>
+      let body_ua_display = getComputedStyle(document.body).display;
+      let body_ua_margin = getComputedStyle(document.body).margin;
+      document.body.classList.add('revert');
+
+      test((t) => {
+        assert_equals(getComputedStyle(document.body).getPropertyValue('--x'), '');
+      }, 'var(--unknown, revert) in custom property');
+
+      test((t) => {
+        assert_equals(getComputedStyle(document.body).getPropertyValue('margin'), body_ua_margin);
+      }, 'var(--unknown, revert) in shorthand');
+
+      test((x) => {
+        assert_equals(getComputedStyle(document.body).getPropertyValue('margin-left'), body_ua_margin);
+      }, 'var(--unknown, revert) in shorthand observed via longhand');
+
+      test((t) => {
+        assert_equals(getComputedStyle(document.body).getPropertyValue('display'), body_ua_display);
+      }, 'var(--unknown, revert) in longhand');
+    </script>
+  </body>
+</html>
