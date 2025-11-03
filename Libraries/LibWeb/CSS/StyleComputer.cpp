@@ -3026,6 +3026,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_custom_property_value(Pro
             return initial_value();
 
         // FIXME: revert, revert-layer.
+        dbgln("Here: {} (type {})", style_value->to_string(SerializationMode::Normal), style_value->type());
+        if (style_value->is_revert())
+            dbgln("!!! REVERT !!!");
+        if (style_value->is_revert_layer())
+            dbgln("!!! REVERT-LAYER !!!");
         return style_value;
     };
 
@@ -3044,12 +3049,7 @@ void StyleComputer::compute_custom_properties(CascadedProperties const& cascaded
     for (auto const& [custom_property_name, value] : cascaded_properties.custom_properties()) {
         auto name_and_id = PropertyNameAndID::from_name(custom_property_name).release_value();
         auto computed_value = resolve_custom_property_value(name_and_id, value.value, abstract_element);
-        auto inherited = ComputedProperties::Inherited::Yes;
-        if (auto registered = registered_properties.get(custom_property_name);
-            registered.has_value() && !registered.value()->inherits()) {
-            inherited = ComputedProperties::Inherited::No;
-        }
-
+        auto inherited = ComputedProperties::Inherited::No;
         computed_properties.set_property(name_and_id, move(computed_value), inherited, value.important);
     }
 
@@ -3078,7 +3078,7 @@ void StyleComputer::compute_custom_properties(CascadedProperties const& cascaded
             computed_properties.set_property(
                 name_and_id,
                 property_rule->initial_style_value().release_nonnull(),
-                property_rule->inherits() ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No,
+                ComputedProperties::Inherited::No,
                 Important::No);
         }
     }

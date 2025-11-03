@@ -580,7 +580,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     }
 
     if (property.is_custom_property())
-        return owner_node()->get_custom_property(property.name());
+        return owner_node()->computed_properties()->property(property);
 
     auto property_id = property.id();
 

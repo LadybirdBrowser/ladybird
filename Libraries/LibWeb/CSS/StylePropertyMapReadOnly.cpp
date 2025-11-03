@@ -158,8 +158,15 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
             element.document().update_style();
             // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
             if (auto computed_properties = element.computed_properties()) {
-                if (property.is_custom_property())
-                    return element.get_custom_property(property.name());
+                if (property.is_custom_property()) {
+                    auto const& value = computed_properties->property(property);
+                    auto registered_property = element.document().registered_custom_properties().get(property.name());
+                    if (registered_property.has_value())
+                        return value;
+                    if (!value.is_guaranteed_invalid())
+                        return value;
+                    return nullptr;
+                }
 
                 if (property.id() >= first_longhand_property_id && property.id() <= last_longhand_property_id)
                     return computed_properties->property(property.id());
