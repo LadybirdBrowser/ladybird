@@ -268,7 +268,10 @@ WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
     // 4. Run the duration change algorithm with new duration set to the value being assigned to this attribute.
     m_duration = new_duration;
 
-    // FIXME: Update media element's duration and fire durationchange event
+    // Update media element's duration and fire durationchange event
+    if (m_media_element) {
+        m_media_element->set_duration_from_media_source({}, new_duration);
+    }
 
     return {};
 }
@@ -316,6 +319,24 @@ void MediaSource::detach_from_media_element()
 
     set_ready_state(ReadyState::Closed);
     m_media_element = nullptr;
+}
+
+void MediaSource::source_buffer_data_appended()
+{
+    // This is called when a SourceBuffer successfully appends data
+    // We need to notify the HTMLMediaElement to update its state
+
+    if (!m_media_element)
+        return;
+
+    // Update the media element's duration from the MediaSource
+    if (!isnan(m_duration)) {
+        m_media_element->set_duration_from_media_source({}, m_duration);
+    }
+
+    // Update the media element's readyState based on buffered data
+    // This will fire the appropriate events (loadedmetadata, loadeddata, canplay)
+    m_media_element->update_ready_state_from_media_source({});
 }
 
 }

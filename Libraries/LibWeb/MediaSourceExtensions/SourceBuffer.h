@@ -33,6 +33,9 @@ public:
     bool updating() const { return m_updating; }
     GC::Ref<HTML::TimeRanges> buffered() const;
 
+    double timestamp_offset() const { return m_timestamp_offset; }
+    void set_timestamp_offset(double offset) { m_timestamp_offset = offset; }
+
     // Methods
     WebIDL::ExceptionOr<void> append_buffer(GC::Root<WebIDL::BufferSource> const& data);
     WebIDL::ExceptionOr<void> abort();
@@ -73,6 +76,9 @@ private:
     GC::Ptr<MediaSource> m_media_source;
     GC::Ptr<HTML::TimeRanges> m_buffered;
     bool m_updating { false };
+
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+    double m_timestamp_offset { 0.0 };
 
     // Pending append buffer data
     Vector<ByteBuffer> m_pending_buffers;

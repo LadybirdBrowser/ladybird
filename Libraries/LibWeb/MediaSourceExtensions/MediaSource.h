@@ -73,6 +73,9 @@ public:
     void detach_from_media_element();
     HTML::HTMLMediaElement* media_element() const { return m_media_element.ptr(); }
 
+    // Called by SourceBuffer when data is appended
+    void source_buffer_data_appended();
+
     virtual void visit_edges(Cell::Visitor&) override;
 
 protected:

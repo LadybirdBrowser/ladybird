@@ -269,7 +269,12 @@ void SourceBuffer::process_append_buffer()
     // 3. Fire update event
     dispatch_event(DOM::Event::create(realm(), EventNames::update));
 
-    // 4. Fire updateend event
+    // 4. Notify MediaSource that data was appended so it can update the HTMLMediaElement
+    if (m_media_source) {
+        m_media_source->source_buffer_data_appended();
+    }
+
+    // 5. Fire updateend event
     dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
 }
 

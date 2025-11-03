@@ -384,6 +384,36 @@ void HTMLMediaElement::set_duration(double duration)
         paintable->set_needs_display();
 }
 
+// Called by MediaSource when SourceBuffer data is appended
+void HTMLMediaElement::set_duration_from_media_source(Badge<MediaSourceExtensions::MediaSource>, double duration)
+{
+    set_duration(duration);
+}
+
+// Called by MediaSource to update readyState when SourceBuffer data is appended
+void HTMLMediaElement::update_ready_state_from_media_source(Badge<MediaSourceExtensions::MediaSource>)
+{
+    // When MediaSource has buffered data, transition through the appropriate readyState values
+    // FIXME: We should check actual buffered ranges to determine readyState more accurately
+
+    // Transition HAVE_NOTHING -> HAVE_METADATA when we have a valid duration
+    if (m_ready_state == ReadyState::HaveNothing && !isnan(m_duration)) {
+        set_ready_state(ReadyState::HaveMetadata);
+    }
+    // Transition HAVE_METADATA -> HAVE_CURRENT_DATA when we have some buffered data
+    else if (m_ready_state == ReadyState::HaveMetadata) {
+        set_ready_state(ReadyState::HaveCurrentData);
+    }
+    // Transition HAVE_CURRENT_DATA -> HAVE_FUTURE_DATA -> HAVE_ENOUGH_DATA
+    // This allows canplay/canplaythrough events to fire
+    else if (m_ready_state == ReadyState::HaveCurrentData) {
+        set_ready_state(ReadyState::HaveFutureData);
+    }
+    else if (m_ready_state == ReadyState::HaveFutureData) {
+        set_ready_state(ReadyState::HaveEnoughData);
+    }
+}
+
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLMediaElement::play()
 {
     auto& realm = this->realm();

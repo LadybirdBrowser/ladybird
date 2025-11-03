@@ -16,7 +16,7 @@ interface SourceBuffer : EventTarget {
     [FIXME] attribute AppendMode mode;
     readonly  attribute boolean updating;
     readonly attribute TimeRanges buffered;
-    [FIXME] attribute double timestampOffset;
+    attribute double timestampOffset;
     [FIXME] readonly  attribute AudioTrackList audioTracks;
     [FIXME] readonly  attribute VideoTrackList videoTracks;
     [FIXME] readonly  attribute TextTrackList textTracks;

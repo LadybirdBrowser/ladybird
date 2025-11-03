@@ -138,6 +138,9 @@ public:
 
     void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
 
+    void set_duration_from_media_source(Badge<MediaSourceExtensions::MediaSource>, double duration);
+    void update_ready_state_from_media_source(Badge<MediaSourceExtensions::MediaSource>);
+
     void update_video_frame_and_timeline();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
