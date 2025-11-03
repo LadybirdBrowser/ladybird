@@ -119,7 +119,7 @@ private:
 
         if (seek_data->video_seeks_in_flight == 0) {
             seek_data->chosen_timestamp = m_target_timestamp;
-            for (auto const& audio_track_data : seek_data->manager->m_audio_track_datas) {
+            for (auto const& audio_track_data : manager().m_audio_track_datas) {
                 if (seek_data->manager->m_audio_sink->provider(audio_track_data.track) == nullptr)
                     continue;
                 audio_track_data.provider->seek(seek_data->chosen_timestamp, [seek_data]() {
