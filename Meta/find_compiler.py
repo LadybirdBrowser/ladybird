@@ -19,7 +19,7 @@ from Meta.host_platform import Platform
 from Meta.utils import run_command
 
 CLANG_MINIMUM_VERSION = 19
-GCC_MINIMUM_VERSION = 14
+GCC_MINIMUM_VERSION = 15
 XCODE_MINIMUM_VERSION = ("16.3", 17000013)
 
 COMPILER_VERSION_REGEX = re.compile(r"(\d+)(\.\d+)*")
@@ -116,7 +116,7 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
 
         gcc_candidates = [
             "gcc",
-            "gcc-14",
+            "gcc-15",
         ]
 
         if platform.host_system == HostSystem.BSD:
