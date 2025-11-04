@@ -246,8 +246,12 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
     for (auto string : m_single_ascii_character_strings)
         roots.set(string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
-    for (auto string : m_numeric_string_cache)
+    for (auto string : m_numeric_string_cache) {
+        // The numeric string cache is populated lazily, so skip null entries.
+        if (!string)
+            continue;
         roots.set(string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    }
 
     roots.set(cached_strings.number, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     roots.set(cached_strings.undefined, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
