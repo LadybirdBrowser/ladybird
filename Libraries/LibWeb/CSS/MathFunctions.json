@@ -187,6 +187,11 @@
         "name": "maximum",
         "type": "<number>|<dimension>|<percentage>",
         "required": true
+      },
+      {
+        "name": "step",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": false
       }
     ]
   },

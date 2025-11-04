@@ -286,7 +286,7 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     }
 
     // AD-HOC: We serialize random() directly since it has abnormal children (e.g. m_random_value_sharing which is not a
-    //         calculation node).
+    //         calculation node and m_step which is nullable).
     if (fn.type() == CalculationNode::Type::Random)
         return as<RandomCalculationNode>(fn).to_string(context, serialization_mode);
 
@@ -2442,18 +2442,24 @@ bool ModCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<ModCalculationNode const&>(other).m_y);
 }
 
-NonnullRefPtr<RandomCalculationNode const> RandomCalculationNode::create(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum)
+NonnullRefPtr<RandomCalculationNode const> RandomCalculationNode::create(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, RefPtr<CalculationNode const> step)
 {
-    Optional<NumericType> numeric_type = add_the_types(*minimum, *maximum);
+    Optional<NumericType> numeric_type;
 
-    return adopt_ref(*new (nothrow) RandomCalculationNode(move(random_value_sharing), move(minimum), move(maximum), move(numeric_type)));
+    if (step)
+        numeric_type = add_the_types(*minimum, *maximum, *step);
+    else
+        numeric_type = add_the_types(*minimum, *maximum);
+
+    return adopt_ref(*new (nothrow) RandomCalculationNode(move(random_value_sharing), move(minimum), move(maximum), move(step), move(numeric_type)));
 }
 
-RandomCalculationNode::RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, Optional<NumericType> numeric_type)
+RandomCalculationNode::RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, RefPtr<CalculationNode const> step, Optional<NumericType> numeric_type)
     : CalculationNode(Type::Random, move(numeric_type))
     , m_random_value_sharing(move(random_value_sharing))
     , m_minimum(move(minimum))
     , m_maximum(move(maximum))
+    , m_step(move(step))
 {
 }
 
@@ -2461,7 +2467,7 @@ RandomCalculationNode::~RandomCalculationNode() = default;
 
 bool RandomCalculationNode::contains_percentage() const
 {
-    return m_minimum->contains_percentage() || m_maximum->contains_percentage();
+    return m_minimum->contains_percentage() || m_maximum->contains_percentage() || (m_step && m_step->contains_percentage());
 }
 
 NonnullRefPtr<CalculationNode const> RandomCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
@@ -2483,10 +2489,14 @@ NonnullRefPtr<CalculationNode const> RandomCalculationNode::with_simplified_chil
     ValueComparingNonnullRefPtr<CalculationNode const> simplified_minimum = simplify_a_calculation_tree(m_minimum, context, resolution_context);
     ValueComparingNonnullRefPtr<CalculationNode const> simplified_maximum = simplify_a_calculation_tree(m_maximum, context, resolution_context);
 
-    if (simplified_random_value_sharing == m_random_value_sharing && simplified_minimum == m_minimum && simplified_maximum == m_maximum)
+    ValueComparingRefPtr<CalculationNode const> simplified_step;
+    if (m_step)
+        simplified_step = simplify_a_calculation_tree(*m_step, context, resolution_context);
+
+    if (simplified_random_value_sharing == m_random_value_sharing && simplified_minimum == m_minimum && simplified_maximum == m_maximum && simplified_step == m_step)
         return *this;
 
-    return RandomCalculationNode::create(simplified_random_value_sharing.release_nonnull(), move(simplified_minimum), move(simplified_maximum));
+    return RandomCalculationNode::create(simplified_random_value_sharing.release_nonnull(), move(simplified_minimum), move(simplified_maximum), move(simplified_step));
 }
 
 // https://drafts.csswg.org/css-values-5/#random-evaluation
@@ -2506,6 +2516,16 @@ Optional<CalculatedStyleValue::CalculationResult> RandomCalculationNode::run_ope
 
     auto minimum_value = minimum->value();
     auto maximum_value = maximum->value();
+    double step_value = 0;
+
+    if (m_step) {
+        auto step = try_get_value_with_canonical_unit(*m_step, context, resolution_context);
+
+        if (!step.has_value())
+            return {};
+
+        step_value = step->value();
+    }
 
     // https://drafts.csswg.org/css-values-5/#random-infinities
     // If the maximum value is less than the minimum value, it behaves as if it’s equal to the minimum value.
@@ -2522,17 +2542,52 @@ Optional<CalculatedStyleValue::CalculationResult> RandomCalculationNode::run_ope
     if (isinf(maximum_value))
         return CalculatedStyleValue::CalculationResult { AK::NaN<double>, numeric_type() };
 
+    // If C is infinite, the result is A.
+    if (isinf(step_value))
+        return CalculatedStyleValue::CalculationResult { minimum_value, numeric_type() };
+
     // Note: As usual for math functions, if any argument calculation is NaN, the result is NaN.
-    if (isnan(minimum_value) || isnan(maximum_value))
+    if (isnan(minimum_value) || isnan(maximum_value) || isnan(step_value))
         return CalculatedStyleValue::CalculationResult { AK::NaN<double>, numeric_type() };
+
+    // If C is negative, zero, or positive but close enough to zero that the range for the step multiplier (the N
+    // mentioned in § 9.3 Evaluating Random Values) would be infinite in the user agent, the step must be ignored. (The
+    // function is treated as if only A and B were provided.)
+    auto has_step = step_value > AK::NumericLimits<float>::epsilon() * 1000;
 
     // Given a random function with a random base value R, the value of the function is:
     // - for a random() function with min and max, but no step
-    // Return min + R * (max - min)
-    return CalculatedStyleValue::CalculationResult {
-        minimum_value + (random_base_value * (maximum_value - minimum_value)),
-        numeric_type()
-    };
+    if (!has_step) {
+        // Return min + R * (max - min)
+        return CalculatedStyleValue::CalculationResult {
+            minimum_value + (random_base_value * (maximum_value - minimum_value)),
+            numeric_type()
+        };
+    }
+
+    // for a random() function with min, max, and step
+    // Let epsilon be step / 1000, or the smallest representable value greater than zero in the numeric type being used if epsilon would round to zero.
+    auto epsilon = step_value / 1000;
+
+    // Let N be the largest integer such that min + N * step is less than or equal to max.
+    auto n = floor((maximum_value - minimum_value) / step_value);
+
+    // If N produces a value that is not within epsilon of max, but N+1 would produce a value within epsilon of max, set N to N+1.
+    if (abs(maximum_value - (n * step_value + minimum_value)) > epsilon && abs(maximum_value - ((n + 1) * step_value + minimum_value)) < epsilon)
+        n = n + 1;
+
+    // Let step index be a random integer less than N+1, given R.
+    auto step_index = floor((n + 1) * random_base_value);
+
+    // Let value be min + step index * step.
+    auto value = minimum_value + (step_index * step_value);
+
+    // If step index is N and value is within epsilon of max, return max.
+    if (step_index == n && abs(maximum_value - value) < epsilon)
+        return CalculatedStyleValue::CalculationResult { maximum_value, numeric_type() };
+
+    // Otherwise, return value.
+    return CalculatedStyleValue::CalculationResult { value, numeric_type() };
 }
 
 String RandomCalculationNode::to_string(CalculationContext const& context, SerializationMode serialization_mode) const
@@ -2542,7 +2597,10 @@ String RandomCalculationNode::to_string(CalculationContext const& context, Seria
     builder.append("random("sv);
     builder.appendff("{}, ", m_random_value_sharing->to_string(serialization_mode));
     builder.appendff("{}, ", serialize_a_calculation_tree(m_minimum, context, serialization_mode));
-    builder.appendff("{})", serialize_a_calculation_tree(m_maximum, context, serialization_mode));
+    builder.append(serialize_a_calculation_tree(m_maximum, context, serialization_mode));
+    if (m_step)
+        builder.appendff(", {}", serialize_a_calculation_tree(*m_step, context, serialization_mode));
+    builder.append(')');
 
     return builder.to_string_without_validation();
 }
@@ -2553,6 +2611,8 @@ void RandomCalculationNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{}\n", m_random_value_sharing->to_string(SerializationMode::Normal));
     m_minimum->dump(builder, indent + 2);
     m_maximum->dump(builder, indent + 2);
+    if (m_step)
+        m_step->dump(builder, indent + 2);
 }
 
 bool RandomCalculationNode::equals(CalculationNode const& other) const
@@ -2567,7 +2627,8 @@ bool RandomCalculationNode::equals(CalculationNode const& other) const
 
     return m_random_value_sharing == other_random.m_random_value_sharing
         && m_minimum == other_random.m_minimum
-        && m_maximum == other_random.m_maximum;
+        && m_maximum == other_random.m_maximum
+        && m_step == other_random.m_step;
 }
 
 NonnullRefPtr<RemCalculationNode const> RemCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
