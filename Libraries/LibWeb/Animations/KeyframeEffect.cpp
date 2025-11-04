@@ -942,4 +942,62 @@ Bindings::CompositeOperation css_animation_composition_to_bindings_composite_ope
     }
 }
 
+Optional<double> KeyframeEffect::transformed_progress() const
+{
+    // 1. If the directed progress is unresolved, return unresolved.
+    auto directed_progress = this->directed_progress();
+    if (!directed_progress.has_value())
+        return {};
+
+    // 2. Calculate the value of the before flag as follows:
+
+    //    1. Determine the current direction using the procedure defined in §4.9.1 Calculating the directed progress.
+    auto current_direction = this->current_direction();
+
+    //    2. If the current direction is forwards, let going forwards be true, otherwise it is false.
+    auto going_forwards = current_direction == AnimationDirection::Forwards;
+
+    //    3. The before flag is set if the animation effect is in the before phase and going forwards is true; or if the animation effect
+    //       is in the after phase and going forwards is false.
+    auto before_flag = (is_in_the_before_phase() && going_forwards) || (is_in_the_after_phase() && !going_forwards);
+
+    if (key_frame_set()) {
+        auto& keyframes = key_frame_set()->keyframes_by_key;
+
+        if (keyframes.size() >= 3) {
+            double scale_factor = 100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
+            double progress = directed_progress.value() * scale_factor;
+            double segment_bottom = 0;
+            double segment_top = 0;
+
+            for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+                double key = it.key();
+                if (progress > key) {
+                    segment_bottom = key;
+                    continue;
+                }
+
+                if (progress < key) {
+                    segment_top = key;
+                    break;
+                }
+            }
+
+            progress /= scale_factor;
+            segment_bottom /= scale_factor;
+            segment_top /= scale_factor;
+
+            double segment_length = segment_top - segment_bottom;
+            double segment_progress = (progress - segment_bottom) / segment_length;
+
+            double transformed_segment_progress = m_timing_function.evaluate_at(segment_progress, before_flag);
+            return transformed_segment_progress * segment_length + segment_bottom;
+        }
+    }
+
+    // 3. Return the result of evaluating the animation effect’s timing function passing directed progress as the input progress value and
+    //    before flag as the before flag.
+    return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
+}
+
 }

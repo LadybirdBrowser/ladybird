@@ -151,10 +151,10 @@ public:
     AnimationDirection current_direction() const;
     Optional<double> simple_iteration_progress() const;
     Optional<double> current_iteration() const;
-    Optional<double> transformed_progress() const;
 
     HashTable<CSS::PropertyID> const& target_properties() const { return m_target_properties; }
 
+    virtual Optional<double> transformed_progress() const;
     virtual DOM::Element* target() const { return {}; }
     virtual bool is_keyframe_effect() const { return false; }
 

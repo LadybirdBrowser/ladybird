@@ -102,9 +102,10 @@ public:
     WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes();
     WebIDL::ExceptionOr<void> set_keyframes(Optional<GC::Root<JS::Object>> const&);
 
-    KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
+    KeyFrameSet const* key_frame_set() const { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }
 
+    virtual Optional<double> transformed_progress() const override;
     virtual bool is_keyframe_effect() const override { return true; }
 
     virtual void update_computed_properties(AnimationUpdateContext&) override;
