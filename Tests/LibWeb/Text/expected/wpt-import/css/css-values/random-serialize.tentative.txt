@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-32 Fail
+2 Pass
+30 Fail
 Fail	e.style['width'] = "random(0px, 100px)" should set the property value
 Fail	e.style['width'] = "random(0px, 100px, 50px)" should set the property value
 Fail	e.style['width'] = "random(--foo, 0px, 100px)" should set the property value
@@ -11,7 +12,7 @@ Fail	e.style['width'] = "random(--foo element-shared, 0px, 100px)" should set th
 Fail	e.style['width'] = "random(auto element-shared, 0px, 100px)" should set the property value
 Fail	e.style['width'] = "random(element-shared --foo, 0px, 100px)" should set the property value
 Fail	e.style['width'] = "random(element-shared auto, 0px, 100px)" should set the property value
-Fail	e.style['width'] = "random(fixed 0.5, 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(fixed 0.5, 0px, 100px)" should set the property value
 Fail	e.style['width'] = "random(--foo, 0px, 100px, 50px)" should set the property value
 Fail	e.style['width'] = "random(auto, 0px, 100px, 50px)" should set the property value
 Fail	e.style['width'] = "random(--foo element-shared, 0px, 100px, 50px)" should set the property value
@@ -25,7 +26,7 @@ Fail	e.style['width'] = "random(-100px, -10px)" should set the property value
 Fail	e.style['width'] = "random(-100px, -10px, -5px)" should set the property value
 Fail	e.style['width'] = "random(1em, 200rem)" should set the property value
 Fail	e.style['width'] = "random(10 * 100px, 200em / 2)" should set the property value
-Fail	e.style['width'] = "random(fixed calc(2 / 4), 0px, 100px)" should set the property value
+Pass	e.style['width'] = "random(fixed calc(2 / 4), 0px, 100px)" should set the property value
 Fail	e.style['width'] = "calc(2 * random(0px, 100px))" should set the property value
 Fail	e.style['max-lines'] = "random(25, 50)" should set the property value
 Fail	e.style['max-lines'] = "random(25, 50, 5)" should set the property value

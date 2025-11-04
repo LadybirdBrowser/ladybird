@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 
@@ -283,6 +284,11 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
             return builder.to_string_without_validation();
         }
     }
+
+    // AD-HOC: We serialize random() directly since it has abnormal children (e.g. m_random_value_sharing which is not a
+    //         calculation node).
+    if (fn.type() == CalculationNode::Type::Random)
+        return as<RandomCalculationNode>(fn).to_string(context, serialization_mode);
 
     // 3. If the calculation tree’s root node is a numeric value, or a calc-operator node, let s be a string initially
     //    containing "calc(".
@@ -572,6 +578,8 @@ StringView CalculationNode::name() const
         return "log"sv;
     case Type::Exp:
         return "exp"sv;
+    case Type::Random:
+        return "random"sv;
     case Type::Round:
         return "round"sv;
     case Type::Mod:
@@ -2432,6 +2440,134 @@ bool ModCalculationNode::equals(CalculationNode const& other) const
         return false;
     return m_x->equals(*static_cast<ModCalculationNode const&>(other).m_x)
         && m_y->equals(*static_cast<ModCalculationNode const&>(other).m_y);
+}
+
+NonnullRefPtr<RandomCalculationNode const> RandomCalculationNode::create(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum)
+{
+    Optional<NumericType> numeric_type = add_the_types(*minimum, *maximum);
+
+    return adopt_ref(*new (nothrow) RandomCalculationNode(move(random_value_sharing), move(minimum), move(maximum), move(numeric_type)));
+}
+
+RandomCalculationNode::RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, Optional<NumericType> numeric_type)
+    : CalculationNode(Type::Random, move(numeric_type))
+    , m_random_value_sharing(move(random_value_sharing))
+    , m_minimum(move(minimum))
+    , m_maximum(move(maximum))
+{
+}
+
+RandomCalculationNode::~RandomCalculationNode() = default;
+
+bool RandomCalculationNode::contains_percentage() const
+{
+    return m_minimum->contains_percentage() || m_maximum->contains_percentage();
+}
+
+NonnullRefPtr<CalculationNode const> RandomCalculationNode::with_simplified_children(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+{
+    ValueComparingRefPtr<RandomValueSharingStyleValue const> simplified_random_value_sharing;
+
+    // When we are in the absolutization process we should absolutize m_random_value_sharing
+    if (resolution_context.length_resolution_context.has_value()) {
+        ComputationContext computation_context {
+            .length_resolution_context = resolution_context.length_resolution_context.value(),
+            .abstract_element = resolution_context.abstract_element
+        };
+
+        simplified_random_value_sharing = m_random_value_sharing->absolutized(computation_context)->as_random_value_sharing();
+    } else {
+        simplified_random_value_sharing = m_random_value_sharing;
+    }
+
+    ValueComparingNonnullRefPtr<CalculationNode const> simplified_minimum = simplify_a_calculation_tree(m_minimum, context, resolution_context);
+    ValueComparingNonnullRefPtr<CalculationNode const> simplified_maximum = simplify_a_calculation_tree(m_maximum, context, resolution_context);
+
+    if (simplified_random_value_sharing == m_random_value_sharing && simplified_minimum == m_minimum && simplified_maximum == m_maximum)
+        return *this;
+
+    return RandomCalculationNode::create(simplified_random_value_sharing.release_nonnull(), move(simplified_minimum), move(simplified_maximum));
+}
+
+// https://drafts.csswg.org/css-values-5/#random-evaluation
+Optional<CalculatedStyleValue::CalculationResult> RandomCalculationNode::run_operation_if_possible(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+{
+    // NB: We don't want to resolve this before computation time even if it's possible
+    if (!resolution_context.abstract_element.has_value() && !resolution_context.length_resolution_context.has_value() && resolution_context.percentage_basis.has<Empty>())
+        return {};
+
+    auto random_base_value = m_random_value_sharing->random_base_value();
+
+    auto minimum = try_get_value_with_canonical_unit(m_minimum, context, resolution_context);
+    auto maximum = try_get_value_with_canonical_unit(m_maximum, context, resolution_context);
+
+    if (!minimum.has_value() || !maximum.has_value())
+        return {};
+
+    auto minimum_value = minimum->value();
+    auto maximum_value = maximum->value();
+
+    // https://drafts.csswg.org/css-values-5/#random-infinities
+    // If the maximum value is less than the minimum value, it behaves as if it’s equal to the minimum value.
+    if (maximum_value < minimum_value)
+        maximum_value = minimum_value;
+
+    // https://drafts.csswg.org/css-values-5/#random-infinities
+    // In random(A, B), if A is infinite, the result is infinite.
+    if (isinf(minimum_value))
+        return CalculatedStyleValue::CalculationResult { AK::Infinity<double>, numeric_type() };
+
+    // If A is finite, but the difference between A and B is either infinite or large enough to be treated as infinite
+    // in the user agent, the result is NaN.
+    if (isinf(maximum_value))
+        return CalculatedStyleValue::CalculationResult { AK::NaN<double>, numeric_type() };
+
+    // Note: As usual for math functions, if any argument calculation is NaN, the result is NaN.
+    if (isnan(minimum_value) || isnan(maximum_value))
+        return CalculatedStyleValue::CalculationResult { AK::NaN<double>, numeric_type() };
+
+    // Given a random function with a random base value R, the value of the function is:
+    // - for a random() function with min and max, but no step
+    // Return min + R * (max - min)
+    return CalculatedStyleValue::CalculationResult {
+        minimum_value + (random_base_value * (maximum_value - minimum_value)),
+        numeric_type()
+    };
+}
+
+String RandomCalculationNode::to_string(CalculationContext const& context, SerializationMode serialization_mode) const
+{
+    StringBuilder builder;
+
+    builder.append("random("sv);
+    builder.appendff("{}, ", m_random_value_sharing->to_string(serialization_mode));
+    builder.appendff("{}, ", serialize_a_calculation_tree(m_minimum, context, serialization_mode));
+    builder.appendff("{})", serialize_a_calculation_tree(m_maximum, context, serialization_mode));
+
+    return builder.to_string_without_validation();
+}
+
+void RandomCalculationNode::dump(StringBuilder& builder, int indent) const
+{
+    builder.appendff("{: >{}}RANDOM:\n", "", indent);
+    builder.appendff("{}\n", m_random_value_sharing->to_string(SerializationMode::Normal));
+    m_minimum->dump(builder, indent + 2);
+    m_maximum->dump(builder, indent + 2);
+}
+
+bool RandomCalculationNode::equals(CalculationNode const& other) const
+{
+    if (this == &other)
+        return true;
+
+    if (type() != other.type())
+        return false;
+
+    auto const& other_random = as<RandomCalculationNode>(other);
+
+    return m_random_value_sharing == other_random.m_random_value_sharing
+        && m_minimum == other_random.m_minimum
+        && m_maximum == other_random.m_maximum;
 }
 
 NonnullRefPtr<RemCalculationNode const> RemCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)

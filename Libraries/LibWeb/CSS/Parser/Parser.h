@@ -77,6 +77,7 @@ enum SpecialContext : u8 {
     CubicBezierFunctionXCoordinate,
     DOMMatrixInitString,
     MediaCondition,
+    RandomValueSharingFixedValue,
     ShadowBlurRadius,
     StepsIntervalsJumpNone,
     StepsIntervalsNormal,
@@ -379,6 +380,7 @@ private:
     RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     Optional<FlyString> parse_dashed_ident(TokenStream<ComponentValue>&);
     RefPtr<CustomIdentStyleValue const> parse_dashed_ident_value(TokenStream<ComponentValue>&);
+    RefPtr<RandomValueSharingStyleValue const> parse_random_value_sharing(TokenStream<ComponentValue>&);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
     RefPtr<CalculationNode const> parse_math_function(Function const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calc_function_node(Function const&, CalculationContext const&);
@@ -593,6 +595,7 @@ private:
     }
     bool context_allows_quirky_length() const;
     bool context_allows_tree_counting_functions() const;
+    bool context_allows_random_functions() const;
 
     Vector<RuleContext> m_rule_context;
     HashTable<FlyString> m_declared_namespaces;

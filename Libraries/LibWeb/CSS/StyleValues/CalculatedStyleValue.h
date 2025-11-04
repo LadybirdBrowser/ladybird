@@ -190,6 +190,10 @@ public:
         Mod,
         Rem,
 
+        // Random value generation
+        // https://drafts.csswg.org/css-values-5/#random
+        Random,
+
         // Non-math functions
         NonMathFunction
     };
@@ -228,6 +232,7 @@ public:
         case Type::Round:
         case Type::Mod:
         case Type::Rem:
+        case Type::Random:
             return true;
 
         default:
@@ -745,6 +750,30 @@ private:
     ModCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
     NonnullRefPtr<CalculationNode const> m_x;
     NonnullRefPtr<CalculationNode const> m_y;
+};
+
+class RandomCalculationNode final : public CalculationNode {
+public:
+    static NonnullRefPtr<RandomCalculationNode const> create(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum);
+    ~RandomCalculationNode();
+
+    virtual bool contains_percentage() const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    // NOTE: We don't return children here as serialization is handled ad-hoc
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
+
+    String to_string(CalculationContext const&, SerializationMode serialization_mode) const;
+
+    virtual void dump(StringBuilder&, int indent) const override;
+    virtual bool equals(CalculationNode const&) const override;
+
+private:
+    RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
+    ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> m_random_value_sharing;
+    ValueComparingNonnullRefPtr<CalculationNode const> m_minimum;
+    ValueComparingNonnullRefPtr<CalculationNode const> m_maximum;
 };
 
 class RemCalculationNode final : public CalculationNode {
