@@ -6,6 +6,7 @@
 
 #include <AK/Math.h>
 #include <LibWeb/CSS/Number.h>
+#include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
 
@@ -19,7 +20,7 @@ String Number::to_string(SerializationMode) const
         return "-infinity"_string;
     if (isnan(m_value))
         return "NaN"_string;
-    return MUST(String::formatted("{:.5}", m_value));
+    return serialize_a_number(m_value);
 }
 
 }
