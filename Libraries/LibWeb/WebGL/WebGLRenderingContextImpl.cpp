@@ -1509,6 +1509,8 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
     }
     case UNPACK_FLIP_Y_WEBGL:
         return JS::Value(m_unpack_flip_y);
+    case UNPACK_PREMULTIPLY_ALPHA_WEBGL:
+        return JS::Value(m_unpack_premultiply_alpha);
     default:
         dbgln("Unknown WebGL parameter name: {:x}", pname);
         set_error(GL_INVALID_ENUM);
@@ -1906,6 +1908,9 @@ void WebGLRenderingContextImpl::pixel_storei(WebIDL::UnsignedLong pname, WebIDL:
     switch (pname) {
     case UNPACK_FLIP_Y_WEBGL:
         m_unpack_flip_y = param != GL_FALSE;
+        return;
+    case UNPACK_PREMULTIPLY_ALPHA_WEBGL:
+        m_unpack_premultiply_alpha = param != GL_FALSE;
         return;
     }
 

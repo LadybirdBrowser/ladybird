@@ -16,6 +16,7 @@ namespace Web::WebGL {
 
 static constexpr int COMPRESSED_TEXTURE_FORMATS = 0x86A3;
 static constexpr int UNPACK_FLIP_Y_WEBGL = 0x9240;
+static constexpr int UNPACK_PREMULTIPLY_ALPHA_WEBGL = 0x9241;
 static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
@@ -121,6 +122,12 @@ protected:
     //      the vertical axis, so that conceptually the last row is the first one transferred. The initial value is false.
     //      Any non-zero value is interpreted as true.
     bool m_unpack_flip_y { false };
+
+    // UNPACK_PREMULTIPLY_ALPHA_WEBGL of type boolean
+    //      If set, then during any subsequent calls to texImage2D or texSubImage2D, the alpha channel of the source data,
+    //      if present, is multiplied into the color channels during the data transfer. The initial value is false.
+    //      Any non-zero value is interpreted as true.
+    bool m_unpack_premultiply_alpha { false };
 };
 
 }
