@@ -34,21 +34,21 @@ class Demuxer : public AtomicRefCounted<Demuxer> {
 public:
     virtual ~Demuxer() = default;
 
-    virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) = 0;
+    virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) = 0;
     // Returns the container's preferred track for a given track type. This must return a value if any track of the
     // given type is present.
-    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) = 0;
+    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) = 0;
 
-    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const& track) = 0;
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) = 0;
 
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const& track) = 0;
+    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) = 0;
 
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const& track) = 0;
+    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) = 0;
 
     // Returns the timestamp of the keyframe that was seeked to.
     // The value is `Optional` to allow the demuxer to decide not to seek so that it can keep its position
     // in the case that the timestamp is closer to the current time than the nearest keyframe.
-    virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;
+    virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
     virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
