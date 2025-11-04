@@ -271,6 +271,7 @@ private:
     virtual bool is_node_with_style() const final { return true; }
 
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
+    void propagate_non_inherit_values(NodeWithStyle& target_node) const;
     void propagate_style_to_anonymous_wrappers();
 
     NonnullOwnPtr<CSS::ComputedValues> m_computed_values;
