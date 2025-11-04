@@ -166,11 +166,10 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
     auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
 
     if (width > 0 && height > 0) {
-        // FIXME: Respect UNPACK_PREMULTIPLY_ALPHA_WEBGL
         // FIXME: Respect unpackColorSpace
         auto skia_format = opengl_format_and_type_to_skia_color_type(format, type);
         auto color_space = SkColorSpace::MakeSRGB();
-        auto image_info = SkImageInfo::Make(width, height, skia_format, SkAlphaType::kPremul_SkAlphaType, color_space);
+        auto image_info = SkImageInfo::Make(width, height, skia_format, m_unpack_premultiply_alpha ? SkAlphaType::kPremul_SkAlphaType : SkAlphaType::kUnpremul_SkAlphaType, color_space);
         auto surface = SkSurfaces::WrapPixels(image_info, buffer.data(), buffer_pitch.value());
         VERIFY(surface);
         auto surface_canvas = surface->getCanvas();
