@@ -104,6 +104,17 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(AK::Duration timesta
     }
 }
 
+void FFmpegAudioDecoder::signal_end_of_stream()
+{
+    m_packet->data = nullptr;
+    m_packet->size = 0;
+    m_packet->pts = 0;
+    m_packet->dts = 0;
+
+    auto result = avcodec_send_packet(m_codec_context, m_packet);
+    VERIFY(result == 0 || result == AVERROR_EOF);
+}
+
 template<typename T>
 static float float_sample_from_frame_data(u8** data, size_t plane, size_t index);
 

@@ -20,6 +20,7 @@ public:
 
     virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) = 0;
     DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ByteBuffer const& coded_data) { return receive_coded_data(timestamp, coded_data.span()); }
+    virtual void signal_end_of_stream() = 0;
     virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() = 0;
 
     virtual void flush() = 0;

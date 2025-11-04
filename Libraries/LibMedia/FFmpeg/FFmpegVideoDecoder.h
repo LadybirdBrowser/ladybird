@@ -21,6 +21,7 @@ public:
     virtual ~FFmpegVideoDecoder() override;
 
     virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
+    virtual void signal_end_of_stream() override;
     virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
     virtual void flush() override;
