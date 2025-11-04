@@ -1900,7 +1900,7 @@ ContainerType ComputedProperties::container_type() const
 {
     ContainerType container_type {};
 
-    auto const& value = property(PropertyID::Contain);
+    auto const& value = property(PropertyID::ContainerType);
 
     if (value.to_keyword() == Keyword::Normal)
         return container_type;
