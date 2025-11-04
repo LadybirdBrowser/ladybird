@@ -19,7 +19,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -120,6 +119,33 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     return bitmap;
 }
 
+RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
+{
+    VERIFY(m_document->navigable());
+
+    auto surface = Gfx::PaintingSurface::create_with_size(m_document->navigable()->skia_backend_context(), size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+
+    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
+    m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
+
+    auto display_list = m_document->record_display_list({});
+    if (!display_list)
+        return nullptr;
+
+    switch (m_page_client->display_list_player_type()) {
+    case DisplayListPlayerType::SkiaGPUIfAvailable:
+    case DisplayListPlayerType::SkiaCPU: {
+        Painting::DisplayListPlayerSkia display_list_player;
+        display_list_player.execute(*display_list, {}, surface);
+        break;
+    }
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    return surface;
+}
+
 RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::bitmap(size_t, Gfx::IntSize size) const
 {
     if (size.is_empty())
@@ -190,6 +216,41 @@ void SVGDecodedImageData::SVGPageClient::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_host_page);
     visitor.visit(m_svg_page);
+}
+
+Optional<Gfx::IntRect> SVGDecodedImageData::frame_rect(size_t) const
+{
+    return {};
+}
+
+RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize size) const
+{
+    if (size.is_empty())
+        return nullptr;
+
+    if (auto it = m_cached_rendered_surfaces.find(size); it != m_cached_rendered_surfaces.end())
+        return it->value;
+
+    // Prevent the cache from growing too big.
+    // FIXME: Evict least used entries.
+    if (m_cached_rendered_surfaces.size() > 10)
+        m_cached_rendered_surfaces.remove(m_cached_rendered_surfaces.begin());
+
+    auto surface = render_to_surface(size);
+    if (!surface)
+        return nullptr;
+    m_cached_rendered_surfaces.set(size, *surface);
+    return surface;
+}
+
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect, Gfx::ScalingMode scaling_mode) const
+{
+    auto surface = this->surface(0, dst_rect.size());
+    if (!surface)
+        return;
+
+    Gfx::IntRect src_rect(0, 0, dst_rect.width(), dst_rect.height());
+    context.display_list_recorder().draw_painting_surface(dst_rect, *surface, src_rect, scaling_mode);
 }
 
 }

@@ -37,12 +37,21 @@ public:
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
+    virtual Optional<Gfx::IntRect> frame_rect(size_t frame_index) const override;
+    virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const override;
+
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
     RefPtr<Gfx::Bitmap> render(Gfx::IntSize) const;
 
+    RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
+    RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
+
+    // FIXME: Remove this once everything is using surfaces instead.
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::ImmutableBitmap>> m_cached_rendered_bitmaps;
+
+    mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
 
     GC::Ref<Page> m_page;
     GC::Ref<SVGPageClient> m_page_client;

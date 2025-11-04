@@ -143,16 +143,18 @@ Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
 {
     all_navigables().set(*this);
 
+    auto display_list_player_type = page->client().display_list_player_type();
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
+        m_skia_backend_context = get_skia_backend_context();
+    }
+
     if (!m_is_svg_page) {
-        auto display_list_player_type = page->client().display_list_player_type();
         OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
         if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-            m_skia_backend_context = get_skia_backend_context();
             skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
         } else {
             skia_player = make<Painting::DisplayListPlayerSkia>();
         }
-
         m_rendering_thread.set_skia_player(move(skia_player));
         m_rendering_thread.start(display_list_player_type);
     }
