@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StylePropertyMapReadOnlyPrototype.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/DOM/Document.h>
@@ -61,8 +62,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
 
     // 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
     if (auto property_value = get_style_value(props, property.value())) {
-        // FIXME: Subdivide into iterations, and only reify/return the first.
-        return property_value->reify(realm(), property->name());
+        auto iterations = property_value->subdivide_into_iterations(property.value());
+        return iterations.first()->reify(realm(), property->name());
     }
 
     // 5. Otherwise, return undefined.
@@ -85,8 +86,11 @@ WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::ge
 
     // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
     if (auto property_value = get_style_value(props, property.value())) {
-        // FIXME: Subdivide into iterations.
-        return Vector { property_value->reify(realm(), property->name()) };
+        auto iterations = property_value->subdivide_into_iterations(property.value());
+        GC::RootVector<GC::Ref<CSSStyleValue>> results { heap() };
+        for (auto const& style_value : iterations)
+            results.append(style_value->reify(realm(), property->name()));
+        return results;
     }
 
     // 5. Otherwise, return an empty list.

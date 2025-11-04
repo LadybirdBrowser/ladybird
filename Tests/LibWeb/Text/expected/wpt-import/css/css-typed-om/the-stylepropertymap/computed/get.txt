@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-5 Pass
-1 Fail
+6 Pass
 Pass	Getting a custom property not in the computed style returns undefined
 Pass	Getting a valid property from computed style returns the correct entry
 Pass	Getting a valid custom property from computed style returns the correct entry
-Fail	Getting a list-valued property from computed style returns only the first value
+Pass	Getting a list-valued property from computed style returns only the first value
 Pass	Computed StylePropertyMap.get is not case-sensitive
 Pass	Computed StylePropertyMap.get reflects updates in inline style
