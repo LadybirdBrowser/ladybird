@@ -124,26 +124,25 @@ bool VideoDataProvider::ThreadData::should_thread_exit() const
     return m_exit;
 }
 
-void VideoDataProvider::ThreadData::set_cicp_values(VideoFrame& frame, CodedFrame const& coded_frame)
+void VideoDataProvider::ThreadData::set_cicp_values(VideoFrame& frame)
 {
-    // Convert the frame for display.
-    auto& cicp = frame.cicp();
-    auto container_cicp = coded_frame.auxiliary_data().get<CodedVideoFrameData>().container_cicp();
-    cicp.adopt_specified_values(container_cicp);
-    cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
+    auto& frame_cicp = frame.cicp();
+    auto const& container_cicp = m_track.video_data().cicp;
+    frame_cicp.adopt_specified_values(container_cicp);
+    frame_cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
 
     // BT.470 M, B/G, BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
     // (Chromium, VLC) forgo transfer characteristics conversion. We will emulate that behavior by
     // handling those as sRGB instead, which causes no transfer function change in the output,
     // unless display color management is later implemented.
-    switch (cicp.transfer_characteristics()) {
+    switch (frame_cicp.transfer_characteristics()) {
     case TransferCharacteristics::BT470BG:
     case TransferCharacteristics::BT470M:
     case TransferCharacteristics::BT601:
     case TransferCharacteristics::BT709:
     case TransferCharacteristics::BT2020BitDepth10:
     case TransferCharacteristics::BT2020BitDepth12:
-        cicp.set_transfer_characteristics(TransferCharacteristics::SRGB);
+        frame_cicp.set_transfer_characteristics(TransferCharacteristics::SRGB);
         break;
     default:
         break;
@@ -304,7 +303,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
                 }
 
                 auto current_frame = frame_result.release_value();
-                set_cicp_values(*current_frame, coded_frame);
+                set_cicp_values(*current_frame);
                 if (is_desired_decoded_frame(*current_frame)) {
                     auto locker = take_lock();
                     m_queue.clear();
@@ -383,7 +382,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
 
         auto frame = frame_result.release_value();
-        set_cicp_values(*frame, coded_frame);
+        set_cicp_values(*frame);
         auto bitmap_result = frame->to_bitmap();
 
         if (bitmap_result.is_error()) {

@@ -147,9 +147,24 @@ DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index
     Track track(type, stream_index, name, language);
 
     if (type == TrackType::Video) {
+        auto color_primaries = static_cast<ColorPrimaries>(stream.codecpar->color_primaries);
+        auto transfer_characteristics = static_cast<TransferCharacteristics>(stream.codecpar->color_trc);
+        auto matrix_coefficients = static_cast<MatrixCoefficients>(stream.codecpar->color_space);
+        auto color_range = [stream] {
+            switch (stream.codecpar->color_range) {
+            case AVColorRange::AVCOL_RANGE_MPEG:
+                return VideoFullRangeFlag::Studio;
+            case AVColorRange::AVCOL_RANGE_JPEG:
+                return VideoFullRangeFlag::Full;
+            default:
+                return VideoFullRangeFlag::Unspecified;
+            }
+        }();
+
         track.set_video_data({
             .pixel_width = static_cast<u64>(stream.codecpar->width),
             .pixel_height = static_cast<u64>(stream.codecpar->height),
+            .cicp = CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range),
         });
     }
 
@@ -242,20 +257,7 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
 
         auto auxiliary_data = [&]() -> CodedFrame::AuxiliaryData {
             if (track.type() == TrackType::Video) {
-                auto color_primaries = static_cast<ColorPrimaries>(stream.codecpar->color_primaries);
-                auto transfer_characteristics = static_cast<TransferCharacteristics>(stream.codecpar->color_trc);
-                auto matrix_coefficients = static_cast<MatrixCoefficients>(stream.codecpar->color_space);
-                auto color_range = [stream] {
-                    switch (stream.codecpar->color_range) {
-                    case AVColorRange::AVCOL_RANGE_MPEG:
-                        return VideoFullRangeFlag::Studio;
-                    case AVColorRange::AVCOL_RANGE_JPEG:
-                        return VideoFullRangeFlag::Full;
-                    default:
-                        return VideoFullRangeFlag::Unspecified;
-                    }
-                }();
-                return CodedVideoFrameData(CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range));
+                return CodedVideoFrameData();
             }
             if (track.type() == TrackType::Audio) {
                 return CodedAudioFrameData();

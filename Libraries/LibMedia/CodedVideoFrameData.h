@@ -6,21 +6,15 @@
 
 #pragma once
 
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
-
 namespace Media {
 
 class CodedVideoFrameData {
 public:
-    CodedVideoFrameData(CodingIndependentCodePoints container_cicp)
-        : m_container_cicp(container_cicp)
+    CodedVideoFrameData()
     {
     }
 
-    CodingIndependentCodePoints container_cicp() const { return m_container_cicp; }
-
 private:
-    CodingIndependentCodePoints m_container_cicp;
 };
 
 }

@@ -64,7 +64,7 @@ private:
         void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&&);
 
         bool should_thread_exit() const;
-        static void set_cicp_values(VideoFrame&, CodedFrame const&);
+        void set_cicp_values(VideoFrame&);
         void queue_frame(TimedImage&&);
         bool handle_seek();
         template<typename T>
