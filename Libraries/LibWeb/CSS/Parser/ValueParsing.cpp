@@ -60,6 +60,7 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
@@ -3789,6 +3790,40 @@ RefPtr<CustomIdentStyleValue const> Parser::parse_custom_ident_value(TokenStream
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-values-5/#typedef-random-value-sharing
+RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(TokenStream<ComponentValue>& tokens)
+{
+    // <random-value-sharing> = [ [ auto | <dashed-ident> ] || element-shared ] | fixed <number [0,1]>
+    auto transaction = tokens.begin_transaction();
+
+    tokens.discard_whitespace();
+
+    // fixed <number [0,1]>
+    if (tokens.next_token().is_ident("fixed"sv)) {
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::RandomValueSharingFixedValue);
+        if (auto fixed_value = parse_number_value(tokens)) {
+            tokens.discard_whitespace();
+
+            if (tokens.has_next_token())
+                return nullptr;
+
+            if (fixed_value->is_number() && (fixed_value->as_number().number() < 0 || fixed_value->as_number().number() >= 1))
+                return nullptr;
+
+            transaction.commit();
+            return RandomValueSharingStyleValue::create_fixed(fixed_value.release_nonnull());
+        }
+
+        return nullptr;
+    }
+
+    // FIXME: Support non-fixed values
+    return nullptr;
+}
+
 // https://drafts.csswg.org/css-values-4/#typedef-dashed-ident
 Optional<FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& tokens)
 {
@@ -4384,6 +4419,9 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::CubicBezierFunctionXCoordinate:
                     // Coordinates on the X axis must be between 0 and 1
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                case SpecialContext::RandomValueSharingFixedValue:
+                    // Fixed values have to be less than one and numbers serialize with six digits of precision
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 0.999999 } } } };
                 case SpecialContext::StepsIntervalsJumpNone:
                     return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 2, NumericLimits<float>::max() } } } };
                 case SpecialContext::StepsIntervalsNormal:

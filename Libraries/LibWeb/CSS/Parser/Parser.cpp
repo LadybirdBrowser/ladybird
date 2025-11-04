@@ -1718,6 +1718,12 @@ bool Parser::context_allows_tree_counting_functions() const
     return true;
 }
 
+bool Parser::context_allows_random_functions() const
+{
+    // For now we only allow random functions within property contexts, see https://drafts.csswg.org/css-values-5/#issue-cd071f29
+    return m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value();
+}
+
 Vector<ComponentValue> Parser::parse_as_list_of_component_values()
 {
     return parse_a_list_of_component_values(m_token_stream);
