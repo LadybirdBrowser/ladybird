@@ -20,6 +20,7 @@ public:
     virtual ~AudioDecoder() { }
 
     virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) = 0;
+    virtual void signal_end_of_stream() = 0;
     // Writes all buffered audio samples to the provided block.
     virtual DecoderErrorOr<void> write_next_block(AudioBlock&) = 0;
 

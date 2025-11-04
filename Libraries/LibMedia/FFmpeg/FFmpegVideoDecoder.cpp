@@ -130,6 +130,17 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timesta
     }
 }
 
+void FFmpegVideoDecoder::signal_end_of_stream()
+{
+    m_packet->data = nullptr;
+    m_packet->size = 0;
+    m_packet->pts = 0;
+    m_packet->dts = 0;
+
+    auto result = avcodec_send_packet(m_codec_context, m_packet);
+    VERIFY(result == 0 || result == AVERROR_EOF);
+}
+
 DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame()
 {
     auto result = avcodec_receive_frame(m_codec_context, m_frame);

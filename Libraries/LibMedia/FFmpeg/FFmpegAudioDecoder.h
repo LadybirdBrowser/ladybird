@@ -20,6 +20,7 @@ public:
     virtual ~FFmpegAudioDecoder() override;
 
     virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
+    virtual void signal_end_of_stream() override;
     // Writes all buffered audio samples to the provided block.
     virtual DecoderErrorOr<void> write_next_block(AudioBlock&) override;
 
