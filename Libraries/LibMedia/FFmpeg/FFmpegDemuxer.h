@@ -22,19 +22,19 @@ public:
     static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_data(ReadonlyBytes data);
     virtual ~FFmpegDemuxer() override;
 
-    virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
-    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType type) override;
+    virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
+    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;
 
-    virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions) override;
+    virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions) override;
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
 
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const& track) override;
+    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
 
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const& track) override;
+    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) override;
 
-    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const& track) override;
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
 private:
     struct TrackContext {
