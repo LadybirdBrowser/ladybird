@@ -175,26 +175,32 @@ bool AudioDataProvider::ThreadData::handle_seek()
             auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
             if (coded_frame_result.is_error()) {
                 if (coded_frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
-                    resolve_seek(seek_id);
+                    m_decoder->signal_end_of_stream();
+                } else {
+                    handle_error(coded_frame_result.release_error());
                     return true;
                 }
-                handle_error(coded_frame_result.release_error());
-                return true;
-            }
-
-            auto coded_frame = coded_frame_result.release_value();
-            auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
-            if (decode_result.is_error()) {
-                handle_error(decode_result.release_error());
-                return true;
+            } else {
+                auto coded_frame = coded_frame_result.release_value();
+                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
+                if (decode_result.is_error()) {
+                    handle_error(decode_result.release_error());
+                    return true;
+                }
             }
 
             while (new_seek_id == seek_id) {
                 AudioBlock current_block;
                 auto block_result = m_decoder->write_next_block(current_block);
                 if (block_result.is_error()) {
+                    if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
+                        resolve_seek(seek_id);
+                        return true;
+                    }
+
                     if (block_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                         break;
+
                     handle_error(block_result.release_error());
                     return true;
                 }
@@ -250,19 +256,19 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
     if (sample_result.is_error()) {
-        if (sample_result.error().category() == DecoderErrorCategory::NeedsMoreInput) {
+        if (sample_result.error().category() == DecoderErrorCategory::EndOfStream) {
+            m_decoder->signal_end_of_stream();
+        } else {
+            set_error_and_wait_for_seek(sample_result.release_error());
             return;
         }
-        // FIXME: Handle the end of the stream.
-        set_error_and_wait_for_seek(sample_result.release_error());
-        return;
-    }
-
-    auto sample = sample_result.release_value();
-    auto decode_result = m_decoder->receive_coded_data(sample.timestamp(), sample.data());
-    if (decode_result.is_error()) {
-        set_error_and_wait_for_seek(decode_result.release_error());
-        return;
+    } else {
+        auto sample = sample_result.release_value();
+        auto decode_result = m_decoder->receive_coded_data(sample.timestamp(), sample.data());
+        if (decode_result.is_error()) {
+            set_error_and_wait_for_seek(decode_result.release_error());
+            return;
+        }
     }
 
     while (true) {
