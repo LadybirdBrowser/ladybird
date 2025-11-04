@@ -13,7 +13,7 @@
 
 namespace Web::SVG {
 
-class SVGImageElement
+class SVGImageElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public Layout::ImageProvider {
@@ -39,6 +39,8 @@ public:
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize) const override;
     virtual void set_visible_in_viewport(bool) override { }
     virtual GC::Ptr<DOM::Element const> to_html_element() const override { return *this; }
+    virtual size_t current_frame_index() const override { return m_current_frame_index; }
+    virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);

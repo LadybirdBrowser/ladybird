@@ -1281,4 +1281,11 @@ bool HTMLImageElement::allows_auto_sizes() const
             || sizes->starts_with_bytes("auto,"sv, AK::CaseSensitivity::CaseInsensitive));
 }
 
+GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const
+{
+    if (!m_current_request)
+        return nullptr;
+    return m_current_request->image_data();
+}
+
 }

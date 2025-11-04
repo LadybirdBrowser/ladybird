@@ -282,4 +282,11 @@ void SVGImageElement::animate()
         paintable()->set_needs_display();
 }
 
+GC::Ptr<HTML::DecodedImageData> SVGImageElement::decoded_image_data() const
+{
+    if (!m_resource_request)
+        return nullptr;
+    return m_resource_request->image_data();
+}
+
 }
