@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -199,10 +201,110 @@ String serialize_a_css_declaration(StringView property, StringView value, Import
 }
 
 // https://drafts.csswg.org/css-syntax/#serialization
+static bool needs_comment_between(Parser::ComponentValue const& first, Parser::ComponentValue const& second)
+{
+    // For any consecutive pair of tokens, if the first token shows up in the row headings of the following table, and
+    // the second token shows up in the column headings, and there’s a ✗ in the cell denoted by the intersection of the
+    // chosen row and column, the pair of tokens must be serialized with a comment between them.
+    //
+    // If the tokenizer preserves comments, and there were comments originally between the token pair, the preserved
+    // comment(s) should be used; otherwise, an empty comment (/**/) must be inserted. (Preserved comments may be
+    // reinserted even if the following tables don’t require a comment between two tokens.)
+    //
+    // Single characters in the row and column headings represent a <delim-token> with that value, except for "(",
+    // which represents a (-token.
+    //
+    //            │ ident │ function │ url │ bad url │ - │ number │ percentage │ dimension │ CDC │ ( │ * │ %
+    // ───────────┼───────┼──────────┼─────┼─────────┼───┼────────┼────────────┼───────────┼─────┼───┼───┼───
+    // ident      │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │ ✗      │ ✗          │ ✗         │ ✗   │ ✗ │   │
+    // at-keyword │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │ ✗      │ ✗          │ ✗         │ ✗   │   │   │
+    // hash       │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │ ✗      │ ✗          │ ✗         │ ✗   │   │   │
+    // dimension  │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │ ✗      │ ✗          │ ✗         │ ✗   │   │   │
+    // #          │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │ ✗      │ ✗          │ ✗         │ ✗   │   │   │
+    // -          │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │ ✗      │ ✗          │ ✗         │ ✗   │   │   │
+    // number     │ ✗     │ ✗        │ ✗   │ ✗       │   │ ✗      │ ✗          │ ✗         │ ✗   │   │   │ ✗
+    // @          │ ✗     │ ✗        │ ✗   │ ✗       │ ✗ │        │            │           │ ✗   │   │   │
+    // .          │       │          │     │         │   │ ✗      │ ✗          │ ✗         │     │   │   │
+    // +          │       │          │     │         │   │ ✗      │ ✗          │ ✗         │     │   │   │
+    // /          │       │          │     │         │   │        │            │           │     │   │ ✗ │
+
+    if (first.is(Parser::Token::Type::Ident)) {
+        if (second.is_function())
+            return true;
+        // NB: ( may also be part of a block.
+        if (second.is_block() && second.block().is_paren())
+            return true;
+        if (!second.is_token())
+            return false;
+        if (second.token().type() == Parser::Token::Type::Delim)
+            return second.is_delim('-') || second.is_delim('(');
+        return first_is_one_of(second.token().type(),
+            Parser::Token::Type::Ident, Parser::Token::Type::Url, Parser::Token::Type::BadUrl, Parser::Token::Type::Number, Parser::Token::Type::Percentage, Parser::Token::Type::Dimension, Parser::Token::Type::CDC);
+    }
+
+    if (first.is(Parser::Token::Type::AtKeyword)
+        || first.is(Parser::Token::Type::Hash)
+        || first.is(Parser::Token::Type::Dimension)
+        || first.is_delim('#')
+        || first.is_delim('-')) {
+        if (second.is_function())
+            return true;
+        if (!second.is_token())
+            return false;
+        if (second.token().type() == Parser::Token::Type::Delim)
+            return second.token().delim() == '-';
+        return first_is_one_of(second.token().type(),
+            Parser::Token::Type::Ident, Parser::Token::Type::Url, Parser::Token::Type::BadUrl, Parser::Token::Type::Number, Parser::Token::Type::Percentage, Parser::Token::Type::Dimension, Parser::Token::Type::CDC);
+    }
+
+    if (first.is(Parser::Token::Type::Number)) {
+        if (second.is_function())
+            return true;
+        if (!second.is_token())
+            return false;
+        if (second.token().type() == Parser::Token::Type::Delim)
+            return second.token().delim() == '%';
+        return first_is_one_of(second.token().type(),
+            Parser::Token::Type::Ident, Parser::Token::Type::Url, Parser::Token::Type::BadUrl, Parser::Token::Type::Number, Parser::Token::Type::Percentage, Parser::Token::Type::Dimension, Parser::Token::Type::CDC);
+    }
+
+    if (first.is_delim('@')) {
+        if (second.is_function())
+            return true;
+        if (!second.is_token())
+            return false;
+        if (second.token().type() == Parser::Token::Type::Delim)
+            return second.token().delim() == '-';
+        return first_is_one_of(second.token().type(),
+            Parser::Token::Type::Ident, Parser::Token::Type::Url, Parser::Token::Type::BadUrl, Parser::Token::Type::CDC);
+    }
+
+    if (first.is_delim('.') || first.is_delim('+')) {
+        return second.is(Parser::Token::Type::Number) || second.is(Parser::Token::Type::Percentage) || second.is(Parser::Token::Type::Dimension);
+    }
+
+    if (first.is_delim('/')) {
+        return second.is_delim('*');
+    }
+
+    return false;
+}
+
+// https://drafts.csswg.org/css-syntax/#serialization
 String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values)
 {
-    // FIXME: There are special rules here where we should insert a comment between certain tokens. Do that!
-    return MUST(String::join(""sv, component_values));
+    Parser::TokenStream tokens { component_values };
+    StringBuilder builder;
+
+    while (tokens.has_next_token()) {
+        auto const& current_token = tokens.consume_a_token();
+        auto const& next_token = tokens.next_token();
+        builder.append(current_token.to_string());
+        if (needs_comment_between(current_token, next_token))
+            builder.append("/**/"sv);
+    }
+
+    return builder.to_string_without_validation();
 }
 
 }
