@@ -13,6 +13,7 @@
 #include <LibWeb/ARIA/StateAndProperties.h>
 #include <LibWeb/Bindings/InternalsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -340,6 +341,11 @@ bool Internals::headless()
 String Internals::dump_display_list()
 {
     return window().associated_document().dump_display_list();
+}
+
+String Internals::dump_gc_graph()
+{
+    return Bindings::main_thread_vm().heap().dump_graph().serialized();
 }
 
 GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> element)
