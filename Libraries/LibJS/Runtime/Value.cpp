@@ -386,6 +386,8 @@ String Value::to_string_without_side_effects() const
     case EMPTY_TAG:
         return "<empty>"_string;
     default:
+        if (is_cell())
+            return String::formatted("[internal object {}]", as_cell().class_name()).release_value();
         VERIFY_NOT_REACHED();
     }
 }
@@ -417,6 +419,8 @@ Utf16String Value::to_utf16_string_without_side_effects() const
     case EMPTY_TAG:
         return "<empty>"_utf16;
     default:
+        if (is_cell())
+            return Utf16String::formatted("[internal object {}]", as_cell().class_name());
         VERIFY_NOT_REACHED();
     }
 }
