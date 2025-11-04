@@ -98,6 +98,8 @@ ErrorOr<void> generate_implementation_file(JsonObject& functions_data, Core::Fil
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 
 namespace Web::CSS {
 
@@ -260,6 +262,13 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             function_generator.set("min_argument_count", String::number(min_argument_count));
             function_generator.set("max_argument_count", String::number(max_argument_count));
 
+            if (name == "random") {
+                function_generator.append(R"~~~(
+        if (!context_allows_random_functions())
+            return nullptr;
+)~~~");
+            }
+
             function_generator.append(R"~~~(
         if (arguments.size() < @min_argument_count@ || arguments.size() > @max_argument_count@) {
             ErrorReporter::the().report(InvalidValueError {
@@ -295,6 +304,14 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     } else {
                         parameter_generator.set("parameter_default", ""_string);
                     }
+                } else if (parameter_type_string == "<random-value-sharing>") {
+                    parameter_is_calculation = false;
+                    parameter_generator.set("parameter_type", "RefPtr<RandomValueSharingStyleValue const>"_string);
+                    parameter_generator.set("parse_function", MUST(String::formatted("parse_random_value_sharing(tokens_{})", parameter_index)));
+                    parameter_generator.set("check_function", " != nullptr"_string);
+                    parameter_generator.set("release_function", ".release_nonnull()"_string);
+                    // FIXME: This should be 'auto' rather than 'fixed 0' by default
+                    parameter_generator.set("parameter_default", MUST(String::formatted(" = RandomValueSharingStyleValue::create_fixed(NumberStyleValue::create(0))")));
                 } else {
                     // NOTE: This assumes everything not handled above is a calculation node of some kind.
                     parameter_is_calculation = true;
