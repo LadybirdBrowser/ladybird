@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/RefCounted.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
