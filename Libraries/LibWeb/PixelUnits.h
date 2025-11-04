@@ -415,12 +415,10 @@ constexpr CSSPixelFraction operator/(CSSPixels left, T right) { return left / CS
 inline float operator/(CSSPixels left, float right) { return left.to_float() / right; }
 inline double operator/(CSSPixels left, double right) { return left.to_double() / right; }
 
-using CSSPixelLine = Gfx::Line<CSSPixels>;
 using CSSPixelPoint = Gfx::Point<CSSPixels>;
 using CSSPixelRect = Gfx::Rect<CSSPixels>;
 using CSSPixelSize = Gfx::Size<CSSPixels>;
 
-using DevicePixelLine = Gfx::Line<DevicePixels>;
 using DevicePixelPoint = Gfx::Point<DevicePixels>;
 using DevicePixelRect = Gfx::Rect<DevicePixels>;
 using DevicePixelSize = Gfx::Size<DevicePixels>;

@@ -11,7 +11,6 @@
 #include <AK/MemoryStream.h>
 #include <AK/Variant.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>
-#include <LibGfx/Line.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
@@ -249,11 +248,6 @@ public:
         return FloatRect { TRY(read_unit()), TRY(read_unit()), TRY(read_unit()), TRY(read_unit()) };
     }
 
-    ErrorOr<FloatLine> read_line()
-    {
-        return FloatLine { TRY(read_point()), TRY(read_point()) };
-    }
-
     ErrorOr<Path> read_path(u32 segment_count)
     {
         Path path;
@@ -414,9 +408,8 @@ ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(St
             auto header = TRY(reader.read_draw_command_header(style_type));
             Path path;
             for (u32 i = 0; i < header.count; i++) {
-                auto line = TRY(reader.read_line());
-                path.move_to(line.a());
-                path.line_to(line.b());
+                path.move_to(TRY(reader.read_point()));
+                path.line_to(TRY(reader.read_point()));
             }
             TRY(draw_commands.try_append(DrawCommand { move(path), {}, move(header.line_style), header.line_width }));
             break;
