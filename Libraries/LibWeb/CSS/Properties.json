@@ -1637,7 +1637,6 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
-    "multiplicity": "list",
     "valid-types": [
       "url",
       "cursor-predefined",
