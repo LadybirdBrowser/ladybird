@@ -131,6 +131,18 @@ struct Traits<Web::CSS::OwnFontFaceKey> : public DefaultTraits<Web::CSS::OwnFont
     static unsigned hash(Web::CSS::OwnFontFaceKey const& key) { return pair_int_hash(key.family_name.hash(), pair_int_hash(key.weight, key.slope)); }
 };
 
+template<>
+struct Traits<Web::CSS::FontMatchingAlgorithmCacheKey> : public DefaultTraits<Web::CSS::FontMatchingAlgorithmCacheKey> {
+    static unsigned hash(Web::CSS::FontMatchingAlgorithmCacheKey const& key)
+    {
+        auto hash = key.family_name.hash();
+        hash = pair_int_hash(hash, key.weight);
+        hash = pair_int_hash(hash, key.slope);
+        hash = pair_int_hash(hash, Traits<float>::hash(key.font_size_in_pt));
+        return hash;
+    }
+};
+
 }
 
 namespace Web::CSS {
@@ -1694,9 +1706,17 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_desc
     return {};
 }
 
+RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
+{
+    FontMatchingAlgorithmCacheKey key { family_name, weight, slope, font_size_in_pt };
+    return m_font_matching_algorithm_cache.ensure(key, [&] {
+        return font_matching_algorithm_impl(family_name, weight, slope, font_size_in_pt);
+    });
+}
+
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm_impl(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
@@ -2948,6 +2968,7 @@ void StyleComputer::invalidate_rule_cache()
 
 void StyleComputer::did_load_font(FlyString const&)
 {
+    m_font_matching_algorithm_cache = {};
     document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
 }
 

@@ -111,6 +111,15 @@ struct OwnFontFaceKey {
     int slope { 0 };
 };
 
+struct FontMatchingAlgorithmCacheKey {
+    FlyString family_name;
+    int weight;
+    int slope;
+    float font_size_in_pt;
+
+    [[nodiscard]] bool operator==(FontMatchingAlgorithmCacheKey const& other) const = default;
+};
+
 struct RuleCache {
     HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
     HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
@@ -241,6 +250,7 @@ private:
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
+    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm_impl(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void compute_math_depth(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
@@ -309,6 +319,8 @@ private:
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
+
+    mutable HashMap<FontMatchingAlgorithmCacheKey, RefPtr<Gfx::FontCascadeList const>> m_font_matching_algorithm_cache;
 };
 
 class FontLoader final : public GC::Cell {
