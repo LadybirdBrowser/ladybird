@@ -72,6 +72,9 @@ get_build_dir() {
         "Debug")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/debug"
             ;;
+        "All_Debug")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/alldebug"
+            ;;
         "Sanitizer")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/sanitizers"
             ;;
