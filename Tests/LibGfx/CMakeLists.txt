@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestImageWriter.cpp
     TestQuad.cpp
     TestRect.cpp
+    TestLine.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
 )
