@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Media {
 
@@ -26,6 +27,7 @@ class Track {
     struct VideoData {
         u64 pixel_width { 0 };
         u64 pixel_height { 0 };
+        CodingIndependentCodePoints cicp;
     };
 
 public:

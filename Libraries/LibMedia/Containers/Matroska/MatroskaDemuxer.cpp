@@ -83,6 +83,7 @@ static Track track_from_track_entry(TrackEntry const& track_entry)
             track.set_video_data({
                 .pixel_width = video_track->pixel_width,
                 .pixel_height = video_track->pixel_height,
+                .cicp = video_track->color_format.to_cicp(),
             });
         }
     }
@@ -208,8 +209,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
     auto flags = status.block->only_keyframes() ? FrameFlags::Keyframe : FrameFlags::None;
     auto aux_data = [&] -> CodedFrame::AuxiliaryData {
         if (track.type() == TrackType::Video) {
-            auto cicp = MUST(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
-            return CodedVideoFrameData(cicp);
+            return CodedVideoFrameData();
         }
         if (track.type() == TrackType::Audio) {
             return CodedAudioFrameData();
