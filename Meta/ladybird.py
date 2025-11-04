@@ -365,7 +365,16 @@ def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
     if pattern:
         test_args.extend(["-R", pattern])
 
+    if preset == "All_Debug":
+        # don't run LibWeb, there is too much output and it takes too long
+        # benchmarks are also excluded, as they have the same issue as LibWeb
+        test_args.extend(["-E", "LibWeb"])
+        os.environ["TESTS_ONLY"] = "1"
+
     run_command(test_args, exit_on_failure=True)
+
+    if preset == "All_Debug":
+        print("Reminder: Above tests exclude LibWeb and all benchmarks")
 
 
 def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[str]):
