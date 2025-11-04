@@ -155,9 +155,8 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
     // Cross Size Determination
     // 7. Determine the hypothetical cross size of each item
-    for (auto& item : m_flex_items) {
-        determine_hypothetical_cross_size_of_item(item, false);
-    }
+    for (auto& item : m_flex_items)
+        determine_hypothetical_cross_size_of_item(item);
 
     // 8. Calculate the cross size of each flex line.
     calculate_cross_size_of_each_flex_line();
@@ -1133,27 +1132,19 @@ void FlexFormattingContext::resolve_flexible_lengths()
     }
 }
 
-// https://www.w3.org/TR/css-flexbox-1/#hypothetical-cross-size
-void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& item, bool resolve_percentage_min_max_sizes)
+// https://drafts.csswg.org/css-flexbox/#hypothetical-cross-size
+void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& item)
 {
-    // Determine the hypothetical cross size of each item by performing layout
-    // as if it were an in-flow block-level box with the used main size
-    // and the given available space, treating auto as fit-content.
+    // Determine the hypothetical cross size of each item by performing layout as if it were an in-flow block-level box
+    // with the used main size and the given available space, treating auto as fit-content.
 
     auto const& computed_min_size = this->computed_cross_min_size(item.box);
-    auto const& computed_max_size = this->computed_cross_max_size(item.box);
 
-    auto clamp_min = (!computed_min_size.is_auto() && (resolve_percentage_min_max_sizes || !computed_min_size.contains_percentage())) ? specified_cross_min_size(item) : 0;
-    auto clamp_max = (!should_treat_cross_max_size_as_none(item.box) && (resolve_percentage_min_max_sizes || !computed_max_size.contains_percentage())) ? specified_cross_max_size(item) : CSSPixels::max();
+    auto clamp_min = computed_min_size.is_auto() ? 0 : specified_cross_min_size(item);
+    auto clamp_max = should_treat_cross_max_size_as_none(item.box) ? CSSPixels::max() : specified_cross_max_size(item);
 
     // If we have a definite cross size, this is easy! No need to perform layout, we can just use it as-is.
     if (has_definite_cross_size(item)) {
-        // To avoid subtracting padding and border twice for `box-sizing: border-box` only min and max clamp should happen on a second pass
-        if (resolve_percentage_min_max_sizes) {
-            item.hypothetical_cross_size = css_clamp(item.hypothetical_cross_size, clamp_min, clamp_max);
-            return;
-        }
-
         item.hypothetical_cross_size = css_clamp(inner_cross_size(item), clamp_min, clamp_max);
         return;
     }
@@ -1946,9 +1937,8 @@ CSSPixels FlexFormattingContext::calculate_intrinsic_cross_size_of_flex_containe
 // https://drafts.csswg.org/css-flexbox-1/#intrinsic-item-contributions
 CSSPixels FlexFormattingContext::calculate_main_min_content_contribution(FlexItem const& item) const
 {
-    // The main-size min-content contribution of a flex item is
-    // the larger of its outer min-content size and outer preferred size if that is not auto,
-    // clamped by its min/max main size.
+    // The main-size min-content contribution of a flex item is the larger of its outer min-content size and outer
+    // preferred size if that is not auto, clamped by its min/max main size.
     auto larger_size = [&] {
         auto inner_min_content_size = calculate_min_content_main_size(item);
         if (computed_main_size(item.box).is_auto())
