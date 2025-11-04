@@ -683,7 +683,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_text(TrustedTypes::TrustedScrip
         TrustedTypes::TrustedTypeName::TrustedScript,
         HTML::relevant_global_object(*this),
         text,
-        TrustedTypes::InjectionSink::HTMLScriptElementtext,
+        TrustedTypes::InjectionSink::HTMLScriptElement_text,
         TrustedTypes::Script.to_string()));
 
     // 2. Set this’s script text value to the given value.
@@ -703,7 +703,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_src(TrustedTypes::TrustedScript
         TrustedTypes::TrustedTypeName::TrustedScriptURL,
         HTML::relevant_global_object(*this),
         text,
-        TrustedTypes::InjectionSink::HTMLScriptElementsrc,
+        TrustedTypes::InjectionSink::HTMLScriptElement_src,
         TrustedTypes::Script.to_string()));
 
     // 2. Set this’s src content attribute to value.
@@ -727,7 +727,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_text_content(TrustedTypes::Trus
         TrustedTypes::TrustedTypeName::TrustedScript,
         HTML::relevant_global_object(*this),
         text,
-        TrustedTypes::InjectionSink::HTMLScriptElementtextContent,
+        TrustedTypes::InjectionSink::HTMLScriptElement_textContent,
         TrustedTypes::Script.to_string()));
 
     // 2. Set this’s script text value to value.
@@ -754,7 +754,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_inner_text(TrustedTypes::Truste
         TrustedTypes::TrustedTypeName::TrustedScript,
         HTML::relevant_global_object(*this),
         text,
-        TrustedTypes::InjectionSink::HTMLScriptElementinnerText,
+        TrustedTypes::InjectionSink::HTMLScriptElement_innerText,
         TrustedTypes::Script.to_string()));
 
     // 2. Set this’s script text value to value.

@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(Utf16S
         TrustedTypes::TrustedTypeName::TrustedHTML,
         relevant_global_object(*this),
         move(string),
-        TrustedTypes::InjectionSink::DOMParserparseFromString,
+        TrustedTypes::InjectionSink::DOMParser_parseFromString,
         TrustedTypes::Script.to_string()));
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.

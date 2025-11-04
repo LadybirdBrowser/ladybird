@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
-        TrustedTypes::InjectionSink::ShadowRootinnerHTML,
+        TrustedTypes::InjectionSink::ShadowRoot_innerHTML,
         TrustedTypes::Script.to_string()));
 
     // 2. Let context be this's host.
@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLO
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         html,
-        TrustedTypes::InjectionSink::ShadowRootsetHTMLUnsafe,
+        TrustedTypes::InjectionSink::ShadowRoot_setHTMLUnsafe,
         TrustedTypes::Script.to_string()));
 
     // 2. Unsafely set HTML given this, this's shadow host, and compliantHTML.

@@ -54,7 +54,7 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
         TrustedTypeName::TrustedScript,
         request->client()->global_object(),
         Utf16String::from_utf8(encoded_script_source),
-        InjectionSink::Locationhref);
+        InjectionSink::Location_href);
 
     // If that algorithm threw an error or convertedScriptSource is not a TrustedScript object, return "Blocked" and abort further steps.
     if (converted_script_source.is_error() || !converted_script_source.value().has_value())

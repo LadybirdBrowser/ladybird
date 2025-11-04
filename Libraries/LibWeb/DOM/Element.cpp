@@ -1066,7 +1066,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
-        TrustedTypes::InjectionSink::ElementinnerHTML,
+        TrustedTypes::InjectionSink::Element_innerHTML,
         TrustedTypes::Script.to_string()));
 
     // 2. Let context be this.
@@ -2120,7 +2120,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
-        TrustedTypes::InjectionSink::ElementouterHTML,
+        TrustedTypes::InjectionSink::Element_outerHTML,
         TrustedTypes::Script.to_string()));
 
     // 2. Let parent be this's parent.
@@ -2156,7 +2156,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         string,
-        TrustedTypes::InjectionSink::ElementinsertAdjacentHTML,
+        TrustedTypes::InjectionSink::Element_insertAdjacentHTML,
         TrustedTypes::Script.to_string()));
 
     // 2. Let context be null.
@@ -3968,7 +3968,7 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrSt
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         html,
-        TrustedTypes::InjectionSink::ElementsetHTMLUnsafe,
+        TrustedTypes::InjectionSink::Element_setHTMLUnsafe,
         TrustedTypes::Script.to_string()));
 
     // 2. Let target be this's template contents if this is a template element; otherwise this.

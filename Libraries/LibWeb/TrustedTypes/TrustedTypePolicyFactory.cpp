@@ -305,10 +305,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     // 2. If attributeNs is null, and attribute is the name of an event handler content attribute, then:
     if (!attribute_ns.has_value()) {
 #undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                                                                                                      \
-    if (attribute == HTML::AttributeNames::attribute_name) {                                                                                         \
-        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                           \
-        return TrustedTypeData { "Element"_utf16, {}, attribute.to_utf8(), TrustedTypeName::TrustedScript, InjectionSink::Element##attribute_name }; \
+#define __ENUMERATE(attribute_name, event_name)                                                                                                       \
+    if (attribute == HTML::AttributeNames::attribute_name) {                                                                                          \
+        /* 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute). */                                                            \
+        return TrustedTypeData { "Element"_utf16, {}, attribute.to_utf8(), TrustedTypeName::TrustedScript, InjectionSink::Element_##attribute_name }; \
     }
         ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
@@ -316,10 +316,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
     }
 
     static Vector<TrustedTypeData> const table {
-        { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElementsrcdoc },
-        { "HTMLScriptElement"_utf16, {}, HTML::AttributeNames::src, TrustedTypeName::TrustedScriptURL, InjectionSink::HTMLScriptElementsrc },
-        { "SVGScriptElement"_utf16, {}, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElementhref },
-        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElementhref },
+        { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElement_srcdoc },
+        { "HTMLScriptElement"_utf16, {}, HTML::AttributeNames::src, TrustedTypeName::TrustedScriptURL, InjectionSink::HTMLScriptElement_src },
+        { "SVGScriptElement"_utf16, {}, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElement_href },
+        { "SVGScriptElement"_utf16, Utf16String::from_utf8(Namespace::XLink), HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElement_href },
     };
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,
