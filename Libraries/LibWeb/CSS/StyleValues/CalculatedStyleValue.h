@@ -754,7 +754,7 @@ private:
 
 class RandomCalculationNode final : public CalculationNode {
 public:
-    static NonnullRefPtr<RandomCalculationNode const> create(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum);
+    static NonnullRefPtr<RandomCalculationNode const> create(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, RefPtr<CalculationNode const> step);
     ~RandomCalculationNode();
 
     virtual bool contains_percentage() const override;
@@ -770,10 +770,11 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
+    RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, RefPtr<CalculationNode const>, Optional<NumericType>);
     ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> m_random_value_sharing;
     ValueComparingNonnullRefPtr<CalculationNode const> m_minimum;
     ValueComparingNonnullRefPtr<CalculationNode const> m_maximum;
+    ValueComparingRefPtr<CalculationNode const> m_step;
 };
 
 class RemCalculationNode final : public CalculationNode {
