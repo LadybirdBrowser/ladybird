@@ -8,6 +8,8 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 
 namespace Web::HTML {
 
@@ -54,6 +56,16 @@ Optional<CSSPixels> AnimatedBitmapDecodedImageData::intrinsic_height() const
 Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_ratio() const
 {
     return CSSPixels(m_frames.first().bitmap->width()) / CSSPixels(m_frames.first().bitmap->height());
+}
+
+Optional<Gfx::IntRect> AnimatedBitmapDecodedImageData::frame_rect(size_t frame_index) const
+{
+    return m_frames[frame_index].bitmap->rect();
+}
+
+void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const
+{
+    context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, clip_rect, *m_frames[frame_index].bitmap, scaling_mode);
 }
 
 }
