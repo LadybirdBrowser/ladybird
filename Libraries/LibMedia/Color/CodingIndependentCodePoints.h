@@ -126,10 +126,10 @@ public:
     }
 
 private:
-    ColorPrimaries m_color_primaries = ColorPrimaries::BT709;
-    TransferCharacteristics m_transfer_characteristics = TransferCharacteristics::BT709;
-    MatrixCoefficients m_matrix_coefficients = MatrixCoefficients::BT709;
-    VideoFullRangeFlag m_video_full_range_flag = VideoFullRangeFlag::Full;
+    ColorPrimaries m_color_primaries = ColorPrimaries::Unspecified;
+    TransferCharacteristics m_transfer_characteristics = TransferCharacteristics::Unspecified;
+    MatrixCoefficients m_matrix_coefficients = MatrixCoefficients::Unspecified;
+    VideoFullRangeFlag m_video_full_range_flag = VideoFullRangeFlag::Unspecified;
 };
 
 constexpr StringView color_primaries_to_string(ColorPrimaries color_primaries)
