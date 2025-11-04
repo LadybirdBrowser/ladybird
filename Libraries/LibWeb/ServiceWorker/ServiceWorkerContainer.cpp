@@ -68,7 +68,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(TrustedTypes::Trusted
         TrustedTypes::TrustedTypeName::TrustedScriptURL,
         HTML::relevant_global_object(*this),
         script_url,
-        TrustedTypes::InjectionSink::ServiceWorkerContainerregister,
+        TrustedTypes::InjectionSink::ServiceWorkerContainer_register,
         TrustedTypes::Script.to_string()));
 
     // 3 Let client be this's service worker client.

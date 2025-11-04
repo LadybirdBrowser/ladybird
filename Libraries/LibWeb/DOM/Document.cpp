@@ -649,14 +649,14 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 WebIDL::ExceptionOr<void> Document::write(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
 {
     // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
-    return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::Documentwrite);
+    return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::Document_write);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
 WebIDL::ExceptionOr<void> Document::writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
 {
     // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
-    return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::Documentwriteln);
+    return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::Document_writeln);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
@@ -6373,7 +6373,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::current_principal_global_object(),
         html,
-        TrustedTypes::InjectionSink::DocumentparseHTMLUnsafe,
+        TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
         TrustedTypes::Script.to_string()));
 
     // 2. Let document be a new Document, whose content type is "text/html".

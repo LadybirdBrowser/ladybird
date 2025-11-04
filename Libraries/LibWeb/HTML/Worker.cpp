@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(TrustedTypes::TrustedScriptU
         TrustedTypes::TrustedTypeName::TrustedScriptURL,
         HTML::relevant_global_object(document),
         script_url,
-        TrustedTypes::InjectionSink::Workerconstructor,
+        TrustedTypes::InjectionSink::Worker_constructor,
         TrustedTypes::Script.to_string()));
 
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with compliant_script_url = {}", compliant_script_url);

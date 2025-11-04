@@ -33,7 +33,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
         TrustedTypes::TrustedTypeName::TrustedScriptURL,
         realm.global_object(),
         script_url,
-        TrustedTypes::InjectionSink::SharedWorkerconstructor,
+        TrustedTypes::InjectionSink::SharedWorker_constructor,
         TrustedTypes::Script.to_string()));
 
     // 2. If options is a DOMString, set options to a new WorkerOptions dictionary whose name member is set to the value

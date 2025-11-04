@@ -1227,7 +1227,7 @@ bool command_insert_html_action(DOM::Document& document, Utf16String const& valu
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(document),
         value,
-        TrustedTypes::InjectionSink::DocumentexecCommand,
+        TrustedTypes::InjectionSink::Document_execCommand,
         TrustedTypes::Script.to_string()));
 
     // 2. Delete the selection.

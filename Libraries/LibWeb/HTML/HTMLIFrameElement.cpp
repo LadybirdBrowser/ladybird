@@ -326,7 +326,7 @@ WebIDL::ExceptionOr<void> HTMLIFrameElement::set_srcdoc(TrustedTypes::TrustedHTM
         TrustedTypes::TrustedTypeName::TrustedHTML,
         HTML::relevant_global_object(*this),
         value,
-        TrustedTypes::InjectionSink::HTMLIFrameElementsrcdoc,
+        TrustedTypes::InjectionSink::HTMLIFrameElement_srcdoc,
         TrustedTypes::Script.to_string()));
 
     // 2. Set an attribute value given this, srcdoc's local name, and compliantString.
