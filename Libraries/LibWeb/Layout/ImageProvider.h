@@ -19,6 +19,10 @@ public:
 
     virtual bool is_image_available() const = 0;
 
+    virtual size_t current_frame_index() const = 0;
+
+    virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const = 0;
+
     virtual Optional<CSSPixels> intrinsic_width() const = 0;
     virtual Optional<CSSPixels> intrinsic_height() const = 0;
     Optional<CSSPixelSize> intrinsic_size() const;

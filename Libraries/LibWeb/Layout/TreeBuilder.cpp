@@ -230,6 +230,12 @@ public:
         m_layout_node = layout_node;
     }
 
+    virtual size_t current_frame_index() const override { return 0; }
+    virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
+    {
+        return m_image->image_data();
+    }
+
 private:
     GeneratedContentImageProvider(NonnullRefPtr<CSS::ImageStyleValue> image)
         : Client(image)
