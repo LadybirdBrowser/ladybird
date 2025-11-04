@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,9 +23,9 @@ CSSPixels FlexFormattingContext::get_pixel_width(FlexItem const& item, CSS::Size
 
 CSSPixels FlexFormattingContext::get_pixel_height(FlexItem const& item, CSS::Size const& size) const
 {
-    if (is_row_layout()) {
-        // NOTE: In a row layout, after we've determined the main size, we use that as the available width
-        //       for any intrinsic sizing layout needed to resolve the height.
+    if (is_row_layout() && size.is_intrinsic_sizing_constraint()) {
+        // NOTE: In a row layout, after we've determined the main size, we use that as the available width for any
+        //       intrinsic sizing layout needed to resolve the height.
         auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();
         auto available_space = AvailableSpace { available_width, available_height };
