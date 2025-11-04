@@ -1,0 +1,137 @@
+<!doctype html>
+<title>Serialization of consecutive tokens.</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<meta name="author" title="Tab Atkins-Bittner">
+<link rel=help href="https://drafts.csswg.org/css-syntax/#serialization">
+<body>
+<!--
+    The serialization chapter provides a table listing all the combinations of consecutive tokens that will,
+    if naively serialized next to each other,
+    produce a different set of tokens when re-parsed.
+    The spec requires that a comment must be inserted between such tokens in the serialization,
+    to ensure that they round-trip correctly.
+-->
+
+<script>
+
+function testTokenPairs(t1, t2) {
+    const b = document.body;
+    test(()=>{
+        b.style.setProperty("--t1", t1);
+        b.style.setProperty("--t2", t2);
+        b.style.setProperty("--result", "var(--t1)var(--t2)");
+        const result = getComputedStyle(b).getPropertyValue("--result");
+        assert_equals(result.slice(0, t1.length), t1, `Result must start with ${t1}`);
+        assert_equals(result.slice(-t2.length), t2, `Result must end with ${t2}`);
+        assert_not_equals(result, t1+t2, `Result must have a comment between ${t1} and ${t2}`);
+    }, `Serialization of consecutive ${t1} and ${t2} tokens.`);
+}
+testTokenPairs("foo", "bar");
+testTokenPairs("foo", "bar()");
+testTokenPairs("foo", "url(bar)");
+testTokenPairs("foo", "-");
+testTokenPairs("foo", "123");
+testTokenPairs("foo", "123%");
+testTokenPairs("foo", "123em");
+testTokenPairs("foo", "-->");
+testTokenPairs("foo", "()");
+
+testTokenPairs("@foo", "bar");
+testTokenPairs("@foo", "bar()");
+testTokenPairs("@foo", "url(bar)");
+testTokenPairs("@foo", "-");
+testTokenPairs("@foo", "123");
+testTokenPairs("@foo", "123%");
+testTokenPairs("@foo", "123em");
+testTokenPairs("@foo", "-->");
+
+testTokenPairs("#foo", "bar");
+testTokenPairs("#foo", "bar()");
+testTokenPairs("#foo", "url(bar)");
+testTokenPairs("#foo", "-");
+testTokenPairs("#foo", "123");
+testTokenPairs("#foo", "123%");
+testTokenPairs("#foo", "123em");
+testTokenPairs("#foo", "-->");
+
+testTokenPairs("123foo", "bar");
+testTokenPairs("123foo", "bar()");
+testTokenPairs("123foo", "url(bar)");
+testTokenPairs("123foo", "-");
+testTokenPairs("123foo", "123");
+testTokenPairs("123foo", "123%");
+testTokenPairs("123foo", "123em");
+testTokenPairs("123foo", "-->");
+
+testTokenPairs("#", "bar");
+testTokenPairs("#", "bar()");
+testTokenPairs("#", "url(bar)");
+testTokenPairs("#", "-");
+testTokenPairs("#", "123");
+testTokenPairs("#", "123%");
+testTokenPairs("#", "123em");
+
+testTokenPairs("-", "bar");
+testTokenPairs("-", "bar()");
+testTokenPairs("-", "url(bar)");
+testTokenPairs("-", "-");
+testTokenPairs("-", "123");
+testTokenPairs("-", "123%");
+testTokenPairs("-", "123em");
+
+testTokenPairs("123", "bar");
+testTokenPairs("123", "bar()");
+testTokenPairs("123", "url(bar)");
+testTokenPairs("123", "123");
+testTokenPairs("123", "123%");
+testTokenPairs("123", "123em");
+testTokenPairs("123", "%");
+
+testTokenPairs("@", "bar");
+testTokenPairs("@", "bar()");
+testTokenPairs("@", "url(bar)");
+testTokenPairs("@", "-");
+
+testTokenPairs(".", "123");
+testTokenPairs(".", "123%");
+testTokenPairs(".", "123em");
+
+testTokenPairs("+", "123");
+testTokenPairs("+", "123%");
+testTokenPairs("+", "123em");
+
+testTokenPairs("/", "*");
+
+// Test that interior comments are preserved, but exterior ones are not.
+function testComments(text, t1, expected) {
+    const b = document.body;
+    test(()=>{
+        b.style.setProperty("--t1", t1);
+        b.style.setProperty("--result", text);
+        const result = getComputedStyle(b).getPropertyValue("--result");
+        assert_equals(result, expected);
+    }, `Comments are handled correctly when computing ${text} using t1:${t1}.`);
+}
+testComments("a/* comment */b", "", "a/* comment */b");
+testComments("a/* comment */var(--t1)", "b", "a/**/b");
+testComments("var(--t1)b", "a/* comment */", "a/**/b");
+
+// Test comments within quotes.
+testComments("var(--t1)b", "'a/* unfinished '", "'a/* unfinished 'b");
+testComments("var(--t1)b", "\"a/* unfinished \"", "\"a/* unfinished \"b");
+testComments("var(--t1)b", "'a \" '/* comment */", "'a \" 'b");
+
+test(()=>{
+    const b = document.body;
+    b.style.setProperty("--t1", "a");
+    b.style.setProperty("--t2", "b");
+    b.style.setProperty("--result", "var(--t1)var(--does-not-exist,)var(--t2)");
+    const result = getComputedStyle(b).getPropertyValue("--result");
+    assert_equals(result[0], "a", `Result must start with a`);
+    assert_equals(result[result.length - 1], "b", `Result must end with b`);
+    assert_not_equals(result, "ab", `Result must have a comment between a and b`);
+}, 'Empty fallback between tokens must not disturb comment insertion');
+
+</script>
