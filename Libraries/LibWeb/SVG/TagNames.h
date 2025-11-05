@@ -22,6 +22,10 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(feComponentTransfer) \
     __ENUMERATE_SVG_TAG(feComposite)         \
     __ENUMERATE_SVG_TAG(feFlood)             \
+    __ENUMERATE_SVG_TAG(feFuncA)             \
+    __ENUMERATE_SVG_TAG(feFuncB)             \
+    __ENUMERATE_SVG_TAG(feFuncG)             \
+    __ENUMERATE_SVG_TAG(feFuncR)             \
     __ENUMERATE_SVG_TAG(feGaussianBlur)      \
     __ENUMERATE_SVG_TAG(feImage)             \
     __ENUMERATE_SVG_TAG(feMerge)             \

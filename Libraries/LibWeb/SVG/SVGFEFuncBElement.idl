@@ -1,0 +1,6 @@
+#import <SVG/SVGComponentTransferFunctionElement.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEFuncBElement
+[Exposed=Window]
+interface SVGFEFuncBElement : SVGComponentTransferFunctionElement {
+};

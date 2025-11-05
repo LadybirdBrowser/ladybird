@@ -918,6 +918,10 @@ set(SOURCES
     SVG/SVGFEComponentTransferElement.cpp
     SVG/SVGFECompositeElement.cpp
     SVG/SVGFEFloodElement.cpp
+    SVG/SVGFEFuncAElement.cpp
+    SVG/SVGFEFuncBElement.cpp
+    SVG/SVGFEFuncGElement.cpp
+    SVG/SVGFEFuncRElement.cpp
     SVG/SVGFEGaussianBlurElement.cpp
     SVG/SVGFEImageElement.cpp
     SVG/SVGFEMergeElement.cpp
