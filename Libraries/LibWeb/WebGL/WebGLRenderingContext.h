@@ -81,8 +81,6 @@ private:
     // - clear, drawArrays, or drawElements has been called while the drawing buffer is the currently bound framebuffer
     bool m_should_present { true };
 
-    GLenum m_error { 0 };
-
     Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
 
     // Extensions
@@ -94,8 +92,6 @@ private:
     GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
     GC::Ptr<Extensions::WebGLCompressedTextureS3tcSrgb> m_webgl_compressed_texture_s3tc_srgb_extension;
     GC::Ptr<Extensions::WebGLDrawBuffers> m_webgl_draw_buffers_extension;
-
-    virtual void set_error(GLenum error) override;
 };
 
 void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);

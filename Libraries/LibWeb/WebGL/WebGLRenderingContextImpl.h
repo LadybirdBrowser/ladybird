@@ -28,7 +28,7 @@ public:
 
     virtual void present() = 0;
     virtual void needs_to_present() = 0;
-    virtual void set_error(GLenum) = 0;
+
     void active_texture(WebIDL::UnsignedLong texture);
     void attach_shader(GC::Root<WebGLProgram> program, GC::Root<WebGLShader> shader);
     void bind_attrib_location(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index, String name);
