@@ -15,6 +15,8 @@
 #include <core/SkBitmap.h>
 #include <core/SkColorSpace.h>
 #include <core/SkImage.h>
+#include <core/SkImageInfo.h>
+#include <core/SkPixmap.h>
 #include <errno.h>
 
 #ifdef AK_OS_MACOS
@@ -354,20 +356,20 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
     }
     VERIFY(err == kvImageNoError);
 #else
-    // FIXME: Make this fast on other platforms too.
-    if (m_alpha_type == AlphaType::Unpremultiplied) {
-        for (auto y = 0; y < height(); ++y) {
-            for (auto x = 0; x < width(); ++x)
-                set_pixel(x, y, get_pixel(x, y).to_premultiplied());
-        }
-    } else if (m_alpha_type == AlphaType::Premultiplied) {
-        for (auto y = 0; y < height(); ++y) {
-            for (auto x = 0; x < width(); ++x)
-                set_pixel(x, y, get_pixel(x, y).to_unpremultiplied());
-        }
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+    auto color_type = to_skia_color_type(m_format);
+    auto source_alpha = to_skia_alpha_type(m_format, m_alpha_type);
+    auto destination_alpha = to_skia_alpha_type(m_format, alpha_type);
+
+    auto color_space = SkColorSpace::MakeSRGB();
+
+    auto source_info = SkImageInfo::Make(width(), height(), color_type, source_alpha, color_space);
+    auto destination_info = SkImageInfo::Make(width(), height(), color_type, destination_alpha, color_space);
+
+    SkPixmap src_pixmap(source_info, m_data, pitch());
+    SkPixmap dst_pixmap(destination_info, m_data, pitch());
+
+    bool ok = src_pixmap.readPixels(dst_pixmap);
+    VERIFY(ok);
 #endif
     m_alpha_type = alpha_type;
 }
