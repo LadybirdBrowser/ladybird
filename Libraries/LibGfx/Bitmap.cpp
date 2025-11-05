@@ -321,17 +321,20 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
     if (alpha_type == m_alpha_type)
         return;
 
+    if (m_format == BitmapFormat::BGRx8888 || m_format == BitmapFormat::RGBx8888) {
+        m_alpha_type = alpha_type;
+        return;
+    }
+
 #ifdef AK_OS_MACOS
     vImage_Buffer buf { .data = m_data, .height = vImagePixelCount(height()), .width = vImagePixelCount(width()), .rowBytes = pitch() };
     vImage_Error err;
     if (m_alpha_type == AlphaType::Unpremultiplied) {
         switch (m_format) {
         case BitmapFormat::BGRA8888:
-        case BitmapFormat::BGRx8888:
             err = vImagePremultiplyData_BGRA8888(&buf, &buf, kvImageNoFlags);
             break;
         case BitmapFormat::RGBA8888:
-        case BitmapFormat::RGBx8888:
             err = vImagePremultiplyData_RGBA8888(&buf, &buf, kvImageNoFlags);
             break;
         default:
@@ -340,11 +343,9 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
     } else {
         switch (m_format) {
         case BitmapFormat::BGRA8888:
-        case BitmapFormat::BGRx8888:
             err = vImageUnpremultiplyData_BGRA8888(&buf, &buf, kvImageNoFlags);
             break;
         case BitmapFormat::RGBA8888:
-        case BitmapFormat::RGBx8888:
             err = vImageUnpremultiplyData_RGBA8888(&buf, &buf, kvImageNoFlags);
             break;
         default:
