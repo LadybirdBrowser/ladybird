@@ -53,6 +53,11 @@ void WebGLRenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLong
 {
     m_context->make_current();
 
+    if (!enabled_compressed_texture_formats().contains_slow(internalformat)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
     auto span = MUST(get_offset_span<u8 const>(*data, /* src_offset= */ 0));
     glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, span.size(), span.size(), span.data());
 }
@@ -60,6 +65,11 @@ void WebGLRenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLong
 void WebGLRenderingContextOverloads::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> data)
 {
     m_context->make_current();
+
+    if (!enabled_compressed_texture_formats().contains_slow(format)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
 
     auto span = MUST(get_offset_span<u8 const>(*data, /* src_offset= */ 0));
     glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, span.size(), span.size(), span.data());

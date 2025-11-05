@@ -166,6 +166,11 @@ void WebGL2RenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLon
 {
     m_context->make_current();
 
+    if (!enabled_compressed_texture_formats().contains_slow(internalformat)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
     auto pixels = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset, src_length_override), GL_INVALID_VALUE);
     glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, pixels.size(), pixels.size(), pixels.data());
 }
@@ -173,6 +178,11 @@ void WebGL2RenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLon
 void WebGL2RenderingContextOverloads::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
 {
     m_context->make_current();
+
+    if (!enabled_compressed_texture_formats().contains_slow(format)) {
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
 
     auto pixels = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset, src_length_override), GL_INVALID_VALUE);
     glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, pixels.size(), pixels.size(), pixels.data());
