@@ -21,7 +21,6 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/ProxyMappings.h>
-#include <LibWeb/Loader/Resource.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -94,44 +93,6 @@ void ResourceLoader::preconnect(URL::URL const& url)
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (m_request_client)
         m_request_client->ensure_connection(url, RequestServer::CacheLevel::CreateConnection);
-}
-
-static HashMap<LoadRequest, NonnullRefPtr<Resource>> s_resource_cache;
-
-RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest& request)
-{
-    if (!request.is_valid())
-        return nullptr;
-
-    bool use_cache = request.url()->scheme() != "file";
-
-    if (use_cache) {
-        auto it = s_resource_cache.find(request);
-        if (it != s_resource_cache.end()) {
-            if (it->value->type() != type) {
-                dbgln("FIXME: Not using cached resource for {} since there's a type mismatch.", request.url());
-            } else {
-                dbgln_if(CACHE_DEBUG, "Reusing cached resource for: {}", request.url());
-                return it->value;
-            }
-        }
-    }
-
-    auto resource = Resource::create({}, type, request);
-
-    if (use_cache)
-        s_resource_cache.set(request, resource);
-
-    load(
-        request,
-        GC::create_function(m_heap, [resource](ReadonlyBytes data, Requests::RequestTimingInfo const&, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
-            resource->did_load({}, data, headers, status_code);
-        }),
-        GC::create_function(m_heap, [resource](ByteString const& error, Requests::RequestTimingInfo const&, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
-            resource->did_fail({}, error, data, headers, status_code);
-        }));
-
-    return resource;
 }
 
 static ByteString sanitized_url_for_logging(URL::URL const& url)
@@ -585,11 +546,6 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
             }
         }
     }
-
-    if (auto cache_control = response_headers.get("Cache-Control"); cache_control.has_value()) {
-        if (cache_control.value().contains("no-store"sv))
-            s_resource_cache.remove(request);
-    }
 }
 
 void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> protocol_request)
@@ -602,18 +558,6 @@ void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> pro
         auto did_remove = m_active_requests.remove(protocol_request);
         VERIFY(did_remove);
     });
-}
-
-void ResourceLoader::clear_cache()
-{
-    dbgln_if(CACHE_DEBUG, "Clearing {} items from ResourceLoader cache", s_resource_cache.size());
-    s_resource_cache.clear();
-}
-
-void ResourceLoader::evict_from_cache(LoadRequest const& request)
-{
-    dbgln_if(CACHE_DEBUG, "Removing resource {} from cache", request.url());
-    s_resource_cache.remove(request);
 }
 
 }

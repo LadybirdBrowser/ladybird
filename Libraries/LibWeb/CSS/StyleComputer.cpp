@@ -92,6 +92,7 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <math.h>
@@ -3097,7 +3098,7 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
 static CSSPixels line_width_keyword_to_css_pixels(Keyword keyword)
 {
     // https://drafts.csswg.org/css-backgrounds/#typedef-line-width
-    //	The thin, medium, and thick keywords are equivalent to 1px, 3px, and 5px, respectively.
+    // The thin, medium, and thick keywords are equivalent to 1px, 3px, and 5px, respectively.
     switch (keyword) {
     case Keyword::Thin:
         return CSSPixels { 1 };

@@ -386,7 +386,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "clear-cache") {
-        Web::ResourceLoader::the().clear_cache();
+        // FIXME: Clear the Fetch cache.
         return;
     }
 

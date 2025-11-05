@@ -11,23 +11,23 @@
 #include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
+#include <LibGC/Function.h>
+#include <LibHTTP/HeaderMap.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Export.h>
-#include <LibWeb/Loader/Resource.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Loader/UserAgent.h>
 
 namespace Web {
 
 class WEB_API ResourceLoader : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ResourceLoader)
+
 public:
     static void initialize(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);
     static ResourceLoader& the();
 
     void set_client(NonnullRefPtr<Requests::RequestClient>);
-
-    RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
     using SuccessCallback = GC::Function<void(ReadonlyBytes, Requests::RequestTimingInfo const&, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
     using ErrorCallback = GC::Function<void(ByteString const&, Requests::RequestTimingInfo const&, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
@@ -68,11 +68,6 @@ public:
 
     bool enable_global_privacy_control() const { return m_enable_global_privacy_control; }
     void set_enable_global_privacy_control(bool enable) { m_enable_global_privacy_control = enable; }
-
-    void clear_cache();
-    void evict_from_cache(LoadRequest const&);
-
-    GC::Heap& heap() { return m_heap; }
 
 private:
     explicit ResourceLoader(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);
