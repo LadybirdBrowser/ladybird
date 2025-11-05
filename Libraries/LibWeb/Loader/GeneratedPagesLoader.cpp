@@ -10,6 +10,7 @@
 #include <LibCore/Directory.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 

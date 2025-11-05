@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CookieStore/CookieStore.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/EventNames.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 

@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Export.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Loader/Resource.h>
+#include <LibURL/Forward.h>
+#include <LibWeb/Forward.h>
 
 namespace Web {
 
