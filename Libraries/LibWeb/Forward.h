@@ -1236,6 +1236,7 @@ class EXTColorBufferFloat;
 class EXTRenderSnorm;
 class EXTTextureFilterAnisotropic;
 class EXTTextureNorm16;
+class OESStandardDerivatives;
 class OESVertexArrayObject;
 class WebGLCompressedTextureS3tc;
 class WebGLCompressedTextureS3tcSrgb;

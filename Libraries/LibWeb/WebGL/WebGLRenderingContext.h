@@ -52,6 +52,7 @@ public:
 
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
     virtual bool angle_instanced_arrays_extension_enabled() const override;
+    virtual bool oes_standard_derivatives_extension_enabled() const override;
     virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const override;
 
 private:
@@ -88,6 +89,7 @@ private:
     GC::Ptr<Extensions::ANGLEInstancedArrays> m_angle_instanced_arrays_extension;
     GC::Ptr<Extensions::EXTBlendMinMax> m_ext_blend_min_max_extension;
     GC::Ptr<Extensions::EXTTextureFilterAnisotropic> m_ext_texture_filter_anisotropic;
+    GC::Ptr<Extensions::OESStandardDerivatives> m_oes_standard_derivatives_object_extension;
     GC::Ptr<Extensions::OESVertexArrayObject> m_oes_vertex_array_object_extension;
     GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
     GC::Ptr<Extensions::WebGLCompressedTextureS3tcSrgb> m_webgl_compressed_texture_s3tc_srgb_extension;
