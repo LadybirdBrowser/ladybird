@@ -139,9 +139,9 @@ private:
     bool linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
     bool stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
 
-    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer>);
+    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
     void process_icon_resource();
-    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer>);
+    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
 
     struct Relationship {
         enum {
