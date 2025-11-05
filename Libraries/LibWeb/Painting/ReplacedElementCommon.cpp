@@ -14,15 +14,20 @@ namespace Web::Painting {
 
 Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size)
 {
+    if (content_size.is_empty())
+        return {};
+
     auto paintable_rect = paintable.absolute_rect();
+    if (paintable_rect.is_empty())
+        return {};
 
     auto paintable_rect_device_pixels = context.rounded_device_rect(paintable_rect);
 
-    auto bitmap_aspect_ratio = (float)content_size.height() / content_size.width();
-    auto image_aspect_ratio = (float)paintable_rect.height() / (float)paintable_rect.width();
+    auto bitmap_aspect_ratio = CSSPixels(content_size.height()) / content_size.width();
+    auto image_aspect_ratio = paintable_rect.height() / paintable_rect.width();
 
-    auto scale_x = 0.0f;
-    auto scale_y = 0.0f;
+    auto scale_x = CSSPixelFraction(1);
+    auto scale_y = CSSPixelFraction(1);
 
     if (object_fit == CSS::ObjectFit::ScaleDown) {
         if (content_size.width() > paintable_rect.width() || content_size.height() > paintable_rect.height()) {
@@ -34,36 +39,35 @@ Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, Displ
 
     switch (object_fit) {
     case CSS::ObjectFit::Fill:
-        scale_x = (float)paintable_rect.width() / content_size.width();
-        scale_y = (float)paintable_rect.height() / content_size.height();
+        scale_x = paintable_rect.width() / content_size.width();
+        scale_y = paintable_rect.height() / content_size.height();
         break;
     case CSS::ObjectFit::Contain:
         if (bitmap_aspect_ratio >= image_aspect_ratio) {
-            scale_x = (float)paintable_rect.height() / content_size.height();
+            scale_x = paintable_rect.height() / content_size.height();
             scale_y = scale_x;
         } else {
-            scale_x = (float)paintable_rect.width() / content_size.width();
+            scale_x = paintable_rect.width() / content_size.width();
             scale_y = scale_x;
         }
         break;
     case CSS::ObjectFit::Cover:
         if (bitmap_aspect_ratio >= image_aspect_ratio) {
-            scale_x = (float)paintable_rect.width() / content_size.width();
+            scale_x = paintable_rect.width() / content_size.width();
             scale_y = scale_x;
         } else {
-            scale_x = (float)paintable_rect.height() / content_size.height();
+            scale_x = paintable_rect.height() / content_size.height();
             scale_y = scale_x;
         }
         break;
     case CSS::ObjectFit::ScaleDown:
         VERIFY_NOT_REACHED(); // handled outside the switch-case
     case CSS::ObjectFit::None:
-        scale_x = 1;
-        scale_y = 1;
+        break;
     }
 
-    auto scaled_bitmap_width = CSSPixels::nearest_value_for(content_size.width() * scale_x);
-    auto scaled_bitmap_height = CSSPixels::nearest_value_for(content_size.height() * scale_y);
+    auto scaled_bitmap_width = CSSPixels(content_size.width()) * scale_x;
+    auto scaled_bitmap_height = CSSPixels(content_size.height()) * scale_y;
 
     auto residual_horizontal = paintable_rect.width() - scaled_bitmap_width;
     auto residual_vertical = paintable_rect.height() - scaled_bitmap_height;
