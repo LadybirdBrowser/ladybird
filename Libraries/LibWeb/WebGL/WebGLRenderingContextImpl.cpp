@@ -1535,7 +1535,7 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
 WebIDL::UnsignedLong WebGLRenderingContextImpl::get_error()
 {
     m_context->make_current();
-    return glGetError();
+    return get_error_value();
 }
 
 JS::Value WebGLRenderingContextImpl::get_program_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong pname)

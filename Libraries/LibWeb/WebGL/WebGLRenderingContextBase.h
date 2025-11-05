@@ -138,6 +138,7 @@ protected:
         return result;
     }
 
+    GLenum get_error_value();
     void set_error(GLenum error);
 
     // UNPACK_FLIP_Y_WEBGL of type boolean
