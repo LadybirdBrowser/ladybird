@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Declaration changes on 'color' propagate to all variable references
+Fail	Declaration changes on 'background-color' propagate to all variable references
+Fail	Declaration changes on 'white-space' propagate to all variable references

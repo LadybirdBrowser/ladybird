@@ -6842,11 +6842,6 @@ Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_val
     VERIFY_NOT_REACHED();
 }
 
-HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>>& Document::registered_custom_properties()
-{
-    return m_registered_custom_properties;
-}
-
 WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
 {
     auto& realm = this->realm();

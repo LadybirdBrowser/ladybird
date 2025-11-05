@@ -1379,12 +1379,12 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
     auto expand_shorthands = [&](Vector<StyleProperty>& properties) -> Vector<StyleProperty> {
         Vector<StyleProperty> expanded_properties;
         for (auto& property : properties) {
-            if (property_is_shorthand(property.property_id)) {
-                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, [&](PropertyID longhand_property_id, StyleValue const& longhand_value) {
+            if (property_is_shorthand(property.name_and_id.id())) {
+                StyleComputer::for_each_property_expanding_shorthands(property.name_and_id.id(), *property.value, [&](PropertyID longhand_property_id, StyleValue const& longhand_value) {
                     expanded_properties.append(CSS::StyleProperty {
-                        .important = property.important,
-                        .property_id = longhand_property_id,
+                        .name_and_id = PropertyNameAndID::from_id(longhand_property_id),
                         .value = longhand_value,
+                        .important = property.important,
                     });
                 });
             } else {
@@ -1598,8 +1598,8 @@ void Parser::extract_property(Declaration const& declaration, PropertiesAndCusto
 {
     if (auto maybe_property = convert_to_style_property(declaration); maybe_property.has_value()) {
         auto property = maybe_property.release_value();
-        if (property.property_id == PropertyID::Custom) {
-            dest.custom_properties.set(property.custom_name, property);
+        if (property.name_and_id.is_custom_property()) {
+            dest.custom_properties.set(property.name_and_id.name(), property);
         } else {
             dest.properties.append(move(property));
         }
@@ -1641,10 +1641,11 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
         return {};
     }
 
-    if (property->is_custom_property())
-        return StyleProperty { declaration.important, property->id(), value.release_value(), property->name() };
-
-    return StyleProperty { declaration.important, property->id(), value.release_value(), {} };
+    return StyleProperty {
+        .name_and_id = property.value(),
+        .value = value.release_value(),
+        .important = declaration.important,
+    };
 }
 
 Optional<LengthOrAutoOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)

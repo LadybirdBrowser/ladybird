@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Fail	var(--unknown, revert-layer) in custom property
+Pass	var(--unknown, revert-layer) in shorthand
+Pass	var(--unknown, revert-layer) in shorthand observed via longhand
+Fail	var(--unknown, revert-layer) in longhand

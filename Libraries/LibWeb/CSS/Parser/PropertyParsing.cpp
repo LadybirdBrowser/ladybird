@@ -499,6 +499,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         }
     }
 
+    // FIXME: Parse registered custom properties according to their syntax.
     if (property_id == PropertyID::Custom || substitution_presence.has_any()) {
         Vector<ComponentValue> component_values;
         while (tokens.has_next_token()) {
