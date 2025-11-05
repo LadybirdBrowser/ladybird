@@ -618,7 +618,7 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
             if (!flex_basis.has<CSS::Size>())
                 return false;
             auto const& size = flex_basis.get<CSS::Size>();
-            if (size.is_auto() || size.is_min_content() || size.is_max_content() || size.is_fit_content())
+            if (size.is_auto() || size.is_intrinsic_sizing_constraint())
                 return false;
             if (size.is_length())
                 return true;
