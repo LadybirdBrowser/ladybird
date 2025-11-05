@@ -520,6 +520,8 @@ public:
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#implicitly-potentially-render-blocking
     virtual bool is_implicitly_potentially_render_blocking() const { return false; }
 
+    double ensure_css_random_base_value(CSS::RandomCachingKey const&);
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -656,6 +658,9 @@ private:
     bool m_captured_in_a_view_transition { false };
 
     bool m_is_contained_in_list_subtree { false };
+
+    // https://drafts.csswg.org/css-values-5/#random-caching
+    HashMap<CSS::RandomCachingKey, double> m_element_specific_css_random_base_value_cache;
 };
 
 template<>

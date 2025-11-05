@@ -3798,6 +3798,9 @@ RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(To
 
     tokens.discard_whitespace();
 
+    if (!tokens.has_next_token())
+        return nullptr;
+
     // fixed <number [0,1]>
     if (tokens.next_token().is_ident("fixed"sv)) {
         tokens.discard_a_token();
@@ -3820,8 +3823,51 @@ RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(To
         return nullptr;
     }
 
-    // FIXME: Support non-fixed values
-    return nullptr;
+    // [ [ auto | <dashed-ident> ] || element-shared ]
+    bool has_explicit_auto = false;
+    Optional<FlyString> dashed_ident;
+    bool element_shared = false;
+
+    while (tokens.has_next_token()) {
+        if (auto maybe_dashed_ident_value = parse_dashed_ident_value(tokens)) {
+            if (has_explicit_auto || dashed_ident.has_value())
+                return nullptr;
+
+            dashed_ident = maybe_dashed_ident_value->custom_ident();
+
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        auto maybe_keyword_value = parse_keyword_value(tokens);
+
+        if (maybe_keyword_value && maybe_keyword_value->to_keyword() == Keyword::Auto) {
+            if (has_explicit_auto || dashed_ident.has_value())
+                return nullptr;
+
+            has_explicit_auto = true;
+
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        if (maybe_keyword_value && maybe_keyword_value->to_keyword() == Keyword::ElementShared) {
+            if (element_shared)
+                return nullptr;
+
+            element_shared = true;
+
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    if (!dashed_ident.has_value())
+        return RandomValueSharingStyleValue::create_auto(random_value_sharing_auto_name(), element_shared);
+
+    return RandomValueSharingStyleValue::create_dashed_ident(dashed_ident.value(), element_shared);
 }
 
 // https://drafts.csswg.org/css-values-4/#typedef-dashed-ident

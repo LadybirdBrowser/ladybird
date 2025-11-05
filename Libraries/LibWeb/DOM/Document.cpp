@@ -19,6 +19,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -48,6 +49,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -6012,6 +6014,14 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
     if (m_dynamic_view_transition_style_sheet) {
         callback(*m_dynamic_view_transition_style_sheet);
     }
+}
+
+double Document::ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const& random_caching_key)
+{
+    return m_element_shared_css_random_base_value_cache.ensure(random_caching_key, []() {
+        static XorShift128PlusRNG random_number_generator;
+        return random_number_generator.get();
+    });
 }
 
 static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
