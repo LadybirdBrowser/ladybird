@@ -122,6 +122,7 @@ static bool is_platform_object(Type const& type)
         "ServiceWorkerContainer"sv,
         "ServiceWorkerRegistration"sv,
         "SVGAnimationElement"sv,
+        "SVGNumber"sv,
         "SVGTransform"sv,
         "ShadowRoot"sv,
         "SourceBuffer"sv,

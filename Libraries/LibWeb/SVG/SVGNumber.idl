@@ -1,0 +1,5 @@
+// https://www.w3.org/TR/SVG2/types.html#InterfaceSVGNumber
+[Exposed=Window]
+interface SVGNumber {
+    attribute float value;
+};

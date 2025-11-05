@@ -934,6 +934,7 @@ set(SOURCES
     SVG/SVGLineElement.cpp
     SVG/SVGMaskElement.cpp
     SVG/SVGMetadataElement.cpp
+    SVG/SVGNumber.cpp
     SVG/SVGPathElement.cpp
     SVG/SVGPolygonElement.cpp
     SVG/SVGPolylineElement.cpp

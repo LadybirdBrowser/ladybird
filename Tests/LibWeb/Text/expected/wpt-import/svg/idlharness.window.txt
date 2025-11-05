@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-970 Pass
-811 Fail
+977 Pass
+804 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -85,13 +85,13 @@ Fail	SVGGeometryElement interface: operation isPointInFill(optional DOMPointInit
 Fail	SVGGeometryElement interface: operation isPointInStroke(optional DOMPointInit)
 Pass	SVGGeometryElement interface: operation getTotalLength()
 Pass	SVGGeometryElement interface: operation getPointAtLength(float)
-Fail	SVGNumber interface: existence and properties of interface object
-Fail	SVGNumber interface object length
-Fail	SVGNumber interface object name
-Fail	SVGNumber interface: existence and properties of interface prototype object
-Fail	SVGNumber interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGNumber interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGNumber interface: attribute value
+Pass	SVGNumber interface: existence and properties of interface object
+Pass	SVGNumber interface object length
+Pass	SVGNumber interface object name
+Pass	SVGNumber interface: existence and properties of interface prototype object
+Pass	SVGNumber interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGNumber interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGNumber interface: attribute value
 Fail	SVGNumber must be primary interface of objects.svg.createSVGNumber()
 Fail	Stringification of objects.svg.createSVGNumber()
 Fail	SVGNumber interface: objects.svg.createSVGNumber() must inherit property "value" with the proper type
