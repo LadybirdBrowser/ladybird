@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/Layout/MathMLBox.h>
 #include <LibWeb/MathML/AttributeNames.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/TagNames.h>
@@ -59,6 +60,13 @@ Optional<ARIA::Role> MathMLElement::default_role() const
     if (local_name() == TagNames::math)
         return ARIA::Role::math;
     return {};
+}
+
+GC::Ptr<Layout::Node> MathMLElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+{
+    // By default, create a MathMLBox for all MathML elements
+    // Specific element types can override this to create specialized boxes
+    return heap().allocate<Layout::MathMLBox>(document(), *this, move(style));
 }
 
 void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)

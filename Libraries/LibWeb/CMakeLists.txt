@@ -735,6 +735,7 @@ set(SOURCES
     Layout/Node.cpp
     Layout/RadioButton.cpp
     Layout/ReplacedBox.cpp
+    Layout/MathMLBox.cpp
     Layout/SVGBox.cpp
     Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp

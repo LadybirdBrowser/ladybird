@@ -80,8 +80,10 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ListItemBox.h>
+#include <LibWeb/Layout/MathMLBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -651,7 +653,10 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
         // https://w3c.github.io/mathml-core/#new-display-math-value
         // MathML elements with a computed display value equal to block math or inline math control box generation
         // and layout according to their tag name, as described in the relevant sections.
-        // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
+        if (element && is<MathML::MathMLElement>(*element)) {
+            return document.heap().allocate<Layout::MathMLBox>(document, static_cast<MathML::MathMLElement&>(*element), move(style));
+        }
+        // Fallback for non-MathML elements with math display type
         return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
     }
 

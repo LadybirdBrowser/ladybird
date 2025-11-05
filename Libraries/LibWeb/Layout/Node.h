@@ -114,6 +114,7 @@ public:
     virtual bool is_svg_svg_box() const { return false; }
     virtual bool is_svg_graphics_box() const { return false; }
     virtual bool is_svg_foreign_object_box() const { return false; }
+    virtual bool is_mathml_box() const { return false; }
     virtual bool is_label() const { return false; }
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }
