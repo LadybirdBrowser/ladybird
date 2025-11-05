@@ -1236,8 +1236,8 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         return JS::Int32Array::create(m_realm, 4, array_buffer);
     }
 
-    case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: {
-        if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) { // FIXME: Allow this code path for GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES
+    case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: { // NOTE: This has the same value as GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES
+        if (oes_standard_derivatives_extension_enabled() || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
             GLint result { 0 };
             glGetIntegervRobustANGLE(GL_FRAGMENT_SHADER_DERIVATIVE_HINT, 1, nullptr, &result);
             return JS::Value(result);

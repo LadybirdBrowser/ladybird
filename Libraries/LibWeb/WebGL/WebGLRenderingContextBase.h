@@ -46,6 +46,7 @@ public:
     virtual OpenGLContext& context() = 0;
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const = 0;
     virtual bool angle_instanced_arrays_extension_enabled() const = 0;
+    virtual bool oes_standard_derivatives_extension_enabled() const = 0;
     virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const = 0;
 
     template<typename T>

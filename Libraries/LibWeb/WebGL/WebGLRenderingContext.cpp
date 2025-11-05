@@ -17,6 +17,7 @@
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/Extensions/EXTTextureFilterAnisotropic.h>
+#include <LibWeb/WebGL/Extensions/OESStandardDerivatives.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
@@ -98,6 +99,7 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_angle_instanced_arrays_extension);
     visitor.visit(m_ext_blend_min_max_extension);
     visitor.visit(m_ext_texture_filter_anisotropic);
+    visitor.visit(m_oes_standard_derivatives_object_extension);
     visitor.visit(m_oes_vertex_array_object_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_srgb_extension);
@@ -208,6 +210,15 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
         return m_ext_texture_filter_anisotropic;
     }
 
+    if (name.equals_ignoring_ascii_case("OES_standard_derivatives"sv)) {
+        if (!m_oes_standard_derivatives_object_extension) {
+            m_oes_standard_derivatives_object_extension = MUST(Extensions::OESStandardDerivatives::create(realm(), *this));
+        }
+
+        VERIFY(m_oes_standard_derivatives_object_extension);
+        return m_oes_standard_derivatives_object_extension;
+    }
+
     if (name.equals_ignoring_ascii_case("OES_vertex_array_object"sv)) {
         if (!m_oes_vertex_array_object_extension) {
             m_oes_vertex_array_object_extension = MUST(Extensions::OESVertexArrayObject::create(realm(), *this));
@@ -277,6 +288,11 @@ bool WebGLRenderingContext::ext_texture_filter_anisotropic_extension_enabled() c
 bool WebGLRenderingContext::angle_instanced_arrays_extension_enabled() const
 {
     return !!m_angle_instanced_arrays_extension;
+}
+
+bool WebGLRenderingContext::oes_standard_derivatives_extension_enabled() const
+{
+    return !!m_oes_standard_derivatives_object_extension;
 }
 
 ReadonlySpan<WebIDL::UnsignedLong> WebGLRenderingContext::enabled_compressed_texture_formats() const

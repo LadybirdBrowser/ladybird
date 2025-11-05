@@ -53,6 +53,7 @@ public:
 
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
     virtual bool angle_instanced_arrays_extension_enabled() const override;
+    virtual bool oes_standard_derivatives_extension_enabled() const override;
     virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const override;
 
 private:
