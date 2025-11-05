@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-997 Pass
-784 Fail
+1005 Pass
+776 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -362,14 +362,14 @@ Pass	SVGAnimatedRect must be primary interface of objects.svg.viewBox
 Pass	Stringification of objects.svg.viewBox
 Fail	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "baseVal" with the proper type
 Fail	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "animVal" with the proper type
-Fail	SVGAnimatedNumberList interface: existence and properties of interface object
-Fail	SVGAnimatedNumberList interface object length
-Fail	SVGAnimatedNumberList interface object name
-Fail	SVGAnimatedNumberList interface: existence and properties of interface prototype object
-Fail	SVGAnimatedNumberList interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimatedNumberList interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimatedNumberList interface: attribute baseVal
-Fail	SVGAnimatedNumberList interface: attribute animVal
+Pass	SVGAnimatedNumberList interface: existence and properties of interface object
+Pass	SVGAnimatedNumberList interface object length
+Pass	SVGAnimatedNumberList interface object name
+Pass	SVGAnimatedNumberList interface: existence and properties of interface prototype object
+Pass	SVGAnimatedNumberList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedNumberList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedNumberList interface: attribute baseVal
+Pass	SVGAnimatedNumberList interface: attribute animVal
 Fail	SVGAnimatedNumberList must be primary interface of objects.text.rotate
 Fail	Stringification of objects.text.rotate
 Fail	SVGAnimatedNumberList interface: objects.text.rotate must inherit property "baseVal" with the proper type
