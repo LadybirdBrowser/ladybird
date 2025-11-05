@@ -266,6 +266,8 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 function_generator.append(R"~~~(
         if (!context_allows_random_functions())
             return nullptr;
+
+        m_random_function_index++;
 )~~~");
             }
 

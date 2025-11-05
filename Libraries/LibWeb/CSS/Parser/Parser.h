@@ -588,10 +588,17 @@ private:
     TokenStream<Token> m_token_stream;
 
     Vector<ValueParsingContext> m_value_context;
+    size_t m_random_function_index = 0;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
     {
         m_value_context.append(context);
-        return ScopeGuard { [&] { m_value_context.take_last(); } };
+        return ScopeGuard { [&] {
+            auto removed_context = m_value_context.take_last();
+
+            // Reset the random function index when we leave the top-level property parsing context
+            if (removed_context.has<PropertyID>() && !m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value())
+                m_random_function_index = 0;
+        } };
     }
     bool context_allows_quirky_length() const;
     bool context_allows_tree_counting_functions() const;
