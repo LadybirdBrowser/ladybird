@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -154,6 +155,8 @@ void HTMLScriptElement::execute_script()
     }
     // -> "importmap"
     else if (m_script_type == ScriptType::ImportMap) {
+        HTML::TemporaryExecutionContext execution_context { realm() };
+
         // 1. Register an import map given el's relevant global object and el's result.
         m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(as<Window>(relevant_global_object(*this)));
     }
