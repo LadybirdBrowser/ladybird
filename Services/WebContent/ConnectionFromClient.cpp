@@ -33,6 +33,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -386,7 +387,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "clear-cache") {
-        // FIXME: Clear the Fetch cache.
+        Web::Fetch::Fetching::clear_http_cache();
         return;
     }
 
