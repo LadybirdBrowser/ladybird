@@ -365,6 +365,7 @@ SVGAElement
 SVGAnimatedEnumeration
 SVGAnimatedLength
 SVGAnimatedNumber
+SVGAnimatedNumberList
 SVGAnimatedRect
 SVGAnimatedString
 SVGAnimatedTransformList
