@@ -1669,6 +1669,11 @@ public:
         return s_cache;
     }
 
+    void clear_cache()
+    {
+        m_cache.clear();
+    }
+
 private:
     HashMap<Infrastructure::NetworkPartitionKey, NonnullRefPtr<CachePartition>> m_cache;
 };
@@ -2847,6 +2852,11 @@ void append_fetch_metadata_headers_for_request(Infrastructure::Request& request)
 void set_http_cache_enabled(bool const enabled)
 {
     g_http_cache_enabled = enabled;
+}
+
+void clear_http_cache()
+{
+    HTTPCache::the().clear_cache();
 }
 
 }
