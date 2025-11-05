@@ -1118,6 +1118,7 @@ class SVGLineElement;
 class SVGMaskElement;
 class SVGMetadataElement;
 class SVGNumber;
+class SVGNumberList;
 class SVGPathElement;
 class SVGPolygonElement;
 class SVGPolylineElement;

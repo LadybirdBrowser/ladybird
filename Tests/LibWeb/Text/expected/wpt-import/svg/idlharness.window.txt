@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-982 Pass
-799 Fail
+997 Pass
+784 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -187,21 +187,21 @@ Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "new
 Fail	SVGAngle interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
 Fail	SVGAngle interface: objects.svg.createSVGAngle() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
 Fail	SVGAngle interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGAngle() with too few arguments must throw TypeError
-Fail	SVGNumberList interface: existence and properties of interface object
-Fail	SVGNumberList interface object length
-Fail	SVGNumberList interface object name
-Fail	SVGNumberList interface: existence and properties of interface prototype object
-Fail	SVGNumberList interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGNumberList interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGNumberList interface: attribute length
-Fail	SVGNumberList interface: attribute numberOfItems
-Fail	SVGNumberList interface: operation clear()
-Fail	SVGNumberList interface: operation initialize(SVGNumber)
-Fail	SVGNumberList interface: operation getItem(unsigned long)
-Fail	SVGNumberList interface: operation insertItemBefore(SVGNumber, unsigned long)
-Fail	SVGNumberList interface: operation replaceItem(SVGNumber, unsigned long)
-Fail	SVGNumberList interface: operation removeItem(unsigned long)
-Fail	SVGNumberList interface: operation appendItem(SVGNumber)
+Pass	SVGNumberList interface: existence and properties of interface object
+Pass	SVGNumberList interface object length
+Pass	SVGNumberList interface object name
+Pass	SVGNumberList interface: existence and properties of interface prototype object
+Pass	SVGNumberList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGNumberList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGNumberList interface: attribute length
+Pass	SVGNumberList interface: attribute numberOfItems
+Pass	SVGNumberList interface: operation clear()
+Pass	SVGNumberList interface: operation initialize(SVGNumber)
+Pass	SVGNumberList interface: operation getItem(unsigned long)
+Pass	SVGNumberList interface: operation insertItemBefore(SVGNumber, unsigned long)
+Pass	SVGNumberList interface: operation replaceItem(SVGNumber, unsigned long)
+Pass	SVGNumberList interface: operation removeItem(unsigned long)
+Pass	SVGNumberList interface: operation appendItem(SVGNumber)
 Fail	SVGNumberList must be primary interface of objects.text.rotate.baseVal
 Fail	Stringification of objects.text.rotate.baseVal
 Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "length" with the proper type
