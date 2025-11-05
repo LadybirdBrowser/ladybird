@@ -19,6 +19,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -6002,6 +6003,14 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
     }
 }
 
+double Document::ensure_cached_css_random_base_value(RandomCachingKey const& random_caching_key)
+{
+    return m_css_random_base_value_cache.ensure(random_caching_key, []() {
+        static ::Crypto::XorShift128PlusRNG random_number_generator;
+        return random_number_generator.get();
+    });
+}
+
 static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
 {
     if (style_sheet.href() == url)
@@ -6899,5 +6908,25 @@ StringView to_string(UpdateLayoutReason reason)
     }
     VERIFY_NOT_REACHED();
 }
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Web::DOM::Document::RandomCachingKey> : public DefaultTraits<Web::DOM::Document::RandomCachingKey> {
+    static unsigned hash(Web::DOM::Document::RandomCachingKey const& key)
+    {
+        if (!key.element_id.has_value())
+            return key.name.hash();
+
+        return pair_int_hash(key.name.hash(), Traits<i64>::hash(key.element_id->value()));
+    }
+
+    static bool equals(Web::DOM::Document::RandomCachingKey const& a, Web::DOM::Document::RandomCachingKey const& b)
+    {
+        return a.element_id == b.element_id && a.name == b.name;
+    }
+};
 
 }
