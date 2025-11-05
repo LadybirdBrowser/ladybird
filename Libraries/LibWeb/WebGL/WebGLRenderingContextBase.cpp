@@ -195,8 +195,23 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
     };
 }
 
+// TODO: The glGetError spec allows for queueing errors which is something we should probably do, for now
+//       this just keeps track of one error which is also fine by the spec
+GLenum WebGLRenderingContextBase::get_error_value()
+{
+    if (m_error == GL_NO_ERROR)
+        return glGetError();
+
+    auto error = m_error;
+    m_error = GL_NO_ERROR;
+    return error;
+}
+
 void WebGLRenderingContextBase::set_error(GLenum error)
 {
+    if (m_error != GL_NO_ERROR)
+        return;
+
     auto context_error = glGetError();
     if (context_error != GL_NO_ERROR)
         m_error = context_error;
