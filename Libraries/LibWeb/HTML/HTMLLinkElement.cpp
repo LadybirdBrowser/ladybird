@@ -439,19 +439,25 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 
         // 1. Let success be true.
         bool success = true;
+        ByteBuffer successful_body_bytes;
 
         // 2. If either of the following conditions are met:
         // - bodyBytes is null or failure; or
         // - response's status is not an ok status,
-        if (body_bytes.template has<Empty>() || body_bytes.template has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>() || !Fetch::Infrastructure::is_ok_status(response->status())) {
-            // then set success to false.
-            success = false;
-        }
+        // then set success to false.
+        body_bytes.visit(
+            [&](ByteBuffer& body_bytes) {
+                if (Fetch::Infrastructure::is_ok_status(response->status()))
+                    successful_body_bytes = move(body_bytes);
+                else
+                    success = false;
+            },
+            [&](auto) { success = false; });
 
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, body_bytes);
+        process_linked_resource(success, response, move(successful_body_bytes));
     };
 
     if (m_fetch_controller)
@@ -499,10 +505,10 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
 {
     if (m_relationship & Relationship::Stylesheet)
-        process_stylesheet_resource(success, response, body_bytes);
+        process_stylesheet_resource(success, response, move(body_bytes));
 }
 
 void HTMLLinkElement::process_icon_resource()
@@ -519,7 +525,7 @@ void HTMLLinkElement::process_icon_resource()
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
 {
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
@@ -532,9 +538,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             mime_type_charset = charset.value();
     }
 
-    if (mime_type_string.has_value() && mime_type_string != "text/css"sv) {
+    if (mime_type_string.has_value() && mime_type_string != "text/css"sv)
         success = false;
-    }
 
     // FIXME: 2. If el no longer creates an external resource link that contributes to the styling processing model,
     //           or if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
@@ -581,7 +586,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         if (!environment_encoding.has_value() && document().encoding().has_value())
             environment_encoding = document().encoding().value();
 
-        auto maybe_decoded_string = css_decode_bytes(environment_encoding, mime_type_charset, body_bytes.get<ByteBuffer>());
+        auto maybe_decoded_string = css_decode_bytes(environment_encoding, mime_type_charset, body_bytes);
         if (maybe_decoded_string.is_error()) {
             dbgln("Failed to decode CSS file: {}", response.url().value_or(URL::URL()));
             dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
