@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
+#include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
@@ -53,6 +54,7 @@ GC::Ref<SVGAnimatedString> SVGFilterPrimitiveStandardAttributes<IncludingClass>:
 
 template class SVGFilterPrimitiveStandardAttributes<SVGFEBlendElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEColorMatrixElement>;
+template class SVGFilterPrimitiveStandardAttributes<SVGFEComponentTransferElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFECompositeElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEFloodElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEGaussianBlurElement>;
