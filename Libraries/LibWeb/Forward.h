@@ -1098,6 +1098,7 @@ class SVGAnimatedRect;
 class SVGAnimationElement;
 class SVGCircleElement;
 class SVGClipPathElement;
+class SVGComponentTransferFunctionElement;
 class SVGDecodedImageData;
 class SVGDefsElement;
 class SVGDescElement;

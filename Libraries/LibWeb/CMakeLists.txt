@@ -907,6 +907,7 @@ set(SOURCES
     SVG/SVGAnimationElement.cpp
     SVG/SVGCircleElement.cpp
     SVG/SVGClipPathElement.cpp
+    SVG/SVGComponentTransferFunctionElement.cpp
     SVG/SVGDecodedImageData.cpp
     SVG/SVGDefsElement.cpp
     SVG/SVGDescElement.cpp
