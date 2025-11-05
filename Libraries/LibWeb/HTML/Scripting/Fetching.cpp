@@ -520,8 +520,8 @@ Coroutine<WebIDL::ExceptionOr<GC::Ref<ClassicScript>>> fetch_a_classic_worker_im
 
     // 5. Pause until response is not null.
     // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
-    auto& event_loop = settings_object.responsible_event_loop();
-    co_await event_loop.spin_until(GC::create_function(vm.heap(), [&]() -> bool {
+    // auto& event_loop = settings_object.responsible_event_loop();
+    co_await HTML::main_thread_event_loop().spin_until(GC::create_function(vm.heap(), [&]() -> bool {
         return response;
     }));
 

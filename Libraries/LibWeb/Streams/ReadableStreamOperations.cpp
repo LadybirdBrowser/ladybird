@@ -36,6 +36,8 @@
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Promise.h>
 
+namespace AK { extern "C" void dump_backtrace(unsigned frames_to_skip, unsigned max_depth); }
+
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#acquire-readable-stream-byob-reader
@@ -1535,9 +1537,12 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
     // 10. Let startPromise be a promise resolved with startResult.
     auto start_promise = WebIDL::create_resolved_promise(realm, start_result);
 
+    dbgln("ReadableStreamDefaultController: start promise created");
+    dump_backtrace(1, 64);
     WebIDL::react_to_promise(start_promise,
         // 11. Upon fulfillment of startPromise,
         GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+            dbgln("ReadableStreamDefaultController: start promise fulfilled");
             // 1. Set controller.[[started]] to true.
             controller.set_started(true);
 

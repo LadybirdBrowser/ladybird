@@ -65,6 +65,9 @@
 #include <LibWeb/Streams/Transformer.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
+#undef WEB_FETCH_DEBUG
+#define WEB_FETCH_DEBUG 1
+
 namespace Web::Fetch::Fetching {
 
 bool g_http_cache_enabled = false;
@@ -601,6 +604,10 @@ Coroutine<WebIDL::ExceptionOr<GC::Ptr<PendingResponse>>> main_fetch(JS::Realm& r
             if (!response->is_network_error() && (StringView { request->method() }.is_one_of("HEAD"sv, "CONNECT"sv) || Infrastructure::is_null_body_status(internal_response->status())))
                 internal_response->set_body({});
 
+            Core::run_async_in_current_event_loop([&] -> Coroutine<void> {
+                co_await HTML::main_thread_event_loop().process();
+            });
+
             // 22. If request’s integrity metadata is not the empty string, then:
             if (!request->integrity_metadata().is_empty()) {
                 // 1. Let processBodyError be this step: run fetch response handover given fetchParams and a network
@@ -789,6 +796,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
         // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
         auto identity_transform_algorithm = GC::create_function(realm.heap(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+            dbgln("Fetch: Running 'fetch response handover' identityTransformAlgorithm with chunk: {}", chunk.to_string_without_side_effects());
             MUST(Streams::transform_stream_default_controller_enqueue(*transform_stream->controller(), chunk));
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
         });
@@ -804,6 +812,10 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
         internal_response->body()->set_stream(internal_response->body()->stream()->piped_through(transform_stream));
     }
+
+    Core::run_async_in_current_event_loop([&] -> Coroutine<void> {
+        co_await HTML::main_thread_event_loop().process();
+    });
 
     // 8. If fetchParams’s process response consume body is non-null, then:
     if (fetch_params.algorithms()->process_response_consume_body()) {

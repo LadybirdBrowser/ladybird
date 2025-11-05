@@ -124,8 +124,7 @@ Coroutine<void> EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_conditi
     //       NOTE: This is achieved by returning from the function.
 
     while (!goal_condition->function()()) {
-        if (m_task_queue->has_runnable_tasks())
-            schedule();
+        co_await process();
         co_await Core::EventLoop::current().next_turn();
     }
 
@@ -162,7 +161,7 @@ Coroutine<void> EventLoop::spin_processing_tasks_with_source_until(Task::Source 
 
     m_skip_event_loop_processing_steps = false;
 
-    schedule();
+    co_await process();
 
     vm.restore_execution_context_stack();
 }
@@ -240,9 +239,8 @@ Coroutine<void> EventLoop::process()
     }
 
     // If there are eligible tasks in the queue, schedule a new round of processing. :^)
-    if (m_task_queue->has_runnable_tasks() || (!m_microtask_queue->is_empty() && !m_performing_a_microtask_checkpoint)) {
-        schedule();
-    }
+    if (m_task_queue->has_runnable_tasks() || (!m_microtask_queue->is_empty() && !m_performing_a_microtask_checkpoint))
+        co_await process();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
