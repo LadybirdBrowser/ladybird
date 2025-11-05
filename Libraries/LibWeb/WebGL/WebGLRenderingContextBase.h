@@ -138,6 +138,8 @@ protected:
         return result;
     }
 
+    void set_error(GLenum error);
+
     // UNPACK_FLIP_Y_WEBGL of type boolean
     //      If set, then during any subsequent calls to texImage2D or texSubImage2D, the source data is flipped along
     //      the vertical axis, so that conceptually the last row is the first one transferred. The initial value is false.
@@ -149,6 +151,9 @@ protected:
     //      if present, is multiplied into the color channels during the data transfer. The initial value is false.
     //      Any non-zero value is interpreted as true.
     bool m_unpack_premultiply_alpha { false };
+
+private:
+    GLenum m_error { 0 };
 };
 
 }

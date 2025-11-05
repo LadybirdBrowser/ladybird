@@ -195,4 +195,13 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
     };
 }
 
+void WebGLRenderingContextBase::set_error(GLenum error)
+{
+    auto context_error = glGetError();
+    if (context_error != GL_NO_ERROR)
+        m_error = context_error;
+    else
+        m_error = error;
+}
+
 }
