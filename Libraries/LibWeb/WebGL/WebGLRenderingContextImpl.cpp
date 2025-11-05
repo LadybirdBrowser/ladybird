@@ -1246,8 +1246,8 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         set_error(GL_INVALID_ENUM);
         return JS::js_null();
     }
-    case GL_MAX_COLOR_ATTACHMENTS: {
-        if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) { // FIXME: Allow this code path for MAX_COLOR_ATTACHMENTS_WEBGL
+    case GL_MAX_COLOR_ATTACHMENTS: { // NOTE: This has the same value as MAX_COLOR_ATTACHMENTS_WEBGL
+        if (webgl_draw_buffers_extension_enabled() || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
             GLint result { 0 };
             glGetIntegervRobustANGLE(GL_MAX_COLOR_ATTACHMENTS, 1, nullptr, &result);
             return JS::Value(result);
