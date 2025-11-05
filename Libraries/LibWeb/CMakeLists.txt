@@ -932,6 +932,7 @@ set(SOURCES
     SVG/SVGLength.cpp
     SVG/SVGLinearGradientElement.cpp
     SVG/SVGLineElement.cpp
+    SVG/SVGList.cpp
     SVG/SVGMaskElement.cpp
     SVG/SVGMetadataElement.cpp
     SVG/SVGNumber.cpp

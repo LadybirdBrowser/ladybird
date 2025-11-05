@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-977 Pass
-804 Fail
+982 Pass
+799 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -739,12 +739,12 @@ Pass	SVGTransformList interface: existence and properties of interface prototype
 Pass	SVGTransformList interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGTransformList interface: attribute length
 Pass	SVGTransformList interface: attribute numberOfItems
-Fail	SVGTransformList interface: operation clear()
-Fail	SVGTransformList interface: operation initialize(SVGTransform)
+Pass	SVGTransformList interface: operation clear()
+Pass	SVGTransformList interface: operation initialize(SVGTransform)
 Pass	SVGTransformList interface: operation getItem(unsigned long)
-Fail	SVGTransformList interface: operation insertItemBefore(SVGTransform, unsigned long)
-Fail	SVGTransformList interface: operation replaceItem(SVGTransform, unsigned long)
-Fail	SVGTransformList interface: operation removeItem(unsigned long)
+Pass	SVGTransformList interface: operation insertItemBefore(SVGTransform, unsigned long)
+Pass	SVGTransformList interface: operation replaceItem(SVGTransform, unsigned long)
+Pass	SVGTransformList interface: operation removeItem(unsigned long)
 Pass	SVGTransformList interface: operation appendItem(SVGTransform)
 Fail	SVGTransformList interface: operation createSVGTransformFromMatrix(optional DOMMatrix2DInit)
 Fail	SVGTransformList interface: operation consolidate()
