@@ -397,6 +397,7 @@ SVGLinearGradientElement
 SVGMaskElement
 SVGMatrix
 SVGMetadataElement
+SVGNumber
 SVGPathElement
 SVGPoint
 SVGPolygonElement
