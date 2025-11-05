@@ -10,18 +10,15 @@
 #pragma once
 
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
-#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/Loader/Resource.h>
 
 namespace Web::HTML {
 
-class WEB_API HTMLLinkElement final
-    : public HTMLElement
-    , public ResourceClient {
+class WEB_API HTMLLinkElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLLinkElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLLinkElement);
 
@@ -53,26 +50,42 @@ public:
 
 private:
     // https://html.spec.whatwg.org/multipage/semantics.html#link-processing-options
-    struct LinkProcessingOptions {
+    struct LinkProcessingOptions final : public JS::Cell {
+        GC_CELL(LinkProcessingOptions, JS::Cell);
+        GC_DECLARE_ALLOCATOR(LinkProcessingOptions);
+
+        LinkProcessingOptions(
+            CORSSettingAttribute crossorigin,
+            ReferrerPolicy::ReferrerPolicy referrer_policy,
+            URL::URL base_url,
+            URL::Origin origin,
+            GC::Ref<HTML::EnvironmentSettingsObject> environment,
+            GC::Ref<HTML::PolicyContainer> policy_container,
+            GC::Ptr<Web::DOM::Document> document,
+            String cryptographic_nonce_metadata,
+            Fetch::Infrastructure::Request::Priority fetch_priority);
+
+        virtual void visit_edges(Cell::Visitor& visitor) override;
+
         // href (default the empty string)
-        String href {};
+        String href;
 
         // initiator (default "link")
         Optional<Fetch::Infrastructure::Request::InitiatorType> initiator { Fetch::Infrastructure::Request::InitiatorType::Link };
 
         // integrity (default the empty string)
-        String integrity {};
+        String integrity;
 
         // type (default the empty string)
-        String type {};
+        String type;
 
         // cryptographic nonce metadata (default the empty string)
         //     A string
-        String cryptographic_nonce_metadata {};
+        String cryptographic_nonce_metadata;
 
         // destination (default the empty string)
         //     A destination type.
-        Optional<Fetch::Infrastructure::Request::Destination> destination {};
+        Optional<Fetch::Infrastructure::Request::Destination> destination;
 
         // crossorigin (default No CORS)
         //     A CORS settings attribute state
@@ -105,22 +118,60 @@ private:
         //     Null or a Document
         GC::Ptr<Web::DOM::Document> document;
 
-        // FIXME: on document ready (default null)
+        // on document ready (default null)
         //     Null or an algorithm accepting a Document
+        GC::Ptr<GC::Function<void(DOM::Document&)>> on_document_ready;
 
         // fetch priority (default Auto)
         //     A fetch priority attribute state
         Fetch::Infrastructure::Request::Priority fetch_priority { Fetch::Infrastructure::Request::Priority::Auto };
     };
 
+    // https://html.spec.whatwg.org/multipage/links.html#preload-key
+    struct PreloadKey {
+        static PreloadKey create(Fetch::Infrastructure::Request const&);
+
+        // URL
+        //     A URL
+        URL::URL url;
+
+        // destination
+        //     A string
+        Optional<Fetch::Infrastructure::Request::Destination> destination;
+
+        // mode
+        //     A request mode, either "same-origin", "cors", or "no-cors"
+        Fetch::Infrastructure::Request::Mode mode;
+
+        // credentials mode
+        //     A credentials mode
+        Fetch::Infrastructure::Request::CredentialsMode credentials_mode;
+    };
+
+    // https://html.spec.whatwg.org/multipage/links.html#preload-entry
+    struct PreloadEntry final : public JS::Cell {
+        GC_CELL(PreloadEntry, JS::Cell);
+        GC_DECLARE_ALLOCATOR(PreloadEntry);
+
+        virtual void visit_edges(Cell::Visitor& visitor) override;
+
+        // integrity metadata
+        //     A string
+        String integrity_metadata;
+
+        // response
+        //     Null or a response
+        GC::Ptr<Fetch::Infrastructure::Response> response;
+
+        // on response available
+        //     Null, or an algorithm accepting a response or null
+        GC::Ptr<GC::Function<void(GC::Ptr<Fetch::Infrastructure::Response>)>> on_response_available;
+    };
+
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-
-    // ^ResourceClient
-    virtual void resource_did_fail() override;
-    virtual void resource_did_load() override;
 
     // ^DOM::Node
     virtual bool is_html_link_element() const override { return true; }
@@ -130,18 +181,27 @@ private:
     virtual bool contributes_a_script_blocking_style_sheet() const final;
     virtual bool is_implicitly_potentially_render_blocking() const override;
 
-    LinkProcessingOptions create_link_options();
+    GC::Ref<LinkProcessingOptions> create_link_options();
     GC::Ptr<Fetch::Infrastructure::Request> create_link_request(LinkProcessingOptions const&);
 
     void fetch_and_process_linked_resource();
     void default_fetch_and_process_linked_resource();
+    void fetch_and_process_linked_dns_prefetch_resource();
+    void fetch_and_process_linked_preconnect_resource();
+    void fetch_and_process_linked_preload_resource();
 
     bool linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
+    bool icon_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
     bool stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
 
+    void preconnect(LinkProcessingOptions const&);
+    void preload(LinkProcessingOptions&, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response = {});
+
     void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
-    void process_icon_resource();
+    void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
     void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+
+    bool should_fetch_and_process_resource_type() const;
 
     struct Relationship {
         enum {
@@ -157,6 +217,12 @@ private:
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 
+    struct LoadedIcon {
+        URL::URL url;
+        ByteBuffer icon;
+    };
+
+    Optional<LoadedIcon> m_loaded_icon;
     GC::Ptr<CSS::CSSStyleSheet> m_loaded_style_sheet;
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
