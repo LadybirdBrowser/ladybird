@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<void> MediaSession::set_position_state(MediaPositionState st
     double playback_rate = state.playback_rate.value_or(1.0);
     // - If state’s playbackRate is zero, throw a TypeError.
     if (playback_rate == .0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "playback rate should be positive"sv };
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "playback rate should not be zero"sv };
 
     // TODO: update last position updated time?
     // - Update the position state and last position updated time.
