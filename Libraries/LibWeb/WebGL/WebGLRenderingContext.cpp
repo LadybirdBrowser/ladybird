@@ -295,6 +295,11 @@ bool WebGLRenderingContext::oes_standard_derivatives_extension_enabled() const
     return !!m_oes_standard_derivatives_object_extension;
 }
 
+bool WebGLRenderingContext::webgl_draw_buffers_extension_enabled() const
+{
+    return !!m_webgl_draw_buffers_extension;
+}
+
 ReadonlySpan<WebIDL::UnsignedLong> WebGLRenderingContext::enabled_compressed_texture_formats() const
 {
     return m_enabled_compressed_texture_formats;
