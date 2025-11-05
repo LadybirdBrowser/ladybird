@@ -15,6 +15,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
+#include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
@@ -99,6 +100,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::blend(background, foreground, blend_mode);
             update_result_map(*blend_primitive);
+        } else if (auto* component_transfer = as_if<SVGFEComponentTransferElement>(node)) {
+            dbgln("FIXME: Implement support for SVGFEComponentTransferElement");
         } else if (auto* composite_primitive = as_if<SVGFECompositeElement>(node)) {
             auto foreground = resolve_input_filter(composite_primitive->in1()->base_val());
             auto background = resolve_input_filter(composite_primitive->in2()->base_val());

@@ -378,6 +378,7 @@ SVGElement
 SVGEllipseElement
 SVGFEBlendElement
 SVGFEColorMatrixElement
+SVGFEComponentTransferElement
 SVGFECompositeElement
 SVGFEFloodElement
 SVGFEGaussianBlurElement
