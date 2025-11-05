@@ -1711,8 +1711,7 @@ bool FormattingContext::should_treat_width_as_auto(Box const& box, AvailableSpac
             return true;
     }
     // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for width...
-    if (box.has_preferred_aspect_ratio()
-        && (computed_width.is_min_content() || computed_width.is_max_content() || computed_width.is_fit_content())) {
+    if (box.has_preferred_aspect_ratio() && computed_width.is_intrinsic_sizing_constraint()) {
         // If the box has no natural height to resolve the aspect ratio, we treat the width as auto.
         if (!box.has_natural_height())
             return true;
@@ -1744,8 +1743,7 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
     }
 
     // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for height...
-    if (box.has_preferred_aspect_ratio()
-        && (computed_height.is_min_content() || computed_height.is_max_content() || computed_height.is_fit_content())) {
+    if (box.has_preferred_aspect_ratio() && computed_height.is_intrinsic_sizing_constraint()) {
         // If the box has no natural width to resolve the aspect ratio, we treat the height as auto.
         if (!box.has_natural_width())
             return true;
