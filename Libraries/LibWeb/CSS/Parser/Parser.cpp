@@ -1724,6 +1724,15 @@ bool Parser::context_allows_random_functions() const
     return m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value();
 }
 
+FlyString Parser::random_value_sharing_auto_name() const
+{
+    auto top_level_property_context_index = m_value_context.find_first_index_if([](ValueParsingContext const& context) { return context.has<PropertyID>(); });
+
+    auto property_name = string_from_property_id(m_value_context[top_level_property_context_index.value()].get<PropertyID>());
+
+    return MUST(String::formatted("{} {}", property_name, m_random_function_index));
+}
+
 Vector<ComponentValue> Parser::parse_as_list_of_component_values()
 {
     return parse_a_list_of_component_values(m_token_stream);

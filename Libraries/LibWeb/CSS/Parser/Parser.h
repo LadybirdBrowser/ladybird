@@ -603,6 +603,7 @@ private:
     bool context_allows_quirky_length() const;
     bool context_allows_tree_counting_functions() const;
     bool context_allows_random_functions() const;
+    FlyString random_value_sharing_auto_name() const;
 
     Vector<RuleContext> m_rule_context;
     HashTable<FlyString> m_declared_namespaces;

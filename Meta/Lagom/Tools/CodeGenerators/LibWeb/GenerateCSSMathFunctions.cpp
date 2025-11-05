@@ -98,7 +98,6 @@ ErrorOr<void> generate_implementation_file(JsonObject& functions_data, Core::Fil
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 
 namespace Web::CSS {
@@ -312,8 +311,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     parameter_generator.set("parse_function", MUST(String::formatted("parse_random_value_sharing(tokens_{})", parameter_index)));
                     parameter_generator.set("check_function", " != nullptr"_string);
                     parameter_generator.set("release_function", ".release_nonnull()"_string);
-                    // FIXME: This should be 'auto' rather than 'fixed 0' by default
-                    parameter_generator.set("parameter_default", MUST(String::formatted(" = RandomValueSharingStyleValue::create_fixed(NumberStyleValue::create(0))")));
+                    parameter_generator.set("parameter_default", MUST(String::formatted(" = RandomValueSharingStyleValue::create_auto(random_value_sharing_auto_name(), false)")));
                 } else {
                     // NOTE: This assumes everything not handled above is a calculation node of some kind.
                     parameter_is_calculation = true;
