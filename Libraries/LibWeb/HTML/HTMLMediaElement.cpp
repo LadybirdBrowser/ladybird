@@ -2235,14 +2235,24 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
         Bindings::MediaSessionEnterPictureInPictureReason::Other
     };
 
+    auto is_action_handler = false;
+
     switch (key) {
     case UIEvents::KeyCode::Key_PlayPause:
     case UIEvents::KeyCode::Key_Space: {
+        is_action_handler = potentially_playing();
         if (!mediasession->has_action_handler(Bindings::MediaSessionAction::Play) &&
-                mediasession->has_action_handler(Bindings::MediaSessionAction::Pause))
+                !mediasession->has_action_handler(Bindings::MediaSessionAction::Pause)) {
             toggle_playback();
-        else if (potentially_playing())
+            break;
+        }
+
+        if (potentially_playing())
             details.action = Bindings::MediaSessionAction::Play;
+        else
+            details.action = Bindings::MediaSessionAction::Pause;
+        is_action_handler = true;
+
         break;
     }
 
@@ -2269,10 +2279,14 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
                 current_time = min(duration(), current_time + time_skipped_per_key_press);
 
             set_current_time(current_time);
-        } else if (key == UIEvents::KeyCode::Key_Left)
+            break;
+        }
+
+        if (key == UIEvents::KeyCode::Key_Left)
             details.action = Bindings::MediaSessionAction::Seekbackward;
         else
             details.action = Bindings::MediaSessionAction::Seekforward;
+        is_action_handler = true;
 
         break;
     }
@@ -2299,24 +2313,27 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
     case UIEvents::KeyCode::Key_NextTrack:
         // TODO: impl NextTrack, currently only implemented for MediaSession::setActionHandler.
         details.action = Bindings::MediaSessionAction::Nexttrack;
-        mediasession->handle_action(details);
+        is_action_handler = true;
         break;
 
     case UIEvents::KeyCode::Key_PreviousTrack:
         // TODO: impl PreviousTrack, currently only implemented for MediaSession::setActionHandler.
         details.action = Bindings::MediaSessionAction::Previoustrack;
+        is_action_handler = true;
         break;
 
     case UIEvents::KeyCode::Key_Stop:
         // TODO: impl KeyStop, currently only implemented for MediaSession::setActionHandler.
         details.action = Bindings::MediaSessionAction::Stop;
+        is_action_handler = true;
         break;
 
     default:
         return false;
     }
 
-    mediasession->handle_action(details);
+    if (is_action_handler)
+        mediasession->handle_action(details);
 
     return true;
 }
