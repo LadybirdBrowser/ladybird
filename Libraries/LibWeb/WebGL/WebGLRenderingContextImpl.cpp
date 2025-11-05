@@ -2206,6 +2206,12 @@ void WebGLRenderingContextImpl::vertex_attrib_pointer(WebIDL::UnsignedLong index
 {
     m_context->make_current();
 
+    // If no WebGLBuffer is bound to the ARRAY_BUFFER target and offset is non-zero, an INVALID_OPERATION error will be generated.
+    if (!m_array_buffer_binding && offset != 0) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
     glVertexAttribPointer(index, size, type, normalized, stride, reinterpret_cast<void*>(offset));
 }
 
