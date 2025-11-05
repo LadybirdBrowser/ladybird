@@ -1,0 +1,19 @@
+#import <SVG/SVGNumber.idl>
+
+// https://www.w3.org/TR/SVG2/types.html#InterfaceSVGNumberList
+[Exposed=Window]
+interface SVGNumberList {
+
+    readonly attribute unsigned long length;
+    readonly attribute unsigned long numberOfItems;
+
+    // AD-HOC: 'undefined' instead of 'void'
+    undefined clear();
+    SVGNumber initialize(SVGNumber newItem);
+    getter SVGNumber getItem(unsigned long index);
+    SVGNumber insertItemBefore(SVGNumber newItem, unsigned long index);
+    SVGNumber replaceItem(SVGNumber newItem, unsigned long index);
+    SVGNumber removeItem(unsigned long index);
+    SVGNumber appendItem(SVGNumber newItem);
+    setter void (unsigned long index, SVGNumber newItem);
+};

@@ -398,6 +398,7 @@ SVGMaskElement
 SVGMatrix
 SVGMetadataElement
 SVGNumber
+SVGNumberList
 SVGPathElement
 SVGPoint
 SVGPolygonElement

@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/SVG/SVGList.h>
+#include <LibWeb/SVG/SVGNumber.h>
 #include <LibWeb/SVG/SVGTransform.h>
 
 namespace Web::SVG {
@@ -203,6 +204,7 @@ WebIDL::ExceptionOr<T> SVGList<T>::append_item(T new_item)
     return new_item;
 }
 
+template class SVGList<GC::Ref<SVGNumber>>;
 template class SVGList<GC::Ref<SVGTransform>>;
 
 }
