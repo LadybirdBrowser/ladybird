@@ -54,20 +54,13 @@ void HTMLLinkElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLLinkElement::removed_from(Node* old_parent, Node& old_root)
+void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
 {
-    Base::removed_from(old_parent, old_root);
-    if (m_loaded_style_sheet) {
-        auto& style_sheet_list = [&old_root] -> CSS::StyleSheetList& {
-            if (auto* shadow_root = as_if<DOM::ShadowRoot>(old_root); shadow_root)
-                return shadow_root->style_sheets();
-
-            return as<DOM::Document>(old_root).style_sheets();
-        }();
-
-        style_sheet_list.remove_a_css_style_sheet(*m_loaded_style_sheet);
-        m_loaded_style_sheet = nullptr;
-    }
+    Base::visit_edges(visitor);
+    visitor.visit(m_fetch_controller);
+    visitor.visit(m_loaded_style_sheet);
+    visitor.visit(m_rel_list);
+    visitor.visit(m_sizes);
 }
 
 void HTMLLinkElement::inserted()
@@ -112,9 +105,21 @@ void HTMLLinkElement::inserted()
     }
 }
 
-WebIDL::ExceptionOr<void> HTMLLinkElement::set_as(String const& value)
+void HTMLLinkElement::removed_from(Node* old_parent, Node& old_root)
 {
-    return set_attribute(HTML::AttributeNames::as, move(value));
+    Base::removed_from(old_parent, old_root);
+
+    if (m_loaded_style_sheet) {
+        auto& style_sheet_list = [&old_root] -> CSS::StyleSheetList& {
+            if (auto* shadow_root = as_if<DOM::ShadowRoot>(old_root); shadow_root)
+                return shadow_root->style_sheets();
+
+            return as<DOM::Document>(old_root).style_sheets();
+        }();
+
+        style_sheet_list.remove_a_css_style_sheet(*m_loaded_style_sheet);
+        m_loaded_style_sheet = nullptr;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-link-rellist
@@ -138,8 +143,9 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
 void HTMLLinkElement::set_media(String media)
 {
     (void)set_attribute(HTML::AttributeNames::media, media);
+
     if (auto sheet = m_loaded_style_sheet)
-        sheet->set_media(media);
+        sheet->set_media(move(media));
 }
 
 String HTMLLinkElement::media() const
@@ -238,6 +244,42 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
     }
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
+bool HTMLLinkElement::contributes_a_script_blocking_style_sheet() const
+{
+    // An element el in the context of a Document of an HTML parser or XML parser
+    // contributes a script-blocking style sheet if all of the following are true:
+
+    // el was created by that Document's parser.
+    if (m_parser_document != &document())
+        return false;
+
+    // FIXME: el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
+
+    // FIXME: el's media attribute's value matches the environment.
+
+    // el's style sheet was enabled when the element was created by the parser.
+    if (!m_was_enabled_when_created_by_parser)
+        return false;
+
+    // FIXME: The last time the event loop reached step 1, el's root was that Document.
+
+    // The user agent hasn't given up on loading that particular style sheet yet.
+    // A user agent may give up on loading a style sheet at any time.
+    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated)
+        return false;
+    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted)
+        return false;
+
+    return true;
+}
+
+bool HTMLLinkElement::is_implicitly_potentially_render_blocking() const
+{
+    // A link element of this type is implicitly potentially render-blocking if the element was created by its node document's parser.
+    return &document() == m_parser_document;
+}
+
 void HTMLLinkElement::resource_did_fail()
 {
     dbgln_if(CSS_LOADER_DEBUG, "HTMLLinkElement: Resource did fail. URL: {}", resource()->url());
@@ -250,7 +292,7 @@ void HTMLLinkElement::resource_did_load()
 {
     VERIFY(resource());
     if (m_relationship & Relationship::Icon) {
-        resource_did_load_favicon();
+        process_icon_resource();
         m_document_load_event_delayer.clear();
     }
     if (m_relationship & Relationship::Preload) {
@@ -279,7 +321,7 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
         // origin                           document's origin
         .origin = document.origin(),
         // environment                      document's relevant settings object
-        .environment = &document.relevant_settings_object(),
+        .environment = document.relevant_settings_object(),
         // policy container                 document's policy container
         .policy_container = document.policy_container(),
         // document                         document
@@ -417,6 +459,65 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
     m_fetch_controller = MUST(Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))));
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#linked-resource-fetch-setup-steps
+bool HTMLLinkElement::linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request& request)
+{
+    if (m_relationship & Relationship::Stylesheet)
+        return stylesheet_linked_resource_fetch_setup_steps(request);
+
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:linked-resource-fetch-setup-steps
+bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request& request)
+{
+    // 1. If el's disabled attribute is set, then return false.
+    if (has_attribute(AttributeNames::disabled))
+        return false;
+
+    // 2. If el contributes a script-blocking style sheet, append el to its node document's script-blocking style sheet set.
+    if (contributes_a_script_blocking_style_sheet())
+        document().script_blocking_style_sheet_set().set(*this);
+
+    // 3. If el's media attribute's value matches the environment and el is potentially render-blocking, then block rendering on el.
+    // FIXME: Check media attribute value.
+    if (is_potentially_render_blocking())
+        block_rendering();
+
+    m_document_load_event_delayer.emplace(document());
+
+    // 4. If el is currently render-blocking, then set request's render-blocking to true.
+    if (document().is_render_blocking_element(*this))
+        request.set_render_blocking(true);
+
+    // FIXME: We currently don't set the destination for stylesheets, so we do it here.
+    //        File a spec issue that the destination for stylesheets is not actually set if the `as` attribute is missing.
+    request.set_destination(Fetch::Infrastructure::Request::Destination::Style);
+
+    // 5. Return true.
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
+{
+    if (m_relationship & Relationship::Stylesheet)
+        process_stylesheet_resource(success, response, body_bytes);
+}
+
+void HTMLLinkElement::process_icon_resource()
+{
+    VERIFY(m_relationship & (Relationship::Icon));
+    if (!resource()->has_encoded_data()) {
+        dbgln_if(SPAM_DEBUG, "Favicon downloaded, no encoded data");
+        return;
+    }
+
+    dbgln_if(SPAM_DEBUG, "Favicon downloaded, {} bytes from {}", resource()->encoded_data().size(), resource()->url());
+
+    document().check_favicon_after_loading_link_resource();
+}
+
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
 void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
 {
@@ -520,76 +621,6 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     unblock_rendering();
 
     m_document_load_event_delayer.clear();
-}
-
-// https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
-{
-    if (m_relationship & Relationship::Stylesheet)
-        process_stylesheet_resource(success, response, body_bytes);
-}
-
-// https://html.spec.whatwg.org/multipage/semantics.html#linked-resource-fetch-setup-steps
-bool HTMLLinkElement::linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request& request)
-{
-    if (m_relationship & Relationship::Stylesheet)
-        return stylesheet_linked_resource_fetch_setup_steps(request);
-
-    return true;
-}
-
-// https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:linked-resource-fetch-setup-steps
-bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request& request)
-{
-    // 1. If el's disabled attribute is set, then return false.
-    if (has_attribute(AttributeNames::disabled))
-        return false;
-
-    // 2. If el contributes a script-blocking style sheet, append el to its node document's script-blocking style sheet set.
-    if (contributes_a_script_blocking_style_sheet())
-        document().script_blocking_style_sheet_set().set(*this);
-
-    // 3. If el's media attribute's value matches the environment and el is potentially render-blocking, then block rendering on el.
-    // FIXME: Check media attribute value.
-    if (is_potentially_render_blocking())
-        block_rendering();
-
-    m_document_load_event_delayer.emplace(document());
-
-    // 4. If el is currently render-blocking, then set request's render-blocking to true.
-    if (document().is_render_blocking_element(*this))
-        request.set_render_blocking(true);
-
-    // FIXME: We currently don't set the destination for stylesheets, so we do it here.
-    //        File a spec issue that the destination for stylesheets is not actually set if the `as` attribute is missing.
-    request.set_destination(Fetch::Infrastructure::Request::Destination::Style);
-
-    // 5. Return true.
-    return true;
-}
-
-void HTMLLinkElement::set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document)
-{
-    m_parser_document = document;
-}
-
-bool HTMLLinkElement::is_implicitly_potentially_render_blocking() const
-{
-    // A link element of this type is implicitly potentially render-blocking if the element was created by its node document's parser.
-    return &document() == m_parser_document;
-}
-
-void HTMLLinkElement::resource_did_load_favicon()
-{
-    VERIFY(m_relationship & (Relationship::Icon));
-    if (!resource()->has_encoded_data()) {
-        dbgln_if(SPAM_DEBUG, "Favicon downloaded, no encoded data");
-        return;
-    }
-
-    dbgln_if(SPAM_DEBUG, "Favicon downloaded, {} bytes from {}", resource()->encoded_data().size(), resource()->url());
-
-    document().check_favicon_after_loading_link_resource();
 }
 
 static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
@@ -699,45 +730,6 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
 
     TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
     return {};
-}
-
-void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_fetch_controller);
-    visitor.visit(m_loaded_style_sheet);
-    visitor.visit(m_rel_list);
-    visitor.visit(m_sizes);
-}
-
-// https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
-bool HTMLLinkElement::contributes_a_script_blocking_style_sheet() const
-{
-    // An element el in the context of a Document of an HTML parser or XML parser
-    // contributes a script-blocking style sheet if all of the following are true:
-
-    // el was created by that Document's parser.
-    if (m_parser_document != &document())
-        return false;
-
-    // FIXME: el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
-
-    // FIXME: el's media attribute's value matches the environment.
-
-    // el's style sheet was enabled when the element was created by the parser.
-    if (!m_was_enabled_when_created_by_parser)
-        return false;
-
-    // FIXME: The last time the event loop reached step 1, el's root was that Document.
-
-    // The user agent hasn't given up on loading that particular style sheet yet.
-    // A user agent may give up on loading a style sheet at any time.
-    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated)
-        return false;
-    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted)
-        return false;
-
-    return true;
 }
 
 }
