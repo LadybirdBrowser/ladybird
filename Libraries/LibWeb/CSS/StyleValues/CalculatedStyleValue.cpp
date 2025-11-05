@@ -2595,7 +2595,9 @@ String RandomCalculationNode::to_string(CalculationContext const& context, Seria
     StringBuilder builder;
 
     builder.append("random("sv);
-    builder.appendff("{}, ", m_random_value_sharing->to_string(serialization_mode));
+    auto random_value_sharing_stringified = m_random_value_sharing->to_string(serialization_mode);
+    if (!random_value_sharing_stringified.is_empty())
+        builder.appendff("{}, ", random_value_sharing_stringified);
     builder.appendff("{}, ", serialize_a_calculation_tree(m_minimum, context, serialization_mode));
     builder.append(serialize_a_calculation_tree(m_maximum, context, serialization_mode));
     if (m_step)
