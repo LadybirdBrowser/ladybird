@@ -90,18 +90,7 @@ void Request::set_url(URL::URL url)
 // https://fetch.spec.whatwg.org/#request-destination-script-like
 bool Request::destination_is_script_like() const
 {
-    // A request’s destination is script-like if it is "audioworklet", "paintworklet", "script", "serviceworker", "sharedworker", or "worker".
-    static constexpr Array script_like_destinations = {
-        Destination::AudioWorklet,
-        Destination::PaintWorklet,
-        Destination::Script,
-        Destination::ServiceWorker,
-        Destination::SharedWorker,
-        Destination::Worker,
-    };
-    return any_of(script_like_destinations, [this](auto destination) {
-        return m_destination == destination;
-    });
+    return m_destination.has_value() && Infrastructure::destination_is_script_like(*m_destination);
 }
 
 // https://fetch.spec.whatwg.org/#subresource-request
@@ -450,6 +439,76 @@ StringView request_destination_to_string(Request::Destination destination)
         return "xslt"sv;
     }
     VERIFY_NOT_REACHED();
+}
+
+// https://fetch.spec.whatwg.org/#concept-potential-destination-translate
+Optional<Request::Destination> translate_potential_destination(StringView potential_destination)
+{
+    // 1. If potentialDestination is "fetch", then return the empty string.
+    if (potential_destination == "fetch"sv)
+        return {};
+
+    // 2. Assert: potentialDestination is a destination.
+    // 3. Return potentialDestination.
+    if (potential_destination == "audio"sv)
+        return Request::Destination::Audio;
+    if (potential_destination == "audioworklet"sv)
+        return Request::Destination::AudioWorklet;
+    if (potential_destination == "document"sv)
+        return Request::Destination::Document;
+    if (potential_destination == "embed"sv)
+        return Request::Destination::Embed;
+    if (potential_destination == "font"sv)
+        return Request::Destination::Font;
+    if (potential_destination == "frame"sv)
+        return Request::Destination::Frame;
+    if (potential_destination == "iframe"sv)
+        return Request::Destination::IFrame;
+    if (potential_destination == "image"sv)
+        return Request::Destination::Image;
+    if (potential_destination == "json"sv)
+        return Request::Destination::JSON;
+    if (potential_destination == "manifest"sv)
+        return Request::Destination::Manifest;
+    if (potential_destination == "object"sv)
+        return Request::Destination::Object;
+    if (potential_destination == "paintworklet"sv)
+        return Request::Destination::PaintWorklet;
+    if (potential_destination == "report"sv)
+        return Request::Destination::Report;
+    if (potential_destination == "script"sv)
+        return Request::Destination::Script;
+    if (potential_destination == "serviceworker"sv)
+        return Request::Destination::ServiceWorker;
+    if (potential_destination == "sharedworker"sv)
+        return Request::Destination::SharedWorker;
+    if (potential_destination == "style"sv)
+        return Request::Destination::Style;
+    if (potential_destination == "track"sv)
+        return Request::Destination::Track;
+    if (potential_destination == "video"sv)
+        return Request::Destination::Video;
+    if (potential_destination == "webidentity"sv)
+        return Request::Destination::WebIdentity;
+    if (potential_destination == "worker"sv)
+        return Request::Destination::Worker;
+    if (potential_destination == "xslt"sv)
+        return Request::Destination::XSLT;
+    VERIFY_NOT_REACHED();
+}
+
+// https://fetch.spec.whatwg.org/#request-destination-script-like
+bool destination_is_script_like(Request::Destination destination)
+{
+    // A request’s destination is script-like if it is "audioworklet", "paintworklet", "script", "serviceworker",
+    // "sharedworker", or "worker".
+    return first_is_one_of(destination,
+        Request::Destination::AudioWorklet,
+        Request::Destination::PaintWorklet,
+        Request::Destination::Script,
+        Request::Destination::ServiceWorker,
+        Request::Destination::SharedWorker,
+        Request::Destination::Worker);
 }
 
 StringView request_mode_to_string(Request::Mode mode)
