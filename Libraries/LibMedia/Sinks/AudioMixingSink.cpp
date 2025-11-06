@@ -31,6 +31,29 @@ AudioMixingSink::~AudioMixingSink()
     m_weak_self->revoke();
 }
 
+static inline i64 duration_to_sample(AK::Duration duration, u32 sample_rate)
+{
+    VERIFY(sample_rate != 0);
+    auto seconds = duration.to_truncated_seconds();
+    auto nanoseconds = (duration - AK::Duration::from_seconds(seconds)).to_nanoseconds();
+
+    auto sample = seconds * sample_rate;
+    sample += nanoseconds * sample_rate / 1'000'000'000;
+    return sample;
+}
+
+static inline AK::Duration sample_to_duration(i64 sample, u32 sample_rate)
+{
+    VERIFY(sample_rate != 0);
+    auto seconds = sample / sample_rate;
+    auto seconds_in_time_units = seconds * sample_rate;
+
+    auto remainder_in_time_units = sample - seconds_in_time_units;
+    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000) + (sample_rate / 2)) / sample_rate;
+
+    return AK::Duration::from_seconds(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
+}
+
 void AudioMixingSink::deferred_create_playback_stream(Track const& track)
 {
     m_main_thread_event_loop.deferred_invoke([weak_self = m_weak_self, track = track] {
@@ -48,6 +71,7 @@ void AudioMixingSink::deferred_create_playback_stream(Track const& track)
             track_mixing_data.current_block = track_mixing_data.provider->retrieve_block();
 
         if (!track_mixing_data.current_block.is_empty()) {
+            track_mixing_data.current_block_first_sample_offset = duration_to_sample(track_mixing_data.current_block.start_timestamp(), track_mixing_data.current_block.sample_rate());
             self->create_playback_stream(track_mixing_data.current_block.sample_rate(), track_mixing_data.current_block.channel_count());
             return;
         }
@@ -73,29 +97,6 @@ RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
     if (!mixing_data.has_value())
         return nullptr;
     return mixing_data->provider;
-}
-
-static inline i64 duration_to_sample(AK::Duration duration, u32 sample_rate)
-{
-    VERIFY(sample_rate != 0);
-    auto seconds = duration.to_truncated_seconds();
-    auto nanoseconds = (duration - AK::Duration::from_seconds(seconds)).to_nanoseconds();
-
-    auto sample = seconds * sample_rate;
-    sample += nanoseconds * sample_rate / 1'000'000'000;
-    return sample;
-}
-
-static inline AK::Duration sample_to_duration(i64 sample, u32 sample_rate)
-{
-    VERIFY(sample_rate != 0);
-    auto seconds = sample / sample_rate;
-    auto seconds_in_time_units = seconds * sample_rate;
-
-    auto remainder_in_time_units = sample - seconds_in_time_units;
-    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000) + (sample_rate / 2)) / sample_rate;
-
-    return AK::Duration::from_seconds(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
 }
 
 void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
