@@ -67,7 +67,7 @@ private:
     Optional<Utf16FlyString> m_initial_name; // [[InitialName]]
     Optional<Bytecode::Builtin> m_builtin;
     AK::Function<ThrowCompletionOr<Value>(VM&)> m_native_function;
-    GC::Ptr<Realm> m_realm;
+    GC::Ref<Realm> m_realm;
 };
 
 template<>
