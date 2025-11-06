@@ -88,6 +88,10 @@
 #include <LibWeb/MathML/MathMLMspaceElement.h>
 #include <LibWeb/MathML/MathMLRadicalElement.h>
 #include <LibWeb/MathML/MathMLScriptElement.h>
+#include <LibWeb/MathML/MathMLTableCellElement.h>
+#include <LibWeb/MathML/MathMLTableElement.h>
+#include <LibWeb/MathML/MathMLTableRowElement.h>
+#include <LibWeb/MathML/MathMLUnderOverElement.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/SVGAElement.h>
@@ -577,6 +581,14 @@ static GC::Ref<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Do
         return realm.create<MathML::MathMLRadicalElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::msub || local_name == MathML::TagNames::msup || local_name == MathML::TagNames::msubsup)
         return realm.create<MathML::MathMLScriptElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mtable)
+        return realm.create<MathML::MathMLTableElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mtr)
+        return realm.create<MathML::MathMLTableRowElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mtd)
+        return realm.create<MathML::MathMLTableCellElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::munder || local_name == MathML::TagNames::mover || local_name == MathML::TagNames::munderover)
+        return realm.create<MathML::MathMLUnderOverElement>(document, move(qualified_name));
 
     // https://w3c.github.io/mathml-core/#dom-and-javascript
     // All the nodes representing MathML elements in the DOM must implement, and expose to scripts,

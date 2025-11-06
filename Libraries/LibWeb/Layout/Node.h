@@ -118,6 +118,10 @@ public:
     virtual bool is_mathml_fraction_box() const { return false; }
     virtual bool is_mathml_radical_box() const { return false; }
     virtual bool is_mathml_script_box() const { return false; }
+    virtual bool is_mathml_table_box() const { return false; }
+    virtual bool is_mathml_table_row_box() const { return false; }
+    virtual bool is_mathml_table_cell_box() const { return false; }
+    virtual bool is_mathml_underover_box() const { return false; }
     virtual bool is_label() const { return false; }
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }

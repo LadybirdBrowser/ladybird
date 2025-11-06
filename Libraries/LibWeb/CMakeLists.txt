@@ -739,6 +739,10 @@ set(SOURCES
     Layout/MathMLFractionBox.cpp
     Layout/MathMLRadicalBox.cpp
     Layout/MathMLScriptBox.cpp
+    Layout/MathMLTableBox.cpp
+    Layout/MathMLTableCellBox.cpp
+    Layout/MathMLTableRowBox.cpp
+    Layout/MathMLUnderOverBox.cpp
     Layout/SVGBox.cpp
     Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp
@@ -770,6 +774,10 @@ set(SOURCES
     MathML/MathMLMspaceElement.cpp
     MathML/MathMLRadicalElement.cpp
     MathML/MathMLScriptElement.cpp
+    MathML/MathMLTableCellElement.cpp
+    MathML/MathMLTableElement.cpp
+    MathML/MathMLTableRowElement.cpp
+    MathML/MathMLUnderOverElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
@@ -815,6 +823,10 @@ set(SOURCES
     Painting/MarkerPaintable.cpp
     Painting/MathMLFractionPaintable.cpp
     Painting/MathMLRadicalPaintable.cpp
+    Painting/MathMLUnderOverPaintable.cpp
+    Painting/MathMLTableCellPaintable.cpp
+    Painting/MathMLTablePaintable.cpp
+    Painting/MathMLTableRowPaintable.cpp
     Painting/MediaPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp

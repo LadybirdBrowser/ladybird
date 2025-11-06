@@ -129,6 +129,10 @@ public:
     [[nodiscard]] virtual bool is_svg_graphics_paintable() const { return false; }
     [[nodiscard]] virtual bool is_mathml_fraction_paintable() const { return false; }
     [[nodiscard]] virtual bool is_mathml_radical_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_mathml_underover_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_mathml_table_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_mathml_table_row_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_mathml_table_cell_paintable() const { return false; }
     [[nodiscard]] virtual bool is_text_paintable() const { return false; }
 
     DOM::Document const& document() const;
