@@ -112,6 +112,12 @@ void copy_data_block_bytes(ByteBuffer& to_block, u64 to_index, ByteBuffer const&
     // 5. Assert: toIndex + count ≤ toSize.
     VERIFY(to_index + count <= to_size);
 
+    // OPTIMIZATION: If neither block is a Shared Data Block, we can copy the whole range at once.
+    if (true) {
+        AK::TypedTransfer<u8>::copy(to_block.data() + to_index, from_block.data() + from_index, count);
+        return;
+    }
+
     // 6. Repeat, while count > 0,
     while (count > 0) {
         // FIXME: a. If fromBlock is a Shared Data Block, then
