@@ -366,6 +366,7 @@ namespace JS {
     P(negated)                               \
     P(NEGATIVE_INFINITY)                     \
     P(next)                                  \
+    P(nextMethod)                            \
     P(normalize)                             \
     P(notation)                              \
     P(notify)                                \

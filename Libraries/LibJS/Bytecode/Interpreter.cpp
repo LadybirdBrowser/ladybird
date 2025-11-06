@@ -22,6 +22,8 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/AsyncFromSyncIterator.h>
+#include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -450,6 +452,18 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             goto start;
         }
 
+        handle_IsCallable: {
+            auto& instruction = *reinterpret_cast<Op::IsCallable const*>(&bytecode[program_counter]);
+            set(instruction.dst(), Value(get(instruction.value()).is_function()));
+            DISPATCH_NEXT(IsCallable);
+        }
+
+        handle_IsConstructor: {
+            auto& instruction = *reinterpret_cast<Op::IsConstructor const*>(&bytecode[program_counter]);
+            set(instruction.dst(), Value(get(instruction.value()).is_constructor()));
+            DISPATCH_NEXT(IsConstructor);
+        }
+
 #define HANDLE_INSTRUCTION(name)                                                                                            \
     handle_##name:                                                                                                          \
     {                                                                                                                       \
@@ -491,6 +505,8 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Catch);
             HANDLE_INSTRUCTION(ConcatString);
             HANDLE_INSTRUCTION(CopyObjectExcludingProperties);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateAsyncFromSyncIterator);
+            HANDLE_INSTRUCTION(CreateDataPropertyOrThrow);
             HANDLE_INSTRUCTION(CreateImmutableBinding);
             HANDLE_INSTRUCTION(CreateMutableBinding);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateLexicalEnvironment);
@@ -550,9 +566,11 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(Mod);
             HANDLE_INSTRUCTION(Mul);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewArray);
+            HANDLE_INSTRUCTION(NewArrayWithLength);
             HANDLE_INSTRUCTION(NewClass);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewFunction);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewObject);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewObjectWithNoPrototype);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewPrimitiveArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewTypeError);
@@ -593,6 +611,9 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ThrowIfNotObject);
             HANDLE_INSTRUCTION(ThrowIfNullish);
             HANDLE_INSTRUCTION(ThrowIfTDZ);
+            HANDLE_INSTRUCTION(ToLength);
+            HANDLE_INSTRUCTION(ToObject);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(ToBoolean);
             HANDLE_INSTRUCTION(Typeof);
             HANDLE_INSTRUCTION(TypeofBinding);
             HANDLE_INSTRUCTION(UnaryMinus);
@@ -2030,6 +2051,14 @@ void NewPrimitiveArray::execute_impl(Bytecode::Interpreter& interpreter) const
     interpreter.set(dst(), array);
 }
 
+ThrowCompletionOr<void> NewArrayWithLength::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto length = static_cast<u64>(interpreter.get(m_array_length).as_double());
+    auto array = TRY(Array::create(interpreter.realm(), length));
+    interpreter.set(m_dst, array);
+    return {};
+}
+
 void AddPrivateName::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& name = interpreter.get_identifier(m_name);
@@ -2079,6 +2108,13 @@ void NewObject::execute_impl(Bytecode::Interpreter& interpreter) const
     auto& vm = interpreter.vm();
     auto& realm = *vm.current_realm();
     interpreter.set(dst(), Object::create(realm, realm.intrinsics().object_prototype()));
+}
+
+void NewObjectWithNoPrototype::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& realm = *vm.current_realm();
+    interpreter.set(dst(), Object::create(realm, nullptr));
 }
 
 void NewRegExp::execute_impl(Bytecode::Interpreter& interpreter) const
@@ -3297,6 +3333,53 @@ ThrowCompletionOr<void> CreateMutableBinding::execute_impl(Bytecode::Interpreter
 {
     auto& environment = as<Environment>(interpreter.get(m_environment).as_cell());
     return environment.create_mutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_can_be_deleted);
+}
+
+ThrowCompletionOr<void> ToObject::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.set(m_dst, TRY(interpreter.get(m_value).to_object(interpreter.vm())));
+    return {};
+}
+
+void ToBoolean::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.set(m_dst, Value(interpreter.get(m_value).to_boolean()));
+}
+
+ThrowCompletionOr<void> ToLength::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.set(m_dst, Value { TRY(interpreter.get(m_value).to_length(interpreter.vm())) });
+    return {};
+}
+
+void CreateAsyncFromSyncIterator::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& realm = interpreter.realm();
+
+    auto& iterator = interpreter.get(m_iterator).as_object();
+    auto next_method = interpreter.get(m_next_method);
+    auto done = interpreter.get(m_done).as_bool();
+
+    auto iterator_record = realm.create<IteratorRecord>(iterator, next_method, done);
+    auto async_from_sync_iterator = create_async_from_sync_iterator(vm, iterator_record);
+
+    auto iterator_object = Object::create(realm, nullptr);
+    iterator_object->define_direct_property(vm.names.iterator, async_from_sync_iterator.iterator, default_attributes);
+    iterator_object->define_direct_property(vm.names.nextMethod, async_from_sync_iterator.next_method, default_attributes);
+    iterator_object->define_direct_property(vm.names.done, Value { async_from_sync_iterator.done }, default_attributes);
+
+    interpreter.set(m_dst, iterator_object);
+}
+
+ThrowCompletionOr<void> CreateDataPropertyOrThrow::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& object = interpreter.get(m_object).as_object();
+    auto property = TRY(interpreter.get(m_property).to_property_key(vm));
+    auto value = interpreter.get(m_value);
+    TRY(object.create_data_property_or_throw(property, value));
+    return {};
 }
 
 }

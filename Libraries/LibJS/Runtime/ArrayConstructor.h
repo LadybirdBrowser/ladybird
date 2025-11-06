@@ -27,7 +27,6 @@ private:
     virtual bool has_constructor() const override { return true; }
 
     JS_DECLARE_NATIVE_FUNCTION(from);
-    JS_DECLARE_NATIVE_FUNCTION(from_async);
     JS_DECLARE_NATIVE_FUNCTION(is_array);
     JS_DECLARE_NATIVE_FUNCTION(of);
 
