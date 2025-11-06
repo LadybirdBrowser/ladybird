@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 100 0+0+700] [0+0+0 308 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,200] [8+0+0 100 0+0+-8] [10+0+0 100 0+0+8] children: not-inline
       BlockContainer <div#pink> at [8,200] [0+0+0 100 0+0+0] [100+0+0 100 0+0+0] children: not-inline

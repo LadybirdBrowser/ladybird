@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [1,1] [0+1+0 500 0+1+298] [0+1+0 38 0+1+0] [BFC] children: inline
     frag 0 from Box start: 0, length: 0, rect: [10,10 162.40625x20] baseline: 24.796875
     Box <body> at [10,10] flex-container(row) [8+1+0 162.40625 0+1+100] [8+1+0 20 0+1+8] [FFC] children: not-inline
