@@ -220,6 +220,7 @@ Optional<u32> HTMLTokenizer::next_code_point(StopAtInsertionPoint stop_at_insert
 
 void HTMLTokenizer::skip(size_t count)
 {
+    VERIFY(count > 0);
     if (!m_source_positions.is_empty())
         m_source_positions.append(m_source_positions.last());
     for (size_t i = 0; i < count; ++i) {
@@ -1725,7 +1726,7 @@ _StartOfFunction:
                     auto num_consumed = m_temporary_buffer.size() - starting_consumed_count;
                     if (num_consumed == 0) {
                         DONT_CONSUME_NEXT_INPUT_CHARACTER;
-                    } else {
+                    } else if (num_consumed > 1) {
                         skip(num_consumed - 1);
                     }
                 }
