@@ -61,6 +61,7 @@ struct ProcessSpawnOptions {
     Vector<FileActionType> file_actions {};
 
 #if defined(AK_OS_WINDOWS)
+    bool create_new_process_group { false };
     using StartupInfoType = Variant<StartupInfo::UseStdHandles>;
     Optional<StartupInfoType> startup_info {};
 #endif
