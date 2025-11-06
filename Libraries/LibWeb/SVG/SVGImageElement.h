@@ -20,6 +20,8 @@ class SVGImageElement final
     WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
 
 public:
+    ~SVGImageElement();
+
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     GC::Ref<SVG::SVGAnimatedLength> x();
