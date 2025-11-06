@@ -61,6 +61,7 @@ struct ProcessSpawnOptions {
 
 #if defined(AK_OS_WINDOWS)
     Optional<StartupInfo::UseStdHandles> use_std_handles_startup_info {};
+    bool create_new_process_group { false };
 #endif
 };
 
