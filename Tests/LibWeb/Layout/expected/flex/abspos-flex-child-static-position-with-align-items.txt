@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [10,10] [0+10+0 780 0+10+0] [0+10+0 546 0+10+0] [BFC] children: not-inline
     Box <body> at [28,28] flex-container(row) [8+10+0 744 0+10+8] [8+10+0 510 0+10+8] [FFC] children: not-inline
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
