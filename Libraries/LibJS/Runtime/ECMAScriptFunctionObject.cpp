@@ -217,7 +217,7 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& r
         if (is_module_wrapper()) {
             executable = TRY(Bytecode::compile(vm(), ecmascript_code(), kind(), name()));
         } else {
-            executable = TRY(Bytecode::compile(vm(), *this));
+            executable = TRY(Bytecode::compile(vm(), shared_data()));
         }
     }
     registers_and_constants_and_locals_count = executable->registers_and_constants_and_locals_count;
