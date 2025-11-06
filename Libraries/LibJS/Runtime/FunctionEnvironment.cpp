@@ -32,7 +32,11 @@ ThrowCompletionOr<Value> FunctionEnvironment::get_super_base() const
     VERIFY(m_function_object);
 
     // 1. Let home be envRec.[[FunctionObject]].[[HomeObject]].
-    auto home_object = m_function_object->home_object();
+    auto* ecmascript_function_object = as_if<ECMAScriptFunctionObject>(*m_function_object);
+    if (!ecmascript_function_object)
+        return js_undefined();
+
+    auto home_object = ecmascript_function_object->home_object();
 
     // 2. If home is undefined, return undefined.
     if (!home_object)
@@ -57,7 +61,10 @@ bool FunctionEnvironment::has_super_binding() const
 {
     if (this_binding_status() == ThisBindingStatus::Lexical)
         return false;
-    if (!function_object().home_object())
+    auto* ecmascript_function_object = as_if<ECMAScriptFunctionObject>(*m_function_object);
+    if (!ecmascript_function_object)
+        return false;
+    if (!ecmascript_function_object->home_object())
         return false;
     return true;
 }

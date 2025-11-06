@@ -25,6 +25,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/PromiseCapability.h>
@@ -458,6 +459,36 @@ GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& 
     return env;
 }
 
+// 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
+// 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
+GC::Ref<FunctionEnvironment> new_function_environment(NativeJavaScriptBackedFunction& function, Object* new_target)
+{
+    auto& heap = function.heap();
+
+    // 1. Let env be a new function Environment Record containing no bindings.
+    auto env = heap.allocate<FunctionEnvironment>(nullptr);
+
+    // 2. Set env.[[FunctionObject]] to F.
+    env->set_function_object(function);
+
+    // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
+    if (function.this_mode() == ThisMode::Lexical)
+        env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Lexical);
+    // 4. Else, set env.[[ThisBindingStatus]] to uninitialized.
+    else
+        env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Uninitialized);
+
+    // 5. Set env.[[NewTarget]] to newTarget.
+    env->set_new_target(new_target ?: js_undefined());
+
+    // 6. Set env.[[OuterEnv]] to F.[[Environment]].
+    // 7. Set env.[[DisposeCapability]] to NewDisposeCapability().
+    // NOTE: Done in step 1 via the FunctionEnvironment constructor.
+
+    // 8. Return env.
+    return env;
+}
+
 // 9.2.1.1 NewPrivateEnvironment ( outerPrivEnv ), https://tc39.es/ecma262/#sec-newprivateenvironment
 GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer)
 {
@@ -586,7 +617,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
             auto& this_function_environment_record = static_cast<FunctionEnvironment&>(*this_environment_record);
 
             // i. Let F be thisEnvRec.[[FunctionObject]].
-            auto& function = this_function_environment_record.function_object();
+            auto& function = as<ECMAScriptFunctionObject>(this_function_environment_record.function_object());
 
             // ii. Set inFunction to true.
             in_function = true;

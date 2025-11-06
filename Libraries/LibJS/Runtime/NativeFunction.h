@@ -52,6 +52,9 @@ public:
 
     Optional<Bytecode::Builtin> builtin() const { return m_builtin; }
 
+    virtual bool function_environment_needed() const { return false; }
+    virtual size_t function_environment_bindings_count() const { return 0; }
+
 protected:
     NativeFunction(Utf16FlyString name, Object& prototype);
     NativeFunction(AK::Function<ThrowCompletionOr<Value>(VM&)>, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);

@@ -10,6 +10,7 @@
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Bytecode/BuiltinAbstractOperationsEnabled.h>
 #include <LibJS/Bytecode/CodeGenerationError.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
@@ -40,7 +41,7 @@ public:
     };
 
     static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_ast_node(VM&, ASTNode const&, FunctionKind = FunctionKind::Normal);
-    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_function(VM&, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_function(VM&, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled = BuiltinAbstractOperationsEnabled::No);
 
     CodeGenerationErrorOr<void> emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data);
 
@@ -361,10 +362,15 @@ public:
 
     [[nodiscard]] bool must_propagate_completion() const { return m_must_propagate_completion; }
 
+    [[nodiscard]] bool builtin_abstract_operations_enabled() const { return m_builtin_abstract_operations_enabled; }
+
+    CodeGenerationErrorOr<void> generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const& dst);
+    CodeGenerationErrorOr<Optional<ScopedOperand>> maybe_generate_builtin_constant(Identifier const& builtin_identifier);
+
 private:
     VM& m_vm;
 
-    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, Vector<LocalVariable> local_variable_names);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, BuiltinAbstractOperationsEnabled, Vector<LocalVariable> local_variable_names);
 
     enum class JumpType {
         Continue,
@@ -373,7 +379,7 @@ private:
     void generate_scoped_jump(JumpType);
     void generate_labelled_jump(JumpType, FlyString const& label);
 
-    Generator(VM&, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion);
+    Generator(VM&, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, BuiltinAbstractOperationsEnabled);
     ~Generator() = default;
 
     void grow(size_t);
@@ -426,6 +432,7 @@ private:
 
     bool m_finished { false };
     bool m_must_propagate_completion { true };
+    bool m_builtin_abstract_operations_enabled { false };
 
     GC::Ptr<SharedFunctionInstanceData const> m_shared_function_instance_data;
 

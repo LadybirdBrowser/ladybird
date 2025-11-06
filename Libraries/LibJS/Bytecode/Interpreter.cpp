@@ -739,11 +739,11 @@ ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& 
     return bytecode_executable;
 }
 
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data)
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
 {
     auto const& name = shared_function_instance_data->m_name;
 
-    auto executable_result = Bytecode::Generator::generate_from_function(vm, shared_function_instance_data);
+    auto executable_result = Bytecode::Generator::generate_from_function(vm, shared_function_instance_data, builtin_abstract_operations_enabled);
     if (executable_result.is_error())
         return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
 
@@ -1290,7 +1290,7 @@ inline Value new_function(Interpreter& interpreter, FunctionNode const& function
 
     if (home_object.has_value()) {
         auto home_object_value = interpreter.get(home_object.value());
-        static_cast<ECMAScriptFunctionObject&>(value.as_function()).set_home_object(&home_object_value.as_object());
+        as<ECMAScriptFunctionObject>(value.as_function()).set_home_object(&home_object_value.as_object());
     }
 
     return value;
@@ -2896,7 +2896,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
     TRY(this_environment.bind_this_value(vm, result));
 
     // 9. Let F be thisER.[[FunctionObject]].
-    auto& f = this_environment.function_object();
+    auto& f = as<ECMAScriptFunctionObject>(this_environment.function_object());
 
     // 10. Assert: F is an ECMAScript function object.
     // NOTE: This is implied by the strong C++ type.

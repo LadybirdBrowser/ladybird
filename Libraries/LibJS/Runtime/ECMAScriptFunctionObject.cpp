@@ -217,7 +217,7 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& r
         if (is_module_wrapper()) {
             executable = TRY(Bytecode::compile(vm(), ecmascript_code(), kind(), name()));
         } else {
-            executable = TRY(Bytecode::compile(vm(), shared_data()));
+            executable = TRY(Bytecode::compile(vm(), shared_data(), Bytecode::BuiltinAbstractOperationsEnabled::No));
         }
     }
     registers_and_constants_and_locals_count = executable->registers_and_constants_and_locals_count;
@@ -607,9 +607,9 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
         return result;
 
     if (kind() == FunctionKind::AsyncGenerator)
-        return AsyncGenerator::create(*context.realm, result, this, context.copy());
+        return AsyncGenerator::create(*context.realm, result, GC::Ref { *this }, context.copy());
 
-    auto generator_object = GeneratorObject::create(*context.realm, result, this, context.copy());
+    auto generator_object = GeneratorObject::create(*context.realm, result, GC::Ref { *this }, context.copy());
 
     // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise
     //       See AwaitExpression::generate_bytecode() for the transformation.

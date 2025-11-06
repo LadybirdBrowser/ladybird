@@ -158,6 +158,7 @@ set(SOURCES
     Runtime/ModuleEnvironment.cpp
     Runtime/ModuleNamespaceObject.cpp
     Runtime/NativeFunction.cpp
+    Runtime/NativeJavaScriptBackedFunction.cpp
     Runtime/NumberConstructor.cpp
     Runtime/NumberObject.cpp
     Runtime/NumberPrototype.cpp
