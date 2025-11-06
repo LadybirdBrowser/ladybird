@@ -1945,7 +1945,7 @@ HashMap<StringView, u8> ComputedProperties::font_feature_settings() const
     return {};
 }
 
-Optional<HashMap<FlyString, NumberOrCalculated>> ComputedProperties::font_variation_settings() const
+HashMap<FlyString, double> ComputedProperties::font_variation_settings() const
 {
     auto const& value = property(PropertyID::FontVariationSettings);
 
@@ -1954,7 +1954,7 @@ Optional<HashMap<FlyString, NumberOrCalculated>> ComputedProperties::font_variat
 
     if (value.is_value_list()) {
         auto const& axis_tags = value.as_value_list().values();
-        HashMap<FlyString, NumberOrCalculated> result;
+        HashMap<FlyString, double> result;
         result.ensure_capacity(axis_tags.size());
         for (auto const& tag_value : axis_tags) {
             auto const& axis_tag = tag_value->as_open_type_tagged();
@@ -1963,7 +1963,7 @@ Optional<HashMap<FlyString, NumberOrCalculated>> ComputedProperties::font_variat
                 result.set(axis_tag.tag(), axis_tag.value()->as_number().number());
             } else {
                 VERIFY(axis_tag.value()->is_calculated());
-                result.set(axis_tag.tag(), NumberOrCalculated { axis_tag.value()->as_calculated() });
+                result.set(axis_tag.tag(), axis_tag.value()->as_calculated().resolve_number({}).value());
             }
         }
         return result;

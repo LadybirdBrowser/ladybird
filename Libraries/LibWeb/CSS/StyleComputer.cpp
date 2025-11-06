@@ -1811,7 +1811,7 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, NumberOrCalculated> const& font_variation_settings, Length::ResolutionContext const& length_resolution_context) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto width = round_to<int>(font_width.value());
@@ -1836,21 +1836,14 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             Gfx::FontVariationSettings variation;
             variation.set_weight(font_weight);
 
-            CalculationResolutionContext context {
-                .length_resolution_context = length_resolution_context,
-            };
-
             for (auto const& [tag_string, value] : font_variation_settings) {
                 auto string_view = tag_string.bytes_as_string_view();
                 if (string_view.length() != 4)
                     continue;
+
                 auto tag = Gfx::FourCC(string_view.characters_without_null_termination());
 
-                auto resolved_value = value.resolved(context);
-                if (!resolved_value.has_value())
-                    continue;
-
-                variation.axes.set(tag, resolved_value.release_value());
+                variation.axes.set(tag, value);
             }
 
             for (auto const& loader : loaders) {
@@ -1992,7 +1985,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
 
-    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width(), style.font_variation_settings().value_or({}), font_computation_context.length_resolution_context);
+    auto font_list = compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width(), style.font_variation_settings());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 
