@@ -197,6 +197,7 @@ set(SOURCES
     Runtime/Shape.cpp
     Runtime/SharedArrayBufferConstructor.cpp
     Runtime/SharedArrayBufferPrototype.cpp
+    Runtime/SharedFunctionInstanceData.cpp
     Runtime/StringConstructor.cpp
     Runtime/StringIterator.cpp
     Runtime/StringIteratorPrototype.cpp
