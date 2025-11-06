@@ -95,6 +95,7 @@ static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder
             durations.unchecked_append(0);
         } else {
             auto frame = frame_or_error.release_value();
+            frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
             bitmaps.unchecked_append(frame.image);
             durations.unchecked_append(frame.duration);
         }
