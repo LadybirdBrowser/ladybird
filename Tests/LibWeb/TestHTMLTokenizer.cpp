@@ -266,3 +266,12 @@ TEST_CASE(regression)
     u32 hash = hash_tokens(tokens);
     EXPECT_EQ(hash, 3657343287u);
 }
+
+TEST_CASE(ambiguous_ampersand_offset)
+{
+    auto tokens = run_tokenizer("&a"sv);
+    auto& token = tokens.first();
+    EXPECT_EQ(token.type(), Token::Type::Character);
+    EXPECT_EQ(token.start_position().line, 0u);
+    EXPECT_EQ(token.start_position().column, 1u);
+}
