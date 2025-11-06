@@ -58,6 +58,8 @@ public:
         Optional<Chunk> next_without_peek();
         Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
 
+        [[nodiscard]] Gfx::Font const& font_for_space(size_t at_index) const;
+
         bool const m_should_wrap_lines;
         bool const m_should_respect_linebreaks;
         bool m_should_collapse_whitespace;
@@ -68,6 +70,8 @@ public:
         size_t m_current_index { 0 };
 
         Vector<Chunk> m_peek_queue;
+
+        mutable RefPtr<Gfx::Font const> m_last_non_whitespace_font;
     };
 
     void invalidate_text_for_rendering();
