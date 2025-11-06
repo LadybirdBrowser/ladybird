@@ -95,11 +95,15 @@ public:
     };
     ShapingCache& shaping_cache() const { return m_shaping_cache; }
 
+    bool is_emoji_font() const;
+
 private:
     mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
 
     mutable ShapingCache m_shaping_cache;
+
+    mutable TriState m_is_emoji_font { TriState::Unknown };
 
     NonnullRefPtr<Typeface const> m_typeface;
     float m_x_scale { 0.0f };
