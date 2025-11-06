@@ -125,8 +125,14 @@ EventLoop& EnvironmentSettingsObject::responsible_event_loop()
 RunScriptDecision can_run_script(JS::Realm const& realm)
 {
     // 1. If the global object specified by realm is a Window object whose Document object is not fully active, then return "do not run".
-    if (is<HTML::Window>(realm.global_object()) && !as<HTML::Window>(realm.global_object()).associated_document().is_fully_active())
-        return RunScriptDecision::DoNotRun;
+    if (auto const* window = as_if<HTML::Window>(realm.global_object())) {
+        auto const& document = window->associated_document();
+        // AD-HOC: We allow tasks for destroyed documents to run so that microtasks queued during the fetch of a new
+        //         document in a navigation can still be processed, even after the previous document, the one that
+        //         initiated the fetch, has been destroyed.
+        if (!document.has_been_destroyed() && !document.is_fully_active())
+            return RunScriptDecision::DoNotRun;
+    }
 
     // 2. If scripting is disabled for realm, then return "do not run".
     if (is_scripting_disabled(realm))
