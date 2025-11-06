@@ -70,7 +70,7 @@ NativeFunction::NativeFunction(AK::Function<ThrowCompletionOr<Value>(VM&)> nativ
     : FunctionObject(realm, prototype)
     , m_builtin(builtin)
     , m_native_function(move(native_function))
-    , m_realm(&realm)
+    , m_realm(realm)
 {
 }
 
@@ -80,7 +80,7 @@ NativeFunction::NativeFunction(AK::Function<ThrowCompletionOr<Value>(VM&)> nativ
 
 NativeFunction::NativeFunction(Object& prototype)
     : FunctionObject(prototype)
-    , m_realm(&prototype.shape().realm())
+    , m_realm(prototype.shape().realm())
 {
 }
 
@@ -88,14 +88,14 @@ NativeFunction::NativeFunction(Utf16FlyString name, AK::Function<ThrowCompletion
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_native_function(move(native_function))
-    , m_realm(&prototype.shape().realm())
+    , m_realm(prototype.shape().realm())
 {
 }
 
 NativeFunction::NativeFunction(Utf16FlyString name, Object& prototype)
     : FunctionObject(prototype)
     , m_name(move(name))
-    , m_realm(&prototype.shape().realm())
+    , m_realm(prototype.shape().realm())
 {
 }
 
@@ -118,18 +118,8 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
     callee_context.function = this;
 
     // 5. Let calleeRealm be F.[[Realm]].
-    auto callee_realm = m_realm;
-    // NOTE: This non-standard fallback is needed until we can guarantee that literally
-    // every function has a realm - especially in LibWeb that's sometimes not the case
-    // when a function is created while no JS is running, as we currently need to rely on
-    // that (:acid2:, I know - see set_event_handler_attribute() for an example).
-    // If there's no 'current realm' either, we can't continue and crash.
-    if (!callee_realm)
-        callee_realm = vm.current_realm();
-    VERIFY(callee_realm);
-
     // 6. Set the Realm of calleeContext to calleeRealm.
-    callee_context.realm = callee_realm;
+    callee_context.realm = m_realm;
 
     // 7. Set the ScriptOrModule of calleeContext to null.
     // Note: This is already the default value.
@@ -173,18 +163,8 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ExecutionC
     callee_context.function = this;
 
     // 5. Let calleeRealm be F.[[Realm]].
-    auto callee_realm = m_realm;
-    // NOTE: This non-standard fallback is needed until we can guarantee that literally
-    // every function has a realm - especially in LibWeb that's sometimes not the case
-    // when a function is created while no JS is running, as we currently need to rely on
-    // that (:acid2:, I know - see set_event_handler_attribute() for an example).
-    // If there's no 'current realm' either, we can't continue and crash.
-    if (!callee_realm)
-        callee_realm = vm.current_realm();
-    VERIFY(callee_realm);
-
     // 6. Set the Realm of calleeContext to calleeRealm.
-    callee_context.realm = callee_realm;
+    callee_context.realm = m_realm;
 
     // 7. Set the ScriptOrModule of calleeContext to null.
     // Note: This is already the default value.
