@@ -40,9 +40,9 @@ public:
     };
 
     static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_ast_node(VM&, ASTNode const&, FunctionKind = FunctionKind::Normal);
-    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_function(VM&, ECMAScriptFunctionObject const& function);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_function(VM&, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data);
 
-    CodeGenerationErrorOr<void> emit_function_declaration_instantiation(ECMAScriptFunctionObject const& function);
+    CodeGenerationErrorOr<void> emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data);
 
     [[nodiscard]] ScopedOperand allocate_register();
     [[nodiscard]] ScopedOperand local(Identifier::Local const&);
@@ -364,7 +364,7 @@ public:
 private:
     VM& m_vm;
 
-    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<ECMAScriptFunctionObject const>, MustPropagateCompletion, Vector<LocalVariable> local_variable_names);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion, Vector<LocalVariable> local_variable_names);
 
     enum class JumpType {
         Continue,
@@ -373,7 +373,7 @@ private:
     void generate_scoped_jump(JumpType);
     void generate_labelled_jump(JumpType, FlyString const& label);
 
-    Generator(VM&, GC::Ptr<ECMAScriptFunctionObject const>, MustPropagateCompletion);
+    Generator(VM&, GC::Ptr<SharedFunctionInstanceData const>, MustPropagateCompletion);
     ~Generator() = default;
 
     void grow(size_t);
@@ -427,7 +427,7 @@ private:
     bool m_finished { false };
     bool m_must_propagate_completion { true };
 
-    GC::Ptr<ECMAScriptFunctionObject const> m_function;
+    GC::Ptr<SharedFunctionInstanceData const> m_shared_function_instance_data;
 
     Optional<IdentifierTableIndex> m_length_identifier;
 };
