@@ -141,42 +141,71 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-append
-WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
 {
     // The append(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
-    if (!is_a_custom_property_name_string(property))
-        property = property.to_ascii_lowercase();
-
     // 2. If property is not a valid CSS property, throw a TypeError.
-    if (!is_a_valid_css_property(property))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property)) };
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value()) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
+    }
 
-    // FIXME: 3. If property is not a list-valued property, throw a TypeError.
+    // 3. If property is not a list-valued property, throw a TypeError.
+    if (!property_is_list_valued(property->id())) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a list-valued property", property_name)) };
+    }
 
-    // FIXME: 4. If any of the items in values have a non-null [[associatedProperty]] internal slot, and that slot’s value is anything other than property, throw a TypeError.
+    // 4. If any of the items in values have a non-null [[associatedProperty]] internal slot, and that slot’s value is
+    //    anything other than property, throw a TypeError.
+    if (any_have_non_matching_associated_property(property->name(), values)) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "One of the passed CSSStyleValues has a different associated property"_string };
+    }
 
-    // FIXME: 5. If any of the items in values are a CSSUnparsedValue or CSSVariableReferenceValue object, throw a TypeError.
-
-    // NOTE: When a property is set via string-based APIs, the presence of var() in a property prevents the entire thing from being interpreted. In other words, everything besides the var() is a plain component value, not a meaningful type. This step’s restriction preserves the same semantics in the Typed OM.
+    // 5. If any of the items in values are a CSSUnparsedValue or CSSVariableReferenceValue object, throw a TypeError.
+    // NOTE: When a property is set via string-based APIs, the presence of var() in a property prevents the entire
+    //       thing from being interpreted. In other words, everything besides the var() is a plain component value, not
+    //       a meaningful type. This step’s restriction preserves the same semantics in the Typed OM.
+    // FIXME: This is done as part of step 10, because we need to detect if a string value would be an CSSUnparsedValue
+    //        or CSSVariableReferenceValue. Spec issue: https://github.com/w3c/css-houdini-drafts/issues/1157
 
     // 6. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = declarations();
 
-    // FIXME: 7. If props[property] does not exist, set props[property] to an empty list.
-    (void)props;
+    // 7. If props[property] does not exist, set props[property] to an empty list.
+    auto existing_value = props.get_property_style_value(property.value());
 
-    // FIXME: 8. If props[property] contains a var() reference, throw a TypeError.
+    // 8. If props[property] contains a var() reference, throw a TypeError.
+    if (existing_value && existing_value->is_unresolved()) {
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Existing value for '{}' contains var() references.", property_name)) };
+    }
 
-    // FIXME: 9. Let temp values be an empty list.
+    // 9. Let temp values be an empty list.
+    // NB: StyleValues are immutable, so we always create a new one. We add directly to it instead of using "temp values".
+    StyleValueVector value_list;
+    if (existing_value) {
+        if (existing_value->is_value_list())
+            value_list.extend(existing_value->as_value_list().values());
+        else
+            value_list.append(existing_value.release_nonnull());
+    }
 
-    // FIXME: 10. For each value in values, create an internal representation with property and value, and append the returned value to temp values.
-    (void)values;
+    // 10. For each value in values, create an internal representation with property and value, and append the returned value to temp values.
+    for (auto const& value : values) {
+        // AD-HOC: Step 5 is done here, see above.
+        auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
 
-    // FIXME: 11. Append the entries of temp values to props[property].
+        if (internal_representation->is_unresolved())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot append a CSSUnparsedValue or CSSVariableReferenceValue"_string };
 
-    return {};
+        value_list.append(move(internal_representation));
+    }
+
+    // 11. Append the entries of temp values to props[property].
+    // NB: StyleValues are immutable, so we create a new one instead.
+    // FIXME: How do we know if this is comma-separated or not?
+    return props.set_property_style_value(property.value(), StyleValueList::create(move(value_list), StyleValueList::Separator::Comma));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-delete
