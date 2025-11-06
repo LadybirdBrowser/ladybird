@@ -104,7 +104,8 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
 
         // 4. If n is greater than zero, then append a DocumentFragment consisting of n-1 new option elements with no attributes and no child nodes to the select element on which the HTMLOptionsCollection is rooted.
         if (n > 0) {
-            for (WebIDL::UnsignedLong i = 0; i < n - 1; i++) {
+            // AD-HOC: https://github.com/whatwg/html/issues/11905
+            for (WebIDL::UnsignedLong i = 0; i < n; i++) {
                 TRY(root_element->append_child(TRY(DOM::create_element(root_element->document(), HTML::TagNames::option, Namespace::HTML))));
             }
         }
