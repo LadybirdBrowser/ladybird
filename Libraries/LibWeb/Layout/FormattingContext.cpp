@@ -1187,11 +1187,16 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
     CSSPixelRect rect = { { 0, 0 }, box_used_values.content_size() };
     // FIXME: ListItemMarkerBox's should also run this assertion once it has a supported FormattingContext type
     VERIFY(box_used_values.offset.is_zero() || box.is_list_item_marker_box()); // Set as result of this calculation
-    for (auto const* current = box.static_position_containing_block(); current; current = current->containing_block()) {
+    auto next_containing_block = box.static_position_containing_block();
+    for (NodeWithStyle const* current = box.static_position_containing_block(); current; current = current->parent()) {
         if (current == box.containing_block())
             return rect;
-        auto const& current_state = m_state.get(*current);
-        rect.translate_by(current_state.offset);
+        // Whenever we walk past other containing blocks, we need to offset the rect by those.
+        if (current == next_containing_block) {
+            auto const& current_state = m_state.get(*current);
+            rect.translate_by(current_state.offset);
+            next_containing_block = next_containing_block->containing_block();
+        }
     }
     // If we get here, `ancestor_box` was not in the containing block chain of the static position containing block of `box`!
     // Something about the containing block chain is set up incorrectly then.
