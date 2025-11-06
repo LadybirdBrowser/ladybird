@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
+#include <AK/Optional.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGAnimatedNumber.h>
 #include <LibWeb/SVG/SVGAnimatedNumberList.h>
@@ -40,6 +42,9 @@ public:
     GC::Ref<SVGAnimatedNumber> exponent();
     GC::Ref<SVGAnimatedNumber> offset();
 
+    Vector<float> table_float_values();
+    ReadonlyBytes color_table();
+
 protected:
     SVGComponentTransferFunctionElement(DOM::Document&, DOM::QualifiedName);
 
@@ -57,6 +62,8 @@ private:
     GC::Ptr<SVGAnimatedNumber> m_amplitude;
     GC::Ptr<SVGAnimatedNumber> m_exponent;
     GC::Ptr<SVGAnimatedNumber> m_offset;
+
+    Optional<ByteBuffer> m_cached_color_table;
 };
 
 }

@@ -47,6 +47,9 @@ void SVGComponentTransferFunctionElement::attribute_changed(FlyString const& nam
     // FIXME: Support reflection instead of invalidating the list.
     if (name == AttributeNames::tableValues)
         m_table_values = {};
+
+    // Clear our cached color table on any attribute change.
+    m_cached_color_table.clear();
 }
 
 void SVGComponentTransferFunctionElement::initialize(JS::Realm& realm)
@@ -142,6 +145,119 @@ GC::Ref<SVGAnimatedNumber> SVGComponentTransferFunctionElement::offset()
 SVGComponentTransferFunctionElement::Type SVGComponentTransferFunctionElement::type_from_attribute() const
 {
     return parse_type(get_attribute_value(AttributeNames::type));
+}
+
+Vector<float> SVGComponentTransferFunctionElement::table_float_values()
+{
+    Vector<float> values;
+    auto table_numbers = table_values()->base_val()->items();
+    values.ensure_capacity(table_numbers.size());
+    for (auto& svg_number : table_numbers)
+        values.unchecked_append(svg_number->value());
+    return values;
+}
+
+// https://drafts.fxtf.org/filter-effects/#element-attrdef-fecomponenttransfer-type
+ReadonlyBytes SVGComponentTransferFunctionElement::color_table()
+{
+    if (m_cached_color_table.has_value())
+        return m_cached_color_table.value();
+
+    ByteBuffer result;
+    result.resize(256);
+
+    auto set_identity = [&result] {
+        for (int i = 0; i < 256; ++i)
+            result.data()[i] = i;
+    };
+    auto to_u8 = [](float value) {
+        return AK::clamp_to<u8>(value * 255.f);
+    };
+
+    switch (type_from_attribute()) {
+    // https://drafts.fxtf.org/filter-effects/#attr-valuedef-type-identity
+    case Type::Unknown:
+    case Type::Identity:
+        set_identity();
+        break;
+
+    // https://drafts.fxtf.org/filter-effects/#attr-valuedef-type-table
+    case Type::Table: {
+        auto table_values = table_float_values();
+
+        // An empty list results in an identity transfer function.
+        if (table_values.is_empty()) {
+            set_identity();
+            break;
+        }
+
+        // For a value C < 1 find k such that: k/n <= C < (k+1)/n
+        // The result C' is given by: C' = vk + (C - k/n)*n * (vk+1 - vk)
+        auto const segments = table_values.size() - 1.f;
+        for (int i = 0; i < 256; ++i) {
+            // If C = 1 then: C' = vn.
+            if (i == 255 || segments == 0.f) {
+                result.data()[i] = to_u8(table_values.last());
+                continue;
+            }
+
+            auto offset = i / 255.f;
+            auto segment_index = static_cast<size_t>(offset * segments);
+            auto segment_start = segment_index / segments;
+            auto offset_in_segment = offset - segment_start;
+            auto segment_length = 1.f / segments;
+            auto progress_in_segment = offset_in_segment / segment_length;
+
+            auto segment_value = mix(table_values[segment_index], table_values[segment_index + 1], progress_in_segment);
+            result.data()[i] = to_u8(segment_value);
+        }
+        break;
+    }
+
+    // https://drafts.fxtf.org/filter-effects/#attr-valuedef-type-discrete
+    case Type::Discrete: {
+        auto table_values = table_float_values();
+
+        // An empty list results in an identity transfer function.
+        if (table_values.is_empty()) {
+            set_identity();
+            break;
+        }
+
+        // For a value C < 1 find k such that: k/n <= C < (k+1)/n
+        // The result C' is given by: C' = vk + (C - k/n)*n * (vk+1 - vk)
+        for (int i = 0; i < 255; ++i) {
+            auto index = static_cast<size_t>(i / 255.f * table_values.size());
+            result.data()[i] = to_u8(table_values[index]);
+        }
+
+        // If C = 1 then: C' = vn.
+        result.data()[255] = to_u8(table_values.last());
+        break;
+    }
+
+    // https://drafts.fxtf.org/filter-effects/#attr-valuedef-type-linear
+    case Type::Linear: {
+        auto slope = this->slope()->base_val();
+        auto intercept = this->intercept()->base_val();
+        for (int i = 0; i < 256; ++i)
+            result.data()[i] = to_u8(slope * i / 255.f + intercept);
+        break;
+    }
+
+    // https://drafts.fxtf.org/filter-effects/#attr-valuedef-type-gamma
+    case Type::Gamma: {
+        auto amplitude = this->amplitude()->base_val();
+        auto exponent = this->exponent()->base_val();
+        auto offset = this->offset()->base_val();
+        for (int i = 0; i < 256; ++i)
+            result.data()[i] = to_u8(amplitude * pow(i / 255.f, exponent) + offset);
+        break;
+    }
+    }
+
+    m_cached_color_table = move(result);
+    return m_cached_color_table.value();
 }
 
 }
