@@ -93,7 +93,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
 
     // Load font with font style value properties
     auto const& font_style_value = my_drawing_state().font_style_value->as_shorthand();
-    auto& canvas_element = reinterpret_cast<IncludingClass&>(*this).canvas_element();
+    auto& canvas_element = static_cast<IncludingClass&>(*this).canvas_element();
 
     auto& font_style = *font_style_value.longhand(CSS::PropertyID::FontStyle);
     auto& font_weight = *font_style_value.longhand(CSS::PropertyID::FontWeight);
