@@ -2,6 +2,7 @@
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024-2025, Luke Wilde <luke@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025, Undefine <undefine@undefine.pl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -964,6 +965,15 @@ void WebGL2RenderingContextImpl::bind_buffer_base(WebIDL::UnsignedLong target, W
             return;
         }
         buffer_handle = handle_or_error.release_value();
+
+        // https://registry.khronos.org/webgl/specs/latest/2.0/#5.1
+        if (buffer->is_index_buffer() == TriState::Unknown)
+            buffer->mark_as_index_buffer(target == GL_ELEMENT_ARRAY_BUFFER);
+
+        if ((buffer->is_index_buffer() == TriState::True && target != GL_ELEMENT_ARRAY_BUFFER) || (buffer->is_index_buffer() == TriState::False && target == GL_ELEMENT_ARRAY_BUFFER)) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
     }
     glBindBufferBase(target, index, buffer_handle);
 }
@@ -980,6 +990,15 @@ void WebGL2RenderingContextImpl::bind_buffer_range(WebIDL::UnsignedLong target, 
             return;
         }
         buffer_handle = handle_or_error.release_value();
+
+        // https://registry.khronos.org/webgl/specs/latest/2.0/#5.1
+        if (buffer->is_index_buffer() == TriState::Unknown)
+            buffer->mark_as_index_buffer(target == GL_ELEMENT_ARRAY_BUFFER);
+
+        if ((buffer->is_index_buffer() == TriState::True && target != GL_ELEMENT_ARRAY_BUFFER) || (buffer->is_index_buffer() == TriState::False && target == GL_ELEMENT_ARRAY_BUFFER)) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
     }
     glBindBufferRange(target, index, buffer_handle, offset, size);
 }

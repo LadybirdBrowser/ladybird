@@ -134,6 +134,15 @@ void WebGLRenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Roo
             return;
         }
         buffer_handle = handle_or_error.release_value();
+
+        // https://registry.khronos.org/webgl/specs/latest/2.0/#5.1
+        if (buffer->is_index_buffer() == TriState::Unknown)
+            buffer->mark_as_index_buffer(target == GL_ELEMENT_ARRAY_BUFFER);
+
+        if ((buffer->is_index_buffer() == TriState::True && target != GL_ELEMENT_ARRAY_BUFFER) || (buffer->is_index_buffer() == TriState::False && target == GL_ELEMENT_ARRAY_BUFFER)) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
     }
 
     if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
