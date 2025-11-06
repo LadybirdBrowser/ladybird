@@ -29,6 +29,7 @@ target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegDemuxer.cpp
         FFmpeg/FFmpegIOContext.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
+        FFmpeg/MSEDemuxer.cpp
 )
 
 if (NOT ANDROID)

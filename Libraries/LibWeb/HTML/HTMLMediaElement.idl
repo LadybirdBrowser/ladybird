@@ -6,6 +6,7 @@
 #import <HTML/TimeRanges.idl>
 #import <HTML/VideoTrackList.idl>
 #import <HTML/Scripting/Fetching.idl>
+#import <MediaSourceExtensions/MediaSource.idl>
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
 [MissingValueDefault=metadata, InvalidValueDefault=metadata]
@@ -31,7 +32,7 @@ interface HTMLMediaElement : HTMLElement {
 
     // network state
     [Reflect, CEReactions, URL] attribute USVString src;
-    [FIXME] attribute MediaProvider? srcObject;
+    attribute MediaSource? srcObject;
     readonly attribute USVString currentSrc;
     [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     const unsigned short NETWORK_EMPTY = 0;

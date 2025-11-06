@@ -45,6 +45,7 @@ public:
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
     static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create_for_mse(NonnullRefPtr<Demuxer> demuxer);
     ~PlaybackManager();
 
     AK::Duration duration() const;

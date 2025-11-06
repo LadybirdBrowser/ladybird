@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -39,6 +40,7 @@
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -105,6 +107,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
     visitor.visit(m_fetch_controller);
+    visitor.visit(m_media_source);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
 }
@@ -256,6 +259,18 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load()
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-srcobject
+void HTMLMediaElement::set_src_object(GC::Ptr<MediaSourceExtensions::MediaSource> media_source)
+{
+    // When the srcObject IDL attribute is set, the user agent must run the following steps:
+    // 1. Let object be the value being assigned to srcObject.
+    // 2. Set the element's assigned media provider object to object.
+    m_media_source = media_source;
+
+    // 3. Invoke the element's media element load algorithm.
+    load_element().release_value_but_fixme_should_propagate_errors();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-currenttime
 double HTMLMediaElement::current_time() const
 {
@@ -367,6 +382,36 @@ void HTMLMediaElement::set_duration(double duration)
 
     if (auto* paintable = this->paintable())
         paintable->set_needs_display();
+}
+
+// Called by MediaSource when SourceBuffer data is appended
+void HTMLMediaElement::set_duration_from_media_source(Badge<MediaSourceExtensions::MediaSource>, double duration)
+{
+    set_duration(duration);
+}
+
+// Called by MediaSource to update readyState when SourceBuffer data is appended
+void HTMLMediaElement::update_ready_state_from_media_source(Badge<MediaSourceExtensions::MediaSource>)
+{
+    // When MediaSource has buffered data, transition through the appropriate readyState values
+    // FIXME: We should check actual buffered ranges to determine readyState more accurately
+
+    // Transition HAVE_NOTHING -> HAVE_METADATA when we have a valid duration
+    if (m_ready_state == ReadyState::HaveNothing && !isnan(m_duration)) {
+        set_ready_state(ReadyState::HaveMetadata);
+    }
+    // Transition HAVE_METADATA -> HAVE_CURRENT_DATA when we have some buffered data
+    else if (m_ready_state == ReadyState::HaveMetadata) {
+        set_ready_state(ReadyState::HaveCurrentData);
+    }
+    // Transition HAVE_CURRENT_DATA -> HAVE_FUTURE_DATA -> HAVE_ENOUGH_DATA
+    // This allows canplay/canplaythrough events to fire
+    else if (m_ready_state == ReadyState::HaveCurrentData) {
+        set_ready_state(ReadyState::HaveFutureData);
+    }
+    else if (m_ready_state == ReadyState::HaveFutureData) {
+        set_ready_state(ReadyState::HaveEnoughData);
+    }
 }
 
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLMediaElement::play()
@@ -577,7 +622,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
             m_fetch_controller->stop_fetch();
 
-        // FIXME: 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        // 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        if (m_media_source) {
+            // FIXME: Implement MediaSource detachment properly
+            m_media_source = nullptr;
+        }
 
         // 4. Forget the media element's media-resource-specific tracks.
         forget_media_resource_specific_tracks();
@@ -847,7 +896,10 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
         Optional<SelectMode> mode;
         GC::Ptr<HTMLSourceElement> candidate;
 
-        // 6. FIXME: ⌛ If the media element has an assigned media provider object, then let mode be object.
+        // 6. ⌛ If the media element has an assigned media provider object, then let mode be object.
+        if (m_media_source) {
+            mode = SelectMode::Object;
+        }
 
         // ⌛ Otherwise, if the media element has no assigned media provider object but has a src attribute, then let mode be attribute.
         if (has_attribute(HTML::AttributeNames::src)) {
@@ -883,10 +935,17 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
         switch (*mode) {
         // -> If mode is object
         case SelectMode::Object:
-            // FIXME: 1. ⌛ Set the currentSrc attribute to the empty string.
-            // FIXME: 2. End the synchronous section, continuing the remaining steps in parallel.
-            // FIXME: 3. Run the resource fetch algorithm with the assigned media provider object. If that algorithm returns without aborting this one,
-            //           then theload failed.
+            // 1. ⌛ Set the currentSrc attribute to the empty string.
+            m_current_src = String {};
+
+            // 2. End the synchronous section, continuing the remaining steps in parallel.
+            // 3. Run the resource fetch algorithm with the assigned media provider object.
+            queue_a_media_element_task([this]() {
+                VERIFY(m_media_source);
+                // Attach the MediaSource to this element
+                m_media_source->attach_to_media_element(*this);
+            });
+
             // FIXME: 4. Failed with media provider: Reaching this step indicates that the media resource failed to load. Take pending play promises and queue
             //           a media element task given the media element to run the dedicated media source failure steps with the result.
             // FIXME: 5. Wait for the task queued by the previous step to have executed.
@@ -990,14 +1049,25 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
     // 1. Let mode be remote.
     auto mode = FetchMode::Remote;
 
-    // FIXME: 2. If the algorithm was invoked with media provider object, then set mode to local.
-    //           Otherwise:
-    //           1. Let object be the result of obtaining a blob object using the URL record's blob URL entry and the media
-    //              element's node document's relevant settings object.
-    //           2. If object is a media provider object, then set mode to local.
-    // FIXME: 3. If mode is remote, then let the current media resource be the resource given by the URL record passed to this algorithm; otherwise, let the
-    //           current media resource be the resource given by the media provider object. Either way, the current media resource is now the element's media
-    //           resource.
+    // 2. If the algorithm was invoked with media provider object, then set mode to local.
+    //    Otherwise:
+    //    1. Let object be the result of obtaining a blob object using the URL record's blob URL entry and the media
+    //       element's node document's relevant settings object.
+    //    2. If object is a media provider object, then set mode to local.
+    if (url_record.scheme() == "blob"sv) {
+        auto blob_url_entry = FileAPI::resolve_a_blob_url(url_record);
+        if (blob_url_entry.has_value()) {
+            auto& entry_object = blob_url_entry->object;
+            if (entry_object.has<GC::Root<MediaSourceExtensions::MediaSource>>()) {
+                m_media_source = entry_object.get<GC::Root<MediaSourceExtensions::MediaSource>>();
+                mode = FetchMode::Local;
+            }
+        }
+    }
+
+    // 3. If mode is remote, then let the current media resource be the resource given by the URL record passed to this algorithm; otherwise, let the
+    //    current media resource be the resource given by the media provider object. Either way, the current media resource is now the element's media
+    //    resource.
     // FIXME: 4. Remove all media-resource-specific text tracks from the media element's list of pending text tracks, if any.
 
     // 5. Run the appropriate steps from the following list:
@@ -1110,7 +1180,6 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
 
     // -> Otherwise (mode is local)
     case FetchMode::Local:
-        // FIXME:
         // The resource described by the current media resource, if any, contains the media data. It is CORS-same-origin.
         //
         // If the current media resource is a raw data stream (e.g. from a File object), then to determine the format of the media resource, the user agent
@@ -1122,6 +1191,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         //
         // When the current media resource is permanently exhausted (e.g. all the bytes of a Blob have been processed), if there were no decoding errors,
         // then the user agent must move on to the final step below. This might never happen, e.g. if the current media resource is a MediaStream.
+
+        // For MediaSource, we need to attach it to this media element
+        if (m_media_source) {
+            m_media_source->attach_to_media_element(*this);
+        }
         break;
     }
 
@@ -1171,8 +1245,46 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
 }
 
+void HTMLMediaElement::set_mse_video_sink(RefPtr<Media::DisplayingVideoSink> sink)
+{
+    m_mse_video_sink = sink;
+}
+
+void HTMLMediaElement::set_mse_playback_manager(RefPtr<Media::PlaybackManager> manager)
+{
+    m_mse_playback_manager = manager;
+
+    // If we have a PlaybackManager, set up state change callback
+    if (m_mse_playback_manager) {
+        m_mse_playback_manager->on_playback_state_change = [this] {
+            on_playback_manager_state_change();
+        };
+        dbgln("MSE: PlaybackManager connected to HTMLMediaElement");
+    }
+}
+
+RefPtr<Media::DisplayingVideoSink> const& HTMLMediaElement::selected_video_track_sink() const
+{
+    // For MSE playback, use the MSE video sink if available
+    if (m_mse_video_sink)
+        return m_mse_video_sink;
+
+    // For regular playback, use the selected video track sink
+    return m_selected_video_track_sink;
+}
+
 void HTMLMediaElement::update_video_frame_and_timeline()
 {
+    // For Media Source Extensions playback, use the MSE video sink directly
+    if (m_mse_video_sink) {
+        auto sink_update_result = m_mse_video_sink->update();
+        bool needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        if (needs_display && paintable())
+            paintable()->set_needs_display();
+        return;
+    }
+
+    // Regular playback path
     if (!m_playback_manager)
         return;
 
@@ -1850,8 +1962,13 @@ void HTMLMediaElement::notify_about_playing()
         resolve_pending_play_promises(promises);
     });
 
-    if (m_playback_manager)
+    // Start playback on the appropriate playback manager
+    if (m_mse_playback_manager) {
+        m_mse_playback_manager->play();
+        dbgln("MSE: Started playback on MSE PlaybackManager");
+    } else if (m_playback_manager) {
         m_playback_manager->play();
+    }
 
     if (m_audio_tracks->has_enabled_track())
         document().page().client().page_did_change_audio_play_state(AudioPlayState::Playing);
@@ -1876,7 +1993,10 @@ void HTMLMediaElement::set_paused(bool paused)
     m_paused = paused;
 
     if (m_paused) {
-        if (m_playback_manager)
+        // Pause the appropriate playback manager
+        if (m_mse_playback_manager)
+            m_mse_playback_manager->pause();
+        else if (m_playback_manager)
             m_playback_manager->pause();
 
         if (m_audio_tracks->has_enabled_track())
@@ -2278,12 +2398,18 @@ void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, 
     if (display_time.has_value()) {
         if (potentially_playing() && !m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = true;
-            m_playback_manager->pause();
+            if (m_mse_playback_manager)
+                m_mse_playback_manager->pause();
+            else if (m_playback_manager)
+                m_playback_manager->pause();
         }
     } else if (!display_time.has_value()) {
         if (m_tracking_mouse_position_while_playing) {
             m_tracking_mouse_position_while_playing = false;
-            m_playback_manager->play();
+            if (m_mse_playback_manager)
+                m_mse_playback_manager->play();
+            else if (m_playback_manager)
+                m_playback_manager->play();
         }
     }
 
