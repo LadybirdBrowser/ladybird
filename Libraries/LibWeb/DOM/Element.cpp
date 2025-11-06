@@ -1762,26 +1762,34 @@ void Element::set_tab_index(i32 tab_index)
 }
 
 // https://drafts.csswg.org/cssom-view/#potentially-scrollable
-bool Element::is_potentially_scrollable() const
+bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowHidden treat_overflow_clip_on_body_parent_as_overflow_hidden = TreatOverflowClipOnBodyParentAsOverflowHidden::No) const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementIsPotentiallyScrollable);
+    const_cast<Document&>(document()).update_style();
+
+    // NOTE: Since this should always be the body element, the body element must have a <html> element parent. See Document::body().
+    VERIFY(parent());
 
     // An element body (which will be the body element) is potentially scrollable if all of the following conditions are true:
     VERIFY(is<HTML::HTMLBodyElement>(this) || is<HTML::HTMLFrameSetElement>(this));
 
-    // Since this should always be the body element, the body element must have a <html> element parent. See Document::body().
-    VERIFY(parent());
-
     // - body has an associated box.
+    if (!layout_node())
+        return false;
+
     // - body’s parent element’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
+    if (parent()->layout_node()->computed_values().overflow_x() == CSS::Overflow::Visible || parent()->layout_node()->computed_values().overflow_y() == CSS::Overflow::Visible)
+        return false;
+    // NOTE: When treating 'overflow:clip' as 'overflow:hidden', we can never fail this condition
+    if (treat_overflow_clip_on_body_parent_as_overflow_hidden == TreatOverflowClipOnBodyParentAsOverflowHidden::No && (parent()->layout_node()->computed_values().overflow_x() == CSS::Overflow::Clip || parent()->layout_node()->computed_values().overflow_y() == CSS::Overflow::Clip))
+        return false;
+
     // - body’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
-    return layout_node()
-        && (parent()->layout_node()
-            && parent()->layout_node()->computed_values().overflow_x() != CSS::Overflow::Visible && parent()->layout_node()->computed_values().overflow_x() != CSS::Overflow::Clip
-            && parent()->layout_node()->computed_values().overflow_y() != CSS::Overflow::Visible && parent()->layout_node()->computed_values().overflow_y() != CSS::Overflow::Clip)
-        && (layout_node()->computed_values().overflow_x() != CSS::Overflow::Visible && layout_node()->computed_values().overflow_x() != CSS::Overflow::Clip
-            && layout_node()->computed_values().overflow_y() != CSS::Overflow::Visible && layout_node()->computed_values().overflow_y() != CSS::Overflow::Clip);
+    if (first_is_one_of(layout_node()->computed_values().overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip) || first_is_one_of(layout_node()->computed_values().overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
+        return false;
+
+    return true;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrolltop
