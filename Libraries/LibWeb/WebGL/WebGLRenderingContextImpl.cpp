@@ -134,6 +134,11 @@ void WebGLRenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Roo
             return;
         }
         buffer_handle = handle_or_error.release_value();
+
+        if (!buffer->is_compatible_with(target)) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
     }
 
     if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
