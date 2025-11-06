@@ -625,24 +625,20 @@ ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar
 // 12.3.13 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
 ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
-    // 1. Perform ? CalendarResolveFields(calendar, fields, YEAR-MONTH).
+    // 1. Set fields.[[Day]] to 1.
+    fields.day = 1;
+
+    // 2. Perform ? CalendarResolveFields(calendar, fields, YEAR-MONTH).
     TRY(calendar_resolve_fields(vm, calendar, fields, DateType::YearMonth));
 
-    // FIXME: 2. Let firstDayIndex be the 1-based index of the first day of the month described by fields (i.e., 1 unless the
-    //           month's first day is skipped by this calendar.)
-    static auto constexpr first_day_index = 1;
-
-    // 3. Set fields.[[Day]] to firstDayIndex.
-    fields.day = first_day_index;
-
-    // 4. Let result be ? CalendarDateToISO(calendar, fields, overflow).
+    // 3. Let result be ? CalendarDateToISO(calendar, fields, overflow).
     auto result = TRY(calendar_date_to_iso(vm, calendar, fields, overflow));
 
-    // 5. If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
+    // 4. If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
     if (!iso_year_month_within_limits(result))
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
 
-    // 6. Return result.
+    // 5. Return result.
     return result;
 }
 
