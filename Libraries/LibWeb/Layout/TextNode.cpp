@@ -403,6 +403,11 @@ Unicode::Segmenter& TextNode::grapheme_segmenter() const
     return *m_grapheme_segmenter;
 }
 
+static bool is_interword_space(u32 code_point)
+{
+    return code_point == 0x0020 || code_point == 0x00A0;
+}
+
 TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool should_wrap_lines, bool should_respect_linebreaks)
     : ChunkIterator(text_node, text_node.text_for_rendering(), text_node.grapheme_segmenter(), should_wrap_lines, should_respect_linebreaks)
 {
@@ -489,6 +494,29 @@ TextNode::Chunk TextNode::ChunkIterator::create_empty_chunk()
     };
 }
 
+Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index) const
+{
+    // 1. Prefer the last non-whitespace font in this node/run.
+    if (m_last_non_whitespace_font && !m_last_non_whitespace_font->is_emoji_font())
+        return *m_last_non_whitespace_font;
+
+    // 2. Look ahead to the next non-space to infer the base font of this run.
+    for (size_t i = at_index; i < m_view.length_in_code_units();) {
+        auto cp = m_view.code_point_at(i);
+        if (!is_interword_space(cp) && cp != '\t' && cp != '\n') {
+            auto const& font = m_font_cascade_list.font_for_code_point(cp);
+            if (!font.is_emoji_font())
+                return font;
+            // Text is coming from an emoji face; we'll fall back to (3).
+            break;
+        }
+        i = m_grapheme_segmenter.next_boundary(i).value_or(m_view.length_in_code_units());
+    }
+
+    // 3. No text around (leading/trailing/all spaces) — pick the first *text* face in the cascade.
+    return m_font_cascade_list.first_text_face();
+}
+
 Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 {
     if (m_current_index >= m_view.length_in_code_units())
@@ -509,7 +537,13 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
     auto code_point = current_code_point();
     auto start_of_chunk = m_current_index;
 
-    auto const& font = m_font_cascade_list.font_for_code_point(code_point);
+    auto const& expected_font_for = [&](u32 cp) -> Gfx::Font const& {
+        return is_interword_space(cp)
+            ? font_for_space(m_current_index)
+            : m_font_cascade_list.font_for_code_point(cp);
+    };
+
+    auto const& font = expected_font_for(current_code_point());
     auto text_type = text_type_for_code_point(code_point);
 
     auto broken_on_tab = false;
@@ -527,7 +561,9 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
                 m_current_index = next_grapheme_boundary();
         }
 
-        if (&font != &m_font_cascade_list.font_for_code_point(code_point)) {
+        auto const& expected_font = expected_font_for(code_point);
+
+        if (&font != &expected_font) {
             if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                 return result.release_value();
         }
@@ -571,7 +607,8 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
                 // Otherwise, commit the whitespace!
                 m_current_index = next_grapheme_boundary();
-                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
+                auto const& space_font = font_for_space(m_current_index);
+                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, space_font, text_type); result.has_value())
                     return result.release_value();
                 continue;
             }
@@ -593,6 +630,9 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
 {
     if (auto length_in_code_units = end - start; length_in_code_units > 0) {
         auto chunk_view = m_view.substring_view(start, length_in_code_units);
+        auto is_all_whitespace = chunk_view.is_ascii_whitespace();
+        if (!is_all_whitespace)
+            m_last_non_whitespace_font = font;
         return Chunk {
             .view = chunk_view,
             .font = font,
@@ -600,7 +640,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
             .length = length_in_code_units,
             .has_breaking_newline = has_breaking_newline,
             .has_breaking_tab = has_breaking_tab,
-            .is_all_whitespace = chunk_view.is_ascii_whitespace(),
+            .is_all_whitespace = is_all_whitespace,
             .text_type = text_type,
         };
     }
