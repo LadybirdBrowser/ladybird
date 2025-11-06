@@ -15,6 +15,7 @@
 #include <LibWeb/Layout/VideoBox.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ReplacedElementCommon.h>
 #include <LibWeb/Painting/VideoPaintable.h>
 
 namespace Web::Painting {
@@ -53,15 +54,16 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& poster_frame = video_element.poster_frame();
 
     auto paint_bitmap = [&](auto const& bitmap) {
-        auto immutable = Gfx::ImmutableBitmap::create(*bitmap);
-        auto dst_rect = video_rect.to_type<int>();
+        auto immutable = Gfx::ImmutableBitmap::create(bitmap);
+        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), bitmap.size());
+        if (dst_rect.is_empty())
+            return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), immutable->rect().size(), dst_rect.size());
         context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *immutable, scaling_mode);
     };
 
     auto paint_video_frame = [&]() {
         auto& source = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_external_content_source();
-        auto dst_rect = video_rect.to_type<int>();
         auto current = source.current_bitmap();
 
         Gfx::IntSize src_size;
@@ -72,6 +74,9 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         else
             return;
 
+        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), src_size);
+        if (dst_rect.is_empty())
+            return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
         context.display_list_recorder().draw_external_content(dst_rect, source, scaling_mode);
     };
@@ -91,7 +96,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     case HTML::HTMLVideoElement::Representation::PosterFrame:
         VERIFY(poster_frame);
-        paint_bitmap(poster_frame);
+        paint_bitmap(*poster_frame);
         break;
 
     case HTML::HTMLVideoElement::Representation::TransparentBlack:

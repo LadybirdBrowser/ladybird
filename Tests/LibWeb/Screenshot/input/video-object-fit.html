@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-1239523">
+<html class="reftest-wait">
+<div>
+    <h2>480x240</h2>
+    <h3>default</h3>
+    <video width="480" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>fill</h3>
+    <video style="object-fit: fill" width="480" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>cover</h3>
+    <video style="object-fit: cover" width="480" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>none</h3>
+    <video style="object-fit: none" width="480" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>scale-down</h3>
+    <video style="object-fit: scale-down" width="480" height="240" src="../../Assets/test-webm.webm"></video>
+</div>
+<h2>240x240</h2>
+<div>
+    <h3>default</h3>
+    <video width="240" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>fill</h3>
+    <video style="object-fit: fill" width="240" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>cover</h3>
+    <video style="object-fit: cover" width="240" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>none</h3>
+    <video style="object-fit: none" width="240" height="240" src="../../Assets/test-webm.webm"></video>
+    <h3>scale-down</h3>
+    <video style="object-fit: scale-down" width="240" height="240" src="../../Assets/test-webm.webm"></video>
+</div>
+<div>
+    <h2>1280x720</h2>
+    <h3>none</h3>
+    <video style="object-fit: none" width="1280" height="720" src="../../Assets/test-webm.webm"></video>
+    <h3>scale-down</h3>
+    <video style="object-fit: scale-down" width="1280" height="720" src="../../Assets/test-webm.webm"></video>
+</div>
+<script>
+    addEventListener('load', () => {
+        const videoElements = document.getElementsByTagName('video');
+        let loadedVideoElements = 0;
+
+        function videoLoaded() {
+            loadedVideoElements++;
+            if (loadedVideoElements == videoElements.length) {
+                document.documentElement.classList.remove("reftest-wait");
+            }
+        }
+
+        for (const videoElement of videoElements) {
+            if (videoElement.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+                videoElement.addEventListener('loadeddata', () => {
+                    videoLoaded();
+                });
+            } else {
+                videoLoaded();
+            }
+        }
+    });
+</script>
+</html>
