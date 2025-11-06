@@ -200,10 +200,12 @@ PlaybackManager::AudioTrackData& PlaybackManager::get_audio_data_for_track(Track
 void PlaybackManager::enable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
-    auto had_provider = m_audio_sink->provider(track) != nullptr;
-    m_audio_sink->set_provider(track, track_data.provider);
-    if (!had_provider)
-        track_data.provider->seek(current_time());
+    if (m_audio_sink->provider(track) != track_data.provider) {
+        m_audio_sink->set_provider(track, nullptr);
+        track_data.provider->seek(current_time(), [self = NonnullRefPtr(*this), track, provider = track_data.provider] {
+            self->m_audio_sink->set_provider(track, provider);
+        });
+    }
 }
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
