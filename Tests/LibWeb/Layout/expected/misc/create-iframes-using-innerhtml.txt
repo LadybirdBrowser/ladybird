@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       BlockContainer <div#container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
@@ -14,52 +14,52 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
           frag 8 from NavigableContainerViewport start: 0, length: 0, rect: [18,258 10x10] baseline: 30
           frag 9 from NavigableContainerViewport start: 0, length: 0, rect: [18,288 10x10] baseline: 30
           NavigableContainerViewport <iframe> at [18,18] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,48] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,78] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,108] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,138] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,168] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,198] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,228] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,258] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
           NavigableContainerViewport <iframe> at [18,288] [5+5+0 10 0+5+5] [5+5+0 10 0+5+5] children: not-inline (url: about:blank)
-            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+            Viewport <#document> at [0,0] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <html> at [0,0] [0+0+0 10 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 BlockContainer <body> at [8,8] [8+0+0 0 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
