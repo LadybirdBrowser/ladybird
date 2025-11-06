@@ -2826,6 +2826,8 @@ void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
     // 13. Let element be doc’s root element if there is one, null otherwise.
 
     // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy) with element as the associated element, and behavior as the scroll behavior.
+    if (!doc->paintable_box()->could_be_scrolled_by_wheel_event())
+        return;
     auto scrolling_area = doc->paintable_box()->scrollable_overflow_rect()->to_type<float>();
     auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
     // NOTE: Clamp to the scrolling area.
