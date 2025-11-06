@@ -663,7 +663,7 @@ public:
     double font_weight() const { return m_inherited.font_weight; }
     Gfx::ShapeFeatures font_features() const { return m_inherited.font_features; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
-    Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const { return m_inherited.font_variation_settings; }
+    HashMap<FlyString, double> font_variation_settings() const { return m_inherited.font_variation_settings; }
     CSSPixels line_height() const { return m_inherited.line_height; }
     Time transition_delay() const { return m_noninherited.transition_delay; }
 
@@ -700,7 +700,7 @@ protected:
         double font_weight { InitialValues::font_weight() };
         Gfx::ShapeFeatures font_features { InitialValues::font_features() };
         Optional<FlyString> font_language_override;
-        Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings;
+        HashMap<FlyString, double> font_variation_settings;
         CSSPixels line_height { InitialValues::line_height() };
         BorderCollapse border_collapse { InitialValues::border_collapse() };
         EmptyCells empty_cells { InitialValues::empty_cells() };
@@ -906,7 +906,7 @@ public:
     void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
     void set_font_features(Gfx::ShapeFeatures font_features) { m_inherited.font_features = move(font_features); }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
-    void set_font_variation_settings(Optional<HashMap<FlyString, NumberOrCalculated>> value) { m_inherited.font_variation_settings = move(value); }
+    void set_font_variation_settings(HashMap<FlyString, double> value) { m_inherited.font_variation_settings = move(value); }
     void set_line_height(CSSPixels line_height) { m_inherited.line_height = line_height; }
     void set_border_spacing_horizontal(Length border_spacing_horizontal) { m_inherited.border_spacing_horizontal = move(border_spacing_horizontal); }
     void set_border_spacing_vertical(Length border_spacing_vertical) { m_inherited.border_spacing_vertical = move(border_spacing_vertical); }

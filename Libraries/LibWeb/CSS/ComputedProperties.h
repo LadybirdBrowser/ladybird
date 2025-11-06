@@ -166,7 +166,7 @@ public:
     FontKerning font_kerning() const;
     Optional<FlyString> font_language_override() const;
     HashMap<StringView, u8> font_feature_settings() const;
-    Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
+    HashMap<FlyString, double> font_variation_settings() const;
     GridTrackSizeList grid_auto_columns() const;
     GridTrackSizeList grid_auto_rows() const;
     GridTrackSizeList grid_template_columns() const;
