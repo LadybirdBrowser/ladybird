@@ -9,6 +9,8 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Enumerate.h>
 #include <AK/NumericLimits.h>
+#include <AK/UFixedBigInt.h>
+#include <AK/UFixedBigIntDivision.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
@@ -528,15 +530,19 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
     x = integer_part(x);
 
     // 10. Set x to x modulo 2^bitLength.
-    auto constexpr two_pow_bitlength = NumericLimits<MakeUnsigned<T>>::max() + 1.0;
-    x = JS::modulo(x, two_pow_bitlength);
+    // NOTE: We need to use u128 instead of double, becuase double has precision errors over 2^53
+    u128 two_pow_bitlength = u128(NumericLimits<MakeUnsigned<T>>::max(), 0);
+    two_pow_bitlength += 1;
+
+    u128 int_x(static_cast<u64>(x), 0);
+    int_x %= two_pow_bitlength;
 
     // 11. If signedness is "signed" and x ≥ 2^(bitLength − 1), then return x − 2^(bitLength).
-    if (IsSigned<T> && x > NumericLimits<T>::max())
-        return x - two_pow_bitlength;
+    if (IsSigned<T> && int_x > u128(NumericLimits<T>::max(), 0))
+        return (int_x - two_pow_bitlength).low();
 
     // 12. Otherwise, return x.
-    return x;
+    return int_x.low();
 }
 
 template WEB_API JS::ThrowCompletionOr<Byte> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
