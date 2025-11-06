@@ -16,6 +16,7 @@
 
 namespace Web {
 
+class CSSPixels;
 class DisplayListRecordingContext;
 class DragAndDropEventHandler;
 class EventHandler;
@@ -294,6 +295,7 @@ class FitContentStyleValue;
 class Flex;
 class FlexOrCalculated;
 class FlexStyleValue;
+class FontComputer;
 class FontFace;
 class FontFaceSet;
 class FontSourceStyleValue;

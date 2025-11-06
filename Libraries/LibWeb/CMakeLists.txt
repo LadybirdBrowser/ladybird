@@ -162,6 +162,7 @@ set(SOURCES
     CSS/EdgeRect.cpp
     CSS/Fetch.cpp
     CSS/Flex.cpp
+    CSS/FontComputer.cpp
     CSS/FontFace.cpp
     CSS/FontFaceSet.cpp
     CSS/Frequency.cpp
