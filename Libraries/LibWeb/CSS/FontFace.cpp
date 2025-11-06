@@ -16,9 +16,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/FontFacePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -483,7 +483,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
         auto& global = HTML::relevant_global_object(*font);
         if (auto* window = as_if<HTML::Window>(global)) {
-            auto& style_computer = const_cast<StyleComputer&>(window->document()->style_computer());
+            auto& font_computer = const_cast<FontComputer&>(window->document()->font_computer());
 
             // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
             ParsedFontFace parsed_font_face {
@@ -503,7 +503,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 {},                // FIXME: feature_settings
                 {},                // FIXME: variation_settings
             };
-            if (auto loader = style_computer.load_font_face(parsed_font_face, move(on_load)))
+            if (auto loader = font_computer.load_font_face(parsed_font_face, move(on_load)))
                 loader->start_loading_next_url();
         } else {
             // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer

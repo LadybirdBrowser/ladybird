@@ -11,9 +11,9 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -139,7 +139,7 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
 Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window const& window)
 {
-    auto const& initial_font = window.associated_document().style_computer().initial_font();
+    auto const& initial_font = window.associated_document().font_computer().initial_font();
     Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
     Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height() };
     return Length::ResolutionContext {
@@ -151,7 +151,7 @@ Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window con
 
 Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document const& document)
 {
-    auto const& initial_font = document.style_computer().initial_font();
+    auto const& initial_font = document.font_computer().initial_font();
     Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
     Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height() };
     CSSPixelRect viewport_rect;

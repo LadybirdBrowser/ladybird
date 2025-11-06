@@ -260,6 +260,9 @@ public:
     CSS::StyleComputer& style_computer() { return *m_style_computer; }
     CSS::StyleComputer const& style_computer() const { return *m_style_computer; }
 
+    CSS::FontComputer& font_computer() { return *m_font_computer; }
+    CSS::FontComputer const& font_computer() const { return *m_font_computer; }
+
     CSS::StyleSheetList& style_sheets();
     CSS::StyleSheetList const& style_sheets() const;
 
@@ -1010,6 +1013,7 @@ private:
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
+    GC::Ptr<CSS::FontComputer> m_font_computer;
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     GC::Ptr<Node> m_active_favicon;
     GC::Ptr<HTML::BrowsingContext> m_browsing_context;

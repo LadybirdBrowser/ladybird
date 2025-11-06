@@ -8,8 +8,8 @@
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -508,7 +508,7 @@ void EventLoop::update_the_rendering()
     }
 
     for (auto& document : docs) {
-        if (document->readiness() == HTML::DocumentReadyState::Complete && document->style_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
+        if (document->readiness() == HTML::DocumentReadyState::Complete && document->font_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
             HTML::TemporaryExecutionContext context(document->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             document->fonts()->resolve_ready_promise();
         }
