@@ -14,6 +14,16 @@
 
 namespace JS {
 
+#define JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS      \
+    __JS_ENUMERATE(async_iterator_close, AsyncIteratorClose, 3)        \
+    __JS_ENUMERATE(get_method, GetMethod, 2)                           \
+    __JS_ENUMERATE(get_iterator_direct, GetIteratorDirect, 1)          \
+    __JS_ENUMERATE(get_iterator_from_method, GetIteratorFromMethod, 2) \
+    __JS_ENUMERATE(iterator_complete, IteratorComplete, 1)
+
+#define JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS \
+    __JS_ENUMERATE(from_async, fromAsync, 1)
+
 class JS_API Intrinsics final : public Cell {
     GC_CELL(Intrinsics, Cell);
     GC_DECLARE_ALLOCATOR(Intrinsics);
@@ -126,6 +136,16 @@ public:
 #undef __JS_ENUMERATE
 
     [[nodiscard]] GC::Ref<Intl::Collator> default_collator();
+
+#define __JS_ENUMERATE(snake_name, functionName, length) \
+    GC::Ref<NativeJavaScriptBackedFunction> snake_name##_abstract_operation_function();
+    JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
+#undef __JS_ENUMERATE
+
+#define __JS_ENUMERATE(snake_name, functionName, length) \
+    GC::Ref<NativeJavaScriptBackedFunction> snake_name##_array_constructor_function();
+    JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
+#undef __JS_ENUMERATE
 
 private:
     Intrinsics(Realm& realm)
@@ -247,6 +267,16 @@ private:
 #define __JS_ENUMERATE(ClassName, snake_name) \
     GC::Ptr<Object> m_##snake_name##_prototype;
     JS_ENUMERATE_ITERATOR_PROTOTYPES
+#undef __JS_ENUMERATE
+
+#define __JS_ENUMERATE(snake_name, functionName, length) \
+    GC::Ptr<NativeJavaScriptBackedFunction> m_##snake_name##_abstract_operation_function;
+    JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
+#undef __JS_ENUMERATE
+
+#define __JS_ENUMERATE(snake_name, functionName, length) \
+    GC::Ptr<NativeJavaScriptBackedFunction> m_##snake_name##_array_constructor_function;
+    JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
 #undef __JS_ENUMERATE
 
     GC::Ptr<Intl::Collator> m_default_collator;

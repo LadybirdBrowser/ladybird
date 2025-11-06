@@ -153,6 +153,20 @@ op CreateArguments < Instruction
     m_is_immutable: bool
 endop
 
+op CreateAsyncFromSyncIterator < Instruction
+    @nothrow
+    m_dst: Operand
+    m_iterator: Operand
+    m_next_method: Operand
+    m_done: Operand
+endop
+
+op CreateDataPropertyOrThrow < Instruction
+    m_object: Operand
+    m_property: Operand
+    m_value: Operand
+endop
+
 op CreateLexicalEnvironment < Instruction
     @nothrow
     m_dst: Optional<Operand>
@@ -422,6 +436,18 @@ op InstanceOf < Instruction
     m_rhs: Operand
 endop
 
+op IsCallable < Instruction
+    @nothrow
+    m_dst: Operand
+    m_value: Operand
+endop
+
+op IsConstructor < Instruction
+    @nothrow
+    m_dst: Operand
+    m_value: Operand
+endop
+
 op IteratorClose < Instruction
     m_iterator_object: Operand
     m_iterator_next: Operand
@@ -640,6 +666,11 @@ op NewArray < Instruction
     m_elements: Operand[]
 endop
 
+op NewArrayWithLength < Instruction
+    m_dst: Operand
+    m_array_length: Operand
+endop
+
 op NewClass < Instruction
     m_length: u32
     m_dst: Operand
@@ -659,6 +690,11 @@ op NewFunction < Instruction
 endop
 
 op NewObject < Instruction
+    @nothrow
+    m_dst: Operand
+endop
+
+op NewObjectWithNoPrototype < Instruction
     @nothrow
     m_dst: Operand
 endop
@@ -1039,6 +1075,22 @@ endop
 
 op ThrowIfTDZ < Instruction
     m_src: Operand
+endop
+
+op ToBoolean < Instruction
+    @nothrow
+    m_dst: Operand
+    m_value: Operand
+endop
+
+op ToLength < Instruction
+    m_dst: Operand
+    m_value: Operand
+endop
+
+op ToObject < Instruction
+    m_dst: Operand
+    m_value: Operand
 endop
 
 op Typeof < Instruction
