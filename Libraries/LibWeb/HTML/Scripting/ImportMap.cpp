@@ -17,6 +17,14 @@
 
 namespace Web::HTML {
 
+// Check that the JS value was produced from a JSON object ({}).
+// https://infra.spec.whatwg.org/#ordered-map
+static bool
+value_is_ordered_map(JS::Value const& value)
+{
+    return value.is_object() && !is<JS::Array>(value.as_object());
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#parse-an-import-map-string
 WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL base_url)
 {
@@ -26,7 +34,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     auto parsed = TRY(Infra::parse_json_string_to_javascript_value(realm, input));
 
     // 2. If parsed is not an ordered map, then throw a TypeError indicating that the top-level value needs to be a JSON object.
-    if (!parsed.is_object())
+    if (!value_is_ordered_map(parsed))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The top-level value of an importmap needs to be a JSON object."_string };
     auto& parsed_object = parsed.as_object();
 
@@ -38,7 +46,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
         auto imports = TRY(parsed_object.get("imports"_utf16_fly_string));
 
         // If parsed["imports"] is not an ordered map, then throw a TypeError indicating that the value for the "imports" top-level key needs to be a JSON object.
-        if (!imports.is_object())
+        if (!value_is_ordered_map(imports))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'imports' top-level value of an importmap needs to be a JSON object."_string };
 
         // Set sortedAndNormalizedImports to the result of sorting and normalizing a module specifier map given parsed["imports"] and baseURL.
@@ -53,7 +61,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
         auto scopes = TRY(parsed_object.get("scopes"_utf16_fly_string));
 
         // If parsed["scopes"] is not an ordered map, then throw a TypeError indicating that the value for the "scopes" top-level key needs to be a JSON object.
-        if (!scopes.is_object())
+        if (!value_is_ordered_map(scopes))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'scopes' top-level value of an importmap needs to be a JSON object."_string };
 
         // Set sortedAndNormalizedScopes to the result of sorting and normalizing scopes given parsed["scopes"] and baseURL.
@@ -68,7 +76,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
         auto integrity = TRY(parsed_object.get("integrity"_utf16_fly_string));
 
         // 1. If parsed["integrity"] is not an ordered map, then throw a TypeError indicating that the value for the "integrity" top-level key needs to be a JSON object.
-        if (!integrity.is_object())
+        if (!value_is_ordered_map(integrity))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'integrity' top-level value of an importmap needs to be a JSON object."_string };
 
         // 2. Set normalizedIntegrity to the result of normalizing a module integrity map given parsed["integrity"] and baseURL.
