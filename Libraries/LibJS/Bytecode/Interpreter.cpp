@@ -739,11 +739,11 @@ ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& 
     return bytecode_executable;
 }
 
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ECMAScriptFunctionObject const& function)
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data)
 {
-    auto const& name = function.name();
+    auto const& name = shared_function_instance_data->m_name;
 
-    auto executable_result = Bytecode::Generator::generate_from_function(vm, function);
+    auto executable_result = Bytecode::Generator::generate_from_function(vm, shared_function_instance_data);
     if (executable_result.is_error())
         return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
 

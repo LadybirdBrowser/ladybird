@@ -102,6 +102,6 @@ private:
 JS_API extern bool g_dump_bytecode;
 
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ASTNode const&, JS::FunctionKind kind, Utf16FlyString const& name);
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ECMAScriptFunctionObject const&);
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, GC::Ref<SharedFunctionInstanceData const>);
 
 }
