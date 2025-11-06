@@ -69,12 +69,12 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     BOOL result = CreateProcess(
         NULL,
         (char*)command_line.data(),
-        NULL, // process security attributes
-        NULL, // primary thread security attributes
-        TRUE, // handles are inherited
-        0,    // creation flags
-        NULL, // use parent's environment
-        NULL, // working directory
+        NULL,                                                            // process security attributes
+        NULL,                                                            // primary thread security attributes
+        TRUE,                                                            // handles are inherited
+        options.create_new_process_group ? CREATE_NEW_PROCESS_GROUP : 0, // creation flags
+        NULL,                                                            // use parent's environment
+        NULL,                                                            // working directory
         &startup_info,
         &process_info);
 
