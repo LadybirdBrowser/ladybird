@@ -216,6 +216,7 @@ class Reference;
 class ScopeNode;
 class Script;
 class Shape;
+class SharedFunctionInstanceData;
 class Statement;
 class StringOrSymbol;
 class SourceCode;
