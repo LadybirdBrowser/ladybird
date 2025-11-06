@@ -201,6 +201,7 @@ class ModuleEnvironment;
 class Module;
 struct ModuleRequest;
 class NativeFunction;
+class NativeJavaScriptBackedFunction;
 class ObjectEnvironment;
 class Parser;
 struct ParserError;
