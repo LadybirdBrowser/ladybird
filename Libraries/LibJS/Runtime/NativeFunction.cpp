@@ -9,6 +9,7 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -127,8 +128,21 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(ExecutionContext& callee_
     // 8. Perform any necessary implementation-defined initialization of calleeContext.
     callee_context.this_value = this_argument;
 
-    callee_context.lexical_environment = caller_context.lexical_environment;
-    callee_context.variable_environment = caller_context.variable_environment;
+    if (function_environment_needed()) {
+        // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).
+        auto local_environment = new_function_environment(as<NativeJavaScriptBackedFunction>(*this), nullptr);
+        local_environment->ensure_capacity(function_environment_bindings_count());
+
+        // 8. Set the LexicalEnvironment of calleeContext to localEnv.
+        callee_context.lexical_environment = local_environment;
+
+        // 9. Set the VariableEnvironment of calleeContext to localEnv.
+        callee_context.variable_environment = local_environment;
+    } else {
+        callee_context.lexical_environment = caller_context.lexical_environment;
+        callee_context.variable_environment = caller_context.variable_environment;
+    }
+
     // Note: Keeping the private environment is probably only needed because of async methods in classes
     //       calling async_block_start which goes through a NativeFunction here.
     callee_context.private_environment = caller_context.private_environment;
@@ -169,8 +183,20 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ExecutionC
     // 7. Set the ScriptOrModule of calleeContext to null.
     // Note: This is already the default value.
 
-    callee_context.lexical_environment = caller_context.lexical_environment;
-    callee_context.variable_environment = caller_context.variable_environment;
+    if (function_environment_needed()) {
+        // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).
+        auto local_environment = new_function_environment(as<NativeJavaScriptBackedFunction>(*this), nullptr);
+        local_environment->ensure_capacity(function_environment_bindings_count());
+
+        // 8. Set the LexicalEnvironment of calleeContext to localEnv.
+        callee_context.lexical_environment = local_environment;
+
+        // 9. Set the VariableEnvironment of calleeContext to localEnv.
+        callee_context.variable_environment = local_environment;
+    } else {
+        callee_context.lexical_environment = caller_context.lexical_environment;
+        callee_context.variable_environment = caller_context.variable_environment;
+    }
 
     // </8.> --------------------------------------------------------------------------
 

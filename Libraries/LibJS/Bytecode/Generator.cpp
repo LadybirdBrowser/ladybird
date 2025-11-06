@@ -13,11 +13,12 @@
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS::Bytecode {
 
-Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_function_instance_data, MustPropagateCompletion must_propagate_completion)
+Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_function_instance_data, MustPropagateCompletion must_propagate_completion, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
     : m_vm(vm)
     , m_string_table(make<StringTable>())
     , m_identifier_table(make<IdentifierTable>())
@@ -26,6 +27,7 @@ Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_fu
     , m_accumulator(*this, Operand(Register::accumulator()))
     , m_this_value(*this, Operand(Register::this_value()))
     , m_must_propagate_completion(must_propagate_completion == MustPropagateCompletion::Yes)
+    , m_builtin_abstract_operations_enabled(builtin_abstract_operations_enabled == BuiltinAbstractOperationsEnabled::Yes)
     , m_shared_function_instance_data(shared_function_instance_data)
 {
 }
@@ -215,9 +217,9 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
     return {};
 }
 
-CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<SharedFunctionInstanceData const> shared_function_instance_data, MustPropagateCompletion must_propagate_completion, Vector<LocalVariable> local_variable_names)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<SharedFunctionInstanceData const> shared_function_instance_data, MustPropagateCompletion must_propagate_completion, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled, Vector<LocalVariable> local_variable_names)
 {
-    Generator generator(vm, shared_function_instance_data, must_propagate_completion);
+    Generator generator(vm, shared_function_instance_data, must_propagate_completion, builtin_abstract_operations_enabled);
 
     if (is<Program>(node))
         generator.m_strict = static_cast<Program const&>(node).is_strict_mode() ? Strict::Yes : Strict::No;
@@ -498,12 +500,12 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_ast_node(VM&
     Vector<LocalVariable> local_variable_names;
     if (is<ScopeNode>(node))
         local_variable_names = static_cast<ScopeNode const&>(node).local_variables_names();
-    return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, move(local_variable_names));
+    return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, BuiltinAbstractOperationsEnabled::No, move(local_variable_names));
 }
 
-CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_function(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_function(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
 {
-    return compile(vm, *shared_function_instance_data->m_ecmascript_code, shared_function_instance_data->m_kind, shared_function_instance_data, MustPropagateCompletion::No, shared_function_instance_data->m_local_variables_names);
+    return compile(vm, *shared_function_instance_data->m_ecmascript_code, shared_function_instance_data->m_kind, shared_function_instance_data, MustPropagateCompletion::No, builtin_abstract_operations_enabled, shared_function_instance_data->m_local_variables_names);
 }
 
 void Generator::grow(size_t additional_size)
@@ -1468,6 +1470,45 @@ ScopedOperand Generator::add_constant(Value value)
         });
     }
     return append_new_constant();
+}
+
+CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const&)
+{
+    VERIFY(m_builtin_abstract_operations_enabled);
+    for (auto const& argument : arguments) {
+        if (argument.is_spread) {
+            return CodeGenerationError {
+                argument.value.ptr(),
+                "Spread arguments not allowed for builtin abstract operations"sv,
+            };
+        }
+    }
+
+    auto const& operation_name = builtin_identifier.string();
+
+    dbgln("Unknown builtin abstract operation: '{}'", operation_name);
+    return CodeGenerationError {
+        &builtin_identifier,
+        "Unknown builtin abstract operation"sv,
+    };
+}
+
+CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::maybe_generate_builtin_constant(Identifier const& builtin_identifier)
+{
+    auto const& constant_name = builtin_identifier.string();
+
+    if (constant_name == "undefined"sv) {
+        return add_constant(js_undefined());
+    }
+
+    if (!m_builtin_abstract_operations_enabled)
+        return OptionalNone {};
+
+    dbgln("Unknown builtin constant: '{}'", constant_name);
+    return CodeGenerationError {
+        &builtin_identifier,
+        "Unknown builtin constant"sv,
+    };
 }
 
 }

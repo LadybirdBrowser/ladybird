@@ -27,9 +27,9 @@ public:
     ThisBindingStatus this_binding_status() const { return m_this_binding_status; }
     void set_this_binding_status(ThisBindingStatus status) { m_this_binding_status = status; }
 
-    ECMAScriptFunctionObject& function_object() { return *m_function_object; }
-    ECMAScriptFunctionObject const& function_object() const { return *m_function_object; }
-    void set_function_object(ECMAScriptFunctionObject& function) { m_function_object = &function; }
+    FunctionObject& function_object() { return *m_function_object; }
+    FunctionObject const& function_object() const { return *m_function_object; }
+    void set_function_object(FunctionObject& function) { m_function_object = &function; }
 
     Value new_target() const { return m_new_target; }
     void set_new_target(Value new_target)
@@ -53,7 +53,7 @@ private:
 
     Value m_this_value;                                                           // [[ThisValue]]
     ThisBindingStatus m_this_binding_status { ThisBindingStatus::Uninitialized }; // [[ThisBindingStatus]]
-    GC::Ptr<ECMAScriptFunctionObject> m_function_object;                          // [[FunctionObject]]
+    GC::Ptr<FunctionObject> m_function_object;                                    // [[FunctionObject]]
     Value m_new_target { js_undefined() };                                        // [[NewTarget]]
 };
 
