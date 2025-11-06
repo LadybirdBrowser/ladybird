@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Bytecode/BuiltinAbstractOperationsEnabled.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Register.h>
@@ -102,6 +103,6 @@ private:
 JS_API extern bool g_dump_bytecode;
 
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ASTNode const&, JS::FunctionKind kind, Utf16FlyString const& name);
-ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, GC::Ref<SharedFunctionInstanceData const>);
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, GC::Ref<SharedFunctionInstanceData const>, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled);
 
 }

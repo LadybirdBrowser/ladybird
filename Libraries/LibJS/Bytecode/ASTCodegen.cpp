@@ -474,8 +474,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> Identifier::generate_by
         return local;
     }
 
-    if (is_global() && m_string == "undefined"sv) {
-        return generator.add_constant(js_undefined());
+    if (is_global()) {
+        auto maybe_constant = TRY(generator.maybe_generate_builtin_constant(*this));
+        if (maybe_constant.has_value())
+            return maybe_constant.release_value();
     }
 
     auto dst = choose_dst(generator, preferred_dst);
@@ -1718,6 +1720,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
     Optional<ScopedOperand> original_callee;
     auto original_this_value = generator.add_constant(js_undefined());
+    auto dst = choose_dst(generator, preferred_dst);
     Bytecode::Op::CallType call_type = Bytecode::Op::CallType::Call;
 
     if (is<NewExpression>(this)) {
@@ -1741,6 +1744,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         // NOTE: If the identifier refers to a known "local" or "global", we know it can't be
         //       a `with` binding, so we can skip this.
         auto& identifier = static_cast<Identifier const&>(*m_callee);
+        if (generator.builtin_abstract_operations_enabled() && identifier.is_global()) {
+            TRY(generator.generate_builtin_abstract_operation(identifier, arguments(), dst));
+            return dst;
+        }
+
         if (identifier.string() == "eval"sv) {
             call_type = Bytecode::Op::CallType::DirectEval;
         }
@@ -1776,7 +1784,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         expression_string_index = generator.intern_string(expression_string.release_value());
 
     bool has_spread = any_of(arguments(), [](auto& argument) { return argument.is_spread; });
-    auto dst = choose_dst(generator, preferred_dst);
 
     if (has_spread) {
         auto arguments = TRY(arguments_to_array_for_call(generator, this->arguments())).value();

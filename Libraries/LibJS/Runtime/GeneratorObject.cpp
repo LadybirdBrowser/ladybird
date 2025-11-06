@@ -13,30 +13,50 @@
 #include <LibJS/Runtime/GeneratorResult.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(GeneratorObject);
 
-GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
+GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Value initial_value, Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>> generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
 {
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
     Value generating_function_prototype;
-    if (generating_function->kind() == FunctionKind::Async) {
+
+    auto kind = generating_function.visit(
+        [](auto function) {
+            return function->kind();
+        });
+
+    if (kind == FunctionKind::Async) {
         // We implement async functions by transforming them to generator function in the bytecode
         // interpreter. However an async function does not have a prototype and should not be
         // changed thus we hardcode the prototype.
         generating_function_prototype = realm.intrinsics().generator_prototype();
     } else {
         static Bytecode::PropertyLookupCache cache;
-        generating_function_prototype = MUST(generating_function->get(vm.names.prototype, cache));
+        generating_function_prototype = MUST(generating_function.visit([&vm](auto function) {
+            static Bytecode::PropertyLookupCache cache;
+            return function->get(vm.names.prototype, cache);
+        }));
     }
+
     GC::Ptr<Object> generating_function_prototype_object = nullptr;
     if (!generating_function_prototype.is_nullish())
         generating_function_prototype_object = MUST(generating_function_prototype.to_object(vm));
+
+    auto generating_executable = generating_function.visit(
+        [](GC::Ref<ECMAScriptFunctionObject> function) -> GC::Ref<Bytecode::Executable> {
+            return function->bytecode_executable().as_nonnull();
+        },
+        [](GC::Ref<NativeJavaScriptBackedFunction> function) -> GC::Ref<Bytecode::Executable> {
+            return function->bytecode_executable();
+        });
+
     auto object = realm.create<GeneratorObject>(realm, generating_function_prototype_object, move(execution_context));
-    object->m_generating_function = generating_function;
+    object->m_generating_executable = generating_executable;
     object->m_previous_value = initial_value;
     return object;
 }
@@ -51,7 +71,7 @@ GeneratorObject::GeneratorObject(Realm& realm, Object* prototype, NonnullOwnPtr<
 void GeneratorObject::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_generating_function);
+    visitor.visit(m_generating_executable);
     visitor.visit(m_previous_value);
     m_execution_context->visit_edges(visitor);
 }
@@ -110,7 +130,7 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
     // We should never enter `execute` again after the generator is complete.
     VERIFY(next_block.has_value());
 
-    auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_function->bytecode_executable(), next_block, completion_cell);
+    auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_executable, next_block, completion_cell);
 
     vm.pop_execution_context();
 
