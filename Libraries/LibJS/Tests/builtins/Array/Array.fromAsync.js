@@ -101,4 +101,36 @@ describe("normal behavior", () => {
 
         expect(counter).toBe(1);
     });
+
+    asyncTest("mapper exception takes priority over iterator closure exception", async () => {
+        let exceptionOrder = [];
+
+        async function* iterator() {
+            try {
+                yield 1;
+                yield 2;
+            } finally {
+                exceptionOrder.push("iterator");
+                throw "iterator exception";
+            }
+        }
+
+        let exception = null;
+
+        try {
+            await Array.fromAsync(iterator(), value => {
+                if (value === 1) {
+                    exceptionOrder.push("mapper");
+                    throw "mapper exception";
+                }
+
+                return value;
+            });
+        } catch (e) {
+            exception = e;
+        }
+
+        expect(exceptionOrder).toEqual(["mapper", "iterator"]);
+        expect(exception).toBe("mapper exception");
+    });
 });
