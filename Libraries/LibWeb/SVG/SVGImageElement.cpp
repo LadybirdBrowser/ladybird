@@ -27,6 +27,8 @@ SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qua
     m_animation_timer->on_timeout = [this] { animate(); };
 }
 
+SVGImageElement::~SVGImageElement() = default;
+
 void SVGImageElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
