@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-4 Pass
-2 Fail
+6 Pass
 Pass	Placeholder label options within a select
 Pass	Placeholder label-like options within optgroup
-Fail	Validation on selects with display size set as more than one
-Fail	Validation on selects with multiple set
+Pass	Validation on selects with display size set as more than one
+Pass	Validation on selects with multiple set
 Pass	Validation on selects with non-empty disabled option
 Pass	Remove and add back the placeholder label option
