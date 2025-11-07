@@ -113,8 +113,8 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
     if (!has_inline_or_in_flow_block_children(*new_parent))
         return *new_parent;
 
-    // If the block is out-of-flow,
-    if (layout_node.is_out_of_flow()) {
+    // If the block is out-of-flow and is not a pseudo element,
+    if (layout_node.is_out_of_flow() && !layout_node.is_generated_for_pseudo_element()) {
         // And the parent's last child is an anonymous block, join that anonymous block.
         if (!new_parent->display().is_flex_inside()
             && !new_parent->display().is_grid_inside()
