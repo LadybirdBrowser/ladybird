@@ -479,6 +479,8 @@ void WebGLRenderingContextImpl::delete_program(GC::Root<WebGLProgram> program)
         program_handle = handle_or_error.release_value();
     }
     glDeleteProgram(program_handle);
+    if (m_current_program == program)
+        m_current_program = nullptr;
 }
 
 void WebGLRenderingContextImpl::delete_renderbuffer(GC::Root<WebGLRenderbuffer> renderbuffer)
