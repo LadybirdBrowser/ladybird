@@ -1112,4 +1112,9 @@ void ViewImplementation::remove_navigation_listener(u64 listener_id)
     m_navigation_listeners.remove(listener_id);
 }
 
+void ViewImplementation::request_close()
+{
+    client().async_request_close(page_id());
+}
+
 }
