@@ -57,16 +57,27 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     auto curdir = options.working_directory.has_value() ? options.working_directory->characters() : 0;
 
     STARTUPINFO startup_info = {};
+
+    if (options.startup_info.has_value()) {
+        options.startup_info.value().visit([&](StartupInfo::UseStdHandles const& info) {
+            startup_info.cb = sizeof(STARTUPINFO);
+            startup_info.hStdError = info.stderr_handle;
+            startup_info.hStdOutput = info.stdout_handle;
+            startup_info.hStdInput = info.stdin_handle;
+            startup_info.dwFlags |= STARTF_USESTDHANDLES;
+        });
+    }
+
     PROCESS_INFORMATION process_info = {};
 
     BOOL result = CreateProcess(
         NULL,
         (char*)command_line.data(),
-        NULL, // process security attributes
-        NULL, // primary thread security attributes
-        TRUE, // handles are inherited
-        0,    // creation flags
-        NULL, // use parent's environment
+        NULL,                                                            // process security attributes
+        NULL,                                                            // primary thread security attributes
+        TRUE,                                                            // handles are inherited
+        options.create_new_process_group ? CREATE_NEW_PROCESS_GROUP : 0, // creation flags
+        NULL,                                                            // use parent's environment
         curdir,
         &startup_info,
         &process_info);
