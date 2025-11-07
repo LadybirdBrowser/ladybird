@@ -994,7 +994,7 @@ struct InvocationOf<impl> {
             return_ty.append(ValueType(ValueType::I32));
 
         return HostFunction(
-            [&self, function_name](Configuration& configuration, Vector<Value>& arguments) -> Wasm::Result {
+            [&self, function_name](Configuration& configuration, Span<Value> arguments) -> Wasm::Result {
                 Tuple args = [&]<typename... Ts, auto... Is>(IndexSequence<Is...>) {
                     return Tuple { ABI::deserialize(ABI::to_compatible_value<Ts>(arguments[Is]))... };
                 }.template operator()<Args...>(MakeIndexSequence<sizeof...(Args)>());
@@ -1018,9 +1018,9 @@ struct InvocationOf<impl> {
                     // Return values are passed as pointers, after the arguments
                     if constexpr (requires { &R::serialize_into; }) {
                         constexpr auto ResultCount = []<auto N>(void (R::*)(Array<Bytes, N>) const) { return N; }(&R::serialize_into);
-                        ABI::serialize(*value.result(), address_spans<ResultCount>(arguments.span().slice(sizeof...(Args)), configuration));
+                        ABI::serialize(*value.result(), address_spans<ResultCount>(arguments.slice(sizeof...(Args)), configuration));
                     } else {
-                        ABI::serialize(*value.result(), address_spans<1>(arguments.span().slice(sizeof...(Args)), configuration));
+                        ABI::serialize(*value.result(), address_spans<1>(arguments.slice(sizeof...(Args)), configuration));
                     }
                 }
                 // Return value is errno, we have nothing to return.
