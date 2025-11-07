@@ -140,7 +140,7 @@ private:
     static Optional<Wasm::FunctionAddress> alloc_noop_function(Wasm::FunctionType type)
     {
         return m_machine.store().allocate(Wasm::HostFunction {
-            [](auto&, auto&) -> Wasm::Result {
+            [](auto&, auto) -> Wasm::Result {
                 // Noop, this just needs to exist.
                 return Wasm::Result { Vector<Wasm::Value> {} };
             },

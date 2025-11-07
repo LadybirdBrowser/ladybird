@@ -16,17 +16,18 @@ void Configuration::unwind_impl()
     m_frame_stack.take_last();
     m_depth--;
     m_locals_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().locals().data();
+    m_arguments_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().arguments().data();
 }
 
-Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
+Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value, 8> arguments)
 {
     if (auto fn = TRY(prepare_call(address, arguments)); fn.has_value())
-        return fn->function()(*this, arguments);
+        return fn->function()(*this, arguments.span());
     m_ip = 0;
     return execute(interpreter);
 }
 
-ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddress address, Vector<Value>& arguments, bool is_tailcall)
+ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddress address, Vector<Value, 8>& arguments, bool is_tailcall)
 {
     auto* function = m_store.get(address);
     if (!function)
@@ -35,15 +36,16 @@ ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddre
     if (auto* wasm_function = function->get_pointer<WasmFunction>()) {
         if (is_tailcall)
             unwind_impl(); // Unwind the current frame, the "return" in the tail-called function will unwind the frame we're gonna push now.
-        Vector<Value> locals = move(arguments);
-        locals.ensure_capacity(locals.size() + wasm_function->code().func().locals().size());
+        Vector<Value, 8> locals;
+        locals.ensure_capacity(wasm_function->code().func().total_local_count());
         for (auto& local : wasm_function->code().func().locals()) {
             for (size_t i = 0; i < local.n(); ++i)
-                locals.append(Value(local.type()));
+                locals.unchecked_append(Value(local.type()));
         }
 
         set_frame(Frame {
                       wasm_function->module(),
+                      move(arguments),
                       move(locals),
                       wasm_function->code().func().body(),
                       wasm_function->type().results().size(),
