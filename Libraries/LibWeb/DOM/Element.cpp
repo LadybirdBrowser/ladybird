@@ -566,7 +566,7 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString co
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
-Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>>> const& explicitly_set_attribute_elements) const
+Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const
 {
     // 1. Let elements be an empty list.
     GC::RootVector<GC::Ref<DOM::Element>> elements(heap());
