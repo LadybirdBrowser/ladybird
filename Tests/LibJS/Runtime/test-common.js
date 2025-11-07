@@ -560,6 +560,8 @@ class ExpectationError extends Error {
     };
 
     test = (message, callback) => {
+        __reportTest__(message, "start");
+
         if (!__TestResults__[suiteMessage]) __TestResults__[suiteMessage] = {};
 
         const suite = __TestResults__[suiteMessage];
@@ -569,6 +571,7 @@ class ExpectationError extends Error {
                 details: "Another test with the same message did already run",
                 duration: 0,
             };
+            __reportTest__(message, "fail");
             return;
         }
 
@@ -581,16 +584,19 @@ class ExpectationError extends Error {
                 result: "pass",
                 duration: time_ms(),
             };
+            __reportTest__(message, "pass");
         } catch (e) {
             suite[message] = {
                 result: "fail",
                 details: String(e),
                 duration: time_ms(),
             };
+            __reportTest__(message, "fail");
         }
     };
 
     asyncTest = async (message, callback) => {
+        __reportTest__(message, "start");
         if (!__TestResults__[suiteMessage]) __TestResults__[suiteMessage] = {};
 
         const suite = __TestResults__[suiteMessage];
@@ -600,6 +606,7 @@ class ExpectationError extends Error {
                 details: "Another test with the same message did already run",
                 duration: 0,
             };
+            __reportTest__(message, "fail");
             return;
         }
 
@@ -612,16 +619,19 @@ class ExpectationError extends Error {
                 result: "pass",
                 duration: time_ms(),
             };
+            __reportTest__(message, "pass");
         } catch (e) {
             suite[message] = {
                 result: "fail",
                 details: String(e),
                 duration: time_ms(),
             };
+            __reportTest__(message, "fail");
         }
     };
 
     test.skip = (message, callback) => {
+        __reportTest__(message, "start");
         if (typeof callback !== "function")
             throw new Error("test.skip has invalid second argument (must be a function)");
 
@@ -634,6 +644,7 @@ class ExpectationError extends Error {
                 details: "Another test with the same message did already run",
                 duration: 0,
             };
+            __reportTest__(message, "fail");
             return;
         }
 
@@ -641,9 +652,11 @@ class ExpectationError extends Error {
             result: "skip",
             duration: 0,
         };
+        __reportTest__(message, "skip");
     };
 
     test.xfail = (message, callback) => {
+        __reportTest__(message, "start");
         if (!__TestResults__[suiteMessage]) __TestResults__[suiteMessage] = {};
 
         const suite = __TestResults__[suiteMessage];
@@ -653,6 +666,7 @@ class ExpectationError extends Error {
                 details: "Another test with the same message did already run",
                 duration: 0,
             };
+            __reportTest__(message, "fail");
             return;
         }
 
@@ -666,11 +680,13 @@ class ExpectationError extends Error {
                 details: "Expected test to fail, but it passed",
                 duration: time_ms(),
             };
+            __reportTest__(message, "fail");
         } catch (e) {
             suite[message] = {
                 result: "xfail",
                 duration: time_ms(),
             };
+            __reportTest__(message, "xfail");
         }
     };
 
