@@ -400,6 +400,8 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
 
     if target == "Ladybird" and host_system == HostSystem.macOS:
         gdb_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
+    elif host_system == HostSystem.Windows:
+        gdb_args.append(str(build_dir.joinpath("bin", target + ".exe")))
     else:
         gdb_args.append(str(build_dir.joinpath("bin", target)))
 
