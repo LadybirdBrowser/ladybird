@@ -24,7 +24,7 @@ namespace Web::HTML {
     __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(auto)
 
 // https://html.spec.whatwg.org/multipage/interaction.html#attr-contenteditable
-enum class ContentEditableState {
+enum class ContentEditableState : u8 {
     True,
     False,
     PlaintextOnly,
@@ -164,7 +164,7 @@ public:
 
     virtual void removed_from(Node* old_parent, Node& old_root) override;
 
-    enum class PopoverVisibilityState {
+    enum class PopoverVisibilityState : u8 {
         Hidden,
         Showing,
     };
@@ -261,11 +261,11 @@ private:
     // https://html.spec.whatwg.org/multipage/popover.html#popover-visibility-state
     PopoverVisibilityState m_popover_visibility_state { PopoverVisibilityState::Hidden };
 
-    // https://html.spec.whatwg.org/multipage/popover.html#popover-invoker
-    GC::Ptr<HTMLElement> m_popover_invoker;
-
     // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
     bool m_popover_showing_or_hiding { false };
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-invoker
+    GC::Ptr<HTMLElement> m_popover_invoker;
 
     // https://html.spec.whatwg.org/multipage/popover.html#the-popover-attribute:toggle-task-tracker
     Optional<ToggleTaskTracker> m_popover_toggle_task_tracker;
