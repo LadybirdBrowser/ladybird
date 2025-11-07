@@ -164,6 +164,7 @@ protected:
     GC::Ptr<WebGLTexture> m_texture_binding_2d_array;
     GC::Ptr<WebGLTexture> m_texture_binding_3d;
     GC::Ptr<WebGLTransformFeedback> m_transform_feedback_binding;
+    GC::Ptr<WebGLVertexArrayObject> m_current_vertex_array;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 };

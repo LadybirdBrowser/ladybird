@@ -1208,6 +1208,8 @@ void WebGL2RenderingContextImpl::delete_vertex_array(GC::Root<WebGLVertexArrayOb
     }
 
     glDeleteVertexArrays(1, &vertex_array_handle);
+    if (m_current_vertex_array == vertex_array)
+        m_current_vertex_array = nullptr;
 }
 
 bool WebGL2RenderingContextImpl::is_vertex_array(GC::Root<WebGLVertexArrayObject> vertex_array)
@@ -1239,7 +1241,9 @@ void WebGL2RenderingContextImpl::bind_vertex_array(GC::Root<WebGLVertexArrayObje
         }
         array_handle = handle_or_error.release_value();
     }
+
     glBindVertexArray(array_handle);
+    m_current_vertex_array = array;
 }
 
 void WebGL2RenderingContextImpl::compressed_tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
