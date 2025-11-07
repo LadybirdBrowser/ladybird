@@ -1526,6 +1526,11 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
             glGetIntegervRobustANGLE(GL_UNPACK_SKIP_ROWS, 1, nullptr, &result);
             return JS::Value(result);
         }
+        case GL_VERTEX_ARRAY_BINDING: { // FIXME: Allow this for VERTEX_ARRAY_BINDING_OES
+            if (!m_current_vertex_array)
+                return JS::js_null();
+            return JS::Value(m_current_vertex_array);
+        }
         case MAX_CLIENT_WAIT_TIMEOUT_WEBGL:
             // FIXME: Make this an actual limit
             return JS::js_infinity();
@@ -2286,6 +2291,7 @@ void WebGLRenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_transform_feedback_binding);
     visitor.visit(m_pixel_pack_buffer_binding);
     visitor.visit(m_pixel_unpack_buffer_binding);
+    visitor.visit(m_current_vertex_array);
 }
 
 }
