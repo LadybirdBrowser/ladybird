@@ -137,9 +137,9 @@ struct Continue {
     static Outcome operator()(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const*, SourcesAndDestination addresses, u64 current_ip_value, Dispatch const* cc)
     {
         current_ip_value++;
-        addresses.sources_and_destination = cc[current_ip_value].sources_and_destination;
         auto const instruction = cc[current_ip_value].instruction;
         auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(cc[current_ip_value].handler_ptr);
+        addresses.sources_and_destination = cc[current_ip_value].sources_and_destination;
         TAILCALL return handler(interpreter, configuration, instruction, addresses, current_ip_value, cc);
     }
 };
@@ -1027,6 +1027,12 @@ HANDLE_INSTRUCTION(local_get)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+HANDLE_INSTRUCTION(synthetic_argument_get)
+{
+    configuration.push_to_destination(configuration.argument(instruction->local_index()), addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 HANDLE_INSTRUCTION(i32_const)
 {
     configuration.push_to_destination(Value(instruction->arguments().unsafe_get<i32>()), addresses.destination);
@@ -1035,39 +1041,39 @@ HANDLE_INSTRUCTION(i32_const)
 
 HANDLE_INSTRUCTION(synthetic_i32_add2local)
 {
-    configuration.push_to_destination(Value(static_cast<i32>(Operators::Add {}(configuration.local(instruction->local_index()).to<u32>(), configuration.local(instruction->arguments().get<LocalIndex>()).to<u32>()))), addresses.destination);
+    configuration.push_to_destination(Value(static_cast<i32>(Operators::Add {}(configuration.local_or_argument(instruction->local_index()).to<u32>(), configuration.local_or_argument(instruction->arguments().get<LocalIndex>()).to<u32>()))), addresses.destination);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_i32_addconstlocal)
 {
-    configuration.push_to_destination(Value(static_cast<i32>(Operators::Add {}(configuration.local(instruction->local_index()).to<u32>(), instruction->arguments().unsafe_get<i32>()))), addresses.destination);
+    configuration.push_to_destination(Value(static_cast<i32>(Operators::Add {}(configuration.local_or_argument(instruction->local_index()).to<u32>(), instruction->arguments().unsafe_get<i32>()))), addresses.destination);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_i32_andconstlocal)
 {
-    configuration.push_to_destination(Value(Operators::BitAnd {}(configuration.local(instruction->local_index()).to<i32>(), instruction->arguments().unsafe_get<i32>())), addresses.destination);
+    configuration.push_to_destination(Value(Operators::BitAnd {}(configuration.local_or_argument(instruction->local_index()).to<i32>(), instruction->arguments().unsafe_get<i32>())), addresses.destination);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_i32_storelocal)
 {
-    if (interpreter.store_value(configuration, *instruction, ConvertToRaw<i32> {}(configuration.local(instruction->local_index()).to<i32>()), 0, addresses))
+    if (interpreter.store_value(configuration, *instruction, ConvertToRaw<i32> {}(configuration.local_or_argument(instruction->local_index()).to<i32>()), 0, addresses))
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_i64_storelocal)
 {
-    if (interpreter.store_value(configuration, *instruction, ConvertToRaw<i64> {}(configuration.local(instruction->local_index()).to<i64>()), 0, addresses))
+    if (interpreter.store_value(configuration, *instruction, ConvertToRaw<i64> {}(configuration.local_or_argument(instruction->local_index()).to<i64>()), 0, addresses))
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_local_seti32_const)
 {
-    configuration.local(instruction->local_index()) = Value(instruction->arguments().unsafe_get<i32>());
+    configuration.local_or_argument(instruction->local_index()) = Value(instruction->arguments().unsafe_get<i32>());
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1181,7 +1187,7 @@ HANDLE_INSTRUCTION(nop)
 HANDLE_INSTRUCTION(local_set)
 {
     // bounds checked by verifier.
-    configuration.local(instruction->local_index()) = configuration.take_source(0, addresses.sources);
+    configuration.local_or_argument(instruction->local_index()) = configuration.take_source(0, addresses.sources);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1577,7 +1583,7 @@ HANDLE_INSTRUCTION(local_tee)
     auto value = configuration.source_value(0, addresses.sources); // bounds checked by verifier.
     auto local_index = instruction->local_index();
     dbgln_if(WASM_TRACE_DEBUG, "stack:peek -> locals({})", local_index.value());
-    configuration.frame().locals()[local_index.value()] = value;
+    configuration.frame().local_or_argument(local_index) = value;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -4044,7 +4050,7 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
     if (source == CallAddressSource::IndirectCall || source == CallAddressSource::IndirectTailCall) {
         TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
     }
-    Vector<Value> args;
+    Vector<Value, 8> args;
     if (!type->parameters().is_empty()) {
         args.ensure_capacity(type->parameters().size());
         auto span = configuration.value_stack().span().slice_from_end(type->parameters().size());
@@ -4477,6 +4483,21 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     }
 
     result.dispatches.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
+
+    // Rewrite local.get of arguments to argument.get to keep local.get for locals only.
+    for (size_t i = 0; i < result.dispatches.size(); ++i) {
+        auto& dispatch = result.dispatches[i];
+        if (dispatch.instruction->opcode() == Instructions::local_get) {
+            auto local_index = dispatch.instruction->local_index();
+            if (local_index.value() & LocalArgumentMarker) {
+                result.extra_instruction_storage.append(Instruction(
+                    Instructions::synthetic_argument_get,
+                    local_index));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        }
+    }
 
     // Allocate registers for instructions, meeting the following constraints:
     // - Any instruction that produces polymorphic stack, or requires its inputs on the stack must sink all active values to the stack.

@@ -441,7 +441,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
             Wasm::FunctionType function_type = { move(params), move(results) };
             auto host_function = Wasm::HostFunction {
-                [&vm, &function, formal_params, returns, name](Wasm::Configuration&, Vector<Wasm::Value>& args) mutable -> Wasm::Result {
+                [&vm, &function, formal_params, returns, name](Wasm::Configuration&, Span<Wasm::Value> args) mutable -> Wasm::Result {
                     Vector<JS::Value> js_args;
                     js_args.ensure_capacity(args.size());
                     for (size_t i = 0; i < formal_params.size(); ++i) {
@@ -671,7 +671,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     continue;
                 auto type = parse_result->type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
                 auto address = machine.store().allocate(Wasm::HostFunction(
-                    [name = entry.name, type = type](auto&, auto& arguments) -> Wasm::Result {
+                    [name = entry.name, type = type](auto&, auto arguments) -> Wasm::Result {
                         StringBuilder argument_builder;
                         bool first = true;
                         size_t index = 0;

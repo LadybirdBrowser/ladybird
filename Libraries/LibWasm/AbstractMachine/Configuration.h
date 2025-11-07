@@ -35,6 +35,7 @@ public:
         m_frame_stack.append(move(frame));
         m_label_stack.append(label);
         m_locals_base = m_frame_stack.unchecked_last().locals().data();
+        m_arguments_base = m_frame_stack.unchecked_last().arguments().data();
     }
     ALWAYS_INLINE auto& frame() const { return m_frame_stack.unchecked_last(); }
     ALWAYS_INLINE auto& frame() { return m_frame_stack.unchecked_last(); }
@@ -49,7 +50,15 @@ public:
     ALWAYS_INLINE auto& store() const { return m_store; }
     ALWAYS_INLINE auto& store() { return m_store; }
 
-    ALWAYS_INLINE Value const* raw_locals() const { return m_locals_base; }
+    ALWAYS_INLINE Value& local_or_argument(LocalIndex index)
+    {
+        if (index.value() & LocalArgumentMarker)
+            return m_arguments_base[index.value() & ~LocalArgumentMarker];
+        return m_locals_base[index.value()];
+    }
+    ALWAYS_INLINE Value const& argument(LocalIndex index) const { return m_arguments_base[index.value() & ~LocalArgumentMarker]; }
+    ALWAYS_INLINE Value& argument(LocalIndex index) { return m_arguments_base[index.value() & ~LocalArgumentMarker]; }
+
     ALWAYS_INLINE Value const& local(LocalIndex index) const { return m_locals_base[index.value()]; }
     ALWAYS_INLINE Value& local(LocalIndex index) { return m_locals_base[index.value()]; }
 
@@ -69,8 +78,8 @@ public:
     };
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
-    ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value>& arguments, bool is_tailcall = false);
-    Result call(Interpreter&, FunctionAddress, Vector<Value> arguments);
+    ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value, 8>& arguments, bool is_tailcall = false);
+    Result call(Interpreter&, FunctionAddress, Vector<Value, 8> arguments);
     Result execute(Interpreter&);
 
     void enable_instruction_count_limit() { m_should_limit_instruction_count = true; }
@@ -126,6 +135,7 @@ private:
     u64 m_ip { 0 };
     bool m_should_limit_instruction_count { false };
     Value* m_locals_base { nullptr };
+    Value* m_arguments_base { nullptr };
 };
 
 }

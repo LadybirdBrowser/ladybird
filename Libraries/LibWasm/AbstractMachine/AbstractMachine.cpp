@@ -293,7 +293,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             config.enable_instruction_count_limit();
         config.set_frame(Frame {
             auxiliary_instance,
-            Vector<Value> {},
+            {},
+            {},
             entry.expression(),
             1,
         });
@@ -315,7 +316,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 config.enable_instruction_count_limit();
             config.set_frame(Frame {
                 main_module_instance,
-                Vector<Value> {},
+                {},
+                {},
                 entry,
                 entry.instructions().size() - 1,
             });
@@ -350,7 +352,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             config.enable_instruction_count_limit();
         config.set_frame(Frame {
             main_module_instance,
-            Vector<Value> {},
+            {},
+            {},
             active_ptr->expression,
             1,
         });
@@ -385,7 +388,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                     config.enable_instruction_count_limit();
                 config.set_frame(Frame {
                     main_module_instance,
-                    Vector<Value> {},
+                    {},
+                    {},
                     data.offset,
                     1,
                 });

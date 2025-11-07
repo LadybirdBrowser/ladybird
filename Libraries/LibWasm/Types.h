@@ -22,6 +22,8 @@
 
 namespace Wasm {
 
+class Module;
+
 template<size_t M>
 using NativeIntegralType = Conditional<M == 8, u8, Conditional<M == 16, u16, Conditional<M == 32, u32, Conditional<M == 64, u64, void>>>>;
 
@@ -78,6 +80,8 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, GlobalIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, LabelIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, DataIndex);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, InstructionPointer, Arithmetic, Comparison, Flags, Increment);
+
+constexpr static inline auto LocalArgumentMarker = static_cast<LocalIndex::Type>(1) << (sizeof(LocalIndex::Type) * 8 - 1);
 
 ParseError with_eof_check(Stream const& stream, ParseError error_if_not_eof);
 
@@ -563,6 +567,8 @@ public:
     auto& arguments() { return m_arguments; }
 
     LocalIndex local_index() const { return m_local_index; }
+
+    void set_local_index(Badge<Module>, LocalIndex index) { m_local_index = index; }
 
 private:
     OpCode m_opcode { 0 };
@@ -1064,6 +1070,8 @@ public:
             : m_locals(move(locals))
             , m_body(move(body))
         {
+            for (auto const& local : m_locals)
+                m_total_local_count += local.n();
         }
 
         auto& locals() const { return m_locals; }
@@ -1071,9 +1079,12 @@ public:
 
         static ParseResult<Func> parse(ConstrainedStream& stream, size_t size_hint);
 
+        auto total_local_count() const { return m_total_local_count; }
+
     private:
         Vector<Locals> m_locals;
         Expression m_body;
+        size_t m_total_local_count { 0 };
     };
     class Code {
     public:
@@ -1236,6 +1247,7 @@ public:
 
 private:
     void set_validation_status(ValidationStatus status) { m_validation_status = status; }
+    void preprocess();
 
     Vector<CustomSection> m_custom_sections;
     TypeSection m_type_section;
