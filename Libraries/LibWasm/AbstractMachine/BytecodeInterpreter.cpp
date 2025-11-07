@@ -14,6 +14,7 @@
 #include <AK/QuickSort.h>
 #include <AK/RedBlackTree.h>
 #include <AK/SIMDExtras.h>
+#include <AK/ScopedValueRollback.h>
 #include <AK/Time.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
@@ -1079,97 +1080,81 @@ HANDLE_INSTRUCTION(synthetic_local_seti32_const)
 
 HANDLE_INSTRUCTION(synthetic_call_00)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_00(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_01)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_01(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_10)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_10(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_11)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_11(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_20)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_20(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_21)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_21(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_30)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_30(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_31)
 {
-    auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_31(#{} -> {})", current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
         return Outcome::Return;
-    configuration.regs = regs_copy;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1333,7 +1318,7 @@ HANDLE_INSTRUCTION(call)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "call({})", address.value());
-    if (interpreter.call_address(configuration, address) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses) == Outcome::Return)
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
@@ -1344,7 +1329,7 @@ HANDLE_INSTRUCTION(return_call)
     auto address = configuration.frame().module().functions()[index.value()];
     configuration.label_stack().shrink(configuration.frame().label_index() + 1, true);
     dbgln_if(WASM_TRACE_DEBUG, "tail call({})", address.value());
-    switch (auto const outcome = interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::DirectTailCall)) {
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectTailCall)) {
     default:
         // Some IP we have to continue from.
         current_ip_value = to_underlying(outcome) - 1;
@@ -1378,7 +1363,7 @@ HANDLE_INSTRUCTION(call_indirect)
     TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
 
     dbgln_if(WASM_TRACE_DEBUG, "call_indirect({} -> {})", index, address.value());
-    if (interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
+    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
@@ -1403,7 +1388,7 @@ HANDLE_INSTRUCTION(return_call_indirect)
     TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
 
     dbgln_if(WASM_TRACE_DEBUG, "tail call_indirect({} -> {})", index, address.value());
-    switch (auto const outcome = interpreter.call_address(configuration, address, BytecodeInterpreter::CallAddressSource::IndirectTailCall)) {
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectTailCall)) {
     default:
         // Some IP we have to continue from.
         current_ip_value = to_underlying(outcome) - 1;
@@ -3884,14 +3869,15 @@ bool BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     auto& entry = configuration.source_value(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
     if (instance_address + sizeof(ReadType) > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: load_and_push - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return true;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
     auto slice = memory->data().bytes().slice(instance_address, sizeof(ReadType));
     entry = Value(static_cast<PushType>(read_value<ReadType>(slice)));
+    dbgln_if(WASM_TRACE_DEBUG, "  loaded value: {}", entry.value());
     return false;
 }
 
@@ -3910,12 +3896,12 @@ bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     auto& entry = configuration.source_value(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
     if (instance_address + M * N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: load_and_push_mxn - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return true;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
     auto slice = memory->data().bytes().slice(instance_address, M * N / 8);
     using V64 = NativeVectorType<M, N, SetSign>;
     using V128 = NativeVectorType<M * 2, N, SetSign>;
@@ -3927,6 +3913,7 @@ bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
         ByteReader::load(slice.data(), bytes);
 
     entry = Value(bit_cast<u128>(convert_vector<V128>(bytes)));
+    dbgln_if(WASM_TRACE_DEBUG, "  loaded value: {}", entry.value());
     return false;
 }
 
@@ -3940,6 +3927,7 @@ bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     auto vector = configuration.take_source(0, addresses.sources).to<u128>();
     auto base = configuration.take_source(1, addresses.sources).to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.memory.offset;
+    dbgln_if(WASM_TRACE_DEBUG, "load-lane({} : {}, lane {}) -> stack", instance_address, N / 8, memarg_and_lane.lane);
     if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: load_and_push_lane_n - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + N / 8, memory->size());
@@ -3948,6 +3936,7 @@ bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
     auto dst = bit_cast<u8*>(&vector) + memarg_and_lane.lane * N / 8;
     memcpy(dst, slice.data(), N / 8);
+    dbgln_if(WASM_TRACE_DEBUG, "  loaded value: {}", vector);
     configuration.push_to_destination(Value(vector), addresses.destination);
     return false;
 }
@@ -3961,6 +3950,7 @@ bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     // bounds checked by verifier.
     auto base = configuration.take_source(0, addresses.sources).to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
+    dbgln_if(WASM_TRACE_DEBUG, "load-zero({} : {}) -> stack", instance_address, N / 8);
     if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: load_and_push_zero_n - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + N / 8, memory->size());
@@ -3969,6 +3959,7 @@ bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
     u128 vector = 0;
     memcpy(&vector, slice.data(), N / 8);
+    dbgln_if(WASM_TRACE_DEBUG, "  loaded value: {}", vector);
     configuration.push_to_destination(Value(vector), addresses.destination);
     return false;
 }
@@ -3982,14 +3973,15 @@ bool BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     auto& entry = configuration.source_value(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
     if (instance_address + M / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         dbgln("LibWasm: load_and_push_m_splat - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return true;
     }
-    dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
     auto slice = memory->data().bytes().slice(instance_address, M / 8);
     auto value = read_value<NativeIntegralType<M>>(slice);
+    dbgln_if(WASM_TRACE_DEBUG, "  loaded value: {}", value);
     set_top_m_splat<M, NativeIntegralType>(configuration, value, addresses);
     return false;
 }
@@ -4040,61 +4032,76 @@ VectorType BytecodeInterpreter::pop_vector(Configuration& configuration, size_t 
     return bit_cast<VectorType>(configuration.take_source(source, addresses.sources).to<u128>());
 }
 
-Outcome BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address, CallAddressSource source)
+Outcome BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address, SourcesAndDestination const& addresses, CallAddressSource source, CallType call_type)
 {
     TRAP_IF_NOT(m_stack_info.size_free() >= Constants::minimum_stack_space_to_keep_free, "{}: {}", Constants::stack_exhaustion_message);
-
-    auto instance = configuration.store().get(address);
-    FunctionType const* type { nullptr };
-    instance->visit([&](auto const& function) { type = &function.type(); });
-    if (source == CallAddressSource::IndirectCall || source == CallAddressSource::IndirectTailCall) {
-        TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
-    }
-    Vector<Value, 8> args;
-    if (!type->parameters().is_empty()) {
-        args.ensure_capacity(type->parameters().size());
-        auto span = configuration.value_stack().span().slice_from_end(type->parameters().size());
-        for (auto& value : span)
-            args.unchecked_append(value);
-
-        configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
-    }
-
     Result result { Trap::from_string("") };
     Outcome final_outcome = Outcome::Continue;
+    {
+        Optional<ScopedValueRollback<decltype(configuration.regs)>> regs_rollback;
+        if (call_type == CallType::UsingRegisters)
+            regs_rollback = ScopedValueRollback { configuration.regs };
 
-    if (source == CallAddressSource::DirectTailCall || source == CallAddressSource::IndirectTailCall) {
-        auto prep_outcome = configuration.prepare_call(address, args, true);
-        if (prep_outcome.is_error()) {
-            m_trap = prep_outcome.release_error();
+        auto instance = configuration.store().get(address);
+        FunctionType const* type { nullptr };
+        instance->visit([&](auto const& function) { type = &function.type(); });
+        if (source == CallAddressSource::IndirectCall || source == CallAddressSource::IndirectTailCall) {
+            TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
+        }
+        Vector<Value, 8> args;
+        auto param_count = type->parameters().size();
+        if (param_count) {
+            args.ensure_capacity(param_count);
+            if (call_type == CallType::UsingRegisters) {
+                args.resize_with_default_value(param_count, Value(0));
+                for (size_t i = 0; i < param_count; ++i)
+                    args[param_count - i - 1] = configuration.take_source(i, addresses.sources);
+            } else {
+                auto span = configuration.value_stack().span().slice_from_end(param_count);
+                for (auto& value : span)
+                    args.unchecked_append(value);
+
+                configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+            }
+        }
+
+        if (source == CallAddressSource::DirectTailCall || source == CallAddressSource::IndirectTailCall) {
+            auto prep_outcome = configuration.prepare_call(address, args, true);
+            if (prep_outcome.is_error()) {
+                m_trap = prep_outcome.release_error();
+                return Outcome::Return;
+            }
+
+            final_outcome = Outcome::Return; // At this point we can only ever return (unless we succeed in tail-calling).
+            if (prep_outcome.value().has_value()) {
+                result = prep_outcome.value()->function()(configuration, args);
+            } else {
+                configuration.ip() = 0;
+                return static_cast<Outcome>(0); // Continue from IP 0 in the new frame.
+            }
+        } else {
+            if (instance->has<WasmFunction>()) {
+                CallFrameHandle handle { *this, configuration };
+                result = configuration.call(*this, address, move(args));
+            } else {
+                result = configuration.call(*this, address, move(args));
+            }
+        }
+
+        if (result.is_trap()) {
+            m_trap = move(result.trap());
             return Outcome::Return;
         }
-
-        final_outcome = Outcome::Return; // At this point we can only ever return (unless we succeed in tail-calling).
-        if (prep_outcome.value().has_value()) {
-            result = prep_outcome.value()->function()(configuration, args);
-        } else {
-            configuration.ip() = 0;
-            return static_cast<Outcome>(0); // Continue from IP 0 in the new frame.
-        }
-    } else {
-        if (instance->has<WasmFunction>()) {
-            CallFrameHandle handle { *this, configuration };
-            result = configuration.call(*this, address, move(args));
-        } else {
-            result = configuration.call(*this, address, move(args));
-        }
-    }
-
-    if (result.is_trap()) {
-        m_trap = move(result.trap());
-        return Outcome::Return;
     }
 
     if (!result.values().is_empty()) {
-        configuration.value_stack().ensure_capacity(configuration.value_stack().size() + result.values().size());
-        for (auto& entry : result.values().in_reverse())
-            configuration.value_stack().unchecked_append(entry);
+        if (call_type == CallType::UsingRegisters) {
+            configuration.push_to_destination(result.values().take_first(), addresses.destination);
+        } else {
+            configuration.value_stack().ensure_capacity(configuration.value_stack().size() + result.values().size());
+            for (auto& entry : result.values().in_reverse())
+                configuration.value_stack().unchecked_append(entry);
+        }
     }
 
     return final_outcome;
@@ -4590,10 +4597,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         Vector<ValueID> dependent_ids;
 
         bool variadic_or_unknown = false;
-        auto const is_known_call = opcode == Instructions::synthetic_call_00 || opcode == Instructions::synthetic_call_01
-            || opcode == Instructions::synthetic_call_10 || opcode == Instructions::synthetic_call_11
-            || opcode == Instructions::synthetic_call_20 || opcode == Instructions::synthetic_call_21
-            || opcode == Instructions::synthetic_call_30 || opcode == Instructions::synthetic_call_31;
 
         switch (opcode.value()) {
 #define M(name, _, ins, outs)                    \
@@ -4651,9 +4654,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto& value = values.get(input_value).value();
             value.uses.append(i);
             value.last_use = max(value.last_use, i);
-
-            if (is_known_call)
-                forced_stack_values.append(input_value);
         }
         instr_to_input_values.set(i, input_ids);
         instr_to_dependent_values.set(i, dependent_ids);
@@ -4666,9 +4666,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             instr_to_output_value.set(i, id);
             output_id = id;
             ensure_id_space(id);
-
-            if (is_known_call)
-                forced_stack_values.append(id);
         }
 
         // Alias the output with the last input, if one exists.
@@ -4696,31 +4693,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     for (size_t i = 0; i < final_roots.size(); ++i)
         final_roots[i] = find_root(i);
-
-    // One more pass to ensure that all inputs and outputs of known calls are forced to the stack after aliases are resolved.
-    for (size_t i = 0; i < result.dispatches.size(); ++i) {
-        auto const opcode = result.dispatches[i].instruction->opcode();
-        auto const is_known_call = opcode == Instructions::synthetic_call_00 || opcode == Instructions::synthetic_call_01
-            || opcode == Instructions::synthetic_call_10 || opcode == Instructions::synthetic_call_11
-            || opcode == Instructions::synthetic_call_20 || opcode == Instructions::synthetic_call_21
-            || opcode == Instructions::synthetic_call_30 || opcode == Instructions::synthetic_call_31;
-
-        if (is_known_call) {
-            if (auto input_ids = instr_to_input_values.get(i); input_ids.has_value()) {
-                for (auto input_id : *input_ids) {
-                    if (input_id.value() < final_roots.size()) {
-                        stack_forced_roots.set(final_roots[input_id.value()]);
-                    }
-                }
-            }
-
-            if (auto output_id = instr_to_output_value.get(i); output_id.has_value()) {
-                if (output_id->value() < final_roots.size()) {
-                    stack_forced_roots.set(final_roots[output_id->value()]);
-                }
-            }
-        }
-    }
 
     struct LiveInterval {
         ValueID value_id;

@@ -782,8 +782,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         }
                     }
 
-                    if (!regs.is_empty())
-                        regs = ByteString::formatted(" {{{:<33} }}", regs);
+                    if (regs.is_empty())
+                        regs = ByteString::formatted(" {{{:-<34}}}", regs);
+                    else
+                        regs = ByteString::formatted(" {{{: <33} }}", regs);
 
                     TRY(g_stdout->write_until_depleted(ByteString::formatted("  [{:>03}]", ip)));
                     TRY(g_stdout->write_until_depleted(regs.bytes()));
