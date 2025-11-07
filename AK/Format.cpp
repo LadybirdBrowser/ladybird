@@ -21,10 +21,6 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(AK_OS_SERENITY)
-#    include <serenity.h>
-#endif
-
 #if defined(AK_OS_ANDROID)
 #    include <android/log.h>
 #endif
@@ -1239,13 +1235,7 @@ void vout(LogLevel log_level, StringView fmtstr, TypeErasedFormatParams& params,
 // FIXME: Deduplicate with Core::Process:get_name()
 [[gnu::used]] static ByteString process_name_helper()
 {
-#if defined(AK_OS_SERENITY)
-    char buffer[BUFSIZ] = {};
-    int rc = get_process_name(buffer, BUFSIZ);
-    if (rc != 0)
-        return ByteString {};
-    return StringView { buffer, strlen(buffer) };
-#elif defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#if defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
     return StringView { program_invocation_name, strlen(program_invocation_name) };
 #elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     auto const* progname = getprogname();
@@ -1283,13 +1273,7 @@ void set_debug_enabled(bool value)
     is_debug_enabled = value;
 }
 
-// On Serenity, dbgln goes to a non-stderr output
-static bool is_rich_debug_enabled =
-#if defined(AK_OS_SERENITY)
-    true;
-#else
-    false;
-#endif
+static bool is_rich_debug_enabled = false;
 
 void set_rich_debug_enabled(bool value)
 {
@@ -1350,7 +1334,7 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
             struct timespec ts = {};
             clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
             auto pid = getpid();
-#    if defined(AK_OS_SERENITY) || defined(AK_OS_LINUX)
+#    if defined(AK_OS_LINUX)
             // Linux and Serenity handle thread IDs as if they are related to process ids
             auto tid = gettid();
             if (pid == tid)
@@ -1358,7 +1342,7 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
             {
                 builder.appendff("{}.{:03} \033[33;1m{}({})\033[0m: ", ts.tv_sec, ts.tv_nsec / 1000000, process_name, pid);
             }
-#    if defined(AK_OS_SERENITY) || defined(AK_OS_LINUX)
+#    if defined(AK_OS_LINUX)
             else {
                 builder.appendff("{}.{:03} \033[33;1m{}({}:{})\033[0m: ", ts.tv_sec, ts.tv_nsec / 1000000, process_name, pid, tid);
             }

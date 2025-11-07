@@ -79,10 +79,6 @@
 #    define AK_LIBC_GLIBC_PREREQ(maj, min) 0
 #endif
 
-#if defined(__serenity__)
-#    define AK_OS_SERENITY
-#endif
-
 #if defined(__linux__)
 #    define AK_OS_LINUX
 #endif

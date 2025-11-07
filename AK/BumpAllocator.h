@@ -115,17 +115,12 @@ protected:
         void* new_chunk = reinterpret_cast<void*>(s_unused_allocation_cache.exchange(0));
         if (!new_chunk) {
             if constexpr (use_mmap) {
-#ifdef AK_OS_SERENITY
-                new_chunk = serenity_mmap(nullptr, m_chunk_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_RANDOMIZED | MAP_PRIVATE, 0, 0, m_chunk_size, "BumpAllocator Chunk");
-#elif defined(AK_OS_WINDOWS)
-                new_chunk = VirtualAlloc(NULL, m_chunk_size, MEM_COMMIT, PAGE_READWRITE);
-#else
-                new_chunk = mmap(nullptr, m_chunk_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-#endif
 #if defined(AK_OS_WINDOWS)
+                new_chunk = VirtualAlloc(NULL, m_chunk_size, MEM_COMMIT, PAGE_READWRITE);
                 if (new_chunk == NULL)
                     return false;
 #else
+                new_chunk = mmap(nullptr, m_chunk_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
                 if (new_chunk == MAP_FAILED)
                     return false;
 #endif
