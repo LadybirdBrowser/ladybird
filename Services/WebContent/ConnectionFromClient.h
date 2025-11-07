@@ -167,6 +167,8 @@ private:
     virtual void set_document_cookie_version_index(u64 page_id, i64 document_id, Core::SharedVersionIndex document_index) override;
     virtual void cookies_changed(u64 page_id, Vector<HTTP::Cookie::Cookie>) override;
 
+    virtual void request_close(u64 page_id) override;
+
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};

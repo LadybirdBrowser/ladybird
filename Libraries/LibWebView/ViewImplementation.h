@@ -175,6 +175,8 @@ public:
     // native GUI widgets as possible.
     void use_native_user_style_sheet();
 
+    void request_close();
+
     Function<void()> on_ready_to_paint;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
     Function<void()> on_activate_tab;
