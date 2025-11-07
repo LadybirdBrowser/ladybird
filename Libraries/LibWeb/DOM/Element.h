@@ -84,7 +84,7 @@ struct CustomElementCallbackReaction {
 
 // https://dom.spec.whatwg.org/#concept-element-custom-element-state
 // An element’s custom element state is one of "undefined", "failed", "uncustomized", "precustomized", or "custom".
-enum class CustomElementState {
+enum class CustomElementState : u8 {
     Undefined,
     Failed,
     Uncustomized,
@@ -94,7 +94,7 @@ enum class CustomElementState {
 
 // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
 // An element that has content-visibility: auto is in one of three states when it comes to its proximity to the viewport:
-enum class ProximityToTheViewport {
+enum class ProximityToTheViewport : u8 {
     // - The element is close to the viewport:
     CloseToTheViewport,
     // - The element is far away from the viewport:
@@ -585,9 +585,6 @@ private:
     // NOTE: See the structs at the top of this header.
     OwnPtr<CustomElementReactionQueue> m_custom_element_reaction_queue;
 
-    // https://dom.spec.whatwg.org/#concept-element-custom-element-state
-    CustomElementState m_custom_element_state { CustomElementState::Undefined };
-
     // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
     GC::Ptr<HTML::CustomElementDefinition> m_custom_element_definition;
 
@@ -624,6 +621,11 @@ private:
 
     size_t m_sibling_invalidation_distance { 0 };
 
+    OwnPtr<CSS::CountersSet> m_counters_set;
+
+    // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
+    Optional<i32> m_ordinal_value;
+
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
     // AD-HOC: We need to know the element had a duplicate attribute when it was created from the HTML parser.
     //         However, there currently isn't any specified way to do this, so we store a flag on the token, which is
@@ -631,7 +633,8 @@ private:
     //         flag is set.
     bool m_had_duplicate_attribute_during_tokenization { false };
 
-    OwnPtr<CSS::CountersSet> m_counters_set;
+    // https://dom.spec.whatwg.org/#concept-element-custom-element-state
+    CustomElementState m_custom_element_state { CustomElementState::Undefined };
 
     // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
     ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
@@ -639,8 +642,6 @@ private:
     // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
     bool m_captured_in_a_view_transition { false };
 
-    // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
-    Optional<i32> m_ordinal_value;
     bool m_is_contained_in_list_subtree { false };
 };
 
