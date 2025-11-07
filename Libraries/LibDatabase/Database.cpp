@@ -119,9 +119,11 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
 {
     auto* statement = prepared_statement(statement_id);
 
-    if constexpr (IsOneOf<ValueType, String, ByteString>) {
+    if constexpr (IsSame<ValueType, String>) {
         StringView string { value };
         SQL_MUST(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
+    } else if constexpr (IsSame<ValueType, ByteString>) {
+        SQL_MUST(sqlite3_bind_blob(statement, index, value.characters(), static_cast<int>(value.length()), SQLITE_TRANSIENT));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds());
     } else if constexpr (IsIntegral<ValueType>) {
@@ -148,8 +150,9 @@ ValueType Database::result_column(StatementID statement_id, int column)
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
         return MUST(String::from_utf8(StringView { text, strlen(text) }));
     } else if constexpr (IsSame<ValueType, ByteString>) {
-        auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
-        return ByteString { text, strlen(text) };
+        auto length = sqlite3_column_bytes(statement, column);
+        auto const* text = sqlite3_column_blob(statement, column);
+        return ByteString { reinterpret_cast<char const*>(text), static_cast<size_t>(length) };
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         auto milliseconds = result_column<sqlite3_int64>(statement_id, column);
         return UnixDateTime::from_milliseconds_since_epoch(milliseconds);
