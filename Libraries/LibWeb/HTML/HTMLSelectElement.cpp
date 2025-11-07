@@ -126,12 +126,26 @@ void HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 GC::Ptr<HTMLOptionsCollection> const& HTMLSelectElement::options() const
 {
     if (!m_options) {
-        m_options = HTMLOptionsCollection::create(const_cast<HTMLSelectElement&>(*this), [](DOM::Element const& element) {
+        m_options = HTMLOptionsCollection::create(const_cast<HTMLSelectElement&>(*this), [this](DOM::Element const& element) {
             // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
             // The list of options for a select element consists of all the option element children of
             // the select element, and all the option element children of all the optgroup element children
             // of the select element, in tree order.
-            return is<HTMLOptionElement>(element);
+
+            if (!is<HTMLOptionElement>(element))
+                return false;
+
+            auto parent = element.parent_element();
+
+            // <option> is a direct child of the <select> element
+            if (parent == this)
+                return true;
+
+            // <option> is a child of an <optgroup> that is a direct child of the <select>
+            if (is<HTMLOptGroupElement>(*parent) && parent->parent_element() == this)
+                return true;
+
+            return false;
         });
     }
     return m_options;
