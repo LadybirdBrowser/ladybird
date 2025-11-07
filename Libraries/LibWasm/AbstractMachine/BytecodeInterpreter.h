@@ -69,6 +69,11 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
         IndirectTailCall,
     };
 
+    enum class CallType {
+        UsingRegisters,
+        UsingStack,
+    };
+
     template<bool HasCompiledList, bool HasDynamicInsnLimit, bool HaveDirectThreadingInfo>
     void interpret_impl(Configuration&, Expression const&);
 
@@ -96,7 +101,7 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
     VectorType pop_vector(Configuration&, size_t source, SourcesAndDestination const&);
     bool store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
-    Outcome call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
+    Outcome call_address(Configuration&, FunctionAddress, SourcesAndDestination const&, CallAddressSource = CallAddressSource::DirectCall, CallType = CallType::UsingStack);
 
     template<typename T>
     bool store_to_memory(MemoryInstance&, u64 address, T value);
