@@ -237,8 +237,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
         set_current_tab(tab);
     });
-    QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::close_tab);
-    QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::close_current_tab);
+    QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::request_to_close_tab);
+    QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::request_to_close_current_tab);
 
     for (int i = 0; i <= 7; ++i) {
         new QShortcut(QKeySequence(Qt::CTRL | static_cast<Qt::Key>(Qt::Key_1 + i)), this, [this, i] {
@@ -378,7 +378,7 @@ void BrowserWindow::activate_tab(int index)
     m_tabs_container->setCurrentIndex(index);
 }
 
-void BrowserWindow::close_tab(int index)
+void BrowserWindow::definitely_close_tab(int index)
 {
     auto* tab = m_tabs_container->widget(index);
     m_tabs_container->removeTab(index);
@@ -398,9 +398,15 @@ void BrowserWindow::open_file()
     m_current_tab->open_file();
 }
 
-void BrowserWindow::close_current_tab()
+void BrowserWindow::request_to_close_tab(int index)
 {
-    close_tab(m_tabs_container->currentIndex());
+    auto* tab = as<Tab>(m_tabs_container->widget(index));
+    tab->request_close();
+}
+
+void BrowserWindow::request_to_close_current_tab()
+{
+    request_to_close_tab(m_tabs_container->currentIndex());
 }
 
 int BrowserWindow::tab_index(Tab* tab)
@@ -452,7 +458,7 @@ void BrowserWindow::create_close_button_for_tab(Tab* tab)
 
     connect(button, &QPushButton::clicked, this, [this, tab]() {
         auto index = m_tabs_container->indexOf(tab);
-        close_tab(index);
+        request_to_close_tab(index);
     });
 
     m_tabs_container->tabBar()->setTabButton(index, position, button);
@@ -625,7 +631,7 @@ bool BrowserWindow::eventFilter(QObject* obj, QEvent* event)
             if (obj == m_tabs_container) {
                 auto const tab_index = m_tabs_container->tabBar()->tabAt(mouse_event->pos());
                 if (tab_index != -1) {
-                    close_tab(tab_index);
+                    request_to_close_tab(tab_index);
                     return true;
                 }
             }
