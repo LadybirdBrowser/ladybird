@@ -1,181 +1,180 @@
-<!doctype html>
-<html>
-    <head>
-        <title>Task Manager</title>
-        <style>
-            @media (prefers-color-scheme: dark) {
-                :root {
-                    --table-border: gray;
-                    --table-row-odd: rgb(57, 57, 57);
-                    --table-row-hover: rgb(80, 79, 79);
-                }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Task Manager</title>
+    <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --card-background-color: #2c2c2c;
+                --card-header-background-color: #252525;
+                --border-color: #3d3d3d;
+                --table-border: gray;
+                --table-row-odd: rgb(57, 57, 57);
+                --table-row-hover: rgb(80, 79, 79);
             }
-
-            @media (prefers-color-scheme: light) {
-                :root {
-                    --table-border: gray;
-                    --table-row-odd: rgb(229, 229, 229);
-                    --table-row-hover: rgb(199, 198, 198);
-                }
+        }
+        @media (prefers-color-scheme: light) {
+            :root {
+                --card-background-color: #f9f9f9;
+                --card-header-background-color: #f0f2f5;
+                --border-color: #dcdde1;
+                --table-border: gray;
+                --table-row-odd: rgb(229, 229, 229);
+                --table-row-hover: rgb(199, 198, 198);
             }
+        }
+        * { box-sizing: border-box; }
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 10pt;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            font-size: 20px;
+        }
+        header img {
+            height: 48px;
+            margin-right: 10px;
+            float: left;
+        }
+        .card {
+            background-color: var(--card-background-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: var(--card-header-background-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+            font-weight: 500;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            border-bottom: 1px solid var(--table-border);
+            padding: 6px;
+        }
+        th:hover { background-color: var(--table-row-hover); cursor: pointer; }
+        th.sorted-ascending:after { content: " ▲"; }
+        th.sorted-descending:after { content: " ▼"; }
+        td {
+            padding: 6px;
+            border: 1px solid var(--table-border);
+        }
+        tbody tr:nth-of-type(2n + 1) { background-color: var(--table-row-odd); }
+        tbody tr:hover { background-color: var(--table-row-hover); }
+    </style>
+</head>
+<body>
+    <header>
+        <picture>
+            <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+            <img src="resource://icons/128x128/app-browser-dark.png" />
+        </picture>
+        <h1>Task Manager</h1>
+    </header>
 
-            html {
-                color-scheme: light dark;
+    <div class="card">
+        <div class="card-header">Processes</div>
+        <div class="card-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th id="name">Name</th>
+                        <th id="pid">PID</th>
+                        <th id="cpu">CPU</th>
+                        <th id="memory">Memory</th>
+                    </tr>
+                </thead>
+                <tbody id="process-table"></tbody>
+            </table>
+        </div>
+    </div>
 
-                font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-                font-size: 10pt;
-            }
+    <script type="text/javascript">
+        const cpuFormatter = new Intl.NumberFormat([], { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const memoryFormatter = new Intl.NumberFormat([], {
+            style: "unit",
+            unit: "byte",
+            notation: "compact",
+            unitDisplay: "narrow",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+        const Direction = Object.freeze({ ascending: 1, descending: 2 });
+        window.processes = [];
+        window.sortDirection = Direction.ascending;
+        window.sortKey = "pid";
 
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
+        const renderSortedProcesses = () => {
+            document.querySelectorAll("th").forEach(header => {
+                header.classList.remove("sorted-ascending", "sorted-descending");
+            });
+            const currentHeader = document.getElementById(window.sortKey);
+            currentHeader.classList.add(window.sortDirection === Direction.ascending ? "sorted-ascending" : "sorted-descending");
 
-            th {
-                text-align: left;
-                border-bottom: 1px solid var(--table-border);
-            }
-
-            th:hover {
-                background-color: var(--table-row-hover);
-                cursor: pointer;
-            }
-
-            th.sorted-ascending:after {
-                content: " ▲";
-            }
-
-            th.sorted-descending:after {
-                content: " ▼";
-            }
-
-            td,
-            th {
-                padding: 4px;
-                border: 1px solid var(--table-border);
-            }
-
-            tbody tr:nth-of-type(2n + 1) {
-                background-color: var(--table-row-odd);
-            }
-
-            tbody tr:hover {
-                background-color: var(--table-row-hover);
-            }
-        </style>
-    </head>
-    <body>
-        <table>
-            <thead>
-                <tr>
-                    <th id="name">Name</th>
-                    <th id="pid">PID</th>
-                    <th id="cpu">CPU</th>
-                    <th id="memory">Memory</th>
-                </tr>
-            </thead>
-            <tbody id="process-table"></tbody>
-        </table>
-
-        <script type="text/javascript">
-            const cpuFormatter = new Intl.NumberFormat([], {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+            const multiplier = window.sortDirection === Direction.ascending ? 1 : -1;
+            window.processes.sort((lhs, rhs) => {
+                const lhsValue = lhs[window.sortKey];
+                const rhsValue = rhs[window.sortKey];
+                return typeof lhsValue === "string"
+                    ? multiplier * lhsValue.localeCompare(rhsValue)
+                    : multiplier * (lhsValue - rhsValue);
             });
 
-            const memoryFormatter = new Intl.NumberFormat([], {
-                style: "unit",
-                unit: "byte",
-                notation: "compact",
-                unitDisplay: "narrow",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+            const oldTable = document.getElementById("process-table");
+            const newTable = document.createElement("tbody");
+            newTable.id = "process-table";
+
+            const insertColumn = (row, value) => { row.insertCell().innerText = value; };
+
+            window.processes.forEach(process => {
+                const row = newTable.insertRow();
+                insertColumn(row, process.name);
+                insertColumn(row, process.pid);
+                insertColumn(row, cpuFormatter.format(process.cpu));
+                insertColumn(row, memoryFormatter.format(process.memory));
             });
 
-            const Direction = Object.freeze({
-                ascending: 1,
-                descending: 2,
-            });
+            oldTable.parentNode.replaceChild(newTable, oldTable);
+        };
 
-            window.processes = [];
-            window.sortDirection = Direction.ascending;
-            window.sortKey = "pid";
+        const loadProcessStatistics = processes => {
+            window.processes = processes;
+            renderSortedProcesses();
+        };
 
-            const renderSortedProcesses = () => {
-                document.querySelectorAll("th").forEach(header => {
-                    header.classList.remove("sorted-ascending");
-                    header.classList.remove("sorted-descending");
+        document.addEventListener("WebUILoaded", () => {
+            document.querySelectorAll("th").forEach(header => {
+                header.addEventListener("click", () => {
+                    window.sortDirection = header.classList.contains("sorted-descending") ? Direction.ascending : Direction.descending;
+                    window.sortKey = header.id;
+                    renderSortedProcesses();
                 });
-
-                if (window.sortDirection === Direction.ascending) {
-                    document.getElementById(window.sortKey).classList.add("sorted-ascending");
-                } else {
-                    document.getElementById(window.sortKey).classList.add("sorted-descending");
-                }
-
-                const multiplier = window.sortDirection === Direction.ascending ? 1 : -1;
-
-                window.processes.sort((lhs, rhs) => {
-                    const lhsValue = lhs[window.sortKey];
-                    const rhsValue = rhs[window.sortKey];
-
-                    if (typeof lhsValue === "string") {
-                        return multiplier * lhsValue.localeCompare(rhsValue);
-                    }
-
-                    return multiplier * (lhsValue - rhsValue);
-                });
-
-                let oldTable = document.getElementById("process-table");
-
-                let newTable = document.createElement("tbody");
-                newTable.setAttribute("id", "process-table");
-
-                const insertColumn = (row, value) => {
-                    let column = row.insertCell();
-                    column.innerText = value;
-                };
-
-                window.processes.forEach(process => {
-                    let row = newTable.insertRow();
-                    insertColumn(row, process.name);
-                    insertColumn(row, process.pid);
-                    insertColumn(row, cpuFormatter.format(process.cpu));
-                    insertColumn(row, memoryFormatter.format(process.memory));
-                });
-
-                oldTable.parentNode.replaceChild(newTable, oldTable);
-            };
-
-            const loadProcessStatistics = processes => {
-                window.processes = processes;
-                renderSortedProcesses();
-            };
-
-            document.addEventListener("WebUILoaded", () => {
-                document.querySelectorAll("th").forEach(header => {
-                    header.addEventListener("click", () => {
-                        window.sortDirection = header.classList.contains("sorted-descending")
-                            ? Direction.ascending
-                            : Direction.descending;
-                        window.sortKey = header.getAttribute("id");
-
-                        renderSortedProcesses();
-                    });
-                });
-
-                setInterval(() => {
-                    ladybird.sendMessage("updateProcessStatistics");
-                }, 1000);
-
-                ladybird.sendMessage("updateProcessStatistics");
             });
+            setInterval(() => { ladybird.sendMessage("updateProcessStatistics"); }, 1000);
+            ladybird.sendMessage("updateProcessStatistics");
+        });
 
-            document.addEventListener("WebUIMessage", event => {
-                if (event.detail.name === "loadProcessStatistics") {
-                    loadProcessStatistics(event.detail.data);
-                }
-            });
-        </script>
-    </body>
+        document.addEventListener("WebUIMessage", event => {
+            if (event.detail.name === "loadProcessStatistics") {
+                loadProcessStatistics(event.detail.data);
+            }
+        });
+    </script>
+</body>
 </html>
