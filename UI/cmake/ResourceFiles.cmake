@@ -63,6 +63,7 @@ list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/brow
 
 set(INTERNAL_RESOURCES
     ladybird.css
+    utils.js
 )
 list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
 
