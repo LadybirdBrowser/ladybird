@@ -667,6 +667,11 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
             && item.used_flex_basis->has<CSS::FlexBasisContent>()
             && has_definite_cross_size(item)) {
             // flex_base_size is calculated from definite cross size and intrinsic aspect ratio
+
+            // AD-HOC: Mark that we resolved the main size from the aspect ratio,
+            //         so that we can mark the item as having definite main size after resolving flexible lengths.
+            item.main_size_was_resolved_from_aspect_ratio = true;
+
             return adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(
                 item.box,
                 calculate_main_size_from_cross_size_and_aspect_ratio(inner_cross_size(item), item.box->preferred_aspect_ratio().value()),
@@ -1119,7 +1124,8 @@ void FlexFormattingContext::resolve_flexible_lengths_for_line(FlexLine& line)
         // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
         // 1. If the flex container has a definite main size, then the post-flexing main sizes of its flex items are treated as definite.
         // 2. If a flex item’s flex basis is definite, then its post-flexing main size is also definite.
-        if (has_definite_main_size(m_flex_container_state) || item.used_flex_basis_is_definite)
+        // AD-HOC: 3. If a flex item’s main size was resolved from its intrinsic aspect ratio, then its post-flexing main size is also definite.
+        if (has_definite_main_size(m_flex_container_state) || item.used_flex_basis_is_definite || item.main_size_was_resolved_from_aspect_ratio)
             set_has_definite_main_size(item);
     }
 }
