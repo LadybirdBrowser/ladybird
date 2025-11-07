@@ -28,8 +28,12 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
+    IntrusiveListNode<NavigationObserver> m_list_node;
     GC::Ref<Navigable> m_navigable;
     GC::Ptr<GC::Function<void()>> m_navigation_complete;
+
+public:
+    using NavigationObserversList = IntrusiveList<&NavigationObserver::m_list_node>;
 };
 
 }
