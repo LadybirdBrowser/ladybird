@@ -198,7 +198,7 @@
 - (void)closeCurrentTab:(id)sender
 {
     auto* current_window = [NSApp keyWindow];
-    [current_window close];
+    [current_window performClose:self];
 }
 
 - (void)clearHistory:(id)sender
