@@ -61,6 +61,8 @@ public:
     void find_previous();
     void find_next();
 
+    void request_close();
+
     QIcon const& favicon() const { return m_favicon; }
     QString const& title() const { return m_title; }
 
@@ -113,6 +115,8 @@ private:
     QAction* m_reload_action { nullptr };
 
     QPointer<QDialog> m_dialog;
+
+    bool m_already_requested_close { false };
 };
 
 }
