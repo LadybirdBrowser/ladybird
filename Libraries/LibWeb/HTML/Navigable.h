@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/InitialInsertion.h>
+#include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/RenderingThread.h>
@@ -263,7 +264,7 @@ private:
 
     GC::Ref<Page> m_page;
 
-    HashTable<GC::Ref<NavigationObserver>> m_navigation_observers;
+    NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
 

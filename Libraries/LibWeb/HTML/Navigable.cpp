@@ -176,7 +176,6 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_current_session_history_entry);
     visitor.visit(m_active_session_history_entry);
     visitor.visit(m_container);
-    visitor.visit(m_navigation_observers);
     visitor.visit(m_backing_store_manager);
     m_event_handler.visit_edges(visitor);
 
@@ -293,9 +292,9 @@ void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
     new_document->make_active();
 
     if (m_ongoing_navigation.has<Empty>()) {
-        for (auto navigation_observer : m_navigation_observers) {
-            if (navigation_observer->navigation_complete())
-                navigation_observer->navigation_complete()->function()();
+        for (auto& navigation_observer : m_navigation_observers) {
+            if (navigation_observer.navigation_complete())
+                navigation_observer.navigation_complete()->function()();
         }
     }
 }
@@ -2591,14 +2590,12 @@ CSSPixelSize Navigable::snapshot_containing_block_size()
 
 void Navigable::register_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
 {
-    auto result = m_navigation_observers.set(navigation_observer);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+    m_navigation_observers.append(navigation_observer);
 }
 
 void Navigable::unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
 {
-    bool was_removed = m_navigation_observers.remove(navigation_observer);
-    VERIFY(was_removed);
+    m_navigation_observers.remove(navigation_observer);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#nav-stop
