@@ -1,9 +1,11 @@
 /*
  * Copyright (c) 2022, Jonah Shafran <jonahshafran@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NonnullOwnPtr.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
@@ -247,25 +249,31 @@ Vector<String> ARIAMixin::parse_id_reference_list(Optional<String> const& id_lis
 ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                \
-    Optional<Vector<GC::Weak<DOM::Element>>> const& ARIAMixin::attribute() const    \
-    {                                                                               \
-        return m_##attribute;                                                       \
-    }                                                                               \
-                                                                                    \
-    void ARIAMixin::set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>> value) \
-    {                                                                               \
-        m_##attribute = move(value);                                                \
-    }                                                                               \
-                                                                                    \
-    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute() const                        \
-    {                                                                               \
-        return m_cached_##attribute;                                                \
-    }                                                                               \
-                                                                                    \
-    void ARIAMixin::set_cached_##attribute(GC::Ptr<JS::Array> value)                \
-    {                                                                               \
-        m_cached_##attribute = value;                                               \
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                 \
+    Optional<Vector<GC::Weak<DOM::Element>> const&> ARIAMixin::attribute() const     \
+    {                                                                                \
+        if (!m_##attribute)                                                          \
+            return {};                                                               \
+        return *m_##attribute;                                                       \
+    }                                                                                \
+                                                                                     \
+    void ARIAMixin::set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>> value)  \
+    {                                                                                \
+        if (!value.has_value()) {                                                    \
+            m_##attribute.clear();                                                   \
+            return;                                                                  \
+        }                                                                            \
+        m_##attribute = make<Vector<GC::Weak<DOM::Element>>>(value.release_value()); \
+    }                                                                                \
+                                                                                     \
+    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute() const                         \
+    {                                                                                \
+        return m_cached_##attribute;                                                 \
+    }                                                                                \
+                                                                                     \
+    void ARIAMixin::set_cached_##attribute(GC::Ptr<JS::Array> value)                 \
+    {                                                                                \
+        m_cached_##attribute = value;                                                \
     }
 ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
