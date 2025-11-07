@@ -1,3 +1,11 @@
+import { getByteFormatter } from "../../utils.js";
+const byteFormatter = getByteFormatter(unit => {
+    return {
+        unitDisplay: unit === "byte" ? "long" : "short",
+        maximumFractionDigits: 1,
+    };
+});
+
 const clearBrowsingData = document.querySelector("#clear-browsing-data");
 const clearBrowsingDataCachedFiles = document.querySelector("#clear-browsing-data-cached-files");
 const clearBrowsingDataCachedFilesSize = document.querySelector("#clear-browsing-data-cached-files-size");
@@ -9,37 +17,6 @@ const clearBrowsingDataSiteDataSize = document.querySelector("#clear-browsing-da
 const clearBrowsingDataTimeRange = document.querySelector("#clear-browsing-data-time-range");
 const clearBrowsingDataTotalSize = document.querySelector("#clear-browsing-data-total-size");
 const globalPrivacyControlToggle = document.querySelector("#global-privacy-control-toggle");
-
-const BYTE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"];
-
-const BYTE_FORMATTERS = {
-    byte: undefined,
-    kilobyte: undefined,
-    megabyte: undefined,
-    gigabyte: undefined,
-    terabyte: undefined,
-};
-
-function formatBytes(bytes) {
-    let index = 0;
-    while (bytes >= 1024 && index < BYTE_UNITS.length - 1) {
-        bytes /= 1024;
-        ++index;
-    }
-
-    const unit = BYTE_UNITS[index];
-
-    if (!BYTE_FORMATTERS[unit]) {
-        BYTE_FORMATTERS[unit] = new Intl.NumberFormat([], {
-            style: "unit",
-            unit: unit,
-            unitDisplay: unit === "byte" ? "long" : "short",
-            maximumFractionDigits: 1,
-        });
-    }
-
-    return BYTE_FORMATTERS[unit].format(bytes);
-}
 
 function loadSettings(settings) {
     globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
@@ -74,10 +51,10 @@ function estimateBrowsingDataSizes() {
 function updateBrowsingDataSizes(sizes) {
     const totalSize = sizes.totalCacheSize + sizes.totalSiteDataSize;
 
-    clearBrowsingDataTotalSize.innerText = `Your browsing data is currently using ${formatBytes(totalSize)} of disk space`;
+    clearBrowsingDataTotalSize.innerText = `Your browsing data is currently using ${byteFormatter.formatBytes(totalSize)} of disk space`;
 
-    clearBrowsingDataCachedFilesSize.innerText = ` (remove ${formatBytes(sizes.cacheSizeSinceRequestedTime)})`;
-    clearBrowsingDataSiteDataSize.innerText = ` (remove ${formatBytes(sizes.siteDataSizeSinceRequestedTime)})`;
+    clearBrowsingDataCachedFilesSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.cacheSizeSinceRequestedTime)})`;
+    clearBrowsingDataSiteDataSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.siteDataSizeSinceRequestedTime)})`;
 }
 
 clearBrowsingData.addEventListener("click", () => {

@@ -76,18 +76,16 @@
             </thead>
             <tbody id="process-table"></tbody>
         </table>
-
-        <script type="text/javascript">
+        <script type="module">
+            import { getByteFormatter }  from "resource://ladybird/utils.js";
+            const memoryFormatter = getByteFormatter(() => {
+                return {
+                    unitDisplay: "narrow",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }
+            })
             const cpuFormatter = new Intl.NumberFormat([], {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-
-            const memoryFormatter = new Intl.NumberFormat([], {
-                style: "unit",
-                unit: "byte",
-                notation: "compact",
-                unitDisplay: "narrow",
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             });
@@ -141,7 +139,7 @@
                     insertColumn(row, process.name);
                     insertColumn(row, process.pid);
                     insertColumn(row, cpuFormatter.format(process.cpu));
-                    insertColumn(row, memoryFormatter.format(process.memory));
+                    insertColumn(row, memoryFormatter.formatBytes(process.memory));
                 });
 
                 oldTable.parentNode.replaceChild(newTable, oldTable);
