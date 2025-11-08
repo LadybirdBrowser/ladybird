@@ -21,6 +21,7 @@ SourceCode::SourceCode(String filename, Utf16String code)
     : m_filename(move(filename))
     , m_code(move(code))
     , m_code_view(m_code.utf16_view())
+    , m_length_in_code_units(m_code_view.length_in_code_units())
 {
 }
 
