@@ -1669,6 +1669,16 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
+
+        // If this is an element with display: contents, we need to propagate the layout tree update to the parent.
+        if (auto* element = as_if<Element>(*this)) {
+            if (element->computed_properties() && element->computed_properties()->display().is_contents()) {
+                if (auto parent_element = element->parent_or_shadow_host_element()) {
+                    parent_element->set_needs_layout_tree_update(true, reason);
+                }
+            }
+        }
+
         if (auto layout_node = this->layout_node()) {
             layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
 
