@@ -603,6 +603,8 @@ void HTMLMediaElement::update_volume()
 {
     if (m_playback_manager)
         m_playback_manager->set_volume(effective_media_volume());
+    if (m_mse_playback_manager)
+        m_mse_playback_manager->set_volume(effective_media_volume());
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
@@ -1310,6 +1312,11 @@ void HTMLMediaElement::set_mse_video_sink(RefPtr<Media::DisplayingVideoSink> sin
     m_mse_video_sink = sink;
 }
 
+RefPtr<Media::PlaybackManager> HTMLMediaElement::mse_playback_manager() const
+{
+    return m_mse_playback_manager;
+}
+
 void HTMLMediaElement::set_mse_playback_manager(RefPtr<Media::PlaybackManager> manager)
 {
     m_mse_playback_manager = manager;
@@ -1319,6 +1326,10 @@ void HTMLMediaElement::set_mse_playback_manager(RefPtr<Media::PlaybackManager> m
         m_mse_playback_manager->on_playback_state_change = [this] {
             on_playback_manager_state_change();
         };
+
+        // Initialize volume for MSE playback
+        update_volume();
+
         dbgln("MSE: PlaybackManager connected to HTMLMediaElement");
     }
 }
@@ -1349,6 +1360,15 @@ void HTMLMediaElement::add_mse_audio_track(Media::Track const& track)
     m_audio_tracks->add_track({}, *audio_track);
 
     dbgln("MSE: Added AudioTrack to HTMLMediaElement (audio_tracks length={})", m_audio_tracks->length());
+
+    // Enable the audio track in the PlaybackManager so it actually plays
+    if (m_mse_playback_manager) {
+        dbgln("MSE: Enabling audio track in PlaybackManager");
+        m_mse_playback_manager->enable_an_audio_track(track);
+        dbgln("MSE: Audio track enabled successfully");
+    } else {
+        dbgln("MSE: WARNING - No MSE playback manager to enable audio track!");
+    }
 }
 
 RefPtr<Media::DisplayingVideoSink> const& HTMLMediaElement::selected_video_track_sink() const

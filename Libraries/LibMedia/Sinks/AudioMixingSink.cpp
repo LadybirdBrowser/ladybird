@@ -33,37 +33,57 @@ AudioMixingSink::~AudioMixingSink()
 
 void AudioMixingSink::deferred_create_playback_stream(Track const& track)
 {
+    dbgln("AudioMixingSink::deferred_create_playback_stream() called - track={}", track.identifier());
     m_main_thread_event_loop.deferred_invoke([weak_self = m_weak_self, track = track] {
+        dbgln("AudioMixingSink: DEFERRED LAMBDA EXECUTING - track={}", track.identifier());
         auto self = weak_self->take_strong();
-        if (self == nullptr)
+        if (self == nullptr) {
+            dbgln("AudioMixingSink: weak_self is null - EARLY RETURN");
             return;
+        }
+        dbgln("AudioMixingSink: weak_self is valid, checking track_mixing_datas");
 
         auto optional_track_mixing_data = self->m_track_mixing_datas.get(track);
-        if (!optional_track_mixing_data.has_value())
+        if (!optional_track_mixing_data.has_value()) {
+            dbgln("AudioMixingSink: No track mixing data for track={} - EARLY RETURN", track.identifier());
+            dbgln("AudioMixingSink: Current m_track_mixing_datas size: {}", self->m_track_mixing_datas.size());
             return;
+        }
+        dbgln("AudioMixingSink: Found track mixing data, acquiring mutex");
 
         Threading::MutexLocker locker { self->m_mutex };
+        dbgln("AudioMixingSink: Mutex acquired, checking current_block");
         auto& track_mixing_data = optional_track_mixing_data.release_value();
-        if (track_mixing_data.current_block.is_empty())
+        if (track_mixing_data.current_block.is_empty()) {
+            dbgln("AudioMixingSink: Current block is empty, calling retrieve_block()");
             track_mixing_data.current_block = track_mixing_data.provider->retrieve_block();
+            dbgln("AudioMixingSink: retrieve_block() returned, is_empty={}", track_mixing_data.current_block.is_empty());
+        } else {
+            dbgln("AudioMixingSink: Current block is NOT empty (has data)");
+        }
 
         if (!track_mixing_data.current_block.is_empty()) {
+            dbgln("AudioMixingSink: Have audio data! sample_rate={}, channel_count={}, calling create_playback_stream()",
+                track_mixing_data.current_block.sample_rate(), track_mixing_data.current_block.channel_count());
             self->create_playback_stream(track_mixing_data.current_block.sample_rate(), track_mixing_data.current_block.channel_count());
             return;
         }
 
+        dbgln("AudioMixingSink: No audio data yet, deferring again in 100ms");
         self->deferred_create_playback_stream(track);
     });
 }
 
 void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider> const& provider)
 {
+    dbgln("AudioMixingSink::set_provider() called - provider={}", provider != nullptr);
     Threading::MutexLocker locker { m_mutex };
     m_track_mixing_datas.remove(track);
     if (provider == nullptr)
         return;
 
     m_track_mixing_datas.set(track, TrackMixingData(*provider));
+    dbgln("AudioMixingSink: Provider set, calling deferred_create_playback_stream");
     deferred_create_playback_stream(track);
 }
 
@@ -100,11 +120,14 @@ static inline AK::Duration sample_to_duration(i64 sample, u32 sample_rate)
 
 void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
 {
+    dbgln("AudioMixingSink::create_playback_stream() called - sample_rate={}, channel_count={}", sample_rate, channel_count);
     if (m_playback_stream_sample_rate >= sample_rate && m_playback_stream_channel_count >= channel_count) {
         VERIFY(m_playback_stream);
+        dbgln("AudioMixingSink: Playback stream already exists with suitable parameters, returning");
         return;
     }
 
+    dbgln("AudioMixingSink: Creating NEW playback stream");
     Threading::MutexLocker playback_stream_change_locker { m_mutex };
     auto callback = [=, weak_self = m_weak_self](Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count) -> ReadonlyBytes {
         auto self = weak_self->take_strong();
@@ -210,10 +233,15 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
     m_playback_stream_sample_rate = sample_rate;
     m_playback_stream_channel_count = channel_count;
 
-    if (m_playing)
+    dbgln("AudioMixingSink: Playback stream created successfully! m_playing={}", m_playing);
+
+    if (m_playing) {
+        dbgln("AudioMixingSink: Calling resume() because m_playing=true");
         resume();
+    }
 
     set_volume(m_volume);
+    dbgln("AudioMixingSink: create_playback_stream() completed");
 }
 
 AK::Duration AudioMixingSink::current_time() const
@@ -231,10 +259,14 @@ AK::Duration AudioMixingSink::current_time() const
 
 void AudioMixingSink::resume()
 {
+    dbgln("AudioMixingSink::resume() called");
     m_playing = true;
 
-    if (!m_playback_stream)
+    if (!m_playback_stream) {
+        dbgln("AudioMixingSink: No playback stream to resume");
         return;
+    }
+    dbgln("AudioMixingSink: Resuming playback stream");
     m_playback_stream->resume()
         ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream](auto new_device_time) {
             auto self = weak_self->take_strong();
@@ -327,13 +359,18 @@ void AudioMixingSink::set_time(AK::Duration time)
 
 void AudioMixingSink::set_volume(double volume)
 {
+    dbgln("AudioMixingSink::set_volume() called - volume={}, m_playback_stream={}", volume, m_playback_stream != nullptr);
     m_volume = volume;
 
     if (m_playback_stream) {
+        dbgln("AudioMixingSink: Setting volume={} on playback stream", m_volume);
         m_playback_stream->set_volume(m_volume)
-            ->when_rejected([](Error&&) {
-                // FIXME: Do we even need this function to return a promise?
+            ->when_rejected([volume](Error&& error) {
+                dbgln("AudioMixingSink: Failed to set volume to {}: {}", volume, error);
             });
+        dbgln("AudioMixingSink: Volume set request sent for {}", m_volume);
+    } else {
+        dbgln("AudioMixingSink: No playback stream yet, volume will be set when stream is created");
     }
 }
 

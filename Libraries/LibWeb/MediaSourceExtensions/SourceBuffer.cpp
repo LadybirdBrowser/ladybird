@@ -280,6 +280,14 @@ void SourceBuffer::refresh_buffered_ranges()
 
     m_buffered->clear();
     m_buffered->add_range(buffered_start.to_seconds(), buffered_end.to_seconds());
+
+    // Log buffered ranges for debugging (only occasionally)
+    static size_t log_counter = 0;
+    if (log_counter++ % 50 == 0) {
+        dbgln("MSE: SourceBuffer buffered ranges updated: {:.2f}s - {:.2f}s (duration: {:.2f}s)",
+            buffered_start.to_seconds(), buffered_end.to_seconds(),
+            (buffered_end - buffered_start).to_seconds());
+    }
 }
 
 void SourceBuffer::schedule_update_end()
@@ -343,66 +351,102 @@ void SourceBuffer::process_append_buffer()
             return;
         }
 
-        // After appending the FIRST media segment, create PlaybackManager
+        // After appending the FIRST media segment, create or reuse PlaybackManager
         // This ensures FFmpeg has actual frame data before trying to read
         if (!m_playback_manager) {
-            dbgln("MSE: First media segment appended. Creating PlaybackManager now that we have frame data.");
+            bool created_new_playback_manager = false;
 
-            auto playback_manager_result = Media::PlaybackManager::try_create_for_mse(NonnullRefPtr { *m_demuxer });
-            if (playback_manager_result.is_error()) {
-                dbgln("Failed to create PlaybackManager: {}", playback_manager_result.error());
-                m_updating = false;
-                dispatch_event(DOM::Event::create(realm(), EventNames::error));
-                dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
-                return;
+            // Check if HTMLMediaElement already has a PlaybackManager from another SourceBuffer
+            if (m_media_source && m_media_source->media_element() && m_media_source->media_element()->mse_playback_manager()) {
+                dbgln("MSE: Reusing existing PlaybackManager from another SourceBuffer");
+                m_playback_manager = m_media_source->media_element()->mse_playback_manager();
+                created_new_playback_manager = false;
+            } else {
+                dbgln("MSE: First media segment appended. Creating PlaybackManager now that we have frame data.");
+
+                auto playback_manager_result = Media::PlaybackManager::try_create_for_mse(NonnullRefPtr { *m_demuxer });
+                if (playback_manager_result.is_error()) {
+                    dbgln("Failed to create PlaybackManager: {}", playback_manager_result.error());
+                    m_updating = false;
+                    dispatch_event(DOM::Event::create(realm(), EventNames::error));
+                    dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+                    return;
+                }
+                m_playback_manager = playback_manager_result.release_value();
+                created_new_playback_manager = true;
             }
-            m_playback_manager = playback_manager_result.release_value();
 
             // Connect to HTMLMediaElement
             if (m_media_source && m_media_source->media_element()) {
                 auto& media_element = *m_media_source->media_element();
 
                 // Pass PlaybackManager to HTMLMediaElement so it can control playback
+                // (This is safe even if reusing existing - it's a no-op if already set)
                 media_element.set_mse_playback_manager(m_playback_manager);
 
-                // Get preferred video track
-                auto video_track = m_playback_manager->preferred_video_track();
-                if (video_track.has_value()) {
-                    // Get or create DisplayingVideoSink
-                    auto video_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(*video_track);
+                // Get tracks from this SourceBuffer's demuxer
+                auto video_tracks = m_demuxer->get_tracks_for_type(Media::TrackType::Video);
+                auto audio_tracks = m_demuxer->get_tracks_for_type(Media::TrackType::Audio);
 
-                    // Store reference in HTMLMediaElement
-                    media_element.set_mse_video_sink(video_sink);
-                    dbgln("MSE: Connected video sink to HTMLMediaElement");
+                // Handle video tracks - add them dynamically if reusing PlaybackManager
+                if (!video_tracks.is_error() && !video_tracks.value().is_empty()) {
+                    for (auto const& video_track : video_tracks.value()) {
+                        // Add video track to PlaybackManager from this SourceBuffer's demuxer
+                        // This handles the case where PlaybackManager was created by a different SourceBuffer
+                        auto add_result = m_playback_manager->add_video_track_from_demuxer(NonnullRefPtr { *m_demuxer }, video_track);
+                        if (add_result.is_error()) {
+                            dbgln("MSE: Failed to add video track: {}", add_result.error());
+                            continue;
+                        }
 
-                    // Add the video track to HTMLMediaElement's video_tracks() list
-                    // This is required so that VideoPaintable::paint() knows there is a video channel
-                    media_element.add_mse_video_track(*video_track);
+                        // Get or create DisplayingVideoSink
+                        auto video_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track);
+
+                        // Store reference in HTMLMediaElement
+                        media_element.set_mse_video_sink(video_sink);
+                        dbgln("MSE: Connected video sink to HTMLMediaElement");
+
+                        // Add the video track to HTMLMediaElement's video_tracks() list
+                        media_element.add_mse_video_track(video_track);
+                    }
                 }
 
-                // Enable preferred audio track
-                auto audio_track = m_playback_manager->preferred_audio_track();
-                if (audio_track.has_value()) {
-                    m_playback_manager->enable_an_audio_track(*audio_track);
-                    dbgln("MSE: Enabled audio track");
+                // Handle audio tracks - add them dynamically if reusing PlaybackManager
+                if (!audio_tracks.is_error() && !audio_tracks.value().is_empty()) {
+                    for (auto const& audio_track : audio_tracks.value()) {
+                        // Add audio track to PlaybackManager from this SourceBuffer's demuxer
+                        // This handles the case where PlaybackManager was created by a different SourceBuffer
+                        auto add_result = m_playback_manager->add_audio_track_from_demuxer(NonnullRefPtr { *m_demuxer }, audio_track);
+                        if (add_result.is_error()) {
+                            dbgln("MSE: Failed to add audio track: {}", add_result.error());
+                            continue;
+                        }
 
-                    // Add the audio track to HTMLMediaElement's audio_tracks() list
-                    // This is required to match the video track handling
-                    media_element.add_mse_audio_track(*audio_track);
+                        // Enable the audio track
+                        m_playback_manager->enable_an_audio_track(audio_track);
+                        dbgln("MSE: Enabled audio track");
+
+                        // Add the audio track to HTMLMediaElement's audio_tracks() list
+                        media_element.add_mse_audio_track(audio_track);
+                    }
                 }
 
-                // HLS streams often don't start at timestamp 0
-                // Pause playback, seek to first available keyframe, then resume
-                dbgln("MSE: Pausing to seek to first available frame");
-                m_playback_manager->pause();
+                // Only do pause/seek/play if we CREATED a new PlaybackManager
+                // Don't interfere with playback if we're reusing an existing one
+                if (created_new_playback_manager) {
+                    // HLS streams often don't start at timestamp 0
+                    // Pause playback, seek to first available keyframe, then resume
+                    dbgln("MSE: Pausing to seek to first available frame");
+                    m_playback_manager->pause();
 
-                // Seek forward from 0 to find the first keyframe
-                dbgln("MSE: Seeking forward from timestamp 0 to find first keyframe");
-                m_playback_manager->seek(AK::Duration::from_milliseconds(1), Media::SeekMode::FastAfter);
+                    // Seek forward from 0 to find the first keyframe
+                    dbgln("MSE: Seeking forward from timestamp 0 to find first keyframe");
+                    m_playback_manager->seek(AK::Duration::from_milliseconds(1), Media::SeekMode::FastAfter);
 
-                // Resume playback after seek
-                m_playback_manager->play();
-                dbgln("MSE: Resumed playback after seeking");
+                    // Resume playback after seek
+                    m_playback_manager->play();
+                    dbgln("MSE: Resumed playback after seeking");
+                }
             }
 
             m_first_media_segment_appended = true;

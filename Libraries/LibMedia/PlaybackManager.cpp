@@ -276,6 +276,74 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     m_audio_sink->set_provider(track, nullptr);
 }
 
+DecoderErrorOr<void> PlaybackManager::add_audio_track_from_demuxer(NonnullRefPtr<Demuxer> demuxer, Track const& track)
+{
+    dbgln("PlaybackManager::add_audio_track_from_demuxer() - Adding audio track from separate demuxer");
+
+    // Check if track already exists
+    for (auto const& existing_track : m_audio_tracks) {
+        if (existing_track == track) {
+            dbgln("PlaybackManager: Audio track already exists, skipping");
+            return {};
+        }
+    }
+
+    // Wrap demuxer in MutexedDemuxer if needed
+    auto mutexed_demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(demuxer));
+
+    // Create AudioDataProvider for this track with its demuxer
+    auto audio_data_provider = TRY(AudioDataProvider::try_create(mutexed_demuxer, track));
+
+    // Add to tracks and track datas
+    m_audio_tracks.append(track);
+    m_audio_track_datas.empend(AudioTrackData { track, move(audio_data_provider) });
+
+    // Create AudioMixingSink if we don't have one yet
+    if (!m_audio_sink) {
+        m_audio_sink = DECODER_TRY_ALLOC(AudioMixingSink::try_create());
+
+        // Update time provider to use audio sink
+        m_time_provider = DECODER_TRY_ALLOC(try_make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*m_audio_sink));
+    }
+
+    dbgln("PlaybackManager: Successfully added audio track from separate demuxer");
+    return {};
+}
+
+DecoderErrorOr<void> PlaybackManager::add_video_track_from_demuxer(NonnullRefPtr<Demuxer> demuxer, Track const& track)
+{
+    dbgln("PlaybackManager::add_video_track_from_demuxer() - Adding video track from separate demuxer");
+
+    // Check if track already exists
+    for (auto const& existing_track : m_video_tracks) {
+        if (existing_track == track) {
+            dbgln("PlaybackManager: Video track already exists, skipping");
+            return {};
+        }
+    }
+
+    // Wrap demuxer in MutexedDemuxer if needed
+    auto mutexed_demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(demuxer));
+
+    // Create VideoDataProvider for this track with its demuxer, using this PlaybackManager's time_provider
+    auto video_data_provider = TRY(VideoDataProvider::try_create(mutexed_demuxer, track, m_time_provider));
+
+    // Add to tracks and track datas
+    m_video_tracks.append(track);
+    m_video_track_datas.empend(VideoTrackData { track, video_data_provider, nullptr });
+
+    // Set up error handler for the new track
+    video_data_provider->set_error_handler([weak_self = m_weak_wrapper](DecoderError&& error) {
+        auto self = weak_self->take_strong();
+        if (!self)
+            return;
+        self->dispatch_error(move(error));
+    });
+
+    dbgln("PlaybackManager: Successfully added video track from separate demuxer");
+    return {};
+}
+
 void PlaybackManager::play()
 {
     m_handler->play();

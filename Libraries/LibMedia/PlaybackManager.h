@@ -68,6 +68,8 @@ public:
 
     void enable_an_audio_track(Track const& track);
     void disable_an_audio_track(Track const& track);
+    DecoderErrorOr<void> add_audio_track_from_demuxer(NonnullRefPtr<Demuxer> demuxer, Track const& track);
+    DecoderErrorOr<void> add_video_track_from_demuxer(NonnullRefPtr<Demuxer> demuxer, Track const& track);
 
     void play();
     void pause();

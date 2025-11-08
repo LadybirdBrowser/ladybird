@@ -240,15 +240,21 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
     if (sample_result.is_error()) {
-        if (sample_result.error().category() == DecoderErrorCategory::NeedsMoreInput) {
+        auto error_category = sample_result.error().category();
+
+        // For MSE, "End of buffered data" is normal - just wait for more data to be appended
+        if (error_category == DecoderErrorCategory::NeedsMoreInput || error_category == DecoderErrorCategory::EndOfStream) {
             return;
         }
-        // FIXME: Handle the end of the stream.
+
+        // Other errors are real errors
+        dbgln("AudioDataProvider: ERROR - get_next_sample_for_track() returned: {}", sample_result.error());
         set_error_and_wait_for_seek(sample_result.release_error());
         return;
     }
 
     auto sample = sample_result.release_value();
+
     auto decode_result = m_decoder->receive_coded_data(sample.timestamp(), sample.data());
     if (decode_result.is_error()) {
         set_error_and_wait_for_seek(decode_result.release_error());
