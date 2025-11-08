@@ -184,6 +184,7 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://example.def/"sv, "https://example.def"sv);
 
     expect_url_equals_sanitized_url("https://localhost/"sv, "localhost"sv); // Respect localhost.
+    expect_url_equals_sanitized_url("https://localhost:8000/"sv, "localhost:8000"sv);
     expect_url_equals_sanitized_url("https://localhost/hello"sv, "localhost/hello"sv);
     expect_url_equals_sanitized_url("https://localhost/hello.world"sv, "localhost/hello.world"sv);
     expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
