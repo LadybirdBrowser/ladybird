@@ -254,7 +254,6 @@ Lexer::Lexer(Utf16String source, StringView filename, size_t line_number, size_t
     , m_filename(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors())
     , m_line_number(line_number)
     , m_line_column(line_column)
-    , m_parsed_identifiers(adopt_ref(*new ParsedIdentifiers))
 {
     if (s_keywords.is_empty()) {
         s_keywords.set("async"_utf16_fly_string, TokenType::Async);
@@ -761,8 +760,6 @@ Token const& Lexer::next()
 
             identifier = builder.to_utf16_string();
             token_type = TokenType::PrivateIdentifier;
-
-            m_parsed_identifiers->identifiers.set(*identifier);
         } else {
             token_type = TokenType::Invalid;
             token_message = Token::Message::StartOfPrivateNameNotFollowedByValidIdentifier;
@@ -782,7 +779,6 @@ Token const& Lexer::next()
         } while (code_point.has_value());
 
         identifier = builder.to_utf16_string();
-        m_parsed_identifiers->identifiers.set(*identifier);
 
         auto it = s_keywords.find(identifier->hash(), [&](auto& entry) { return entry.key == identifier; });
         if (it == s_keywords.end())
