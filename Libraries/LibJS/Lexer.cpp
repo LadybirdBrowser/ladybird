@@ -636,7 +636,7 @@ bool Lexer::slash_means_division() const
         || type == TokenType::TemplateLiteralEnd;
 }
 
-Token Lexer::next()
+Token const& Lexer::next()
 {
     auto trivia_start = m_position;
     auto in_template = !m_template_states.is_empty();
@@ -970,7 +970,7 @@ Token Lexer::next()
     return m_current_token;
 }
 
-Token Lexer::force_slash_as_regex()
+Token const& Lexer::force_slash_as_regex()
 {
     VERIFY(m_current_token.type() == TokenType::Slash || m_current_token.type() == TokenType::SlashEquals);
 

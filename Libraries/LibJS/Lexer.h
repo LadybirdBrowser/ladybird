@@ -19,14 +19,16 @@ public:
     explicit Lexer(StringView source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
     explicit Lexer(Utf16String source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
 
-    Token next();
+    // These both advance the lexer and return a reference to the current token.
+    Token const& next();
+    Token const& force_slash_as_regex();
+
+    [[nodiscard]] Token const& current_token() const { return m_current_token; }
 
     Utf16String const& source() const { return m_source; }
     String const& filename() const { return m_filename; }
 
     void disallow_html_comments() { m_allow_html_comments = false; }
-
-    Token force_slash_as_regex();
 
 private:
     void consume();
