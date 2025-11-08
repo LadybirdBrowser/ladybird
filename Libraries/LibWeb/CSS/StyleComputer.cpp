@@ -680,7 +680,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
         Length::FontMetrics font_metrics {
             computed_properties.font_size(),
-            computed_properties.first_available_computed_font().pixel_metrics(),
+            computed_properties.first_available_computed_font(document().font_computer())->pixel_metrics(),
             computed_properties.line_height()
         };
 
@@ -794,7 +794,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                     .viewport_rect = viewport_rect(),
                     .font_metrics = {
                         computed_properties.font_size(),
-                        computed_properties.first_available_computed_font().pixel_metrics(),
+                        computed_properties.first_available_computed_font(document().font_computer())->pixel_metrics(),
                         inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height() },
                     .root_font_metrics = m_root_element_font_metrics },
                 .abstract_element = abstract_element
@@ -1423,7 +1423,7 @@ Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedP
 {
     auto const& root_value = style.property(CSS::PropertyID::FontSize);
 
-    auto font_pixel_metrics = style.first_available_computed_font().pixel_metrics();
+    auto font_pixel_metrics = style.first_available_computed_font(document().font_computer())->pixel_metrics();
     Length::FontMetrics font_metrics { m_default_font_metrics.font_size, font_pixel_metrics, InitialValues::line_height() };
     font_metrics.font_size = root_value.as_length().length().to_px(viewport_rect(), font_metrics, font_metrics);
     font_metrics.line_height = style.line_height();
@@ -1533,15 +1533,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
         PropertyID::FontVariationSettings,
         compute_font_variation_settings(font_variation_settings_value, font_computation_context));
 
-    auto const& font_family = style.property(CSS::PropertyID::FontFamily);
-
-    auto font_list = document().font_computer().compute_font_for_style_values(font_family, style.font_size(), style.font_slope(), style.font_weight(), style.font_width(), style.font_variation_settings());
-    VERIFY(font_list);
-    VERIFY(!font_list->is_empty());
-
-    RefPtr<Gfx::Font const> const found_font = font_list->first();
-
-    style.set_computed_font_list(*font_list);
+    RefPtr<Gfx::Font const> const found_font = style.first_available_computed_font(m_document->font_computer());
 
     Length::FontMetrics line_height_font_metrics {
         style.font_size(),
@@ -1612,7 +1604,7 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
 {
     Length::FontMetrics font_metrics {
         style.font_size(),
-        style.first_available_computed_font().pixel_metrics(),
+        style.first_available_computed_font(document().font_computer())->pixel_metrics(),
         style.line_height()
     };
 

@@ -11,6 +11,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -142,11 +143,19 @@ void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
     set_property_inherited(id, inherited);
 }
 
+static bool property_affects_computed_font_list(PropertyID id)
+{
+    return first_is_one_of(id, PropertyID::FontFamily, PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontVariationSettings);
+}
+
 void ComputedProperties::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
     m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
+
+    if (property_affects_computed_font_list(id))
+        clear_computed_font_list_cache();
 }
 
 void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
@@ -173,6 +182,9 @@ void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<Styl
     m_animated_property_values.set(id, move(value));
     set_animated_property_inherited(id, inherited);
     set_animated_property_result_of_transition(id, animated_property_result_of_transition);
+
+    if (property_affects_computed_font_list(id))
+        clear_computed_font_list_cache();
 }
 
 void ComputedProperties::remove_animated_property(PropertyID id)
@@ -198,7 +210,7 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
             return *animated_value.value();
     }
 
-    // By the time we call this method, all properties have values assigned.
+    // By the time we call this method, the property should have been assigned
     return *m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
@@ -2541,6 +2553,27 @@ WillChange ComputedProperties::will_change() const
     }
 
     return WillChange(move(will_change_entries));
+}
+
+ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedProperties::computed_font_list(FontComputer const& font_computer) const
+{
+    if (!m_cached_computed_font_list) {
+        const_cast<ComputedProperties*>(this)->m_cached_computed_font_list = font_computer.compute_font_for_style_values(property(PropertyID::FontFamily), font_size(), font_slope(), font_weight(), font_width(), font_variation_settings());
+        VERIFY(!m_cached_computed_font_list->is_empty());
+    }
+
+    return *m_cached_computed_font_list;
+}
+
+ValueComparingNonnullRefPtr<Gfx::Font const> ComputedProperties::first_available_computed_font(FontComputer const& font_computer) const
+{
+    if (!m_cached_first_available_computed_font) {
+        // https://drafts.csswg.org/css-fonts/#first-available-font
+        // First font for which the character U+0020 (space) is not excluded by a unicode-range
+        const_cast<ComputedProperties*>(this)->m_cached_first_available_computed_font = computed_font_list(font_computer)->font_for_code_point(' ');
+    }
+
+    return *m_cached_first_available_computed_font;
 }
 
 CSSPixels ComputedProperties::font_size() const
