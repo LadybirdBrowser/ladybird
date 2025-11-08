@@ -4291,10 +4291,8 @@ bool Parser::match_declaration(AllowUsingDeclaration allow_using) const
 
 Token Parser::next_token() const
 {
-    // We need to keep the lookahead lexer alive to prevent UAF on the lookahead token, as the token may hold a view
-    // into a short string stored on the stack.
-    m_state.lookahead_lexer = m_state.lexer;
-    return m_state.lookahead_lexer->next();
+    auto lookahead_lexer = m_state.lexer;
+    return lookahead_lexer.next();
 }
 
 bool Parser::try_match_let_declaration() const

@@ -288,7 +288,6 @@ private:
 
     struct ParserState {
         Lexer lexer;
-        mutable Optional<Lexer> lookahead_lexer;
         [[nodiscard]] Token const& current_token() const { return lexer.current_token(); }
         bool previous_token_was_period { false };
         Vector<ParserError> errors;
