@@ -58,6 +58,12 @@ void TimeRanges::add_range(double start, double end)
 {
     m_ranges.append({ start, end });
 }
+
+void TimeRanges::clear()
+{
+    m_ranges.clear();
+}
+
 bool TimeRanges::in_range(double point)
 {
     for (auto range : m_ranges) {

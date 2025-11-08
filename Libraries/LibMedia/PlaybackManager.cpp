@@ -97,26 +97,8 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create_for_m
     // Create the weak wrapper
     auto weak_playback_manager = DECODER_TRY_ALLOC(try_make_ref_counted<WeakPlaybackManager>());
 
-    // Create the video tracks and their data providers
-    auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
-
-    auto supported_video_tracks = VideoTracks();
-    auto supported_video_track_datas = VideoTrackDatas();
-    supported_video_tracks.ensure_capacity(all_video_tracks.size());
-    supported_video_track_datas.ensure_capacity(all_video_tracks.size());
-    for (auto const& track : all_video_tracks) {
-        auto video_data_provider_result = VideoDataProvider::try_create(demuxer, track);
-        if (video_data_provider_result.is_error())
-            continue;
-        supported_video_tracks.append(track);
-        supported_video_track_datas.empend(VideoTrackData(track, video_data_provider_result.release_value(), nullptr));
-    }
-    supported_video_tracks.shrink_to_fit();
-    supported_video_track_datas.shrink_to_fit();
-
-    // Create all the audio tracks, their data providers, and the audio output
+    // First, check for audio tracks and create audio sink if needed
     auto all_audio_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Audio));
-
     auto supported_audio_tracks = AudioTracks();
     auto supported_audio_track_datas = AudioTrackDatas();
     supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
@@ -132,19 +114,36 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create_for_m
     supported_audio_tracks.shrink_to_fit();
     supported_audio_track_datas.shrink_to_fit();
 
-    if (supported_video_tracks.is_empty() && supported_audio_tracks.is_empty())
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No supported video or audio tracks found"sv);
-
     RefPtr<AudioMixingSink> audio_sink = nullptr;
     if (!supported_audio_tracks.is_empty())
         audio_sink = DECODER_TRY_ALLOC(AudioMixingSink::try_create());
 
-    // Create the time provider
+    // Create the time provider (BEFORE creating video providers!)
     auto time_provider = DECODER_TRY_ALLOC([&] -> ErrorOr<NonnullRefPtr<MediaTimeProvider>> {
         if (audio_sink)
             return TRY(try_make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*audio_sink));
         return TRY(try_make_ref_counted<GenericTimeProvider>());
     }());
+
+    // Now create the video tracks and their data providers WITH the time_provider
+    auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
+
+    auto supported_video_tracks = VideoTracks();
+    auto supported_video_track_datas = VideoTrackDatas();
+    supported_video_tracks.ensure_capacity(all_video_tracks.size());
+    supported_video_track_datas.ensure_capacity(all_video_tracks.size());
+    for (auto const& track : all_video_tracks) {
+        auto video_data_provider_result = VideoDataProvider::try_create(demuxer, track, time_provider);
+        if (video_data_provider_result.is_error())
+            continue;
+        supported_video_tracks.append(track);
+        supported_video_track_datas.empend(VideoTrackData(track, video_data_provider_result.release_value(), nullptr));
+    }
+    supported_video_tracks.shrink_to_fit();
+    supported_video_track_datas.shrink_to_fit();
+
+    if (supported_video_tracks.is_empty() && supported_audio_tracks.is_empty())
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No supported video or audio tracks found"sv);
 
     auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas))));
     weak_playback_manager->m_manager = playback_manager;

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SourceBufferPrototype.h>
 #include <LibWeb/DOM/Event.h>
@@ -120,6 +121,23 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered() const
 {
     // Return the buffered time ranges
     return *m_buffered;
+}
+
+void SourceBuffer::set_timestamp_offset(double offset)
+{
+    if (m_timestamp_offset == offset)
+        return;
+
+    m_timestamp_offset = offset;
+
+    if (!m_demuxer)
+        return;
+
+    m_demuxer->set_timestamp_offset(AK::Duration::from_seconds_f64(offset));
+    refresh_buffered_ranges();
+
+    if (m_media_source)
+        m_media_source->source_buffer_data_appended();
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-appendbuffer
@@ -249,6 +267,21 @@ WebIDL::ExceptionOr<void> SourceBuffer::remove(double start, double end)
     return {};
 }
 
+void SourceBuffer::refresh_buffered_ranges()
+{
+    if (!m_demuxer || !m_buffered)
+        return;
+
+    auto buffered_start = m_demuxer->buffered_start_time();
+    auto buffered_end = m_demuxer->buffered_end_time();
+
+    if (buffered_end < buffered_start)
+        buffered_end = buffered_start;
+
+    m_buffered->clear();
+    m_buffered->add_range(buffered_start.to_seconds(), buffered_end.to_seconds());
+}
+
 void SourceBuffer::schedule_update_end()
 {
     // Queue a microtask to process the buffer asynchronously
@@ -286,6 +319,7 @@ void SourceBuffer::process_append_buffer()
             return;
         }
         m_demuxer = demuxer_result.release_value();
+        m_demuxer->set_timestamp_offset(AK::Duration::from_seconds_f64(m_timestamp_offset));
 
         // Append initialization segment (contains codec info but no frames)
         auto init_result = m_demuxer->append_initialization_segment(buffer_data);
@@ -340,6 +374,10 @@ void SourceBuffer::process_append_buffer()
                     // Store reference in HTMLMediaElement
                     media_element.set_mse_video_sink(video_sink);
                     dbgln("MSE: Connected video sink to HTMLMediaElement");
+
+                    // Add the video track to HTMLMediaElement's video_tracks() list
+                    // This is required so that VideoPaintable::paint() knows there is a video channel
+                    media_element.add_mse_video_track(*video_track);
                 }
 
                 // Enable preferred audio track
@@ -347,17 +385,31 @@ void SourceBuffer::process_append_buffer()
                 if (audio_track.has_value()) {
                     m_playback_manager->enable_an_audio_track(*audio_track);
                     dbgln("MSE: Enabled audio track");
+
+                    // Add the audio track to HTMLMediaElement's audio_tracks() list
+                    // This is required to match the video track handling
+                    media_element.add_mse_audio_track(*audio_track);
                 }
+
+                // HLS streams often don't start at timestamp 0
+                // Pause playback, seek to first available keyframe, then resume
+                dbgln("MSE: Pausing to seek to first available frame");
+                m_playback_manager->pause();
+
+                // Seek forward from 0 to find the first keyframe
+                dbgln("MSE: Seeking forward from timestamp 0 to find first keyframe");
+                m_playback_manager->seek(AK::Duration::from_milliseconds(1), Media::SeekMode::FastAfter);
+
+                // Resume playback after seek
+                m_playback_manager->play();
+                dbgln("MSE: Resumed playback after seeking");
             }
 
             m_first_media_segment_appended = true;
         }
     }
 
-    // Update buffered time ranges
-    // FIXME: Get actual buffered ranges from demuxer
-    // For now, just report that we have some data
-    m_buffered->add_range(0, m_demuxer->total_duration().value_or(AK::Duration::zero()).to_seconds());
+    refresh_buffered_ranges();
 
     // Success - fire events
     m_updating = false;

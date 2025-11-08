@@ -59,7 +59,13 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& video_element = as<HTML::HTMLVideoElement>(*dom_node());
     auto mouse_position = MediaPaintable::mouse_position(context, video_element);
 
-    auto const& current_frame = video_element.selected_video_track_sink() != nullptr ? video_element.selected_video_track_sink()->current_frame() : nullptr;
+    auto const& sink = video_element.selected_video_track_sink();
+    dbgln("VideoPaintable::paint() - sink={}, ready_state={}",
+          sink != nullptr, static_cast<int>(video_element.ready_state()));
+
+    auto const& current_frame = sink != nullptr ? sink->current_frame() : nullptr;
+    dbgln("VideoPaintable::paint() - current_frame={}", current_frame != nullptr);
+
     auto const& poster_frame = video_element.poster_frame();
 
     auto current_playback_position = video_element.current_playback_position();
@@ -85,8 +91,13 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         // -> When no video data is available (the element's readyState attribute is either HAVE_NOTHING, or HAVE_METADATA
         //    but no video data has yet been obtained at all, or the element's readyState attribute is any subsequent value
         //    but the media resource does not have a video channel)
+        auto video_tracks_length = video_element.video_tracks()->length();
+        dbgln("VideoPaintable::paint() - video_tracks_length={}", video_tracks_length);
+
         if (ready_state == HTML::HTMLMediaElement::ReadyState::HaveNothing
-            || (ready_state >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_element.video_tracks()->length() == 0)) {
+            || (ready_state >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_tracks_length == 0)) {
+            dbgln("VideoPaintable::paint() - Returning TransparentBlack! ready_state={}, video_tracks_length={}",
+                  static_cast<int>(ready_state), video_tracks_length);
             // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
             return poster_frame ? Representation::PosterFrame : Representation::TransparentBlack;
         }
@@ -146,6 +157,9 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     };
 
     auto paint_user_agent_controls = video_element.has_attribute(HTML::AttributeNames::controls) || video_element.is_scripting_disabled();
+
+    dbgln("VideoPaintable::paint() - representation={}, paused={}, potentially_playing={}",
+          static_cast<int>(representation), video_element.paused(), video_element.potentially_playing());
 
     switch (representation) {
     case Representation::VideoFrame:

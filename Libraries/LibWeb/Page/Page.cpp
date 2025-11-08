@@ -504,6 +504,21 @@ void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID 
 
 void Page::update_all_media_element_video_sinks()
 {
+    static size_t call_count = 0;
+    call_count++;
+
+    // Always log when video sink exists
+    bool has_video_sink = false;
+    for_each_media_element([&](auto& media_element) {
+        if (media_element.selected_video_track_sink()) {
+            has_video_sink = true;
+        }
+    });
+
+    if (has_video_sink || call_count % 60 == 0) {
+        dbgln("MSE: update_all_media_element_video_sinks() called (call #{}), has_video_sink={}", call_count, has_video_sink);
+    }
+
     for_each_media_element([](auto& media_element) {
         media_element.update_video_frame_and_timeline();
     });

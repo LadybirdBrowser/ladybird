@@ -29,6 +29,7 @@ public:
 
     void add_range(double start, double end);
     bool in_range(double);
+    void clear();
 
 private:
     explicit TimeRanges(JS::Realm&);

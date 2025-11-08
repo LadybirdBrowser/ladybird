@@ -282,6 +282,13 @@ void AudioMixingSink::pause()
 void AudioMixingSink::set_time(AK::Duration time)
 {
     m_temporary_time = time;
+
+    // Guard against null playback stream
+    if (!m_playback_stream) {
+        dbgln("AudioMixingSink::set_time() called with null playback stream, ignoring");
+        return;
+    }
+
     m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream, time]() {
             auto self = weak_self->take_strong();

@@ -41,6 +41,8 @@
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
+#include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -393,25 +395,83 @@ void HTMLMediaElement::set_duration_from_media_source(Badge<MediaSourceExtension
 // Called by MediaSource to update readyState when SourceBuffer data is appended
 void HTMLMediaElement::update_ready_state_from_media_source(Badge<MediaSourceExtensions::MediaSource>)
 {
-    // When MediaSource has buffered data, transition through the appropriate readyState values
-    // FIXME: We should check actual buffered ranges to determine readyState more accurately
+    dbgln("MSE: update_ready_state_from_media_source called, current state={}, duration={}, current_time={}",
+          (int)m_ready_state, m_duration, m_current_playback_position);
+
+    // Check if we have a MediaSource attached
+    if (!m_media_source) {
+        dbgln("MSE: No MediaSource attached");
+        return;
+    }
+
+    // Get the SourceBuffers to check buffered ranges
+    auto source_buffers = m_media_source->source_buffers();
+    if (!source_buffers) {
+        dbgln("MSE: No source buffers");
+        return;
+    }
+
+    // Check buffered ranges across all SourceBuffers
+    bool has_data_at_current_time = false;
+    bool has_future_data = false;
+    double buffered_ahead = 0.0;
+
+    for (size_t i = 0; i < source_buffers->length(); ++i) {
+        auto* buffer = source_buffers->item(i);
+        if (!buffer)
+            continue;
+
+        auto buffered = buffer->buffered();
+        if (buffered->length() == 0)
+            continue;
+
+        // Check if current playback position is buffered
+        if (buffered->in_range(m_current_playback_position)) {
+            has_data_at_current_time = true;
+
+            // Check how much data is buffered ahead
+            for (size_t j = 0; j < buffered->length(); ++j) {
+                auto range_end_result = buffered->end(j);
+                if (range_end_result.is_error())
+                    continue;
+
+                auto range_end = range_end_result.value();
+                if (range_end > m_current_playback_position) {
+                    has_future_data = true;
+                    auto ahead = range_end - m_current_playback_position;
+                    if (ahead > buffered_ahead)
+                        buffered_ahead = ahead;
+                }
+            }
+        }
+    }
+
+    dbgln("MSE: Buffered check - has_data_at_current={}, has_future={}, buffered_ahead={:.2f}s",
+          has_data_at_current_time, has_future_data, buffered_ahead);
 
     // Transition HAVE_NOTHING -> HAVE_METADATA when we have a valid duration
     if (m_ready_state == ReadyState::HaveNothing && !isnan(m_duration)) {
+        dbgln("MSE: Transitioning HAVE_NOTHING -> HAVE_METADATA");
         set_ready_state(ReadyState::HaveMetadata);
     }
-    // Transition HAVE_METADATA -> HAVE_CURRENT_DATA when we have some buffered data
-    else if (m_ready_state == ReadyState::HaveMetadata) {
+    // Transition HAVE_METADATA -> HAVE_CURRENT_DATA only if we have data at current position
+    else if (m_ready_state == ReadyState::HaveMetadata && has_data_at_current_time) {
+        dbgln("MSE: Transitioning HAVE_METADATA -> HAVE_CURRENT_DATA");
         set_ready_state(ReadyState::HaveCurrentData);
     }
-    // Transition HAVE_CURRENT_DATA -> HAVE_FUTURE_DATA -> HAVE_ENOUGH_DATA
-    // This allows canplay/canplaythrough events to fire
-    else if (m_ready_state == ReadyState::HaveCurrentData) {
+    // Transition HAVE_CURRENT_DATA -> HAVE_FUTURE_DATA if we have data beyond current position
+    else if (m_ready_state == ReadyState::HaveCurrentData && has_future_data) {
+        dbgln("MSE: Transitioning HAVE_CURRENT_DATA -> HAVE_FUTURE_DATA");
         set_ready_state(ReadyState::HaveFutureData);
     }
-    else if (m_ready_state == ReadyState::HaveFutureData) {
+    // Transition HAVE_FUTURE_DATA -> HAVE_ENOUGH_DATA if we have enough buffered data ahead
+    // Use a threshold of 3.0 seconds as "enough" data (typical for streaming)
+    else if (m_ready_state == ReadyState::HaveFutureData && buffered_ahead >= 3.0) {
+        dbgln("MSE: Transitioning HAVE_FUTURE_DATA -> HAVE_ENOUGH_DATA (buffered {:.2f}s ahead)", buffered_ahead);
         set_ready_state(ReadyState::HaveEnoughData);
     }
+
+    dbgln("MSE: After update, ready state is now={}", (int)m_ready_state);
 }
 
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLMediaElement::play()
@@ -1263,6 +1323,34 @@ void HTMLMediaElement::set_mse_playback_manager(RefPtr<Media::PlaybackManager> m
     }
 }
 
+void HTMLMediaElement::add_mse_video_track(Media::Track const& track)
+{
+    dbgln("MSE: add_mse_video_track() called - START");
+
+    // Create a VideoTrack object to represent the video track
+    auto& realm = this->realm();
+    auto video_track = realm.create<VideoTrack>(realm, *this, track);
+
+    // Add it to the media element's video_tracks list
+    m_video_tracks->add_track({}, *video_track);
+
+    dbgln("MSE: Added VideoTrack to HTMLMediaElement (video_tracks length={})", m_video_tracks->length());
+}
+
+void HTMLMediaElement::add_mse_audio_track(Media::Track const& track)
+{
+    dbgln("MSE: add_mse_audio_track() called - START");
+
+    // Create an AudioTrack object to represent the audio track
+    auto& realm = this->realm();
+    auto audio_track = realm.create<AudioTrack>(realm, *this, track);
+
+    // Add it to the media element's audio_tracks list
+    m_audio_tracks->add_track({}, *audio_track);
+
+    dbgln("MSE: Added AudioTrack to HTMLMediaElement (audio_tracks length={})", m_audio_tracks->length());
+}
+
 RefPtr<Media::DisplayingVideoSink> const& HTMLMediaElement::selected_video_track_sink() const
 {
     // For MSE playback, use the MSE video sink if available
@@ -1275,12 +1363,30 @@ RefPtr<Media::DisplayingVideoSink> const& HTMLMediaElement::selected_video_track
 
 void HTMLMediaElement::update_video_frame_and_timeline()
 {
+    dbgln("MSE: update_video_frame_and_timeline() called - m_mse_video_sink={}, m_mse_playback_manager={}",
+          m_mse_video_sink != nullptr, m_mse_playback_manager != nullptr);
+
     // For Media Source Extensions playback, use the MSE video sink directly
     if (m_mse_video_sink) {
         auto sink_update_result = m_mse_video_sink->update();
         bool needs_display = sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable;
-        if (needs_display && paintable())
+
+        dbgln("MSE: update_video_frame_and_timeline() - sink_update_result={}, needs_display={}, has_paintable={}",
+              (int)sink_update_result, needs_display, paintable() != nullptr);
+
+        if (needs_display && paintable()) {
+            dbgln("MSE: Calling set_needs_display() to trigger repaint");
             paintable()->set_needs_display();
+        }
+
+        // Update playback position from MSE playback manager
+        if (m_mse_playback_manager && !seeking()) {
+            auto new_position = m_mse_playback_manager->current_time().to_seconds_f64();
+            if (new_position != m_current_playback_position) {
+                set_current_playback_position(new_position);
+            }
+        }
+
         return;
     }
 
@@ -1632,20 +1738,26 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 
     // -> If the previous ready state was HAVE_CURRENT_DATA or less, and the new ready state is HAVE_FUTURE_DATA
     if (m_ready_state <= ReadyState::HaveCurrentData && ready_state == ReadyState::HaveFutureData) {
+        dbgln("MSE: set_ready_state() - Reached HAVE_FUTURE_DATA from {}, paused={}", (int)m_ready_state, paused());
+
         // The user agent must queue a media element task given the media element to fire an event named canplay at the element.
         queue_a_media_element_task([this] {
             dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::canplay));
         });
 
         // If the element's paused attribute is false, the user agent must notify about playing for the element.
-        if (!paused())
+        if (!paused()) {
+            dbgln("MSE: set_ready_state() - Calling notify_about_playing() from HAVE_FUTURE_DATA transition");
             notify_about_playing();
+        }
 
         return;
     }
 
     // -> If the new ready state is HAVE_ENOUGH_DATA
     if (ready_state == ReadyState::HaveEnoughData) {
+        dbgln("MSE: set_ready_state() - Reached HAVE_ENOUGH_DATA from {}, paused={}", (int)m_ready_state, paused());
+
         // If the previous ready state was HAVE_CURRENT_DATA or less, the user agent must queue a media element task given the media element to fire an event
         // named canplay at the element, and, if the element's paused attribute is false, notify about playing for the element.
         if (m_ready_state <= ReadyState::HaveCurrentData) {
@@ -1653,8 +1765,10 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
                 dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::canplay));
             });
 
-            if (!paused())
+            if (!paused()) {
+                dbgln("MSE: set_ready_state() - Calling notify_about_playing() from HAVE_ENOUGH_DATA transition");
                 notify_about_playing();
+            }
         }
 
         // The user agent must queue a media element task given the media element to fire an event named canplaythrough at the element.
@@ -1718,6 +1832,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
 
     // 3. If the media element's paused attribute is true, then:
     if (paused()) {
+        dbgln("MSE: play_element() called, paused=true, ready_state={}", (int)m_ready_state);
+
         // 1. Change the value of paused to false.
         set_paused(false);
 
@@ -1735,6 +1851,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
         // 4. If the media element's readyState attribute has the value HAVE_NOTHING, HAVE_METADATA, or HAVE_CURRENT_DATA,
         //    queue a media element task given the media element to fire an event named waiting at the element.
         if (m_ready_state == ReadyState::HaveNothing || m_ready_state == ReadyState::HaveMetadata || m_ready_state == ReadyState::HaveCurrentData) {
+            dbgln("MSE: Dispatching 'waiting' event because ready_state={}", (int)m_ready_state);
             queue_a_media_element_task([this]() {
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::waiting));
             });
@@ -1742,6 +1859,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::play_element()
         //    Otherwise, the media element's readyState attribute has the value HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA:
         //    notify about playing for the element.
         else {
+            dbgln("MSE: Calling notify_about_playing() because ready_state={}", (int)m_ready_state);
             notify_about_playing();
 
             // AD-HOC: If the official playback position is at the end of the media data here, that means that we haven't

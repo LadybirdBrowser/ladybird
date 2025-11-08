@@ -7,12 +7,17 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/Forward.h>
 #include <AK/HashMap.h>
+#include <AK/Optional.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Vector.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/FFmpeg/FFmpegForward.h>
+
+extern "C" {
+#include <libavformat/avformat.h>
+}
 
 namespace Media::FFmpeg {
 
@@ -36,6 +41,10 @@ public:
     DecoderErrorOr<void> append_initialization_segment(ReadonlyBytes);
     DecoderErrorOr<void> append_media_segment(ReadonlyBytes);
     DecoderErrorOr<void> remove(AK::Duration start, AK::Duration end);
+    void set_timestamp_offset(AK::Duration);
+    AK::Duration timestamp_offset() const { return m_timestamp_offset; }
+    AK::Duration buffered_start_time() const { return m_buffered_start; }
+    AK::Duration buffered_end_time() const { return m_buffered_end; }
 
     // Demuxer interface implementation
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override;
@@ -67,6 +76,11 @@ private:
     DecoderErrorOr<void> initialize_format_context();
     TrackContext& get_track_context(Track const&);
     DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);
+    AK::Duration normalize_timestamp(u32 stream_index, AK::Duration timestamp);
+    DecoderErrorOr<void> recalculate_buffered_range();
+    DecoderErrorOr<void> store_packet_for_stream(AVPacket&, u32 stream_index);
+    void ensure_stream_capacity(u32 stream_index);
+    void clear_pending_samples();
 
     // Growing buffer that holds all appended data
     ByteBuffer m_buffer;
@@ -87,8 +101,30 @@ private:
     // Track whether we've processed initialization segment
     bool m_initialized { false };
 
+    // Track whether we've returned EOF from avio_read_callback
+    // Used to detect when we need to reset FFmpeg's EOF state
+    mutable bool m_returned_eof_from_read { false };
+
     // Estimated duration from initialization segment (may be updated as we append more data)
     AK::Duration m_duration;
+
+    // Timestamp normalization helpers
+    Vector<Optional<AK::Duration>> m_stream_first_timestamps;
+    Vector<AK::Duration> m_stream_last_timestamps;
+    AK::Duration m_timestamp_offset {};
+
+    // Buffered range tracking
+    AK::Duration m_buffered_start {};
+    AK::Duration m_buffered_end {};
+
+    struct PendingSample {
+        ByteBuffer data;
+        i64 pts { AV_NOPTS_VALUE };
+        i64 dts { AV_NOPTS_VALUE };
+        i64 duration { 0 };
+        int flags { 0 };
+    };
+    Vector<Vector<PendingSample>> m_pending_samples;
 };
 
 }

@@ -42,7 +42,7 @@ public:
     GC::Ref<HTML::TimeRanges> buffered() const;
 
     double timestamp_offset() const { return m_timestamp_offset; }
-    void set_timestamp_offset(double offset) { m_timestamp_offset = offset; }
+    void set_timestamp_offset(double offset);
 
     // Methods
     WebIDL::ExceptionOr<void> append_buffer(GC::Root<WebIDL::BufferSource> const& data);
@@ -80,6 +80,7 @@ protected:
 private:
     void schedule_update_end();
     void process_append_buffer();
+    void refresh_buffered_ranges();
 
     GC::Ptr<MediaSource> m_media_source;
     GC::Ptr<HTML::TimeRanges> m_buffered;

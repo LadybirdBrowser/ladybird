@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
@@ -47,8 +48,10 @@ RefPtr<VideoDataProvider> DisplayingVideoSink::provider(Track const& track) cons
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 {
-    if (m_pause_updates)
+    if (m_pause_updates) {
+        dbgln("DisplayingVideoSink::update() - updates paused");
         return DisplayingVideoSinkUpdateResult::NoChange;
+    }
 
     auto current_time = m_time_provider->current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
@@ -57,16 +60,34 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
         m_cleared_current_frame = false;
     }
 
+    static MonotonicTime last_log_time = MonotonicTime::now();
+    bool should_log = (MonotonicTime::now() - last_log_time) > AK::Duration::from_milliseconds(1000);
+
     while (true) {
         if (!m_next_frame.is_valid()) {
             m_next_frame = m_provider->retrieve_frame();
-            if (!m_next_frame.is_valid())
+            if (!m_next_frame.is_valid()) {
+                if (should_log) {
+                    dbgln("DisplayingVideoSink::update() - no next frame available");
+                    last_log_time = MonotonicTime::now();
+                }
                 break;
+            }
         }
-        if (m_next_frame.timestamp() > current_time)
+        if (m_next_frame.timestamp() > current_time) {
+            if (should_log) {
+                dbgln("DisplayingVideoSink::update() - next frame timestamp ({}) > current_time ({})",
+                      m_next_frame.timestamp().to_milliseconds(), current_time.to_milliseconds());
+                last_log_time = MonotonicTime::now();
+            }
             break;
+        }
         m_current_frame = m_next_frame.release_image();
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        if (should_log) {
+            dbgln("DisplayingVideoSink::update() - NEW FRAME! current_time={}", current_time.to_milliseconds());
+            last_log_time = MonotonicTime::now();
+        }
     }
     return result;
 }

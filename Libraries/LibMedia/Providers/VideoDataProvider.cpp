@@ -63,9 +63,20 @@ void VideoDataProvider::set_error_handler(ErrorHandler&& handler)
 TimedImage VideoDataProvider::retrieve_frame()
 {
     auto locker = m_thread_data->take_lock();
-    if (m_thread_data->queue().is_empty())
+    static size_t call_count = 0;
+    bool should_log = (call_count++ % 100 == 0);
+
+    if (m_thread_data->queue().is_empty()) {
+        if (should_log)
+            dbgln("VideoDataProvider::retrieve_frame() - Queue is EMPTY (call #{})", call_count);
         return TimedImage();
+    }
+
     auto result = m_thread_data->take_frame();
+    if (should_log)
+        dbgln("VideoDataProvider::retrieve_frame() - Returning frame with timestamp={}, queue size now={} (call #{})",
+              result.timestamp().to_milliseconds(), m_thread_data->queue().size(), call_count);
+
     m_thread_data->wake();
     return result;
 }
@@ -333,6 +344,11 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
     //        Demuxers currently can't report the next keyframe in a convenient way, so that will need implementing
     //        before this functionality can exist.
 
+    static size_t call_count = 0;
+    bool should_log = (call_count++ % 100 == 0);
+    if (should_log)
+        dbgln("VideoDataProvider: push_data_and_decode_some_frames() called (call #{})", call_count);
+
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
         auto locker = take_lock();
         m_is_in_error_state = true;
@@ -352,13 +368,31 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
     if (sample_result.is_error()) {
         // FIXME: Handle the end of the stream.
+        auto error = sample_result.error();
+        // Commented out noisy logs - only log every 100th EOF
+        // dbgln("VideoDataProvider: ERROR - get_next_sample_for_track failed: {} (category={})",
+        //       error.string_literal(), (int)error.category());
+
+        // For MSE, EndOfStream just means we need more data appended - don't block the thread!
+        if (error.category() == DecoderErrorCategory::EndOfStream) {
+            // dbgln("VideoDataProvider: Hit end of MSE buffer, waiting for more data...");
+            ::usleep(10 * 1000);  // Wait 10ms then retry
+            return;
+        }
+
+        dbgln("VideoDataProvider: ERROR - get_next_sample_for_track failed: {} (category={})",
+              error.string_literal(), (int)error.category());
         set_error_and_wait_for_seek(sample_result.release_error());
         return;
     }
 
     auto coded_frame = sample_result.release_value();
+    if (should_log)
+        dbgln("VideoDataProvider: Got coded frame with timestamp={}", coded_frame.timestamp().to_milliseconds());
+
     auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
     if (decode_result.is_error()) {
+        dbgln("VideoDataProvider: ERROR - receive_coded_data failed");
         set_error_and_wait_for_seek(decode_result.release_error());
         return;
     }
@@ -374,16 +408,25 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
 
         auto frame = frame_result.release_value();
         set_cicp_values(*frame, coded_frame);
+
+        if (should_log)
+            dbgln("VideoDataProvider: Got decoded frame with timestamp={}", frame->timestamp().to_milliseconds());
+
         auto bitmap_result = frame->to_bitmap();
 
         if (bitmap_result.is_error()) {
+            dbgln("VideoDataProvider: ERROR - Failed to convert frame to bitmap");
             set_error_and_wait_for_seek(bitmap_result.release_error());
             return;
         }
 
         {
             auto locker = take_lock();
+            if (should_log)
+                dbgln("VideoDataProvider: Queue size before enqueue={}, max_size={}", m_queue.size(), m_queue_max_size);
+
             while (m_queue.size() >= m_queue_max_size) {
+                dbgln("VideoDataProvider: Queue is full, waiting...");
                 if (handle_seek())
                     return;
                 m_wait_condition.wait();
@@ -391,6 +434,9 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
                     return;
             }
             queue_frame(TimedImage(frame->timestamp(), bitmap_result.release_value()));
+
+            if (should_log)
+                dbgln("VideoDataProvider: QUEUED frame with timestamp={}, queue size now={}", frame->timestamp().to_milliseconds(), m_queue.size());
         }
     }
 }

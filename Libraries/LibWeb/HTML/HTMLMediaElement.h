@@ -143,6 +143,8 @@ public:
 
     void set_mse_video_sink(RefPtr<Media::DisplayingVideoSink>);
     void set_mse_playback_manager(RefPtr<Media::PlaybackManager>);
+    void add_mse_video_track(Media::Track const& track);
+    void add_mse_audio_track(Media::Track const& track);
 
     void update_video_frame_and_timeline();
 
