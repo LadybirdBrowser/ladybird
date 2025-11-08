@@ -80,14 +80,6 @@ private:
     bool m_allow_html_comments { true };
 
     static HashMap<Utf16FlyString, TokenType> s_keywords;
-
-    struct ParsedIdentifiers : public RefCounted<ParsedIdentifiers> {
-        // Resolved identifiers must be kept alive for the duration of the parsing stage, otherwise
-        // the only references to these strings are deleted by the Token destructor.
-        HashTable<Utf16FlyString> identifiers;
-    };
-
-    RefPtr<ParsedIdentifiers> m_parsed_identifiers;
 };
 
 bool is_syntax_character(u32 code_point);
