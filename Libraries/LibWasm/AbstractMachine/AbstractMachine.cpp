@@ -34,6 +34,9 @@ Optional<FunctionAddress> Store::allocate(HostFunction&& function)
 
 Optional<TableAddress> Store::allocate(TableType const& type)
 {
+    if (type.limits().min() > Constants::max_allowed_table_size)
+        return {};
+
     TableAddress address { m_tables.size() };
     Vector<Reference> elements;
     elements.ensure_capacity(type.limits().min());
@@ -460,14 +463,14 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
     for (auto& table : module.table_section().tables()) {
         auto table_address = m_store.allocate(table.type());
-        VERIFY(table_address.has_value());
-        module_instance.tables().append(*table_address);
+        if (table_address.has_value())
+            module_instance.tables().append(*table_address);
     }
 
     for (auto& memory : module.memory_section().memories()) {
         auto memory_address = m_store.allocate(memory.type());
-        VERIFY(memory_address.has_value());
-        module_instance.memories().append(*memory_address);
+        if (memory_address.has_value())
+            module_instance.memories().append(*memory_address);
     }
 
     size_t index = 0;
