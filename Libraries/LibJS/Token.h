@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/StringView.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
@@ -178,9 +177,16 @@ enum class TokenCategory {
 
 class JS_API Token {
 public:
+    enum class Message {
+        None,
+        StartOfPrivateNameNotFollowedByValidIdentifier,
+        InvalidNumericLiteral,
+        UnterminatedMultiLineComment,
+    };
+
     Token() = default;
 
-    Token(TokenType type, StringView message, Utf16View const& trivia, Utf16View const& value, size_t line_number, size_t line_column, size_t offset)
+    Token(TokenType type, Message message, Utf16View const& trivia, Utf16View const& value, size_t line_number, size_t line_column, size_t offset)
         : m_type(type)
         , m_message(message)
         , m_trivia(trivia)
@@ -198,7 +204,7 @@ public:
     char const* name() const;
     static char const* name(TokenType);
 
-    StringView message() const { return m_message; }
+    String message() const;
     Utf16View const& trivia() const { return m_trivia; }
     Utf16View const& original_value() const { return m_original_value; }
 
@@ -244,7 +250,7 @@ public:
 
 private:
     TokenType m_type { TokenType::Invalid };
-    StringView m_message;
+    Message m_message { Message::None };
     Utf16View m_trivia;
     Utf16View m_original_value;
     Variant<Empty, Utf16View, Utf16FlyString> m_value;
