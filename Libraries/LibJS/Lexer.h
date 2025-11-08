@@ -25,9 +25,10 @@ public:
 
     [[nodiscard]] Token const& current_token() const { return m_current_token; }
 
-    SourceCode const& source_code() const { return m_source; }
-    Utf16String const& source() const { return m_source->code(); }
-    String const& filename() const { return m_source->filename(); }
+    SourceCode const& source_code() const { return m_source_code; }
+    Utf16View const& source() const { return m_source_code->code_view(); }
+    Utf16String const& source_string() const { return m_source_code->code(); }
+    String const& filename() const { return m_source_code->filename(); }
 
     void disallow_html_comments() { m_allow_html_comments = false; }
 
@@ -60,7 +61,7 @@ private:
 
     TokenType consume_regex_literal();
 
-    NonnullRefPtr<SourceCode const> m_source;
+    NonnullRefPtr<SourceCode const> m_source_code;
     size_t m_position { 0 };
     Token m_current_token;
     char16_t m_current_code_unit { 0 };

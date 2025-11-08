@@ -225,8 +225,8 @@ static consteval AK::Array<TokenType, 256> make_single_char_tokens_array()
 
 static constexpr auto s_single_char_tokens = make_single_char_tokens_array();
 
-Lexer::Lexer(NonnullRefPtr<SourceCode const> source, size_t line_number, size_t line_column)
-    : m_source(move(source))
+Lexer::Lexer(NonnullRefPtr<SourceCode const> source_code, size_t line_number, size_t line_column)
+    : m_source_code(move(source_code))
     , m_current_token(TokenType::Eof, {}, {}, {}, 0, 0, 0)
     , m_line_number(line_number)
     , m_line_column(line_column)
@@ -280,16 +280,16 @@ Lexer::Lexer(NonnullRefPtr<SourceCode const> source, size_t line_number, size_t 
 void Lexer::consume()
 {
     auto did_reach_eof = [this] {
-        if (m_position < m_source->code().length_in_code_units())
+        if (m_position < source().length_in_code_units())
             return false;
         m_eof = true;
         m_current_code_unit = '\0';
-        m_position = m_source->code().length_in_code_units() + 1;
+        m_position = source().length_in_code_units() + 1;
         m_line_column++;
         return true;
     };
 
-    if (m_position > m_source->code().length_in_code_units())
+    if (m_position > source().length_in_code_units())
         return;
 
     if (did_reach_eof())
@@ -315,7 +315,7 @@ void Lexer::consume()
         // and column - don't do it again. From https://tc39.es/ecma262/#sec-line-terminators:
         //   The sequence <CR><LF> is commonly used as a line terminator.
         //   It should be considered a single SourceCharacter for the purpose of reporting line numbers.
-        auto second_char_of_crlf = m_position > 1 && m_source->code().code_unit_at(m_position - 2) == '\r' && m_current_code_unit == '\n';
+        auto second_char_of_crlf = m_position > 1 && source().code_unit_at(m_position - 2) == '\r' && m_current_code_unit == '\n';
 
         if (!second_char_of_crlf) {
             m_line_number++;
@@ -325,8 +325,8 @@ void Lexer::consume()
             dbgln_if(LEXER_DEBUG, "Previous was CR, this is LF - not incrementing line number again.");
         }
     } else {
-        if (AK::UnicodeUtils::is_utf16_high_surrogate(m_current_code_unit) && m_position < m_source->code().length_in_code_units()) {
-            if (AK::UnicodeUtils::is_utf16_low_surrogate(m_source->code().code_unit_at(m_position))) {
+        if (AK::UnicodeUtils::is_utf16_high_surrogate(m_current_code_unit) && m_position < source().length_in_code_units()) {
+            if (AK::UnicodeUtils::is_utf16_low_surrogate(source().code_unit_at(m_position))) {
                 ++m_position;
 
                 if (did_reach_eof())
@@ -337,7 +337,7 @@ void Lexer::consume()
         ++m_line_column;
     }
 
-    m_current_code_unit = m_source->code().code_unit_at(m_position++);
+    m_current_code_unit = source().code_unit_at(m_position++);
 }
 
 bool Lexer::consume_decimal_number()
@@ -412,40 +412,40 @@ bool Lexer::consume_binary_number()
 template<typename Callback>
 bool Lexer::match_numeric_literal_separator_followed_by(Callback callback) const
 {
-    if (m_position >= m_source->code().length_in_code_units())
+    if (m_position >= source().length_in_code_units())
         return false;
     return m_current_code_unit == '_'
-        && callback(m_source->code().code_unit_at(m_position));
+        && callback(source().code_unit_at(m_position));
 }
 
 bool Lexer::match(char16_t a, char16_t b) const
 {
-    if (m_position >= m_source->code().length_in_code_units())
+    if (m_position >= source().length_in_code_units())
         return false;
 
     return m_current_code_unit == a
-        && m_source->code().code_unit_at(m_position) == b;
+        && source().code_unit_at(m_position) == b;
 }
 
 bool Lexer::match(char16_t a, char16_t b, char16_t c) const
 {
-    if (m_position + 1 >= m_source->code().length_in_code_units())
+    if (m_position + 1 >= source().length_in_code_units())
         return false;
 
     return m_current_code_unit == a
-        && m_source->code().code_unit_at(m_position) == b
-        && m_source->code().code_unit_at(m_position + 1) == c;
+        && source().code_unit_at(m_position) == b
+        && source().code_unit_at(m_position + 1) == c;
 }
 
 bool Lexer::match(char16_t a, char16_t b, char16_t c, char16_t d) const
 {
-    if (m_position + 2 >= m_source->code().length_in_code_units())
+    if (m_position + 2 >= source().length_in_code_units())
         return false;
 
     return m_current_code_unit == a
-        && m_source->code().code_unit_at(m_position) == b
-        && m_source->code().code_unit_at(m_position + 1) == c
-        && m_source->code().code_unit_at(m_position + 2) == d;
+        && source().code_unit_at(m_position) == b
+        && source().code_unit_at(m_position + 1) == c
+        && source().code_unit_at(m_position + 2) == d;
 }
 
 bool Lexer::is_eof() const
@@ -469,7 +469,7 @@ ALWAYS_INLINE u32 Lexer::current_code_point() const
     if (m_position == 0)
         return AK::UnicodeUtils::REPLACEMENT_CODE_POINT;
 
-    auto substring = m_source->code().substring_view(m_position - 1);
+    auto substring = source().substring_view(m_position - 1);
     if (substring.is_empty())
         return AK::UnicodeUtils::REPLACEMENT_CODE_POINT;
 
@@ -591,7 +591,7 @@ bool Lexer::is_block_comment_end() const
 
 bool Lexer::is_numeric_literal_start() const
 {
-    return is_ascii_digit(m_current_code_unit) || (m_current_code_unit == '.' && m_position < m_source->code().length_in_code_units() && is_ascii_digit(m_source->code().code_unit_at(m_position)));
+    return is_ascii_digit(m_current_code_unit) || (m_current_code_unit == '.' && m_position < source().length_in_code_units() && is_ascii_digit(source().code_unit_at(m_position)));
 }
 
 bool Lexer::slash_means_division() const
@@ -837,7 +837,7 @@ Token const& Lexer::next()
         while (m_current_code_unit != stop_char && m_current_code_unit != '\r' && m_current_code_unit != '\n' && !is_eof()) {
             if (m_current_code_unit == '\\') {
                 consume();
-                if (m_current_code_unit == '\r' && m_position < m_source->code().length_in_code_units() && m_source->code().code_unit_at(m_position) == '\n') {
+                if (m_current_code_unit == '\r' && m_position < source().length_in_code_units() && source().code_unit_at(m_position) == '\n') {
                     consume();
                 }
             }
@@ -872,8 +872,8 @@ Token const& Lexer::next()
             consume();
         }
 
-        if (!found_token && m_position + 1 < m_source->code().length_in_code_units()) {
-            auto three_chars_view = m_source->code().substring_view(m_position - 1, 3);
+        if (!found_token && m_position + 1 < source().length_in_code_units()) {
+            auto three_chars_view = source().substring_view(m_position - 1, 3);
             if (auto type = parse_three_char_token(three_chars_view); type != TokenType::Invalid) {
                 found_token = true;
                 token_type = type;
@@ -883,11 +883,11 @@ Token const& Lexer::next()
             }
         }
 
-        if (!found_token && m_position < m_source->code().length_in_code_units()) {
-            auto two_chars_view = m_source->code().substring_view(m_position - 1, 2);
+        if (!found_token && m_position < source().length_in_code_units()) {
+            auto two_chars_view = source().substring_view(m_position - 1, 2);
             if (auto type = parse_two_char_token(two_chars_view); type != TokenType::Invalid) {
                 // OptionalChainingPunctuator :: ?. [lookahead ∉ DecimalDigit]
-                if (!(type == TokenType::QuestionMarkPeriod && m_position + 1 < m_source->code().length_in_code_units() && is_ascii_digit(m_source->code().code_unit_at(m_position + 1)))) {
+                if (!(type == TokenType::QuestionMarkPeriod && m_position + 1 < source().length_in_code_units() && is_ascii_digit(source().code_unit_at(m_position + 1)))) {
                     found_token = true;
                     token_type = type;
                     consume();
@@ -921,8 +921,8 @@ Token const& Lexer::next()
     m_current_token = Token(
         token_type,
         token_message,
-        m_source->code().substring_view(trivia_start - 1, value_start - trivia_start),
-        m_source->code().substring_view(value_start - 1, m_position - value_start),
+        source().substring_view(trivia_start - 1, value_start - trivia_start),
+        source().substring_view(value_start - 1, m_position - value_start),
         value_start_line_number,
         value_start_column_number,
         value_start - 1);
@@ -952,7 +952,7 @@ Token const& Lexer::force_slash_as_regex()
     size_t value_start = m_position - 1;
 
     if (has_equals) {
-        VERIFY(m_source->code().code_unit_at(value_start - 1) == '=');
+        VERIFY(source().code_unit_at(value_start - 1) == '=');
         --value_start;
         --m_position;
         m_current_code_unit = '=';
@@ -964,7 +964,7 @@ Token const& Lexer::force_slash_as_regex()
         token_type,
         Token::Message::None,
         m_current_token.trivia(),
-        m_source->code().substring_view(value_start - 1, m_position - value_start),
+        source().substring_view(value_start - 1, m_position - value_start),
         m_current_token.line_number(),
         m_current_token.line_column(),
         value_start - 1);
