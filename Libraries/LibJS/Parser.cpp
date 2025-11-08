@@ -3139,6 +3139,10 @@ NonnullRefPtr<FunctionParameters const> Parser::parse_formal_parameters(int& fun
     if (!match(TokenType::Eof) && !match(TokenType::ParenClose))
         expected(Token::name(TokenType::ParenClose));
 
+    // OPTIMIZATION: If there are no parameters, return the shared empty FunctionParameters instance.
+    if (parameters.is_empty())
+        return FunctionParameters::empty();
+
     parameters.shrink_to_fit();
     return FunctionParameters::create(move(parameters));
 }
