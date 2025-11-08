@@ -55,7 +55,8 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
         }})~~~",
         body);
 
-    auto parser = JS::Parser { JS::Lexer { source_text } };
+    auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create({}, Utf16String::from_utf8(source_text))));
+    ;
     auto function_expression = parser.parse_function_node<JS::FunctionExpression>();
 
     // 4. If body is not parsable as a FunctionBody or if parsing detects an early error, return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }.

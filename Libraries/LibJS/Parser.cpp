@@ -688,7 +688,7 @@ Parser::ParserState::ParserState(Lexer l, Program::Type program_type)
 }
 
 Parser::Parser(Lexer lexer, Program::Type program_type, Optional<EvalInitialState> initial_state_for_eval)
-    : m_source_code(SourceCode::create(lexer.filename(), lexer.source()))
+    : m_source_code(lexer.source_code())
     , m_state(move(lexer), program_type)
     , m_program_type(program_type)
 {
@@ -2596,7 +2596,7 @@ RefPtr<BindingPattern const> Parser::synthesize_binding_pattern(Expression const
     auto source_end_offset = expression.source_range().end.offset;
     auto source = m_state.lexer.source().substring_view(source_start_offset, source_end_offset - source_start_offset);
 
-    Lexer lexer { Utf16String::from_utf16(source), m_state.lexer.filename(), expression.source_range().start.line, expression.source_range().start.column };
+    Lexer lexer(SourceCode::create(m_state.lexer.filename(), Utf16String::from_utf16(source)), expression.source_range().start.line, expression.source_range().start.column);
     Parser parser { lexer };
 
     parser.m_state.current_scope_pusher = m_state.current_scope_pusher;
@@ -5233,7 +5233,7 @@ Parser Parser::parse_function_body_from_string(ByteString const& body_string, u1
 {
     RefPtr<FunctionBody const> function_body;
 
-    auto body_parser = Parser { Lexer { body_string } };
+    auto body_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(body_string))));
     {
         // Set up some parser state to accept things like return await, and yield in the plain function body.
         body_parser.m_state.in_function_context = true;

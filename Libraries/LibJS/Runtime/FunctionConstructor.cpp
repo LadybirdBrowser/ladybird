@@ -156,7 +156,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
 
     // 17. Let parameters be ParseText(P, parameterSym).
     i32 function_length = 0;
-    auto parameters_parser = Parser { Lexer { parameters_string } };
+    auto parameters_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(parameters_string))));
     auto parameters = parameters_parser.parse_formal_parameters(function_length, parse_options);
 
     // 18. If parameters is a List of errors, throw a SyntaxError exception.
@@ -179,7 +179,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 22. NOTE: If this step is reached, sourceText must have the syntax of exprSym (although the reverse implication does not hold). The purpose of the next two steps is to enforce any Early Error rules which apply to exprSym directly.
 
     // 23. Let expr be ParseText(sourceText, exprSym).
-    auto source_parser = Parser { Lexer { source_text } };
+    auto source_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(source_text))));
     // This doesn't need any parse_options, it determines those & the function type based on the tokens that were found.
     auto expr = source_parser.parse_function_node<FunctionExpression>();
 

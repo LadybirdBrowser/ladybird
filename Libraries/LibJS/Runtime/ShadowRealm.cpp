@@ -123,7 +123,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
     // 2. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
 
     // a. Let script be ParseText(StringToCodePoints(sourceText), Script).
-    auto parser = Parser(Lexer(source_text->utf8_string_view()), Program::Type::Script, Parser::EvalInitialState {});
+    auto parser = Parser(Lexer(SourceCode::create({}, source_text->utf16_string())), Program::Type::Script, Parser::EvalInitialState {});
     auto program = parser.parse_program();
 
     // b. If script is a List of errors, throw a SyntaxError exception.
