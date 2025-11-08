@@ -55,7 +55,7 @@ echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
 ```
 
-- If you encounter any problems with clang, the recommendation is to install clang 18 or newer following the instructions in this article [Ubuntu HandBook](https://ubuntuhandbook.org/index.php/2023/09/how-to-install-clang-17-or-16-in-ubuntu-22-04-20-04/):
+- If you encounter any problems with clang, the recommendation is to install clang 18 or newer following the instructions on [Ubuntu HandBook](https://ubuntuhandbook.org/index.php/2023/09/how-to-install-clang-17-or-16-in-ubuntu-22-04-20-04/):
 
 - Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
