@@ -337,7 +337,7 @@ ErrorOr<void> FormatBuilder::put_u64(
         TRY(put_padding(fill, used_by_right_padding));
     } else if (align == Align::Center) {
         auto const used_by_left_padding = used_by_padding / 2;
-        auto const used_by_right_padding = ceil_div<size_t, size_t>(used_by_padding, 2);
+        auto const used_by_right_padding = used_by_padding - used_by_left_padding;
 
         TRY(put_padding(fill, used_by_left_padding));
         TRY(put_prefix());
