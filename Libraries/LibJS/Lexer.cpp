@@ -689,7 +689,7 @@ Token Lexer::next()
     // This is being used to communicate info about invalid tokens to the parser, which then
     // can turn that into more specific error messages - instead of us having to make up a
     // bunch of Invalid* tokens (bad numeric literals, unterminated comments etc.)
-    StringView token_message;
+    Token::Message token_message = Token::Message::None;
 
     Optional<Utf16FlyString> identifier;
     size_t identifier_length = 0;
@@ -765,7 +765,7 @@ Token Lexer::next()
             m_parsed_identifiers->identifiers.set(*identifier);
         } else {
             token_type = TokenType::Invalid;
-            token_message = "Start of private name '#' but not followed by valid identifier"sv;
+            token_message = Token::Message::StartOfPrivateNameNotFollowedByValidIdentifier;
         }
     } else if (auto code_point = is_identifier_start(identifier_length); code_point.has_value()) {
         bool has_escaped_character = false;
@@ -856,7 +856,7 @@ Token Lexer::next()
         }
         if (is_invalid_numeric_literal) {
             token_type = TokenType::Invalid;
-            token_message = "Invalid numeric literal"sv;
+            token_message = Token::Message::InvalidNumericLiteral;
         }
     } else if (m_current_code_unit == '"' || m_current_code_unit == '\'') {
         auto stop_char = m_current_code_unit;
@@ -883,7 +883,7 @@ Token Lexer::next()
     } else if (m_eof) {
         if (unterminated_comment) {
             token_type = TokenType::Invalid;
-            token_message = "Unterminated multi-line comment"sv;
+            token_message = Token::Message::UnterminatedMultiLineComment;
         } else {
             token_type = TokenType::Eof;
         }
@@ -990,7 +990,7 @@ Token Lexer::force_slash_as_regex()
 
     m_current_token = Token(
         token_type,
-        String {},
+        Token::Message::None,
         m_current_token.trivia(),
         m_source.substring_view(value_start - 1, m_position - value_start),
         m_current_token.line_number(),

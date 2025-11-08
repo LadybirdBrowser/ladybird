@@ -4537,7 +4537,7 @@ Token Parser::consume_and_validate_numeric_literal()
 
 void Parser::expected(char const* what)
 {
-    auto message = MUST(String::from_utf8(m_state.current_token.message()));
+    auto message = m_state.current_token.message();
     if (message.is_empty())
         message = MUST(String::formatted("Unexpected token {}. Expected {}", m_state.current_token.name(), what));
     syntax_error(message);
