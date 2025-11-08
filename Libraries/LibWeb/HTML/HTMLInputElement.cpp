@@ -152,7 +152,7 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
     // NOTE: Other browsers apply a minimum height of a single line's line-height to single-line input elements.
     if (is_single_line() && style.property(CSS::PropertyID::Height).has_auto()) {
         auto current_line_height = style.line_height().to_double();
-        auto minimum_line_height = style.first_available_computed_font().pixel_size() * CSS::ComputedProperties::normal_line_height_scale;
+        auto minimum_line_height = style.first_available_computed_font(document().font_computer())->pixel_size() * CSS::ComputedProperties::normal_line_height_scale;
 
         // FIXME: Instead of overriding line-height, we should set height here instead.
         if (current_line_height < minimum_line_height)

@@ -132,8 +132,8 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font().pixel_metrics(), element.computed_properties()->line_height() },
-        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font().pixel_metrics(), element.computed_properties()->line_height() }
+        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() },
+        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() }
     };
 }
 

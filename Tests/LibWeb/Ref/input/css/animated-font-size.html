@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/animated-font-size-ref.html" />
+<div id="foo" style="font-size: 10px">TEST</div>
+<script>
+    const anim = foo.animate([{ fontSize: "10px" }, { fontSize: "20px" }], 1000);
+    anim.pause();
+    anim.currentTime = 500;
+    document.documentElement.classList = "";
+</script>
