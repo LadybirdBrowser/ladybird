@@ -280,16 +280,16 @@ Lexer::Lexer(NonnullRefPtr<SourceCode const> source_code, size_t line_number, si
 void Lexer::consume()
 {
     auto did_reach_eof = [this] {
-        if (m_position < source().length_in_code_units())
+        if (m_position < source_code().length_in_code_units())
             return false;
         m_eof = true;
         m_current_code_unit = '\0';
-        m_position = source().length_in_code_units() + 1;
+        m_position = source_code().length_in_code_units() + 1;
         m_line_column++;
         return true;
     };
 
-    if (m_position > source().length_in_code_units())
+    if (m_position > source_code().length_in_code_units())
         return;
 
     if (did_reach_eof())
@@ -325,7 +325,7 @@ void Lexer::consume()
             dbgln_if(LEXER_DEBUG, "Previous was CR, this is LF - not incrementing line number again.");
         }
     } else {
-        if (AK::UnicodeUtils::is_utf16_high_surrogate(m_current_code_unit) && m_position < source().length_in_code_units()) {
+        if (AK::UnicodeUtils::is_utf16_high_surrogate(m_current_code_unit) && m_position < source_code().length_in_code_units()) {
             if (AK::UnicodeUtils::is_utf16_low_surrogate(source().code_unit_at(m_position))) {
                 ++m_position;
 
@@ -412,7 +412,7 @@ bool Lexer::consume_binary_number()
 template<typename Callback>
 bool Lexer::match_numeric_literal_separator_followed_by(Callback callback) const
 {
-    if (m_position >= source().length_in_code_units())
+    if (m_position >= source_code().length_in_code_units())
         return false;
     return m_current_code_unit == '_'
         && callback(source().code_unit_at(m_position));
@@ -420,7 +420,7 @@ bool Lexer::match_numeric_literal_separator_followed_by(Callback callback) const
 
 bool Lexer::match(char16_t a, char16_t b) const
 {
-    if (m_position >= source().length_in_code_units())
+    if (m_position >= source_code().length_in_code_units())
         return false;
 
     return m_current_code_unit == a
@@ -429,7 +429,7 @@ bool Lexer::match(char16_t a, char16_t b) const
 
 bool Lexer::match(char16_t a, char16_t b, char16_t c) const
 {
-    if (m_position + 1 >= source().length_in_code_units())
+    if (m_position + 1 >= source_code().length_in_code_units())
         return false;
 
     return m_current_code_unit == a
@@ -439,7 +439,7 @@ bool Lexer::match(char16_t a, char16_t b, char16_t c) const
 
 bool Lexer::match(char16_t a, char16_t b, char16_t c, char16_t d) const
 {
-    if (m_position + 2 >= source().length_in_code_units())
+    if (m_position + 2 >= source_code().length_in_code_units())
         return false;
 
     return m_current_code_unit == a
@@ -591,7 +591,7 @@ bool Lexer::is_block_comment_end() const
 
 bool Lexer::is_numeric_literal_start() const
 {
-    return is_ascii_digit(m_current_code_unit) || (m_current_code_unit == '.' && m_position < source().length_in_code_units() && is_ascii_digit(source().code_unit_at(m_position)));
+    return is_ascii_digit(m_current_code_unit) || (m_current_code_unit == '.' && m_position < source_code().length_in_code_units() && is_ascii_digit(source().code_unit_at(m_position)));
 }
 
 bool Lexer::slash_means_division() const
@@ -837,7 +837,7 @@ Token const& Lexer::next()
         while (m_current_code_unit != stop_char && m_current_code_unit != '\r' && m_current_code_unit != '\n' && !is_eof()) {
             if (m_current_code_unit == '\\') {
                 consume();
-                if (m_current_code_unit == '\r' && m_position < source().length_in_code_units() && source().code_unit_at(m_position) == '\n') {
+                if (m_current_code_unit == '\r' && m_position < source_code().length_in_code_units() && source().code_unit_at(m_position) == '\n') {
                     consume();
                 }
             }
@@ -872,7 +872,7 @@ Token const& Lexer::next()
             consume();
         }
 
-        if (!found_token && m_position + 1 < source().length_in_code_units()) {
+        if (!found_token && m_position + 1 < source_code().length_in_code_units()) {
             auto three_chars_view = source().substring_view(m_position - 1, 3);
             if (auto type = parse_three_char_token(three_chars_view); type != TokenType::Invalid) {
                 found_token = true;
@@ -883,11 +883,11 @@ Token const& Lexer::next()
             }
         }
 
-        if (!found_token && m_position < source().length_in_code_units()) {
+        if (!found_token && m_position < source_code().length_in_code_units()) {
             auto two_chars_view = source().substring_view(m_position - 1, 2);
             if (auto type = parse_two_char_token(two_chars_view); type != TokenType::Invalid) {
                 // OptionalChainingPunctuator :: ?. [lookahead ∉ DecimalDigit]
-                if (!(type == TokenType::QuestionMarkPeriod && m_position + 1 < source().length_in_code_units() && is_ascii_digit(source().code_unit_at(m_position + 1)))) {
+                if (!(type == TokenType::QuestionMarkPeriod && m_position + 1 < source_code().length_in_code_units() && is_ascii_digit(source().code_unit_at(m_position + 1)))) {
                     found_token = true;
                     token_type = type;
                     consume();
