@@ -251,8 +251,9 @@ WebIDL::ExceptionOr<void> MediaSource::clear_live_seekable_range()
 WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
 {
     // 1. If the value being set is negative or NaN then throw a TypeError and abort these steps.
-    if (new_duration < 0 || isnan(new_duration))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Duration must be non-negative and not NaN"_string };
+    // NOTE: Infinity is explicitly allowed for live streams
+    if ((new_duration < 0 && !isinf(new_duration)) || isnan(new_duration))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Duration must be non-negative (or Infinity) and not NaN"_string };
 
     // 2. If the readyState attribute is not "open" then throw an InvalidStateError and abort these steps.
     if (m_ready_state != ReadyState::Open)

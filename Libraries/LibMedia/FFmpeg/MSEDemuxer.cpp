@@ -340,30 +340,42 @@ DecoderErrorOr<void> MSEDemuxer::append_media_segment(ReadonlyBytes data)
     Optional<AK::Duration> min_time;
     Optional<AK::Duration> max_time;
 
+    // Ensure capacity for all streams BEFORE iterating (to avoid iterator invalidation)
+    for (u32 stream_index = 0; stream_index < m_pending_samples.size(); ++stream_index) {
+        ensure_stream_capacity(stream_index);
+    }
+
     // First pass: establish first timestamps for normalization if not already set
     for (u32 stream_index = 0; stream_index < m_pending_samples.size(); ++stream_index) {
-        auto& queue = m_pending_samples[stream_index];
-        if (queue.is_empty())
+        if (m_pending_samples[stream_index].is_empty())
             continue;
 
         if (stream_index >= m_format_context->nb_streams)
             continue;
         auto* stream = m_format_context->streams[stream_index];
 
-        ensure_stream_capacity(stream_index);
-
         // Find the earliest timestamp in this stream to use as the base
-        for (auto& sample : queue) {
+        // Don't hold a reference to the queue to avoid iterator invalidation
+        for (size_t sample_idx = 0; sample_idx < m_pending_samples[stream_index].size(); ++sample_idx) {
+            auto& sample = m_pending_samples[stream_index][sample_idx];
             auto pts = sample.pts != AV_NOPTS_VALUE ? sample.pts : sample.dts;
             if (pts == AV_NOPTS_VALUE)
                 continue;
 
             auto timestamp = time_units_to_duration(pts, stream->time_base);
 
-            // Set first timestamp if not already set
+            // Apply timestamp offset to get presentation timestamp
+            auto presentation_timestamp = timestamp + m_timestamp_offset;
+
+            // Set first timestamp ONLY if not already set
+            // IMPORTANT: Never update first_timestamp once set, or the timeline will shift during playback!
+            // Store the PRESENTATION timestamp (with offset applied) as the baseline
             auto& first_timestamp = m_stream_first_timestamps[stream_index];
-            if (!first_timestamp.has_value() || timestamp < first_timestamp.value()) {
-                first_timestamp = timestamp;
+            if (!first_timestamp.has_value()) {
+                first_timestamp = presentation_timestamp;
+                dbgln("MSE: Set first presentation timestamp for stream {} to {}ms (raw={}, offset={})",
+                      stream_index, presentation_timestamp.to_milliseconds(),
+                      timestamp.to_milliseconds(), m_timestamp_offset.to_milliseconds());
             }
             break; // Only need the first one
         }
@@ -371,8 +383,7 @@ DecoderErrorOr<void> MSEDemuxer::append_media_segment(ReadonlyBytes data)
 
     // Second pass: calculate normalized range
     for (u32 stream_index = 0; stream_index < m_pending_samples.size(); ++stream_index) {
-        auto& queue = m_pending_samples[stream_index];
-        if (queue.is_empty())
+        if (m_pending_samples[stream_index].is_empty())
             continue;
 
         if (stream_index >= m_format_context->nb_streams)
@@ -384,16 +395,19 @@ DecoderErrorOr<void> MSEDemuxer::append_media_segment(ReadonlyBytes data)
             continue;
 
         // Find earliest and latest normalized timestamps in this stream's queue
-        for (auto& sample : queue) {
+        // Don't hold a reference to the queue across the loop to avoid iterator invalidation
+        for (size_t sample_idx = 0; sample_idx < m_pending_samples[stream_index].size(); ++sample_idx) {
+            auto& sample = m_pending_samples[stream_index][sample_idx];
             auto pts = sample.pts != AV_NOPTS_VALUE ? sample.pts : sample.dts;
             if (pts == AV_NOPTS_VALUE)
                 continue;
 
             auto timestamp = time_units_to_duration(pts, stream->time_base);
-            auto normalized = timestamp - first_timestamp.value();
+            // Apply offset to get presentation timestamp, then normalize
+            auto presentation_timestamp = timestamp + m_timestamp_offset;
+            auto normalized = presentation_timestamp - first_timestamp.value();
             if (normalized < AK::Duration::zero())
                 normalized = AK::Duration::zero();
-            normalized += m_timestamp_offset;
 
             auto end_time = normalized;
             if (sample.duration > 0) {
@@ -440,7 +454,18 @@ void MSEDemuxer::set_timestamp_offset(AK::Duration offset)
 {
     if (m_timestamp_offset == offset)
         return;
+
+    dbgln("MSE: Timestamp offset changed from {} to {}ms - clearing first timestamps to force recalculation",
+          m_timestamp_offset.to_milliseconds(), offset.to_milliseconds());
+
     m_timestamp_offset = offset;
+
+    // Clear first timestamps so they get recalculated with the new offset
+    // This is important for live streams where hls.js sets the offset after the first append
+    for (auto& first_ts : m_stream_first_timestamps) {
+        first_ts = {};
+    }
+
     if (!m_initialized)
         return;
     if (auto result = recalculate_buffered_range(); result.is_error()) {
@@ -537,15 +562,27 @@ AK::Duration MSEDemuxer::normalize_timestamp(u32 stream_index, AK::Duration time
 {
     ensure_stream_capacity(stream_index);
 
+    // Apply timestamp_offset FIRST to get the presentation timestamp
+    auto presentation_timestamp = timestamp + m_timestamp_offset;
+
     auto& first_timestamp = m_stream_first_timestamps[stream_index];
-    if (!first_timestamp.has_value() || timestamp < first_timestamp.value())
-        first_timestamp = timestamp;
 
-    auto normalized = timestamp - first_timestamp.value();
-    if (normalized < AK::Duration::zero())
+    // IMPORTANT: Don't modify first_timestamp here! It should only be set during append_media_segment.
+    // If we modify it during playback, the timeline will shift as we decode packets.
+    if (!first_timestamp.has_value()) {
+        // If no first timestamp is set, return the presentation timestamp as-is
+        dbgln("MSE: WARNING - normalize_timestamp called with no first timestamp for stream {}", stream_index);
+        return presentation_timestamp;
+    }
+
+    // Now normalize relative to the first presentation timestamp
+    auto normalized = presentation_timestamp - first_timestamp.value();
+    if (normalized < AK::Duration::zero()) {
+        dbgln("MSE: WARNING - negative normalized timestamp for stream {} (presentation={}, first={})",
+              stream_index, presentation_timestamp.to_milliseconds(), first_timestamp->to_milliseconds());
         normalized = AK::Duration::zero();
+    }
 
-    normalized += m_timestamp_offset;
     return normalized;
 }
 

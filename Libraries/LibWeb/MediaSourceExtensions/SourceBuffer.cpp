@@ -128,6 +128,7 @@ void SourceBuffer::set_timestamp_offset(double offset)
     if (m_timestamp_offset == offset)
         return;
 
+    dbgln("MSE: SourceBuffer::set_timestamp_offset() called: old={}, new={}", m_timestamp_offset, offset);
     m_timestamp_offset = offset;
 
     if (!m_demuxer)
@@ -284,7 +285,7 @@ void SourceBuffer::refresh_buffered_ranges()
     // Log buffered ranges for debugging (only occasionally)
     static size_t log_counter = 0;
     if (log_counter++ % 50 == 0) {
-        dbgln("MSE: SourceBuffer buffered ranges updated: {:.2f}s - {:.2f}s (duration: {:.2f}s)",
+        dbgln("MSE: SourceBuffer buffered ranges updated: {}s - {}s (duration: {}s)",
             buffered_start.to_seconds(), buffered_end.to_seconds(),
             (buffered_end - buffered_start).to_seconds());
     }
