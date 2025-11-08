@@ -194,7 +194,7 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
         // We can also skip if we know the test is supposed to fail during parse
         // time. Unfortunately the phases of modules are not as clear and thus we
         // only do this for scripts. See also the comment at the end of verify_test.
-        auto parser = JS::Parser(JS::Lexer(source, filepath), metadata.program_type);
+        auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create(String::from_utf8(filepath).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source))), metadata.program_type);
         auto program_or_error = parser.parse_program();
         if (parser.has_errors()) {
             return TestError {

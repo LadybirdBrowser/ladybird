@@ -52,7 +52,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
     auto text = m_client->get_text();
 
-    Lexer lexer(text);
+    Lexer lexer(SourceCode::create({}, Utf16String::from_utf8(text)));
 
     Vector<Syntax::TextDocumentSpan> spans;
     Vector<Syntax::TextDocumentFoldingRegion> folding_regions;

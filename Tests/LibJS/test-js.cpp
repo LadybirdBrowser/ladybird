@@ -19,8 +19,8 @@ TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-p
 
 TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 {
-    auto source = TRY(vm.argument(0).to_string(vm));
-    auto parser = JS::Parser(JS::Lexer(source));
+    auto source = TRY(vm.argument(0).to_utf16_string(vm));
+    auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create({}, source)));
     (void)parser.parse_program();
     return JS::Value(!parser.has_errors());
 }

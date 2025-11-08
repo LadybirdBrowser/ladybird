@@ -444,7 +444,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         auto source_text = builder.to_byte_string();
 
-        auto parser = JS::Parser(JS::Lexer(source_text));
+        auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create({}, Utf16String::from_utf8(source_text))));
 
         // FIXME: This should only be parsing the `body` instead of `source_text` and therefore use `JS::FunctionBody` instead of `JS::FunctionExpression`.
         //        However, JS::ECMAScriptFunctionObject::create wants parameters and length and JS::FunctionBody does not inherit JS::FunctionNode.

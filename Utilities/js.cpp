@@ -513,7 +513,7 @@ static ErrorOr<String> read_next_piece()
 
         piece.append(line);
         piece.append('\n');
-        auto lexer = JS::Lexer(line);
+        auto lexer = JS::Lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
 
         enum {
             NotInLabelOrObjectKey,
@@ -622,7 +622,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
         size_t open_indents = s_repl_line_level;
 
         auto line = editor.line();
-        JS::Lexer lexer(line);
+        JS::Lexer lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
         bool indenters_starting_line = true;
         for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
             auto length = token.value().length_in_code_units();
@@ -678,7 +678,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
     auto complete = [&realm, &global_environment](Line::Editor const& editor) -> Vector<Line::CompletionSuggestion> {
         auto line = editor.line(editor.cursor());
 
-        JS::Lexer lexer { line };
+        JS::Lexer lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
         enum {
             Initial,
             CompleteVariable,

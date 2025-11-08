@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, Stephan Unverwerth <s.unverwerth@serenityos.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,17 +8,16 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/StringView.h>
 #include <AK/Utf16String.h>
 #include <LibJS/Export.h>
+#include <LibJS/SourceCode.h>
 #include <LibJS/Token.h>
 
 namespace JS {
 
 class JS_API Lexer {
 public:
-    explicit Lexer(StringView source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
-    explicit Lexer(Utf16String source, StringView filename = "(unknown)"sv, size_t line_number = 1, size_t line_column = 0);
+    explicit Lexer(NonnullRefPtr<SourceCode const>, size_t line_number = 1, size_t line_column = 0);
 
     // These both advance the lexer and return a reference to the current token.
     Token const& next();
@@ -25,8 +25,9 @@ public:
 
     [[nodiscard]] Token const& current_token() const { return m_current_token; }
 
-    Utf16String const& source() const { return m_source; }
-    String const& filename() const { return m_filename; }
+    SourceCode const& source_code() const { return m_source; }
+    Utf16String const& source() const { return m_source->code(); }
+    String const& filename() const { return m_source->filename(); }
 
     void disallow_html_comments() { m_allow_html_comments = false; }
 
@@ -59,7 +60,7 @@ private:
 
     TokenType consume_regex_literal();
 
-    Utf16String m_source;
+    NonnullRefPtr<SourceCode const> m_source;
     size_t m_position { 0 };
     Token m_current_token;
     char16_t m_current_code_unit { 0 };
@@ -67,7 +68,6 @@ private:
     bool m_regex_is_in_character_class { false };
     bool m_allow_html_comments { true };
 
-    String m_filename;
     size_t m_line_number { 1 };
     size_t m_line_column { 0 };
 
