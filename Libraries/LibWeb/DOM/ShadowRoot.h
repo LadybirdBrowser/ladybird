@@ -145,9 +145,13 @@ inline TraversalDecision Node::for_each_shadow_including_descendant(Callback cal
         }
     }
 
-    for (auto* child = first_child(); child; child = child->next_sibling()) {
+    // NOTE: We save next_sibling before invoking the callback, as the callback may modify the DOM tree
+    //       (e.g., via inserted() triggering custom element callbacks), which could invalidate pointers.
+    for (auto* child = first_child(); child; ) {
+        auto* next = child->next_sibling();
         if (child->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
+        child = next;
     }
 
     return TraversalDecision::Continue;

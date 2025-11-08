@@ -729,13 +729,21 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         node_to_insert->invalidate_style(StyleInvalidationReason::NodeInsertBefore);
 
         // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
-        node_to_insert->for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
+        // NOTE: We must collect nodes into a static list first, as inserted() and custom element callbacks
+        //       can modify the tree structure, making live traversal unsafe.
+        GC::RootVector<GC::Ref<Node>> insertion_steps_node_list(heap());
+        node_to_insert->for_each_shadow_including_inclusive_descendant([&insertion_steps_node_list](Node& inclusive_descendant) {
+            insertion_steps_node_list.append(inclusive_descendant);
+            return TraversalDecision::Continue;
+        });
+
+        for (auto& inclusive_descendant : insertion_steps_node_list) {
             // 1. Run the insertion steps with inclusiveDescendant.
-            inclusive_descendant.inserted();
+            inclusive_descendant->inserted();
 
             // 2. If inclusiveDescendant is connected, then:
             // NOTE: This is not specified here in the spec, but these steps can only be performed on an element.
-            if (auto* element = as_if<DOM::Element>(inclusive_descendant); element && inclusive_descendant.is_connected()) {
+            if (auto* element = as_if<DOM::Element>(*inclusive_descendant); element && inclusive_descendant->is_connected()) {
                 // 1. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with inclusiveDescendant,
                 //    callback name "connectedCallback", and an empty argument list.
                 if (element->is_custom()) {
@@ -750,9 +758,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
                     element->try_to_upgrade();
                 }
             }
-
-            return TraversalDecision::Continue;
-        });
+        }
     }
 
     // 8. If suppress observers flag is unset, then queue a tree mutation record for parent with nodes, « », previousSibling, and child.
