@@ -64,20 +64,18 @@ private:
     Token m_current_token;
     char16_t m_current_code_unit { 0 };
     bool m_eof { false };
+    bool m_regex_is_in_character_class { false };
+    bool m_allow_html_comments { true };
 
     String m_filename;
     size_t m_line_number { 1 };
     size_t m_line_column { 0 };
-
-    bool m_regex_is_in_character_class { false };
 
     struct TemplateState {
         bool in_expr;
         u8 open_bracket_count;
     };
     Vector<TemplateState> m_template_states;
-
-    bool m_allow_html_comments { true };
 
     static HashMap<Utf16FlyString, TokenType> s_keywords;
 };
