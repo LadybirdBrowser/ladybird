@@ -152,11 +152,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             break;
         }
 
-        CSS::CalculationResolutionContext calculation_context {
-            .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node()),
-        };
-        auto miter_limit = graphics_element.stroke_miterlimit().value_or(CSS::InitialValues::stroke_miterlimit()).resolved(calculation_context).value_or(0);
-
+        auto miter_limit = graphics_element.stroke_miterlimit().value_or(0);
         auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
 
         // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
