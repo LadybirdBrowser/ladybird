@@ -685,13 +685,19 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
             m_fetch_controller->stop_fetch();
 
         // 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        bool had_media_source = false;
         if (m_media_source) {
+            had_media_source = true;
             // FIXME: Implement MediaSource detachment properly
             m_media_source = nullptr;
         }
 
         // 4. Forget the media element's media-resource-specific tracks.
-        forget_media_resource_specific_tracks();
+        // NOTE: For MSE, tracks are added dynamically by SourceBuffers and managed by the PlaybackManager.
+        // We should NOT clear them during load_element() as they persist across ready state changes.
+        // Only clear tracks for traditional media resources (non-MSE).
+        if (!had_media_source && !m_mse_playback_manager)
+            forget_media_resource_specific_tracks();
 
         // 5. If readyState is not set to HAVE_NOTHING, then set it to that state.
         if (m_ready_state != ReadyState::HaveNothing)
@@ -834,7 +840,10 @@ private:
         //            the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
 
         // 11. ⌛ Forget the media element's media-resource-specific tracks.
-        m_media_element->forget_media_resource_specific_tracks();
+        // NOTE: This is part of the resource selection algorithm for <source> elements, which doesn't apply to MSE.
+        // For MSE, tracks are managed by SourceBuffers and should not be cleared here.
+        if (!m_media_element->m_mse_playback_manager)
+            m_media_element->forget_media_resource_specific_tracks();
 
         TRY(find_next_candidate(m_candidate));
         return {};
@@ -1402,11 +1411,29 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         // Update playback position from MSE playback manager
         if (m_mse_playback_manager && !seeking()) {
             auto new_position = m_mse_playback_manager->current_time().to_seconds_f64();
+            dbgln("MSE: Playback manager current_time={}s, m_current_playback_position={}s", new_position, m_current_playback_position);
             if (new_position != m_current_playback_position) {
+                dbgln("MSE: Updating current playback position from {}s to {}s", m_current_playback_position, new_position);
                 set_current_playback_position(new_position);
             }
+        } else {
+            dbgln("MSE: NOT updating position - m_mse_playback_manager={}, seeking()={}",
+                  m_mse_playback_manager != nullptr, seeking());
         }
 
+        return;
+    }
+
+    // MSE playback without video sink (audio-only or video sink not yet set)
+    if (m_mse_playback_manager && !seeking()) {
+        auto new_position = m_mse_playback_manager->current_time().to_seconds_f64();
+        dbgln("MSE: (no video sink) Playback manager current_time={}s, m_current_playback_position={}s",
+              new_position, m_current_playback_position);
+        if (new_position != m_current_playback_position) {
+            dbgln("MSE: (no video sink) Updating current playback position from {}s to {}s",
+                  m_current_playback_position, new_position);
+            set_current_playback_position(new_position);
+        }
         return;
     }
 

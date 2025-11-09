@@ -217,8 +217,10 @@ DecoderErrorOr<void> MSEDemuxer::initialize_format_context()
         entry = AK::Duration::zero();
     m_pending_samples.clear();
     m_pending_samples.resize(m_format_context->nb_streams);
-    m_buffered_start = m_timestamp_offset;
-    m_buffered_end = m_timestamp_offset;
+    // NOTE: Initialize buffered range to zero, not timestampOffset
+    // timestampOffset can be negative for live streams, but buffered ranges should always be >= 0
+    m_buffered_start = AK::Duration::zero();
+    m_buffered_end = AK::Duration::zero();
 
     // Extract duration if available
     if (m_format_context->duration > 0) {
