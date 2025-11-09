@@ -12,7 +12,9 @@
 #include <LibUnicode/ICU.h>
 
 #include <unicode/uchar.h>
+#include <unicode/uniset.h>
 #include <unicode/uscript.h>
+#include <unicode/uset.h>
 
 namespace Unicode {
 
@@ -319,6 +321,39 @@ bool is_ecma262_string_property(Property property)
     default:
         return false;
     }
+}
+
+Vector<String> get_property_strings(Property property)
+{
+    Vector<String> result;
+
+    if (!is_ecma262_string_property(property))
+        return result;
+
+    UErrorCode status = U_ZERO_ERROR;
+    auto const* icu_set = u_getBinaryPropertySet(static_cast<UProperty>(property.value()), &status);
+    if (!icu_success(status) || !icu_set)
+        return result;
+
+    auto const* unicode_set = icu::UnicodeSet::fromUSet(icu_set);
+    if (!unicode_set)
+        return result;
+
+    auto range_count = unicode_set->getRangeCount();
+    for (int32_t i = 0; i < range_count; ++i) {
+        auto start = unicode_set->getRangeStart(i);
+        auto end = unicode_set->getRangeEnd(i);
+
+        for (auto code_point = start; code_point <= end; ++code_point) {
+            result.append(String::from_code_point(code_point));
+        }
+    }
+
+    for (auto const& str : unicode_set->strings()) {
+        result.append(icu_string_to_string(str));
+    }
+
+    return result;
 }
 
 Optional<Script> script_from_string(StringView script)

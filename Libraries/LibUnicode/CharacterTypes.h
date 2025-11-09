@@ -40,6 +40,7 @@ bool code_point_has_white_space_property(u32 code_point);
 
 bool is_ecma262_property(Property);
 bool is_ecma262_string_property(Property);
+Vector<String> get_property_strings(Property);
 
 Optional<Script> script_from_string(StringView);
 bool code_point_has_script(u32 code_point, Script script);

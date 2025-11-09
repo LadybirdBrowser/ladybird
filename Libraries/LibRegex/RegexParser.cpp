@@ -1684,7 +1684,15 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
                 compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
             property.visit(
                 [&](Unicode::Property property) {
-                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
+                    if (Unicode::is_ecma262_string_property(property) && !negated) {
+                        auto strings = Unicode::get_property_strings(property);
+                        if (!strings.is_empty()) {
+                            auto string_set_index = m_parser_state.bytecode.string_set_table().set(move(strings));
+                            compares.empend(CompareTypeAndValuePair { CharacterCompareType::StringSet, string_set_index });
+                        }
+                    } else {
+                        compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
+                    }
                 },
                 [&](Unicode::GeneralCategory general_category) {
                     compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category.value() });
@@ -2165,6 +2173,11 @@ bool ECMA262Parser::parse_class_union(Vector<regex::CompareTypeAndValuePair>& co
         first = false;
     }
 
+    if (!first) {
+        compares.prepend({ CharacterCompareType::Or, 0 });
+        compares.append({ CharacterCompareType::EndAndOr, 0 });
+    }
+
     restore_position.disarm();
     return !has_error();
 }
@@ -2220,7 +2233,7 @@ bool ECMA262Parser::parse_class_subtraction(Vector<CompareTypeAndValuePair>& com
     if (!try_skip("--"sv))
         return false;
 
-    compares.append({ CharacterCompareType::And, 0 });
+    compares.append({ CharacterCompareType::Subtract, 0 });
     compares.extend(move(lhs));
 
     do {
@@ -2228,7 +2241,6 @@ bool ECMA262Parser::parse_class_subtraction(Vector<CompareTypeAndValuePair>& com
         if (!parse_class_set_operand(rhs))
             return false;
 
-        compares.append({ CharacterCompareType::TemporaryInverse, 0 });
         compares.extend(rhs);
     } while (!has_error() && try_skip("--"sv));
 
@@ -2376,7 +2388,15 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
             compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
         property.visit(
             [&](Unicode::Property property) {
-                compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
+                if (Unicode::is_ecma262_string_property(property) && !negated) {
+                    auto strings = Unicode::get_property_strings(property);
+                    if (!strings.is_empty()) {
+                        auto string_set_index = m_parser_state.bytecode.string_set_table().set(move(strings));
+                        compares.empend(CompareTypeAndValuePair { CharacterCompareType::StringSet, string_set_index });
+                    }
+                } else {
+                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
+                }
             },
             [&](Unicode::GeneralCategory general_category) {
                 compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category.value() });
@@ -2477,8 +2497,15 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
                                 return;
                             }
                         }
+
+                        auto strings = Unicode::get_property_strings(property);
+                        if (!strings.is_empty()) {
+                            auto string_set_index = m_parser_state.bytecode.string_set_table().set(move(strings));
+                            compares.empend(CompareTypeAndValuePair { CharacterCompareType::StringSet, string_set_index });
+                        }
+                    } else {
+                        compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
                     }
-                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
                 },
                 [&](Unicode::GeneralCategory general_category) {
                     compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category.value() });
