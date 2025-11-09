@@ -134,8 +134,8 @@ class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
     static CSSPixels font_size() { return 16; }
-    static FontKerning font_kerning() { return FontKerning::Auto; }
     static double font_weight() { return 400; }
+    static Gfx::ShapeFeatures font_features() { return {}; }
     static CSSPixels line_height() { return 0; }
     static Float float_() { return Float::None; }
     static Length border_spacing() { return Length::make_px(0); }
@@ -161,7 +161,6 @@ public:
     static TextOverflow text_overflow() { return TextOverflow::Clip; }
     static LengthPercentage text_indent() { return Length::make_px(0); }
     static TextWrapMode text_wrap_mode() { return TextWrapMode::Wrap; }
-    static TextRendering text_rendering() { return TextRendering::Auto; }
     static CSSPixels text_underline_offset() { return 2; }
     static TextUnderlinePosition text_underline_position() { return { .horizontal = TextUnderlinePositionHorizontal::Auto, .vertical = TextUnderlinePositionVertical::Auto }; }
     static Display display() { return Display { DisplayOutside::Inline, DisplayInside::Flow }; }
@@ -500,7 +499,6 @@ public:
     TextJustify text_justify() const { return m_inherited.text_justify; }
     LengthPercentage const& text_indent() const { return m_inherited.text_indent; }
     TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
-    TextRendering text_rendering() const { return m_inherited.text_rendering; }
     CSSPixels text_underline_offset() const { return m_inherited.text_underline_offset; }
     TextUnderlinePosition text_underline_position() const { return m_inherited.text_underline_position; }
     Vector<TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
@@ -643,16 +641,8 @@ public:
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
     double font_weight() const { return m_inherited.font_weight; }
-    Optional<Gfx::FontVariantAlternates> font_variant_alternates() const { return m_inherited.font_variant_alternates; }
-    FontVariantCaps font_variant_caps() const { return m_inherited.font_variant_caps; }
-    Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const { return m_inherited.font_variant_east_asian; }
-    FontVariantEmoji font_variant_emoji() const { return m_inherited.font_variant_emoji; }
-    Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const { return m_inherited.font_variant_ligatures; }
-    Optional<Gfx::FontVariantNumeric> font_variant_numeric() const { return m_inherited.font_variant_numeric; }
-    FontVariantPosition font_variant_position() const { return m_inherited.font_variant_position; }
-    FontKerning font_kerning() const { return m_inherited.font_kerning; }
+    Gfx::ShapeFeatures font_features() const { return m_inherited.font_features; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
-    HashMap<StringView, u8> font_feature_settings() const { return m_inherited.font_feature_settings; }
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const { return m_inherited.font_variation_settings; }
     CSSPixels line_height() const { return m_inherited.line_height; }
     Time transition_delay() const { return m_noninherited.transition_delay; }
@@ -688,16 +678,8 @@ protected:
         RefPtr<Gfx::FontCascadeList const> font_list {};
         CSSPixels font_size { InitialValues::font_size() };
         double font_weight { InitialValues::font_weight() };
-        Optional<Gfx::FontVariantAlternates> font_variant_alternates;
-        FontVariantCaps font_variant_caps { FontVariantCaps::Normal };
-        Optional<Gfx::FontVariantEastAsian> font_variant_east_asian;
-        FontVariantEmoji font_variant_emoji { FontVariantEmoji::Normal };
-        Optional<Gfx::FontVariantLigatures> font_variant_ligatures;
-        Optional<Gfx::FontVariantNumeric> font_variant_numeric;
-        FontVariantPosition font_variant_position { FontVariantPosition::Normal };
-        FontKerning font_kerning { InitialValues::font_kerning() };
+        Gfx::ShapeFeatures font_features { InitialValues::font_features() };
         Optional<FlyString> font_language_override;
-        HashMap<StringView, u8> font_feature_settings;
         Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings;
         CSSPixels line_height { InitialValues::line_height() };
         BorderCollapse border_collapse { InitialValues::border_collapse() };
@@ -720,7 +702,6 @@ protected:
         TextTransform text_transform { InitialValues::text_transform() };
         LengthPercentage text_indent { InitialValues::text_indent() };
         TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
-        TextRendering text_rendering { InitialValues::text_rendering() };
         CSSPixels text_underline_offset { InitialValues::text_underline_offset() };
         TextUnderlinePosition text_underline_position { InitialValues::text_underline_position() };
         WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
@@ -900,16 +881,8 @@ public:
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
     void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
-    void set_font_variant_alternates(Optional<Gfx::FontVariantAlternates> font_variant_alternates) { m_inherited.font_variant_alternates = move(font_variant_alternates); }
-    void set_font_variant_caps(FontVariantCaps font_variant_caps) { m_inherited.font_variant_caps = font_variant_caps; }
-    void set_font_variant_east_asian(Optional<Gfx::FontVariantEastAsian> font_variant_east_asian) { m_inherited.font_variant_east_asian = move(font_variant_east_asian); }
-    void set_font_variant_emoji(FontVariantEmoji font_variant_emoji) { m_inherited.font_variant_emoji = font_variant_emoji; }
-    void set_font_variant_ligatures(Optional<Gfx::FontVariantLigatures> font_variant_ligatures) { m_inherited.font_variant_ligatures = move(font_variant_ligatures); }
-    void set_font_variant_numeric(Optional<Gfx::FontVariantNumeric> font_variant_numeric) { m_inherited.font_variant_numeric = move(font_variant_numeric); }
-    void set_font_variant_position(FontVariantPosition font_variant_position) { m_inherited.font_variant_position = font_variant_position; }
-    void set_font_kerning(FontKerning font_kerning) { m_inherited.font_kerning = font_kerning; }
+    void set_font_features(Gfx::ShapeFeatures font_features) { m_inherited.font_features = move(font_features); }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
-    void set_font_feature_settings(HashMap<StringView, u8> value) { m_inherited.font_feature_settings = move(value); }
     void set_font_variation_settings(Optional<HashMap<FlyString, NumberOrCalculated>> value) { m_inherited.font_variation_settings = move(value); }
     void set_line_height(CSSPixels line_height) { m_inherited.line_height = line_height; }
     void set_border_spacing_horizontal(Length border_spacing_horizontal) { m_inherited.border_spacing_horizontal = move(border_spacing_horizontal); }
@@ -941,7 +914,6 @@ public:
     void set_text_indent(LengthPercentage value) { m_inherited.text_indent = move(value); }
     void set_text_wrap_mode(TextWrapMode value) { m_inherited.text_wrap_mode = value; }
     void set_text_overflow(TextOverflow value) { m_noninherited.text_overflow = value; }
-    void set_text_rendering(TextRendering value) { m_inherited.text_rendering = value; }
     void set_text_underline_offset(CSSPixels value) { m_inherited.text_underline_offset = value; }
     void set_text_underline_position(TextUnderlinePosition value) { m_inherited.text_underline_position = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
