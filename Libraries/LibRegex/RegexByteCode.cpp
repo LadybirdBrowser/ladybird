@@ -175,6 +175,41 @@ StringTable::~StringTable()
         --s_next_string_table_serial; // We didn't use this serial, put it back.
 }
 
+static u32 s_next_string_set_table_serial { 0 };
+
+StringSetTable::StringSetTable()
+    : m_serial(s_next_string_set_table_serial++)
+{
+}
+
+StringSetTable::~StringSetTable()
+{
+    if (m_serial == s_next_string_set_table_serial - 1 && m_u8_tries.is_empty())
+        --s_next_string_set_table_serial;
+}
+
+StringSetTable::StringSetTable(StringSetTable const& other)
+    : m_serial(s_next_string_set_table_serial++)
+{
+    for (auto const& entry : other.m_u8_tries)
+        m_u8_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
+    for (auto const& entry : other.m_u16_tries)
+        m_u16_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
+}
+
+StringSetTable& StringSetTable::operator=(StringSetTable const& other)
+{
+    if (this != &other) {
+        m_u8_tries.clear();
+        m_u16_tries.clear();
+        for (auto const& entry : other.m_u8_tries)
+            m_u8_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
+        for (auto const& entry : other.m_u16_tries)
+            m_u16_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
+    }
+    return *this;
+}
+
 void ByteCode::ensure_opcodes_initialized()
 {
     if (s_opcodes_initialized)
@@ -450,8 +485,10 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
     struct DisjunctionState {
         bool active { false };
         bool is_conjunction { false };
+        bool is_subtraction { false };
         bool fail { false };
         bool inverse_matched { false };
+        size_t subtraction_operand_index { 0 };
         size_t initial_position;
         size_t initial_code_unit_position;
         Optional<size_t> last_accepted_position {};
@@ -471,19 +508,35 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
     state.string_position_before_match = state.string_position;
 
+    bool has_string_set = false;
+    bool string_set_matched = false;
+    size_t best_match_position = state.string_position;
+    size_t best_match_position_in_code_units = state.string_position_in_code_units;
+
     size_t offset { state.instruction_position + 3 };
+    CharacterCompareType last_compare_type = CharacterCompareType::Undefined;
+
     for (size_t i = 0; i < argument_count; ++i) {
         if (state.string_position > string_position)
             break;
 
+        if (has_string_set) {
+            state.string_position = string_position;
+            state.string_position_in_code_units = current_disjunction_state().initial_code_unit_position;
+        }
+
+        auto compare_type = (CharacterCompareType)m_bytecode->at(offset++);
+
         if (reset_temp_inverse) {
             reset_temp_inverse = false;
-            temporary_inverse = false;
+            if (compare_type != CharacterCompareType::Property || last_compare_type != CharacterCompareType::StringSet) {
+                temporary_inverse = false;
+            }
         } else {
             reset_temp_inverse = true;
         }
 
-        auto compare_type = (CharacterCompareType)m_bytecode->at(offset++);
+        last_compare_type = compare_type;
 
         switch (compare_type) {
         case CharacterCompareType::Inverse:
@@ -710,12 +763,128 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             compare_script_extension(input, state, script, current_inversion_state(), inverse_matched);
             break;
         }
+        case CharacterCompareType::StringSet: {
+            has_string_set = true;
+            auto string_set_index = m_bytecode->at(offset++);
+
+            bool matched = false;
+            size_t longest_match_length = 0;
+
+            auto find_longest_match = [&](auto const& view, auto const& trie) {
+                auto const* current = &trie;
+                size_t current_code_unit_offset = state.string_position_in_code_units;
+
+                while (true) {
+                    u32 value;
+
+                    if constexpr (IsSame<decltype(view), Utf16View const&>) {
+                        if (current_code_unit_offset >= view.length_in_code_units())
+                            break;
+                        value = view.code_unit_at(current_code_unit_offset);
+                    } else {
+                        if (current_code_unit_offset >= input.view.length_in_code_units())
+                            break;
+                        value = input.view.code_point_at(current_code_unit_offset);
+                    }
+
+                    if (input.regex_options & AllFlags::Insensitive) {
+                        bool found_child = false;
+                        for (auto const& [key, child] : current->children()) {
+                            if (to_ascii_lowercase(key) == to_ascii_lowercase(value)) {
+                                current = static_cast<StringSetTrie const*>(child.ptr());
+                                current_code_unit_offset++;
+                                found_child = true;
+                                break;
+                            }
+                        }
+                        if (!found_child)
+                            break;
+                    } else {
+                        auto it = current->children().find(value);
+                        if (it == current->children().end())
+                            break;
+
+                        current = static_cast<StringSetTrie const*>(it->value.ptr());
+                        current_code_unit_offset++;
+                    }
+
+                    auto is_terminal = current->has_metadata() && current->metadata_value();
+                    if (is_terminal) {
+                        size_t match_length_in_code_points;
+                        if constexpr (IsSame<decltype(view), Utf16View const&>) {
+                            size_t code_points = 0;
+                            for (size_t i = state.string_position_in_code_units; i < current_code_unit_offset;) {
+                                auto code_point = view.code_point_at(i);
+                                i += code_point >= 0x10000 ? 2 : 1;
+                                code_points++;
+                            }
+                            match_length_in_code_points = code_points;
+                        } else {
+                            size_t code_points = 0;
+                            for (size_t i = state.string_position_in_code_units; i < current_code_unit_offset;) {
+                                auto code_point = input.view.code_point_at(i);
+                                if (code_point <= 0x7F)
+                                    i += 1;
+                                else if (code_point <= 0x7FF)
+                                    i += 2;
+                                else if (code_point <= 0xFFFF)
+                                    i += 3;
+                                else
+                                    i += 4;
+                                code_points++;
+                            }
+                            match_length_in_code_points = code_points;
+                        }
+
+                        if (match_length_in_code_points > longest_match_length) {
+                            matched = true;
+                            longest_match_length = match_length_in_code_points;
+                        }
+                    }
+                }
+            };
+
+            if (input.view.u16_view().is_null()) {
+                auto const& trie = m_bytecode->string_set_table().get_u8_trie(string_set_index);
+                StringView view;
+                find_longest_match(view, trie);
+            } else {
+                auto const& view = input.view.u16_view();
+                auto const& trie = m_bytecode->string_set_table().get_u16_trie(string_set_index);
+                find_longest_match(view, trie);
+            }
+
+            if (matched) {
+                if (current_inversion_state()) {
+                    inverse_matched = true;
+                } else {
+                    state.string_position += longest_match_length;
+                    if (input.view.unicode()) {
+                        state.string_position_in_code_units = input.view.code_unit_offset_of(state.string_position);
+                    } else {
+                        state.string_position_in_code_units = state.string_position;
+                    }
+                }
+            }
+            break;
+        }
         case CharacterCompareType::And:
             disjunction_states.append({
                 .active = true,
                 .is_conjunction = current_inversion_state(),
                 .fail = current_inversion_state(),
                 .inverse_matched = current_inversion_state(),
+                .initial_position = state.string_position,
+                .initial_code_unit_position = state.string_position_in_code_units,
+            });
+            continue;
+        case CharacterCompareType::Subtract:
+            disjunction_states.append({
+                .active = true,
+                .is_conjunction = true,
+                .is_subtraction = true,
+                .fail = true,
+                .inverse_matched = false,
                 .initial_position = state.string_position,
                 .initial_code_unit_position = state.string_position_in_code_units,
             });
@@ -735,6 +904,10 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             if (!disjunction_state.fail) {
                 state.string_position = disjunction_state.last_accepted_position.value_or(disjunction_state.initial_position);
                 state.string_position_in_code_units = disjunction_state.last_accepted_code_unit_position.value_or(disjunction_state.initial_code_unit_position);
+            } else if (has_string_set) {
+                string_set_matched = false;
+                best_match_position = disjunction_state.initial_position;
+                best_match_position_in_code_units = disjunction_state.initial_code_unit_position;
             }
             inverse_matched = disjunction_state.inverse_matched || disjunction_state.fail;
             break;
@@ -751,6 +924,12 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             inverse_matched = true;
         }
 
+        if (has_string_set && state.string_position > best_match_position) {
+            best_match_position = state.string_position;
+            best_match_position_in_code_units = state.string_position_in_code_units;
+            string_set_matched = true;
+        }
+
         if (!has_single_argument && new_disjunction_state.active) {
             auto failed = (!had_zero_length_match && string_position == state.string_position) || state.string_position > input.view.length();
 
@@ -760,10 +939,18 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
                 new_disjunction_state.inverse_matched |= inverse_matched;
             }
 
-            if (new_disjunction_state.is_conjunction)
+            if (new_disjunction_state.is_subtraction) {
+                if (new_disjunction_state.subtraction_operand_index == 0) {
+                    new_disjunction_state.fail = failed && new_disjunction_state.fail;
+                } else if (!failed && (!has_string_set || state.string_position >= best_match_position)) {
+                    new_disjunction_state.fail = true;
+                }
+                new_disjunction_state.subtraction_operand_index++;
+            } else if (new_disjunction_state.is_conjunction) {
                 new_disjunction_state.fail = failed && new_disjunction_state.fail;
-            else
+            } else {
                 new_disjunction_state.fail = failed || new_disjunction_state.fail;
+            }
 
             state.string_position = new_disjunction_state.initial_position;
             state.string_position_in_code_units = new_disjunction_state.initial_code_unit_position;
@@ -773,11 +960,16 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
     if (!has_single_argument) {
         auto& new_disjunction_state = current_disjunction_state();
-        if (new_disjunction_state.active) {
-            if (!new_disjunction_state.fail) {
-                state.string_position = new_disjunction_state.last_accepted_position.value_or(new_disjunction_state.initial_position);
-                state.string_position_in_code_units = new_disjunction_state.last_accepted_code_unit_position.value_or(new_disjunction_state.initial_code_unit_position);
-            }
+        if (new_disjunction_state.active && !new_disjunction_state.fail) {
+            state.string_position = new_disjunction_state.last_accepted_position.value_or(new_disjunction_state.initial_position);
+            state.string_position_in_code_units = new_disjunction_state.last_accepted_code_unit_position.value_or(new_disjunction_state.initial_code_unit_position);
+        }
+    }
+
+    if (has_string_set && string_set_matched) {
+        if (has_single_argument || best_match_position > string_position) {
+            state.string_position = best_match_position;
+            state.string_position_in_code_units = best_match_position_in_code_units;
         }
     }
 

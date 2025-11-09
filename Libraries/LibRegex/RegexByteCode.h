@@ -14,6 +14,7 @@
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
+#include <AK/Trie.h>
 #include <AK/TypeCasts.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
@@ -78,7 +79,9 @@ enum class OpCodeId : ByteCodeValueType {
     __ENUMERATE_CHARACTER_COMPARE_TYPE(LookupTable)          \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(And)                  \
     __ENUMERATE_CHARACTER_COMPARE_TYPE(Or)                   \
-    __ENUMERATE_CHARACTER_COMPARE_TYPE(EndAndOr)
+    __ENUMERATE_CHARACTER_COMPARE_TYPE(EndAndOr)             \
+    __ENUMERATE_CHARACTER_COMPARE_TYPE(Subtract)             \
+    __ENUMERATE_CHARACTER_COMPARE_TYPE(StringSet)
 
 enum class CharacterCompareType : ByteCodeValueType {
 #define __ENUMERATE_CHARACTER_COMPARE_TYPE(x) x,
@@ -177,6 +180,62 @@ struct REGEX_API StringTable {
     HashMap<ByteCodeValueType, FlyString> m_inverse_table;
 };
 
+using StringSetTrie = Trie<u32, bool>;
+
+struct REGEX_API StringSetTable {
+    StringSetTable();
+    ~StringSetTable();
+    StringSetTable(StringSetTable const& other);
+    StringSetTable(StringSetTable&&) = default;
+    StringSetTable& operator=(StringSetTable const& other);
+    StringSetTable& operator=(StringSetTable&&) = default;
+
+    ByteCodeValueType set(Vector<String> const& strings)
+    {
+        u32 local_index = m_u8_tries.size();
+        ByteCodeValueType global_index = static_cast<ByteCodeValueType>(m_serial) << 32 | static_cast<ByteCodeValueType>(local_index);
+
+        StringSetTrie u8_trie { 0, false };
+        StringSetTrie u16_trie { 0, false };
+
+        for (auto const& str : strings) {
+            Vector<u32> code_points;
+            Utf8View utf8_view { str.bytes_as_string_view() };
+            for (auto code_point : utf8_view)
+                code_points.append(code_point);
+
+            (void)u8_trie.insert(code_points.begin(), code_points.end(), true, [](auto&, auto) { return false; });
+
+            auto utf16_string = Utf16String::from_utf32({ code_points.data(), code_points.size() });
+            Vector<u32> u16_code_units;
+            auto utf16_view = utf16_string.utf16_view();
+            for (size_t i = 0; i < utf16_view.length_in_code_units(); i++) {
+                auto code_unit = utf16_view.code_unit_at(i);
+                u16_code_units.append(code_unit);
+            }
+            (void)u16_trie.insert(u16_code_units.begin(), u16_code_units.end(), true, [](auto&, auto) { return false; });
+        }
+
+        m_u8_tries.set(global_index, move(u8_trie));
+        m_u16_tries.set(global_index, move(u16_trie));
+        return global_index;
+    }
+
+    StringSetTrie const& get_u8_trie(ByteCodeValueType index) const
+    {
+        return m_u8_tries.get(index).value();
+    }
+
+    StringSetTrie const& get_u16_trie(ByteCodeValueType index) const
+    {
+        return m_u16_tries.get(index).value();
+    }
+
+    u32 m_serial { 0 };
+    HashMap<ByteCodeValueType, StringSetTrie> m_u8_tries;
+    HashMap<ByteCodeValueType, StringSetTrie> m_u16_tries;
+};
+
 class REGEX_API ByteCode : public DisjointChunks<ByteCodeValueType> {
     using Base = DisjointChunks<ByteCodeValueType>;
 
@@ -262,6 +321,9 @@ public:
     FlyString get_string(size_t index) const { return m_string_table.get(index); }
     auto const& string_table() const { return m_string_table; }
 
+    auto const& string_set_table() const { return m_string_set_table; }
+    auto& string_set_table() { return m_string_set_table; }
+
     Optional<size_t> get_group_name_index(size_t group_index) const
     {
         return m_group_name_mappings.get(group_index);
@@ -285,6 +347,13 @@ public:
                 m_string_table.m_table.set(entry.key, entry.value);
             }
             m_string_table.m_inverse_table.update(other.m_string_table.m_inverse_table);
+
+            for (auto const& entry : other.m_string_set_table.m_u8_tries) {
+                m_string_set_table.m_u8_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
+            }
+            for (auto const& entry : other.m_string_set_table.m_u16_tries) {
+                m_string_set_table.m_u16_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
+            }
 
             for (auto const& mapping : other.m_group_name_mappings) {
                 m_group_name_mappings.set(mapping.key, mapping.value);
@@ -631,6 +700,7 @@ private:
     static bool s_opcodes_initialized;
     static size_t s_next_checkpoint_serial_id;
     StringTable m_string_table;
+    StringSetTable m_string_set_table;
     HashMap<size_t, size_t> m_group_name_mappings;
 };
 

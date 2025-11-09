@@ -113,6 +113,8 @@ static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, Stati
             // FIXME: We just need to look at the last character of this string, but we only have the first character here.
             //        Just bail out to avoid false positives.
             return false;
+        case CharacterCompareType::StringSet:
+            return false;
         case CharacterCompareType::CharClass:
             if (!current_lhs_inversion_state())
                 lhs_char_classes.set(static_cast<CharClass>(pair.value));
@@ -167,6 +169,7 @@ static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, Stati
             // These are the default behaviour for [...], so we don't need to do anything (unless we add support for 'And' below).
             break;
         case CharacterCompareType::And:
+        case CharacterCompareType::Subtract:
             // FIXME: These are too difficult to handle, so bail out.
             return false;
         case CharacterCompareType::Undefined:
@@ -495,6 +498,8 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             // FIXME: We just need to look at the last character of this string, but we only have the first character here.
             //        Just bail out to avoid false positives.
             return true;
+        case CharacterCompareType::StringSet:
+            return true;
         case CharacterCompareType::CharClass: {
             auto contains = char_class_contains(static_cast<CharClass>(pair.value));
             if (!in_or() && (current_lhs_inversion_state() ^ contains))
@@ -613,6 +618,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             break;
         }
         case CharacterCompareType::And:
+        case CharacterCompareType::Subtract:
             // FIXME: These are too difficult to handle, so bail out.
             return true;
         case CharacterCompareType::Undefined:
@@ -1838,6 +1844,7 @@ static LookupTableInsertionOutcome insert_into_lookup_table(RedBlackTree<ByteCod
     case CharacterCompareType::EndAndOr:
         return LookupTableInsertionOutcome::FinishFlushOnInsertion;
     case CharacterCompareType::And:
+    case CharacterCompareType::Subtract:
         return LookupTableInsertionOutcome::FlushOnInsertion;
     case CharacterCompareType::Reference:
     case CharacterCompareType::NamedReference:
@@ -1845,6 +1852,7 @@ static LookupTableInsertionOutcome insert_into_lookup_table(RedBlackTree<ByteCod
     case CharacterCompareType::GeneralCategory:
     case CharacterCompareType::Script:
     case CharacterCompareType::ScriptExtension:
+    case CharacterCompareType::StringSet:
     case CharacterCompareType::Or:
         return LookupTableInsertionOutcome::CannotPlaceInTable;
     case CharacterCompareType::Undefined:
@@ -1870,6 +1878,7 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
                 && pair.type != CharacterCompareType::Inverse
                 && pair.type != CharacterCompareType::And
                 && pair.type != CharacterCompareType::Or
+                && pair.type != CharacterCompareType::Subtract
                 && pair.type != CharacterCompareType::EndAndOr)
                 arguments.append(pair.value);
             ++argument_count;
@@ -1983,6 +1992,7 @@ void Optimizer::append_character_class(ByteCode& target, Vector<CompareTypeAndVa
                     && value.type != CharacterCompareType::Inverse
                     && value.type != CharacterCompareType::And
                     && value.type != CharacterCompareType::Or
+                    && value.type != CharacterCompareType::Subtract
                     && value.type != CharacterCompareType::EndAndOr)
                     arguments.append(value.value);
                 ++argument_count;
