@@ -467,14 +467,7 @@ Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
     // FIXME 4. Feature settings determined by properties other than ‘font-variant’ or ‘font-feature-settings’. For example, setting a non-default value for the ‘letter-spacing’ property disables common ligatures.
 
     // 5. Font features implied by the value of ‘font-feature-settings’ property.
-    CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*m_current_node.ptr()) };
-    auto font_feature_settings = computed_values.font_feature_settings();
-    if (font_feature_settings.has_value()) {
-        auto const& feature_settings = font_feature_settings.value();
-        for (auto const& [key, feature_value] : feature_settings) {
-            merged_features.set(key, feature_value.resolved(calculation_context).value_or(0));
-        }
-    }
+    merged_features.update(computed_values.font_feature_settings());
 
     Gfx::ShapeFeatures shape_features;
     shape_features.ensure_capacity(merged_features.size());
@@ -554,18 +547,11 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             }
 
             // https://drafts.csswg.org/css-text/#tab-size-property
-            CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*text_node) };
-            auto tab_size = text_node->computed_values().tab_size();
-            CSSPixels tab_width;
-            tab_width = tab_size.visit(
-                [&](CSS::LengthOrCalculated const& t) -> CSSPixels {
-                    return t.resolved(calculation_context)
-                        .map([&](auto& it) { return it.to_px(*text_node); })
-                        .value_or(0);
+            auto tab_width = text_node->computed_values().tab_size().visit(
+                [&](CSS::Length const& length) -> CSSPixels {
+                    return length.absolute_length_to_px();
                 },
-                [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
-                    auto tab_number = n.resolved(calculation_context).value_or(0);
-
+                [&](double tab_number) -> CSSPixels {
                     return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));
                 });
 

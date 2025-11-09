@@ -109,7 +109,7 @@ public:
     ContentDataAndQuoteNestingLevel content(DOM::AbstractElement&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
-    Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
+    Variant<Length, double> tab_size() const;
     WhiteSpaceCollapse white_space_collapse() const;
     WhiteSpaceTrimData white_space_trim() const;
     WordBreak word_break() const;
@@ -159,7 +159,7 @@ public:
     FontVariantPosition font_variant_position() const;
     FontKerning font_kerning() const;
     Optional<FlyString> font_language_override() const;
-    Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
+    HashMap<StringView, u8> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
     GridTrackSizeList grid_auto_columns() const;
     GridTrackSizeList grid_auto_rows() const;
@@ -215,7 +215,7 @@ public:
     float fill_opacity() const;
     StrokeLinecap stroke_linecap() const;
     StrokeLinejoin stroke_linejoin() const;
-    NumberOrCalculated stroke_miterlimit() const;
+    double stroke_miterlimit() const;
     float stroke_opacity() const;
     FillRule fill_rule() const;
     ClipRule clip_rule() const;

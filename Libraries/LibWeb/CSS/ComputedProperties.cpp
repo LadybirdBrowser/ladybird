@@ -494,17 +494,15 @@ StrokeLinejoin ComputedProperties::stroke_linejoin() const
     return keyword_to_stroke_linejoin(value.to_keyword()).release_value();
 }
 
-NumberOrCalculated ComputedProperties::stroke_miterlimit() const
+double ComputedProperties::stroke_miterlimit() const
 {
     auto const& value = property(PropertyID::StrokeMiterlimit);
 
     if (value.is_calculated()) {
-        auto const& math_value = value.as_calculated();
-        VERIFY(math_value.resolves_to_number());
-        return NumberOrCalculated { math_value };
+        return value.as_calculated().resolve_number({}).value();
     }
 
-    return NumberOrCalculated { value.as_number().number() };
+    return value.as_number().number();
 }
 
 float ComputedProperties::stroke_opacity() const
@@ -914,23 +912,23 @@ PointerEvents ComputedProperties::pointer_events() const
     return keyword_to_pointer_events(value.to_keyword()).release_value();
 }
 
-Variant<LengthOrCalculated, NumberOrCalculated> ComputedProperties::tab_size() const
+Variant<Length, double> ComputedProperties::tab_size() const
 {
     auto const& value = property(PropertyID::TabSize);
     if (value.is_calculated()) {
         auto const& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
-            return LengthOrCalculated { math_value };
+            return math_value.resolve_length({}).value();
         }
         if (math_value.resolves_to_number()) {
-            return NumberOrCalculated { math_value };
+            return math_value.resolve_number({}).value();
         }
     }
 
     if (value.is_length())
-        return LengthOrCalculated { value.as_length().length() };
+        return value.as_length().length();
 
-    return NumberOrCalculated { value.as_number().number() };
+    return value.as_number().number();
 }
 
 WordBreak ComputedProperties::word_break() const
@@ -1589,7 +1587,7 @@ FontVariantPosition ComputedProperties::font_variant_position() const
     return keyword_to_font_variant_position(value.to_keyword()).release_value();
 }
 
-Optional<HashMap<FlyString, IntegerOrCalculated>> ComputedProperties::font_feature_settings() const
+HashMap<StringView, u8> ComputedProperties::font_feature_settings() const
 {
     auto const& value = property(PropertyID::FontFeatureSettings);
 
@@ -1598,7 +1596,7 @@ Optional<HashMap<FlyString, IntegerOrCalculated>> ComputedProperties::font_featu
 
     if (value.is_value_list()) {
         auto const& feature_tags = value.as_value_list().values();
-        HashMap<FlyString, IntegerOrCalculated> result;
+        HashMap<StringView, u8> result;
         result.ensure_capacity(feature_tags.size());
         for (auto const& tag_value : feature_tags) {
             auto const& feature_tag = tag_value->as_open_type_tagged();
@@ -1607,7 +1605,7 @@ Optional<HashMap<FlyString, IntegerOrCalculated>> ComputedProperties::font_featu
                 result.set(feature_tag.tag(), feature_tag.value()->as_integer().integer());
             } else {
                 VERIFY(feature_tag.value()->is_calculated());
-                result.set(feature_tag.tag(), IntegerOrCalculated { feature_tag.value()->as_calculated() });
+                result.set(feature_tag.tag(), feature_tag.value()->as_calculated().resolve_integer({}).value());
             }
         }
         return result;

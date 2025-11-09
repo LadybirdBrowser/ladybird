@@ -528,8 +528,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
-    if (auto maybe_font_feature_settings = computed_style.font_feature_settings(); maybe_font_feature_settings.has_value())
-        computed_values.set_font_feature_settings(maybe_font_feature_settings.release_value());
     if (auto maybe_font_variant_alternates = computed_style.font_variant_alternates(); maybe_font_variant_alternates.has_value())
         computed_values.set_font_variant_alternates(maybe_font_variant_alternates.release_value());
     computed_values.set_font_variant_caps(computed_style.font_variant_caps());
@@ -540,6 +538,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_font_variant_ligatures(maybe_font_variant_ligatures.release_value());
     if (auto maybe_font_variant_numeric = computed_style.font_variant_numeric(); maybe_font_variant_numeric.has_value())
         computed_values.set_font_variant_numeric(maybe_font_variant_numeric.release_value());
+    computed_values.set_font_feature_settings(computed_style.font_feature_settings());
     computed_values.set_font_variant_position(computed_style.font_variant_position());
     if (auto maybe_font_variation_settings = computed_style.font_variation_settings(); maybe_font_variation_settings.has_value())
         computed_values.set_font_variation_settings(maybe_font_variation_settings.release_value());

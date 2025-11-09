@@ -225,7 +225,7 @@ Optional<CSS::StrokeLinejoin> SVGGraphicsElement::stroke_linejoin() const
     return layout_node()->computed_values().stroke_linejoin();
 }
 
-Optional<CSS::NumberOrCalculated> SVGGraphicsElement::stroke_miterlimit() const
+Optional<double> SVGGraphicsElement::stroke_miterlimit() const
 {
     if (!layout_node())
         return {};
