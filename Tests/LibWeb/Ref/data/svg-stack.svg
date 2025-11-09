@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg id="icon" class="icon" version="1.1" xmlns="http://www.w3.org/2000/svg"
+	xmlns:xlink="http://www.w3.org/1999/xlink">
+	<desc> This svgstack uses icons from the Iconic iconset, http://somerandomdude.com/work/iconic/. This work is
+		licensed under Creative Commons' Attribution-ShareAlike 3.0 United States (CC BY-SA 3.0) -
+		http://creativecommons.org/licenses/by-sa/3.0/us/ </desc>
+	<defs>
+		<style>
+			svg .icon {
+				display: none
+			}
+
+			svg .icon:target {
+				display: inline
+			}
+
+			/* shared styles */
+			.icon {
+				fill: #4E4E50;
+				pointer-events: none;
+			}
+
+			.icon:hover {
+				fill: #4F4F8F;
+			}
+
+			.hitregion {
+				fill: none;
+				pointer-events: fill;
+			}
+		</style>
+	</defs> <svg viewBox="0 0 32 32">
+		<g id="aperture" class="icon">
+			<rect class="hitregion" width="32" height="32" />
+			<path
+				d="M21.172,13.98l5.691-9.664C24.008,1.658,20.211,0,16,0c-0.998,0-1.965,0.119-2.912,0.293L21.172,13.98z" />
+			<path d="M19.951,20h11.482C31.766,18.715,32,17.391,32,16c0-3.873-1.43-7.377-3.723-10.145L19.951,20z" />
+			<path d="M16.5,10l-5.408-9.152C6.592,2.307,2.953,5.646,1.188,10H16.5z" />
+			<path d="M15.633,22l5.391,9.117c4.449-1.484,8.039-4.801,9.789-9.117H15.633z" />
+			<path d="M12.105,12H0.566C0.232,13.285,0,14.609,0,16c0,3.891,1.445,7.41,3.756,10.188L12.105,12z" />
+			<path
+				d="M10.918,17.961l-5.744,9.758C8.027,30.352,11.809,32,16,32c1.041,0,2.055-0.117,3.041-0.305L10.918,17.961z" />
+		</g>
+	</svg> <svg viewBox="0 0 32 28">
+		<g id="book" class="icon">
+			<rect class="hitregion" width="32" height="28" />
+			<path
+				d="M16,4c0,0-4-4-16-4v24c12.125,0,16,4,16,4s3.875-4,16-4V0C20,0,16,4,16,4z M4,4 c5.084,0.426,8.203,1.602,10,2.555v16.109c-1.797-0.949-4.916-2.125-10-2.555V4z M28,20.109c-5.086,0.43-8.205,1.605-10,2.555 V6.555C19.795,5.602,22.914,4.426,28,4V20.109z" />
+		</g>
+	</svg> <svg viewBox="0 0 32 32">
+		<g id="clock" class="icon">
+			<rect class="hitregion" width="32" height="32" />
+			<path
+				d="M16,4c6.617,0,12,5.383,12,12s-5.383,12-12,12S4,22.617,4,16S9.383,4,16,4 M16,0 C7.164,0,0,7.164,0,16s7.164,16,16,16s16-7.164,16-16S24.836,0,16,0L16,0z" />
+			<path
+				d="M21.422,18.578L18,15.152V8h-4.023v7.992c0,0.602,0.277,1.121,0.695,1.492l3.922,3.922 L21.422,18.578z" />
+		</g>
+	</svg> <svg viewBox="0 0 32 28">
+		<g id="stack" class="icon">
+			<rect class="hitregion" width="32" height="28" />
+			<polygon points="0,20 16,24 32,20 32,24 16,28 0,24" />
+			<polygon points="0,12 16,16 32,12 32,16 16,20 0,16" />
+			<polygon points="0,4 16,0 32,4 32,8 16,12 0,8" />
+		</g>
+	</svg> <svg viewBox="0 0 32 32">
+		<g id="star" class="icon">
+			<rect class="hitregion" width="32" height="32" />
+			<polygon points="22.137,19.625 32,12 20,12 16,0 12,12 0,12 9.875,19.594 6,32 16.016,24.32 26.008,32" />
+		</g>
+	</svg>
+</svg>
