@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,10 +28,22 @@ private:
     ContentFilter();
     ~ContentFilter();
 
-    struct Pattern {
-        String text;
+    bool contains(StringView text) const;
+
+    struct Transition {
+        u32 character { 0 };
+        u32 next_state { 0 };
     };
-    Vector<Pattern> m_patterns;
+
+    struct Node {
+        u32 first_transition { 0 };
+        u32 transition_count { 0 };
+    };
+
+    Vector<Node> m_nodes;
+    Vector<Transition> m_transitions;
+    Vector<bool> m_output_nodes;
+
     bool m_filtering_enabled { true };
 };
 
