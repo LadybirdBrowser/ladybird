@@ -95,7 +95,7 @@ test("Unicode non-ASCII matching", () => {
     }
 });
 
-// Test from https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/unicodeSets/generated/character-property-escape-difference-property-of-strings-escape.js
+// https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/unicodeSets/generated
 test("Unicode properties of strings", () => {
     const regexes = [
         /\p{Basic_Emoji}/v,
@@ -113,26 +113,119 @@ test("Unicode properties of strings", () => {
         }).not.toThrow();
     }
 
-    const matchStrings = ["0", "1", "2", "3", "4", "5", "8", "A", "B", "D", "E", "F", "a", "b", "c", "d", "e", "f"];
-
-    const nonMatchStrings = [
-        "6\uFE0F\u20E3",
-        "7\uFE0F\u20E3",
-        "9\uFE0F\u20E3",
-        "\u2603",
-        "\u{1D306}",
-        "\u{1F1E7}\u{1F1EA}",
-    ];
-
-    const re = /^[\p{ASCII_Hex_Digit}--\p{Emoji_Keycap_Sequence}]+$/v;
-
-    for (const str of matchStrings) {
-        expect(re.test(str)).toBeTrue();
+    function testExtendedCharacterClass({ regExp, matchStrings, nonMatchStrings }) {
+        matchStrings.forEach(str => expect(regExp.test(str)).toBeTrue());
+        nonMatchStrings.forEach(str => expect(regExp.test(str)).toBeFalse());
     }
 
-    for (const str of nonMatchStrings) {
-        expect(re.test(str)).toBeFalse();
-    }
+    testExtendedCharacterClass({
+        regExp: /^[\p{ASCII_Hex_Digit}--\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["0", "1", "2", "3", "4", "5", "8", "A", "B", "D", "E", "F", "a", "b", "c", "d", "e", "f"],
+        nonMatchStrings: [
+            "6\uFE0F\u20E3",
+            "7\uFE0F\u20E3",
+            "9\uFE0F\u20E3",
+            "\u2603",
+            "\u{1D306}",
+            "\u{1F1E7}\u{1F1EA}",
+        ],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\d\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0", "0\uFE0F\u20E3", "9", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[[0-9]\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0", "0\uFE0F\u20E3", "9", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[_--[0-9]]+$/v,
+        matchStrings: ["_"],
+        nonMatchStrings: ["6\uFE0F\u20E3", "7", "9\uFE0F\u20E3", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{ASCII_Hex_Digit}--[0-9]]+$/v,
+        matchStrings: ["a", "b"],
+        nonMatchStrings: ["0", "9", "9\uFE0F\u20E3", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{ASCII_Hex_Digit}\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0", "0\uFE0F\u20E3", "A", "B", "a", "b"],
+        nonMatchStrings: ["\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[_\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3", "_"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}--\d]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}--[0-9]]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}--\p{ASCII_Hex_Digit}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}--_]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}&&\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}\d]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0", "0\uFE0F\u20E3", "9", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}[0-9]]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0", "0\uFE0F\u20E3", "9", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}\p{ASCII_Hex_Digit}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0", "0\uFE0F\u20E3", "9", "9\uFE0F\u20E3", "A", "a"],
+        nonMatchStrings: ["\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}_]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3", "_"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}\p{Emoji_Keycap_Sequence}]+$/v,
+        matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
 });
 
 test("Unicode matching with u and v flags", () => {
