@@ -47,6 +47,7 @@ set(SOURCES
     MappedFile.cpp
     MimeData.cpp
     Notifier.cpp
+    ReportTime.cpp
     Resource.cpp
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
