@@ -150,6 +150,7 @@ public:
     BoxSizing box_sizing() const;
     PointerEvents pointer_events() const;
     Variant<VerticalAlign, LengthPercentage> vertical_align() const;
+    Gfx::ShapeFeatures font_features() const;
     Optional<Gfx::FontVariantAlternates> font_variant_alternates() const;
     FontVariantCaps font_variant_caps() const;
     Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const;

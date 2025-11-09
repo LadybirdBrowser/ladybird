@@ -67,9 +67,6 @@ private:
 
     void add_extra_box_model_metrics_to_item(Item&, bool add_leading_metrics, bool add_trailing_metrics);
 
-    HashMap<StringView, u8> shape_features_map() const;
-    Gfx::ShapeFeatures create_and_merge_font_features() const;
-
     Layout::Node const* next_inline_node_in_pre_order(Layout::Node const& current, Layout::Node const* stay_within);
 
     Layout::InlineFormattingContext& m_inline_formatting_context;

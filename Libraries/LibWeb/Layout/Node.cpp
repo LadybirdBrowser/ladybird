@@ -382,7 +382,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_font_list(computed_style.computed_font_list());
     computed_values.set_font_size(computed_style.font_size());
     computed_values.set_font_weight(computed_style.font_weight());
-    computed_values.set_font_kerning(computed_style.font_kerning());
     computed_values.set_line_height(computed_style.line_height());
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
@@ -528,18 +527,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
-    if (auto maybe_font_variant_alternates = computed_style.font_variant_alternates(); maybe_font_variant_alternates.has_value())
-        computed_values.set_font_variant_alternates(maybe_font_variant_alternates.release_value());
-    computed_values.set_font_variant_caps(computed_style.font_variant_caps());
-    if (auto maybe_font_variant_east_asian = computed_style.font_variant_east_asian(); maybe_font_variant_east_asian.has_value())
-        computed_values.set_font_variant_east_asian(maybe_font_variant_east_asian.release_value());
-    computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
-    if (auto maybe_font_variant_ligatures = computed_style.font_variant_ligatures(); maybe_font_variant_ligatures.has_value())
-        computed_values.set_font_variant_ligatures(maybe_font_variant_ligatures.release_value());
-    if (auto maybe_font_variant_numeric = computed_style.font_variant_numeric(); maybe_font_variant_numeric.has_value())
-        computed_values.set_font_variant_numeric(maybe_font_variant_numeric.release_value());
-    computed_values.set_font_feature_settings(computed_style.font_feature_settings());
-    computed_values.set_font_variant_position(computed_style.font_variant_position());
+    computed_values.set_font_features(computed_style.font_features());
     if (auto maybe_font_variation_settings = computed_style.font_variation_settings(); maybe_font_variation_settings.has_value())
         computed_values.set_font_variation_settings(maybe_font_variation_settings.release_value());
 
@@ -609,7 +597,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_align(computed_style.text_align());
     computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
-    computed_values.set_text_rendering(computed_style.text_rendering());
     computed_values.set_text_underline_offset(computed_style.text_underline_offset());
     computed_values.set_text_underline_position(computed_style.text_underline_position());
 
