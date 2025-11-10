@@ -939,3 +939,44 @@ TEST_CASE(from_f64_seconds)
 
     EXPECT_DEATH("Converting float NaN seconds", (void)Duration::from_seconds_f64(NAN));
 }
+
+TEST_CASE(time_units)
+{
+    EXPECT_EQ(Duration::from_time_units(1, 1, 1), Duration::from_seconds(1));
+    EXPECT_EQ(Duration::from_time_units(-312, 1, 48'000), Duration::from_microseconds(-6'500));
+    EXPECT_EQ(Duration::from_time_units(960, 1, 48'000), Duration::from_microseconds(20'000));
+    EXPECT_EQ(Duration::from_time_units(960, 1, 48'000), Duration::from_microseconds(20'000));
+    EXPECT_EQ(Duration::from_time_units(8, 4, 1), Duration::from_seconds(32));
+    EXPECT_EQ(Duration::from_time_units(3, 3, 2'000'000'000), Duration::from_nanoseconds(5));
+    EXPECT_EQ(Duration::from_time_units(4, 3, 2'000'000'000), Duration::from_nanoseconds(6));
+    EXPECT_EQ(Duration::from_time_units(999'999'998, 1, 2'000'000'000), Duration::from_nanoseconds(499'999'999));
+    EXPECT_EQ(Duration::from_time_units(999'999'999, 1, 2'000'000'000), Duration::from_nanoseconds(500'000'000));
+    EXPECT_EQ(Duration::from_time_units(1'000'000'000, 1, 2'000'000'000), Duration::from_nanoseconds(500'000'000));
+
+    EXPECT_EQ(Duration::from_time_units(NumericLimits<i64>::max(), 1, 2), Duration::from_seconds(NumericLimits<i64>::max() / 2) + Duration::from_milliseconds(500));
+    EXPECT_EQ(Duration::from_time_units((NumericLimits<i64>::max() / 2), 2, 1), Duration::from_seconds(NumericLimits<i64>::max() - 1));
+    EXPECT_EQ(Duration::from_time_units((NumericLimits<i64>::max() / 2) + 1, 2, 1), Duration::from_seconds(NumericLimits<i64>::max()));
+    EXPECT_EQ(Duration::from_time_units((NumericLimits<i64>::min() / 2), 2, 1), Duration::from_seconds(NumericLimits<i64>::min()));
+    EXPECT_EQ(Duration::from_time_units((NumericLimits<i64>::min() / 2) - 1, 2, 1), Duration::from_seconds(NumericLimits<i64>::min()));
+
+    EXPECT_EQ(Duration::from_milliseconds(999).to_time_units(1, 48'000), 47'952);
+    EXPECT_EQ(Duration::from_milliseconds(-12'500).to_time_units(1, 1'000), -12'500);
+    EXPECT_EQ(Duration::from_milliseconds(-12'500).to_time_units(1, 1'000), -12'500);
+
+    EXPECT_EQ(Duration::from_nanoseconds(154'489'696).to_time_units(1, 48'000), 7'416);
+    EXPECT_EQ(Duration::from_nanoseconds(154'489'375).to_time_units(1, 48'000), 7'415);
+    EXPECT_EQ(Duration::from_nanoseconds(-154'489'696).to_time_units(1, 48'000), -7'416);
+    EXPECT_EQ(Duration::from_nanoseconds(-154'489'375).to_time_units(1, 48'000), -7'415);
+    EXPECT_EQ(Duration::from_nanoseconds(1'900'000'000).to_time_units(3, 2), 1);
+    EXPECT_EQ(Duration::from_nanoseconds(1'800'000'000).to_time_units(3, 1), 1);
+    EXPECT_EQ(Duration::from_seconds(3).to_time_units(4, 1), 1);
+    EXPECT_EQ(Duration::from_seconds(4).to_time_units(4, 1), 1);
+    EXPECT_EQ(Duration::from_seconds(5).to_time_units(4, 1), 1);
+    EXPECT_EQ(Duration::from_seconds(6).to_time_units(4, 1), 2);
+
+    EXPECT_EQ(Duration::from_seconds(2'147'483'649).to_time_units(1, NumericLimits<u32>::max()), NumericLimits<i64>::max());
+    EXPECT_EQ(Duration::from_seconds(2'147'483'648).to_time_units(1, NumericLimits<u32>::max()), NumericLimits<i64>::max() - (NumericLimits<u32>::max() / 2));
+
+    EXPECT_DEATH("From time units with zero numerator", (void)Duration::from_time_units(1, 0, 1));
+    EXPECT_DEATH("From time units with zero denominator", (void)Duration::from_time_units(1, 1, 0));
+}

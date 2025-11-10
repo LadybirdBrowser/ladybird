@@ -245,6 +245,7 @@ public:
     [[nodiscard]] static Duration from_ticks(clock_t, time_t);
     [[nodiscard]] static Duration from_timespec(const struct timespec&);
     [[nodiscard]] static Duration from_timeval(const struct timeval&);
+    [[nodiscard]] static Duration from_time_units(i64 units, u32 numerator, u32 denominator);
     // We don't pull in <stdint.h> for the pretty min/max definitions because this file is also included in the Kernel
     [[nodiscard]] constexpr static Duration min() { return Duration(-__INT64_MAX__ - 1LL, 0); }
     [[nodiscard]] constexpr static Duration zero() { return Duration(0, 0); }
@@ -263,6 +264,7 @@ public:
     [[nodiscard]] timespec to_timespec() const;
     // Rounds towards -inf (it was the easiest to implement).
     [[nodiscard]] timeval to_timeval() const;
+    [[nodiscard]] i64 to_time_units(u32 numerator, u32 denominator) const;
 
     [[nodiscard]] bool is_zero() const { return (m_seconds == 0) && (m_nanoseconds == 0); }
     [[nodiscard]] bool is_negative() const { return m_seconds < 0; }
