@@ -75,37 +75,18 @@ FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track
     });
 }
 
-static inline AK::Duration time_units_to_duration(i64 time_units, int numerator, int denominator)
-{
-    VERIFY(numerator != 0);
-    VERIFY(denominator != 0);
-    auto seconds = time_units * numerator / denominator;
-    auto seconds_in_time_units = seconds * denominator / numerator;
-    auto remainder_in_time_units = time_units - seconds_in_time_units;
-    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000 * numerator) + (denominator / 2)) / denominator;
-    return AK::Duration::from_seconds(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
-}
-
 static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)
 {
-    return time_units_to_duration(time_units, time_base.num, time_base.den);
-}
-
-static inline i64 duration_to_time_units(AK::Duration duration, int numerator, int denominator)
-{
-    VERIFY(numerator != 0);
-    VERIFY(denominator != 0);
-    auto seconds = duration.to_truncated_seconds();
-    auto nanoseconds = (duration - AK::Duration::from_seconds(seconds)).to_nanoseconds();
-
-    auto time_units = seconds * denominator / numerator;
-    time_units += nanoseconds * denominator / numerator / 1'000'000'000;
-    return time_units;
+    VERIFY(time_base.num > 0);
+    VERIFY(time_base.den > 0);
+    return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
 }
 
 static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
 {
-    return duration_to_time_units(duration, time_base.num, time_base.den);
+    VERIFY(time_base.num > 0);
+    VERIFY(time_base.den > 0);
+    return duration.to_time_units(time_base.num, time_base.den);
 }
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
@@ -114,7 +95,7 @@ DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
         return DecoderError::format(DecoderErrorCategory::Unknown, "Negative stream duration");
     }
 
-    return time_units_to_duration(m_format_context->duration, 1, AV_TIME_BASE);
+    return AK::Duration::from_time_units(m_format_context->duration, 1, AV_TIME_BASE);
 }
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
