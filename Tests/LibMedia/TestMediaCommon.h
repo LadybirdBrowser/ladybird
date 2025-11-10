@@ -1,17 +1,22 @@
 /*
- * Copyright (c) 2022, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2022-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibTest/TestCase.h>
-
 #include <AK/Function.h>
+#include <LibCore/EventLoop.h>
+#include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
+#include <LibMedia/Demuxer.h>
+#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
+#include <LibMedia/MutexedDemuxer.h>
+#include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibTest/TestCase.h>
 
 template<typename T>
 static inline void decode_video(StringView path, size_t expected_frame_count, T create_decoder)
@@ -55,4 +60,58 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     }
 
     VERIFY_NOT_REACHED();
+}
+
+static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_sample_count)
+{
+    Core::EventLoop loop;
+
+    auto mapped_file = TRY_OR_FAIL(Core::MappedFile::map(path));
+    auto demuxer = MUST([&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
+        auto matroska_result = Media::Matroska::MatroskaDemuxer::from_data(mapped_file->bytes());
+        if (!matroska_result.is_error())
+            return matroska_result.release_value();
+        return Media::FFmpeg::FFmpegDemuxer::from_data(mapped_file->bytes());
+    }());
+    auto mutexed_demuxer = make_ref_counted<Media::MutexedDemuxer>(demuxer);
+    auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
+    VERIFY(track.has_value());
+    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(mutexed_demuxer, track.release_value()));
+
+    auto reached_end = false;
+    provider->set_error_handler([&](Media::DecoderError&& error) {
+        if (error.category() == Media::DecoderErrorCategory::EndOfStream) {
+            reached_end = true;
+            return;
+        }
+        FAIL("An error occurred while decoding.");
+    });
+
+    auto time_limit = AK::Duration::from_seconds(1);
+    auto start_time = MonotonicTime::now_coarse();
+
+    size_t sample_count = 0;
+
+    while (true) {
+        auto block = provider->retrieve_block();
+        if (block.is_empty()) {
+            if (reached_end)
+                break;
+        } else {
+            EXPECT_EQ(block.sample_rate(), sample_rate);
+            EXPECT_EQ(block.channel_count(), channel_count);
+
+            sample_count += block.sample_count();
+        }
+
+        if (MonotonicTime::now_coarse() - start_time >= time_limit) {
+            FAIL("Decoding timed out.");
+            return;
+        }
+
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+
+    VERIFY(reached_end);
+    EXPECT_EQ(sample_count, expected_sample_count);
 }
