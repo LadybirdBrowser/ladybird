@@ -8,12 +8,13 @@
 
 #include <AK/HashMap.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/Export.h>
 
 #include "Reader.h"
 
 namespace Media::Matroska {
 
-class MatroskaDemuxer final : public Demuxer {
+class MEDIA_API MatroskaDemuxer final : public Demuxer {
 public:
     // FIXME: We should instead accept some abstract data streaming type so that the demuxer
     //        can work with non-contiguous data.
