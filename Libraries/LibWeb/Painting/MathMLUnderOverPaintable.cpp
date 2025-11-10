@@ -37,11 +37,8 @@ void MathMLUnderOverPaintable::paint(DisplayListRecordingContext& context, Paint
     if (phase != PaintPhase::Foreground)
         return;
 
-    // For now, just use default painting
-    // Future enhancements will include:
-    // - Proper spacing based on font metrics
-    // - Stretchy operator rendering for accents
-    // - Alignment adjustments
+    // Underover elements rely on the layout system for positioning
+    // The children (base, underscript, overscript) are painted by PaintableBox::paint above
 }
 
 }

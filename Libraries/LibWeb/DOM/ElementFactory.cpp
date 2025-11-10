@@ -82,12 +82,23 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/MathML/MathMLActionElement.h>
+#include <LibWeb/MathML/MathMLAnnotationElement.h>
+#include <LibWeb/MathML/MathMLAnnotationXmlElement.h>
 #include <LibWeb/MathML/MathMLElement.h>
+#include <LibWeb/MathML/MathMLErrorElement.h>
 #include <LibWeb/MathML/MathMLFractionElement.h>
 #include <LibWeb/MathML/MathMLMiElement.h>
 #include <LibWeb/MathML/MathMLMspaceElement.h>
+#include <LibWeb/MathML/MathMLMultiscriptsElement.h>
+#include <LibWeb/MathML/MathMLPaddedElement.h>
+#include <LibWeb/MathML/MathMLPhantomElement.h>
+#include <LibWeb/MathML/MathMLPrescriptsElement.h>
 #include <LibWeb/MathML/MathMLRadicalElement.h>
 #include <LibWeb/MathML/MathMLScriptElement.h>
+#include <LibWeb/MathML/MathMLSemanticsElement.h>
+#include <LibWeb/MathML/MathMLStringElement.h>
+#include <LibWeb/MathML/MathMLStyleElement.h>
 #include <LibWeb/MathML/MathMLTableCellElement.h>
 #include <LibWeb/MathML/MathMLTableElement.h>
 #include <LibWeb/MathML/MathMLTableRowElement.h>
@@ -571,24 +582,44 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
 static GC::Ref<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
     auto const& local_name = qualified_name.local_name();
-    if (local_name == MathML::TagNames::mi)
-        return realm.create<MathML::MathMLMiElement>(document, move(qualified_name));
-    if (local_name == MathML::TagNames::mspace)
-        return realm.create<MathML::MathMLMspaceElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::annotation)
+        return realm.create<MathML::MathMLAnnotationElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::annotation_xml)
+        return realm.create<MathML::MathMLAnnotationXmlElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::merror)
+        return realm.create<MathML::MathMLErrorElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::mfrac)
         return realm.create<MathML::MathMLFractionElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mi)
+        return realm.create<MathML::MathMLMiElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mmultiscripts)
+        return realm.create<MathML::MathMLMultiscriptsElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mpadded)
+        return realm.create<MathML::MathMLPaddedElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mphantom)
+        return realm.create<MathML::MathMLPhantomElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mprescripts)
+        return realm.create<MathML::MathMLPrescriptsElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::ms)
+        return realm.create<MathML::MathMLStringElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mspace)
+        return realm.create<MathML::MathMLMspaceElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::msqrt || local_name == MathML::TagNames::mroot)
         return realm.create<MathML::MathMLRadicalElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mstyle)
+        return realm.create<MathML::MathMLStyleElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::msub || local_name == MathML::TagNames::msup || local_name == MathML::TagNames::msubsup)
         return realm.create<MathML::MathMLScriptElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::mtable)
         return realm.create<MathML::MathMLTableElement>(document, move(qualified_name));
-    if (local_name == MathML::TagNames::mtr)
-        return realm.create<MathML::MathMLTableRowElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::mtd)
         return realm.create<MathML::MathMLTableCellElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mtr)
+        return realm.create<MathML::MathMLTableRowElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::munder || local_name == MathML::TagNames::mover || local_name == MathML::TagNames::munderover)
         return realm.create<MathML::MathMLUnderOverElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::semantics)
+        return realm.create<MathML::MathMLSemanticsElement>(document, move(qualified_name));
 
     // https://w3c.github.io/mathml-core/#dom-and-javascript
     // All the nodes representing MathML elements in the DOM must implement, and expose to scripts,
