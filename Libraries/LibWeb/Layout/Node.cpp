@@ -98,6 +98,12 @@ bool Node::can_contain_boxes_with_position_absolute() const
     if (computed_values().scale().has_value())
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
+    // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
+    // a containing block for all descendants, just like the 'transform' property does.
+    if (computed_values().perspective().has_value())
+        return true;
+
     // https://drafts.csswg.org/css-contain-2/#containment-types
     // 4. The layout containment box establishes an absolute positioning containing block and a fixed positioning
     //    containing block.
@@ -282,6 +288,11 @@ bool Node::establishes_stacking_context() const
     // not 'none' (at any time):
     // - Form a stacking context.
     if (computed_values.view_transition_name().has_value() || will_change_property(CSS::PropertyID::ViewTransitionName))
+        return true;
+
+    // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
+    // The use of this property with any value other than 'none' establishes a stacking context.
+    if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
         return true;
 
     return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
@@ -682,6 +693,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_transformations(computed_style.transformations());
     computed_values.set_transform_box(computed_style.transform_box());
     computed_values.set_transform_origin(computed_style.transform_origin());
+    computed_values.set_perspective(computed_style.perspective());
 
     auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
     if (transition_delay_property.is_time()) {

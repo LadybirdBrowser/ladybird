@@ -242,6 +242,7 @@ padding-inline-start: 0px
 padding-left: 0px
 padding-right: 0px
 padding-top: 0px
+perspective: none
 position: static
 position-anchor: auto
 position-area: none

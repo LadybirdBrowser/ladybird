@@ -714,6 +714,20 @@ TransformBox ComputedProperties::transform_box() const
     return keyword_to_transform_box(value.to_keyword()).release_value();
 }
 
+Optional<CSSPixels> ComputedProperties::perspective() const
+{
+    auto const& value = property(PropertyID::Perspective);
+    if (value.is_keyword() && value.to_keyword() == Keyword::None)
+        return {};
+
+    if (value.is_length())
+        return value.as_length().length().absolute_length_to_px();
+    if (value.is_calculated())
+        return value.as_calculated().resolve_length({ .length_resolution_context = {} })->absolute_length_to_px();
+
+    VERIFY_NOT_REACHED();
+}
+
 TransformOrigin ComputedProperties::transform_origin() const
 {
     auto length_percentage_with_keywords_resolved = [](StyleValue const& value) -> LengthPercentage {

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): rotatex() and 'perspective'</title>
+    <link rel="author" title="Matt Woodrow" href="mailto:mwoodrow@mozilla.com">
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#three-d-transform-functions">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#funcdef-rotatex">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#perspective-property">
+    <meta name="assert" content="This tests that 'perspective' has some effect
+    when combined with rotatex() (i.e., is not equivalent to simply omitting
+    the perspective).">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform3d-rotatex-ref.html">
+  </head>
+  <body>
+    <div style="perspective: 1000px;">
+      <div style="transform: rotatex(45deg); width: 100px; height: 100px;
+        background: lime"></div>
+    </div>
+  </body>
+</html>

@@ -244,6 +244,7 @@ All properties associated with getComputedStyle(document.body):
     "padding-left",
     "padding-right",
     "padding-top",
+    "perspective",
     "position",
     "position-anchor",
     "position-area",

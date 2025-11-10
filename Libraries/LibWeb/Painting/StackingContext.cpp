@@ -306,6 +306,13 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto source_paintable_rect = context.enclosing_device_rect(paintable_box().absolute_paint_rect()).to_type<int>();
 
     auto transform_matrix = paintable_box().transform();
+    // https://drafts.csswg.org/css-transforms-2/#perspective
+    // Second, the 'perspective' and 'perspective-origin' properties can be applied to an element to influence the
+    // rendering of its 3d-transformed children, giving them a shared perspective that provides the impression of
+    // them living in the same three-dimensional scene.
+    if (auto const* parent = as_if<PaintableBox>(paintable_box().parent()))
+        transform_matrix = parent->perspective_matrix() * transform_matrix;
+
     auto transform_origin = paintable_box().transform_origin().to_type<float>();
 
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(paintable_box().computed_values().mix_blend_mode());
