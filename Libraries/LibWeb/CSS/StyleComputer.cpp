@@ -3749,7 +3749,7 @@ static void for_each_element_hash(DOM::Element const& element, auto callback)
     for (auto const& class_ : element.class_names())
         callback(class_.hash());
     element.for_each_attribute([&](auto& attribute) {
-        callback(attribute.lowercase_name().hash());
+        callback(attribute.name().ascii_case_insensitive_hash());
     });
 }
 
