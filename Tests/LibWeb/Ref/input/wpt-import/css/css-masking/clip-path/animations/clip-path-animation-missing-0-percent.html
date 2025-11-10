@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-masking/clip-path/animations/clip-path-animation-missing-0-percent-ref.html">
+<style>
+  .container {
+    /*TODO(crbug.com/1349062): Support animation keyframes without 0% or 100%.*/
+    width: 100px;
+    height: 100px;
+    background-color: green;
+    /* Use a long animation that start at 50% progress where the slope of the
+     selected timing function is zero. By setting up the animation in this way,
+     we accommodate lengthy delays in running the test without a potential drift
+     in the animated property value. This is important for avoiding flakes,
+     especially on debug builds. The screenshots are taken as soon as the
+     animation is ready, thus the long animation duration has no bearing on
+     the actual duration of the test. */
+    clip-path: circle(5% at 50% 50%);
+    animation: clippath 1000000s cubic-bezier(0, 1, 1, 0) -400000s;
+  }
+
+  @keyframes clippath {
+    80% {
+      clip-path: circle(25% at 50% 50%);
+    }
+
+    100% {
+      clip-path: circle(50% at 50% 50%);
+    }
+  }
+</style>
+<script src="../../../../common/reftest-wait.js"></script>
+
+<body>
+  <div class="container"></div>
+
+  <script>
+    document.getAnimations()[0].ready.then(() => {
+      takeScreenshot();
+    });
+  </script>
+</body>
+
+</html>
