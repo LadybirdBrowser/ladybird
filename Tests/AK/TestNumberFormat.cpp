@@ -133,3 +133,56 @@ TEST_CASE(base10_units)
     EXPECT_EQ(human_readable_size(1100, AK::HumanReadableBasedOn::Base10), "1.1 KB");
     EXPECT_EQ(human_readable_size(1000000, AK::HumanReadableBasedOn::Base10), "1.0 MB");
 }
+
+TEST_CASE(human_readable_short_time)
+{
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(0)), "0ns");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(1)), "1ns");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(99)), "99ns");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(999)), "999ns");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(1009)), "1.009µs");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(1099)), "1.099µs");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_nanoseconds(1999)), "1.999µs");
+
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(1)), "1µs");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(999)), "999µs");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(1009)), "1.009ms");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(1099)), "1.099ms");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(1999)), "1.999ms");
+
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(1)), "1ms");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(99)), "99ms");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(999)), "999ms");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(1009)), "1.009s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(1099)), "1.099s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(1999)), "1.999s");
+
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(1)), "1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(1001)), "1.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(1999)), "1.999s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(59)), "59s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(59999)), "59.999s");
+
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(60)), "1m");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(60001)), "1m 0.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(61)), "1m 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(61001)), "1m 1.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(61001001)), "1m 1.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3599)), "59m 59s");
+
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3600)), "1h");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3601)), "1h 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(3600001)), "1h 0.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(3601001001)), "1h 1.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3661)), "1h 1m 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3661)), "1h 1m 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(86399)), "23h 59m 59s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(86399001)), "23h 59m 59.001s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(86399999)), "23h 59m 59.999s");
+
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(86400)), "1d");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(86401)), "1d 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(86461)), "1d 1m 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(90061)), "1d 1h 1m 1s");
+    EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(90061001)), "1d 1h 1m 1.001s");
+}

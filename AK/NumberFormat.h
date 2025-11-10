@@ -26,6 +26,7 @@ String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on = Hum
 
 String human_readable_size_long(u64 size, UseThousandsSeparator use_thousands_separator = UseThousandsSeparator::No);
 String human_readable_time(Duration);
+String human_readable_short_time(Duration);
 String human_readable_digital_time(i64 time_in_seconds);
 
 }
@@ -33,6 +34,7 @@ String human_readable_digital_time(i64 time_in_seconds);
 #if USING_AK_GLOBALLY
 using AK::human_readable_digital_time;
 using AK::human_readable_quantity;
+using AK::human_readable_short_time;
 using AK::human_readable_size;
 using AK::human_readable_size_long;
 using AK::human_readable_time;
