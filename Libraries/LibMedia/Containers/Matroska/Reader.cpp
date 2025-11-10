@@ -677,6 +677,28 @@ static DecoderErrorOr<Vector<ReadonlyBytes>> parse_frames(Streamer& streamer, Bl
         auto individual_frame_size = content_size / frame_count;
         for (int i = 0; i < frame_count; i++)
             frames.append(TRY_READ(streamer.read_raw_octets(individual_frame_size)));
+    } else if (lacing == Block::Lacing::XIPH) {
+        auto frames_start_position = streamer.octets_read();
+
+        auto frame_count_minus_one = TRY_READ(streamer.read_octet());
+        frames.ensure_capacity(frame_count_minus_one + 1);
+
+        auto frame_sizes = Vector<size_t>();
+        frame_sizes.ensure_capacity(frame_count_minus_one);
+        for (auto i = 0; i < frame_count_minus_one; i++) {
+            auto frame_size = 0;
+            while (true) {
+                auto octet = TRY_READ(streamer.read_octet());
+                frame_size += octet;
+                if (octet < 255)
+                    break;
+            }
+            frame_sizes.append(frame_size);
+        }
+
+        for (auto i = 0; i < frame_count_minus_one; i++)
+            frames.append(TRY_READ(streamer.read_raw_octets(frame_sizes[i])));
+        frames.append(TRY_READ(streamer.read_raw_octets(content_size - (streamer.octets_read() - frames_start_position))));
     } else {
         frames.append(TRY_READ(streamer.read_raw_octets(content_size)));
     }
