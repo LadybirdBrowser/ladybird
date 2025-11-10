@@ -1322,7 +1322,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         auto const append_property_mapping_logical_aliases = [&](PropertyID property_id) {
             if (property_is_logical_alias(property_id))
                 properties_for_this_transition.append(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { style.writing_mode(), style.direction() }));
-            else
+            else if (property_id != PropertyID::Custom)
                 properties_for_this_transition.append(property_id);
         };
 
