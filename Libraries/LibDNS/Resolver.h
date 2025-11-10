@@ -862,138 +862,162 @@ private:
             result->set_dnssec_validated(false); // Will be set to true if we successfully validate the RRSIGs.
             result->set_being_dnssec_validated(true);
 
-            Vector<Messages::Records::DNSKEY> parent_zone_keys;
             auto is_root_zone = lookup.parsed_name.labels.size() == 0;
+            auto keys_promise = Core::Promise<Vector<Messages::Records::DNSKEY>>::construct();
+
+            keys_promise->when_resolved([this, lookup, name, is_root_zone, records_with_rrsigs = move(records_with_rrsigs), result = move(result)](Vector<Messages::Records::DNSKEY> parent_zone_keys) {
+                auto resolve_using_keys = [=, this, records_with_rrsigs = move(records_with_rrsigs)](Vector<Messages::Records::DNSKEY> keys) mutable {
+                    dbgln_if(DNS_DEBUG, "DNS: Validating {} RRSIGs for {}; starting with {} keys", records_with_rrsigs.size(), name.to_string(), keys.size());
+                    for (auto& key : keys)
+                        dbgln_if(DNS_DEBUG, "- DNSKEY: {}", key.to_string());
+                    Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
+
+                    for (auto& record_and_rrsig : records_with_rrsigs) {
+                        auto& records = record_and_rrsig.value.records;
+                        if (record_and_rrsig.key == Messages::ResourceType::DNSKEY) {
+                            for (auto& record : records)
+                                keys.append(record.record.get<Messages::Records::DNSKEY>());
+                        }
+                    }
+
+                    dbgln_if(DNS_DEBUG, "DNS: Found {} keys total", keys.size());
+
+                    // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
+                    HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
+
+                    for (auto& [type, pair] : records_with_rrsigs) {
+                        auto& records = pair.records;
+                        auto& rrsig = pair.rrsig;
+
+                        for (auto& record : records) {
+                            auto canonicalized_name = record.name.to_canonical_string();
+                            auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
+
+                            if (!rrsets_with_rrsigs.contains(key)) {
+                                auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
+                                    Vector<Messages::Records::DNSKEY> relevant_keys;
+                                    for (auto& key : keys) {
+                                        if (key.algorithm == rrsig.algorithm)
+                                            relevant_keys.append(key);
+                                    }
+                                    return relevant_keys;
+                                }();
+                                dbgln_if(DNS_DEBUG, "DNS: Found {} relevant DNSKEYs for key {}", dnskeys.size(), key);
+                                rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), move(dnskeys) });
+                            }
+                            auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
+                            rrset_with_rrsig.rrset.append(move(record));
+                        }
+                    }
+
+                    for (auto& entry : rrsets_with_rrsigs) {
+                        auto& rrset_with_rrsig = entry.value;
+
+                        if (rrset_with_rrsig.dnskeys.is_empty()) {
+                            dbgln_if(DNS_DEBUG, "DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
+                            continue;
+                        }
+
+                        promises.append(validate_rrset_with_rrsig(move(rrset_with_rrsig), result));
+                    }
+
+                    auto promise = Core::Promise<Empty>::after(move(promises))
+                                       ->when_resolved([result, lookup, keys = move(keys)](Empty) {
+                                           for (auto& key : keys)
+                                               result->add_dnskey(key);
+                                           result->set_dnssec_validated(true);
+                                           result->set_being_dnssec_validated(false);
+                                           result->finished_request();
+                                           lookup.promise->resolve(result);
+                                       })
+                                       .when_rejected([result, lookup](Error& error) {
+                                           result->finished_request();
+                                           result->set_being_dnssec_validated(false);
+                                           lookup.promise->reject(move(error));
+                                       })
+                                       .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
+
+                    lookup.promise = move(promise);
+                };
+
+                if (is_root_zone) {
+                    resolve_using_keys(s_root_zone_dnskeys);
+                    return;
+                }
+
+                // NOTE: We have to defer here due to keys_promises being resolved from a lookup, which is whilst pending lookups are locked.
+                Core::deferred_invoke([this, lookup, name, parent_zone_keys = move(parent_zone_keys), resolve_using_keys = move(resolve_using_keys)] {
+                    dbgln_if(DNS_DEBUG, "DNS: Starting DNSKEY lookup for {}", lookup.name);
+                    this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })
+                        ->when_resolved([=](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
+                            dbgln_if(DNS_DEBUG, "DNSKEY for {}:", name.to_string());
+                            auto key_records = dnskey_lookup_result->records(Messages::ResourceType::DNSKEY);
+                            for (auto& record : key_records)
+                                dbgln_if(DNS_DEBUG, "- DNSKEY: {}", record.to_string());
+                            Vector<Messages::Records::DNSKEY> keys;
+                            keys.ensure_capacity(parent_zone_keys.size() + dnskey_lookup_result->records().size());
+                            for (auto& record : parent_zone_keys)
+                                keys.append(record);
+                            for (auto& record : key_records)
+                                keys.append(move(record.record).get<Messages::Records::DNSKEY>());
+                            resolve_using_keys(move(keys));
+                        })
+                        .when_rejected([=](auto& error) mutable {
+                            if (parent_zone_keys.is_empty()) {
+                                dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
+                                lookup.promise->reject(move(error));
+                                return;
+                            }
+                            resolve_using_keys(move(parent_zone_keys));
+                        });
+                });
+            });
+
+            keys_promise->when_rejected([lookup](Error const& error) {
+                lookup.promise->reject(Error::copy(error));
+            });
 
             if (!is_root_zone) {
-                auto chain_valid_result = validate_dnssec_chain_step(name, true)->await();
-                if (chain_valid_result.is_error()) {
-                    lookup.promise->reject(chain_valid_result.release_error());
-                    return;
-                }
-                if (!chain_valid_result.value()) {
-                    lookup.promise->reject(Error::from_string_literal("DNSSEC chain is invalid"));
-                    return;
-                }
-                auto parent_result = this->lookup(lookup.parsed_name.parent().to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true })
-                                         ->await();
-                if (parent_result.is_error()) {
-                    lookup.promise->reject(parent_result.release_error());
-                    return;
-                }
-
-                if (!parent_result.value()->is_dnssec_validated()) {
-                    lookup.promise->reject(Error::from_string_literal("Parent zone is not DNSSEC validated"));
-                    return;
-                }
-
-                parent_zone_keys = parent_result.value()->used_dnskeys();
-                for (auto& rr : parent_result.value()->records(Messages::ResourceType::DNSKEY))
-                    parent_zone_keys.append(rr.record.get<Messages::Records::DNSKEY>());
-                dbgln("Found {} DNSKEYs for parent zone ({})", parent_zone_keys.size(), lookup.parsed_name.parent().to_string());
-            }
-
-            auto resolve_using_keys = [=, this, records_with_rrsigs = move(records_with_rrsigs)](Vector<Messages::Records::DNSKEY> keys) mutable {
-                dbgln_if(DNS_DEBUG, "DNS: Validating {} RRSIGs for {}; starting with {} keys", records_with_rrsigs.size(), name.to_string(), keys.size());
-                for (auto& key : keys)
-                    dbgln_if(DNS_DEBUG, "- DNSKEY: {}", key.to_string());
-                Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
-
-                for (auto& record_and_rrsig : records_with_rrsigs) {
-                    auto& records = record_and_rrsig.value.records;
-                    if (record_and_rrsig.key == Messages::ResourceType::DNSKEY) {
-                        for (auto& record : records)
-                            keys.append(record.record.get<Messages::Records::DNSKEY>());
-                    }
-                }
-
-                dbgln_if(DNS_DEBUG, "DNS: Found {} keys total", keys.size());
-
-                // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
-                HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
-
-                for (auto& [type, pair] : records_with_rrsigs) {
-                    auto& records = pair.records;
-                    auto& rrsig = pair.rrsig;
-
-                    for (auto& record : records) {
-                        auto canonicalized_name = record.name.to_canonical_string();
-                        auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
-
-                        if (!rrsets_with_rrsigs.contains(key)) {
-                            auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
-                                Vector<Messages::Records::DNSKEY> relevant_keys;
-                                for (auto& key : keys) {
-                                    if (key.algorithm == rrsig.algorithm)
-                                        relevant_keys.append(key);
-                                }
-                                return relevant_keys;
-                            }();
-                            dbgln_if(DNS_DEBUG, "DNS: Found {} relevant DNSKEYs for key {}", dnskeys.size(), key);
-                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), move(dnskeys) });
-                        }
-                        auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
-                        rrset_with_rrsig.rrset.append(move(record));
-                    }
-                }
-
-                for (auto& entry : rrsets_with_rrsigs) {
-                    auto& rrset_with_rrsig = entry.value;
-
-                    if (rrset_with_rrsig.dnskeys.is_empty()) {
-                        dbgln_if(DNS_DEBUG, "DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
-                        continue;
+                auto chain_valid_promise = validate_dnssec_chain_step(name, true);
+                chain_valid_promise->when_resolved([this, lookup, keys_promise](bool valid) {
+                    if (!valid) {
+                        keys_promise->reject(Error::from_string_literal("DNSSEC chain is invalid"));
+                        return;
                     }
 
-                    promises.append(validate_rrset_with_rrsig(move(rrset_with_rrsig), result));
-                }
+                    // NOTE: We have to defer here due to chain_valid_promise being potentially resolved from a lookup, which is whilst pending lookups are locked.
+                    Core::deferred_invoke([this, lookup, keys_promise] {
+                        auto parent_result_promise = this->lookup(lookup.parsed_name.parent().to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true });
+                        parent_result_promise->when_resolved([lookup, keys_promise](NonnullRefPtr<LookupResult const> const& parent_result) {
+                            if (!parent_result->is_dnssec_validated()) {
+                                keys_promise->reject(Error::from_string_literal("Parent zone is not DNSSEC validated"));
+                                return;
+                            }
 
-                auto promise = Core::Promise<Empty>::after(move(promises))
-                                   ->when_resolved([result, lookup, keys = move(keys)](Empty) {
-                                       for (auto& key : keys)
-                                           result->add_dnskey(key);
-                                       result->set_dnssec_validated(true);
-                                       result->set_being_dnssec_validated(false);
-                                       result->finished_request();
-                                       lookup.promise->resolve(result);
-                                   })
-                                   .when_rejected([result, lookup](Error& error) {
-                                       result->finished_request();
-                                       result->set_being_dnssec_validated(false);
-                                       lookup.promise->reject(move(error));
-                                   })
-                                   .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
+                            Vector<Messages::Records::DNSKEY> parent_zone_keys = parent_result->used_dnskeys();
+                            for (auto& rr : parent_result->records(Messages::ResourceType::DNSKEY))
+                                parent_zone_keys.append(rr.record.get<Messages::Records::DNSKEY>());
 
-                lookup.promise = move(promise);
-            };
+                            dbgln("Found {} DNSKEYs for parent zone ({})", parent_zone_keys.size(), lookup.parsed_name.parent().to_string());
+                            keys_promise->resolve(move(parent_zone_keys));
+                        });
 
-            if (is_root_zone) {
-                resolve_using_keys(s_root_zone_dnskeys);
-                return;
-            }
+                        parent_result_promise->when_rejected([keys_promise](Error const& error) {
+                            keys_promise->reject(Error::copy(error));
+                        });
 
-            dbgln_if(DNS_DEBUG, "DNS: Starting DNSKEY lookup for {}", lookup.name);
-            this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })
-                ->when_resolved([=](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
-                    dbgln_if(DNS_DEBUG, "DNSKEY for {}:", name.to_string());
-                    auto key_records = dnskey_lookup_result->records(Messages::ResourceType::DNSKEY);
-                    for (auto& record : key_records)
-                        dbgln_if(DNS_DEBUG, "- DNSKEY: {}", record.to_string());
-                    Vector<Messages::Records::DNSKEY> keys;
-                    keys.ensure_capacity(parent_zone_keys.size() + dnskey_lookup_result->records().size());
-                    for (auto& record : parent_zone_keys)
-                        keys.append(record);
-                    for (auto& record : key_records)
-                        keys.append(move(record.record).get<Messages::Records::DNSKEY>());
-                    resolve_using_keys(move(keys));
-                })
-                .when_rejected([=](auto& error) mutable {
-                    if (parent_zone_keys.is_empty()) {
-                        dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
-                        lookup.promise->reject(move(error));
-                    }
-                    resolve_using_keys(move(parent_zone_keys));
+                        keys_promise->add_child(move(parent_result_promise));
+                    });
                 });
+
+                chain_valid_promise->when_rejected([keys_promise](Error const& error) {
+                    keys_promise->reject(Error::copy(error));
+                });
+            } else {
+                keys_promise->resolve({});
+            }
+
+            lookup.promise->add_child(move(keys_promise));
         });
 
         return {};
