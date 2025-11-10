@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+/*include <LibWeb/MathML/MathMLActionElement.h> * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -82,7 +81,6 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/MathML/MathMLActionElement.h>
 #include <LibWeb/MathML/MathMLAnnotationElement.h>
 #include <LibWeb/MathML/MathMLAnnotationXmlElement.h>
 #include <LibWeb/MathML/MathMLElement.h>

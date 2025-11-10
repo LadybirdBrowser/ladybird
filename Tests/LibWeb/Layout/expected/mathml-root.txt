@@ -1,0 +1,43 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 47 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 31 0+0+8] children: inline
+      frag 0 from MathMLBox start: 0, length: 0, rect: [8,8 9.484375x31] baseline: 27.890625
+      MathMLBox <math> at [8,8] [0+0+0 9.484375 0+0+0] [0+0+0 31 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 9.484375 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        MathMLRadicalBox <mroot> at [8,8] [0+0+0 9.484375 0+0+0] [0+0+0 31 0+0+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,8] [0+0+0 9.484375 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          MathMLBox <mn> at [8,8] [0+0+0 9.484375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.484375x18] baseline: 13.796875
+                "8"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [8,26] [0+0+0 9.484375 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          MathMLBox <mn> at [8,26] [0+0+0 9.484375 0+0+0] [0+0+0 13 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [8,26 6.453125x13] baseline: 9.890625
+                "3"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [8,39] [0+0+0 9.484375 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,39] [0+0+0 9.484375 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x47]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x31]
+      PaintableWithLines (MathMLBox<math>) [8,8 9.484375x31]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 9.484375x0]
+        MathMLRadicalPaintable (MathMLRadicalBox<mroot>) [8,8 9.484375x31]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 9.484375x0]
+          PaintableWithLines (MathMLBox<mn>) [8,8 9.484375x18]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer(anonymous)) [8,26 9.484375x0]
+          PaintableWithLines (MathMLBox<mn>) [8,26 9.484375x13]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer(anonymous)) [8,39 9.484375x0]
+        PaintableWithLines (BlockContainer(anonymous)) [8,39 9.484375x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x47] [children: 0] (z-index: auto)

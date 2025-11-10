@@ -1,0 +1,53 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
+      frag 0 from MathMLBox start: 0, length: 0, rect: [8,8 10.96875x18] baseline: 13.796875
+      frag 1 from TextNode start: 0, length: 1, rect: [18.96875,8 8x18] baseline: 13.796875
+          " "
+      frag 2 from MathMLBox start: 0, length: 0, rect: [26.96875,8 14.171875x18] baseline: 13.796875
+      MathMLBox <math> at [8,8] [0+0+0 10.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 10.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        MathMLStringBox <ms> at [8,8] [0+0+0 10.96875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 5.484375x18] baseline: 13.796875
+              """
+          frag 1 from TextNode start: 0, length: 1, rect: [13.484375,8 5.484375x18] baseline: 13.796875
+              """
+          TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,26] [0+0+0 10.96875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      MathMLBox <math> at [26.96875,8] [0+0+0 14.171875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [26.96875,8] [0+0+0 14.171875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        MathMLStringBox <ms> at [26.96875,8] [0+0+0 14.171875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [26.96875,8 6.953125x18] baseline: 13.796875
+              "["
+          frag 1 from TextNode start: 0, length: 1, rect: [33.921875,8 7.21875x18] baseline: 13.796875
+              "]"
+          TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [26.96875,26] [0+0+0 14.171875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
+      PaintableWithLines (MathMLBox<math>) [8,8 10.96875x18]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 10.96875x0]
+        PaintableWithLines (MathMLStringBox<ms>) [8,8 10.96875x18]
+          TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,26 10.96875x0]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (MathMLBox<math>) [26.96875,8 14.171875x18]
+        PaintableWithLines (BlockContainer(anonymous)) [26.96875,8 14.171875x0]
+        PaintableWithLines (MathMLStringBox<ms>) [26.96875,8 14.171875x18]
+          TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [26.96875,26 14.171875x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x34] [children: 0] (z-index: auto)

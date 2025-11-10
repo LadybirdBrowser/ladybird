@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Layout/MathMLAnnotationXmlBox.h>
 #include <LibWeb/MathML/MathMLAnnotationXmlElement.h>
 
 namespace Web::MathML {
@@ -18,7 +17,9 @@ MathMLAnnotationXmlElement::MathMLAnnotationXmlElement(DOM::Document& document, 
 
 GC::Ptr<Layout::Node> MathMLAnnotationXmlElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
-    return heap().allocate<Layout::MathMLAnnotationXmlBox>(document(), *this, move(style));
+    (void)style;
+    // Annotation-XML elements are metadata only and must not participate in layout.
+    return nullptr;
 }
 
 }
