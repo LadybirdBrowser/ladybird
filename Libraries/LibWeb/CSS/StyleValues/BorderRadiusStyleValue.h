@@ -11,6 +11,7 @@
 
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -30,6 +31,14 @@ public:
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(BorderRadiusStyleValue const& other) const { return m_properties == other.m_properties; }
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto horizontal_radius = IntegerStyleValue::create(0);
+        auto vertical_radius = IntegerStyleValue::create(0);
+        // note: 'fill' is not additive
+        return create(horizontal_radius, vertical_radius);
+    }
 
 private:
     BorderRadiusStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)

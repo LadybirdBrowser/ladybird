@@ -28,6 +28,11 @@ public:
 
     bool properties_equal(GridTrackSizeListStyleValue const& other) const { return m_grid_track_size_list == other.m_grid_track_size_list; }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return GridTrackSizeListStyleValue::make_none();
+    }
+
 private:
     explicit GridTrackSizeListStyleValue(CSS::GridTrackSizeList grid_track_size_list)
         : StyleValueWithDefaultOperators(Type::GridTrackSizeList)

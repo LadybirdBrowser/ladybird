@@ -76,6 +76,29 @@ private:
     CounterType m_buckets[bucket_count];
 };
 
+struct NoKeyframeEffect { };
+struct KeyframeEffectInterpolateFailed { };
+
+struct MatchingRule {
+    GC::Ptr<DOM::ShadowRoot const> shadow_root;
+    GC::Ptr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
+    GC::Ptr<CSSStyleSheet const> sheet;
+    Optional<FlyString> default_namespace;
+    Selector const& selector;
+    size_t style_sheet_index { 0 };
+    size_t rule_index { 0 };
+
+    u32 specificity { 0 };
+    CascadeOrigin cascade_origin;
+    bool contains_pseudo_element { false };
+    bool slotted { false };
+
+    // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
+    CSSStyleProperties const& declaration() const;
+    SelectorList const& absolutized_selectors() const;
+    FlyString const& qualified_layer_name() const;
+};
+
 struct FontFaceKey;
 
 struct OwnFontFaceKey {

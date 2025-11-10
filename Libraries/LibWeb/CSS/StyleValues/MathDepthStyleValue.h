@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -28,6 +29,11 @@ public:
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(MathDepthStyleValue const& other) const;
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return MathDepthStyleValue::create_integer(NumberStyleValue::create(0));
+    }
 
 private:
     enum class MathDepthType {

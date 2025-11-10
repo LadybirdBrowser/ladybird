@@ -36,6 +36,12 @@ public:
         return m_frequency == other_frequency.m_frequency;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        Frequency freq = Frequency(0, FrequencyUnit::Hz);
+        return FrequencyStyleValue::create(freq);
+    }
+
 private:
     explicit FrequencyStyleValue(Frequency frequency)
         : DimensionStyleValue(Type::Frequency)

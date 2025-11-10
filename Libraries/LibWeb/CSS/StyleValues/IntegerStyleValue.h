@@ -31,6 +31,11 @@ public:
         return m_value == other_integer.m_value;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return IntegerStyleValue::create(0);
+    }
+
 private:
     explicit IntegerStyleValue(i64 value)
         : StyleValue(Type::Integer)

@@ -33,6 +33,12 @@ public:
         return m_flex == other_flex.m_flex;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        Flex flex = Flex(0, FlexUnit::Fr);
+        return FlexStyleValue::create(flex);
+    }
+
 private:
     FlexStyleValue(Flex&& flex)
         : DimensionStyleValue(Type::Flex)

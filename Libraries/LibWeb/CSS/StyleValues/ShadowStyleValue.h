@@ -11,6 +11,7 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -53,6 +54,19 @@ public:
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(ShadowStyleValue const& other) const { return m_properties == other.m_properties; }
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto neutral_number_value = NumberStyleValue::create(0);
+        return ShadowStyleValue::create(
+            ShadowType::Normal,
+            ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Modern, {}),
+            neutral_number_value,
+            neutral_number_value,
+            neutral_number_value,
+            neutral_number_value,
+            ShadowPlacement::Outer);
+    }
 
 private:
     ShadowStyleValue(

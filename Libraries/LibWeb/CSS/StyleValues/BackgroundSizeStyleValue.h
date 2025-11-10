@@ -11,6 +11,7 @@
 
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -31,6 +32,13 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return m_properties == other.m_properties; }
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto size_x = IntegerStyleValue::create(0);
+        auto size_y = IntegerStyleValue::create(0);
+        return create(size_x, size_y);
+    }
 
 private:
     BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y);

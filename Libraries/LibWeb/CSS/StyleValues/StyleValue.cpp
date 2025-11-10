@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "StyleValue.h"
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
@@ -113,6 +114,15 @@ AbstractImageStyleValue const& StyleValue::as_abstract_image() const
 {
     VERIFY(is_abstract_image());
     return static_cast<AbstractImageStyleValue const&>(*this);
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::get_neutral_value_for_type(Type type)
+{
+    switch (type) {
+    default: {
+        return ScrollbarColorStyleValue::neutral_value();
+    }
+    }
 }
 
 DimensionStyleValue const& StyleValue::as_dimension() const

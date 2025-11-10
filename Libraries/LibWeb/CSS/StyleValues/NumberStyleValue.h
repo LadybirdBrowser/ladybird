@@ -34,6 +34,11 @@ public:
         return m_value == other_number.m_value;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return NumberStyleValue::create(0);
+    }
+
 private:
     explicit NumberStyleValue(double value)
         : StyleValue(Type::Number)

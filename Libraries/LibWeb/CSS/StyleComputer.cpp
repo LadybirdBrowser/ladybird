@@ -820,49 +820,11 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         return;
     }
 
-    double progress = round(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-    // FIXME: Support progress values outside the range of i64.
-    i64 key = 0;
-    if (progress > NumericLimits<i64>::max()) {
-        key = NumericLimits<i64>::max();
-    } else if (progress < NumericLimits<i64>::min()) {
-        key = NumericLimits<i64>::min();
-    } else {
-        key = static_cast<i64>(progress);
-    }
-    auto keyframe_start_it = [&] {
-        if (output_progress.value() <= 0) {
-            return keyframes.begin();
-        }
-        auto potential_match = keyframes.find_largest_not_above_iterator(key);
-        auto next = potential_match;
-        ++next;
-        if (next.is_end()) {
-            --potential_match;
-        }
-        return potential_match;
-    }();
-    auto keyframe_start = static_cast<i64>(keyframe_start_it.key());
-    auto keyframe_values = *keyframe_start_it;
-
-    auto keyframe_end_it = ++keyframe_start_it;
-    VERIFY(!keyframe_end_it.is_end());
-    auto keyframe_end = static_cast<i64>(keyframe_end_it.key());
-    auto keyframe_end_values = *keyframe_end_it;
-
-    auto progress_in_keyframe = (progress - keyframe_start) / static_cast<double>(keyframe_end - keyframe_start);
-
-    if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
-        auto valid_properties = keyframe_values.properties.size();
-        dbgln("Animation {} contains {} properties to interpolate, progress = {}%", animation->id(), valid_properties, progress_in_keyframe * 100);
-    }
-
-    // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
-    auto compute_keyframe_values = [&computed_properties, &abstract_element, this](auto const& keyframe_values) {
-        HashMap<PropertyID, RefPtr<StyleValue const>> result;
-        HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
-        auto property_is_set_by_use_initial = MUST(Bitmap::create(number_of_longhand_properties, false));
-
+    // FIXME: Figure out how to use effect->target_properties(), using it causes few dozen tests to fail
+    HashTable<CSS::PropertyID> target_properties;
+    // 5.3.3. Calculating computed keyframes
+    // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes
+    auto computed_keyframe_values = [&keyframes, &abstract_element, &computed_properties, &target_properties, this] {
         auto property_is_logical_alias_including_shorthands = [&](PropertyID property_id) {
             if (property_is_shorthand(property_id))
                 // NOTE: All expanded longhands for a logical alias shorthand are logical aliases so we only need to check the first one.
@@ -871,7 +833,6 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             return property_is_logical_alias(property_id);
         };
 
-        // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes
         auto is_property_preferred = [&](PropertyID a, PropertyID b) {
             // If conflicts arise when expanding shorthand properties or replacing logical properties with physical properties, apply the following rules in order until the conflict is resolved:
             // 1. Longhand properties override shorthand properties (e.g. border-top-color overrides border-top).
@@ -906,156 +867,189 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             computed_properties.line_height()
         };
 
+        // 1. Let computed keyframes be an empty list of keyframes.
+        Vector<Animations::KeyframeEffect::KeyFrameSet::ComputedKeyframe> computed_keyframes;
         HashMap<PropertyID, RefPtr<StyleValue const>> specified_values;
+        HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
+        auto property_is_set_by_use_initial = MUST(Bitmap::create(number_of_longhand_properties, false));
 
-        for (auto const& [property_id, value] : keyframe_values.properties) {
-            bool is_use_initial = false;
+        // 2. For each keyframe in the list of keyframes specified on this keyframe effect, perform the following steps:
+        for (auto keyframe = keyframes.begin(); keyframe != keyframes.end(); ++keyframe) {
+            specified_values.clear();
+            longhands_set_by_property_id.clear();
+            // 1. Add a new empty keyframe, computed keyframe, to computed keyframes.
+            Animations::KeyframeEffect::KeyFrameSet::ComputedKeyframe computed_keyframe = {};
+            computed_keyframe.keyframe_offset_value = keyframe.key() / (100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
+            computed_keyframe.composite = keyframe->composite;
+            property_is_set_by_use_initial.fill(false);
 
-            auto style_value = value.visit(
-                [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<StyleValue const> {
-                    if (property_is_shorthand(property_id))
-                        return {};
-                    is_use_initial = true;
-                    return computed_properties.property(property_id, ComputedProperties::WithAnimationsApplied::No);
-                },
-                [&](RefPtr<StyleValue const> value) -> RefPtr<StyleValue const> {
-                    return value;
+            // 2. For each property specified in keyframe:
+            for (auto [property_id, value] : keyframe->properties) {
+                // FIXME: we need this to pass test: Tests/LibWeb/Text/input/WebAnimations/misc/animating-all.html
+                if (property_id == PropertyID::AnimationTimingFunction) {
+                    continue;
+                }
+                // Compute a property value using the value specified on keyframe as the value, and the target element as the element; then add the property and resulting value to computed keyframe.
+                bool is_use_initial = false;
+
+                auto style_value = value.visit(
+                    [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<StyleValue const> {
+                        if (property_is_shorthand(property_id))
+                            return {};
+                        is_use_initial = true;
+                        return computed_properties.property(property_id, ComputedProperties::WithAnimationsApplied::No);
+                    },
+                    [&](RefPtr<StyleValue const> value) -> RefPtr<StyleValue const> {
+                        return value;
+                    });
+
+                if (!style_value) {
+                    specified_values.set(property_id, nullptr);
+                    continue;
+                }
+
+                // If the style value is a PendingSubstitutionStyleValue we should skip it to avoid overwriting any value
+                // already set by resolving the relevant shorthand's value.
+                if (style_value->is_pending_substitution())
+                    continue;
+
+                if (style_value->is_unresolved())
+                    style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
+
+                // For shorthand properties, add the equivalent longhand properties.
+                for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
+                    auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
+                    auto physical_longhand_id_bitmap_index = to_underlying(physical_longhand_id) - to_underlying(first_longhand_property_id);
+
+                    // Don't overwrite values if this is the result of a UseInitial
+                    if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && is_use_initial)
+                        return;
+
+                    // Don't overwrite unless the value was originally set by a UseInitial or this property is preferred over the one that set it originally
+                    if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
+                        return;
+
+                    auto const& specified_value_with_css_wide_keywords_applied = [&]() -> StyleValue const& {
+                        if (longhand_value.is_inherit() || (longhand_value.is_unset() && is_inherited_property(longhand_id))) {
+                            if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
+                                return inherited_animated_value.value();
+
+                            return get_non_animated_inherit_value(longhand_id, abstract_element);
+                        }
+
+                        if (longhand_value.is_initial() || longhand_value.is_unset())
+                            return property_initial_value(longhand_id);
+
+                        if (longhand_value.is_revert() || longhand_value.is_revert_layer())
+                            return computed_properties.property(longhand_id);
+
+                        return longhand_value;
+                    }();
+
+                    longhands_set_by_property_id.set(physical_longhand_id, property_id);
+                    property_is_set_by_use_initial.set(physical_longhand_id_bitmap_index, is_use_initial);
+                    specified_values.set(physical_longhand_id, specified_value_with_css_wide_keywords_applied);
                 });
-
-            if (!style_value) {
-                specified_values.set(property_id, nullptr);
-                continue;
+                // FIXME: For logical properties [CSS-LOGICAL-1], add the equivalent physical properties [CSS-WRITING-MODES-4] based on the computed value of writing-mode and/or direction for the effect target.
             }
 
-            // If the style value is a PendingSubstitutionStyleValue we should skip it to avoid overwriting any value
-            // already set by resolving the relevant shorthand's value.
-            if (style_value->is_pending_substitution())
-                continue;
+            auto const& inheritance_parent = abstract_element.element_to_inherit_style_from();
+            auto inheritance_parent_has_computed_properties = inheritance_parent.has_value() && inheritance_parent->computed_properties();
+            ComputationContext font_computation_context {
+                .length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window()),
+                .abstract_element = abstract_element
+            };
 
-            if (style_value->is_unresolved())
-                style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
+            if (auto const& font_size_specified_value = specified_values.get(PropertyID::FontSize); font_size_specified_value.has_value()) {
+                // FIXME: We need to respect the math-depth of this computed keyframe if it is present
+                auto computed_math_depth = computed_properties.math_depth();
+                auto inherited_font_size = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_size() : InitialValues::font_size();
+                auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
 
-            for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
-                auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
-                auto physical_longhand_id_bitmap_index = to_underlying(physical_longhand_id) - to_underlying(first_longhand_property_id);
+                auto const& font_size_in_computed_form = compute_font_size(
+                    *font_size_specified_value.value(),
+                    computed_math_depth,
+                    inherited_font_size,
+                    inherited_math_depth,
+                    font_computation_context);
 
-                // Don't overwrite values if this is the result of a UseInitial
-                if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && is_use_initial)
-                    return;
+                computed_keyframe.properties.set(PropertyID::FontSize, font_size_in_computed_form);
+                target_properties.set(PropertyID::FontSize);
+            }
 
-                // Don't overwrite unless the value was originally set by a UseInitial or this property is preferred over the one that set it originally
-                if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
-                    return;
+            if (auto const& font_weight_specified_value = specified_values.get(PropertyID::FontWeight); font_weight_specified_value.has_value()) {
+                auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
 
-                auto const& specified_value_with_css_wide_keywords_applied = [&]() -> StyleValue const& {
-                    if (longhand_value.is_inherit() || (longhand_value.is_unset() && is_inherited_property(longhand_id))) {
-                        if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
-                            return inherited_animated_value.value();
+                auto const& font_weight_in_computed_form = compute_font_weight(
+                    *font_weight_specified_value.value(),
+                    inherited_font_weight,
+                    font_computation_context);
 
-                        return get_non_animated_inherit_value(longhand_id, abstract_element);
-                    }
+                computed_keyframe.properties.set(PropertyID::FontWeight, font_weight_in_computed_form);
+                target_properties.set(PropertyID::FontWeight);
+            }
 
-                    if (longhand_value.is_initial() || longhand_value.is_unset())
-                        return property_initial_value(longhand_id);
+            if (auto const& font_width_specified_value = specified_values.get(PropertyID::FontWidth); font_width_specified_value.has_value()) {
+                computed_keyframe.properties.set(PropertyID::FontWidth, compute_font_width(*font_width_specified_value.value(), font_computation_context));
+                target_properties.set(PropertyID::FontWidth);
+            }
 
-                    if (longhand_value.is_revert() || longhand_value.is_revert_layer())
-                        return computed_properties.property(longhand_id);
+            if (auto const& font_style_specified_value = specified_values.get(PropertyID::FontStyle); font_style_specified_value.has_value()) {
+                computed_keyframe.properties.set(PropertyID::FontStyle, compute_font_style(*font_style_specified_value.value(), font_computation_context));
+                target_properties.set(PropertyID::FontStyle);
+            }
+            if (auto const& line_height_specified_value = specified_values.get(PropertyID::LineHeight); line_height_specified_value.has_value()) {
+                ComputationContext line_height_computation_context {
+                    .length_resolution_context = {
+                        .viewport_rect = viewport_rect(),
+                        .font_metrics = {
+                            computed_properties.font_size(),
+                            computed_properties.first_available_computed_font().pixel_metrics(),
+                            inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height() },
+                        .root_font_metrics = m_root_element_font_metrics },
+                    .abstract_element = abstract_element
+                };
 
-                    return longhand_value;
-                }();
+                computed_keyframe.properties.set(PropertyID::LineHeight, compute_line_height(*line_height_specified_value.value(), line_height_computation_context));
+                target_properties.set(PropertyID::LineHeight);
+            }
 
-                longhands_set_by_property_id.set(physical_longhand_id, property_id);
-                property_is_set_by_use_initial.set(physical_longhand_id_bitmap_index, is_use_initial);
-                specified_values.set(physical_longhand_id, specified_value_with_css_wide_keywords_applied);
-            });
-        }
-
-        auto const& inheritance_parent = abstract_element.element_to_inherit_style_from();
-        auto inheritance_parent_has_computed_properties = inheritance_parent.has_value() && inheritance_parent->computed_properties();
-        ComputationContext font_computation_context {
-            .length_resolution_context = inheritance_parent_has_computed_properties ? Length::ResolutionContext::for_element(inheritance_parent.value()) : Length::ResolutionContext::for_window(*m_document->window()),
-            .abstract_element = abstract_element
-        };
-
-        if (auto const& font_size_specified_value = specified_values.get(PropertyID::FontSize); font_size_specified_value.has_value()) {
-            // FIXME: We need to respect the math-depth of this computed keyframe if it is present
-            auto computed_math_depth = computed_properties.math_depth();
-            auto inherited_font_size = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_size() : InitialValues::font_size();
-            auto inherited_math_depth = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->math_depth() : InitialValues::math_depth();
-
-            auto const& font_size_in_computed_form = compute_font_size(
-                *font_size_specified_value.value(),
-                computed_math_depth,
-                inherited_font_size,
-                inherited_math_depth,
-                font_computation_context);
-
-            result.set(PropertyID::FontSize, font_size_in_computed_form);
-        }
-
-        if (auto const& font_weight_specified_value = specified_values.get(PropertyID::FontWeight); font_weight_specified_value.has_value()) {
-            auto inherited_font_weight = inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->font_weight() : InitialValues::font_weight();
-
-            auto const& font_weight_in_computed_form = compute_font_weight(
-                *font_weight_specified_value.value(),
-                inherited_font_weight,
-                font_computation_context);
-
-            result.set(PropertyID::FontWeight, font_weight_in_computed_form);
-        }
-
-        if (auto const& font_width_specified_value = specified_values.get(PropertyID::FontWidth); font_width_specified_value.has_value())
-            result.set(PropertyID::FontWidth, compute_font_width(*font_width_specified_value.value(), font_computation_context));
-
-        if (auto const& font_style_specified_value = specified_values.get(PropertyID::FontStyle); font_style_specified_value.has_value())
-            result.set(PropertyID::FontStyle, compute_font_style(*font_style_specified_value.value(), font_computation_context));
-
-        if (auto const& line_height_specified_value = specified_values.get(PropertyID::LineHeight); line_height_specified_value.has_value()) {
-            ComputationContext line_height_computation_context {
+            ComputationContext computation_context {
                 .length_resolution_context = {
                     .viewport_rect = viewport_rect(),
-                    .font_metrics = {
-                        computed_properties.font_size(),
-                        computed_properties.first_available_computed_font().pixel_metrics(),
-                        inheritance_parent_has_computed_properties ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height() },
+                    .font_metrics = font_metrics,
                     .root_font_metrics = m_root_element_font_metrics },
                 .abstract_element = abstract_element
             };
 
-            result.set(PropertyID::LineHeight, compute_line_height(*line_height_specified_value.value(), line_height_computation_context));
+            // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
+            //       doesn't matter as a computed value is always valid as a specified value.
+            Function<NonnullRefPtr<StyleValue const>(PropertyID)> get_property_specified_value = [&](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
+                if (auto keyframe_value = specified_values.get(property_id); keyframe_value.has_value() && keyframe_value.value())
+                    return *keyframe_value.value();
+
+                return computed_properties.property(property_id);
+            };
+
+            for (auto const& [property_id, style_value] : specified_values) {
+                if (!style_value)
+                    continue;
+
+                if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontStyle, PropertyID::LineHeight))
+                    continue;
+
+                computed_keyframe.properties.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
+                target_properties.set(property_id);
+            }
+            computed_keyframes.append(computed_keyframe);
         }
 
-        ComputationContext computation_context {
-            .length_resolution_context = {
-                .viewport_rect = viewport_rect(),
-                .font_metrics = font_metrics,
-                .root_font_metrics = m_root_element_font_metrics },
-            .abstract_element = abstract_element
-        };
-
-        // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
-        //       doesn't matter as a computed value is always valid as a specified value.
-        Function<NonnullRefPtr<StyleValue const>(PropertyID)> get_property_specified_value = [&](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
-            if (auto keyframe_value = specified_values.get(property_id); keyframe_value.has_value() && keyframe_value.value())
-                return *keyframe_value.value();
-
-            return computed_properties.property(property_id);
-        };
-
-        for (auto const& [property_id, style_value] : specified_values) {
-            if (!style_value)
-                continue;
-
-            if (first_is_one_of(property_id, PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontStyle, PropertyID::LineHeight))
-                continue;
-
-            result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
-        }
-
-        return result;
+        // 3. Apply the procedure to compute missing keyframe offsets to computed keyframes. (this is already done in KeyframeEffect::set_keyframes)
+        // 4. Return computed keyframes.
+        return computed_keyframes;
     };
-    HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
-    HashMap<PropertyID, RefPtr<StyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
+    auto computed_keyframes = computed_keyframe_values();
+
     auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
         switch (composite_operation_or_auto) {
         case Bindings::CompositeOperationOrAuto::Accumulate:
@@ -1070,49 +1064,172 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         VERIFY_NOT_REACHED();
     };
 
-    auto start_composite_operation = to_composite_operation(keyframe_values.composite);
-    auto end_composite_operation = to_composite_operation(keyframe_end_values.composite);
+    // 5.3.4. The effect value of a keyframe effect
+    // https://www.w3.org/TR/web-animations-1/#the-effect-value-of-a-keyframe-animation-effect
+    auto keyframe_effect = [&](CSS::PropertyID target_property) {
+        AK::Variant<ValueComparingRefPtr<StyleValue const>, NoKeyframeEffect, KeyframeEffectInterpolateFailed> next_value = NoKeyframeEffect {};
+        // 1. If iteration progress is unresolved abort this procedure. (handled at the start)
+        auto iteration_progress = output_progress.value();
+        // 2. Let target property be the longhand property for which the effect value is to be calculated (function parameter).
+        // 3. If animation type of the target property is not animatable abort this procedure since the effect cannot be applied.
+        if (!CSS::is_animatable_property(target_property)) {
+            return next_value;
+        }
+        // 4. If the keyframe effect does not have an effect target, or if the effect target cannot have computed property values calculated, abort this procedure.
+        if (effect->target() == nullptr) {
+            return next_value;
+        }
 
-    for (auto const& it : computed_start_values) {
-        auto resolved_start_property = it.value;
-        RefPtr resolved_end_property = computed_end_values.get(it.key).value_or(nullptr);
+        // 5. Define the neutral value for composition as a value which, when combined with an underlying value using the add composite operation, produces the underlying value.
+        auto const& underlying_value = computed_properties.property(target_property);
+        auto neutral_value = StyleValue::get_neutral_value_for_type(underlying_value.type());
 
-        if (!resolved_end_property) {
-            if (resolved_start_property) {
-                computed_properties.set_animated_property(it.key, *resolved_start_property);
-                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(SerializationMode::Normal));
+        // 6. Let property-specific keyframes be the result of getting the set of computed keyframes for this keyframe effect.
+        Vector<Animations::KeyframeEffect::KeyFrameSet::ComputedKeyframe> property_specific_keyframes;
+        // 7. Remove any keyframes from property-specific keyframes that do not have a property value for target property.
+        for (auto& keyframe : computed_keyframes) {
+            if (keyframe.properties.contains(target_property)) {
+                property_specific_keyframes.append(keyframe);
             }
-            continue;
         }
 
-        if (resolved_end_property && !resolved_start_property)
-            resolved_start_property = property_initial_value(it.key);
-
-        if (!resolved_start_property || !resolved_end_property)
-            continue;
-
-        auto start = resolved_start_property.release_nonnull();
-        auto end = resolved_end_property.release_nonnull();
-
-        if (computed_properties.is_property_important(it.key)) {
-            continue;
+        // 8. If property-specific keyframes is empty, return underlying value.
+        if (property_specific_keyframes.size() == 0) {
+            next_value = ValueComparingRefPtr<StyleValue const>(underlying_value);
+            return next_value;
         }
 
-        auto const& underlying_value = computed_properties.property(it.key);
-        if (auto composited_start_value = composite_value(underlying_value, start, start_composite_operation))
-            start = *composited_start_value;
+        int has_offset_zero = 0;
+        int has_offset_one = 0;
 
-        if (auto composited_end_value = composite_value(underlying_value, end, end_composite_operation))
-            end = *composited_end_value;
-
-        if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe, AllowDiscrete::Yes)) {
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(it.key, *next_value);
+        for (auto keyframe : property_specific_keyframes) {
+            if (keyframe.keyframe_offset_value == 0) {
+                ++has_offset_zero;
+            } else if (keyframe.keyframe_offset_value == 1) {
+                ++has_offset_one;
+            }
+        }
+        // 9. If there is no keyframe in property-specific keyframes with a computed keyframe offset of 0, create a new keyframe with a computed keyframe offset of 0, a property value set to the neutral value for composition, and a composite operation of add, and prepend it to the beginning of property-specific keyframes.
+        if (has_offset_zero == 0) {
+            Animations::KeyframeEffect::KeyFrameSet::ComputedKeyframe computed_keyframe;
+            computed_keyframe.keyframe_offset_value = 0;
+            computed_keyframe.properties.set(target_property, neutral_value);
+            computed_keyframe.composite = Bindings::CompositeOperationOrAuto::Add;
+            property_specific_keyframes.prepend(computed_keyframe);
+        }
+        // 10. Similarly, if there is no keyframe in property-specific keyframes with a computed keyframe offset of 1, create a new keyframe with a computed keyframe offset of 1, a property value set to the neutral value for composition, and a composite operation of add, and append it to the end of property-specific keyframes.
+        if (has_offset_one == 0) {
+            Animations::KeyframeEffect::KeyFrameSet::ComputedKeyframe computed_keyframe;
+            computed_keyframe.keyframe_offset_value = 1;
+            computed_keyframe.properties.set(target_property, neutral_value);
+            computed_keyframe.composite = Bindings::CompositeOperationOrAuto::Add;
+            property_specific_keyframes.append(computed_keyframe);
+        }
+        // 11. Let interval endpoints be an empty sequence of keyframes.
+        Vector<Animations::KeyframeEffect::KeyFrameSet::ComputedKeyframe> interval_endpoints;
+        // 12. Populate interval endpoints by following the steps from the first matching condition from below:
+        if (iteration_progress < 0 && has_offset_zero > 1) {
+            // If iteration progress < 0 and there is more than one keyframe in property-specific keyframes with a computed keyframe offset of 0,
+            // Add the first keyframe in property-specific keyframes to interval endpoints.
+            interval_endpoints.append(property_specific_keyframes.first());
+        } else if (iteration_progress >= 1 && has_offset_one > 1) {
+            // If iteration progress ≥ 1 and there is more than one keyframe in property-specific keyframes with a computed keyframe offset of 1,
+            // Add the last keyframe in property-specific keyframes to interval endpoints.
+            interval_endpoints.append(property_specific_keyframes.last());
         } else {
-            // If interpolate_property() fails, the element should not be rendered
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden));
+            for (int current = property_specific_keyframes.size() - 2; current >= 0; --current) {
+                auto keyframe = property_specific_keyframes[current];
+                // 1. Append to interval endpoints the last keyframe in property-specific keyframes whose computed keyframe offset is less than or equal to iteration progress and less than 1.
+                //    If there is no such keyframe (because, for example, the iteration progress is negative), add the last keyframe whose computed keyframe offset is 0.
+                if (keyframe.keyframe_offset_value < 1 && keyframe.keyframe_offset_value <= iteration_progress) {
+                    interval_endpoints.append(keyframe);
+                    // 2. Append to interval endpoints the next keyframe in property-specific keyframes after the one added in the previous step.
+                    interval_endpoints.append(property_specific_keyframes[current + 1]);
+                    break;
+                }
+            }
+
+            if (interval_endpoints.is_empty()) {
+                size_t start_keyframe_index = 0;
+                for (size_t i = 1; i < property_specific_keyframes.size(); ++i) {
+                    if (property_specific_keyframes[i].keyframe_offset_value > 0) {
+                        start_keyframe_index = i - 1;
+                        break;
+                    }
+                }
+                VERIFY(start_keyframe_index + 1 < property_specific_keyframes.size());
+
+                interval_endpoints.append(property_specific_keyframes[start_keyframe_index]);
+                interval_endpoints.append(property_specific_keyframes[start_keyframe_index + 1]);
+            }
         }
+        // 13. For each keyframe in interval endpoints:
+        for (auto& keyframe : interval_endpoints) {
+            // 1. If keyframe has a composite operation that is not replace, or keyframe has no composite operation and the composite operation of this keyframe effect is not replace, then perform the following steps:
+            if (keyframe.composite != Bindings::CompositeOperationOrAuto::Replace || (keyframe.composite == Bindings::CompositeOperationOrAuto::Auto && effect->composite() != Bindings::CompositeOperation::Replace)) {
+                Bindings::CompositeOperation composite_operation = to_composite_operation(keyframe.composite);
+                // 2. Let value to combine be the property value of target property specified on keyframe.
+                auto value_to_combine = keyframe.properties.get(target_property).value().get_pointer<NonnullRefPtr<CSS::StyleValue const>>();
+                // 3. Replace the property value of target property on keyframe with the result of combining underlying value (Va) and value to combine (Vb) using the procedure for the composite operation to use corresponding to the target property’s animation type.
+                auto composed_style_value = composite_value(underlying_value, *value_to_combine, composite_operation);
+                Variant<Animations::KeyframeEffect::KeyFrameSet::UseInitial, NonnullRefPtr<CSS::StyleValue const>> replace_value = Animations::KeyframeEffect::KeyFrameSet::UseInitial {};
+
+                if (composed_style_value) {
+                    replace_value = composed_style_value.release_nonnull();
+                    keyframe.properties.set(target_property, move(replace_value));
+                }
+            }
+        }
+        // 14. If there is only one keyframe in interval endpoints return the property value of target property on that keyframe.
+        if (interval_endpoints.size() == 1) {
+            auto refpointer = *interval_endpoints.first().properties.get(target_property).value().get_pointer<NonnullRefPtr<CSS::StyleValue const>>();
+            next_value = ValueComparingRefPtr<StyleValue const>(refpointer);
+            return next_value;
+        }
+        // 15. Let start offset be the computed keyframe offset of the first keyframe in interval endpoints.
+        double start_offset = interval_endpoints.first().keyframe_offset_value * 100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
+        // 16. Let end offset be the computed keyframe offset of last keyframe in interval endpoints.
+        double end_offset = interval_endpoints.last().keyframe_offset_value * 100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
+        // 17. Let interval distance be the result of evaluating (iteration progress - start offset) / (end offset - start offset).
+        double interval_distance = (round(iteration_progress * 100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor) - start_offset) / (end_offset - start_offset);
+        // 18. Let transformed distance be the result of evaluating the timing function associated with the first keyframe in interval endpoints passing interval distance as the input progress.
+
+        CSS::EasingFunction timing_function = effect->default_keyframe_timing_function();
+
+        auto maybe_timing_function = interval_endpoints.first().properties.get(PropertyID::AnimationTimingFunction);
+
+        if (maybe_timing_function.has_value()) {
+            maybe_timing_function.value().visit(
+                [](Animations::KeyframeEffect::KeyFrameSet::UseInitial) {},
+                [&](StyleValue const& value) {
+                    timing_function = CSS::EasingFunction::from_style_value(value);
+                });
+        }
+        double transformed_distance = timing_function.evaluate_at(interval_distance, false);
+        // 19. Return the result of applying the interpolation procedure defined by the animation type of the target property,
+        // to the values of the target property specified on the two keyframes in interval endpoints taking the first such value as Vstart and the second as Vend and using transformed distance as the interpolation parameter p.
+        auto v_start = interval_endpoints.first().properties.get(target_property).value().get_pointer<NonnullRefPtr<CSS::StyleValue const>>();
+        auto v_end = interval_endpoints.last().properties.get(target_property).value().get_pointer<NonnullRefPtr<CSS::StyleValue const>>();
+        if (auto interpolated_value = interpolate_property(*effect->target(), target_property, *v_start, *v_end, transformed_distance, AllowDiscrete::Yes)) {
+            next_value = interpolated_value;
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(target_property), transformed_distance, **v_start, **v_end, interpolated_value->to_string(SerializationMode::Normal));
+            return next_value;
+        }
+        dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(target_property), transformed_distance, v_start, v_end);
+        next_value = KeyframeEffectInterpolateFailed {};
+        return next_value;
+    };
+
+    for (auto target_property : target_properties) {
+        AK::Variant<ValueComparingRefPtr<StyleValue const>, NoKeyframeEffect, KeyframeEffectInterpolateFailed> next_value = keyframe_effect(target_property);
+
+        next_value.visit(
+            [&](ValueComparingRefPtr<StyleValue const> value) { computed_properties.set_animated_property(target_property, *value); },
+            [&](NoKeyframeEffect) {},
+            [&](KeyframeEffectInterpolateFailed) {
+                // If interpolate_property() fails, the element should not be rendered
+                computed_properties.set_animated_property(PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden));
+            });
     }
 }
 
@@ -1121,11 +1238,10 @@ static void apply_animation_properties(DOM::Document const& document, ComputedPr
     VERIFY(animation.effect());
 
     auto& effect = as<Animations::KeyframeEffect>(*animation.effect());
-
     effect.set_iteration_duration(animation_properties.duration);
     effect.set_start_delay(animation_properties.delay);
     effect.set_iteration_count(animation_properties.iteration_count);
-    effect.set_timing_function(animation_properties.timing_function);
+    effect.set_default_keyframe_timing_function(animation_properties.timing_function);
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
     effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));

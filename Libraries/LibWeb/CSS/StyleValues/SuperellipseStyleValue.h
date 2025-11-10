@@ -35,6 +35,11 @@ public:
 
     bool properties_equal(SuperellipseStyleValue const& other) const { return m_parameter == other.m_parameter; }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return SuperellipseStyleValue::create(NumberStyleValue::create(0));
+    }
+
 private:
     explicit SuperellipseStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& parameter)
         : StyleValueWithDefaultOperators(Type::Superellipse)

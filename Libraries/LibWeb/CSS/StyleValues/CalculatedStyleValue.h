@@ -114,6 +114,9 @@ public:
 
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
+    // FIXME: implement neutral value
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value();
+
 private:
     explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
         : StyleValue(Type::Calculated)

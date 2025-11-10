@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -38,6 +39,14 @@ public:
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(PositionStyleValue const& other) const { return m_properties == other.m_properties; }
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        LengthPercentage neutral = LengthPercentage::from_style_value(PercentageStyleValue::create(Percentage(0)));
+        auto edge_x = EdgeStyleValue::create(PositionEdge::Left, neutral);
+        auto edge_y = EdgeStyleValue::create(PositionEdge::Top, neutral);
+        return PositionStyleValue::create(edge_x, edge_y);
+    }
 
 private:
     PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
