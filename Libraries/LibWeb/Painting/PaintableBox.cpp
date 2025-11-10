@@ -1535,6 +1535,35 @@ void PaintableBox::resolve_paint_properties()
         matrix = matrix * transform.to_matrix(*this).release_value();
     set_transform(matrix);
 
+    // https://drafts.csswg.org/css-transforms-2/#perspective
+    auto const& perspective = computed_values.perspective();
+    if (perspective.has_value()) {
+        // The perspective matrix is computed as follows:
+
+        // 1. Start with the identity matrix.
+        m_perspective_matrix = Gfx::FloatMatrix4x4::identity();
+
+        // 2. Translate by the computed X and Y values of 'perspective-origin'
+        // FIXME: Implement this.
+
+        // 3. Multiply by the matrix that would be obtained from the 'perspective()' transform function, where the
+        //    length is provided by the value of the perspective property
+        auto perspective_value = perspective.value();
+
+        // https://drafts.csswg.org/css-transforms-2/#perspective-property
+        // As very small <length> values can produce bizarre rendering results and stress the numerical accuracy
+        // of transform calculations, values less than '1px' must be treated as '1px' for rendering purposes. (This
+        // clamping does not affect the underlying value, so 'perspective: 0;' in a stylesheet will still serialize back
+        // as '0'.)
+        if (perspective_value < 1)
+            perspective_value = 1;
+
+        m_perspective_matrix = m_perspective_matrix * CSS::Transformation(CSS::TransformFunction::Perspective, Vector<CSS::TransformValue>({ CSS::TransformValue(CSS::Length::make_px(perspective_value)) })).to_matrix(*this).release_value();
+
+        // 4. Translate by the negated computed X and Y values of 'perspective-origin'
+        // FIXME: Implement this.
+    }
+
     auto const& transform_origin = computed_values.transform_origin();
     auto reference_box = transform_box_rect();
     auto x = reference_box.left() + transform_origin.x.to_px(layout_node, reference_box.width());

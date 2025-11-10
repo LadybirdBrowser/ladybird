@@ -637,6 +637,7 @@ public:
     Optional<Transformation> const& rotate() const { return m_noninherited.rotate; }
     Optional<Transformation> const& translate() const { return m_noninherited.translate; }
     Optional<Transformation> const& scale() const { return m_noninherited.scale; }
+    Optional<CSSPixels> const& perspective() const { return m_noninherited.perspective; }
 
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
@@ -838,6 +839,7 @@ protected:
         Optional<Transformation> rotate;
         Optional<Transformation> translate;
         Optional<Transformation> scale;
+        Optional<CSSPixels> perspective;
 
         Optional<MaskReference> mask;
         MaskType mask_type { InitialValues::mask_type() };
@@ -990,6 +992,7 @@ public:
     void set_box_shadow(Vector<ShadowData>&& value) { m_noninherited.box_shadow = move(value); }
     void set_rotate(Transformation value) { m_noninherited.rotate = move(value); }
     void set_scale(Transformation value) { m_noninherited.scale = move(value); }
+    void set_perspective(Optional<CSSPixels> value) { m_noninherited.perspective = move(value); }
     void set_transformations(Vector<Transformation> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(TransformBox value) { m_noninherited.transform_box = value; }
     void set_transform_origin(TransformOrigin value) { m_noninherited.transform_origin = move(value); }

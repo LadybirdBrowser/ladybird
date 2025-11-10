@@ -210,6 +210,7 @@ public:
     Optional<Transformation> rotate() const;
     Optional<Transformation> translate() const;
     Optional<Transformation> scale() const;
+    Optional<CSSPixels> perspective() const;
 
     MaskType mask_type() const;
     float stop_opacity() const;
