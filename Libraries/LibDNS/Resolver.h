@@ -730,50 +730,99 @@ private:
 
         // Figure out if this is a delegation point.
         // The records needed are SOA, DS and NS - look them up concurrently.
-        auto result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Vector { Messages::ResourceType::SOA }, { Messages::ResourceType::DS }, { Messages::ResourceType::NS } }, { .validate_dnssec_locally = !top_level })->await()));
-        // - Lookup the SOA record for the domain.
-        // - If we have no SOA record-
-        if (!result->has_record_of_type(Messages::ResourceType::SOA)) {
-            dbgln_if(DNS_DEBUG, "DNS: No SOA record found for {}", name.to_string());
-            // - If there's no DS record, check for an NS record-
-            if (!result->has_record_of_type(Messages::ResourceType::DS)) {
-                dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
+        auto delegation_point_lookup = lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Vector { Messages::ResourceType::SOA }, { Messages::ResourceType::DS }, { Messages::ResourceType::NS } }, { .validate_dnssec_locally = !top_level });
+
+        delegation_point_lookup->when_resolved([this, promise, name](NonnullRefPtr<LookupResult const> const& result) {
+            // - Lookup the SOA record for the domain.
+            // - If we have no SOA record-
+            if (!result->has_record_of_type(Messages::ResourceType::SOA)) {
+                dbgln_if(DNS_DEBUG, "DNS: No SOA record found for {}", name.to_string());
                 // - If there's no DS record, check for an NS record-
-                if (result->has_record_of_type(Messages::ResourceType::NS)) {
-                    // - but if there _is_ an NS record, this is a broken delegation, so reject.
-                    dbgln_if(DNS_DEBUG, "DNS: Found NS record for {}", name.to_string());
-                    promise->resolve(false);
-                    return promise;
+                if (!result->has_record_of_type(Messages::ResourceType::DS)) {
+                    dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
+                    // - If there's no DS record, check for an NS record-
+                    if (result->has_record_of_type(Messages::ResourceType::NS)) {
+                        // - but if there _is_ an NS record, this is a broken delegation, so reject.
+                        dbgln_if(DNS_DEBUG, "DNS: Found NS record for {}", name.to_string());
+                        promise->resolve(false);
+                        return;
+                    }
+                    dbgln_if(DNS_DEBUG, "DNS: No NS record found for {}", name.to_string());
+
+                    // NOTE: We have to defer here due to delegation_point_lookup being resolved from a lookup, which is whilst pending lookups are locked.
+                    Core::deferred_invoke([this, promise, name] {
+                        // this is just part of the parent delegation, so go up one level.
+                        auto upper_level_promise = validate_dnssec_chain_step(name.parent());
+                        upper_level_promise->when_resolved([promise](bool valid) {
+                            promise->resolve(move(valid));
+                        });
+
+                        upper_level_promise->when_rejected([promise](Error const& error) {
+                            promise->reject(Error::copy(error));
+                        });
+
+                        promise->add_child(move(upper_level_promise));
+                    });
+                    return;
                 }
-                dbgln_if(DNS_DEBUG, "DNS: No NS record found for {}", name.to_string());
-                // this is just part of the parent delegation, so go up one level.
-                return validate_dnssec_chain_step(name.parent());
+                // - If there is a DS record, this is a separate zone...but since we don't have an SOA record, this is a misconfigured zone.
+                // Let's just reject.
+                dbgln_if(DNS_DEBUG, "DNS: Found DS record for {}", name.to_string());
+                promise->resolve(false);
+                return;
             }
-            // - If there is a DS record, this is a separate zone...but since we don't have an SOA record, this is a misconfigured zone.
-            // Let's just reject.
-            dbgln_if(DNS_DEBUG, "DNS: Found DS record for {}", name.to_string());
-            promise->resolve(false);
-            return promise;
-        }
 
-        // So we have an SOA record, there's much rejoicing and we can continue.
-        auto& soa = result->record<Messages::Records::SOA>();
-        dbgln_if(DNS_DEBUG, "DNS: Found SOA record for {}: {}", name.to_string(), soa.mname.to_string());
-        if (soa.mname == name.parent()) {
-            // Just go up one level, all is well.
-            return validate_dnssec_chain_step(name.parent());
-        }
+            // So we have an SOA record, there's much rejoicing and we can continue.
+            auto& soa = result->record<Messages::Records::SOA>();
+            dbgln_if(DNS_DEBUG, "DNS: Found SOA record for {}: {}", name.to_string(), soa.mname.to_string());
+            if (soa.mname == name.parent()) {
+                // NOTE: We have to defer here due to delegation_point_lookup being resolved from a lookup, which is whilst pending lookups are locked.
+                Core::deferred_invoke([this, promise, name] {
+                    // Just go up one level, all is well.
+                    auto upper_level_promise = validate_dnssec_chain_step(name.parent());
+                    upper_level_promise->when_resolved([promise](bool valid) {
+                        promise->resolve(move(valid));
+                    });
 
-        // This is a separate zone, let's look up the DS record.
-        auto ds_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DS }, { .validate_dnssec_locally = false })->await()));
-        if (!ds_result->has_record_of_type(Messages::ResourceType::DS)) {
-            // If there's no DS record, this is a misconfigured zone.
-            dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
-            promise->resolve(false);
-            return promise;
-        }
+                    upper_level_promise->when_rejected([promise](Error const& error) {
+                        promise->reject(Error::copy(error));
+                    });
 
-        promise->resolve(true);
+                    promise->add_child(move(upper_level_promise));
+                });
+                return;
+            }
+
+            // NOTE: We have to defer here due to delegation_point_lookup being resolved from a lookup, which is whilst pending lookups are locked.
+            Core::deferred_invoke([this, promise, name] {
+                // This is a separate zone, let's look up the DS record.
+                dbgln_if(DNS_DEBUG, "DNS: In separate zone, looking up DS record for {}", name.to_string());
+                auto ds_lookup_promise = lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DS }, { .validate_dnssec_locally = false });
+                ds_lookup_promise->when_resolved([promise, name](NonnullRefPtr<LookupResult const> const& ds_result) {
+                    if (!ds_result->has_record_of_type(Messages::ResourceType::DS)) {
+                        // If there's no DS record, this is a misconfigured zone.
+                        dbgln_if(DNS_DEBUG, "DNS: In separate zone, no DS record found for {}", name.to_string());
+                        promise->resolve(false);
+                        return;
+                    }
+
+                    dbgln_if(DNS_DEBUG, "DNS: In separate zone, DS record found for {}", name.to_string());
+                    promise->resolve(true);
+                });
+
+                ds_lookup_promise->when_rejected([promise](Error const& error) {
+                    promise->reject(Error::copy(error));
+                });
+
+                promise->add_child(move(ds_lookup_promise));
+            });
+        });
+
+        delegation_point_lookup->when_rejected([promise](Error const& error) {
+            promise->reject(Error::copy(error));
+        });
+
+        promise->add_child(move(delegation_point_lookup));
         return promise;
     }
 
