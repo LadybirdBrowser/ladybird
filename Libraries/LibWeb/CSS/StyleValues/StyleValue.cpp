@@ -120,7 +120,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::get_neutral_value_for_
 {
     switch (type) {
     default: {
-        return ScrollbarColorStyleValue::neutral_value();
+        return IntegerStyleValue::neutral_value();
     }
     }
 }
