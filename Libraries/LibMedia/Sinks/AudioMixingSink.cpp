@@ -111,14 +111,7 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
                 if (new_block.is_empty())
                     return false;
 
-                auto new_block_first_sample_offset = new_block.start_timestamp().to_time_units(1, sample_rate);
-                if (!track_data.current_block.is_empty() && track_data.current_block.sample_rate() == sample_rate && track_data.current_block.channel_count() == channel_count) {
-                    auto current_block_end = track_data.current_block_first_sample_offset + static_cast<i64>(track_data.current_block.sample_count());
-                    new_block_first_sample_offset = max(new_block_first_sample_offset, current_block_end);
-                }
-
                 track_data.current_block = move(new_block);
-                track_data.current_block_first_sample_offset = new_block_first_sample_offset;
                 return true;
             };
 
@@ -137,7 +130,7 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
                     continue;
                 }
 
-                auto first_sample_offset = track_data.current_block_first_sample_offset;
+                auto first_sample_offset = current_block.timestamp_in_samples();
                 if (first_sample_offset >= samples_end)
                     break;
 
@@ -279,10 +272,8 @@ void AudioMixingSink::set_time(AK::Duration time)
                         self->m_next_sample_to_write = time.to_time_units(1, self->m_playback_stream_sample_rate);
                     }
 
-                    for (auto& [track, track_data] : self->m_track_mixing_datas) {
+                    for (auto& [track, track_data] : self->m_track_mixing_datas)
                         track_data.current_block.clear();
-                        track_data.current_block_first_sample_offset = 0;
-                    }
                 }
 
                 if (self->m_playing)
