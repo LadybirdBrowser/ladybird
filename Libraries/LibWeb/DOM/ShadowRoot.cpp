@@ -198,12 +198,7 @@ void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& 
 
 WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> ShadowRoot::get_animations()
 {
-    Vector<GC::Ref<Animations::Animation>> relevant_animations;
-    TRY(for_each_child_of_type_fallible<Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
-        relevant_animations.extend(TRY(child.get_animations(Animations::GetAnimationsOptions { .subtree = true })));
-        return IterationDecision::Continue;
-    }));
-    return relevant_animations;
+    return calculate_get_animations(*this);
 }
 
 ElementByIdMap& ShadowRoot::element_by_id() const
