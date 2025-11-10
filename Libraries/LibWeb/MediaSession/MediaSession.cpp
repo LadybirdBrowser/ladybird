@@ -1,9 +1,4 @@
-#include "LibJS/Runtime/AbstractOperations.h"
-#include "LibJS/Runtime/JobCallback.h"
-#include "LibJS/Runtime/PropertyAttributes.h"
-#include "LibWeb/HTML/EventLoop/EventLoop.h"
-#include "LibWeb/WebIDL/AbstractOperations.h"
-#include "LibWeb/WebIDL/ExceptionOr.h"
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -14,10 +9,6 @@
 namespace Web::MediaSession {
 
 GC_DEFINE_ALLOCATOR(MediaSession);
-
-// void MediaSession::update_metadata(GC::Ref<MediaMetadata> metadata) const {
-//     const auto& navigator = as<HTML::Navigator>(*this);
-// }
 
 GC::Ref<MediaSession> MediaSession::create(JS::Realm& realm) {
     return realm.create<MediaSession>(realm);
@@ -30,15 +21,20 @@ MediaSession::MediaSession(JS::Realm& realm)
 
 MediaSession::~MediaSession() = default;
 
+// https://w3c.github.io/mediasession/#dom-mediasession-setactionhandler
 WebIDL::ExceptionOr<void> MediaSession::set_action_handler(Bindings::MediaSessionAction action, MediaSessionActionHandler handler) {
+    // https://w3c.github.io/mediasession/#update-action-handler-algorithm
     if (!handler)
-        m_action_handlers.remove(action);
+        m_supported_media_session_actions.remove(action);
     else
-        m_action_handlers.set(action, handler);
+        m_supported_media_session_actions.set(action, handler);
+
+    // TODO: run `media_session_actions_update`
     return {};
 }
 
-void MediaSession::handle_action(MediaSessionActionDetails details) {
+// https://w3c.github.io/mediasession/#handle-media-session-action
+void MediaSession::handle_media_session_action(MediaSessionActionDetails details) {
     // When the user agent is notified by a media session action source named source that a media session action named action has been triggered,
     // the user agent MUST queue a task, using the user interaction task source,
     // to run the following handle media session action steps:
@@ -48,11 +44,11 @@ void MediaSession::handle_action(MediaSessionActionDetails details) {
         // 3. If session is null, abort these steps.
         // 4. Let actions be session’s supported media session actions.
         // 5. If actions does not contain the key action, abort these steps.
-        if (!m_action_handlers.contains(details_copy.action))
+        if (!m_supported_media_session_actions.contains(details_copy.action))
             return;
         auto& realm = this->realm();
         // 6. Let handler be the MediaSessionActionHandler associated with the key action in actions.
-        auto const& handler = m_action_handlers.get(details_copy.action).release_value();
+        auto const& handler = m_supported_media_session_actions.get(details_copy.action).release_value();
 
         auto details_js = JS::Object::create(realm, nullptr);
         details_js->define_direct_property("action"_utf16, JS::Value(static_cast<i32>(details_copy.action)), JS::default_attributes);
@@ -70,7 +66,7 @@ void MediaSession::handle_action(MediaSessionActionDetails details) {
 }
 
 bool MediaSession::has_action_handler(Bindings::MediaSessionAction action) const {
-    return m_action_handlers.contains(action);
+    return m_supported_media_session_actions.contains(action);
 }
 
 WebIDL::ExceptionOr<void> MediaSession::set_position_state() {
@@ -140,9 +136,8 @@ WebIDL::ExceptionOr<void> MediaSession::set_metadata(GC::Ptr<MediaMetadata> valu
     // 3. If the MediaSession’s metadata is not null, set its media session to the current MediaSession.
     m_metadata = value;
 
-    // TODO
+    // TODO: need to implement `update_metadata`
     // 4. In parallel, run the update metadata algorithm.
-    // Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), update_metadata(metadata)));
     return {};
 }
 

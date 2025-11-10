@@ -273,12 +273,6 @@ double HTMLMediaElement::current_time() const
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-currenttime
 void HTMLMediaElement::set_current_time(double current_time)
 {
-    auto const& mediasession = document().window()->navigator()->media_session();
-
-    if (mediasession->has_action_handler(Bindings::MediaSessionAction::Seekto))
-        // TODO: use `fastSeek` correctly.
-        mediasession->handle_action({ Bindings::MediaSessionAction::Seekto, 0, current_time, false, false, Bindings::MediaSessionEnterPictureInPictureReason::Other });
-
     // On setting, if the media element's readyState is HAVE_NOTHING, then it must set the media element's default playback start
     // position to the new value; otherwise, it must set the official playback position to the new value and then seek to the new
     // value. The new value must be interpreted as being in seconds.
@@ -1703,6 +1697,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     if (m_ready_state == ReadyState::HaveNothing)
         return;
 
+    // Save whether we were already seeking to detect recursive calls
+    bool was_already_seeking = m_seeking;
+
     // 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
     //    Abort that other instance of the algorithm without waiting for the step that it is running to complete.
     // NOTE: PlaybackManager will restart any ongoing seek, and only exit the seeking state once, so we don't need to
@@ -1789,6 +1786,19 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // 11. Set the current playback position to the new playback position.
     // NOTE: We set the playback position in finish_seeking_element(), once we've established the new playback position using
     //       the seek mode we've been provided.
+
+    // Only call the handler if this is not a recursive seek
+    auto const& mediasession = document().window()->navigator()->media_session();
+    if (mediasession->has_action_handler(Bindings::MediaSessionAction::Seekto) && !was_already_seeking) {
+        mediasession->handle_media_session_action({
+                Bindings::MediaSessionAction::Seekto,
+                0,
+                playback_position,
+                seek_mode == MediaSeekMode::ApproximateForSpeed,
+                false,
+                Bindings::MediaSessionEnterPictureInPictureReason::Other
+                });
+    }
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
@@ -2228,7 +2238,7 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
         Bindings::MediaSessionAction::Pause,
         0,
         0,
-        true, // because we triggered an hardware key event
+        true, // because we triggered a hardware key event
         // TODO
         false,
         // TODO: no PiP browser support
@@ -2333,7 +2343,7 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
     }
 
     if (is_action_handler)
-        mediasession->handle_action(details);
+        mediasession->handle_media_session_action(details);
 
     return true;
 }
