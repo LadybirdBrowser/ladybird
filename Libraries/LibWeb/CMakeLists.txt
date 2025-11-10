@@ -736,6 +736,9 @@ set(SOURCES
     Layout/RadioButton.cpp
     Layout/ReplacedBox.cpp
     Layout/MathMLBox.cpp
+    Layout/MathMLFractionBox.cpp
+    Layout/MathMLRadicalBox.cpp
+    Layout/MathMLScriptBox.cpp
     Layout/SVGBox.cpp
     Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp
@@ -762,8 +765,11 @@ set(SOURCES
     Loader/ResourceLoader.cpp
     MathML/AttributeNames.cpp
     MathML/MathMLElement.cpp
+    MathML/MathMLFractionElement.cpp
     MathML/MathMLMiElement.cpp
     MathML/MathMLMspaceElement.cpp
+    MathML/MathMLRadicalElement.cpp
+    MathML/MathMLScriptElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
@@ -807,6 +813,8 @@ set(SOURCES
     Painting/ImagePaintable.cpp
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
+    Painting/MathMLFractionPaintable.cpp
+    Painting/MathMLRadicalPaintable.cpp
     Painting/MediaPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp

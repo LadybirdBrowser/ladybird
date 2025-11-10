@@ -83,8 +83,11 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MathML/MathMLElement.h>
+#include <LibWeb/MathML/MathMLFractionElement.h>
 #include <LibWeb/MathML/MathMLMiElement.h>
 #include <LibWeb/MathML/MathMLMspaceElement.h>
+#include <LibWeb/MathML/MathMLRadicalElement.h>
+#include <LibWeb/MathML/MathMLScriptElement.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/SVGAElement.h>
@@ -568,6 +571,12 @@ static GC::Ref<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Do
         return realm.create<MathML::MathMLMiElement>(document, move(qualified_name));
     if (local_name == MathML::TagNames::mspace)
         return realm.create<MathML::MathMLMspaceElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::mfrac)
+        return realm.create<MathML::MathMLFractionElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::msqrt || local_name == MathML::TagNames::mroot)
+        return realm.create<MathML::MathMLRadicalElement>(document, move(qualified_name));
+    if (local_name == MathML::TagNames::msub || local_name == MathML::TagNames::msup || local_name == MathML::TagNames::msubsup)
+        return realm.create<MathML::MathMLScriptElement>(document, move(qualified_name));
 
     // https://w3c.github.io/mathml-core/#dom-and-javascript
     // All the nodes representing MathML elements in the DOM must implement, and expose to scripts,
