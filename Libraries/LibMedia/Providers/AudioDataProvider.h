@@ -53,6 +53,8 @@ private:
         void set_error_handler(ErrorHandler&&);
 
         bool should_thread_exit() const;
+        void flush_decoder();
+        DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
         template<typename T>
         void process_seek_on_main_thread(u32 seek_id, T&&);
@@ -80,6 +82,7 @@ private:
         NonnullRefPtr<MutexedDemuxer> m_demuxer;
         Track m_track;
         NonnullOwnPtr<AudioDecoder> m_decoder;
+        i64 m_last_sample { NumericLimits<i64>::min() };
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;

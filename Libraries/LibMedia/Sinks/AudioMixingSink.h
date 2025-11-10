@@ -72,7 +72,6 @@ private:
 
         NonnullRefPtr<AudioDataProvider> provider;
         AudioBlock current_block;
-        i64 current_block_first_sample_offset { NumericLimits<i64>::min() };
     };
 
     void deferred_create_playback_stream(Track const& track);
