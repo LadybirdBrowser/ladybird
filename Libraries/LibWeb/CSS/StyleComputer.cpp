@@ -1374,9 +1374,10 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
 
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
-        auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id);
+    // OPTIMIZATION: Instead of iterating over all properties we split the logic into two loops, one for the properties
+    //               which appear in transition-property and one for those which have existing transitions
+    for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element)) {
+        auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id).value();
         auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
         auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
@@ -1398,14 +1399,14 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // - the element does not have a running transition for the property,
             (!has_running_transition) &&
             // - there is a matching transition-property value, and
-            (matching_transition_properties.has_value()) &&
+            // NOTE: We only iterate over properties for which this is true
             // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties->transition_behavior)) &&
+            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties.transition_behavior)) &&
             // - the element does not have a completed transition for the property
             //   or the end value of the completed transition is different from the after-change style for the property,
             (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
             // - the combined duration is greater than 0s,
-            (combined_duration(matching_transition_properties.value()) > 0)) {
+            (combined_duration(matching_transition_properties) > 0)) {
 
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 1.");
 
@@ -1415,13 +1416,13 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // and start a transition whose:
 
             // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-            auto delay = matching_transition_properties->delay;
+            auto delay = matching_transition_properties.delay;
 
             // - start time is the time of the style change event plus the matching transition delay,
             auto start_time = style_change_event_time;
 
             // - end time is the start time plus the matching transition duration,
-            auto end_time = start_time + matching_transition_properties->duration;
+            auto end_time = start_time + matching_transition_properties.duration;
 
             // - start value is the value of the transitioning property in the before-change style,
             auto const& start_value = before_change_value;
@@ -1446,27 +1447,18 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             element.remove_transition(pseudo_element, property_id);
         }
 
-        // 3. If the element has a running transition or completed transition for the property,
-        //    and there is not a matching transition-property value,
-        if (existing_transition && !matching_transition_properties.has_value()) {
-            // then implementations must cancel the running transition or remove the completed transition from the set of completed transitions.
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
-            if (has_running_transition)
-                existing_transition->cancel();
-            else
-                element.remove_transition(pseudo_element, property_id);
-        }
+        // NOTE: Step 3 is handled in a separate loop below for performance reasons
 
         // 4. If the element has a running transition for the property,
         //    there is a matching transition-property value,
         //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
-        if (has_running_transition && matching_transition_properties.has_value() && !existing_transition->transition_end_value()->equals(after_change_value)) {
+        if (has_running_transition && !existing_transition->transition_end_value()->equals(after_change_value)) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(SerializationMode::Normal), after_change_value.to_string(SerializationMode::Normal));
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
             auto& current_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
-            if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
+            if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
             }
@@ -1474,8 +1466,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // 2. Otherwise, if the combined duration is less than or equal to 0s,
             //    or if the current value of the property in the running transition is not transitionable with the value of the property in the after-change style,
             //    then implementations must cancel the running transition.
-            else if ((combined_duration(matching_transition_properties.value()) <= 0)
-                || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
+            else if ((combined_duration(matching_transition_properties) <= 0)
+                || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.2");
                 existing_transition->cancel();
             }
@@ -1502,9 +1494,9 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 double reversing_shortening_factor = clamp(abs(term_1 + term_2), 0.0, 1.0);
 
                 // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-                auto delay = (matching_transition_properties->delay >= 0
-                        ? (matching_transition_properties->delay)
-                        : (reversing_shortening_factor * matching_transition_properties->delay));
+                auto delay = (matching_transition_properties.delay >= 0
+                        ? (matching_transition_properties.delay)
+                        : (reversing_shortening_factor * matching_transition_properties.delay));
 
                 // - start time is the time of the style change event plus:
                 //   1. if the matching transition delay is nonnegative, the matching transition delay, or
@@ -1512,7 +1504,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 auto start_time = style_change_event_time;
 
                 // - end time is the start time plus the product of the matching transition duration and the new transition’s reversing shortening factor,
-                auto end_time = start_time + (matching_transition_properties->duration * reversing_shortening_factor);
+                auto end_time = start_time + (matching_transition_properties.duration * reversing_shortening_factor);
 
                 // - start value is the current value of the property in the running transition,
                 auto const& start_value = current_value;
@@ -1533,13 +1525,13 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 element.remove_transition(pseudo_element, property_id);
 
                 // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-                auto delay = matching_transition_properties->delay;
+                auto delay = matching_transition_properties.delay;
 
                 // - start time is the time of the style change event plus the matching transition delay,
                 auto start_time = style_change_event_time;
 
                 // - end time is the start time plus the matching transition duration,
-                auto end_time = start_time + matching_transition_properties->duration;
+                auto end_time = start_time + matching_transition_properties.duration;
 
                 // - start value is the current value of the property in the running transition,
                 auto const& start_value = current_value;
@@ -1556,6 +1548,22 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             }
         }
+    }
+
+    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
+        // 3. If the element has a running transition or completed transition for the property, and there is not a
+        //    matching transition-property value, then implementations must cancel the running transition or remove the
+        //    completed transition from the set of completed transitions.
+        if (element.property_transition_attributes(pseudo_element, property_id).has_value())
+            continue;
+
+        auto const& existing_transition = element.property_transition(pseudo_element, property_id);
+
+        dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
+        if (!existing_transition->is_finished())
+            existing_transition->cancel();
+        else
+            element.remove_transition(pseudo_element, property_id);
     }
 }
 
