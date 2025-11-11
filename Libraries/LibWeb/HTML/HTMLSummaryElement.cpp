@@ -41,7 +41,7 @@ void HTMLSummaryElement::activation_behavior(DOM::Event const&)
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#summary-for-its-parent-details
-bool HTMLSummaryElement::is_summary_for_its_parent_details()
+bool HTMLSummaryElement::is_summary_for_its_parent_details() const
 {
     // A summary element is a summary for its parent details if the following algorithm returns true:
 
@@ -62,6 +62,13 @@ bool HTMLSummaryElement::is_summary_for_its_parent_details()
 
     // 5. Return true.
     return true;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-summary-element
+bool HTMLSummaryElement::is_focusable() const
+{
+    // summary elements that are the first summary element child of a details element
+    return Base::is_focusable() || is_summary_for_its_parent_details();
 }
 
 HTMLSummaryElement::~HTMLSummaryElement() = default;
