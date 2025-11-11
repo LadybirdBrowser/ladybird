@@ -4277,6 +4277,12 @@ bool Element::should_indicate_focus() const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#tabindex-value
+bool Element::is_focusable() const
+{
+    return HTML::parse_integer(get_attribute_value(HTML::AttributeNames::tabindex)).has_value();
+}
+
 void Element::set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>)
 {
     m_had_duplicate_attribute_during_tokenization = true;
