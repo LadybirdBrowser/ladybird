@@ -264,7 +264,7 @@ public:
     [[nodiscard]] RefPtr<ClipFrame const> enclosing_clip_frame() const { return m_enclosing_clip_frame; }
     [[nodiscard]] RefPtr<ClipFrame const> own_clip_frame() const { return m_own_clip_frame; }
 
-    Optional<Gfx::Filter> resolve_filter(CSS::Filter const& computed_filter) const;
+    Optional<Gfx::Filter> resolve_filter(DisplayListRecordingContext&, CSS::Filter const& computed_filter) const;
 
 protected:
     explicit PaintableBox(Layout::Box const&);
