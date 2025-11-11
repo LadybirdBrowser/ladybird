@@ -1,9 +1,3 @@
-/*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-
 #pragma once
 
 #include <AK/FlyString.h>
@@ -40,7 +34,7 @@ protected:
         , m_ignore_bom(ignore_bom)
     {
     }
-    
+
     FlyString m_encoding;
     bool m_fatal { false };
     bool m_ignore_bom { false };

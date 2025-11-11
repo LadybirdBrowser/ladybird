@@ -1,16 +1,5 @@
 #import <Encoding/TextDecoderCommon.idl>
 
-// https://encoding.spec.whatwg.org/#textdecoderoptions
-dictionary TextDecoderOptions {
-    boolean fatal = false;
-    boolean ignoreBOM = false;
-};
-
-// https://encoding.spec.whatwg.org/#textdecodeoptions
-dictionary TextDecodeOptions {
-    boolean stream = false;
-};
-
 // https://encoding.spec.whatwg.org/#textdecoder
 [Exposed=*]
 interface TextDecoder {
