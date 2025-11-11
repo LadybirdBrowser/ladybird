@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head></head>
+<link rel="match" href="../../expected/css/lang-selector-invalidation-ref.html">
+<style>
+    div:lang(en) {
+        color: red;
+    }
+    div:lang(es) {
+        color: blue;
+    }
+    div:lang(eu) {
+        color: green;
+    }
+    html:lang(eu) {
+        color: green;
+    }
+</style>
+<div class="parent" lang="es">
+    <div class="child">
+        This text should be green
+        <div class="grandchild" lang="en">This text should also be green</div>
+    </div>
+</div>
+This text should also be green
+<script>
+
+window.onload = async () => {
+    function waitForStyleUpdate() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    resolve();
+                });
+            });
+        });
+    }
+    const parent = document.querySelector('.parent');
+    const grandchild = document.querySelector('.grandchild');
+
+    await waitForStyleUpdate();
+    parent.setAttribute("lang", "eu");
+    await waitForStyleUpdate();
+    grandchild.removeAttribute("lang");
+
+    const metaElement = document.createElement("meta");
+    metaElement.httpEquiv = "content-language";
+    metaElement.content = "eu";
+    document.head.appendChild(metaElement)
+    await waitForStyleUpdate();
+    document.documentElement.classList.remove("reftest-wait");
+}
+
+</script>
+</html>
