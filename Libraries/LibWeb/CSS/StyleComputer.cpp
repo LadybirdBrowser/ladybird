@@ -1266,6 +1266,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         }
 
         effect->set_target(&element);
+        element.set_has_css_defined_animations();
         element_animations->set(animation_properties.name, animation);
     }
 

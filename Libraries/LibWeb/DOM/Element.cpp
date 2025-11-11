@@ -4177,6 +4177,10 @@ FlyString const& Element::html_uppercased_qualified_name() const
 
 void Element::play_or_cancel_animations_after_display_property_change()
 {
+    // OPTIMIZATION: We don't care about elements with no CSS defined animations
+    if (!has_css_defined_animations())
+        return;
+
     // OPTIMIZATION: We don't care about animations in disconnected subtrees.
     if (!is_connected())
         return;
