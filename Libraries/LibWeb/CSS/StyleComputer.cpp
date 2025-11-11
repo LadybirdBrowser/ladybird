@@ -2149,8 +2149,9 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
         return style.property(property_id);
     };
 
+    auto device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
     style.for_each_property([&](PropertyID property_id, auto& specified_value) {
-        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel());
+        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
 
         style.set_property_without_modifying_flags(property_id, computed_value);
     });
