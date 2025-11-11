@@ -291,7 +291,7 @@ private:
     GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
 
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
-    Optional<StyleProperty> convert_to_style_property(Declaration const&);
+    Optional<StylePropertyAndName> convert_to_style_property(Declaration const&);
 
     Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
 
