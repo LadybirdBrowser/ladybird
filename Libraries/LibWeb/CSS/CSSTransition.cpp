@@ -78,7 +78,7 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
     //    property name of each transition (i.e. without attempting case conversion and such that ‘-moz-column-width’
     //    sorts before ‘column-width’).
     // FIXME: This should operate on Unicode strings, not StringViews.
-    return transition_property() > other->transition_property();
+    return transition_property().compare(other->transition_property());
 }
 
 CSSTransition::CSSTransition(JS::Realm& realm, DOM::AbstractElement abstract_element, PropertyID property_id, size_t transition_generation,
