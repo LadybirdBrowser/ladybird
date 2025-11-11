@@ -455,17 +455,19 @@ struct TextDecorationThickness {
 // FIXME: Find a better place for this helper.
 inline Gfx::ScalingMode to_gfx_scaling_mode(ImageRendering css_value, Gfx::IntRect source, Gfx::IntRect target)
 {
+    if (source.size() == target.size())
+        return Gfx::ScalingMode::None;
+
     switch (css_value) {
     case ImageRendering::Auto:
     case ImageRendering::HighQuality:
     case ImageRendering::Smooth:
-        if (target.width() < source.width() || target.height() < source.height())
-            return Gfx::ScalingMode::BoxSampling;
-        return Gfx::ScalingMode::BilinearBlend;
+        if (target.width() < source.width() && target.height() < source.height())
+            return Gfx::ScalingMode::BilinearMipmap;
+        return Gfx::ScalingMode::Bilinear;
     case ImageRendering::CrispEdges:
-        return Gfx::ScalingMode::NearestNeighbor;
     case ImageRendering::Pixelated:
-        return Gfx::ScalingMode::SmoothPixels;
+        return Gfx::ScalingMode::NearestNeighbor;
     }
     VERIFY_NOT_REACHED();
 }
