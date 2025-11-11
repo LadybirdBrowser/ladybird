@@ -279,6 +279,19 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
     }
 }
 
+void Animatable::set_has_css_defined_animations()
+{
+    ensure_impl().has_css_defined_animations = true;
+}
+
+bool Animatable::has_css_defined_animations() const
+{
+    if (!m_impl)
+        return false;
+
+    return m_impl->has_css_defined_animations;
+}
+
 HashMap<FlyString, GC::Ref<Animation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)
 {
     auto& impl = ensure_impl();
