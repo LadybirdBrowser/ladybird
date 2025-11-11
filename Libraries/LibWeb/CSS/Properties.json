@@ -3847,6 +3847,15 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "transform-style": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "flat",
+    "valid-identifiers": [
+      "flat",
+      "preserve-3d"
+    ]
+  },
   "transition": {
     "affects-layout": false,
     "inherited": false,

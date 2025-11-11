@@ -773,6 +773,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'transform-box': 'view-box'
 'transformOrigin': '50% 50% 0px'
 'transform-origin': '50% 50% 0px'
+'transformStyle': 'flat'
+'transform-style': 'flat'
 'transition': 'all'
 'transitionBehavior': 'normal'
 'transition-behavior': 'normal'

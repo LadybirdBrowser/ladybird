@@ -240,6 +240,7 @@ public:
     static TableLayout table_layout() { return TableLayout::Auto; }
     static QuotesData quotes() { return QuotesData { .type = QuotesData::Type::Auto }; }
     static TransformBox transform_box() { return TransformBox::ViewBox; }
+    static TransformStyle transform_style() { return TransformStyle::Flat; }
     static Direction direction() { return Direction::Ltr; }
     static UnicodeBidi unicode_bidi() { return UnicodeBidi::Normal; }
     static WritingMode writing_mode() { return WritingMode::HorizontalTb; }
@@ -634,6 +635,7 @@ public:
     Vector<Transformation> const& transformations() const { return m_noninherited.transformations; }
     TransformBox const& transform_box() const { return m_noninherited.transform_box; }
     TransformOrigin const& transform_origin() const { return m_noninherited.transform_origin; }
+    TransformStyle const& transform_style() const { return m_noninherited.transform_style; }
     Optional<Transformation> const& rotate() const { return m_noninherited.rotate; }
     Optional<Transformation> const& translate() const { return m_noninherited.translate; }
     Optional<Transformation> const& scale() const { return m_noninherited.scale; }
@@ -797,6 +799,7 @@ protected:
         Vector<Transformation> transformations {};
         TransformBox transform_box { InitialValues::transform_box() };
         TransformOrigin transform_origin {};
+        TransformStyle transform_style { InitialValues::transform_style() };
         BoxSizing box_sizing { InitialValues::box_sizing() };
         ContentData content;
         Variant<VerticalAlign, LengthPercentage> vertical_align { InitialValues::vertical_align() };
@@ -996,6 +999,7 @@ public:
     void set_transformations(Vector<Transformation> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(TransformBox value) { m_noninherited.transform_box = value; }
     void set_transform_origin(TransformOrigin value) { m_noninherited.transform_origin = move(value); }
+    void set_transform_style(TransformStyle value) { m_noninherited.transform_style = value; }
     void set_translate(Transformation value) { m_noninherited.translate = move(value); }
     void set_box_sizing(BoxSizing value) { m_noninherited.box_sizing = value; }
     void set_vertical_align(Variant<VerticalAlign, LengthPercentage> value) { m_noninherited.vertical_align = move(value); }

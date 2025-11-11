@@ -207,6 +207,7 @@ public:
     Vector<Transformation> transformations() const;
     TransformBox transform_box() const;
     TransformOrigin transform_origin() const;
+    TransformStyle transform_style() const;
     Optional<Transformation> rotate() const;
     Optional<Transformation> translate() const;
     Optional<Transformation> scale() const;

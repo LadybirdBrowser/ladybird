@@ -276,6 +276,7 @@ All properties associated with getComputedStyle(document.body):
     "transform",
     "transform-box",
     "transform-origin",
+    "transform-style",
     "transition-behavior",
     "transition-delay",
     "transition-duration",
