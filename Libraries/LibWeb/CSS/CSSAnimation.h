@@ -23,7 +23,7 @@ public:
     void set_animation_name(FlyString const& animation_name) { m_animation_name = animation_name; }
 
     virtual Animations::AnimationClass animation_class() const override;
-    virtual Optional<int> class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
+    virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
 private:
     explicit CSSAnimation(JS::Realm&);

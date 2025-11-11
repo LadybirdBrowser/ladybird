@@ -647,8 +647,8 @@ int KeyframeEffect::composite_order(GC::Ref<KeyframeEffect> a, GC::Ref<KeyframeE
 
     //    2. If A and B are still not sorted, sort by any class-specific composite order defined by the common class of
     //       A and B’s associated animations.
-    if (auto order = a_animation->class_specific_composite_order(*b_animation); order.has_value())
-        return order.value();
+    if (auto order = a_animation->class_specific_composite_order(*b_animation); order != 0)
+        return order;
 
     //    3. If A and B are still not sorted, sort by the position of their associated animations in the global
     //       animation list.
