@@ -118,19 +118,19 @@ constexpr SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
     VERIFY_NOT_REACHED();
 }
 
-constexpr SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
+constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
 {
     switch (scaling_mode) {
-    case Gfx::ScalingMode::NearestNeighbor:
-    case Gfx::ScalingMode::SmoothPixels:
-        return SkSamplingOptions(SkFilterMode::kNearest);
-    case Gfx::ScalingMode::BilinearBlend:
+    case ScalingMode::None:
+        return SkSamplingOptions();
+    case ScalingMode::Bilinear:
         return SkSamplingOptions(SkFilterMode::kLinear);
-    case Gfx::ScalingMode::BoxSampling:
-        return SkSamplingOptions(SkCubicResampler::Mitchell());
-    default:
-        VERIFY_NOT_REACHED();
+    case ScalingMode::BilinearMipmap:
+        return SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear);
+    case ScalingMode::NearestNeighbor:
+        return SkSamplingOptions(SkFilterMode::kNearest);
     }
+    VERIFY_NOT_REACHED();
 }
 
 SkPath to_skia_path(Path const& path);

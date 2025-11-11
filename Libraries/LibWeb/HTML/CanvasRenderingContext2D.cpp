@@ -188,7 +188,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     auto scaling_mode = Gfx::ScalingMode::NearestNeighbor;
     if (drawing_state().image_smoothing_enabled) {
         // FIXME: Honor drawing_state().image_smoothing_quality
-        scaling_mode = Gfx::ScalingMode::BilinearBlend;
+        scaling_mode = Gfx::ScalingMode::BilinearMipmap;
     }
 
     if (auto* painter = this->painter()) {
