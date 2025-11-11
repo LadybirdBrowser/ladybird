@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Saksham Mittal <hi@gotlou.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -40,7 +40,7 @@ protected:
         , m_ignore_bom(ignore_bom)
     {
     }
-    
+
     FlyString m_encoding;
     bool m_fatal { false };
     bool m_ignore_bom { false };

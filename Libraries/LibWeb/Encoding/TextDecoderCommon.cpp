@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Saksham Mittal <hi@gotlou.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

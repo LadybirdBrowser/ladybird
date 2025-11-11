@@ -11,9 +11,9 @@
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/Encoding/TextDecoderCommon.h>
 
 namespace Web::Encoding {
 
