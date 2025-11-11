@@ -25,6 +25,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/ListItemBox.h>
@@ -67,7 +68,7 @@ static bool has_in_flow_block_children(Layout::Node const& layout_node)
 // The insertion_parent_for_*() functions maintain the invariant that the in-flow children of
 // block-level boxes must be either all block-level or all inline-level.
 
-static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& layout_parent)
+static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& layout_parent, Layout::Node& layout_node)
 {
     auto last_child_creating_anonymous_wrapper_if_needed = [](auto& layout_parent) -> Layout::Node& {
         if (!layout_parent.last_child()
@@ -88,8 +89,21 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
     if (layout_parent.display().is_inline_outside() && layout_parent.display().is_flow_inside())
         return layout_parent;
 
-    if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside())
-        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
+    if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside()) {
+        // Wrap inline-level sequences (text, <br>, inline <div>/pseudos/placeholders) as anonymous flex/grid items
+        bool needs_wrapper = is<Layout::TextNode>(layout_node) || is<Layout::BreakNode>(layout_node) || layout_node.display().is_inline_outside();
+
+        if (needs_wrapper) {
+            // Ensure inline-level content is placed in an anonymous inline wrapper
+            Node* last_child_ptr = layout_parent.last_child();
+            if (!last_child_ptr || !last_child_ptr->is_anonymous() || !last_child_ptr->children_are_inline()) {
+                layout_parent.append_child(layout_parent.create_anonymous_wrapper());
+            }
+            return *layout_parent.last_child();
+        }
+        // Place non-inline-level nodes directly as flex/grid items, allowing them to participate in layout without additional wrapping
+        return layout_parent;
+    }
 
     if (!has_in_flow_block_children(layout_parent) || layout_parent.children_are_inline())
         return layout_parent;
@@ -109,9 +123,12 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
         return layout_parent;
     }
 
+    // Flex and grid containers can have mixed inline and block children.
+    if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside()) {
+        return layout_parent;
+    }
+
     if (layout_node.is_out_of_flow()
-        && !layout_parent.display().is_flex_inside()
-        && !layout_parent.display().is_grid_inside()
         && !layout_parent.last_child()->is_generated_for_pseudo_element()
         && layout_parent.last_child()->is_anonymous()
         && layout_parent.last_child()->children_are_inline()) {
@@ -171,7 +188,7 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
         VERIFY_NOT_REACHED();
     }();
 
-    auto& insertion_point = display.is_inline_outside() ? insertion_parent_for_inline_node(nearest_insertion_ancestor)
+    auto& insertion_point = display.is_inline_outside() ? insertion_parent_for_inline_node(nearest_insertion_ancestor, node)
                                                         : insertion_parent_for_block_node(nearest_insertion_ancestor, node);
 
     if (mode == AppendOrPrepend::Prepend)
