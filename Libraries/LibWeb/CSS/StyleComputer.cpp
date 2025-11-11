@@ -3098,7 +3098,6 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
                 .important = style_property.important,
                 .property_id = style_property.property_id,
                 .value = compute_value_of_custom_property(abstract_element, name),
-                .custom_name = style_property.custom_name,
             });
     }
     abstract_element.set_custom_properties(move(resolved_custom_properties));

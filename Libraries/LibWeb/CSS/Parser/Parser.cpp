@@ -1269,8 +1269,10 @@ Optional<StyleProperty> Parser::parse_as_supports_condition()
     m_rule_context.append(RuleContext::SupportsCondition);
     auto maybe_declaration = parse_a_declaration(m_token_stream);
     m_rule_context.take_last();
-    if (maybe_declaration.has_value())
-        return convert_to_style_property(maybe_declaration.release_value());
+    if (maybe_declaration.has_value()) {
+        if (auto maybe_property_and_name = convert_to_style_property(maybe_declaration.release_value()); maybe_property_and_name.has_value())
+            return maybe_property_and_name->property;
+    }
     return {};
 }
 
@@ -1596,10 +1598,10 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
 
 void Parser::extract_property(Declaration const& declaration, PropertiesAndCustomProperties& dest)
 {
-    if (auto maybe_property = convert_to_style_property(declaration); maybe_property.has_value()) {
-        auto property = maybe_property.release_value();
+    if (auto maybe_property_and_name = convert_to_style_property(declaration); maybe_property_and_name.has_value()) {
+        auto property = maybe_property_and_name->property;
         if (property.property_id == PropertyID::Custom) {
-            dest.custom_properties.set(property.custom_name, property);
+            dest.custom_properties.set(maybe_property_and_name->name, property);
         } else {
             dest.properties.append(move(property));
         }
@@ -1616,7 +1618,7 @@ GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declarat
     return CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
 }
 
-Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& declaration)
+Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration const& declaration)
 {
     auto property = PropertyNameAndID::from_name(declaration.name);
 
@@ -1642,9 +1644,14 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     }
 
     if (property->is_custom_property())
-        return StyleProperty { declaration.important, property->id(), value.release_value(), property->name() };
+        return StylePropertyAndName {
+            StyleProperty { declaration.important, property->id(), value.release_value() },
+            property->name()
+        };
 
-    return StyleProperty { declaration.important, property->id(), value.release_value(), {} };
+    return StylePropertyAndName {
+        StyleProperty { declaration.important, property->id(), value.release_value() }
+    };
 }
 
 Optional<LengthOrAutoOrCalculated> Parser::parse_source_size_value(TokenStream<ComponentValue>& tokens)
