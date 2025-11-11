@@ -344,7 +344,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto mask_image = computed_values.mask_image();
     Optional<Gfx::Filter> resolved_filter;
     if (computed_values.filter().has_filters())
-        resolved_filter = paintable_box().resolve_filter(computed_values.filter());
+        resolved_filter = paintable_box().resolve_filter(context, computed_values.filter());
 
     bool needs_to_save_state = mask_image || paintable_box().get_masking_area().has_value();
 

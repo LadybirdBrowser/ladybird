@@ -588,7 +588,7 @@ void PaintableBox::paint_backdrop_filter(DisplayListRecordingContext& context) c
     auto backdrop_region = context.rounded_device_rect(absolute_border_box_rect());
     auto border_radii_data = normalized_border_radii_data();
     ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
-    if (auto resolved_backdrop_filter = resolve_filter(backdrop_filter); resolved_backdrop_filter.has_value())
+    if (auto resolved_backdrop_filter = resolve_filter(context, backdrop_filter); resolved_backdrop_filter.has_value())
         context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, *resolved_backdrop_filter);
 }
 
@@ -1699,13 +1699,13 @@ PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
     return nullptr;
 }
 
-Optional<Gfx::Filter> PaintableBox::resolve_filter(CSS::Filter const& computed_filter) const
+Optional<Gfx::Filter> PaintableBox::resolve_filter(DisplayListRecordingContext& context, CSS::Filter const& computed_filter) const
 {
     Optional<Gfx::Filter> resolved_filter;
     for (auto const& filter : computed_filter.filters()) {
         filter.visit(
             [&](CSS::FilterOperation::Blur const& blur) {
-                auto resolved_radius = blur.resolved_radius(layout_node_with_style_and_box_metrics());
+                auto resolved_radius = blur.resolved_radius(layout_node_with_style_and_box_metrics()) * context.device_pixels_per_css_pixel();
                 auto new_filter = Gfx::Filter::blur(resolved_radius, resolved_radius);
 
                 resolved_filter = resolved_filter.has_value()
