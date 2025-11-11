@@ -108,7 +108,7 @@ public:
     void set_owning_element(GC::Ptr<DOM::Element> value) { m_owning_element = value; }
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
-    virtual Optional<int> class_specific_composite_order(GC::Ref<Animation>) const { return {}; }
+    virtual int class_specific_composite_order(GC::Ref<Animation>) const { return 0; }
 
     unsigned int global_animation_list_order() const { return m_global_animation_list_order; }
 

@@ -20,7 +20,7 @@ GC::Ref<CSSAnimation> CSSAnimation::create(JS::Realm& realm)
 }
 
 // https://www.w3.org/TR/css-animations-2/#animation-composite-order
-Optional<int> CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
+int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
 {
     auto other = GC::Ref { as<CSSAnimation>(*other_animation) };
 
@@ -42,13 +42,13 @@ Optional<int> CSSAnimation::class_specific_composite_order(GC::Ref<Animations::A
         //    - element children
         if (owning_element().ptr() != other->owning_element().ptr()) {
             // FIXME: Sort by tree order
-            return {};
+            return 0;
         }
 
         // 2. Otherwise, sort A and B based on their position in the computed value of the animation-name property of the
         //    (common) owning element.
         // FIXME: Do this when animation-name supports multiple values
-        return {};
+        return 0;
     }
 
     // The composite order of CSS Animations without an owning element is based on their position in the global animation list.
