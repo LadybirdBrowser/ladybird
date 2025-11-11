@@ -295,6 +295,13 @@ bool Node::establishes_stacking_context() const
     if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#transform-style-property
+    // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
+    // stacking context and a containing block for all descendants.
+    // FIXME: Check that the element is a transformable element.
+    if (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle))
+        return true;
+
     return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
 }
 
@@ -694,6 +701,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_transform_box(computed_style.transform_box());
     computed_values.set_transform_origin(computed_style.transform_origin());
     computed_values.set_perspective(computed_style.perspective());
+    computed_values.set_transform_style(computed_style.transform_style());
 
     auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
     if (transition_delay_property.is_time()) {

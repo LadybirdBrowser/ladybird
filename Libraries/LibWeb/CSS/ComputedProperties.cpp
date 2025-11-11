@@ -756,6 +756,12 @@ TransformOrigin ComputedProperties::transform_origin() const
     return { x_value, y_value, z_value };
 }
 
+TransformStyle ComputedProperties::transform_style() const
+{
+    auto const& value = property(PropertyID::TransformStyle);
+    return keyword_to_transform_style(value.to_keyword()).release_value();
+}
+
 Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const
 {
     auto const& value = property(PropertyID::AccentColor);
