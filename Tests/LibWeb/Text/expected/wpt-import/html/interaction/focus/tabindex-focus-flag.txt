@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-33 Pass
-2 Fail
+34 Pass
+1 Fail
 Pass	a should not be focusable by default.
 Pass	a[href] should be focusable by default.
 Pass	button should be focusable by default.
@@ -12,7 +12,7 @@ Pass	input[type="button"] should be focusable by default.
 Pass	select should be focusable by default.
 Pass	textarea should be focusable by default.
 Pass	#summary-out should not be focusable by default.
-Fail	#summary-first should be focusable by default.
+Pass	#summary-first should be focusable by default.
 Pass	#summary-second should not be focusable by default.
 Pass	[contenteditable] should be focusable by default.
 Pass	iframe should be focusable by default.
