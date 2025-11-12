@@ -94,7 +94,7 @@ public:
 Application::Application() = default;
 Application::~Application() = default;
 
-void Application::create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions& web_content_options)
+void Application::create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options)
 {
     web_content_options.config_path = Settings::the()->directory();
 }

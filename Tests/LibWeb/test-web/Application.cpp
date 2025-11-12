@@ -57,7 +57,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     });
 }
 
-void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::WebContentOptions& web_content_options)
+void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options)
 {
     browser_options.headless_mode = WebView::HeadlessMode::Test;
     browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;

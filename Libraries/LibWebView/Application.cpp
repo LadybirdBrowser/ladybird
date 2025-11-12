@@ -283,7 +283,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .default_time_zone = default_time_zone,
     };
 
-    create_platform_options(m_browser_options, m_web_content_options);
+    create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
     initialize_actions();
 
     m_event_loop = create_platform_event_loop();
