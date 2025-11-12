@@ -4213,19 +4213,14 @@ void Element::play_or_cancel_animations_after_display_property_change()
 
     auto has_display_none_inclusive_ancestor = this->has_inclusive_ancestor_with_display_none();
 
-    auto play_or_cancel_depending_on_display = [&](HashMap<FlyString, GC::Ref<Animations::Animation>>& animations, Optional<CSS::PseudoElement> pseudo_element) {
+    auto play_or_cancel_depending_on_display = [&](HashMap<FlyString, GC::Ref<Animations::Animation>>& animations) {
         for (auto& [_, animation] : animations) {
             if (has_display_none_inclusive_ancestor) {
                 animation->cancel();
             } else {
-                auto play_state { CSS::AnimationPlayState::Running };
-                if (auto play_state_property = cascaded_properties(pseudo_element)->property(CSS::PropertyID::AnimationPlayState);
-                    play_state_property && play_state_property->is_keyword()) {
-                    if (auto play_state_value = keyword_to_animation_play_state(
-                            play_state_property->to_keyword());
-                        play_state_value.has_value())
-                        play_state = *play_state_value;
-                }
+                // NOTE: It is safe to assume this has a value as it is set when creating a CSS defined animation
+                auto play_state = animation->last_css_animation_play_state().value();
+
                 if (play_state == CSS::AnimationPlayState::Running) {
                     HTML::TemporaryExecutionContext context(realm());
                     animation->play().release_value_but_fixme_should_propagate_errors();
@@ -4237,11 +4232,11 @@ void Element::play_or_cancel_animations_after_display_property_change()
         }
     };
 
-    play_or_cancel_depending_on_display(*css_defined_animations({}), {});
+    play_or_cancel_depending_on_display(*css_defined_animations({}));
 
     for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
         auto pseudo_element = static_cast<CSS::PseudoElement>(i);
-        play_or_cancel_depending_on_display(*css_defined_animations(pseudo_element), pseudo_element);
+        play_or_cancel_depending_on_display(*css_defined_animations(pseudo_element));
     }
 }
 
