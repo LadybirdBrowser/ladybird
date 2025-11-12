@@ -272,7 +272,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 return IterationDecision::Continue;
 
             auto dest_rect = Gfx::enclosing_int_rect(paintable_box->absolute_rect().to_type<float>());
-            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->computed_values().image_rendering(), *src_rect, dest_rect);
+            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->computed_values().image_rendering(), src_rect->size(), dest_rect.size());
             root_filter = Gfx::Filter::image(*bitmap, *src_rect, dest_rect, scaling_mode);
             update_result_map(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {

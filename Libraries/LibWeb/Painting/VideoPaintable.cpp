@@ -127,8 +127,8 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     }();
 
     auto paint_frame = [&](auto const& frame) {
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->rect(), video_rect.to_type<int>());
         auto dst_rect = video_rect.to_type<int>();
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->rect().size(), dst_rect.size());
         context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, Gfx::ImmutableBitmap::create(*frame), scaling_mode);
     };
 

@@ -77,7 +77,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
             ScopedCornerRadiusClip corner_clip { context, image_rect_device_pixels, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
             auto bitmap_rect = decoded_image_data->frame_rect(m_image_provider.current_frame_index()).value_or(image_int_rect_device_pixels);
-            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap_rect, image_int_rect_device_pixels);
+            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap_rect.size(), image_int_rect_device_pixels.size());
             auto bitmap_aspect_ratio = (float)bitmap_rect.height() / bitmap_rect.width();
             auto image_aspect_ratio = (float)image_rect.height() / (float)image_rect.width();
 
