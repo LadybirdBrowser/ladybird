@@ -194,12 +194,12 @@ Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::Signed
 ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, StringView iso_string, ReadonlySpan<Production> allowed_formats);
 ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
-ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
 ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
 CalendarFields iso_date_to_fields(StringView calendar, ISODate, DateType);
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
-// 13.39 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
+// 13.40 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 template<typename... Args>
 ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, ErrorType const& error_type, Args&&... args)
 {
@@ -214,7 +214,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, Err
     return trunc(number.as_double());
 }
 
-// 13.39 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
+// 13.40 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 // AD-HOC: We often need to use this AO when we have a parsed StringView. This overload allows callers to avoid creating
 //         a PrimitiveString for the primary definition.
 template<typename... Args>
@@ -231,7 +231,7 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument
     return trunc(number);
 }
 
-// 13.38 ToPositiveIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
+// 13.39 ToPositiveIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
 template<typename... Args>
 ThrowCompletionOr<double> to_positive_integer_with_truncation(VM& vm, Value argument, ErrorType const& error_type, Args&&... args)
 {
