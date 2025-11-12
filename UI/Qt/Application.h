@@ -33,7 +33,7 @@ public:
 private:
     explicit Application();
 
-    virtual void create_platform_options(WebView::BrowserOptions&, WebView::WebContentOptions&) override;
+    virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
