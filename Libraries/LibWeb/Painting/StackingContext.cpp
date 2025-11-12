@@ -310,8 +310,9 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     // Second, the 'perspective' and 'perspective-origin' properties can be applied to an element to influence the
     // rendering of its 3d-transformed children, giving them a shared perspective that provides the impression of
     // them living in the same three-dimensional scene.
+    Optional<Gfx::FloatMatrix4x4> parent_perspective_matrix;
     if (auto const* parent = as_if<PaintableBox>(paintable_box().parent()))
-        transform_matrix = parent->perspective_matrix() * transform_matrix;
+        parent_perspective_matrix = parent->perspective_matrix();
 
     auto transform_origin = paintable_box().transform_origin().to_type<float>();
 
@@ -321,7 +322,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         .opacity = opacity,
         .compositing_and_blending_operator = compositing_and_blending_operator,
         .isolate = paintable_box().computed_values().isolation() == CSS::Isolation::Isolate,
-        .transform = StackingContextTransform(transform_origin, transform_matrix, to_device_pixels_scale),
+        .transform = StackingContextTransform(transform_origin, transform_matrix, parent_perspective_matrix, to_device_pixels_scale),
     };
 
     auto const& computed_values = paintable_box().computed_values();

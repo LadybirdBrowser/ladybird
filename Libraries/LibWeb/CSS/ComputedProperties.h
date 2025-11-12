@@ -83,7 +83,6 @@ public:
     Optional<LengthPercentage> length_percentage(PropertyID, Layout::NodeWithStyle const&, ClampNegativeLengths) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const&, ClampNegativeLengths, LengthPercentageOrAuto const& default_value) const;
     Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
-    Position position_value(PropertyID) const;
     HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
     ColorInterpolation color_interpolation() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
@@ -213,6 +212,7 @@ public:
     Optional<Transformation> translate() const;
     Optional<Transformation> scale() const;
     Optional<CSSPixels> perspective() const;
+    Position perspective_origin() const;
 
     MaskType mask_type() const;
     float stop_opacity() const;
@@ -288,6 +288,7 @@ private:
 
     Overflow overflow(PropertyID) const;
     Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;
+    Position position_value(PropertyID) const;
 
     GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 

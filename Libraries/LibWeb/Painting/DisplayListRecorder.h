@@ -33,8 +33,9 @@ namespace Web::Painting {
 struct StackingContextTransform {
     Gfx::FloatPoint origin;
     Gfx::FloatMatrix4x4 matrix;
+    Optional<Gfx::FloatMatrix4x4> parent_perspective_matrix;
 
-    StackingContextTransform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix, float scale);
+    StackingContextTransform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix, Optional<Gfx::FloatMatrix4x4> parent_perspective_matrix, float scale);
 
     [[nodiscard]] bool is_identity() const { return matrix.is_identity(); }
 };

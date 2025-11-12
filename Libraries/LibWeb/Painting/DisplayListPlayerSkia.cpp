@@ -230,6 +230,8 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
     auto new_transform = Gfx::translation_matrix(Vector3<float>(command.transform.origin.x(), command.transform.origin.y(), 0));
     new_transform = new_transform * command.transform.matrix;
     new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-command.transform.origin.x(), -command.transform.origin.y(), 0));
+    if (command.transform.parent_perspective_matrix.has_value())
+        new_transform = command.transform.parent_perspective_matrix.value() * new_transform;
     auto matrix = to_skia_matrix4x4(new_transform);
 
     surface().canvas().save();

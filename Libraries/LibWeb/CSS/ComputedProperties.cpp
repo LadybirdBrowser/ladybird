@@ -747,6 +747,11 @@ Optional<CSSPixels> ComputedProperties::perspective() const
     VERIFY_NOT_REACHED();
 }
 
+Position ComputedProperties::perspective_origin() const
+{
+    return position_value(PropertyID::PerspectiveOrigin);
+}
+
 TransformOrigin ComputedProperties::transform_origin() const
 {
     auto length_percentage_with_keywords_resolved = [](StyleValue const& value) -> LengthPercentage {
