@@ -700,8 +700,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_transformations(computed_style.transformations());
     computed_values.set_transform_box(computed_style.transform_box());
     computed_values.set_transform_origin(computed_style.transform_origin());
-    computed_values.set_perspective(computed_style.perspective());
     computed_values.set_transform_style(computed_style.transform_style());
+    computed_values.set_perspective(computed_style.perspective());
+    computed_values.set_perspective_origin(computed_style.perspective_origin());
 
     auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
     if (transition_delay_property.is_time()) {

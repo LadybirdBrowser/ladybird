@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Transforms Test: perspective property</title>
+    <link rel="author" title="Francisca Gil" href="mailto:pancha0.0@gmail.com">
+    <link rel="reviewer" title="Apple Inc." href="http://www.apple.com">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-perspective-origin">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#perspective-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/perspective-origin-reftest.html">
+    <meta name="assert" content="Asserts that origin 'x1' visually moves the objects '-x1*d/(d-1)' ">
+    <style type="text/css">
+        .container {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            top: 100px;
+            left: 100px;
+            perspective: 3px;
+            perspective-origin: 0px 50%;
+        }
+        .redSquare {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: 150px;
+            height: 150px;
+            background: red;
+            transform: translateZ(0px);
+         }
+        .greenSquare {
+            position: absolute;
+            top: 25px;
+            left: 0px;
+            width: 100px;
+            height: 100px;
+            background: green;
+            transform: translateZ(1px);
+         }
+    </style>
+</head>
+<body>
+    <p>The test passes if there is a green square and no red.</p>
+    <div class="container">
+        <div class="redSquare"></div>
+        <div class="greenSquare"></div>
+    </div>
+</body>
+</html>

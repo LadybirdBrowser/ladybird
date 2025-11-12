@@ -3226,6 +3226,16 @@
       "length [0,∞]"
     ]
   },
+  "perspective-origin": {
+    "animation-type": "by-computed-value",
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "50% 50%",
+    "valid-types": [
+      "position"
+    ],
+    "percentages-resolve-to": "length"
+  },
   "place-content": {
     "inherited": false,
     "initial": "normal",

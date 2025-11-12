@@ -212,6 +212,7 @@ public:
     Optional<Transformation> translate() const;
     Optional<Transformation> scale() const;
     Optional<CSSPixels> perspective() const;
+    Position perspective_origin() const;
 
     MaskType mask_type() const;
     float stop_opacity() const;
