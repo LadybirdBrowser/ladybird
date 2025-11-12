@@ -115,6 +115,8 @@ public:
     auto release_saved_cancel_time() { return move(m_saved_cancel_time); }
 
     double associated_effect_end() const;
+    Optional<CSS::AnimationPlayState> last_css_animation_play_state() const { return m_last_css_animation_play_state; }
+    void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }
 
 protected:
     Animation(JS::Realm&);
@@ -205,6 +207,7 @@ private:
     Optional<double> m_saved_play_time;
     Optional<double> m_saved_pause_time;
     Optional<double> m_saved_cancel_time;
+    Optional<CSS::AnimationPlayState> m_last_css_animation_play_state;
 };
 
 }
