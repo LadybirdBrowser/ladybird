@@ -83,6 +83,7 @@ public:
     Optional<LengthPercentage> length_percentage(PropertyID, Layout::NodeWithStyle const&, ClampNegativeLengths) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const&, ClampNegativeLengths, LengthPercentageOrAuto const& default_value) const;
     Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
+    Position position_value(PropertyID) const;
     HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
     ColorInterpolation color_interpolation() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
@@ -175,7 +176,7 @@ public:
     CSS::EmptyCells empty_cells() const;
     Vector<Vector<String>> grid_template_areas() const;
     ObjectFit object_fit() const;
-    ObjectPosition object_position() const;
+    Position object_position() const;
     TableLayout table_layout() const;
     Direction direction() const;
     UnicodeBidi unicode_bidi() const;
