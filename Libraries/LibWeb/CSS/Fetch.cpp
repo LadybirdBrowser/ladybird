@@ -40,6 +40,12 @@ static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(Style
         [](::URL::URL const& url) { return url.to_string(); },
         [](CSS::URL const& url) { return url.url(); });
 
+    // https://drafts.csswg.org/css-values-4/#url-empty
+    // If the value of the <url> is the empty string (like url("") or url()), the url must resolve to an invalid
+    // resource (similar to what the url about:invalid does).
+    if (url_string.is_empty())
+        return {};
+
     auto parsed_url = DOMURL::parse(url_string, base);
     if (!parsed_url.has_value())
         return {};
