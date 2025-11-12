@@ -1003,11 +1003,9 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
             return {};
         }
 
-        // f. Assert: monthCode is a String.
-        VERIFY(month_code.has_value());
-
-        // g. Let parsedMonthCode be ? ParseMonthCode(monthCode).
-        auto parsed_month_code = TRY(parse_month_code(vm, *month_code));
+        // f. Assert: monthCode is a month code.
+        // g. Let parsedMonthCode be ! ParseMonthCode(monthCode).
+        auto parsed_month_code = MUST(parse_month_code(vm, *month_code));
 
         // h. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
         if (parsed_month_code.is_leap_month)
