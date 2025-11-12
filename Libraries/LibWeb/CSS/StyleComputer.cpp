@@ -1136,7 +1136,7 @@ static void apply_animation_properties(DOM::Document const& document, ComputedPr
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
     effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));
 
-    if (animation_properties.play_state != effect.last_css_animation_play_state()) {
+    if (animation_properties.play_state != animation.last_css_animation_play_state()) {
         if (animation_properties.play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {
             HTML::TemporaryExecutionContext context(document.realm());
             animation.play().release_value_but_fixme_should_propagate_errors();
@@ -1145,7 +1145,7 @@ static void apply_animation_properties(DOM::Document const& document, ComputedPr
             animation.pause().release_value_but_fixme_should_propagate_errors();
         }
 
-        effect.set_last_css_animation_play_state(animation_properties.play_state);
+        animation.set_last_css_animation_play_state(animation_properties.play_state);
     }
 }
 

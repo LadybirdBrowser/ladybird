@@ -401,6 +401,7 @@ enum class PropertyID : u16;
 enum class PaintOrder : u8;
 enum class ValueType : u8;
 enum class AnimatedPropertyResultOfTransition : u8;
+enum class AnimationPlayState : u8;
 
 struct BackgroundLayerData;
 struct CalculationContext;
