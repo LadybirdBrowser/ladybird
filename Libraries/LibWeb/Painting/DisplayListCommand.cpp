@@ -95,7 +95,7 @@ void AddClipRect::dump(StringBuilder& builder) const
 void PushStackingContext::dump(StringBuilder& builder) const
 {
     auto affine_transform = extract_2d_affine_transform(transform.matrix);
-    builder.appendff("PushStackingContext opacity={} isolate={} has_clip_path={} transform={}", opacity, isolate, clip_path.has_value(), affine_transform);
+    builder.appendff("PushStackingContext opacity={} isolate={} has_clip_path={} transform={} bounding_rect={}", opacity, isolate, clip_path.has_value(), affine_transform, bounding_rect);
 }
 
 void PopStackingContext::dump(StringBuilder& builder) const
