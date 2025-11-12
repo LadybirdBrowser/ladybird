@@ -146,15 +146,15 @@ struct PushStackingContext {
     Optional<Gfx::Path> clip_path = {};
 
     size_t matching_pop_index { 0 };
-    bool can_aggregate_children_bounds { false };
     Optional<Gfx::IntRect> bounding_rect {};
 
     void translate_by(Gfx::IntPoint const& offset)
     {
         transform.origin.translate_by(offset.to_type<float>());
-        if (clip_path.has_value()) {
-            clip_path.value().transform(Gfx::AffineTransform().translate(offset.to_type<float>()));
-        }
+        if (bounding_rect.has_value())
+            bounding_rect->translate_by(offset);
+        if (clip_path.has_value())
+            clip_path->transform(Gfx::AffineTransform().translate(offset.to_type<float>()));
     }
     void dump(StringBuilder&) const;
 };
