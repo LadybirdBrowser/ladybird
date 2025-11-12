@@ -175,7 +175,7 @@ public:
     CSS::EmptyCells empty_cells() const;
     Vector<Vector<String>> grid_template_areas() const;
     ObjectFit object_fit() const;
-    ObjectPosition object_position() const;
+    Position object_position() const;
     TableLayout table_layout() const;
     Direction direction() const;
     UnicodeBidi unicode_bidi() const;
@@ -287,6 +287,7 @@ private:
 
     Overflow overflow(PropertyID) const;
     Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;
+    Position position_value(PropertyID) const;
 
     GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
