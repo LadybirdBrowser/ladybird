@@ -68,6 +68,17 @@ struct Position {
     LengthPercentage offset_x { Percentage(50) };
     PositionEdge edge_y { PositionEdge::Top };
     LengthPercentage offset_y { Percentage(50) };
+
+    CSSPixelPoint resolved(Layout::Node const& node, CSSPixelRect const& rect) const
+    {
+        CSSPixels x = offset_x.to_px(node, rect.width());
+        CSSPixels y = offset_y.to_px(node, rect.height());
+        if (edge_x == PositionEdge::Right)
+            x = rect.width() - x;
+        if (edge_y == PositionEdge::Bottom)
+            y = rect.height() - y;
+        return CSSPixelPoint { rect.x() + x, rect.y() + y };
+    }
 };
 
 // https://drafts.csswg.org/css-contain-2/#containment-types
@@ -645,6 +656,7 @@ public:
     Optional<Transformation> const& translate() const { return m_noninherited.translate; }
     Optional<Transformation> const& scale() const { return m_noninherited.scale; }
     Optional<CSSPixels> const& perspective() const { return m_noninherited.perspective; }
+    Position const& perspective_origin() const { return m_noninherited.perspective_origin; }
 
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
@@ -848,6 +860,7 @@ protected:
         Optional<Transformation> translate;
         Optional<Transformation> scale;
         Optional<CSSPixels> perspective;
+        Position perspective_origin;
 
         Optional<MaskReference> mask;
         MaskType mask_type { InitialValues::mask_type() };
@@ -1001,6 +1014,7 @@ public:
     void set_rotate(Transformation value) { m_noninherited.rotate = move(value); }
     void set_scale(Transformation value) { m_noninherited.scale = move(value); }
     void set_perspective(Optional<CSSPixels> value) { m_noninherited.perspective = move(value); }
+    void set_perspective_origin(Position value) { m_noninherited.perspective_origin = move(value); }
     void set_transformations(Vector<Transformation> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(TransformBox value) { m_noninherited.transform_box = value; }
     void set_transform_origin(TransformOrigin value) { m_noninherited.transform_origin = move(value); }
