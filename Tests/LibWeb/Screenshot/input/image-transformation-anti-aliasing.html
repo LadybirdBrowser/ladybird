@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/image-transformation-anti-aliasing-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-477">
+<style>
+div {
+    perspective: 900px;
+}
+img {
+    transform: rotateY(45deg);
+}
+</style>
+<div>
+    <img src="../data/car.png">
+</div>
