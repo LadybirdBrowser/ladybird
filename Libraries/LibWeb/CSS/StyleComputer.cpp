@@ -265,7 +265,7 @@ void FontLoader::start_loading_next_url()
     // CSS style sheet, destination "font", CORS mode "cors", and processResponse being the following steps given
     // response res and null, failure or a byte stream stream:
     auto style_sheet_or_document = m_parent_style_sheet ? StyleSheetOrDocument { *m_parent_style_sheet } : StyleSheetOrDocument { m_style_computer->document() };
-    auto maybe_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
+    m_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
         [loader = this](auto response, auto stream) {
             // 1. If stream is null, return.
             // 2. Load a font from stream according to its type.
@@ -290,11 +290,8 @@ void FontLoader::start_loading_next_url()
             }
         });
 
-    if (maybe_fetch_controller.is_error()) {
+    if (!m_fetch_controller)
         font_did_load_or_fail(nullptr);
-    } else {
-        m_fetch_controller = maybe_fetch_controller.release_value();
-    }
 }
 
 void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
