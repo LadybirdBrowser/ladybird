@@ -139,17 +139,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             });
     };
 
-    auto compute_stacking_context_bounds = [&](PushStackingContext const& push_stacking_context, size_t push_stacking_context_index) {
-        Gfx::IntRect bounding_rect;
-        display_list.for_each_command_in_range(push_stacking_context_index + 1, push_stacking_context.matching_pop_index, [&](auto command, auto scroll_frame_id) {
-            if (scroll_frame_id.has_value())
-                translate_command_by_scroll(command, scroll_frame_id.value());
-            bounding_rect.unite(*command_bounding_rectangle(command));
-            return IterationDecision::Continue;
-        });
-        return bounding_rect;
-    };
-
     Vector<RefPtr<ClipFrame const>> clip_frames_stack;
     clip_frames_stack.append({});
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
@@ -193,14 +182,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             translate_command_by_scroll(command, scroll_frame_id.value());
 
         auto bounding_rect = command_bounding_rectangle(command);
-
-        if (command.has<PushStackingContext>()) {
-            auto& push_stacking_context = command.get<PushStackingContext>();
-            if (push_stacking_context.can_aggregate_children_bounds && !push_stacking_context.bounding_rect.has_value()) {
-                bounding_rect = compute_stacking_context_bounds(push_stacking_context, command_index);
-                push_stacking_context.bounding_rect = bounding_rect;
-            }
-        }
 
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             // Any clip or mask that's located outside of the visible region is equivalent to a simple clip-rect,

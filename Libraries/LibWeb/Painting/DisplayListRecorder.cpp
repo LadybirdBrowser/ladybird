@@ -324,13 +324,14 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
     m_push_sc_index_stack.append(m_display_list.commands().size() - 1);
 }
 
-static bool command_has_bounding_rectangle(DisplayListCommand const& command)
+static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand const& command)
 {
     return command.visit(
-        [&](auto const& command) {
+        [&](auto const& command) -> Optional<Gfx::IntRect> {
             if constexpr (requires { command.bounding_rect(); })
-                return true;
-            return false;
+                return command.bounding_rect();
+            else
+                return {};
         });
 }
 
@@ -343,16 +344,20 @@ void DisplayListRecorder::pop_stacking_context()
     auto& push_stacking_context = m_display_list.commands({})[push_index].command.get<PushStackingContext>();
     push_stacking_context.matching_pop_index = m_display_list.commands().size() - 1;
 
-    if (!push_stacking_context.bounding_rect.has_value()) {
-        push_stacking_context.can_aggregate_children_bounds = true;
-        m_display_list.for_each_command_in_range(push_index + 1, pop_index, [&](auto const& command, auto) {
-            if (!command_has_bounding_rectangle(command)) {
-                push_stacking_context.can_aggregate_children_bounds = false;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
-        });
-    }
+    // Populate the SC's initial bounding rect
+    Gfx::IntRect bounding_rect {};
+    bool supports_bounding_rect = true;
+    m_display_list.for_each_command_in_range(push_index + 1, pop_index, [&](auto const& command, auto) {
+        auto command_bounds = command_bounding_rectangle(command);
+        if (!command_bounds.has_value()) {
+            supports_bounding_rect = false;
+            return IterationDecision::Break;
+        }
+        bounding_rect.unite(command_bounds.release_value());
+        return IterationDecision::Continue;
+    });
+    if (supports_bounding_rect)
+        push_stacking_context.bounding_rect = bounding_rect;
 }
 
 void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Gfx::Filter const& backdrop_filter)
