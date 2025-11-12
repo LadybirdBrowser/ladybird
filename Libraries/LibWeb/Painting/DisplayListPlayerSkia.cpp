@@ -617,7 +617,7 @@ static SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod sp
     }
 }
 
-static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect bounding_rect)
+static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
 {
     SkPaint paint;
 
