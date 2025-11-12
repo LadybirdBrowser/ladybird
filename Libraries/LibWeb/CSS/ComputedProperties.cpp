@@ -324,6 +324,25 @@ Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContex
     return value.to_color(color_resolution_context).value();
 }
 
+Position ComputedProperties::position_value(PropertyID id) const
+{
+    auto const& position = property(id).as_position();
+    Position position_value;
+    auto const& edge_x = position.edge_x();
+    auto const& edge_y = position.edge_y();
+    if (edge_x->is_edge()) {
+        auto const& edge = edge_x->as_edge();
+        position_value.edge_x = edge.edge().value_or(PositionEdge::Left);
+        position_value.offset_x = edge.offset();
+    }
+    if (edge_y->is_edge()) {
+        auto const& edge = edge_y->as_edge();
+        position_value.edge_y = edge.edge().value_or(PositionEdge::Top);
+        position_value.offset_y = edge.offset();
+    }
+    return position_value;
+}
+
 // https://drafts.csswg.org/css-values-4/#linked-properties
 HashMap<PropertyID, StyleValueVector> ComputedProperties::assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const
 {
@@ -2024,24 +2043,9 @@ ObjectFit ComputedProperties::object_fit() const
     return keyword_to_object_fit(value.to_keyword()).release_value();
 }
 
-ObjectPosition ComputedProperties::object_position() const
+Position ComputedProperties::object_position() const
 {
-    auto const& value = property(PropertyID::ObjectPosition);
-    auto const& position = value.as_position();
-    ObjectPosition object_position;
-    auto const& edge_x = position.edge_x();
-    auto const& edge_y = position.edge_y();
-    if (edge_x->is_edge()) {
-        auto const& edge = edge_x->as_edge();
-        object_position.edge_x = edge.edge().value_or(PositionEdge::Left);
-        object_position.offset_x = edge.offset();
-    }
-    if (edge_y->is_edge()) {
-        auto const& edge = edge_y->as_edge();
-        object_position.edge_y = edge.edge().value_or(PositionEdge::Top);
-        object_position.offset_y = edge.offset();
-    }
-    return object_position;
+    return position_value(PropertyID::ObjectPosition);
 }
 
 TableLayout ComputedProperties::table_layout() const
