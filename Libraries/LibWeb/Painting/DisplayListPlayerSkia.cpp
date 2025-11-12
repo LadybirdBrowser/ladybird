@@ -165,7 +165,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
     auto& canvas = surface().canvas();
     SkPaint paint;
     canvas.save();
-    canvas.clipRect(clip_rect);
+    canvas.clipRect(clip_rect, true);
     canvas.drawImageRect(command.bitmap->sk_image(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
     canvas.restore();
 }
@@ -193,7 +193,7 @@ void DisplayListPlayerSkia::add_clip_rect(AddClipRect const& command)
 {
     auto& canvas = surface().canvas();
     auto const& rect = command.rect;
-    canvas.clipRect(to_skia_rect(rect));
+    canvas.clipRect(to_skia_rect(rect), true);
 }
 
 void DisplayListPlayerSkia::save(Save const&)
@@ -780,7 +780,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
 
     auto rect = to_skia_rect(command.backdrop_region);
     canvas.save();
-    canvas.clipRect(rect);
+    canvas.clipRect(rect, true);
     ScopeGuard guard = [&] { canvas.restore(); };
 
     if (command.backdrop_filter.has_value()) {
