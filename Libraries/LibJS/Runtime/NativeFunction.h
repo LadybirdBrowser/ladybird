@@ -9,7 +9,6 @@
 
 #include <AK/Badge.h>
 #include <AK/Optional.h>
-#include <LibGC/Function.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
@@ -59,14 +58,12 @@ protected:
     NativeFunction(Utf16FlyString name, AK::Function<ThrowCompletionOr<Value>(VM&)>, Object& prototype);
     explicit NativeFunction(Object& prototype);
 
-    virtual void initialize(Realm&) override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 private:
     virtual bool is_native_function() const final { return true; }
 
     Utf16FlyString m_name;
-    GC::Ptr<PrimitiveString> m_name_string;
     Optional<Utf16FlyString> m_initial_name; // [[InitialName]]
     Optional<Bytecode::Builtin> m_builtin;
     AK::Function<ThrowCompletionOr<Value>(VM&)> m_native_function;
