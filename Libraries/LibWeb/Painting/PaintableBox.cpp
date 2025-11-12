@@ -1415,8 +1415,8 @@ Optional<CSSPixelRect> PaintableBox::get_masking_area() const
     return absolute_border_box_rect();
 }
 
-// https://www.w3.org/TR/css-transforms-1/#transform-box
-CSSPixelRect PaintableBox::transform_box_rect() const
+// https://www.w3.org/TR/css-transforms-1/#reference-box
+CSSPixelRect PaintableBox::transform_reference_box() const
 {
     auto transform_box = computed_values().transform_box();
     // For SVG elements without associated CSS layout box, the used value for content-box is fill-box and for
@@ -1565,7 +1565,7 @@ void PaintableBox::resolve_paint_properties()
     }
 
     auto const& transform_origin = computed_values.transform_origin();
-    auto reference_box = transform_box_rect();
+    auto reference_box = transform_reference_box();
     auto x = reference_box.left() + transform_origin.x.to_px(layout_node, reference_box.width());
     auto y = reference_box.top() + transform_origin.y.to_px(layout_node, reference_box.height());
     set_transform_origin({ x, y });
