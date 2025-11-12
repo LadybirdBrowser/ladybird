@@ -452,10 +452,7 @@ ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const& parse_res
         // d. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
         auto offset_minutes = offset_nanoseconds / 60'000'000'000;
 
-        // e. Assert: offsetMinutes is an integer.
-        VERIFY(trunc(offset_minutes) == offset_minutes);
-
-        // f. Return Time Zone Identifier Parse Record { [[Name]]: EMPTY, [[OffsetMinutes]]: offsetMinutes }.
+        // e. Return Time Zone Identifier Parse Record { [[Name]]: EMPTY, [[OffsetMinutes]]: offsetMinutes }.
         return ParsedTimeZoneIdentifier { .name = {}, .offset_minutes = static_cast<i64>(offset_minutes) };
     }
 }
