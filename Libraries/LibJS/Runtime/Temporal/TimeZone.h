@@ -12,14 +12,10 @@
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS::Temporal {
-
-struct TimeZone {
-    Optional<String> name;
-    Optional<i64> offset_minutes;
-};
 
 ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanoseconds);
 Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds);
@@ -36,8 +32,8 @@ ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseco
 ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanoseconds(VM&, StringView time_zone, ISODateTime const&);
 ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM&, StringView time_zone, ISODate);
 bool time_zone_equals(StringView one, StringView two);
-ThrowCompletionOr<TimeZone> parse_time_zone_identifier(VM&, StringView identifier);
-TimeZone parse_time_zone_identifier(StringView identifier);
-TimeZone parse_time_zone_identifier(ParseResult const&);
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM&, StringView identifier);
+ParsedTimeZoneIdentifier parse_time_zone_identifier(StringView identifier);
+ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const&);
 
 }
