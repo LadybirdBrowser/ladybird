@@ -36,8 +36,9 @@ void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
         if (auto surface = canvas_element.surface()) {
             // FIXME: Remove this const_cast.
             const_cast<HTML::HTMLCanvasElement&>(canvas_element).present();
-            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), surface->rect(), canvas_rect.to_type<int>());
-            context.display_list_recorder().draw_painting_surface(canvas_rect.to_type<int>(), *surface, surface->rect(), scaling_mode);
+            auto canvas_int_rect = canvas_rect.to_type<int>();
+            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), surface->size(), canvas_int_rect.size());
+            context.display_list_recorder().draw_painting_surface(canvas_int_rect, *surface, surface->rect(), scaling_mode);
         }
     }
 }

@@ -452,9 +452,9 @@ struct TextDecorationThickness {
 };
 
 // FIXME: Find a better place for this helper.
-inline Gfx::ScalingMode to_gfx_scaling_mode(ImageRendering css_value, Gfx::IntRect source, Gfx::IntRect target)
+inline Gfx::ScalingMode to_gfx_scaling_mode(ImageRendering css_value, Gfx::IntSize source, Gfx::IntSize target)
 {
-    if (source.size() == target.size())
+    if (source == target)
         return Gfx::ScalingMode::None;
 
     switch (css_value) {
