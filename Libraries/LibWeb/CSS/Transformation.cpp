@@ -68,7 +68,7 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
     CSSPixels width = 1;
     CSSPixels height = 1;
     if (paintable_box.has_value()) {
-        auto reference_box = paintable_box->transform_box_rect();
+        auto reference_box = paintable_box->transform_reference_box();
         width = reference_box.width();
         height = reference_box.height();
     }

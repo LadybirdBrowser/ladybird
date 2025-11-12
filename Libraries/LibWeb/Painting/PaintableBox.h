@@ -217,7 +217,7 @@ public:
 
     virtual bool wants_mouse_events() const override;
 
-    CSSPixelRect transform_box_rect() const;
+    CSSPixelRect transform_reference_box() const;
     virtual void resolve_paint_properties() override;
 
     RefPtr<ScrollFrame const> nearest_scroll_frame() const;
