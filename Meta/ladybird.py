@@ -253,14 +253,15 @@ def configure_skia_jemalloc() -> list[str]:
     user_vars_cmake_module = Path("Meta", "CMake", "vcpkg", "user-variables.cmake")
     user_vars_cmake_module.parent.mkdir(parents=True, exist_ok=True)
 
+    file_contents = []
+    if pkg_config:
+        file_contents.append(f"set(PKGCONFIG {pkg_config})\n")
+    if gn:
+        file_contents.append(f"set(GN {gn})\n")
+    file_contents.append("\n")
+
     with open(user_vars_cmake_module, "w") as f:
-        f.writelines(
-            [
-                f"set(PKGCONFIG {pkg_config})\n",
-                f"set(GN {gn})\n",
-                "\n",
-            ]
-        )
+        f.writelines(file_contents)
 
     return cmake_args
 
