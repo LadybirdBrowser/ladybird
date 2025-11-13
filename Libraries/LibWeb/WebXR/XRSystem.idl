@@ -1,0 +1,21 @@
+#import <DOM/EventTarget.idl>
+
+[SecureContext, Exposed=Window] interface XRSystem : EventTarget {
+    // Methods
+    Promise<boolean> isSessionSupported(XRSessionMode mode);
+    [FIXME, NewObject] Promise<XRSession> requestSession(XRSessionMode mode, optional XRSessionInit options = {});
+
+    // Events
+    [FIXME] attribute EventHandler ondevicechange;
+};
+
+enum XRSessionMode {
+    "inline",
+    "immersive-vr",
+    "immersive-ar"
+};
+
+dictionary XRSessionInit {
+    sequence<DOMString> requiredFeatures;
+    sequence<DOMString> optionalFeatures;
+};
