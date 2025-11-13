@@ -3,8 +3,10 @@ direction: ltr
 direction: rtl
 color: red
 color: rgb(255, 0, 0)
+color: orange
 background-color: blue
 background-color: rgb(0, 0, 255)
+background-color: transparent
 font-size: 10px
 font-size: 24px
 font-size: 32px

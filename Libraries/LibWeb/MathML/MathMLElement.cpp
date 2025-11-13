@@ -91,10 +91,10 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             // The mathcolor and mathbackground attributes, if present, must have a value that is a <color>. In that case,
             // the user agent is expected to treat these attributes as a presentational hint setting the element's color
             // and background-color properties to the corresponding values.
-            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::Color))
+            if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::Color))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, parsed_value.release_nonnull());
         } else if (name == AttributeNames::mathbackground) {
-            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::BackgroundColor))
+            if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::Color))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, parsed_value.release_nonnull());
         } else if (name == AttributeNames::mathsize) {
             // https://w3c.github.io/mathml-core/#dfn-mathsize
