@@ -1298,6 +1298,12 @@ class VTTRegion;
 
 }
 
+namespace Web::WebXR {
+
+class XRSystem;
+
+}
+
 namespace Web::XHR {
 
 class FormData;
