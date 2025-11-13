@@ -1742,6 +1742,13 @@ RefPtr<StyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, 
     return parsed_value.release_value();
 }
 
+RefPtr<StyleValue const> Parser::parse_as_type(ValueType value_type)
+{
+    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    TokenStream tokens { component_values };
+    return parse_value(value_type, tokens);
+}
+
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
 LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img)
 {
