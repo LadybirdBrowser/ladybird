@@ -151,7 +151,7 @@ void HTMLScriptElement::execute_script()
         VERIFY(document->current_script() == nullptr);
 
         // 2. Run the module script given by el's result.
-        (void)as<JavaScriptModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
+        (void)as<ModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
     }
     // -> "importmap"
     else if (m_script_type == ScriptType::ImportMap) {

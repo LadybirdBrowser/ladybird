@@ -1,0 +1,23 @@
+<!doctype html>
+
+<head>
+    <script src="../../../../../resources/testharness.js"></script>
+    <script src="../../../../../resources/testharnessreport.js"></script>
+</head>
+
+<body>
+    <script>
+        promise_test(async function (test) {
+            const css_module = await import("./resources/basic.css", { with: { type: "css" }});
+            assert_true(css_module.default instanceof CSSStyleSheet);
+            assert_equals(css_module.default.cssRules[0].cssText,
+                "#test { background-color: rgb(255, 0, 0); }");
+        }, "Load a CSS module with dynamic import()");
+
+        promise_test(function (test) {
+            return promise_rejects_js(test, TypeError,
+                import("./resources/basic.css"),
+                "Attempting to import() a CSS module without a type attribute should fail");
+        }, "Ensure that loading a CSS module with dymnamic import() fails without a type attribute");
+    </script>
+</body>
