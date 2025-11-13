@@ -17,6 +17,7 @@
 #import <Serial/Serial.idl>
 #import <ServiceWorker/ServiceWorkerContainer.idl>
 #import <StorageAPI/NavigatorStorage.idl>
+#import <WebXR/XRSystem.idl>
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigator
 [Exposed=Window]
@@ -46,6 +47,9 @@ interface Navigator {
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;
+
+    // https://immersive-web.github.io/webxr/#navigator-xr-attribute
+    [SecureContext, SameObject] readonly attribute XRSystem xr;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
