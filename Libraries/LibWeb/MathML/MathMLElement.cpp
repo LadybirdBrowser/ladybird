@@ -101,7 +101,7 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             // The mathsize attribute, if present, must have a value that is a valid <length-percentage>.
             // In that case, the user agent is expected to treat the attribute as a presentational hint setting the
             // element's font-size property to the corresponding value.
-            if (auto parsed_value = HTML::parse_dimension_value(value))
+            if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::LengthPercentage))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::FontSize, parsed_value.release_nonnull());
         } else if (name == AttributeNames::displaystyle) {
             // https://w3c.github.io/mathml-core/#dfn-displaystyle
