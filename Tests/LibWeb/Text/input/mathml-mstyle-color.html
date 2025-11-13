@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const ns = "http://www.w3.org/1998/Math/MathML";
+    const math = document.createElementNS(ns, "math");
+    const mstyle = document.createElementNS(ns, "mstyle");
+    mstyle.setAttribute("mathcolor", "rgb(0, 128, 0)");
+    const mi = document.createElementNS(ns, "mi");
+    mi.textContent = "x";
+    mstyle.appendChild(mi);
+    math.appendChild(mstyle);
+    document.body.appendChild(math);
+
+    println(getComputedStyle(mi).color);
+});
+</script>

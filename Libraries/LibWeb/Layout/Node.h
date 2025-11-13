@@ -114,6 +114,25 @@ public:
     virtual bool is_svg_svg_box() const { return false; }
     virtual bool is_svg_graphics_box() const { return false; }
     virtual bool is_svg_foreign_object_box() const { return false; }
+    virtual bool is_mathml_action_box() const { return false; }
+    virtual bool is_mathml_annotation_box() const { return false; }
+    virtual bool is_mathml_annotation_xml_box() const { return false; }
+    virtual bool is_mathml_box() const { return false; }
+    virtual bool is_mathml_error_box() const { return false; }
+    virtual bool is_mathml_fraction_box() const { return false; }
+    virtual bool is_mathml_multiscripts_box() const { return false; }
+    virtual bool is_mathml_padded_box() const { return false; }
+    virtual bool is_mathml_phantom_box() const { return false; }
+    virtual bool is_mathml_prescripts_box() const { return false; }
+    virtual bool is_mathml_radical_box() const { return false; }
+    virtual bool is_mathml_script_box() const { return false; }
+    virtual bool is_mathml_semantics_box() const { return false; }
+    virtual bool is_mathml_string_box() const { return false; }
+    virtual bool is_mathml_style_box() const { return false; }
+    virtual bool is_mathml_table_box() const { return false; }
+    virtual bool is_mathml_table_row_box() const { return false; }
+    virtual bool is_mathml_table_cell_box() const { return false; }
+    virtual bool is_mathml_underover_box() const { return false; }
     virtual bool is_label() const { return false; }
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }

@@ -22,6 +22,7 @@ public:
     virtual ~MathMLElement() override;
 
     virtual Optional<ARIA::Role> default_role() const override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
 protected:
     MathMLElement(DOM::Document&, DOM::QualifiedName);

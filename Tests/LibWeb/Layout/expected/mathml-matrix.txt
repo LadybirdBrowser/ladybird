@@ -1,0 +1,77 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 69.1875 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 53.1875 0+0+8] children: inline
+      frag 0 from MathMLBox start: 0, length: 0, rect: [8,8 43.53125x53.1875] baseline: 13.796875
+      MathMLBox <math> at [8,8] [0+0+0 43.53125 0+0+0] [0+0+0 53.1875 0+0+0] [BFC] children: inline
+        frag 0 from TableWrapper start: 0, length: 0, rect: [8,8 43.53125x53.1875] baseline: 13.796875
+        TextNode <#text> (not painted)
+        TableWrapper <(anonymous)> at [8,8] inline-block [0+0+0 43.53125 0+0+0] [0+0+0 53.1875 0+0+0] [BFC] children: not-inline
+          MathMLTableBox <mtable> at [8,8] inline-table table-box [0+0+0 43.53125 0+0+0] [0+0+0 53.1875 0+0+0] [TFC] children: not-inline
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+            MathMLTableRowBox <mtr> at [8,8] table-row [0+0+0 43.53125 0+0+0] [0+0+0 26.59375 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              MathMLTableCellBox <mtd> at [14.40625,12.296875] table-cell [0+0+6.40625 9.09375 6.40625+0+0] [0+0+4.296875 18 4.296875+0+0] [BFC] children: not-inline
+                MathMLBox <mn> at [14.40625,12.296875] [0+0+0 9.09375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [15.78125,12.296875 6.34375x18] baseline: 13.796875
+                      "1"
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              MathMLTableCellBox <mtd> at [36.3125,12.296875] table-cell [0+0+6.40625 8.8125 6.40625+0+0] [0+0+4.296875 18 4.296875+0+0] [BFC] children: not-inline
+                MathMLBox <mn> at [36.3125,12.296875] [0+0+0 8.8125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [36.3125,12.296875 8.8125x18] baseline: 13.796875
+                      "2"
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> (not painted) children: inline
+              TextNode <#text> (not painted)
+            MathMLTableRowBox <mtr> at [8,34.59375] table-row [0+0+0 43.53125 0+0+0] [0+0+0 26.59375 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              MathMLTableCellBox <mtd> at [14.40625,65.484375] table-cell [0+0+6.40625 9.09375 6.40625+0+0] [0+0+4.296875 18 4.296875+0+0] [BFC] children: not-inline
+                MathMLBox <mn> at [14.40625,65.484375] [0+0+0 9.09375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [14.40625,65.484375 9.09375x18] baseline: 13.796875
+                      "3"
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> (not painted) children: inline
+                TextNode <#text> (not painted)
+              MathMLTableCellBox <mtd> at [36.3125,65.484375] table-cell [0+0+6.40625 8.8125 6.40625+0+0] [0+0+4.296875 18 4.296875+0+0] [BFC] children: not-inline
+                MathMLBox <mn> at [36.3125,65.484375] [0+0+0 8.8125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [36.84375,65.484375 7.75x18] baseline: 13.796875
+                      "4"
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [8,34.59375] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x69.1875] overflow: [0,0 800x87.78125]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x53.1875] overflow: [8,8 784x79.78125]
+      PaintableWithLines (MathMLBox<math>) [8,8 43.53125x53.1875] overflow: [8,8 43.53125x79.78125]
+        PaintableWithLines (TableWrapper(anonymous)) [8,8 43.53125x53.1875] overflow: [8,8 43.53125x79.78125]
+          MathMLTablePaintable (MathMLTableBox<mtable>) [8,8 43.53125x53.1875] overflow: [8,8 43.53125x79.78125]
+            MathMLTableRowPaintable (MathMLTableRowBox<mtr>) [8,8 43.53125x26.59375]
+              MathMLTableCellPaintable (MathMLTableCellBox<mtd>) [8,8 21.90625x26.59375]
+                PaintableWithLines (MathMLBox<mn>) [14.40625,12.296875 9.09375x18]
+                  TextPaintable (TextNode<#text>)
+              MathMLTableCellPaintable (MathMLTableCellBox<mtd>) [29.90625,8 21.625x26.59375]
+                PaintableWithLines (MathMLBox<mn>) [36.3125,12.296875 8.8125x18]
+                  TextPaintable (TextNode<#text>)
+            MathMLTableRowPaintable (MathMLTableRowBox<mtr>) [8,34.59375 43.53125x26.59375] overflow: [8,34.59375 43.53125x53.1875]
+              MathMLTableCellPaintable (MathMLTableCellBox<mtd>) [8,61.1875 21.90625x26.59375]
+                PaintableWithLines (MathMLBox<mn>) [14.40625,65.484375 9.09375x18]
+                  TextPaintable (TextNode<#text>)
+              MathMLTableCellPaintable (MathMLTableCellBox<mtd>) [29.90625,61.1875 21.625x26.59375]
+                PaintableWithLines (MathMLBox<mn>) [36.3125,65.484375 8.8125x18]
+                  TextPaintable (TextNode<#text>)
+              PaintableWithLines (BlockContainer(anonymous)) [8,34.59375 0x0]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 0x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x69.1875] [children: 0] (z-index: auto)

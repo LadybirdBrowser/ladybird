@@ -1,0 +1,34 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: inline
+      frag 0 from MathMLBox start: 0, length: 0, rect: [8,8 8.8125x18] baseline: 13.796875
+      MathMLBox <math> at [8,8] [0+0+0 8.8125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 8.8125 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        MathMLRadicalBox <msqrt> at [8,8] [0+0+0 8.8125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,8] [0+0+0 8.8125 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          MathMLBox <mn> at [8,8] [0+0+0 8.8125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [8,8 8.8125x18] baseline: 13.796875
+                "2"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [8,26] [0+0+0 8.8125 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,26] [0+0+0 8.8125 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x34]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x18]
+      PaintableWithLines (MathMLBox<math>) [8,8 8.8125x18]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 8.8125x0]
+        MathMLRadicalPaintable (MathMLRadicalBox<msqrt>) [8,8 8.8125x18]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 8.8125x0]
+          PaintableWithLines (MathMLBox<mn>) [8,8 8.8125x18]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer(anonymous)) [8,26 8.8125x0]
+        PaintableWithLines (BlockContainer(anonymous)) [8,26 8.8125x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x34] [children: 0] (z-index: auto)

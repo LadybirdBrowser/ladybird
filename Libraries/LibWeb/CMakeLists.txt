@@ -735,6 +735,24 @@ set(SOURCES
     Layout/Node.cpp
     Layout/RadioButton.cpp
     Layout/ReplacedBox.cpp
+    Layout/MathMLAnnotationBox.cpp
+    Layout/MathMLAnnotationXmlBox.cpp
+    Layout/MathMLBox.cpp
+    Layout/MathMLErrorBox.cpp
+    Layout/MathMLFractionBox.cpp
+    Layout/MathMLMultiscriptsBox.cpp
+    Layout/MathMLPaddedBox.cpp
+    Layout/MathMLPhantomBox.cpp
+    Layout/MathMLPrescriptsBox.cpp
+    Layout/MathMLRadicalBox.cpp
+    Layout/MathMLScriptBox.cpp
+    Layout/MathMLSemanticsBox.cpp
+    Layout/MathMLStringBox.cpp
+    Layout/MathMLStyleBox.cpp
+    Layout/MathMLTableBox.cpp
+    Layout/MathMLTableCellBox.cpp
+    Layout/MathMLTableRowBox.cpp
+    Layout/MathMLUnderOverBox.cpp
     Layout/SVGBox.cpp
     Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp
@@ -760,9 +778,26 @@ set(SOURCES
     Loader/ProxyMappings.cpp
     Loader/ResourceLoader.cpp
     MathML/AttributeNames.cpp
+    MathML/MathMLAnnotationElement.cpp
+    MathML/MathMLAnnotationXmlElement.cpp
     MathML/MathMLElement.cpp
+    MathML/MathMLErrorElement.cpp
+    MathML/MathMLFractionElement.cpp
     MathML/MathMLMiElement.cpp
     MathML/MathMLMspaceElement.cpp
+    MathML/MathMLMultiscriptsElement.cpp
+    MathML/MathMLPaddedElement.cpp
+    MathML/MathMLPhantomElement.cpp
+    MathML/MathMLPrescriptsElement.cpp
+    MathML/MathMLRadicalElement.cpp
+    MathML/MathMLScriptElement.cpp
+    MathML/MathMLSemanticsElement.cpp
+    MathML/MathMLStringElement.cpp
+    MathML/MathMLStyleElement.cpp
+    MathML/MathMLTableCellElement.cpp
+    MathML/MathMLTableElement.cpp
+    MathML/MathMLTableRowElement.cpp
+    MathML/MathMLUnderOverElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
@@ -806,6 +841,15 @@ set(SOURCES
     Painting/ImagePaintable.cpp
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
+    Painting/MathMLErrorPaintable.cpp
+    Painting/MathMLFractionPaintable.cpp
+    Painting/MathMLMultiscriptsPaintable.cpp
+    Painting/MathMLPhantomPaintable.cpp
+    Painting/MathMLRadicalPaintable.cpp
+    Painting/MathMLTableCellPaintable.cpp
+    Painting/MathMLTablePaintable.cpp
+    Painting/MathMLTableRowPaintable.cpp
+    Painting/MathMLUnderOverPaintable.cpp
     Painting/MediaPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
