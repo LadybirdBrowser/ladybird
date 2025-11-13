@@ -12,7 +12,6 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
