@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
+#include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
