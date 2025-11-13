@@ -380,7 +380,7 @@ static void deactivate_a_document_for_cross_document_navigation(GC::Ref<DOM::Doc
 
     // 5. If potentiallyTriggerViewTransition is false, then:
     if (!potentially_trigger_view_transition) {
-        // FIXME 1. Let firePageSwapBeforeUnload be the following step
+        // FIXME: 1. Let firePageSwapBeforeUnload be the following step
         //            1. Fire the pageswap event given displayedDocument, targetEntry, navigationType, and null.
 
         // 2. Set the ongoing navigation for navigable to null.

@@ -40,7 +40,7 @@ void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties& style)
         // No-op
     } else if (display.is_inline_outside()) {
         // Otherwise, if the computed value of 'display' is a value such that the outer display type is 'inline', then behave as 'inline-block'.
-        // AD-HOC https://github.com/whatwg/html/issues/11857
+        // AD-HOC: See https://github.com/whatwg/html/issues/11857
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
     } else {
         // Otherwise, behave as 'flow-root'.

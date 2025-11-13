@@ -455,8 +455,8 @@ void HTMLDialogElement::run_dialog_focusing_steps()
     // 2. Let control be null
     GC::Ptr<Element> control = nullptr;
 
-    // FIXME 3. If subject has the autofocus attribute, then set control to subject.
-    // FIXME 4. If control is null, then set control to the focus delegate of subject.
+    // FIXME: 3. If subject has the autofocus attribute, then set control to subject.
+    // FIXME: 4. If control is null, then set control to the focus delegate of subject.
 
     // 5. If control is null, then set control to subject.
     if (!control)

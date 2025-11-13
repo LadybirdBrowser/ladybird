@@ -779,7 +779,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 
     // FIXME: 9. For each shadow-including inclusive descendant node of document, erase all event listeners and handlers given node.
 
-    // FIXME 10. If document is the associated Document of document's relevant global object, then erase all event listeners and handlers given document's relevant global object.
+    // FIXME: 10. If document is the associated Document of document's relevant global object, then erase all event listeners and handlers given document's relevant global object.
 
     // 11. Replace all with null within document, without firing any mutation events.
     replace_all(nullptr);
@@ -4285,7 +4285,7 @@ void Document::abort()
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document-and-its-descendants
 void Document::abort_a_document_and_its_descendants()
 {
-    // FIXME 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
+    // FIXME: 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
 
     // 2. Let descendantNavigables be document's descendant navigables.
     auto descendant_navigables = this->descendant_navigables();

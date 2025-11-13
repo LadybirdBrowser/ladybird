@@ -717,7 +717,7 @@ RoundingIncrement maximum_temporal_duration_rounding_increment(Unit unit)
     return temporal_units[to_underlying(unit)].maximum_duration_rounding_increment;
 }
 
-// AD-HOC
+// https://tc39.es/proposal-temporal/#table-temporal-units
 Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit unit)
 {
     switch (unit) {
