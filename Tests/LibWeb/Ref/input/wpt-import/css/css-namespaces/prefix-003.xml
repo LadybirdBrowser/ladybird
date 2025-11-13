@@ -1,0 +1,15 @@
+<root>
+ <head xmlns="http://www.w3.org/1999/xhtml">
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#prefixes"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-1-generic.xml"/>
+  <title>CSS Namespaces Test Suite: empty string prefix (Implied element namespace)</title>
+  <style>
+   @namespace foo "";
+   t { background:red }
+   foo|t { background:lime }
+  </style>
+ </head>
+ <t>This sentence should have a green background.</t>
+</root>
