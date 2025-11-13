@@ -787,7 +787,15 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_shape_rendering(computed_style.shape_rendering());
     computed_values.set_paint_order(computed_style.paint_order());
 
-    auto const& mask_image = computed_style.property(CSS::PropertyID::MaskImage);
+    // FIXME: We should actually support more than one mask image rather than just using the first
+    auto const& mask_image = [&] -> CSS::StyleValue const& {
+        auto const& value = computed_style.property(CSS::PropertyID::MaskImage);
+
+        if (value.is_value_list())
+            return value.as_value_list().values()[0];
+
+        return value;
+    }();
     if (mask_image.is_url()) {
         computed_values.set_mask(mask_image.as_url().url());
     } else if (mask_image.is_abstract_image()) {
