@@ -542,6 +542,7 @@ XMLSerializer
 XPathEvaluator
 XPathExpression
 XPathResult
+XRSystem
 __finishTest
 __preventMultipleTestFunctions
 animationFrame
