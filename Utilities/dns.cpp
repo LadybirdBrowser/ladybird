@@ -18,7 +18,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         ByteString name;
     };
     Vector<Request> requests;
-    Request current_request;
     StringView server_address;
     StringView cert_path;
     bool use_tls = false;
@@ -39,6 +38,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             if (parts.size() > 2 || parts.is_empty())
                 return Error::from_string_literal("Invalid record/name format");
 
+            Request current_request;
             if (parts.size() == 1) {
                 current_request.types.append({ DNS::Messages::ResourceType::ANY });
                 current_request.name = parts[0];
@@ -54,7 +54,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 current_request.name = parts[1];
             }
             requests.append(move(current_request));
-            current_request = {};
             return true;
         },
     });
@@ -66,7 +65,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return 1;
     }
 
-    if (current_request.name.is_empty() && !current_request.types.is_empty()) {
+    if (requests.is_empty()) {
         outln("You must specify at least one DNS record to query");
         return 1;
     }
@@ -118,7 +117,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                             promise->reject(resolver_result.release_error());
                         }
                     });
-                }).when_rejected([promise](Error const& error) {
+                });
+
+                lookup_promise->when_rejected([promise](Error const& error) {
                     promise->reject(Error::copy(error));
                 });
 
@@ -129,38 +130,42 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
     };
 
-    TRY(resolver.when_socket_ready()->await());
+    auto when_socket_ready_promise = resolver.when_socket_ready();
 
     size_t pending_requests = requests.size();
-    Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<DNS::LookupResult const>>>> promises;
-    for (auto& request : requests) {
-        promises.append(resolver.lookup(request.name, DNS::Messages::Class::IN, request.types, { .validate_dnssec_locally = dnssec })
-                ->when_resolved([&](auto& result) {
-                    outln("Resolved {}:", request.name);
-                    HashTable<DNS::Messages::ResourceType> types;
-                    auto recs = result->records();
-                    for (auto& record : recs)
-                        types.set(record.type);
+    when_socket_ready_promise->when_resolved([&resolver, dnssec, when_socket_ready_promise, &requests, &pending_requests, &loop](auto&) {
+        for (auto const& request : requests) {
+            auto lookup_promise = resolver.lookup(request.name, DNS::Messages::Class::IN, request.types, { .validate_dnssec_locally = dnssec });
+            lookup_promise->when_resolved([&request, &pending_requests, &loop](auto& result) {
+                outln("Resolved {}:", request.name);
+                HashTable<DNS::Messages::ResourceType> types;
+                auto recs = result->records();
+                for (auto& record : recs)
+                    types.set(record.type);
 
-                    for (auto& type : types) {
-                        outln("  - {} IN {}:", request.name, DNS::Messages::to_string(type));
-                        for (auto& record : recs) {
-                            if (type != record.type)
-                                continue;
+                for (auto& type : types) {
+                    outln("  - {} IN {}:", request.name, DNS::Messages::to_string(type));
+                    for (auto& record : recs) {
+                        if (type != record.type)
+                            continue;
 
-                            outln("    - {}", record.to_string());
-                        }
+                        outln("    - {}", record.to_string());
                     }
+                }
 
-                    if (--pending_requests == 0)
-                        loop.quit(0);
-                })
-                .when_rejected([&](auto& error) {
-                    outln("Failed to resolve {} IN {}: {}", request.name, DNS::Messages::to_string(request.types.first().first()), error);
-                    if (--pending_requests == 0)
-                        loop.quit(1);
-                }));
-    }
+                if (--pending_requests == 0)
+                    loop.quit(0);
+            });
+
+            lookup_promise->when_rejected([&request, &pending_requests, &loop](auto& error) {
+                outln("Failed to resolve {} IN {}: {}", request.name, DNS::Messages::to_string(request.types.first().first()), error);
+                if (--pending_requests == 0)
+                    loop.quit(0);
+            });
+
+            when_socket_ready_promise->add_child(move(lookup_promise));
+        }
+    });
 
     return loop.exec();
 }
