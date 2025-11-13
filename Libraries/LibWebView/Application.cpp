@@ -133,7 +133,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
-        .help_string = "Run Ladybird without a browser window. Mode may be 'screenshot' (default), 'layout-tree', or 'text'.",
+        .help_string = "Run Ladybird without a browser window. Mode may be 'screenshot' (default), 'layout-tree', 'text', or 'manual'.",
         .long_name = "headless",
         .value_name = "mode",
         .accept_value = [&](StringView value) {
@@ -146,6 +146,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
                 headless_mode = HeadlessMode::LayoutTree;
             else if (value.equals_ignoring_ascii_case("text"sv))
                 headless_mode = HeadlessMode::Text;
+            else if (value.equals_ignoring_ascii_case("manual"sv))
+                headless_mode = HeadlessMode::Manual;
 
             return headless_mode.has_value();
         },
@@ -512,6 +514,15 @@ static void load_page_for_info_and_exit(Core::EventLoop& event_loop, HeadlessWeb
     view.load(url);
 }
 
+static void load_page_and_exit_on_close(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url)
+{
+    view.on_close = [&event_loop]() {
+        event_loop.quit(0);
+    };
+
+    view.load(url);
+}
+
 ErrorOr<int> Application::execute()
 {
     OwnPtr<HeadlessWebView> view;
@@ -536,6 +547,9 @@ ErrorOr<int> Application::execute()
                 break;
             case HeadlessMode::Text:
                 load_page_for_info_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), WebView::PageInfoType::Text);
+                break;
+            case HeadlessMode::Manual:
+                load_page_and_exit_on_close(*m_event_loop, *view, m_browser_options.urls.first());
                 break;
             case HeadlessMode::Test:
                 VERIFY_NOT_REACHED();
