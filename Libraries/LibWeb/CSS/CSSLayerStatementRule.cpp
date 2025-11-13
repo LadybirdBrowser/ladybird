@@ -40,7 +40,7 @@ String CSSLayerStatementRule::serialized() const
     return builder.to_string_without_validation();
 }
 
-Vector<FlyString> CSSLayerStatementRule::internal_qualified_name_list(Badge<StyleComputer>) const
+Vector<FlyString> CSSLayerStatementRule::internal_qualified_name_list(Badge<StyleScope>) const
 {
     Vector<FlyString> qualified_layer_names;
 

@@ -209,4 +209,12 @@ String AbstractElement::debug_description() const
     return m_element->debug_description();
 }
 
+CSS::StyleScope const& AbstractElement::style_scope() const
+{
+    auto& root = m_element->root();
+    if (root.is_shadow_root())
+        return as<DOM::ShadowRoot>(root).style_scope();
+    return root.document().style_scope();
+}
+
 }

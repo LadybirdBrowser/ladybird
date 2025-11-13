@@ -469,6 +469,7 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
     , m_dynamic_view_transition_style_sheet(parse_css_stylesheet(CSS::Parser::ParsingParams(realm), ""sv, {}))
     , m_style_invalidator(realm.heap().allocate<StyleInvalidator>())
+    , m_style_scope(*this)
 {
     m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
         .supports_named_properties = true,
@@ -544,6 +545,7 @@ WebIDL::ExceptionOr<void> Document::populate_with_html_head_and_body()
 void Document::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    m_style_scope.visit_edges(visitor);
     visitor.visit(m_page);
     visitor.visit(m_window);
     visitor.visit(m_layout_root);
@@ -1566,7 +1568,10 @@ void Document::update_style()
     // style change event. [CSS-Transitions-2]
     m_transition_generation++;
 
-    invalidate_style_of_elements_affected_by_has();
+    style_scope().invalidate_style_of_elements_affected_by_has();
+    for_each_shadow_root([&](auto& shadow_root) {
+        shadow_root.style_scope().invalidate_style_of_elements_affected_by_has();
+    });
 
     if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;
@@ -1786,54 +1791,13 @@ static Node* find_common_ancestor(Node* a, Node* b)
     return nullptr;
 }
 
-void Document::invalidate_style_of_elements_affected_by_has()
-{
-    if (m_pending_nodes_for_style_invalidation_due_to_presence_of_has.is_empty()) {
-        return;
-    }
-
-    ScopeGuard clear_pending_nodes_guard = [&] {
-        m_pending_nodes_for_style_invalidation_due_to_presence_of_has.clear();
-    };
-
-    // It's ok to call have_has_selectors() instead of may_have_has_selectors() here and force
-    // rule cache build, because it's going to be build soon anyway, since we could get here
-    // only from update_style().
-    if (!style_computer().have_has_selectors()) {
-        return;
-    }
-
-    auto nodes = move(m_pending_nodes_for_style_invalidation_due_to_presence_of_has);
-    for (auto const& node : nodes) {
-        if (!node)
-            continue;
-        for (auto ancestor = node.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-            if (!ancestor->is_element())
-                continue;
-            auto& element = static_cast<Element&>(*ancestor);
-            element.invalidate_style_if_affected_by_has();
-
-            auto* parent = ancestor->parent_or_shadow_host();
-            if (!parent)
-                return;
-
-            // If any ancestor's sibling was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
-            // its style might be affected by the change in descendant node.
-            parent->for_each_child_of_type<Element>([&](auto& ancestor_sibling_element) {
-                if (ancestor_sibling_element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                    ancestor_sibling_element.invalidate_style_if_affected_by_has();
-                return IterationDecision::Continue;
-            });
-        }
-    }
-}
-
 void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS::PseudoClass pseudo_class, auto& element_slot, Node& old_new_common_ancestor, auto node)
 {
-    auto const& rules = style_computer().get_pseudo_class_rule_cache(pseudo_class);
-
     auto& root = old_new_common_ancestor.root();
     auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
+    auto& style_scope = shadow_root ? shadow_root->style_scope() : this->style_scope();
+
+    auto const& rules = style_scope.get_pseudo_class_rule_cache(pseudo_class);
 
     auto& style_computer = this->style_computer();
     auto does_rule_match_on_element = [&](Element const& element, CSS::MatchingRule const& rule) {
@@ -3486,13 +3450,25 @@ void Document::evaluate_media_queries_and_report_changes()
 void Document::evaluate_media_rules()
 {
     bool any_media_queries_changed_match_state = false;
-    for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet, auto) {
+    style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
         if (style_sheet.evaluate_media_queries(*this))
             any_media_queries_changed_match_state = true;
     });
 
+    for_each_shadow_root([&](auto& shadow_root) {
+        shadow_root.style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
+            if (style_sheet.evaluate_media_queries(*this))
+                any_media_queries_changed_match_state = true;
+        });
+    });
+
     if (any_media_queries_changed_match_state) {
-        style_computer().invalidate_rule_cache();
+        // FIXME: Make this more efficient
+        style_scope().invalidate_rule_cache();
+        for_each_shadow_root([&](auto& shadow_root) {
+            shadow_root.style_scope().invalidate_rule_cache();
+        });
+
         invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
     }
 }
@@ -6005,32 +5981,25 @@ WebIDL::ExceptionOr<void> Document::set_adopted_style_sheets(JS::Value new_value
     return {};
 }
 
-void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&, GC::Ptr<DOM::ShadowRoot>)>&& callback) const
+void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
 {
     if (m_style_sheets) {
         for (auto& style_sheet : m_style_sheets->sheets()) {
             if (!(style_sheet->is_alternate() && style_sheet->disabled()))
-                callback(*style_sheet, {});
+                callback(*style_sheet);
         }
     }
 
     if (m_adopted_style_sheets) {
         m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
             if (!style_sheet.disabled())
-                callback(style_sheet, {});
+                callback(style_sheet);
         });
     }
 
     if (m_dynamic_view_transition_style_sheet) {
-        callback(*m_dynamic_view_transition_style_sheet, {});
+        callback(*m_dynamic_view_transition_style_sheet);
     }
-
-    for_each_shadow_root([&](auto& shadow_root) {
-        shadow_root.for_each_css_style_sheet([&](auto& style_sheet) {
-            if (!style_sheet.disabled())
-                callback(style_sheet, &shadow_root);
-        });
-    });
 }
 
 static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)

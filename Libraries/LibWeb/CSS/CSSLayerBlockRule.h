@@ -24,7 +24,7 @@ public:
 
     FlyString const& name() const { return m_name; }
     FlyString const& internal_name() const { return m_name_internal; }
-    FlyString internal_qualified_name(Badge<StyleComputer>) const;
+    FlyString internal_qualified_name(Badge<StyleScope>) const;
 
 private:
     CSSLayerBlockRule(JS::Realm&, FlyString name, CSSRuleList&);

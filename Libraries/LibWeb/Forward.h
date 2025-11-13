@@ -370,6 +370,7 @@ class StringStyleValue;
 class StyleComputer;
 class StylePropertyMap;
 class StylePropertyMapReadOnly;
+class StyleScope;
 class StyleSheet;
 class StyleSheetList;
 class StyleValue;
