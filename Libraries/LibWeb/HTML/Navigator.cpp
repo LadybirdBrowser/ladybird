@@ -20,6 +20,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
+#include <LibWeb/WebXR/XRSystem.h>
 
 namespace Web::HTML {
 
@@ -77,6 +78,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
     visitor.visit(m_battery_promise);
+    visitor.visit(m_xr);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -126,6 +128,13 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
     if (!m_credentials)
         m_credentials = realm().create<CredentialManagement::CredentialsContainer>(realm());
     return *m_credentials;
+}
+
+GC::Ref<WebXR::XRSystem> Navigator::xr()
+{
+    if (!m_xr)
+        m_xr = realm().create<WebXR::XRSystem>(realm());
+    return *m_xr;
 }
 
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
