@@ -333,19 +333,19 @@ ThrowCompletionOr<GC::Ref<Promise>> CyclicModule::evaluate(VM& vm)
     // 2. Assert: module.[[Status]] is one of linked, evaluating-async, or evaluated.
     VERIFY(m_status == ModuleStatus::Linked || m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated);
 
-    // NOTE: The spec does not catch the case where evaluate is called twice on a script which failed
-    //       during evaluation. This means the script is evaluated but does not have a cycle root.
-    //       In that case we first check if this module itself has a top level capability.
-    //       See also: https://github.com/tc39/ecma262/issues/2823 .
-    if (m_top_level_capability != nullptr)
-        return as<Promise>(*m_top_level_capability->promise());
-
-    // 3. If module.[[Status]] is either evaluating-async or evaluated, set module to module.[[CycleRoot]].
+    // 3. If module.[[Status]] is either evaluating-async or evaluated, then
     if ((m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated) && m_cycle_root != this) {
-        // Note: This will continue this function with module.[[CycleRoot]]
-        VERIFY(m_cycle_root);
-        dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] evaluate[{}](vm) deferring to cycle root at {}", this, m_cycle_root.ptr());
-        return m_cycle_root->evaluate(vm);
+        // a. If module.[[CycleRoot]] is not empty, then
+        if (m_cycle_root) {
+            // i. Set module to module.[[CycleRoot]].
+            // NOTE: This will continue this function with module.[[CycleRoot]]
+            return m_cycle_root->evaluate(vm);
+        }
+        // b. Else,
+        else {
+            // i. Assert: module.[[Status]] is evaluated and module.[[EvaluationError]] is a throw completion.
+            VERIFY(m_status == ModuleStatus::Evaluated && m_evaluation_error.is_throw_completion());
+        }
     }
 
     // 4. If module.[[TopLevelCapability]] is not empty, then
