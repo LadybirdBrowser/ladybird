@@ -1225,6 +1225,9 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
 {
     auto const& value = property(PropertyID::TextDecorationLine);
 
+    if (value.to_keyword() == Keyword::None)
+        return {};
+
     if (value.is_value_list()) {
         Vector<TextDecorationLine> lines;
         auto& values = value.as_value_list().values();
@@ -1234,14 +1237,7 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
         return lines;
     }
 
-    if (value.is_keyword()) {
-        if (value.to_keyword() == Keyword::None)
-            return {};
-        return { keyword_to_text_decoration_line(value.to_keyword()).release_value() };
-    }
-
-    dbgln("FIXME: Unsupported value for text-decoration-line: {}", value.to_string(SerializationMode::Normal));
-    return {};
+    VERIFY_NOT_REACHED();
 }
 
 TextDecorationStyle ComputedProperties::text_decoration_style() const
