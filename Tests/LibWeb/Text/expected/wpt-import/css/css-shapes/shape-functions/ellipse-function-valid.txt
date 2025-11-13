@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
+1 Pass
+13 Fail
 Fail	e.style['shape-outside'] = "ellipse()" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(1px 2px)" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(20px 40px at center)" should set the property value
@@ -13,7 +14,7 @@ Fail	e.style['shape-outside'] = "ellipse(farthest-corner 20%)" should set the pr
 Fail	e.style['shape-outside'] = "ellipse(at 10% 20%)" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(at -10px -20%)" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(4% 20% at top right)" should set the property value
-Fail	e.style['shape-outside'] = "ellipse(calc(100% - 20px) calc(80% - 10px) at calc(100% - 20px) calc(100% / 4))" should set the property value
+Pass	e.style['shape-outside'] = "ellipse(calc(100% - 20px) calc(80% - 10px) at calc(100% - 20px) calc(100% / 4))" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(10px closest-side at top right)" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(farthest-side 20px at center top)" should set the property value
 Fail	e.style['shape-outside'] = "ellipse(farthest-side farthest-side at top right)" should set the property value

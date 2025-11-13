@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 7 tests
 
-1 Pass
-6 Fail
+2 Pass
+5 Fail
 Pass	e.style['shape-outside'] = "xywh(0px 1px 2% 3em)" should set the property value
-Fail	e.style['shape-outside'] = "xywh(0px calc(100% - 20px) 2% 3em)" should set the property value
+Pass	e.style['shape-outside'] = "xywh(0px calc(100% - 20px) 2% 3em)" should set the property value
 Fail	e.style['shape-outside'] = "xywh(10px 20px 30px 25px round 100%)" should set the property value
 Fail	e.style['shape-outside'] = "xywh(10px 20px 30px 25px round 0 1px)" should set the property value
 Fail	e.style['shape-outside'] = "xywh(10px 20px 30px 25px round 0px 1px 2%)" should set the property value

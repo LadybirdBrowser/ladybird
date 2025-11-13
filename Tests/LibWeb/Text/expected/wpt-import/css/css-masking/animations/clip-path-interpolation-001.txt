@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 366 tests
 
-354 Pass
-12 Fail
+366 Pass
 Pass	CSS Transitions: property <clip-path> from neutral to [circle(40% at 20% 20%)] at (-0.3) should be [circle(66% at 7% 33%)]
 Pass	CSS Transitions: property <clip-path> from neutral to [circle(40% at 20% 20%)] at (0) should be [circle(60% at 10% 30%)]
 Pass	CSS Transitions: property <clip-path> from neutral to [circle(40% at 20% 20%)] at (0.3) should be [circle(54% at 13% 27%)]
@@ -316,18 +315,18 @@ Pass	Web Animations: property <clip-path> from [none] to [ellipse(100% 100% at 0
 Pass	Web Animations: property <clip-path> from [none] to [ellipse(100% 100% at 0% 0%)] at (0.6) should be [ellipse(100% 100% at 0% 0%)]
 Pass	Web Animations: property <clip-path> from [none] to [ellipse(100% 100% at 0% 0%)] at (1) should be [ellipse(100% 100% at 0% 0%)]
 Pass	Web Animations: property <clip-path> from [none] to [ellipse(100% 100% at 0% 0%)] at (1.5) should be [ellipse(100% 100% at 0% 0%)]
-Fail	CSS Transitions: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
-Fail	CSS Transitions: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
-Fail	CSS Transitions: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
-Fail	CSS Transitions with transition: all: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
-Fail	CSS Transitions with transition: all: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
-Fail	CSS Transitions with transition: all: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
-Fail	CSS Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
-Fail	CSS Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
-Fail	CSS Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
-Fail	Web Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
-Fail	Web Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
-Fail	Web Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
+Pass	CSS Transitions: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
+Pass	CSS Transitions: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
+Pass	CSS Transitions: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
+Pass	CSS Transitions with transition: all: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
+Pass	CSS Transitions with transition: all: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
+Pass	CSS Transitions with transition: all: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
+Pass	CSS Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
+Pass	CSS Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
+Pass	CSS Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
+Pass	Web Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.25) should be [circle(30% at 90% calc(-20px + 100%))]
+Pass	Web Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.5) should be [circle(35% at 85% calc(-25px + 100%))]
+Pass	Web Animations: property <clip-path> from [circle(25% at right 5% bottom 15px)] to [circle(45% at right 25% bottom 35px)] at (0.75) should be [circle(40% at 80% calc(-30px + 100%))]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <clip-path> from [url("/clip-source")] to [ellipse(100% 100% at 0% 0%)] at (-0.3) should be [url(file:///.../clip-source)]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <clip-path> from [url("/clip-source")] to [ellipse(100% 100% at 0% 0%)] at (0) should be [url(file:///.../clip-source)]
 Pass	CSS Transitions with transition-behavior:allow-discrete: property <clip-path> from [url("/clip-source")] to [ellipse(100% 100% at 0% 0%)] at (0.3) should be [url(file:///.../clip-source)]

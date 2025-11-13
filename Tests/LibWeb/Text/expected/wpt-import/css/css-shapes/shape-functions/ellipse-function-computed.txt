@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 14 tests
 
-5 Pass
-9 Fail
+6 Pass
+8 Fail
 Fail	Property shape-outside value 'ellipse()'
 Fail	Property shape-outside value 'ellipse(1px 2px)'
 Pass	Property shape-outside value 'ellipse(20px 40px at center)'
@@ -14,7 +14,7 @@ Fail	Property shape-outside value 'ellipse(farthest-corner 20%)'
 Fail	Property shape-outside value 'ellipse(at 10% 20%)'
 Fail	Property shape-outside value 'ellipse(at -10px -20%)'
 Pass	Property shape-outside value 'ellipse(4% 20% at top right)'
-Fail	Property shape-outside value 'ellipse(calc(100% - 20px) calc(80% - 10px) at calc(100% - 20px) calc(100% / 4))'
+Pass	Property shape-outside value 'ellipse(calc(100% - 20px) calc(80% - 10px) at calc(100% - 20px) calc(100% / 4))'
 Pass	Property shape-outside value 'ellipse(10px closest-side at top right)'
 Pass	Property shape-outside value 'ellipse(farthest-side 20px at center top)'
 Pass	Property shape-outside value 'ellipse(farthest-side farthest-side at top right)'

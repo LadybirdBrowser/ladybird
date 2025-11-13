@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 14 tests
 
-4 Pass
-10 Fail
+5 Pass
+9 Fail
 Fail	Property shape-outside value 'circle()'
 Fail	Property shape-outside value 'circle(1px)'
 Pass	Property shape-outside value 'circle(20px at center)'
 Fail	Property shape-outside value 'circle(at 10% 20%)'
 Pass	Property shape-outside value 'circle(4% at top right)'
-Fail	Property shape-outside value 'circle(calc(100% - 20px) at calc(100% - 20px) calc(100% / 4))'
+Pass	Property shape-outside value 'circle(calc(100% - 20px) at calc(100% - 20px) calc(100% / 4))'
 Fail	Property shape-outside value 'circle(closest-corner at center)'
 Fail	Property shape-outside value 'circle(closest-corner at 20px 50px)'
 Fail	Property shape-outside value 'circle(closest-side at center)'
