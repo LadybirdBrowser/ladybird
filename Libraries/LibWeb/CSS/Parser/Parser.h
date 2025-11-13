@@ -533,8 +533,6 @@ private:
     RefPtr<StyleValue const> parse_white_space_trim_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_will_change_value(TokenStream<ComponentValue>&);
 
-    RefPtr<StyleValue const> parse_list_of_time_values(PropertyID, TokenStream<ComponentValue>&);
-
     RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
 
