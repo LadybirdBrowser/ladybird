@@ -743,11 +743,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_transform_origin_value(tokens); });
     case PropertyID::Transition:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_value(tokens); });
-    case PropertyID::TransitionDelay:
-    case PropertyID::TransitionDuration:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_list_of_time_values(property_id, tokens); });
     case PropertyID::TransitionProperty:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_property_value(tokens); });
+    case PropertyID::TransitionDelay:
+    case PropertyID::TransitionDuration:
     case PropertyID::TransitionTimingFunction:
     case PropertyID::TransitionBehavior:
         return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
@@ -5071,27 +5070,6 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
         return nullptr;
 
     return parsed_value;
-}
-
-RefPtr<StyleValue const> Parser::parse_list_of_time_values(PropertyID property_id, TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-    auto time_values = parse_a_comma_separated_list_of_component_values(tokens);
-    StyleValueVector time_value_list;
-    for (auto const& value : time_values) {
-        TokenStream time_value_tokens { value };
-        auto time_style_value = parse_time_value(time_value_tokens);
-        if (!time_style_value)
-            return nullptr;
-        if (time_value_tokens.has_next_token())
-            return nullptr;
-        if (!time_style_value->is_calculated() && !property_accepts_time(property_id, time_style_value->as_time().time()))
-            return nullptr;
-        time_value_list.append(*time_style_value);
-    }
-
-    transaction.commit();
-    return StyleValueList::create(move(time_value_list), StyleValueList::Separator::Comma);
 }
 
 RefPtr<StyleValue const> Parser::parse_transition_property_value(TokenStream<ComponentValue>& tokens)
