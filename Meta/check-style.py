@@ -57,6 +57,9 @@ LOCAL_INCLUDE_SUFFIX_EXCLUDES = [
 # We check for and disallow any comments linking to the single-page HTML spec because it takes a long time to load.
 SINGLE_PAGE_HTML_SPEC_LINK = re.compile("//.*https://html\\.spec\\.whatwg\\.org/#")
 
+# We similarily check and disallow AD-HOCs and FIXMEs that aren't followed by a colon.
+INVALID_AD_HOC_OR_FIXME = re.compile(r'^(?:[\s\d./\-(*]+(?:AD-HOC|FIXME)[^:]|.*"FIXME[^:"]).*$', re.MULTILINE)
+
 
 def should_check_file(filename):
     if not filename.endswith(".cpp") and not filename.endswith(".h"):
@@ -97,6 +100,7 @@ def run():
     errors_include_missing_local = []
     errors_include_bad_complex = []
     errors_single_page_html_spec = []
+    errors_invalid_ad_hoc_or_fixme = {}
 
     for filename in find_files_here_or_argv():
         with open(filename, mode="r", encoding="utf-8") as f:
@@ -146,6 +150,9 @@ def run():
                         errors_include_missing_local.append(filename)
         if SINGLE_PAGE_HTML_SPEC_LINK.search(file_content):
             errors_single_page_html_spec.append(filename)
+        invalid_ad_hocs_or_fixmes = INVALID_AD_HOC_OR_FIXME.findall(file_content)
+        if invalid_ad_hocs_or_fixmes:
+            errors_invalid_ad_hoc_or_fixme[filename] = invalid_ad_hocs_or_fixmes
 
     have_errors = False
     if errors_license:
@@ -183,6 +190,10 @@ def run():
         have_errors = True
     if errors_single_page_html_spec:
         print("Files with links to the single-page HTML spec:", " ".join(errors_single_page_html_spec))
+        have_errors = True
+    if errors_invalid_ad_hoc_or_fixme:
+        for file in errors_invalid_ad_hoc_or_fixme:
+            print(f"{file} contains invalid AD-HOC or FIXME usages:", "".join(errors_invalid_ad_hoc_or_fixme[file]))
         have_errors = True
 
     if have_errors:
