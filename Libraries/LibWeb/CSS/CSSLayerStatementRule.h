@@ -22,7 +22,7 @@ public:
 
     // FIXME: Should be FrozenArray
     ReadonlySpan<FlyString> name_list() const { return m_name_list; }
-    Vector<FlyString> internal_qualified_name_list(Badge<StyleComputer>) const;
+    Vector<FlyString> internal_qualified_name_list(Badge<StyleScope>) const;
 
 private:
     CSSLayerStatementRule(JS::Realm&, Vector<FlyString> name_list);

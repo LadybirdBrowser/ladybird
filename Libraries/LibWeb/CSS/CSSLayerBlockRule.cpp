@@ -69,7 +69,7 @@ String CSSLayerBlockRule::serialized() const
     return builder.to_string_without_validation();
 }
 
-FlyString CSSLayerBlockRule::internal_qualified_name(Badge<StyleComputer>) const
+FlyString CSSLayerBlockRule::internal_qualified_name(Badge<StyleScope>) const
 {
     auto const& parent_name = parent_layer_internal_qualified_name();
     if (parent_name.is_empty())

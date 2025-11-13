@@ -599,7 +599,11 @@ void Page::set_user_style(String source)
 {
     m_user_style_sheet_source = source;
     if (top_level_traversable_is_initialized() && top_level_traversable()->active_document()) {
-        top_level_traversable()->active_document()->style_computer().invalidate_rule_cache();
+        auto& document = *top_level_traversable()->active_document();
+        document.style_scope().invalidate_rule_cache();
+        document.for_each_shadow_root([](auto& shadow_root) {
+            shadow_root.style_scope().invalidate_rule_cache();
+        });
     }
 }
 

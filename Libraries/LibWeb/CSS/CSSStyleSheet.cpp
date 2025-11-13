@@ -353,7 +353,8 @@ void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)
     m_did_match = {};
     for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
         document_or_shadow_root->invalidate_style(reason);
-        document_or_shadow_root->document().style_computer().invalidate_rule_cache();
+        auto& style_scope = document_or_shadow_root->is_shadow_root() ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope() : document_or_shadow_root->document().style_scope();
+        style_scope.invalidate_rule_cache();
     }
 }
 

@@ -23,6 +23,7 @@ GC_DEFINE_ALLOCATOR(ShadowRoot);
 ShadowRoot::ShadowRoot(Document& document, Element& host, Bindings::ShadowRootMode mode)
     : DocumentFragment(document)
     , m_mode(mode)
+    , m_style_scope(*this)
 {
     document.register_shadow_root({}, *this);
     set_host(&host);
@@ -156,6 +157,7 @@ CSS::StyleSheetList const& ShadowRoot::style_sheets() const
 void ShadowRoot::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    m_style_scope.visit_edges(visitor);
     visitor.visit(m_style_sheets);
     visitor.visit(m_adopted_style_sheets);
 }
@@ -192,6 +194,21 @@ void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& 
     if (m_adopted_style_sheets) {
         m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
             callback(style_sheet);
+        });
+    }
+}
+
+void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+{
+    for (auto& style_sheet : style_sheets().sheets()) {
+        if (!style_sheet->disabled())
+            callback(*style_sheet);
+    }
+
+    if (m_adopted_style_sheets) {
+        m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+            if (!style_sheet.disabled())
+                callback(style_sheet);
         });
     }
 }

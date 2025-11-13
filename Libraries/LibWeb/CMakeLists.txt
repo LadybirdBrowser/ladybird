@@ -215,6 +215,7 @@ set(SOURCES
     CSS/StyleProperty.cpp
     CSS/StylePropertyMapReadOnly.cpp
     CSS/StylePropertyMap.cpp
+    CSS/StyleScope.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
