@@ -5716,7 +5716,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
 // https://www.w3.org/TR/css-grid-2/#track-sizing
 RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens)
 {
-    // none | <track-list> | <auto-track-list> | FIXME subgrid <line-name-list>?
+    // none | <track-list> | <auto-track-list> | FIXME: subgrid <line-name-list>?
 
     // none
     {

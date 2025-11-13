@@ -266,7 +266,7 @@ Utf16String FormAssociatedElement::validation_message() const
     if (!is_candidate_for_constraint_validation() || satisfies_its_constraints())
         return {};
 
-    // FIXME
+    // FIXME:
     // 2. Return a suitably localized message that the user agent would show the user if this were the only form
     //    control with a validity constraint problem. If the user agent would not actually show a textual message in
     //    such a situation (e.g., it would show a graphical cue instead), then return a suitably localized message that

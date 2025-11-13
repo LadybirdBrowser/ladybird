@@ -4754,7 +4754,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // Insert a foreign element for the token, with the adjusted current node's namespace and false.
         (void)insert_foreign_element(token, adjusted_current_node()->namespace_uri(), OnlyAddToElementStack::No);
 
-        // AD-HOC we don't want to execute script elements just by adding data to it
+        // AD-HOC: we don't want to execute script elements just by adding data to it
         if (token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
             auto& script_element = as<SVG::SVGScriptElement>(*current_node());
             script_element.set_parser_inserted({});

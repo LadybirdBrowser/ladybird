@@ -126,9 +126,9 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
     // 1. Set value's has been shipped flag to true.
     m_has_been_shipped = true;
 
-    // FIXME 2. Move all the tasks that are to fire message events in dataHolder.[[PortMessageQueue]] to the port message queue of value,
-    //     if any, leaving value's port message queue in its initial disabled state, and, if value's relevant global object is a Window,
-    //     associating the moved tasks with value's relevant global object's associated Document.
+    // 2. FIXME: Move all the tasks that are to fire message events in dataHolder.[[PortMessageQueue]] to the port message queue of value,
+    //    if any, leaving value's port message queue in its initial disabled state, and, if value's relevant global object is a Window,
+    //    associating the moved tasks with value's relevant global object's associated Document.
 
     // 3. If dataHolder.[[RemotePort]] is not null, then entangle dataHolder.[[RemotePort]] and value.
     //     (This will disentangle dataHolder.[[RemotePort]] from the original port that was transferred.)

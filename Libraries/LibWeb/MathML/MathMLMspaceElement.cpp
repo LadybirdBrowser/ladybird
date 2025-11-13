@@ -50,7 +50,7 @@ void MathMLMspaceElement::apply_presentational_hints(GC::Ref<CSS::CascadedProper
     // If the height attribute is absent, invalid or a percentage then the requested line-ascent is 0. Otherwise the
     // requested line-ascent is the resolved value of the height attribute, clamping negative values to 0.
     auto height_value = parse_non_percentage_value(AttributeNames::height);
-    // FIXME set the line-ascent
+    // FIXME: set the line-ascent
 
     // If both the height and depth attributes are present, valid and not a percentage then they are used as a
     // presentational hint setting the element's height property to the concatenation of the
@@ -60,7 +60,7 @@ void MathMLMspaceElement::apply_presentational_hints(GC::Ref<CSS::CascadedProper
     auto depth_value = parse_non_percentage_value(AttributeNames::depth);
 
     if (height_value && depth_value) {
-        // FIXME set the presentational hint to calculate height + depth
+        // FIXME: set the presentational hint to calculate height + depth
     } else if (height_value) {
         cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, height_value.release_nonnull());
     } else if (depth_value) {

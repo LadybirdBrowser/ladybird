@@ -650,7 +650,7 @@ Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() c
     // 1. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
-    // FIXME 2. Assert: this is running within traversable's session history traversal queue.
+    // FIXME: 2. Assert: this is running within traversable's session history traversal queue.
 
     // 3. If navigable is traversable, return traversable's session history entries.
     if (this == traversable)
@@ -1009,7 +1009,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             //       using opener policy and sandbox the result of navigating to that response.
         }
 
-        // 13. FIXME If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
+        // 13. FIXME: If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
         //    with navigable's container document's origin, navigable's container document's relevant settings object, request's destination, response,
         //    and true is blocked, then set response to a network error and break.
         // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself

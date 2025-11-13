@@ -1036,7 +1036,7 @@ void HTMLImageElement::upgrade_pending_request_to_current_request()
 
 void HTMLImageElement::handle_failed_fetch()
 {
-    // AD-HOC
+    // AD-HOC: This should be closer to the spec
     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
 }
 

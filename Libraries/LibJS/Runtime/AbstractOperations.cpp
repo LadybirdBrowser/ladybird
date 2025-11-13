@@ -1978,7 +1978,7 @@ ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& optio
     return static_cast<u64>(integer_increment);
 }
 
-// AD-HOC
+// AD-HOC:
 // FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
 //        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
 Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator)
