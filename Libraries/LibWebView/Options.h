@@ -19,6 +19,7 @@ enum class HeadlessMode {
     Screenshot,
     LayoutTree,
     Text,
+    Manual,
     Test,
 };
 
