@@ -52,6 +52,22 @@ describe("correct behavior", () => {
             expect(instant.toString(options)).toBe(expected);
         }
     });
+
+    test("rounding", () => {
+        const instant = new Temporal.Instant(-999999999999999990n);
+        const roundedDown = "1938-04-24T22:13:20.000Z";
+        const roundedUp = "1938-04-24T22:13:20.001Z";
+
+        for (const roundingMode of ["halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven", "floor", "trunc"]) {
+            const options = { smallestUnit: "millisecond", roundingMode };
+            expect(instant.toString(options)).toBe(roundedDown);
+        }
+
+        for (const roundingMode of ["ceil", "expand"]) {
+            const options = { smallestUnit: "millisecond", roundingMode };
+            expect(instant.toString(options)).toBe(roundedUp);
+        }
+    });
 });
 
 describe("errors", () => {
