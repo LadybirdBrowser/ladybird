@@ -160,6 +160,30 @@
     [controller focusLocationToolbarItem];
 }
 
+
+- (void)openFile:(id)sender
+{
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    [panel setCanChooseFiles:YES];
+    [panel setCanChooseDirectories:NO];
+    [panel setAllowsMultipleSelection:NO];
+    NSInteger clicked = [panel runModal];
+    if (clicked == NSModalResponseOK) {
+        auto* strURL = [[[panel URLs] objectAtIndex:0] absoluteString];
+        auto* current_tab = (Tab*)[NSApp keyWindow];
+        if (![current_tab isKindOfClass:[Tab class]]) {
+            return;
+        }
+        auto url = URL::create_with_url_or_path(ByteString::formatted("{}", [strURL UTF8String]));
+        if (!url.has_value()) {
+            return;
+        }
+        auto* controller = [self createNewTab:url fromTab:current_tab activateTab:Web::HTML::ActivateTab::Yes];
+        [controller focusLocationToolbarItem];
+    }
+
+}
+
 - (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab
                                  fromTab:(nonnull Tab*)tab
                                pageIndex:(u64)page_index
@@ -249,6 +273,10 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Location"
                                                 action:@selector(openLocation:)
                                          keyEquivalent:@"l"]];
+
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open File"
+                                                action:@selector(openFile:)
+                                         keyEquivalent:@"o"]];
 
     [menu setSubmenu:submenu];
     return menu;
