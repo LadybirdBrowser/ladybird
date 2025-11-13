@@ -60,7 +60,8 @@ void MathMLMspaceElement::apply_presentational_hints(GC::Ref<CSS::CascadedProper
     auto depth_value = parse_non_percentage_value(AttributeNames::depth);
 
     if (height_value && depth_value) {
-        // FIXME: set the presentational hint to calculate height + depth
+        auto height_string = MUST(String::formatted("calc({} + {})", attribute(AttributeNames::height).value(), attribute(AttributeNames::depth).value()));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, parse_css_type(parsing_params, height_string, CSS::ValueType::Length).release_nonnull());
     } else if (height_value) {
         cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, height_value.release_nonnull());
     } else if (depth_value) {

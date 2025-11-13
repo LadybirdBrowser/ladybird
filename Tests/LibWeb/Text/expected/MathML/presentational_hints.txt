@@ -28,3 +28,7 @@ height: 32px
 height: 30px
 height: auto
 height: 48px
+height: 20px
+height: 30px
+height: 50px
+height: 56px
