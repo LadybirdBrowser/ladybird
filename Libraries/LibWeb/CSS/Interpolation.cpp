@@ -773,9 +773,9 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, StyleValue
                 auto& calculated = value->as_calculated();
                 if (calculated.resolves_to_angle()) {
                     values.append(AngleOrCalculated { calculated });
-                } else if (calculated.resolves_to_length_percentage()) {
+                } else if (calculated.resolves_to_length()) {
                     values.append(LengthPercentage { calculated });
-                } else if (calculated.resolves_to_number()) {
+                } else if (calculated.resolves_to_number() || calculated.resolves_to_percentage()) {
                     values.append(NumberPercentage { calculated });
                 } else {
                     dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(SerializationMode::Normal), to_string(transformation.transform_function()));

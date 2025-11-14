@@ -41,12 +41,9 @@ Transformation TransformationStyleValue::to_transformation() const
 
         if (transformation_value->is_calculated()) {
             auto& calculated = transformation_value->as_calculated();
-            if (function_type == TransformFunctionParameterType::NumberPercentage
-                && (calculated.resolves_to_number() || calculated.resolves_to_percentage())) {
-                values.append(NumberPercentage { calculated });
-            } else if (calculated.resolves_to_length_percentage()) {
+            if (calculated.resolves_to_length()) {
                 values.append(LengthPercentage { calculated });
-            } else if (calculated.resolves_to_number()) {
+            } else if (calculated.resolves_to_number() || calculated.resolves_to_percentage()) {
                 values.append(NumberPercentage { calculated });
             } else if (calculated.resolves_to_angle()) {
                 values.append(AngleOrCalculated { calculated });
