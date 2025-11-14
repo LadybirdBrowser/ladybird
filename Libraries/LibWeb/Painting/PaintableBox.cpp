@@ -1644,8 +1644,8 @@ void PaintableWithLines::resolve_paint_properties()
         fragment.set_text_decoration_thickness(css_line_thickness);
 
         auto const& text_shadow = text_node.computed_values().text_shadow();
+        Vector<ShadowData> resolved_shadow_data;
         if (!text_shadow.is_empty()) {
-            Vector<ShadowData> resolved_shadow_data;
             resolved_shadow_data.ensure_capacity(text_shadow.size());
             for (auto const& layer : text_shadow) {
                 resolved_shadow_data.empend(
@@ -1656,8 +1656,8 @@ void PaintableWithLines::resolve_paint_properties()
                     layer.spread_distance.to_px(layout_node),
                     ShadowPlacement::Outer);
             }
-            fragment.set_shadows(move(resolved_shadow_data));
         }
+        fragment.set_shadows(move(resolved_shadow_data));
     }
 }
 
