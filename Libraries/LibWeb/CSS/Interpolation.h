@@ -29,7 +29,7 @@ Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(Calculati
 RefPtr<StyleValue const> interpolate_value(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
-RefPtr<StyleValue const> interpolate_transform(DOM::Element&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
+RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 
 Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax);
 

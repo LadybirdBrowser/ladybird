@@ -22,6 +22,8 @@ public:
     }
     virtual ~TransformationStyleValue() override = default;
 
+    static ValueComparingNonnullRefPtr<TransformationStyleValue const> identity_transformation(TransformFunction);
+
     TransformFunction transform_function() const { return m_properties.transform_function; }
     StyleValueVector const& values() const { return m_properties.values; }
 
