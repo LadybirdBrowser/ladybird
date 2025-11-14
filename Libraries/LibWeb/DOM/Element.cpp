@@ -850,8 +850,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
                 || (property_id == CSS::PropertyID::FontWeight && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Bolder, CSS::Keyword::Lighter))
                 || (property_id == CSS::PropertyID::FontSize && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Larger, CSS::Keyword::Smaller));
             if (needs_updating) {
-                auto is_inherited = computed_properties->is_property_inherited(property_id);
-                computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
+                computed_properties->set_property_without_modifying_flags(property_id, *preabsolutized_value);
                 property_values_affected_by_inherited_style.set(i, old_value);
             }
         }
