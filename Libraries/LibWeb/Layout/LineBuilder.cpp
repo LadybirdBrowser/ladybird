@@ -181,8 +181,6 @@ bool LineBuilder::should_break(CSSPixels next_item_width)
         // at this Y coordinate, we don't need to break before inserting anything.
         if (!m_context.any_floats_intrude_at_block_offset(m_current_block_offset))
             return false;
-        if (!m_context.any_floats_intrude_at_block_offset(m_current_block_offset + m_context.containing_block().computed_values().line_height()))
-            return false;
     }
     auto current_line_width = ensure_last_line_box().width();
     return (current_line_width + next_item_width) > m_available_width_for_current_line;
