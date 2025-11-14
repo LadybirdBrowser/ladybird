@@ -46,6 +46,14 @@ static constexpr auto global_privacy_control_key = "globalPrivacyControl"sv;
 
 static constexpr auto dns_settings_key = "dnsSettings"sv;
 
+static constexpr auto debug_dump_path_key = "debugDumpPath"sv;
+
+String Settings::get_default_debug_dump_path()
+{
+    // Return temp directory as default debug dump path
+    return MUST(String::from_byte_string(Core::StandardPaths::tempfile_directory()));
+}
+
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
     auto settings_file = Core::File::open(settings_path, Core::File::OpenMode::Read);
@@ -147,6 +155,9 @@ Settings Settings::create(Badge<Application>)
     if (auto dns_settings = settings_json.value().get(dns_settings_key); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
+    if (auto debug_dump_path = settings_json.value().get_string(debug_dump_path_key); debug_dump_path.has_value())
+        settings.m_debug_dump_path = debug_dump_path.release_value();
+
     return settings;
 }
 
@@ -155,6 +166,7 @@ Settings::Settings(ByteString settings_path)
     , m_new_tab_page_url(URL::about_newtab())
     , m_default_zoom_level_factor(initial_zoom_level_factor)
     , m_languages({ default_language })
+    , m_debug_dump_path(Settings::get_default_debug_dump_path())
 {
 }
 
@@ -241,6 +253,8 @@ JsonValue Settings::serialize_json() const
         });
     settings.set(dns_settings_key, move(dns_settings));
 
+    settings.set(debug_dump_path_key, m_debug_dump_path);
+
     return settings;
 }
 
@@ -255,6 +269,7 @@ void Settings::restore_defaults()
     m_autoplay = SiteSetting {};
     m_global_privacy_control = GlobalPrivacyControl::No;
     m_dns_settings = SystemDNS {};
+    m_debug_dump_path = Settings::get_default_debug_dump_path();
 
     persist_settings();
 
@@ -267,6 +282,7 @@ void Settings::restore_defaults()
         observer.autoplay_settings_changed();
         observer.global_privacy_control_changed();
         observer.dns_settings_changed();
+        observer.debug_dump_path_changed();
     }
 }
 
@@ -487,6 +503,15 @@ void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_b
 
     for (auto& observer : m_observers)
         observer.dns_settings_changed();
+}
+
+void Settings::set_debug_dump_path(String const& debug_dump_path)
+{
+    m_debug_dump_path = debug_dump_path;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.debug_dump_path_changed();
 }
 
 void Settings::persist_settings()
