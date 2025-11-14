@@ -24,6 +24,7 @@ public:
     virtual ~SharedResourceRequest() override;
 
     URL::URL const& url() const { return m_url; }
+    ReadonlyBytes encoded_data() const;
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
 
@@ -65,6 +66,7 @@ private:
     Vector<Callbacks> m_callbacks;
 
     URL::URL m_url;
+    ByteBuffer m_encoded_data;
     GC::Ptr<DecodedImageData> m_image_data;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
