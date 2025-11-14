@@ -860,22 +860,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
             continue;
 
         if (computed_properties->is_animated_property_inherited(property_id) || !computed_properties->animated_property_values().contains(property_id)) {
-            RefPtr<CSS::StyleValue const> old_animated_value = computed_properties->animated_property_values().get(property_id).value_or({});
-            RefPtr<CSS::StyleValue const> new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this })
-                                                                   .map([](auto&& value) { return value.ptr(); })
-                                                                   .value_or({});
-
-            invalidation |= CSS::compute_property_invalidation(property_id, old_animated_value, new_animated_value);
-
-            if (new_animated_value)
-                computed_properties->set_animated_property(property_id, new_animated_value.release_nonnull(), CSS::ComputedProperties::Inherited::Yes);
-            else if (old_animated_value)
+            if (auto new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this }); new_animated_value.has_value())
+                computed_properties->set_animated_property(property_id, new_animated_value.value(), CSS::ComputedProperties::Inherited::Yes);
+            else if (computed_properties->animated_property_values().contains(property_id))
                 computed_properties->remove_animated_property(property_id);
         }
 
         RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value, computed_properties->property(property_id));
     }
 
     if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty())
