@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/recomputing-inherited-style-doesnt-remove-important-ref.html" />
+<style>
+    @keyframes fontSize {
+        from {
+            width: 5em;
+        }
+        to {
+            width: 5em;
+        }
+    }
+
+    #bar {
+        width: 1em !important;
+        animation: fontSize 1s infinite;
+        background-color: green;
+        height: 1em;
+    }
+</style>
+<div id="foo"><div id="bar"></div></div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            getComputedStyle(foo).fontSize;
+            foo.style.setProperty("color", "blue");
+        });
+    });
+</script>
