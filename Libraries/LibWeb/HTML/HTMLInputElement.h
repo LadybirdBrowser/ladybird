@@ -257,6 +257,7 @@ private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
+    virtual void computed_properties_changed() override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
@@ -349,6 +350,8 @@ private:
     GC::Ptr<DOM::Element> m_inner_text_element;
     GC::Ptr<DOM::Text> m_text_node;
     bool m_checked { false };
+    GC::Ptr<DOM::Element> m_up_button_element;
+    GC::Ptr<DOM::Element> m_down_button_element;
 
     void update_color_well_element();
     GC::Ptr<DOM::Element> m_color_well_element;

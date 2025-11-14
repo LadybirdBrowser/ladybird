@@ -85,6 +85,8 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_text_node);
     visitor.visit(m_placeholder_element);
     visitor.visit(m_placeholder_text_node);
+    visitor.visit(m_up_button_element);
+    visitor.visit(m_down_button_element);
     visitor.visit(m_color_well_element);
     visitor.visit(m_file_button);
     visitor.visit(m_file_label);
@@ -792,6 +794,31 @@ static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_hidden()
     return *style;
 }
 
+static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_visible()
+{
+    static GC::Root<CSS::CSSStyleProperties> style;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+        style->set_declarations_from_text(R"~~~(
+                padding: 0;
+                cursor: default;
+            )~~~"sv);
+    }
+    return *style;
+}
+
+static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_hidden()
+{
+    static GC::Root<CSS::CSSStyleProperties> style;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
+        style->set_declarations_from_text(R"~~~(
+                display: none;
+            )~~~"sv);
+    }
+    return *style;
+}
+
 static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
 {
     static GC::Root<CSS::CSSStyleProperties> style;
@@ -869,6 +896,17 @@ void HTMLInputElement::update_text_input_shadow_tree()
     if (m_text_node) {
         m_text_node->set_data(m_value);
         update_placeholder_visibility();
+    }
+
+    if (m_type == TypeAttributeState::Number) {
+        // The `textfield` appearance is used to hide the stepper buttons.
+        if (auto style = computed_properties(); style && style->appearance() == CSS::Appearance::Textfield) {
+            m_up_button_element->set_inline_style(stepper_button_style_when_hidden());
+            m_down_button_element->set_inline_style(stepper_button_style_when_hidden());
+        } else {
+            m_up_button_element->set_inline_style(stepper_button_style_when_visible());
+            m_down_button_element->set_inline_style(stepper_button_style_when_visible());
+        }
     }
 }
 
@@ -1092,29 +1130,22 @@ void HTMLInputElement::create_text_input_shadow_tree()
     m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(placeholder()));
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
-    update_placeholder_visibility();
-
     if (type_state() == TypeAttributeState::Number) {
         // Up button
-        auto up_button = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
-        // FIXME: This cursor property doesn't work
-        up_button->set_attribute_value(HTML::AttributeNames::style, R"~~~(
-            padding: 0;
-            cursor: default;
-        )~~~"_string);
+        m_up_button_element = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
 
         auto up_button_svg = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
         up_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_string);
         up_button_svg->set_attribute_value(SVG::AttributeNames::xmlns, Namespace::SVG.to_string());
         up_button_svg->set_attribute_value(SVG::AttributeNames::viewBox, "0 0 24 24"_string);
-        MUST(up_button->append_child(up_button_svg));
+        MUST(m_up_button_element->append_child(up_button_svg));
 
         auto up_button_svg_path = MUST(DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG));
         up_button_svg_path->set_attribute_value(SVG::AttributeNames::fill, "currentColor"_string);
         up_button_svg_path->set_attribute_value(SVG::AttributeNames::d, "M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z"_string);
         MUST(up_button_svg->append_child(up_button_svg_path));
 
-        MUST(element->append_child(up_button));
+        MUST(element->append_child(*m_up_button_element));
 
         auto mouseup_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
@@ -1136,28 +1167,24 @@ void HTMLInputElement::create_text_input_shadow_tree()
             },
             0, Utf16FlyString {}, &realm());
         auto step_up_callback = realm().heap().allocate<WebIDL::CallbackType>(*up_callback_function, realm());
-        up_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_up_callback));
-        up_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
+        m_up_button_element->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_up_callback));
+        m_up_button_element->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
 
         // Down button
-        auto down_button = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
-        down_button->set_attribute_value(HTML::AttributeNames::style, R"~~~(
-            padding: 0;
-            cursor: default;
-        )~~~"_string);
+        m_down_button_element = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
 
         auto down_button_svg = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
         down_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_string);
         down_button_svg->set_attribute_value(SVG::AttributeNames::xmlns, Namespace::SVG.to_string());
         down_button_svg->set_attribute_value(SVG::AttributeNames::viewBox, "0 0 24 24"_string);
-        MUST(down_button->append_child(down_button_svg));
+        MUST(m_down_button_element->append_child(down_button_svg));
 
         auto down_button_svg_path = MUST(DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG));
         down_button_svg_path->set_attribute_value(SVG::AttributeNames::fill, "currentColor"_string);
         down_button_svg_path->set_attribute_value(SVG::AttributeNames::d, "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"_string);
         MUST(down_button_svg->append_child(down_button_svg_path));
 
-        MUST(element->append_child(down_button));
+        MUST(element->append_child(*m_down_button_element));
 
         auto down_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
@@ -1169,9 +1196,11 @@ void HTMLInputElement::create_text_input_shadow_tree()
             },
             0, Utf16FlyString {}, &realm());
         auto step_down_callback = realm().heap().allocate<WebIDL::CallbackType>(*down_callback_function, realm());
-        down_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_down_callback));
-        down_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
+        m_down_button_element->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_down_callback));
+        m_down_button_element->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
     }
+
+    update_text_input_shadow_tree();
 }
 
 void HTMLInputElement::create_color_input_shadow_tree()
@@ -1528,6 +1557,12 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
         set_the_selection_range(0, 0);
         set_selection_direction(OptionalNone {});
     }
+}
+
+void HTMLInputElement::computed_properties_changed()
+{
+    create_shadow_tree_if_needed();
+    update_shadow_tree();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio):signal-a-type-change
