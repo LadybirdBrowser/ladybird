@@ -1137,19 +1137,19 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
         auto resolved_background_color = [&] { return resolved_value(*node, CSS::PropertyID::BackgroundColor); };
         auto resolved_background_alpha = [&] {
             auto background_color = resolved_background_color();
-            if (!background_color.has_value())
+            if (!background_color)
                 return NumericLimits<u8>::max();
             VERIFY(is<Layout::NodeWithStyle>(node->layout_node()));
-            return background_color.value()->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle*>(node->layout_node()))).value().alpha();
+            return background_color->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle*>(node->layout_node()))).value().alpha();
         };
         while (resolved_background_alpha() == 0 && node->parent() && is<DOM::Element>(*node->parent()))
             node = node->parent();
 
         // 2. Return the resolved value of "background-color" for node.
         auto resolved_value = resolved_background_color();
-        if (!resolved_value.has_value())
+        if (!resolved_value)
             return {};
-        return Utf16String::from_utf8_without_validation(resolved_value.value()->to_string(CSS::SerializationMode::ResolvedValue));
+        return Utf16String::from_utf8_without_validation(resolved_value->to_string(CSS::SerializationMode::ResolvedValue));
     }
 
     // 5. If command is "subscript" or "superscript":
@@ -1196,7 +1196,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
         auto inclusive_ancestor = node;
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line.has_value() && value_contains_keyword(text_decoration_line.value(), CSS::Keyword::LineThrough))
+            if (text_decoration_line && value_contains_keyword(*text_decoration_line, CSS::Keyword::LineThrough))
                 return "line-through"_utf16;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
@@ -1210,7 +1210,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
         auto inclusive_ancestor = node;
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line.has_value() && value_contains_keyword(text_decoration_line.value(), CSS::Keyword::Underline))
+            if (text_decoration_line && value_contains_keyword(*text_decoration_line, CSS::Keyword::Underline))
                 return "underline"_utf16;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
@@ -1223,9 +1223,9 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
     VERIFY(command_definition.relevant_css_property.has_value());
 
     auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
-    if (!optional_value.has_value())
+    if (!optional_value)
         return {};
-    return Utf16String::from_utf8_without_validation(optional_value.value()->to_string(CSS::SerializationMode::ResolvedValue));
+    return Utf16String::from_utf8_without_validation(optional_value->to_string(CSS::SerializationMode::ResolvedValue));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
@@ -2621,7 +2621,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
 
         auto& element = static_cast<DOM::Element&>(*node);
         if (element.has_attribute_ns(Namespace::HTML, HTML::AttributeNames::align)
-            || property_in_style_attribute(element, CSS::PropertyID::TextAlign).has_value()
+            || property_in_style_attribute(element, CSS::PropertyID::TextAlign)
             || element.local_name() == HTML::TagNames::center)
             element_list.append(element);
 
@@ -3847,10 +3847,10 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     //    "text-decoration":
     if (command == CommandNames::strikethrough) {
         auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
-        if (text_decoration_style.has_value()) {
+        if (text_decoration_style) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "line-through", return
             //    "line-through".
-            if (value_contains_keyword(text_decoration_style.value(), CSS::Keyword::LineThrough))
+            if (value_contains_keyword(*text_decoration_style, CSS::Keyword::LineThrough))
                 return "line-through"_utf16;
 
             // 2. Return null.
@@ -3865,9 +3865,9 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     // 6. If command is "underline", and element has a style attribute set, and that attribute sets "text-decoration":
     if (command == CommandNames::underline) {
         auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
-        if (text_decoration_style.has_value()) {
+        if (text_decoration_style) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "underline", return "underline".
-            if (value_contains_keyword(text_decoration_style.value(), CSS::Keyword::Underline))
+            if (value_contains_keyword(*text_decoration_style, CSS::Keyword::Underline))
                 return "underline"_utf16;
 
             // 2. Return null.
@@ -4683,7 +4683,7 @@ Array<Utf16View, 7> named_font_sizes()
     return { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv, "xx-large"sv, "xxx-large"sv };
 }
 
-Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)
+RefPtr<CSS::StyleValue const> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)
 {
     auto inline_style = element->inline_style();
     if (!inline_style)
@@ -4699,20 +4699,20 @@ Optional<NonnullRefPtr<CSS::StyleValue const>> property_in_style_attribute(GC::R
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node> node)
 {
     auto resolved_property = resolved_value(node, CSS::PropertyID::Display);
-    if (!resolved_property.has_value() || !resolved_property.value()->is_display())
+    if (!resolved_property || !resolved_property->is_display())
         return {};
-    return resolved_property.value()->as_display().display();
+    return resolved_property->as_display().display();
 }
 
 Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
 {
     auto resolved_property = resolved_value(node, property_id);
-    if (!resolved_property.has_value() || !resolved_property.value()->is_keyword())
+    if (!resolved_property || !resolved_property->is_keyword())
         return {};
-    return resolved_property.value()->as_keyword().keyword();
+    return resolved_property->as_keyword().keyword();
 }
 
-Optional<NonnullRefPtr<CSS::StyleValue const>> resolved_value(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
+RefPtr<CSS::StyleValue const> resolved_value(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
 {
     // Find the nearest inclusive ancestor of node that is an Element. This allows for passing in a DOM::Text node.
     GC::Ptr<DOM::Node> element = node;
