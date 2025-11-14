@@ -1,4 +1,7 @@
 {
+  "-moz-appearance": {
+    "legacy-alias-for": "appearance"
+  },
   "-webkit-align-content": {
     "legacy-alias-for": "align-content"
   },
