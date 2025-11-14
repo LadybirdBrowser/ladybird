@@ -310,17 +310,17 @@ AK::Duration calculate_age(HTTP::HeaderMap const& headers, UnixDateTime request_
     // without it.
     auto date_value = parse_http_date(headers.get("Date"sv)).value_or(now);
 
-    auto apparent_age = max(0LL, (response_time - date_value).to_seconds());
+    auto apparent_age = max(AK::Duration::zero(), (response_time - date_value));
 
     auto response_delay = response_time - request_time;
     auto corrected_age_value = age_value + response_delay;
 
-    auto corrected_initial_age = max(apparent_age, corrected_age_value.to_seconds());
+    auto corrected_initial_age = max(apparent_age, corrected_age_value);
 
-    auto resident_time = (now - response_time).to_seconds();
+    auto resident_time = now - response_time;
     auto current_age = corrected_initial_age + resident_time;
 
-    return AK::Duration::from_seconds(current_age);
+    return current_age;
 }
 
 CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderMap const& headers, AK::Duration freshness_lifetime, AK::Duration current_age)
