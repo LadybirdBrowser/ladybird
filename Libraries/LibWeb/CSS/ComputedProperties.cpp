@@ -794,8 +794,6 @@ Appearance ComputedProperties::appearance() const
     auto appearance = keyword_to_appearance(value.to_keyword()).release_value();
     switch (appearance) {
     // Note: All these compatibility values can be treated as 'auto'
-    case Appearance::Textfield:
-    case Appearance::MenulistButton:
     case Appearance::Searchfield:
     case Appearance::Textarea:
     case Appearance::PushButton:
@@ -809,6 +807,10 @@ Appearance ComputedProperties::appearance() const
     case Appearance::ProgressBar:
     case Appearance::Button:
         appearance = Appearance::Auto;
+        break;
+    // NB: <compat-special> values behave like auto but can also have an effect. Preserve them.
+    case Appearance::Textfield:
+    case Appearance::MenulistButton:
         break;
     default:
         break;
