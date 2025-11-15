@@ -144,6 +144,7 @@ void HTMLMetaElement::inserted()
             // 9. Set the pragma-set default language to candidate.
             auto language = String::from_utf8_without_validation(candidate.bytes());
             document().set_pragma_set_default_language(language);
+            document().document_element()->invalidate_lang_value();
             break;
         }
         case HttpEquivAttributeState::ContentSecurityPolicy: {

@@ -417,7 +417,7 @@ void ArrayBuffer::set_value(size_t byte_index, Value value, [[maybe_unused]] boo
     AK::Array<u8, sizeof(T)> raw_bytes;
     numeric_to_raw_bytes<T>(vm, value, is_little_endian, raw_bytes);
 
-    // FIXME 8. If IsSharedArrayBuffer(arrayBuffer) is true, then
+    // FIXME: 8. If IsSharedArrayBuffer(arrayBuffer) is true, then
     if (false) {
         // FIXME: a. Let execution be the [[CandidateExecution]] field of the surrounding agent's Agent Record.
         // FIXME: b. Let eventsRecord be the Agent Events Record of execution.[[EventsRecords]] whose [[AgentSignifier]] is AgentSignifier().

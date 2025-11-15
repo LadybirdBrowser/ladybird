@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 11 tests
 
-1 Pass
-10 Fail
+2 Pass
+9 Fail
 Fail	e.style['shape-outside'] = "inset(100%)" should set the property value
 Fail	e.style['shape-outside'] = "inset(0 1px)" should set the property value
 Fail	e.style['shape-outside'] = "inset(0px 1px 2%)" should set the property value
 Fail	e.style['shape-outside'] = "inset(-20px -20px 2%)" should set the property value
 Pass	e.style['shape-outside'] = "inset(0px 1px 2% 3em)" should set the property value
-Fail	e.style['shape-outside'] = "inset(0px calc(100% - 20px) 2% 3em)" should set the property value
+Pass	e.style['shape-outside'] = "inset(0px calc(100% - 20px) 2% 3em)" should set the property value
 Fail	e.style['shape-outside'] = "inset(0px round 100%)" should set the property value
 Fail	e.style['shape-outside'] = "inset(0px round 0 1px)" should set the property value
 Fail	e.style['shape-outside'] = "inset(0px round 0px 1px 2%)" should set the property value

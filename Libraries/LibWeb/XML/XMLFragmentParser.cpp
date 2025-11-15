@@ -34,10 +34,10 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
     feed.append(qualified_name);
     feed.append('>');
 
-    // FIXME
+    // FIXME:
     //  declaring all the namespace prefixes that are in scope on that element in the DOM,
 
-    // FIXME
+    // FIXME:
     //  as well as declaring the default namespace (if any) that is in scope on that element in the DOM.
     //  A namespace prefix is in scope if the DOM lookupNamespaceURI() method on the element would return a non-null value for that prefix.
     //  The default namespace is the namespace for which the DOM isDefaultNamespace() method on the element would return true.

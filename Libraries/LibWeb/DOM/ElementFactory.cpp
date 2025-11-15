@@ -95,8 +95,13 @@
 #include <LibWeb/SVG/SVGEllipseElement.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
+#include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
+#include <LibWeb/SVG/SVGFEFuncAElement.h>
+#include <LibWeb/SVG/SVGFEFuncBElement.h>
+#include <LibWeb/SVG/SVGFEFuncGElement.h>
+#include <LibWeb/SVG/SVGFEFuncRElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 #include <LibWeb/SVG/SVGFEImageElement.h>
 #include <LibWeb/SVG/SVGFEMergeElement.h>
@@ -475,12 +480,22 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGEllipseElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feBlend)
         return realm.create<SVG::SVGFEBlendElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feColorMatrix)
+        return realm.create<SVG::SVGFEColorMatrixElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feComponentTransfer)
+        return realm.create<SVG::SVGFEComponentTransferElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feComposite)
         return realm.create<SVG::SVGFECompositeElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feFlood)
         return realm.create<SVG::SVGFEFloodElement>(document, move(qualified_name));
-    if (local_name == SVG::TagNames::feColorMatrix)
-        return realm.create<SVG::SVGFEColorMatrixElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feFuncA)
+        return realm.create<SVG::SVGFEFuncAElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feFuncB)
+        return realm.create<SVG::SVGFEFuncBElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feFuncG)
+        return realm.create<SVG::SVGFEFuncGElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feFuncR)
+        return realm.create<SVG::SVGFEFuncRElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feGaussianBlur)
         return realm.create<SVG::SVGFEGaussianBlurElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feImage)

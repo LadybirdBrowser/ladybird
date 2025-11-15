@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,48 +14,26 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGTransformList);
 
-GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm)
+GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm, Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
 {
-    return realm.create<SVGTransformList>(realm);
+    return realm.create<SVGTransformList>(realm, move(items), read_only);
 }
 
-SVGTransformList::~SVGTransformList() = default;
+GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm, ReadOnlyList read_only)
+{
+    return realm.create<SVGTransformList>(realm, read_only);
+}
 
-SVGTransformList::SVGTransformList(JS::Realm& realm)
-    : PlatformObject(realm)
+SVGTransformList::SVGTransformList(JS::Realm& realm, Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
+    : Bindings::PlatformObject(realm)
+    , SVGList(realm, move(items), read_only)
 {
 }
 
-// https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__length
-WebIDL::UnsignedLong SVGTransformList::length()
+SVGTransformList::SVGTransformList(JS::Realm& realm, ReadOnlyList read_only)
+    : Bindings::PlatformObject(realm)
+    , SVGList(realm, read_only)
 {
-    // The length and numberOfItems IDL attributes represents the length of the list, and on getting simply return the length of the list.
-    return m_transforms.size();
-}
-
-// https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__numberOfItems
-WebIDL::UnsignedLong SVGTransformList::number_of_items()
-{
-    // The length and numberOfItems IDL attributes represents the length of the list, and on getting simply return the length of the list.
-    return m_transforms.size();
-}
-
-// https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__getItem
-WebIDL::ExceptionOr<GC::Ref<SVGTransform>> SVGTransformList::get_item(WebIDL::UnsignedLong index)
-{
-    // 1. If index is greater than or equal to the length of the list, then throw an IndexSizeError.
-    if (index >= m_transforms.size())
-        return WebIDL::IndexSizeError::create(realm(), "SVGTransformList index out of bounds"_utf16);
-    // 2. Return the element in the list at position index.
-    return m_transforms.at(index);
-}
-
-// https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__appendItem
-GC::Ref<SVGTransform> SVGTransformList::append_item(GC::Ref<SVGTransform> new_item)
-{
-    // FIXME: This does not implement the steps from the specification.
-    m_transforms.append(new_item);
-    return new_item;
 }
 
 void SVGTransformList::initialize(JS::Realm& realm)
@@ -63,11 +42,10 @@ void SVGTransformList::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGTransformList::visit_edges(Cell::Visitor& visitor)
+void SVGTransformList::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto transform : m_transforms)
-        transform->visit_edges(visitor);
+    SVGList::visit_edges(visitor);
 }
 
 }

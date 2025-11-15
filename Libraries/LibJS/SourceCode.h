@@ -21,6 +21,8 @@ public:
 
     String const& filename() const { return m_filename; }
     Utf16String const& code() const { return m_code; }
+    Utf16View const& code_view() const { return m_code_view; }
+    size_t length_in_code_units() const { return m_length_in_code_units; }
 
     SourceRange range_from_offsets(u32 start_offset, u32 end_offset) const;
 
@@ -29,6 +31,8 @@ private:
 
     String m_filename;
     Utf16String m_code;
+    Utf16View m_code_view;
+    size_t m_length_in_code_units { 0 };
 
     // For fast mapping of offsets to line/column numbers, we build a list of
     // starting points (with byte offsets into the source string) and which

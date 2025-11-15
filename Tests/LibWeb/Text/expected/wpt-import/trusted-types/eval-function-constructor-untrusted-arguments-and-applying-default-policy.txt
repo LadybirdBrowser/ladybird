@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	plain string at index 0 (default policy modifying the function text).
+Pass	plain string at index 1 (default policy modifying the function text).
+Pass	plain string at index 2 (default policy modifying the function text).
+Pass	plain string at index 3 (default policy modifying the function text).
+Pass	plain string at index 0 (default policy leaving the function text unchanged).
+Pass	plain string at index 1 (default policy leaving the function text unchanged).
+Pass	plain string at index 2 (default policy leaving the function text unchanged).
+Pass	plain string at index 3 (default policy leaving the function text unchanged).
+Pass	TrustedScript with forged toString() at index 0 (default policy modifying the function text).
+Pass	TrustedScript with forged toString() at index 1 (default policy modifying the function text).
+Pass	TrustedScript with forged toString() at index 2 (default policy modifying the function text).
+Pass	TrustedScript with forged toString() at index 3 (default policy modifying the function text).
+Pass	TrustedScript with forged toString() at index 0 (default policy leaving the function text unchanged).
+Pass	TrustedScript with forged toString() at index 1 (default policy leaving the function text unchanged).
+Pass	TrustedScript with forged toString() at index 2 (default policy leaving the function text unchanged).
+Pass	TrustedScript with forged toString() at index 3 (default policy leaving the function text unchanged).

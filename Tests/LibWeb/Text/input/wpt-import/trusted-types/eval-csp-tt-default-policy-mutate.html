@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <script nonce="abc" src="support/helper.sub.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+  trustedTypes.createPolicy("default", {createScript: s => s.replace("1", "4")});
+
+  test(t => {
+    assert_throws_js(EvalError, _ => eval('1+1'));
+  }, "eval of string where default policy mutates value throws.");
+
+  test(t => {
+    assert_throws_js(EvalError, _ => eval?.('1+1'));
+  }, "indirect eval of string where default policy mutates value throws.");
+
+  test(t => {
+    assert_throws_js(EvalError, _ => new Function('return 1+1'));
+  }, "Function constructor with string where default policy mutates value throws.");
+
+  const AsyncFunction = async function() {}.constructor;
+  const GeneratorFunction = function*() {}.constructor;
+  const AsyncGeneratorFunction = async function*() {}.constructor;
+
+  test(t => {
+    assert_throws_js(EvalError, _ => new AsyncFunction('return 1+1'));
+  }, "AsyncFunction constructor with string where default policy mutates value throws.");
+
+  test(t => {
+    assert_throws_js(EvalError, _ => new GeneratorFunction('return 1+1'));
+  }, "GeneratorFunction constructor with string where default policy mutates value throws.");
+
+  test(t => {
+    assert_throws_js(EvalError, _ => new AsyncGeneratorFunction('return 1+1'));
+  }, "AsyncGeneratorFunction constructor with string where default policy mutates value throws.");
+</script>

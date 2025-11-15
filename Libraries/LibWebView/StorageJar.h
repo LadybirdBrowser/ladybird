@@ -8,8 +8,10 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Traits.h>
 #include <LibDatabase/Forward.h>
+#include <LibRequests/CacheSizes.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/StorageOperationError.h>
@@ -39,43 +41,59 @@ public:
     Optional<String> get_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key);
     StorageOperationError set_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& bottle_value);
     void remove_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& key);
+    void remove_items_accessed_since(UnixDateTime);
     void clear_storage_key(StorageEndpointType storage_endpoint, String const& storage_key);
     Vector<String> get_all_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+    Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
 private:
     struct Statements {
+        Database::StatementID get_item { 0 };
         Database::StatementID set_item { 0 };
         Database::StatementID delete_item { 0 };
-        Database::StatementID get_item { 0 };
+        Database::StatementID delete_items_accessed_since { 0 };
+        Database::StatementID update_last_access_time { 0 };
         Database::StatementID clear { 0 };
         Database::StatementID get_keys { 0 };
         Database::StatementID calculate_size_excluding_key { 0 };
+        Database::StatementID estimate_storage_size_accessed_since { 0 };
     };
 
     class TransientStorage {
     public:
-        StorageOperationError set_item(StorageLocation const& key, String const& value);
         Optional<String> get_item(StorageLocation const& key);
+        StorageOperationError set_item(StorageLocation const& key, String const& value);
         void delete_item(StorageLocation const& key);
+        void delete_items_accessed_since(UnixDateTime);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
     private:
-        HashMap<StorageLocation, String> m_storage_items;
+        struct Entry {
+            String value;
+            UnixDateTime last_access_time;
+        };
+
+        HashMap<StorageLocation, Entry> m_storage_items;
     };
 
     struct PersistedStorage {
-        StorageOperationError set_item(StorageLocation const& key, String const& value);
         Optional<String> get_item(StorageLocation const& key);
+        StorageOperationError set_item(StorageLocation const& key, String const& value);
         void delete_item(StorageLocation const& key);
+        void delete_items_accessed_since(UnixDateTime);
         void clear(StorageEndpointType storage_endpoint, String const& storage_key);
         Vector<String> get_keys(StorageEndpointType storage_endpoint, String const& storage_key);
+        Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
         Database::Database& database;
         Statements statements;
     };
 
     explicit StorageJar(Optional<PersistedStorage>);
+
+    static ErrorOr<void> upgrade_database(Database::Database&, u32 current_version);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;

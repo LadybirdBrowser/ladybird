@@ -314,7 +314,6 @@ struct ISOYearMonth;
 struct ParseResult;
 struct PartialDuration;
 struct Time;
-struct TimeZone;
 struct TimeZoneOffset;
 
 };

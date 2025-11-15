@@ -353,7 +353,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                     // 1. For each importUrl → storedResponse of newestWorker’s script resource map:
                     if (false) {
                         // FIXME: 1. If importUrl is url, then continue.
-                        // FIXME 2. Let importRequest be a new request whose url is importUrl, client is job’s client, destination is "script", parser metadata
+                        // FIXME: 2. Let importRequest be a new request whose url is importUrl, client is job’s client, destination is "script", parser metadata
                         //    is "not parser-inserted", and whose use-URL-credentials flag is set.
                         // FIXME: 3. Set importRequest’s cache mode to "no-cache" if any of the following are true:
                         //     * registration’s update via cache mode is "none".

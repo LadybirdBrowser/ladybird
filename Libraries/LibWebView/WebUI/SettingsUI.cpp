@@ -63,6 +63,12 @@ void SettingsUI::register_interfaces()
         remove_all_site_setting_filters(data);
     });
 
+    register_interface("estimateBrowsingDataSizes"sv, [this](auto const& data) {
+        estimate_browsing_data_sizes(data);
+    });
+    register_interface("clearBrowsingData"sv, [this](auto const& data) {
+        clear_browsing_data(data);
+    });
     register_interface("setGlobalPrivacyControl"sv, [this](auto const& data) {
         set_global_privacy_control(data);
     });
@@ -273,6 +279,57 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
     }
 
     load_current_settings();
+}
+
+void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
+{
+    if (!options.is_object())
+        return;
+
+    auto& application = Application::the();
+
+    auto since = [&]() {
+        if (auto since = options.as_object().get_integer<i64>("since"sv); since.has_value())
+            return UnixDateTime::from_milliseconds_since_epoch(*since);
+        return UnixDateTime::earliest();
+    }();
+
+    application.estimate_browsing_data_size_accessed_since(since)
+        ->when_resolved([this](Application::BrowsingDataSizes sizes) {
+            JsonObject result;
+
+            result.set("cacheSizeSinceRequestedTime"sv, sizes.cache_size_since_requested_time);
+            result.set("totalCacheSize"sv, sizes.total_cache_size);
+
+            result.set("siteDataSizeSinceRequestedTime"sv, sizes.site_data_size_since_requested_time);
+            result.set("totalSiteDataSize"sv, sizes.total_site_data_size);
+
+            async_send_message("estimatedBrowsingDataSizes"sv, move(result));
+        })
+        .when_rejected([](Error const& error) {
+            dbgln("Failed to estimate browsing data sizes: {}", error);
+        });
+}
+
+void SettingsUI::clear_browsing_data(JsonValue const& options)
+{
+    if (!options.is_object())
+        return;
+
+    Application::ClearBrowsingDataOptions clear_browsing_data_options;
+
+    if (auto since = options.as_object().get_integer<i64>("since"sv); since.has_value())
+        clear_browsing_data_options.since = UnixDateTime::from_milliseconds_since_epoch(*since);
+
+    clear_browsing_data_options.delete_cached_files = options.as_object().get_bool("cachedFiles"sv).value_or(false)
+        ? Application::ClearBrowsingDataOptions::Delete::Yes
+        : Application::ClearBrowsingDataOptions::Delete::No;
+
+    clear_browsing_data_options.delete_site_data = options.as_object().get_bool("siteData"sv).value_or(false)
+        ? Application::ClearBrowsingDataOptions::Delete::Yes
+        : Application::ClearBrowsingDataOptions::Delete::No;
+
+    Application::the().clear_browsing_data(clear_browsing_data_options);
 }
 
 void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_control)

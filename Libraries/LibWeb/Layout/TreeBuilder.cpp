@@ -17,7 +17,6 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -27,6 +26,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/Node.h>
@@ -101,51 +101,53 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
 static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layout_parent, Layout::Node& layout_node)
 {
     // Inline is fine for in-flow block children; we'll maintain the (non-)inline invariant after insertion.
-    if (layout_parent.is_inline() && layout_parent.display().is_flow_inside() && !layout_node.is_out_of_flow())
+    if (!layout_node.is_anonymous() && layout_parent.is_inline() && layout_parent.display().is_flow_inside() && !layout_node.is_out_of_flow())
         return layout_parent;
 
-    if (!has_inline_or_in_flow_block_children(layout_parent)) {
-        // Parent block has no children, insert this block into parent.
-        return layout_parent;
+    // Make sure we're not inserting into an inline node, since those do not support block nodes.
+    auto* new_parent = &layout_parent;
+    while (is<InlineNode>(new_parent))
+        new_parent = new_parent->parent();
+
+    // If the parent block has no children, insert this block into parent.
+    if (!has_inline_or_in_flow_block_children(*new_parent))
+        return *new_parent;
+
+    // If the block is out-of-flow and is not a pseudo element,
+    if (layout_node.is_out_of_flow() && !layout_node.is_generated_for_pseudo_element()) {
+        // And the parent's last child is an anonymous block, join that anonymous block.
+        if (!new_parent->display().is_flex_inside()
+            && !new_parent->display().is_grid_inside()
+            && !new_parent->last_child()->is_generated_for_pseudo_element()
+            && new_parent->last_child()->is_anonymous()
+            && new_parent->last_child()->children_are_inline()) {
+            return *new_parent->last_child();
+        }
+
+        // Otherwise, insert this block into parent.
+        return *new_parent;
     }
 
-    if (layout_node.is_out_of_flow()
-        && !layout_parent.display().is_flex_inside()
-        && !layout_parent.display().is_grid_inside()
-        && !layout_parent.last_child()->is_generated_for_pseudo_element()
-        && layout_parent.last_child()->is_anonymous()
-        && layout_parent.last_child()->children_are_inline()) {
-        // Block is out-of-flow & previous sibling was wrapped in an anonymous block.
-        // Join the previous sibling inside the anonymous block.
-        return *layout_parent.last_child();
-    }
-
-    if (!layout_parent.children_are_inline()) {
-        // Parent block has block-level children, insert this block into parent.
-        return layout_parent;
-    }
-
-    if (layout_node.is_out_of_flow()) {
-        // Block is out-of-flow, it can have inline siblings if necessary.
-        return layout_parent;
-    }
+    // If the parent block has block-level children, insert this block into parent.
+    if (!new_parent->children_are_inline())
+        return *new_parent;
 
     // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
-    auto wrapper = layout_parent.create_anonymous_wrapper();
+    auto wrapper = new_parent->create_anonymous_wrapper();
     wrapper->set_children_are_inline(true);
 
-    for (GC::Ptr<Node> child = layout_parent.first_child(); child;) {
+    for (GC::Ptr<Node> child = new_parent->first_child(); child;) {
         GC::Ptr<Node> next_child = child->next_sibling();
-        layout_parent.remove_child(*child);
+        new_parent->remove_child(*child);
         wrapper->append_child(*child);
         child = next_child;
     }
 
-    layout_parent.set_children_are_inline(false);
-    layout_parent.append_child(wrapper);
+    new_parent->set_children_are_inline(false);
+    new_parent->append_child(wrapper);
 
     // Then it's safe to insert this block into parent.
-    return layout_parent;
+    return *new_parent;
 }
 
 void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, CSS::Display display, AppendOrPrepend mode)

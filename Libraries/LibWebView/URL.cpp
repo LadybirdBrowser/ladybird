@@ -36,22 +36,20 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 
     auto url = URL::create_with_url_or_path(location);
 
-    if (!url.has_value()) {
+    if (!url.has_value() || url->scheme() == "localhost"sv) {
         url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
-
         if (!url.has_value())
             return search_url_or_error();
 
         https_scheme_was_guessed = true;
     }
 
+    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
     static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
     if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
         return search_url_or_error();
-    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
 
-    auto const& host = url->host();
-    if (host.has_value() && host->is_domain()) {
+    if (auto const& host = url->host(); host.has_value() && host->is_domain()) {
         auto const& domain = host->get<String>();
 
         if (domain.contains('"'))

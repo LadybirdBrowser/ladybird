@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <script nonce="abc" src="support/helper.sub.js"></script>
+  <!-- No CSP header. -->
+</head>
+<body>
+<script>
+  trustedTypes.createPolicy("default", {createScript: s => s + 4});
+  const p = trustedTypes.createPolicy("p", {createScript: s => s});
+
+  test(t => {
+    assert_equals(eval(p.createScript('1+1')), 2);
+  }, "eval of TrustedScript works.");
+
+  test(t => {
+    assert_equals(eval?.(p.createScript('1+1')), 2);
+  }, "indirect eval of TrustedScript works.");
+
+  test(t => {
+    assert_equals(eval('1+1'), 2);
+  }, "eval of string works and does not call a default policy.");
+
+  test(t => {
+    assert_equals(eval?.('1+1'), 2);
+  }, "indirect eval of string works and does not call a default policy.");
+
+  test(t => {
+    assert_equals(eval(42), 42);
+    assert_object_equals(eval({}), {});
+    assert_equals(eval(null), null);
+    assert_equals(eval(undefined), undefined);
+   }, "eval of !TrustedScript and !string works.");
+
+  test(t => {
+    assert_equals(new Function(p.createScript('return 1+1'))(), 2);
+  }, "Function constructor of TrustedScript works.");
+
+  test(t => {
+    assert_equals(new Function('return 1+1')(), 2);
+  }, "Function constructor of string works and does not call a default policy.");
+</script>
+

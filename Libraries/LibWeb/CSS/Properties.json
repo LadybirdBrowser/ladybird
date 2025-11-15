@@ -3215,6 +3215,17 @@
       "paint-order"
     ]
   },
+  "perspective": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
   "place-content": {
     "inherited": false,
     "initial": "normal",
@@ -3835,6 +3846,15 @@
       "top"
     ],
     "percentages-resolve-to": "length"
+  },
+  "transform-style": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "flat",
+    "valid-identifiers": [
+      "flat",
+      "preserve-3d"
+    ]
   },
   "transition": {
     "affects-layout": false,

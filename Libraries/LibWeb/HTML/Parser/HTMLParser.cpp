@@ -4754,6 +4754,12 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // Insert a foreign element for the token, with the adjusted current node's namespace and false.
         (void)insert_foreign_element(token, adjusted_current_node()->namespace_uri(), OnlyAddToElementStack::No);
 
+        // AD-HOC: we don't want to execute script elements just by adding data to it
+        if (token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
+            auto& script_element = as<SVG::SVGScriptElement>(*current_node());
+            script_element.set_parser_inserted({});
+        }
+
         // If the token has its self-closing flag set, then run the appropriate steps from the following list:
         if (token.is_self_closing()) {
 
@@ -4778,7 +4784,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
     }
 
     // -> An end tag whose tag name is "script", if the current node is an SVG script element
-    if (token.is_end_tag() && current_node()->namespace_uri() == Namespace::SVG && current_node()->local_name() == SVG::TagNames::script) {
+    if (token.is_end_tag() && token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG && current_node()->local_name() == SVG::TagNames::script) {
     ScriptEndTag:
         // Pop the current node off the stack of open elements.
         auto& script_element = as<SVG::SVGScriptElement>(*m_stack_of_open_elements.pop());
@@ -4796,7 +4802,6 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
 
         // If the active speculative HTML parser is null and the user agent supports SVG, then Process the SVG script element according to the SVG rules. [SVG]
         // FIXME: If the active speculative HTML parser is null
-        script_element.set_parser_inserted({});
         script_element.process_the_script_element();
 
         // Decrement the parser's script nesting level by one.

@@ -204,7 +204,6 @@ StyleComputer::StyleComputer(DOM::Document& document)
     , m_root_element_font_metrics(m_default_font_metrics)
 {
     m_ancestor_filter = make<CountingBloomFilter<u8, 14>>();
-    m_qualified_layer_names_in_order.append({});
 }
 
 StyleComputer::~StyleComputer() = default;
@@ -214,7 +213,6 @@ void StyleComputer::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_document);
     visitor.visit(m_loaded_fonts);
-    visitor.visit(m_user_style_sheet);
 }
 
 FontLoader::FontLoader(StyleComputer& style_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
@@ -265,7 +263,7 @@ void FontLoader::start_loading_next_url()
     // CSS style sheet, destination "font", CORS mode "cors", and processResponse being the following steps given
     // response res and null, failure or a byte stream stream:
     auto style_sheet_or_document = m_parent_style_sheet ? StyleSheetOrDocument { *m_parent_style_sheet } : StyleSheetOrDocument { m_style_computer->document() };
-    auto maybe_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
+    m_fetch_controller = fetch_a_style_resource(m_urls.take_first(), style_sheet_or_document, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
         [loader = this](auto response, auto stream) {
             // 1. If stream is null, return.
             // 2. Load a font from stream according to its type.
@@ -290,11 +288,8 @@ void FontLoader::start_loading_next_url()
             }
         });
 
-    if (maybe_fetch_controller.is_error()) {
+    if (!m_fetch_controller)
         font_did_load_or_fail(nullptr);
-    } else {
-        m_fetch_controller = maybe_fetch_controller.release_value();
-    }
 }
 
 void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
@@ -359,46 +354,6 @@ struct StyleComputer::MatchingFontCandidate {
     }
 };
 
-static CSSStyleSheet& default_stylesheet()
-{
-    static GC::Root<CSSStyleSheet> sheet;
-    if (!sheet.cell()) {
-        extern String default_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), default_stylesheet_source));
-    }
-    return *sheet;
-}
-
-static CSSStyleSheet& quirks_mode_stylesheet()
-{
-    static GC::Root<CSSStyleSheet> sheet;
-    if (!sheet.cell()) {
-        extern String quirks_mode_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), quirks_mode_stylesheet_source));
-    }
-    return *sheet;
-}
-
-static CSSStyleSheet& mathml_stylesheet()
-{
-    static GC::Root<CSSStyleSheet> sheet;
-    if (!sheet.cell()) {
-        extern String mathml_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), mathml_stylesheet_source));
-    }
-    return *sheet;
-}
-
-static CSSStyleSheet& svg_stylesheet()
-{
-    static GC::Root<CSSStyleSheet> sheet;
-    if (!sheet.cell()) {
-        extern String svg_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm()), svg_stylesheet_source));
-    }
-    return *sheet;
-}
-
 Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
 {
     extern String default_stylesheet_source;
@@ -417,45 +372,22 @@ Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
     return {};
 }
 
-template<typename Callback>
-void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback callback) const
-{
-    if (cascade_origin == CascadeOrigin::UserAgent) {
-        callback(default_stylesheet(), {});
-        if (document().in_quirks_mode())
-            callback(quirks_mode_stylesheet(), {});
-        callback(mathml_stylesheet(), {});
-        callback(svg_stylesheet(), {});
-    }
-    if (cascade_origin == CascadeOrigin::User) {
-        if (m_user_style_sheet)
-            callback(*m_user_style_sheet, {});
-    }
-    if (cascade_origin == CascadeOrigin::Author) {
-        document().for_each_active_css_style_sheet([&](auto& sheet, auto shadow_root) {
-            callback(sheet, shadow_root);
-        });
-    }
-}
-
 RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
 {
-    auto const* rule_caches_for_document_and_shadow_roots = [&]() -> RuleCachesForDocumentAndShadowRoots const* {
+    auto& style_scope = shadow_root ? shadow_root->style_scope() : document().style_scope();
+    style_scope.build_rule_cache_if_needed();
+
+    auto const* rule_caches_by_layer = [&]() -> RuleCaches const* {
         switch (cascade_origin) {
         case CascadeOrigin::Author:
-            return m_author_rule_cache;
+            return style_scope.m_author_rule_cache;
         case CascadeOrigin::User:
-            return m_user_rule_cache;
+            return style_scope.m_user_rule_cache;
         case CascadeOrigin::UserAgent:
-            return m_user_agent_rule_cache;
+            return style_scope.m_user_agent_rule_cache;
         default:
             VERIFY_NOT_REACHED();
         }
-    }();
-    auto const* rule_caches_by_layer = [&]() -> RuleCaches const* {
-        if (shadow_root)
-            return rule_caches_for_document_and_shadow_roots->for_shadow_roots.get(*shadow_root).value_or(nullptr);
-        return &rule_caches_for_document_and_shadow_roots->for_document;
     }();
     if (!rule_caches_by_layer)
         return nullptr;
@@ -472,17 +404,11 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
     return true;
 }
 
-RuleCache const& StyleComputer::get_pseudo_class_rule_cache(PseudoClass pseudo_class) const
+InvalidationSet StyleComputer::invalidation_set_for_properties(Vector<InvalidationSet::Property> const& properties, StyleScope const& style_scope) const
 {
-    build_rule_cache_if_needed();
-    return *m_pseudo_class_rule_cache[to_underlying(pseudo_class)];
-}
-
-InvalidationSet StyleComputer::invalidation_set_for_properties(Vector<InvalidationSet::Property> const& properties) const
-{
-    if (!m_style_invalidation_data)
+    if (!style_scope.m_style_invalidation_data)
         return {};
-    auto const& descendant_invalidation_sets = m_style_invalidation_data->descendant_invalidation_sets;
+    auto const& descendant_invalidation_sets = style_scope.m_style_invalidation_data->descendant_invalidation_sets;
     InvalidationSet result;
     for (auto const& property : properties) {
         if (auto it = descendant_invalidation_sets.find(property); it != descendant_invalidation_sets.end())
@@ -491,29 +417,29 @@ InvalidationSet StyleComputer::invalidation_set_for_properties(Vector<Invalidati
     return result;
 }
 
-bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::Property const& property) const
+bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::Property const& property, StyleScope const& style_scope) const
 {
-    if (!m_style_invalidation_data)
+    if (!style_scope.m_style_invalidation_data)
         return true;
     switch (property.type) {
     case InvalidationSet::Property::Type::Id:
-        if (m_style_invalidation_data->ids_used_in_has_selectors.contains(property.name()))
+        if (style_scope.m_style_invalidation_data->ids_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::Class:
-        if (m_style_invalidation_data->class_names_used_in_has_selectors.contains(property.name()))
+        if (style_scope.m_style_invalidation_data->class_names_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::Attribute:
-        if (m_style_invalidation_data->attribute_names_used_in_has_selectors.contains(property.name()))
+        if (style_scope.m_style_invalidation_data->attribute_names_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::TagName:
-        if (m_style_invalidation_data->tag_names_used_in_has_selectors.contains(property.name()))
+        if (style_scope.m_style_invalidation_data->tag_names_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::PseudoClass:
-        if (m_style_invalidation_data->pseudo_classes_used_in_has_selectors.contains(property.value.get<PseudoClass>()))
+        if (style_scope.m_style_invalidation_data->pseudo_classes_used_in_has_selectors.contains(property.value.get<PseudoClass>()))
             return true;
         break;
     default:
@@ -1266,6 +1192,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         }
 
         effect->set_target(&element);
+        element.set_has_css_defined_animations();
         element_animations->set(animation_properties.name, animation);
     }
 
@@ -1322,7 +1249,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
         auto const append_property_mapping_logical_aliases = [&](PropertyID property_id) {
             if (property_is_logical_alias(property_id))
                 properties_for_this_transition.append(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { style.writing_mode(), style.direction() }));
-            else
+            else if (property_id != PropertyID::Custom)
                 properties_for_this_transition.append(property_id);
         };
 
@@ -1374,9 +1301,10 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
 
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
-        auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id);
+    // OPTIMIZATION: Instead of iterating over all properties we split the logic into two loops, one for the properties
+    //               which appear in transition-property and one for those which have existing transitions
+    for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element)) {
+        auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id).value();
         auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
         auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
@@ -1398,14 +1326,14 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // - the element does not have a running transition for the property,
             (!has_running_transition) &&
             // - there is a matching transition-property value, and
-            (matching_transition_properties.has_value()) &&
+            // NOTE: We only iterate over properties for which this is true
             // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties->transition_behavior)) &&
+            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties.transition_behavior)) &&
             // - the element does not have a completed transition for the property
             //   or the end value of the completed transition is different from the after-change style for the property,
             (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
             // - the combined duration is greater than 0s,
-            (combined_duration(matching_transition_properties.value()) > 0)) {
+            (combined_duration(matching_transition_properties) > 0)) {
 
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 1.");
 
@@ -1415,13 +1343,13 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // and start a transition whose:
 
             // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-            auto delay = matching_transition_properties->delay;
+            auto delay = matching_transition_properties.delay;
 
             // - start time is the time of the style change event plus the matching transition delay,
             auto start_time = style_change_event_time;
 
             // - end time is the start time plus the matching transition duration,
-            auto end_time = start_time + matching_transition_properties->duration;
+            auto end_time = start_time + matching_transition_properties.duration;
 
             // - start value is the value of the transitioning property in the before-change style,
             auto const& start_value = before_change_value;
@@ -1446,27 +1374,18 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             element.remove_transition(pseudo_element, property_id);
         }
 
-        // 3. If the element has a running transition or completed transition for the property,
-        //    and there is not a matching transition-property value,
-        if (existing_transition && !matching_transition_properties.has_value()) {
-            // then implementations must cancel the running transition or remove the completed transition from the set of completed transitions.
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
-            if (has_running_transition)
-                existing_transition->cancel();
-            else
-                element.remove_transition(pseudo_element, property_id);
-        }
+        // NOTE: Step 3 is handled in a separate loop below for performance reasons
 
         // 4. If the element has a running transition for the property,
         //    there is a matching transition-property value,
         //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
-        if (has_running_transition && matching_transition_properties.has_value() && !existing_transition->transition_end_value()->equals(after_change_value)) {
+        if (has_running_transition && !existing_transition->transition_end_value()->equals(after_change_value)) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(SerializationMode::Normal), after_change_value.to_string(SerializationMode::Normal));
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
             auto& current_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
-            if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
+            if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
             }
@@ -1474,8 +1393,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // 2. Otherwise, if the combined duration is less than or equal to 0s,
             //    or if the current value of the property in the running transition is not transitionable with the value of the property in the after-change style,
             //    then implementations must cancel the running transition.
-            else if ((combined_duration(matching_transition_properties.value()) <= 0)
-                || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties->transition_behavior)) {
+            else if ((combined_duration(matching_transition_properties) <= 0)
+                || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.2");
                 existing_transition->cancel();
             }
@@ -1502,9 +1421,9 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 double reversing_shortening_factor = clamp(abs(term_1 + term_2), 0.0, 1.0);
 
                 // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-                auto delay = (matching_transition_properties->delay >= 0
-                        ? (matching_transition_properties->delay)
-                        : (reversing_shortening_factor * matching_transition_properties->delay));
+                auto delay = (matching_transition_properties.delay >= 0
+                        ? (matching_transition_properties.delay)
+                        : (reversing_shortening_factor * matching_transition_properties.delay));
 
                 // - start time is the time of the style change event plus:
                 //   1. if the matching transition delay is nonnegative, the matching transition delay, or
@@ -1512,7 +1431,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 auto start_time = style_change_event_time;
 
                 // - end time is the start time plus the product of the matching transition duration and the new transition’s reversing shortening factor,
-                auto end_time = start_time + (matching_transition_properties->duration * reversing_shortening_factor);
+                auto end_time = start_time + (matching_transition_properties.duration * reversing_shortening_factor);
 
                 // - start value is the current value of the property in the running transition,
                 auto const& start_value = current_value;
@@ -1533,13 +1452,13 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
                 element.remove_transition(pseudo_element, property_id);
 
                 // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-                auto delay = matching_transition_properties->delay;
+                auto delay = matching_transition_properties.delay;
 
                 // - start time is the time of the style change event plus the matching transition delay,
                 auto start_time = style_change_event_time;
 
                 // - end time is the start time plus the matching transition duration,
-                auto end_time = start_time + matching_transition_properties->duration;
+                auto end_time = start_time + matching_transition_properties.duration;
 
                 // - start value is the current value of the property in the running transition,
                 auto const& start_value = current_value;
@@ -1557,9 +1476,25 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             }
         }
     }
+
+    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
+        // 3. If the element has a running transition or completed transition for the property, and there is not a
+        //    matching transition-property value, then implementations must cancel the running transition or remove the
+        //    completed transition from the set of completed transitions.
+        if (element.property_transition_attributes(pseudo_element, property_id).has_value())
+            continue;
+
+        auto const& existing_transition = element.property_transition(pseudo_element, property_id);
+
+        dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
+        if (!existing_transition->is_finished())
+            existing_transition->cancel();
+        else
+            element.remove_transition(pseudo_element, property_id);
+    }
 }
 
-StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
+StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode, StyleScope const& style_scope) const
 {
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
@@ -1569,7 +1504,7 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Abstr
     sort_matching_rules(matching_rule_set.user_rules);
 
     // @layer-ed author rules
-    for (auto const& layer_name : m_qualified_layer_names_in_order) {
+    for (auto const& layer_name : style_scope.m_qualified_layer_names_in_order) {
         auto layer_rules = collect_matching_rules(abstract_element, CascadeOrigin::Author, attempted_pseudo_class_matches, layer_name);
         sort_matching_rules(layer_rules);
         matching_rule_set.author_rules.append({ layer_name, layer_rules });
@@ -2140,8 +2075,9 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
         return style.property(property_id);
     };
 
+    auto device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
     style.for_each_property([&](PropertyID property_id, auto& specified_value) {
-        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel());
+        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
 
         style.set_property_without_modifying_flags(property_id, computed_value);
     });
@@ -2370,17 +2306,19 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 
 GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
-    return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties);
+    auto& style_scope = abstract_element.style_scope();
+    return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
 }
 
 GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
-    return compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties);
+    auto& style_scope = abstract_element.style_scope();
+    return compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties, style_scope);
 }
 
-GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, StyleScope const& style_scope) const
 {
-    build_rule_cache_if_needed();
+    style_scope.build_rule_cache_if_needed();
 
     // Special path for elements that represent a pseudo-element in some element's internal shadow tree.
     if (abstract_element.element().use_pseudo_element().has_value()) {
@@ -2411,7 +2349,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
+    auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode, style_scope);
 
     auto old_custom_properties = abstract_element.custom_properties();
 
@@ -2658,13 +2596,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     return computed_style;
 }
 
-void StyleComputer::build_rule_cache_if_needed() const
-{
-    if (has_valid_rule_cache())
-        return;
-    const_cast<StyleComputer&>(*this).build_rule_cache();
-}
-
 struct SimplifiedSelectorForBucketing {
     CSS::Selector::SimpleSelector::Type type;
     FlyString name;
@@ -2699,272 +2630,6 @@ static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketabl
     }
 
     return {};
-}
-
-void StyleComputer::collect_selector_insights(Selector const& selector, SelectorInsights& insights)
-{
-    for (auto const& compound_selector : selector.compound_selectors()) {
-        for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
-                if (simple_selector.pseudo_class().type == PseudoClass::Has) {
-                    insights.has_has_selectors = true;
-                }
-                for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
-                    collect_selector_insights(*argument_selector, insights);
-                }
-            }
-        }
-    }
-}
-
-void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights)
-{
-    Vector<MatchingRule> matching_rules;
-    size_t style_sheet_index = 0;
-    for_each_stylesheet(cascade_origin, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot> shadow_root) {
-        auto& rule_caches = [&] -> RuleCaches& {
-            RuleCachesForDocumentAndShadowRoots* rule_caches_for_document_or_shadow_root = nullptr;
-            switch (cascade_origin) {
-            case CascadeOrigin::Author:
-                rule_caches_for_document_or_shadow_root = m_author_rule_cache;
-                break;
-            case CascadeOrigin::User:
-                rule_caches_for_document_or_shadow_root = m_user_rule_cache;
-                break;
-            case CascadeOrigin::UserAgent:
-                rule_caches_for_document_or_shadow_root = m_user_agent_rule_cache;
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-            if (!shadow_root)
-                return rule_caches_for_document_or_shadow_root->for_document;
-            return *rule_caches_for_document_or_shadow_root->for_shadow_roots.ensure(*shadow_root, [] { return make<RuleCaches>(); });
-        }();
-
-        size_t rule_index = 0;
-        sheet.for_each_effective_style_producing_rule([&](auto const& rule) {
-            SelectorList const& absolutized_selectors = [&]() {
-                if (rule.type() == CSSRule::Type::Style)
-                    return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
-                if (rule.type() == CSSRule::Type::NestedDeclarations)
-                    return static_cast<CSSNestedDeclarations const&>(rule).parent_style_rule().absolutized_selectors();
-                VERIFY_NOT_REACHED();
-            }();
-
-            for (auto const& selector : absolutized_selectors) {
-                m_style_invalidation_data->build_invalidation_sets_for_selector(selector);
-            }
-
-            for (CSS::Selector const& selector : absolutized_selectors) {
-                MatchingRule matching_rule {
-                    shadow_root,
-                    &rule,
-                    sheet,
-                    sheet.default_namespace(),
-                    selector,
-                    style_sheet_index,
-                    rule_index,
-                    selector.specificity(),
-                    cascade_origin,
-                    false,
-                };
-
-                auto const& qualified_layer_name = matching_rule.qualified_layer_name();
-                auto& rule_cache = qualified_layer_name.is_empty() ? rule_caches.main : *rule_caches.by_layer.ensure(qualified_layer_name, [] { return make<RuleCache>(); });
-
-                bool contains_root_pseudo_class = false;
-                Optional<CSS::PseudoElement> pseudo_element;
-
-                collect_selector_insights(selector, insights);
-
-                for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
-                    if (!matching_rule.contains_pseudo_element) {
-                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
-                            matching_rule.contains_pseudo_element = true;
-                            pseudo_element = simple_selector.pseudo_element().type();
-                            matching_rule.slotted = pseudo_element == PseudoElement::Slotted;
-                        }
-                    }
-                    if (!contains_root_pseudo_class) {
-                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
-                            && simple_selector.pseudo_class().type == CSS::PseudoClass::Root) {
-                            contains_root_pseudo_class = true;
-                        }
-                    }
-                }
-
-                for (size_t i = 0; i < to_underlying(PseudoClass::__Count); ++i) {
-                    auto pseudo_class = static_cast<PseudoClass>(i);
-                    // If we're not building a rule cache for this pseudo class, just ignore it.
-                    if (!m_pseudo_class_rule_cache[i])
-                        continue;
-                    if (selector.contains_pseudo_class(pseudo_class)) {
-                        // For pseudo class rule caches we intentionally pass no pseudo-element, because we don't want to bucket pseudo class rules by pseudo-element type.
-                        m_pseudo_class_rule_cache[i]->add_rule(matching_rule, {}, contains_root_pseudo_class);
-                    }
-                }
-
-                rule_cache.add_rule(matching_rule, pseudo_element, contains_root_pseudo_class);
-            }
-            ++rule_index;
-        });
-
-        // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
-        sheet.for_each_effective_keyframes_at_rule([&](CSSKeyframesRule const& rule) {
-            auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
-            HashTable<PropertyID> animated_properties;
-
-            // Forwards pass, resolve all the user-specified keyframe properties.
-            for (auto const& keyframe_rule : *rule.css_rules()) {
-                auto const& keyframe = as<CSSKeyframeRule>(*keyframe_rule);
-                Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
-
-                auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-                auto const& keyframe_style = *keyframe.style();
-                for (auto const& it : keyframe_style.properties()) {
-                    if (!is_animatable_property(it.property_id))
-                        continue;
-
-                    // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {
-                        animated_properties.set(shorthand_id);
-                        resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<StyleValue const> { shorthand_value });
-                    });
-                }
-
-                keyframe_set->keyframes_by_key.insert(key, resolved_keyframe);
-            }
-
-            Animations::KeyframeEffect::generate_initial_and_final_frames(keyframe_set, animated_properties);
-
-            if constexpr (LIBWEB_CSS_DEBUG) {
-                dbgln("Resolved keyframe set '{}' into {} keyframes:", rule.name(), keyframe_set->keyframes_by_key.size());
-                for (auto it = keyframe_set->keyframes_by_key.begin(); it != keyframe_set->keyframes_by_key.end(); ++it)
-                    dbgln("    - keyframe {}: {} properties", it.key(), it->properties.size());
-            }
-
-            rule_caches.main.rules_by_animation_keyframes.set(rule.name(), move(keyframe_set));
-        });
-        ++style_sheet_index;
-    });
-}
-
-struct LayerNode {
-    OrderedHashMap<FlyString, LayerNode> children {};
-};
-
-static void flatten_layer_names_tree(Vector<FlyString>& layer_names, StringView const& parent_qualified_name, FlyString const& name, LayerNode const& node)
-{
-    FlyString qualified_name = parent_qualified_name.is_empty() ? name : MUST(String::formatted("{}.{}", parent_qualified_name, name));
-
-    for (auto const& item : node.children)
-        flatten_layer_names_tree(layer_names, qualified_name, item.key, item.value);
-
-    layer_names.append(qualified_name);
-}
-
-void StyleComputer::build_qualified_layer_names_cache()
-{
-    LayerNode root;
-
-    auto insert_layer_name = [&](FlyString const& internal_qualified_name) {
-        auto* node = &root;
-        internal_qualified_name.bytes_as_string_view()
-            .for_each_split_view('.', SplitBehavior::Nothing, [&](StringView part) {
-                auto local_name = MUST(FlyString::from_utf8(part));
-                node = &node->children.ensure(local_name);
-            });
-    };
-
-    // Walk all style sheets, identifying when we first see a @layer name, and add its qualified name to the list.
-    // TODO: Separate the light and shadow-dom layers.
-    for_each_stylesheet(CascadeOrigin::Author, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot>) {
-        // NOTE: Postorder so that a @layer block is iterated after its children,
-        // because we want those children to occur before it in the list.
-        sheet.for_each_effective_rule(TraversalOrder::Postorder, [&](auto& rule) {
-            switch (rule.type()) {
-            case CSSRule::Type::Import:
-                // TODO: Handle `layer(foo)` in import rules once we implement that.
-                break;
-            case CSSRule::Type::LayerBlock: {
-                auto& layer_block = static_cast<CSSLayerBlockRule const&>(rule);
-                insert_layer_name(layer_block.internal_qualified_name({}));
-                break;
-            }
-            case CSSRule::Type::LayerStatement: {
-                auto& layer_statement = static_cast<CSSLayerStatementRule const&>(rule);
-                auto qualified_names = layer_statement.internal_qualified_name_list({});
-                for (auto& name : qualified_names)
-                    insert_layer_name(name);
-                break;
-            }
-
-                // Ignore everything else
-            case CSSRule::Type::Style:
-            case CSSRule::Type::Media:
-            case CSSRule::Type::FontFace:
-            case CSSRule::Type::Keyframes:
-            case CSSRule::Type::Keyframe:
-            case CSSRule::Type::Margin:
-            case CSSRule::Type::Namespace:
-            case CSSRule::Type::NestedDeclarations:
-            case CSSRule::Type::Page:
-            case CSSRule::Type::Property:
-            case CSSRule::Type::Supports:
-                break;
-            }
-        });
-    });
-
-    // Now, produce a flat list of qualified names to use later
-    m_qualified_layer_names_in_order.clear();
-    flatten_layer_names_tree(m_qualified_layer_names_in_order, ""sv, {}, root);
-}
-
-void StyleComputer::build_rule_cache()
-{
-    m_author_rule_cache = make<RuleCachesForDocumentAndShadowRoots>();
-    m_user_rule_cache = make<RuleCachesForDocumentAndShadowRoots>();
-    m_user_agent_rule_cache = make<RuleCachesForDocumentAndShadowRoots>();
-
-    m_selector_insights = make<SelectorInsights>();
-    m_style_invalidation_data = make<StyleInvalidationData>();
-
-    if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
-        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), user_style_source.value()));
-    }
-
-    build_qualified_layer_names_cache();
-
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::Hover)] = make<RuleCache>();
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::Active)] = make<RuleCache>();
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::Focus)] = make<RuleCache>();
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::FocusWithin)] = make<RuleCache>();
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::FocusVisible)] = make<RuleCache>();
-    m_pseudo_class_rule_cache[to_underlying(PseudoClass::Target)] = make<RuleCache>();
-
-    make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights);
-    make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights);
-    make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights);
-}
-
-void StyleComputer::invalidate_rule_cache()
-{
-    m_author_rule_cache = nullptr;
-
-    // NOTE: We could be smarter about keeping the user rule cache, and style sheet.
-    //       Currently we are re-parsing the user style sheet every time we build the caches,
-    //       as it may have changed.
-    m_user_rule_cache = nullptr;
-    m_user_style_sheet = nullptr;
-
-    // NOTE: It might not be necessary to throw away the UA rule cache.
-    //       If we are sure that it's safe, we could keep it as an optimization.
-    m_user_agent_rule_cache = nullptr;
-
-    m_pseudo_class_rule_cache = {};
-    m_style_invalidation_data = nullptr;
 }
 
 void StyleComputer::did_load_font(FlyString const&)
@@ -3089,7 +2754,6 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
                 .important = style_property.important,
                 .property_id = style_property.property_id,
                 .value = compute_value_of_custom_property(abstract_element, name),
-                .custom_name = style_property.custom_name,
             });
     }
     abstract_element.set_custom_properties(move(resolved_custom_properties));
@@ -3741,7 +3405,7 @@ static void for_each_element_hash(DOM::Element const& element, auto callback)
     for (auto const& class_ : element.class_names())
         callback(class_.hash());
     element.for_each_attribute([&](auto& attribute) {
-        callback(attribute.lowercase_name().hash());
+        callback(attribute.name().ascii_case_insensitive_hash());
     });
 }
 
@@ -3774,21 +3438,6 @@ size_t StyleComputer::number_of_css_font_faces_with_loading_in_progress() const
         }
     }
     return count;
-}
-
-bool StyleComputer::may_have_has_selectors() const
-{
-    if (!has_valid_rule_cache())
-        return true;
-
-    build_rule_cache_if_needed();
-    return m_selector_insights->has_has_selectors;
-}
-
-bool StyleComputer::have_has_selectors() const
-{
-    build_rule_cache_if_needed();
-    return m_selector_insights->has_has_selectors;
 }
 
 void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoElement> pseudo_element, bool contains_root_pseudo_class)

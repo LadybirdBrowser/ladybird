@@ -220,9 +220,6 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/trash-can.png"sv));
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
         break;
-    case WebView::ActionID::ClearCache:
-        qaction.setIcon(load_icon_from_uri("resource://icons/browser/clear-cache.png"sv));
-        break;
 
     default:
         break;

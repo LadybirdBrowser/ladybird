@@ -279,4 +279,20 @@ bool Token::trivia_contains_line_terminator() const
     return m_trivia.contains('\n') || m_trivia.contains('\r') || m_trivia.contains(LINE_SEPARATOR) || m_trivia.contains(PARAGRAPH_SEPARATOR);
 }
 
+String Token::message() const
+{
+    switch (m_message) {
+    case Message::StartOfPrivateNameNotFollowedByValidIdentifier:
+        return "Start of private name '#' but not followed by valid identifier"_string;
+    case Message::InvalidNumericLiteral:
+        return "Invalid numeric literal"_string;
+    case Message::UnterminatedMultiLineComment:
+        return "Unterminated multi-line comment"_string;
+    case Message::None:
+        return {};
+    }
+    VERIFY_NOT_REACHED();
+    return {};
+}
+
 }

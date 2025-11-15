@@ -55,7 +55,7 @@ GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 {
     auto& realm = this->realm();
     if (!m_navigation) {
-        // FIXME actually determine values for these
+        // FIXME: actually determine values for these
         u16 type = 0;
         u16 redirect_count = 0;
 

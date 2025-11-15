@@ -195,10 +195,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         // d. Let offsetMinutes be offsetNanoseconds / (6 × 10**10).
         auto offset_minutes = offset_nanoseconds / 60'000'000'000;
 
-        // e. Assert: offsetMinutes is an integer.
-        VERIFY(trunc(offset_minutes) == offset_minutes);
-
-        // f. Set timeZone to FormatOffsetTimeZoneIdentifier(offsetMinutes).
+        // e. Set timeZone to FormatOffsetTimeZoneIdentifier(offsetMinutes).
         time_zone = format_offset_time_zone_identifier(offset_minutes);
     }
     // 20. Else,

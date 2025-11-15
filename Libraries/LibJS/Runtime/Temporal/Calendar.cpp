@@ -145,13 +145,15 @@ Vector<String> const& available_calendars()
 }
 
 // https://tc39.es/proposal-temporal/#prod-MonthCode
-static bool is_valid_month_code_string(StringView month_code)
+static constexpr bool is_valid_month_code_string(StringView month_code)
 {
     // MonthCode :::
     //     M00L
     //     M0 NonZeroDigit L[opt]
     //     M NonZeroDigit DecimalDigit L[opt]
-    if (month_code.length() != 3 && month_code.length() != 4)
+    auto length = month_code.length();
+
+    if (length != 3 && length != 4)
         return false;
 
     if (month_code[0] != 'M')
@@ -160,7 +162,9 @@ static bool is_valid_month_code_string(StringView month_code)
     if (!is_ascii_digit(month_code[1]) || !is_ascii_digit(month_code[2]))
         return false;
 
-    if (month_code.length() == 4 && month_code[3] != 'L')
+    if (length == 3 && month_code[1] == '0' && month_code[2] == '0')
+        return false;
+    if (length == 4 && month_code[3] != 'L')
         return false;
 
     return true;
@@ -204,11 +208,7 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, StringView month_code)
     // 7. Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
     auto month_number = month_code_digits.to_number<u8>().value();
 
-    // 8. If monthNumber is 0 and isLeapMonth is false, throw a RangeError exception.
-    if (month_number == 0 && !is_leap_month)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    // 9. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
+    // 8. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
     return MonthCode { month_number, is_leap_month };
 }
 
@@ -1003,11 +1003,9 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, StringView calendar, Cal
             return {};
         }
 
-        // f. Assert: monthCode is a String.
-        VERIFY(month_code.has_value());
-
-        // g. Let parsedMonthCode be ? ParseMonthCode(monthCode).
-        auto parsed_month_code = TRY(parse_month_code(vm, *month_code));
+        // f. Assert: monthCode is a month code.
+        // g. Let parsedMonthCode be ! ParseMonthCode(monthCode).
+        auto parsed_month_code = MUST(parse_month_code(vm, *month_code));
 
         // h. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
         if (parsed_month_code.is_leap_month)

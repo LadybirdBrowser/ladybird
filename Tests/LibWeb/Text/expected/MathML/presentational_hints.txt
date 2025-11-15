@@ -3,9 +3,13 @@ direction: ltr
 direction: rtl
 color: red
 color: rgb(255, 0, 0)
+color: orange
 background-color: blue
 background-color: rgb(0, 0, 255)
+background-color: transparent
 font-size: 10px
+font-size: 24px
+font-size: 32px
 math-style: compact
 math-style: normal
 math-style: normal
@@ -19,6 +23,14 @@ text-transform: math-auto
 text-transform: none
 width: 10px
 width: auto
+width: 32px
 height: 20px
+height: auto
+height: 32px
 height: 30px
 height: auto
+height: 48px
+height: 20px
+height: 30px
+height: 50px
+height: 56px

@@ -195,6 +195,29 @@ Filter Filter::color_matrix(float matrix[20], Optional<Filter const&> input)
     return Filter(Impl::create(SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input_skia)));
 }
 
+Filter Filter::color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r, Optional<ReadonlyBytes> g,
+    Optional<ReadonlyBytes> b, Optional<Filter const&> input)
+{
+    VERIFY(!a.has_value() || a->size() == 256);
+    VERIFY(!r.has_value() || r->size() == 256);
+    VERIFY(!g.has_value() || g->size() == 256);
+    VERIFY(!b.has_value() || b->size() == 256);
+
+    sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
+
+    auto* a_table = a.has_value() ? a->data() : nullptr;
+    auto* r_table = r.has_value() ? r->data() : nullptr;
+    auto* g_table = g.has_value() ? g->data() : nullptr;
+    auto* b_table = b.has_value() ? b->data() : nullptr;
+
+    // Color tables are applied in linear space by default, so we need to convert twice.
+    // FIXME: support sRGB space as well (i.e. don't perform these conversions).
+    auto srgb_to_linear = SkImageFilters::ColorFilter(SkColorFilters::SRGBToLinearGamma(), input_skia);
+    auto color_table = SkImageFilters::ColorFilter(SkColorFilters::TableARGB(a_table, r_table, g_table, b_table), srgb_to_linear);
+    auto linear_to_srgb = SkImageFilters::ColorFilter(SkColorFilters::LinearToSRGBGamma(), color_table);
+    return Filter(Impl::create(linear_to_srgb));
+}
+
 Filter Filter::saturate(float value, Optional<Filter const&> input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;

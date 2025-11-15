@@ -57,7 +57,13 @@ struct ParsedISOTimeZone {
     Optional<String> time_zone_annotation;
 };
 
-// 13.33 ISO Date-Time Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-parse-records
+// 13.33 Time Zone Identifier Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-time-zone-identifier-parse-records
+struct ParsedTimeZoneIdentifier {
+    Optional<String> name;
+    Optional<i64> offset_minutes;
+};
+
+// 13.34 ISO Date-Time Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-parse-records
 struct ParsedISODateTime {
     struct StartOfDay { };
 

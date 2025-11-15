@@ -97,10 +97,11 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     Statements statements {};
     statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?);"sv));
     statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ?;"sv));
-    statements.remove_all_entries = TRY(database.prepare_statement("DELETE FROM CacheIndex;"sv));
+    statements.remove_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE last_access_time >= ? RETURNING cache_key;"sv));
     statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ?;"sv));
+    statements.estimate_cache_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(data_size) + SUM(OCTET_LENGTH(response_headers)) FROM CacheIndex WHERE last_access_time >= ?;"sv));
 
     return CacheIndex { database, statements };
 }
@@ -135,10 +136,17 @@ void CacheIndex::remove_entry(u64 cache_key)
     m_entries.remove(cache_key);
 }
 
-void CacheIndex::remove_all_entries()
+void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key)> on_entry_removed)
 {
-    m_database.execute_statement(m_statements.remove_all_entries, {});
-    m_entries.clear();
+    m_database.execute_statement(
+        m_statements.remove_entries_accessed_since,
+        [&](auto statement_id) {
+            auto cache_key = m_database.result_column<u64>(statement_id, 0);
+            m_entries.remove(cache_key);
+
+            on_entry_removed(cache_key);
+        },
+        since);
 }
 
 void CacheIndex::update_response_headers(u64 cache_key, HTTP::HeaderMap response_headers)
@@ -186,6 +194,23 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
         cache_key);
 
     return m_entries.get(cache_key);
+}
+
+Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime since) const
+{
+    Requests::CacheSizes sizes;
+
+    m_database.execute_statement(
+        m_statements.estimate_cache_size_accessed_since,
+        [&](auto statement_id) { sizes.since_requested_time = m_database.result_column<u64>(statement_id, 0); },
+        since);
+
+    m_database.execute_statement(
+        m_statements.estimate_cache_size_accessed_since,
+        [&](auto statement_id) { sizes.total = m_database.result_column<u64>(statement_id, 0); },
+        UnixDateTime::earliest());
+
+    return sizes;
 }
 
 }

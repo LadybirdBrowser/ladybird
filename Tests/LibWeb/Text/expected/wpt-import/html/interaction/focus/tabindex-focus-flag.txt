@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 35 tests
+
+34 Pass
+1 Fail
+Pass	a should not be focusable by default.
+Pass	a[href] should be focusable by default.
+Pass	button should be focusable by default.
+Pass	input[type="hidden"] should not be focusable by default.
+Pass	input[type="button"] should be focusable by default.
+Pass	select should be focusable by default.
+Pass	textarea should be focusable by default.
+Pass	#summary-out should not be focusable by default.
+Pass	#summary-first should be focusable by default.
+Pass	#summary-second should not be focusable by default.
+Pass	[contenteditable] should be focusable by default.
+Pass	iframe should be focusable by default.
+Pass	#svg-a should not be focusable by default.
+Pass	#svg-text should not be focusable by default.
+Pass	img should not be focusable by default.
+Pass	A with tabindex=0 should be focusable.
+Pass	a with tabindex=0 should be focusable.
+Pass	text with tabindex=0 should be focusable.
+Pass	SUMMARY#summary-out-tabindex0 with tabindex=0 should be focusable.
+Pass	SUMMARY#summary-second-tabindex0 with tabindex=0 should be focusable.
+Pass	IMG with tabindex=0 should be focusable.
+Pass	A with tabindex=-1 should be focusable.
+Pass	a with tabindex=-1 should be focusable.
+Pass	text with tabindex=-1 should be focusable.
+Pass	SUMMARY#summary-out-tabindex-negative with tabindex=-1 should be focusable.
+Pass	SUMMARY#summary-second-tabindex-negative with tabindex=-1 should be focusable.
+Pass	IMG with tabindex=-1 should be focusable.
+Pass	A with tabindex=invalid should not be focusable.
+Pass	A#with-href with tabindex=invalid should be focusable.
+Pass	a with tabindex=invalid should not be focusable.
+Fail	a#with-href with tabindex=invalid should be focusable.
+Pass	text with tabindex=invalid should not be focusable.
+Pass	DIV with tabindex=invalid should not be focusable.
+Pass	SUMMARY#summary-out-tabindex-invalid with tabindex=invalid should not be focusable.
+Pass	IMG with tabindex=invalid should not be focusable.

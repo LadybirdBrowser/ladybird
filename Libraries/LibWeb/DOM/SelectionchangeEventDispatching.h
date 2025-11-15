@@ -27,7 +27,7 @@ void schedule_a_selectionchange_event(T& target, Document& document)
     if (target.has_scheduled_selectionchange_event())
         return;
 
-    // AD-HOC (https://github.com/w3c/selection-api/issues/338):
+    // AD-HOC: See https://github.com/w3c/selection-api/issues/338
     // Set target's has scheduled selectionchange event to true
     target.set_scheduled_selectionchange_event(true);
 

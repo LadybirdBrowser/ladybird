@@ -98,6 +98,12 @@ bool Node::can_contain_boxes_with_position_absolute() const
     if (computed_values().scale().has_value())
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
+    // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
+    // a containing block for all descendants, just like the 'transform' property does.
+    if (computed_values().perspective().has_value())
+        return true;
+
     // https://drafts.csswg.org/css-contain-2/#containment-types
     // 4. The layout containment box establishes an absolute positioning containing block and a fixed positioning
     //    containing block.
@@ -284,6 +290,18 @@ bool Node::establishes_stacking_context() const
     if (computed_values.view_transition_name().has_value() || will_change_property(CSS::PropertyID::ViewTransitionName))
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
+    // The use of this property with any value other than 'none' establishes a stacking context.
+    if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
+        return true;
+
+    // https://drafts.csswg.org/css-transforms-2/#transform-style-property
+    // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
+    // stacking context and a containing block for all descendants.
+    // FIXME: Check that the element is a transformable element.
+    if (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle))
+        return true;
+
     return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
 }
 
@@ -382,12 +400,15 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_font_list(computed_style.computed_font_list());
     computed_values.set_font_size(computed_style.font_size());
     computed_values.set_font_weight(computed_style.font_weight());
-    computed_values.set_font_kerning(computed_style.font_kerning());
     computed_values.set_line_height(computed_style.line_height());
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
     computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::color()));
+
+    // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
+    // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
+    auto color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*this);
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
@@ -522,25 +543,13 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
         computed_values.set_background_layers(move(layers));
     }
-    computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::background_color()));
+    computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, color_resolution_context, CSS::InitialValues::background_color()));
 
     computed_values.set_box_sizing(computed_style.box_sizing());
 
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
-    if (auto maybe_font_feature_settings = computed_style.font_feature_settings(); maybe_font_feature_settings.has_value())
-        computed_values.set_font_feature_settings(maybe_font_feature_settings.release_value());
-    if (auto maybe_font_variant_alternates = computed_style.font_variant_alternates(); maybe_font_variant_alternates.has_value())
-        computed_values.set_font_variant_alternates(maybe_font_variant_alternates.release_value());
-    computed_values.set_font_variant_caps(computed_style.font_variant_caps());
-    if (auto maybe_font_variant_east_asian = computed_style.font_variant_east_asian(); maybe_font_variant_east_asian.has_value())
-        computed_values.set_font_variant_east_asian(maybe_font_variant_east_asian.release_value());
-    computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
-    if (auto maybe_font_variant_ligatures = computed_style.font_variant_ligatures(); maybe_font_variant_ligatures.has_value())
-        computed_values.set_font_variant_ligatures(maybe_font_variant_ligatures.release_value());
-    if (auto maybe_font_variant_numeric = computed_style.font_variant_numeric(); maybe_font_variant_numeric.has_value())
-        computed_values.set_font_variant_numeric(maybe_font_variant_numeric.release_value());
-    computed_values.set_font_variant_position(computed_style.font_variant_position());
+    computed_values.set_font_features(computed_style.font_features());
     if (auto maybe_font_variation_settings = computed_style.font_variation_settings(); maybe_font_variation_settings.has_value())
         computed_values.set_font_variation_settings(maybe_font_variation_settings.release_value());
 
@@ -588,7 +597,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     if (computed_style.filter().has_filters())
         computed_values.set_filter(computed_style.filter());
 
-    computed_values.set_flood_color(computed_style.color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::flood_color()));
+    computed_values.set_flood_color(computed_style.color_or_fallback(CSS::PropertyID::FloodColor, color_resolution_context, CSS::InitialValues::flood_color()));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
 
     computed_values.set_justify_content(computed_style.justify_content());
@@ -610,7 +619,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_align(computed_style.text_align());
     computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
-    computed_values.set_text_rendering(computed_style.text_rendering());
     computed_values.set_text_underline_offset(computed_style.text_underline_offset());
     computed_values.set_text_underline_position(computed_style.text_underline_position());
 
@@ -654,10 +662,10 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     // FIXME: The default text decoration color value is `currentcolor`, but since we can't resolve that easily,
     //        we just manually grab the value from `color`. This makes it dependent on `color` being
     //        specified first, so it's far from ideal.
-    computed_values.set_text_decoration_color(computed_style.color_or_fallback(CSS::PropertyID::TextDecorationColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color()));
+    computed_values.set_text_decoration_color(computed_style.color_or_fallback(CSS::PropertyID::TextDecorationColor, color_resolution_context, computed_values.color()));
     computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
 
-    computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color()));
+    computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, color_resolution_context, computed_values.color()));
 
     computed_values.set_text_shadow(computed_style.text_shadow(*this));
 
@@ -692,6 +700,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_transformations(computed_style.transformations());
     computed_values.set_transform_box(computed_style.transform_box());
     computed_values.set_transform_origin(computed_style.transform_origin());
+    computed_values.set_perspective(computed_style.perspective());
+    computed_values.set_transform_style(computed_style.transform_style());
 
     auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
     if (transition_delay_property.is_time()) {
@@ -706,7 +716,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         // FIXME: The default border color value is `currentcolor`, but since we can't resolve that easily,
         //        we just manually grab the value from `color`. This makes it dependent on `color` being
         //        specified first, so it's far from ideal.
-        border.color = computed_style.color_or_fallback(color_property, CSS::ColorResolutionContext::for_layout_node_with_style(*this), computed_values.color());
+        border.color = computed_style.color_or_fallback(color_property, color_resolution_context, computed_values.color());
         border.line_style = computed_style.line_style(style_property);
 
         // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
@@ -719,7 +729,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
-        computed_values.set_outline_color(outline_color.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
+        computed_values.set_outline_color(outline_color.to_color(color_resolution_context).value());
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
         computed_values.set_outline_offset(outline_offset.as_length().length());
     computed_values.set_outline_style(computed_style.outline_style());
@@ -755,16 +765,16 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
-        computed_values.set_fill(fill.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
+        computed_values.set_fill(fill.to_color(color_resolution_context).value());
     else if (fill.is_url())
         computed_values.set_fill(fill.as_url().url());
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)).value());
+        computed_values.set_stroke(stroke.to_color(color_resolution_context).value());
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
 
-    computed_values.set_stop_color(computed_style.color_or_fallback(CSS::PropertyID::StopColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::stop_color()));
+    computed_values.set_stop_color(computed_style.color_or_fallback(CSS::PropertyID::StopColor, color_resolution_context, CSS::InitialValues::stop_color()));
 
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"

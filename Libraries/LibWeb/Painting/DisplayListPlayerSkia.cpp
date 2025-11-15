@@ -71,6 +71,26 @@ static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
     matrix.setAffine(affine);
     return matrix;
 }
+static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
+{
+    return SkM44(
+        matrix[0, 0],
+        matrix[0, 1],
+        matrix[0, 2],
+        matrix[0, 3],
+        matrix[1, 0],
+        matrix[1, 1],
+        matrix[1, 2],
+        matrix[1, 3],
+        matrix[2, 0],
+        matrix[2, 1],
+        matrix[2, 2],
+        matrix[2, 3],
+        matrix[3, 0],
+        matrix[3, 1],
+        matrix[3, 2],
+        matrix[3, 3]);
+}
 
 void DisplayListPlayerSkia::flush()
 {
@@ -135,6 +155,7 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
     auto& canvas = surface().canvas();
     auto image = sk_surface.makeImageSnapshot();
     SkPaint paint;
+    paint.setAntiAlias(true);
     canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
@@ -144,8 +165,9 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
     auto clip_rect = to_skia_rect(command.clip_rect);
     auto& canvas = surface().canvas();
     SkPaint paint;
+    paint.setAntiAlias(true);
     canvas.save();
-    canvas.clipRect(clip_rect);
+    canvas.clipRect(clip_rect, true);
     canvas.drawImageRect(command.bitmap->sk_image(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
     canvas.restore();
 }
@@ -164,6 +186,7 @@ void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutable
     auto shader = command.bitmap->sk_image()->makeShader(tile_mode_x, tile_mode_y, sampling_options, matrix);
 
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setShader(shader);
     auto& canvas = surface().canvas();
     canvas.drawPaint(paint);
@@ -173,7 +196,7 @@ void DisplayListPlayerSkia::add_clip_rect(AddClipRect const& command)
 {
     auto& canvas = surface().canvas();
     auto const& rect = command.rect;
-    canvas.clipRect(to_skia_rect(rect));
+    canvas.clipRect(to_skia_rect(rect), true);
 }
 
 void DisplayListPlayerSkia::save(Save const&)
@@ -204,12 +227,10 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
 {
     auto& canvas = surface().canvas();
 
-    auto affine_transform = Gfx::extract_2d_affine_transform(command.transform.matrix);
-    auto new_transform = Gfx::AffineTransform {}
-                             .translate(command.transform.origin)
-                             .multiply(affine_transform)
-                             .translate(-command.transform.origin);
-    auto matrix = to_skia_matrix(new_transform);
+    auto new_transform = Gfx::translation_matrix(Vector3<float>(command.transform.origin.x(), command.transform.origin.y(), 0));
+    new_transform = new_transform * command.transform.matrix;
+    new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-command.transform.origin.x(), -command.transform.origin.y(), 0));
+    auto matrix = to_skia_matrix4x4(new_transform);
 
     surface().canvas().save();
     if (command.clip_path.has_value())
@@ -762,7 +783,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
 
     auto rect = to_skia_rect(command.backdrop_region);
     canvas.save();
-    canvas.clipRect(rect);
+    canvas.clipRect(rect, true);
     ScopeGuard guard = [&] { canvas.restore(); };
 
     if (command.backdrop_filter.has_value()) {
@@ -959,12 +980,10 @@ void DisplayListPlayerSkia::apply_filters(ApplyFilter const& command)
 
 void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)
 {
-    auto affine_transform = Gfx::extract_2d_affine_transform(command.matrix);
-    auto new_transform = Gfx::AffineTransform {}
-                             .translate(command.origin)
-                             .multiply(affine_transform)
-                             .translate(-command.origin);
-    auto matrix = to_skia_matrix(new_transform);
+    auto new_transform = Gfx::translation_matrix(Vector3<float>(command.origin.x(), command.origin.y(), 0));
+    new_transform = new_transform * command.matrix;
+    new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-command.origin.x(), -command.origin.y(), 0));
+    auto matrix = to_skia_matrix4x4(new_transform);
     surface().canvas().concat(matrix);
 }
 

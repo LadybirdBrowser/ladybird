@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#specially-focusable">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<div id="default-samples">
+<a></a>
+<a href=""></a>
+<button></button>
+<input type="hidden">
+<input type="button">
+<select><option>abc</option></select>
+<textarea></textarea>
+<summary id="summary-out"></summary>
+<details open><summary id="summary-first"></summary><summary id="summary-second"></summary></details>
+<div contenteditable="true"></div>
+<iframe></iframe>
+<svg><a id="svg-a"></a></svg>
+<svg><text id="svg-text"></text></svg>
+<img>
+</div>
+<script>
+setup({ explicit_done: true });
+window.addEventListener("load", runTests);
+
+function runTests() {
+  const defaultList = [
+    ['a', false],
+    ['a[href]', true],
+    ['button', true],
+    ['input[type="hidden"]', false],
+    ['input[type="button"]', true],
+    ['select', true],
+    ['textarea', true],
+    ['#summary-out', false],
+    ['#summary-first', true],
+    ['#summary-second', false],
+    ['[contenteditable]', true],
+    ['iframe', true],
+    ['#svg-a', false],
+    ['#svg-text', false],
+    ['img', false],
+  ];
+  for (entry of defaultList) {
+    test(() => {
+      var element = document.querySelector('#default-samples ' + entry[0]);
+      element.focus();
+      if (entry[1])
+        assert_equals(document.activeElement, element);
+      else
+        assert_not_equals(document.activeElement, element);
+    }, entry[0] + ' should ' + (entry[1] ? '' : 'not ') + 'be focusable by default.');
+  }
+
+  runTests_tabindex0();
+}
+</script>
+
+<div id="tabindex-0">
+<a tabindex="0"></a>
+<svg><a tabindex="0"></a></svg>
+<svg><text tabindex="0"></text></svg>
+<summary tabindex="0" id="summary-out-tabindex0"></summary>
+<details open><summary id="summary-first"></summary><summary tabindex="0" id="summary-second-tabindex0"></summary></details>
+<img tabindex="0">
+</div>
+<script>
+function runTests_tabindex0() {
+  for (element of document.querySelectorAll('#tabindex-0 [tabindex]')) {
+    var elementDesc = element.tagName;
+    if (element.id)
+      elementDesc += '#' + element.id;
+    test(() => {
+      element.focus();
+      assert_equals(document.activeElement, element);
+    }, elementDesc + ' with tabindex=0 should be focusable.');
+  }
+
+  runTests_tabindex_negative();
+}
+</script>
+
+<div id="tabindex-negative">
+<a tabindex="-1"></a>
+<svg><a tabindex="-1"></a></svg>
+<svg><text tabindex="-1"></text></svg>
+<summary tabindex="-1" id="summary-out-tabindex-negative"></summary>
+<details open><summary id="summary-first"></summary><summary tabindex="0" id="summary-second-tabindex-negative"></summary></details>
+<img tabindex="-1">
+</div>
+<script>
+function runTests_tabindex_negative() {
+  for (element of document.querySelectorAll('#tabindex-negative [tabindex]')) {
+    var elementDesc = element.tagName;
+    if (element.id)
+      elementDesc += '#' + element.id;
+    test(() => {
+      element.focus();
+      assert_equals(document.activeElement, element);
+    }, elementDesc + ' with tabindex=-1 should be focusable.');
+  }
+
+  runTests_tabindex_invalid();
+}
+</script>
+
+<div id="tabindex-invalid">
+<a tabindex="invalid"></a>
+<a href="#" tabindex="invalid" id="with-href" data-focusable=true></a>
+<svg><a tabindex="invalid"></a></svg>
+<svg><a href="#" tabindex="invalid" id="with-href" data-focusable=true></a></svg>
+<svg><text tabindex="invalid"></text></svg>
+<div tabindex="invalid"></div>
+<summary tabindex="invalid" id="summary-out-tabindex-invalid"></summary>
+<img tabindex="invalid">
+</div>
+<script>
+function runTests_tabindex_invalid() {
+  for (element of document.querySelectorAll('#tabindex-invalid [tabindex]')) {
+    var focusable = element.dataset && element.dataset.focusable;
+    var elementDesc = element.tagName;
+    if (element.id)
+      elementDesc += '#' + element.id;
+    test(() => {
+      element.focus();
+      focusable ? assert_equals(document.activeElement, element)
+                : assert_not_equals(document.activeElement, element);
+    }, `${elementDesc} with tabindex=invalid should ${focusable ? "be" : "not be"} focusable.`);
+  }
+
+  done();
+}
+</script>
+</body>

@@ -1436,6 +1436,8 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
     struct QualifiedIP {
         size_t alternative_index;
         size_t instruction_position;
+
+        bool operator==(QualifiedIP const& other) const = default;
     };
     struct NodeMetadataEntry {
         QualifiedIP ip;
@@ -1465,7 +1467,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                     node_key_bytes.append(edge.jump_insn);
             }
 
-            active_node = static_cast<decltype(active_node)>(MUST(active_node->ensure_child(DisjointSpans<ByteCodeValueType const> { move(node_key_bytes) })));
+            active_node = static_cast<decltype(active_node)>(MUST(active_node->ensure_child(DisjointSpans<ByteCodeValueType const> { move(node_key_bytes) }, Vector<NodeMetadataEntry> {})));
 
             auto next_compare = [&alternative, &state](StaticallyInterpretedCompares& compares) {
                 TemporaryChange state_change { state.instruction_position, state.instruction_position };
@@ -1489,15 +1491,12 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             };
 
             auto node_metadata = NodeMetadataEntry { { i, state.instruction_position }, make<StaticallyInterpretedCompares>() };
-            if (active_node->has_metadata()) {
-                active_node->metadata_value().append(move(node_metadata));
-                common_hits += 1;
-            } else {
-                Vector<NodeMetadataEntry> metadata;
-                metadata.append(move(node_metadata));
-                active_node->set_metadata(move(metadata));
+            auto& metadata = active_node->metadata_value();
+            if (metadata.is_empty())
                 total_bytecode_entries_in_tree += opcode.size();
-            }
+            else
+                common_hits++;
+            metadata.append(move(node_metadata));
             next_compare(*active_node->metadata_value().last().first_compare_from_here);
 
             state.instruction_position += opcode.size();
@@ -1634,13 +1633,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
         target.ensure_capacity(total_bytecode_entries_in_tree + common_hits * 6);
 
         auto node_is = [](Tree const* node, QualifiedIP ip) {
-            if (!node->has_metadata())
-                return false;
-            for (auto& node_ip : node->metadata_value()) {
-                if (node_ip.ip.alternative_index == ip.alternative_index && node_ip.ip.instruction_position == ip.instruction_position)
-                    return true;
-            }
-            return false;
+            return node->metadata_value().span().first_matching([&](auto& entry) { return entry.ip == ip; }).has_value();
         };
 
         struct Patch {

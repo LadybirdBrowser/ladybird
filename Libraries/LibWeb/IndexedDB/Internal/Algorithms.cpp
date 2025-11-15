@@ -1599,13 +1599,9 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         // * If key is defined:
         if (key) {
             // * The record’s key is greater than or equal to key.
-            auto is_greater_than_or_equal = record.visit(
-                [](Empty) { VERIFY_NOT_REACHED(); },
-                [key](auto const& inner_record) {
-                    return Key::greater_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
-                });
-
-            if (!is_greater_than_or_equal)
+            if (!record.visit([&](auto const& inner_record) {
+                    return Key::greater_than_or_equal(inner_record.key, *key);
+                }))
                 return false;
         }
 
@@ -1613,13 +1609,18 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         if (primary_key) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * The record’s key is equal to key and the record’s value is greater than or equal to primaryKey
-            if (!(Key::equals(inner_record.key, *key) && (Key::greater_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
-                return false;
-
-            // * The record’s key is greater than key.
-            if (!Key::greater_than(inner_record.key, *key))
-                return false;
+            // * If the record’s key is equal to key:
+            if (Key::equals(inner_record.key, *key)) {
+                // * The record’s value is greater than or equal to primaryKey
+                if (!Key::greater_than_or_equal(inner_record.value, *primary_key))
+                    return false;
+            }
+            // * Else:
+            else {
+                // * The record’s key is greater than key.
+                if (!Key::greater_than(inner_record.key, *key))
+                    return false;
+            }
         }
 
         // * If position is defined and source is an object store:
@@ -1635,73 +1636,60 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * The record’s key is equal to position and the record’s value is greater than object store position
-            if (!(Key::equals(inner_record.key, *position) && (Key::greater_than(inner_record.value, *object_store_position))))
-                return false;
-
-            // * The record’s key is greater than position.
-            if (!Key::greater_than(inner_record.key, *position))
-                return false;
+            // * If the record’s key is equal to position:
+            if (Key::equals(inner_record.key, *position)) {
+                // * The record’s value is greater than object store position
+                if (!Key::greater_than(inner_record.value, *object_store_position))
+                    return false;
+            }
+            // * Else:
+            else {
+                // * The record’s key is greater than position.
+                if (!Key::greater_than(inner_record.key, *position))
+                    return false;
+            }
         }
 
         // * The record’s key is in range.
-        auto is_in_range = record.visit(
-            [](Empty) { VERIFY_NOT_REACHED(); },
-            [range](auto const& inner_record) {
+        return record.visit(
+            [&](auto const& inner_record) {
                 return range->is_in_range(inner_record.key);
             });
-
-        return is_in_range;
     };
 
     auto next_unique_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is greater than or equal to key.
-            auto is_greater_than_or_equal = record.visit(
-                [](Empty) { VERIFY_NOT_REACHED(); },
-                [key](auto const& inner_record) {
-                    return Key::greater_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
-                });
-
-            if (!is_greater_than_or_equal)
+            if (!record.visit([&](auto const& inner_record) {
+                    return Key::greater_than_or_equal(inner_record.key, *key);
+                }))
                 return false;
         }
 
         // * If position is defined:
         if (position) {
             // * The record’s key is greater than position.
-            auto is_greater_than_position = record.visit(
-                [](Empty) { VERIFY_NOT_REACHED(); },
-                [position](auto const& inner_record) {
-                    return Key::greater_than(inner_record.key, *position) || Key::equals(inner_record.key, *position);
-                });
-
-            if (!is_greater_than_position)
+            if (!record.visit([&](auto const& inner_record) {
+                    return Key::greater_than(inner_record.key, *position);
+                }))
                 return false;
         }
 
         // * The record’s key is in range.
-        auto is_in_range = record.visit(
-            [](Empty) { VERIFY_NOT_REACHED(); },
-            [range](auto const& inner_record) {
+        return record.visit(
+            [&](auto const& inner_record) {
                 return range->is_in_range(inner_record.key);
             });
-
-        return is_in_range;
     };
 
     auto prev_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is less than or equal to key.
-            auto is_less_than_or_equal = record.visit(
-                [](Empty) { VERIFY_NOT_REACHED(); },
-                [key](auto const& inner_record) {
-                    return Key::less_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
-                });
-
-            if (!is_less_than_or_equal)
+            if (!record.visit([&](auto const& inner_record) {
+                    return Key::less_than_or_equal(inner_record.key, *key);
+                }))
                 return false;
         }
 
@@ -1709,13 +1697,18 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         if (primary_key) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * The record’s key is equal to key and the record’s value is less than or equal to primaryKey
-            if (!(Key::equals(inner_record.key, *key) && (Key::less_than(inner_record.value, *primary_key) || Key::equals(inner_record.value, *primary_key))))
-                return false;
-
-            // * The record’s key is less than key.
-            if (!Key::less_than(inner_record.key, *key))
-                return false;
+            // * If the record’s key is equal to key:
+            if (Key::equals(inner_record.key, *key)) {
+                // * The record’s value is less than or equal to primaryKey
+                if (!Key::less_than_or_equal(inner_record.value, *primary_key))
+                    return false;
+            }
+            // * Else:
+            else {
+                // * The record’s key is less than key.
+                if (!Key::less_than(inner_record.key, *key))
+                    return false;
+            }
         }
 
         // * If position is defined and source is an object store:
@@ -1731,60 +1724,51 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
         if (position && source.has<GC::Ref<Index>>()) {
             auto const& inner_record = record.get<IndexRecord>();
 
-            // * The record’s key is equal to position and the record’s value is less than object store position
-            if (!(Key::equals(inner_record.key, *position) && Key::less_than(inner_record.value, *object_store_position)))
-                return false;
-
-            // * The record’s key is less than position.
-            if (!Key::less_than(inner_record.key, *position))
-                return false;
+            // * If the record’s key is equal to position:
+            if (Key::equals(inner_record.key, *position)) {
+                // * The record’s value is less than object store position
+                if (!Key::less_than(inner_record.value, *object_store_position))
+                    return false;
+            }
+            // Else:
+            else {
+                // * The record’s key is less than position.
+                if (!Key::less_than(inner_record.key, *position))
+                    return false;
+            }
         }
 
         // * The record’s key is in range.
-        auto is_in_range = record.visit(
-            [](Empty) { VERIFY_NOT_REACHED(); },
-            [range](auto const& inner_record) {
+        return record.visit(
+            [&](auto const& inner_record) {
                 return range->is_in_range(inner_record.key);
             });
-
-        return is_in_range;
     };
 
     auto prev_unique_requirements = [&](Variant<ObjectStoreRecord, IndexRecord> const& record) -> bool {
         // * If key is defined:
         if (key) {
             // * The record’s key is less than or equal to key.
-            auto is_less_than_or_equal = record.visit(
-                [](Empty) { VERIFY_NOT_REACHED(); },
-                [key](auto const& inner_record) {
-                    return Key::less_than(inner_record.key, *key) || Key::equals(inner_record.key, *key);
-                });
-
-            if (!is_less_than_or_equal)
+            if (!record.visit([&](auto const& inner_record) {
+                    return Key::less_than_or_equal(inner_record.key, *key);
+                }))
                 return false;
         }
 
         //* If position is defined:
         if (position) {
             // * The record’s key is less than position.
-            auto is_less_than_position = record.visit(
-                [](Empty) { VERIFY_NOT_REACHED(); },
-                [position](auto const& inner_record) {
-                    return Key::less_than(inner_record.key, *position) || Key::equals(inner_record.key, *position);
-                });
-
-            if (!is_less_than_position)
+            if (!record.visit([&](auto const& inner_record) {
+                    return Key::less_than(inner_record.key, *position);
+                }))
                 return false;
         }
 
         // * The record’s key is in range.
-        auto is_in_range = record.visit(
-            [](Empty) { VERIFY_NOT_REACHED(); },
-            [range](auto const& inner_record) {
+        return record.visit(
+            [&](auto const& inner_record) {
                 return range->is_in_range(inner_record.key);
             });
-
-        return is_in_range;
     };
 
     // 9. While count is greater than 0:

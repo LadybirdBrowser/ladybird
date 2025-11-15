@@ -2508,8 +2508,17 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
         return min(result, maximum_size);
     }
 
-    auto containing_block_size = containing_block_size_for_item(item, dimension);
-    auto result = item.add_margin_box_sizes(preferred_size.to_px(grid_container(), containing_block_size), dimension);
+    auto resolve_size = [&] {
+        auto available_width = AvailableSize::make_definite(containing_block_size_for_item(item, GridDimension::Column));
+        if (dimension == GridDimension::Row) {
+            auto available_height = AvailableSize::make_definite(containing_block_size_for_item(item, GridDimension::Row));
+            AvailableSpace item_available_space { available_width, available_height };
+            return calculate_inner_height(item.box, item_available_space, preferred_size);
+        }
+        return calculate_inner_width(item.box, available_width, preferred_size);
+    };
+
+    auto result = item.add_margin_box_sizes(resolve_size(), dimension);
     return min(result, maximum_size);
 }
 

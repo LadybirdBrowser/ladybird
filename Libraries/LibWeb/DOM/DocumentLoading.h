@@ -36,7 +36,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     //    origin: origin
     //    opener policy: coop
     HTML::OpenerPolicyEnforcementResult coop_enforcement_result {
-        .url = URL::about_error(), // AD-HOC
+        .url = URL::about_error(), // AD-HOC: https://github.com/whatwg/html/issues/9122
         .origin = origin,
         .opener_policy = coop
     };

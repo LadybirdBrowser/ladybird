@@ -393,7 +393,7 @@ TEST_CASE(days_since_epoch)
     EXPECT_EQ(days_since_epoch(2'147'483'647, 1, 1), 784351576412);   // Guess: 784351576411
     EXPECT_EQ(days_since_epoch(2'147'483'647, 12, 31), 784351576776); // Guess: 784351576777
     EXPECT_EQ(days_since_epoch(2'147'483'647, 12, 255), 784351577000);
-    // FIXME shouldn't crash: EXPECT_EQ(days_since_epoch(2'147'483'647, 255, 255), 784351577000);
+    // FIXME: shouldn't crash: EXPECT_EQ(days_since_epoch(2'147'483'647, 255, 255), 784351577000);
     // FIXME: Restrict interface to only take sensible types, and ensure callers pass only sensible values for that type.
 }
 

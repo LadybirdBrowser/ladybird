@@ -353,6 +353,8 @@ public:
     }
 
 private:
+    friend struct Formatter<Duration>;
+
     constexpr explicit Duration(i64 seconds, u32 nanoseconds)
         : m_seconds(seconds)
         , m_nanoseconds(nanoseconds)
@@ -363,6 +365,11 @@ private:
 
     i64 m_seconds { 0 };
     u32 m_nanoseconds { 0 }; // Always less than 1'000'000'000
+};
+
+template<>
+struct Formatter<Duration> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder&, Duration);
 };
 
 namespace Detail {

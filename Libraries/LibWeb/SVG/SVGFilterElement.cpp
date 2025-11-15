@@ -13,10 +13,16 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/SVG/SVGComponentTransferFunctionElement.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
+#include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
+#include <LibWeb/SVG/SVGFEFuncAElement.h>
+#include <LibWeb/SVG/SVGFEFuncBElement.h>
+#include <LibWeb/SVG/SVGFEFuncGElement.h>
+#include <LibWeb/SVG/SVGFEFuncRElement.h>
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 #include <LibWeb/SVG/SVGFEImageElement.h>
 #include <LibWeb/SVG/SVGFEMergeElement.h>
@@ -99,6 +105,34 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::blend(background, foreground, blend_mode);
             update_result_map(*blend_primitive);
+        } else if (auto* component_transfer = as_if<SVGFEComponentTransferElement>(node)) {
+            auto input = resolve_input_filter(component_transfer->in1()->base_val());
+
+            // https://drafts.fxtf.org/filter-effects/#feComponentTransferElement
+            // * If more than one transfer function element of the same kind is specified, the last occurrence is to be
+            //   used.
+            // * If any of the transfer function elements are unspecified, the feComponentTransfer must be processed as
+            //   if those transfer function elements were specified with their type attributes set to identity.
+            Array<GC::Ptr<SVGComponentTransferFunctionElement>, 4> argb_function_elements;
+            node.for_each_child([&](auto& child) {
+                if (auto* func_a = as_if<SVGFEFuncAElement>(child))
+                    argb_function_elements[0] = func_a;
+                else if (auto* func_r = as_if<SVGFEFuncRElement>(child))
+                    argb_function_elements[1] = func_r;
+                else if (auto* func_g = as_if<SVGFEFuncGElement>(child))
+                    argb_function_elements[2] = func_g;
+                else if (auto* func_b = as_if<SVGFEFuncBElement>(child))
+                    argb_function_elements[3] = func_b;
+                return IterationDecision::Continue;
+            });
+
+            root_filter = Gfx::Filter::color_table(
+                argb_function_elements[0] ? argb_function_elements[0]->color_table() : Optional<ReadonlyBytes> {},
+                argb_function_elements[1] ? argb_function_elements[1]->color_table() : Optional<ReadonlyBytes> {},
+                argb_function_elements[2] ? argb_function_elements[2]->color_table() : Optional<ReadonlyBytes> {},
+                argb_function_elements[3] ? argb_function_elements[3]->color_table() : Optional<ReadonlyBytes> {},
+                input);
+            update_result_map(*component_transfer);
         } else if (auto* composite_primitive = as_if<SVGFECompositeElement>(node)) {
             auto foreground = resolve_input_filter(composite_primitive->in1()->base_val());
             auto background = resolve_input_filter(composite_primitive->in2()->base_val());
@@ -238,7 +272,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 return IterationDecision::Continue;
 
             auto dest_rect = Gfx::enclosing_int_rect(paintable_box->absolute_rect().to_type<float>());
-            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->computed_values().image_rendering(), *src_rect, dest_rect);
+            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->computed_values().image_rendering(), src_rect->size(), dest_rect.size());
             root_filter = Gfx::Filter::image(*bitmap, *src_rect, dest_rect, scaling_mode);
             update_result_map(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {

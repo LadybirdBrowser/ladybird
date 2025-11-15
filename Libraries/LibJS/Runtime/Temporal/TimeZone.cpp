@@ -403,7 +403,7 @@ bool time_zone_equals(StringView one, StringView two)
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-ThrowCompletionOr<TimeZone> parse_time_zone_identifier(VM& vm, StringView identifier)
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, StringView identifier)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
     auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
@@ -416,7 +416,7 @@ ThrowCompletionOr<TimeZone> parse_time_zone_identifier(VM& vm, StringView identi
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-TimeZone parse_time_zone_identifier(StringView identifier)
+ParsedTimeZoneIdentifier parse_time_zone_identifier(StringView identifier)
 {
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
 
@@ -428,7 +428,7 @@ TimeZone parse_time_zone_identifier(StringView identifier)
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-TimeZone parse_time_zone_identifier(ParseResult const& parse_result)
+ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const& parse_result)
 {
     // OPTIMIZATION: Some callers will have already parsed and validated the time zone identifier.
 
@@ -437,8 +437,8 @@ TimeZone parse_time_zone_identifier(ParseResult const& parse_result)
         // a. Let name be the source text matched by the TimeZoneIANAName Parse Node contained within parseResult.
         // b. NOTE: name is syntactically valid, but does not necessarily conform to IANA Time Zone Database naming
         //    guidelines or correspond with an available named time zone identifier.
-        // c. Return the Record { [[Name]]: CodePointsToString(name), [[OffsetMinutes]]: empty }.
-        return TimeZone { .name = String::from_utf8_without_validation(parse_result.time_zone_iana_name->bytes()), .offset_minutes = {} };
+        // c. Return Time Zone Identifier Parse Record { [[Name]]: CodePointsToString(name), [[OffsetMinutes]]: EMPTY }.
+        return ParsedTimeZoneIdentifier { .name = String::from_utf8_without_validation(parse_result.time_zone_iana_name->bytes()), .offset_minutes = {} };
     }
     // 4. Else,
     else {
@@ -452,11 +452,8 @@ TimeZone parse_time_zone_identifier(ParseResult const& parse_result)
         // d. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
         auto offset_minutes = offset_nanoseconds / 60'000'000'000;
 
-        // e. Assert: offsetMinutes is an integer.
-        VERIFY(trunc(offset_minutes) == offset_minutes);
-
-        // f. Return the Record { [[Name]]: empty, [[OffsetMinutes]]: offsetMinutes }.
-        return TimeZone { .name = {}, .offset_minutes = static_cast<i64>(offset_minutes) };
+        // e. Return Time Zone Identifier Parse Record { [[Name]]: EMPTY, [[OffsetMinutes]]: offsetMinutes }.
+        return ParsedTimeZoneIdentifier { .name = {}, .offset_minutes = static_cast<i64>(offset_minutes) };
     }
 }
 

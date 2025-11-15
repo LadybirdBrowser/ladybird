@@ -38,7 +38,6 @@ GC::Ref<Attr> Attr::clone(Document& document) const
 Attr::Attr(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
     : Node(document, NodeType::ATTRIBUTE_NODE)
     , m_qualified_name(move(qualified_name))
-    , m_lowercase_name(MUST(String(m_qualified_name.as_string()).to_lowercase()))
     , m_value(move(value))
     , m_owner_element(owner_element)
 {

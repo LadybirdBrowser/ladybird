@@ -623,7 +623,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         .in_class_field_initializer = in_class_field_initializer,
     };
 
-    Parser parser { Lexer { code_string->utf8_string_view() }, Program::Type::Script, move(initial_state) };
+    Parser parser(Lexer(SourceCode::create({}, code_string->utf16_string())), Program::Type::Script, move(initial_state));
     auto program = parser.parse_program(strict_caller == CallerMode::Strict);
 
     //     b. If script is a List of errors, throw a SyntaxError exception.
@@ -1978,7 +1978,7 @@ ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& optio
     return static_cast<u64>(integer_increment);
 }
 
-// AD-HOC
+// AD-HOC:
 // FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
 //        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
 Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator)

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-gradient-componentTransfer-ref.html" />
+<style>
+    svg {
+        margin: 5px;
+    }
+</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <defs>
+        <linearGradient id="r" x2="0" y2="100%">
+            <stop offset="0" stop-color="#f00"/>
+            <stop offset="0.5" stop-color="rgba(0,255,0,0.5)"/>
+            <stop offset="1" stop-color="#00f"/>
+        </linearGradient>
+        <filter id="f">
+            <feComponentTransfer>
+                <feFuncR type="identity"></feFuncR>
+                <feFuncG type="identity"></feFuncG>
+                <feFuncB type="identity"></feFuncB>
+                <feFuncA type="identity"></feFuncA>
+            </feComponentTransfer>
+        </filter>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#r)" filter="url(#f)"/>
+</svg>
+<script>
+    const testCases = [
+        // Empty component transfer, should default to identity
+        {},
+        // Explicit identity
+        {all: {type: "identity"}},
+        // Regular table
+        {R: {type: "table", attrs: {tableValues: "0 0.1 1"}}, G: {type: "table", attrs: {tableValues: "1 0.25 0"}}},
+        // Table with single value (Firefox and Chrome disagree here)
+        {G: {type: "table", attrs: {tableValues: "1"}}},
+        // Empty table, should default to identity
+        {B: {type: "table", attrs: {tableValues: ""}}},
+        // Regular discrete
+        {B: {type: "discrete", attrs: {tableValues: "0 0.8 1"}}, A: {type: "linear", attrs: {slope: 2, intercept: .4}}},
+        // Regular linear
+        {R: {type: "linear", attrs: {slope: 0.1, intercept: 0.1}}},
+        // Regular gamma
+        {all: {type: "gamma", attrs: {amplitude: 2, exponent: 2.5, offset: 0.05}}},
+    ];
+
+    const svgTemplate = document.querySelector("svg");
+    svgTemplate.remove();
+
+    const funcs = ["R", "G", "B", "A"];
+    let i = 0;
+    for (const testCase of testCases) {
+        const testSvg = svgTemplate.cloneNode(true);
+        const filterId = `f-${i}`;
+        const gradientId = `r-${i++}`;
+        testSvg.querySelector("linearGradient").setAttribute("id", gradientId);
+        testSvg.querySelector("filter").setAttribute("id", filterId);
+        testSvg.querySelector("rect").setAttribute("fill", `url(#${gradientId})`);
+        testSvg.querySelector("rect").setAttribute("filter", `url(#${filterId})`);
+
+        const funcsConfig = Object.fromEntries(funcs.map(func => [func, testCase[func] || testCase.all]));
+        for (const [func, funcConfig] of Object.entries(funcsConfig)) {
+            const funcElement = testSvg.querySelector(`feFunc${func}`);
+            if (funcConfig === undefined) {
+                funcElement.remove();
+                continue;
+            }
+            funcElement.setAttribute("type", funcConfig.type);
+            for (const [attrName, attrValue] of Object.entries(funcConfig.attrs || {})) {
+                funcElement.setAttribute(attrName, attrValue);
+            }
+        }
+
+        document.body.appendChild(testSvg);
+    }
+</script>

@@ -194,7 +194,7 @@ private:
     // A response has an associated redirect taint ("same-origin", "same-site", or "cross-site"), which is initially "same-origin".
     RedirectTaint m_redirect_taint { RedirectTaint::SameOrigin };
 
-    // FIXME is the type correct?
+    // FIXME: is the type correct?
     u64 current_age() const;
     u64 freshness_lifetime() const;
     u64 stale_while_revalidate_lifetime() const;

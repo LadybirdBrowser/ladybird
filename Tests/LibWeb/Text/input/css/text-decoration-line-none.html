@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+
+<style>
+    #foo {
+        text-decoration-line: underline none;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].cssText);
+    });
+</script>

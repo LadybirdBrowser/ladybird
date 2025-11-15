@@ -110,6 +110,22 @@
                 margin-top: 20px;
             }
 
+            .input-field-container {
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                gap: 10px;
+            }
+
+            .input-field-container + .input-field-container {
+                margin-top: 16px;
+            }
+
+            .input-field-container label,
+            .input-field-container p {
+                margin: 0;
+            }
+
             .forcibly-enabled {
                 font-size: 14px;
                 opacity: 0.6;
@@ -372,6 +388,13 @@
         <div class="card">
             <div class="card-header">Privacy</div>
             <div class="card-body">
+                <div class="card-group inline-container">
+                    <span>Browsing Data</span>
+                    <button id="clear-browsing-data" class="secondary-button">Clear...</button>
+                </div>
+
+                <hr />
+
                 <div class="card-group">
                     <div class="inline-container">
                         <label for="global-privacy-control-toggle">Enable Global Privacy Control</label>
@@ -492,6 +515,45 @@
             </div>
             <div class="dialog-footer">
                 <button id="site-settings-remove-all" class="secondary-button">Remove All Sites</button>
+            </div>
+        </dialog>
+
+        <dialog id="clear-browsing-data-dialog">
+            <div class="dialog-header">
+                <h3 id="clear-browsing-data-title" class="dialog-title">Clear Browsing Data</h3>
+                <button id="clear-browsing-data-close" class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p id="clear-browsing-data-total-size" class="description"></p>
+                <hr />
+
+                <div class="input-field-container">
+                    <p>From:</p>
+                    <select id="clear-browsing-data-time-range">
+                        <option value="lastHour">Last hour</option>
+                        <option value="last4Hours">Last 4 hours</option>
+                        <option value="today">Today</option>
+                        <option value="all" selected>All time</option>
+                    </select>
+                </div>
+
+                <div class="input-field-container">
+                    <input id="clear-browsing-data-cached-files" type="checkbox" value="" checked />
+                    <label for="clear-browsing-data-cached-files">
+                        Cached files<span id="clear-browsing-data-cached-files-size"></span>
+                        <p class="description">Remove items that help pages load faster</p>
+                    </label>
+                </div>
+                <div class="input-field-container">
+                    <input id="clear-browsing-data-site-data" type="checkbox" value="" checked />
+                    <label for="clear-browsing-data-site-data">
+                        Cookies and site data<span id="clear-browsing-data-site-data-size"></span>
+                        <p class="description">Remove items that may sign you out of most sites</p>
+                    </label>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button id="clear-browsing-data-remove-data" class="secondary-button">Remove data</button>
             </div>
         </dialog>
 

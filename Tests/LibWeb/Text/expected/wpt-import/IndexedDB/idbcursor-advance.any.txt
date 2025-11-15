@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-2 Pass
-4 Fail
-Fail	IDBCursor.advance() - advances
-Fail	IDBCursor.advance() - advances backwards
+6 Pass
+Pass	IDBCursor.advance() - advances
+Pass	IDBCursor.advance() - advances backwards
 Pass	IDBCursor.advance() - skip far forward
-Fail	IDBCursor.advance() - within range
+Pass	IDBCursor.advance() - within range
 Pass	IDBCursor.advance() - within single key range
-Fail	IDBCursor.advance() - within single key range, with several results
+Pass	IDBCursor.advance() - within single key range, with several results

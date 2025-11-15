@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 269 tests
+Found 271 tests
 
-263 Pass
+265 Pass
 6 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -231,6 +231,7 @@ Pass	padding-inline-start
 Pass	padding-left
 Pass	padding-right
 Pass	padding-top
+Pass	perspective
 Pass	position
 Pass	r
 Pass	right
@@ -257,6 +258,7 @@ Pass	touch-action
 Fail	transform
 Pass	transform-box
 Pass	transform-origin
+Pass	transform-style
 Pass	transition-behavior
 Pass	transition-delay
 Pass	transition-duration

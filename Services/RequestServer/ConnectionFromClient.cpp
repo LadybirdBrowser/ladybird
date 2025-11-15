@@ -302,10 +302,20 @@ void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::Cach
     m_active_requests.set(connect_only_request_id, move(request));
 }
 
-void ConnectionFromClient::clear_cache()
+void ConnectionFromClient::estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since)
+{
+    Requests::CacheSizes sizes;
+
+    if (g_disk_cache.has_value())
+        sizes = g_disk_cache->estimate_cache_size_accessed_since(since);
+
+    async_estimated_cache_size(cache_size_estimation_id, sizes);
+}
+
+void ConnectionFromClient::remove_cache_entries_accessed_since(UnixDateTime since)
 {
     if (g_disk_cache.has_value())
-        g_disk_cache->clear_cache();
+        g_disk_cache->remove_entries_accessed_since(since);
 }
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers)

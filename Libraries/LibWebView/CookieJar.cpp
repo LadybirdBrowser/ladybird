@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
@@ -176,11 +176,6 @@ void CookieJar::dump_cookies()
     dbgln("{} cookies stored\n{}", m_transient_storage.size(), builder.string_view());
 }
 
-void CookieJar::clear_all_cookies()
-{
-    m_transient_storage.expire_and_purge_all_cookies();
-}
-
 Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
 {
     Vector<Web::Cookie::Cookie> cookies;
@@ -231,6 +226,16 @@ Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, S
 void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
 {
     m_transient_storage.purge_expired_cookies(offset);
+}
+
+void CookieJar::expire_cookies_accessed_since(UnixDateTime since)
+{
+    m_transient_storage.expire_and_purge_cookies_accessed_since(since);
+}
+
+Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    return m_transient_storage.estimate_storage_size_accessed_since(since);
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
@@ -637,14 +642,31 @@ UnixDateTime CookieJar::TransientStorage::purge_expired_cookies(Optional<AK::Dur
     return now;
 }
 
-void CookieJar::TransientStorage::expire_and_purge_all_cookies()
+void CookieJar::TransientStorage::expire_and_purge_cookies_accessed_since(UnixDateTime since)
 {
     for (auto& [key, value] : m_cookies) {
-        value.expiry_time = UnixDateTime::earliest();
-        set_cookie(key, value);
+        if (value.last_access_time >= since) {
+            value.expiry_time = UnixDateTime::earliest();
+            set_cookie(key, value);
+        }
     }
 
     purge_expired_cookies();
+}
+
+Requests::CacheSizes CookieJar::TransientStorage::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    Requests::CacheSizes sizes;
+
+    for (auto const& [key, value] : m_cookies) {
+        auto size = key.name.byte_count() + key.domain.byte_count() + key.path.byte_count() + value.value.byte_count();
+        sizes.total += size;
+
+        if (value.last_access_time >= since)
+            sizes.since_requested_time += size;
+    }
+
+    return sizes;
 }
 
 void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cookie)

@@ -242,6 +242,7 @@ padding-inline-start: 0px
 padding-left: 0px
 padding-right: 0px
 padding-top: 0px
+perspective: none
 position: static
 position-anchor: auto
 position-area: none
@@ -273,6 +274,7 @@ touch-action: auto
 transform: none
 transform-box: view-box
 transform-origin: 50% 50% 0px
+transform-style: flat
 transition-behavior: normal
 transition-delay: 0s
 transition-duration: 0s

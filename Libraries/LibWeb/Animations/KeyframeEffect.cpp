@@ -627,11 +627,12 @@ void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyfr
 // https://www.w3.org/TR/web-animations-1/#animation-composite-order
 int KeyframeEffect::composite_order(GC::Ref<KeyframeEffect> a, GC::Ref<KeyframeEffect> b)
 {
-    // 1. Let the associated animation of an animation effect be the animation associated with the animation effect.
+    // The relative composite order of any two keyframe effects A and B within an effect stack is established by
+    // comparing their properties as follows:
     auto a_animation = a->associated_animation();
     auto b_animation = b->associated_animation();
 
-    // 2. Sort A and B by applying the following conditions in turn until the order is resolved,
+    // 1. Sort A and B by applying the following conditions in turn until the order is resolved,
 
     //    1. If A and B’s associated animations differ by class, sort by any inter-class composite order defined for
     //       the corresponding classes.
@@ -646,8 +647,8 @@ int KeyframeEffect::composite_order(GC::Ref<KeyframeEffect> a, GC::Ref<KeyframeE
 
     //    2. If A and B are still not sorted, sort by any class-specific composite order defined by the common class of
     //       A and B’s associated animations.
-    if (auto order = a_animation->class_specific_composite_order(*b_animation); order.has_value())
-        return order.value();
+    if (auto order = a_animation->class_specific_composite_order(*b_animation); order != 0)
+        return order;
 
     //    3. If A and B are still not sorted, sort by the position of their associated animations in the global
     //       animation list.

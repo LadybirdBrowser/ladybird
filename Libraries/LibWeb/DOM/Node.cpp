@@ -420,10 +420,12 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     if (is_character_data())
         return;
 
-    if (document().style_computer().may_have_has_selectors()) {
+    auto& style_scope = root().is_shadow_root() ? static_cast<ShadowRoot&>(root()).style_scope() : document().style_scope();
+
+    if (style_scope.may_have_has_selectors()) {
         if (reason == StyleInvalidationReason::NodeRemove) {
             if (auto* parent = parent_or_shadow_host(); parent) {
-                document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
+                style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
                 parent->for_each_child_of_type<Element>([&](auto& element) {
                     if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
                         element.invalidate_style_if_affected_by_has();
@@ -431,7 +433,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
                 });
             }
         } else {
-            document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+            style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
         }
     }
 
@@ -499,29 +501,48 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     if (is_character_data())
         return;
 
+    auto& root = this->root();
+    auto& style_scope = root.is_shadow_root() ? static_cast<ShadowRoot&>(root).style_scope() : document().style_scope();
+    CSS::StyleScope* shadow_style_scope = nullptr;
+    if (auto* element = as_if<Element>(this); element && element->is_shadow_host()) {
+        if (auto element_shadow_root = element->shadow_root())
+            shadow_style_scope = &element_shadow_root->style_scope();
+    }
+
     bool properties_used_in_has_selectors = false;
     for (auto const& property : properties) {
-        properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property);
+        properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property, style_scope);
+        if (shadow_style_scope)
+            properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property, *shadow_style_scope);
     }
     if (properties_used_in_has_selectors) {
-        document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+        style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+        if (shadow_style_scope)
+            shadow_style_scope->schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
     }
 
-    auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);
-    if (invalidation_set.needs_invalidate_whole_subtree()) {
-        invalidate_style(reason);
-        return;
-    }
+    auto invalidate_for_style_scope = [this, reason, &properties, &options](CSS::StyleScope& style_scope) {
+        auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties, style_scope);
 
-    if (options.invalidate_self || invalidation_set.needs_invalidate_self()) {
-        set_needs_style_update(true);
-    }
+        if (invalidation_set.needs_invalidate_whole_subtree()) {
+            invalidate_style(reason);
+            return;
+        }
 
-    if (!invalidation_set.has_properties()) {
-        return;
-    }
+        if (options.invalidate_self || invalidation_set.needs_invalidate_self()) {
+            set_needs_style_update(true);
+        }
 
-    document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set));
+        if (!invalidation_set.has_properties()) {
+            return;
+        }
+
+        document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set));
+    };
+
+    invalidate_for_style_scope(style_scope);
+    if (shadow_style_scope)
+        invalidate_for_style_scope(*shadow_style_scope);
 }
 
 Utf16String Node::child_text_content() const
@@ -1669,6 +1690,16 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
+
+        // If this is an element with display: contents, we need to propagate the layout tree update to the parent.
+        if (auto* element = as_if<Element>(*this)) {
+            if (element->computed_properties() && element->computed_properties()->display().is_contents()) {
+                if (auto parent_element = element->parent_or_shadow_host_element()) {
+                    parent_element->set_needs_layout_tree_update(true, reason);
+                }
+            }
+        }
+
         if (auto layout_node = this->layout_node()) {
             layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
 

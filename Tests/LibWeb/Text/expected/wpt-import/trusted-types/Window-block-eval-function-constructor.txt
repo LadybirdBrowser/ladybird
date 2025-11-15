@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Blocked eval in Window.
+Pass	Blocked indirect eval in Window.
+Pass	Blocked Function constructor in Window.
+Pass	Blocked AsyncFunction constructor in Window.
+Pass	Blocked GeneratorFunction constructor in Window.
+Pass	Blocked AsyncGeneratorFunction constructor in Window.

@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibRequests/CacheSizes.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
@@ -39,6 +40,8 @@ public:
     bool stop_request(Badge<Request>, Request&);
     bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
+    NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
+
     Function<void()> on_request_server_died;
 
 private:
@@ -57,10 +60,15 @@ private:
     virtual void websocket_subprotocol(i64 websocket_id, ByteString subprotocol) override;
     virtual void websocket_certificate_requested(i64 websocket_id) override;
 
-    HashMap<i32, RefPtr<Request>> m_requests;
-    HashMap<i64, NonnullRefPtr<WebSocket>> m_websockets;
+    virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
 
+    HashMap<i32, RefPtr<Request>> m_requests;
+
+    HashMap<i64, NonnullRefPtr<WebSocket>> m_websockets;
     i64 m_next_websocket_id { 0 };
+
+    HashMap<u64, NonnullRefPtr<Core::Promise<CacheSizes>>> m_pending_cache_size_estimations;
+    u64 m_next_cache_size_estimation_id { 0 };
 };
 
 }

@@ -8,6 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 
 #ifdef AK_OS_WINDOWS
@@ -478,4 +479,36 @@ TEST_CASE(format_checked)
         c.add(100);
         EXPECT_EQ(ByteString::formatted("{}", c), "{ OVERFLOW }");
     }
+}
+
+TEST_CASE(format_duration)
+{
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_seconds(0)), "0");
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_seconds(NumericLimits<i64>::max())), "9223372036854775807");
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_seconds(NumericLimits<i64>::min())), "-9223372036854775808");
+
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_microseconds(6'500)), "0.0065");
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_microseconds(-6'500)), "-0.0065");
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_milliseconds(-1'500)), "-1.5");
+
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_nanoseconds(1)), "0.000000001");
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_nanoseconds(999'999'999)), "0.999999999");
+    EXPECT_EQ(ByteString::formatted("{}", AK::Duration::from_nanoseconds(-999'999'999)), "-0.999999999");
+
+    EXPECT_EQ(ByteString::formatted("{:05}", AK::Duration::from_seconds(1)), "00001");
+    EXPECT_EQ(ByteString::formatted("{:8}", AK::Duration::from_milliseconds(1'250)), "    1.25");
+    EXPECT_EQ(ByteString::formatted("{:|>4}", AK::Duration::from_seconds(1)), "|||1");
+    EXPECT_EQ(ByteString::formatted("{:.<20}", AK::Duration::from_nanoseconds(1'050'250'000'001)), "1050.250000001......");
+    EXPECT_EQ(ByteString::formatted("{:^5}", AK::Duration::from_milliseconds(1'500)), " 1.5 ");
+    EXPECT_EQ(ByteString::formatted("{:^+6}", AK::Duration::from_milliseconds(1'500)), " +1.5 ");
+
+    EXPECT_EQ(ByteString::formatted("{:.10}", AK::Duration::from_milliseconds(100'000'500)), "100000.5000000000");
+    EXPECT_EQ(ByteString::formatted("{:.0}", AK::Duration::from_milliseconds(67'500)), "67");
+    EXPECT_EQ(ByteString::formatted("{:.0}", AK::Duration::from_nanoseconds(123'456'789)), "0");
+    EXPECT_EQ(ByteString::formatted("{:.3}", AK::Duration::from_nanoseconds(123'456'789)), "0.123");
+    EXPECT_EQ(ByteString::formatted("{:.9}", AK::Duration::from_milliseconds(500)), "0.500000000");
+    EXPECT_EQ(ByteString::formatted("{:.21}", AK::Duration::from_milliseconds(500)), "0.500000000000000000000");
+
+    EXPECT_EQ(ByteString::formatted("{:#}", AK::Duration::from_milliseconds(12'054)), "12.054s");
+    EXPECT_EQ(ByteString::formatted("{:^#8}", AK::Duration::from_milliseconds(1'512)), " 1.512s ");
 }

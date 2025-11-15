@@ -3907,6 +3907,11 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             m_dir = Dir::Auto;
         else
             m_dir = {};
+    } else if (local_name == HTML::AttributeNames::lang) {
+        for_each_in_inclusive_subtree_of_type<Element>([](auto& element) {
+            element.invalidate_lang_value();
+            return TraversalDecision::Continue;
+        });
     }
 
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
@@ -4020,7 +4025,7 @@ void Element::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
 // https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes
 Optional<String> Element::lang() const
 {
-    auto attempt_to_determine_lang_attribute = [&]() -> Optional<String> {
+    auto determine_lang_attribute = [&]() -> String {
         // 1. If the node is an element that has a lang attribute in the XML namespace set
         //      Use the value of that attribute.
         auto maybe_xml_lang = get_attribute_ns(Namespace::XML, HTML::AttributeNames::lang);
@@ -4039,23 +4044,23 @@ Optional<String> Element::lang() const
         //      Use the language of that shadow root's host.
         if (auto parent = parent_element()) {
             if (parent->is_shadow_root())
-                return parent->shadow_root()->host()->lang();
+                return parent->shadow_root()->host()->lang().value_or({});
         }
 
         // 4. If the node's parent element is not null
         //      Use the language of that parent element.
         if (auto parent = parent_element())
-            return parent->lang();
+            return parent->lang().value_or({});
 
         // 5. Otherwise
         //      - If there is a pragma-set default language set, then that is the language of the node.
         if (document().pragma_set_default_language().has_value()) {
-            return document().pragma_set_default_language();
+            return document().pragma_set_default_language().value_or({});
         }
 
         //      - If there is no pragma-set default language set, then language information from a higher-level protocol (such as HTTP),
         if (document().http_content_language().has_value()) {
-            return document().http_content_language();
+            return document().http_content_language().value_or({});
         }
 
         //        if any, must be used as the final fallback language instead.
@@ -4065,11 +4070,22 @@ Optional<String> Element::lang() const
         return {};
     };
 
+    if (!m_lang_value.has_value())
+        m_lang_value = determine_lang_attribute();
+
     // If the resulting value is the empty string, then it must be interpreted as meaning that the language of the node is explicitly unknown.
-    auto maybe_lang = attempt_to_determine_lang_attribute();
-    if (!maybe_lang.has_value() || maybe_lang->is_empty())
+    if (m_lang_value->is_empty())
         return {};
-    return maybe_lang.release_value();
+
+    return m_lang_value;
+}
+
+void Element::invalidate_lang_value()
+{
+    if (m_lang_value.has_value()) {
+        m_lang_value.clear();
+        set_needs_style_update(true);
+    }
 }
 
 template<typename Callback>
@@ -4177,6 +4193,10 @@ FlyString const& Element::html_uppercased_qualified_name() const
 
 void Element::play_or_cancel_animations_after_display_property_change()
 {
+    // OPTIMIZATION: We don't care about elements with no CSS defined animations
+    if (!has_css_defined_animations())
+        return;
+
     // OPTIMIZATION: We don't care about animations in disconnected subtrees.
     if (!is_connected())
         return;
@@ -4255,6 +4275,12 @@ bool Element::should_indicate_focus() const
     //   that element should indicate focus.
 
     return false;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#tabindex-value
+bool Element::is_focusable() const
+{
+    return HTML::parse_integer(get_attribute_value(HTML::AttributeNames::tabindex)).has_value();
 }
 
 void Element::set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>)

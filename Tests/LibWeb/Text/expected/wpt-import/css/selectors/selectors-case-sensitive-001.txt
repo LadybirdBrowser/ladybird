@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
-Fail	CSS selector should match for Unicode uppercase element
-Fail	Elements with namespace should work the same way
+3 Pass
+Pass	CSS selector should match for Unicode uppercase element
+Pass	Elements with namespace should work the same way
 Pass	`querySelector` should not use Unicode case-folding

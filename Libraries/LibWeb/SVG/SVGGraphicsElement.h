@@ -44,7 +44,7 @@ public:
     CSS::PaintOrderList paint_order() const;
     Optional<CSS::StrokeLinecap> stroke_linecap() const;
     Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
-    Optional<CSS::NumberOrCalculated> stroke_miterlimit() const;
+    Optional<double> stroke_miterlimit() const;
     Optional<float> stroke_opacity() const;
     Optional<FillRule> fill_rule() const;
     Optional<ClipRule> clip_rule() const;

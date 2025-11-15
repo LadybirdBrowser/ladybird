@@ -179,6 +179,16 @@ void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo
     }
 }
 
+Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
+{
+    auto const* maybe_transition = ensure_transition(pseudo_element);
+
+    if (!maybe_transition)
+        return {};
+
+    return maybe_transition->transition_attribute_indices.keys();
+}
+
 Optional<Animatable::TransitionAttributes const&> Animatable::property_transition_attributes(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
 {
     auto* maybe_transition = ensure_transition(pseudo_element);
@@ -188,6 +198,16 @@ Optional<Animatable::TransitionAttributes const&> Animatable::property_transitio
     if (auto maybe_attr_index = transition.transition_attribute_indices.get(property); maybe_attr_index.has_value())
         return transition.transition_attributes[maybe_attr_index.value()];
     return {};
+}
+
+Vector<CSS::PropertyID> Animatable::property_ids_with_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
+{
+    auto const* maybe_transition = ensure_transition(pseudo_element);
+
+    if (!maybe_transition)
+        return {};
+
+    return maybe_transition->associated_transitions.keys();
 }
 
 GC::Ptr<CSS::CSSTransition> Animatable::property_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
@@ -257,6 +277,19 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
             visitor.visit(transition->associated_transitions);
         }
     }
+}
+
+void Animatable::set_has_css_defined_animations()
+{
+    ensure_impl().has_css_defined_animations = true;
+}
+
+bool Animatable::has_css_defined_animations() const
+{
+    if (!m_impl)
+        return false;
+
+    return m_impl->has_css_defined_animations;
 }
 
 HashMap<FlyString, GC::Ref<Animation>>* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)

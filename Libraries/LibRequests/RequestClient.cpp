@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Promise.h>
 #include <LibCore/System.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
@@ -24,7 +25,11 @@ void RequestClient::die()
             request->did_finish({}, {}, {}, NetworkError::RequestServerDied);
     }
 
+    for (auto& [id, promise] : m_pending_cache_size_estimations)
+        promise->reject(Error::from_string_literal("RequestServer process died"));
+
     m_requests.clear();
+    m_pending_cache_size_estimations.clear();
 }
 
 void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel cache_level)
@@ -71,6 +76,24 @@ bool RequestClient::set_certificate(Badge<Request>, Request& request, ByteString
     if (!m_requests.contains(request.id()))
         return false;
     return IPCProxy::set_certificate(request.id(), move(certificate), move(key));
+}
+
+NonnullRefPtr<Core::Promise<CacheSizes>> RequestClient::estimate_cache_size_accessed_since(UnixDateTime since)
+{
+    auto promise = Core::Promise<CacheSizes>::construct();
+
+    auto cache_size_estimation_id = m_next_cache_size_estimation_id++;
+    m_pending_cache_size_estimations.set(cache_size_estimation_id, promise);
+
+    async_estimate_cache_size_accessed_since(cache_size_estimation_id, since);
+
+    return promise;
+}
+
+void RequestClient::estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes)
+{
+    if (auto promise = m_pending_cache_size_estimations.take(cache_size_estimation_id); promise.has_value())
+        (*promise)->resolve(sizes);
 }
 
 void RequestClient::request_finished(i32 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)

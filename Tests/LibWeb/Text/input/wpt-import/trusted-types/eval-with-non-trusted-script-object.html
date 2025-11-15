@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <script nonce="abc" src="support/helper.sub.js"></script>
+
+  <!-- Note: Trusted Types enforcement, and a CSP that does not blanket-allow eval. -->
+  <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'; require-trusted-types-for 'script'">
+</head>
+<body>
+<script nonce="abc">
+  const p = createScript_policy(window, 1);
+  test(t => {
+    assert_throws_js(EvalError, _ => {
+      // Without Trusted Types enforcement, this would return 47
+      new Function({toString() { return "a"; }}, "return a + 42")(5);
+    });
+  }, "Function constructor of stringified object and TrustedScript fails.");
+</script>

@@ -53,7 +53,7 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
 
     auto filter_applied = false;
     if (filter.has_filters()) {
-        if (auto resolved_filter = svg_box.resolve_filter(filter); resolved_filter.has_value()) {
+        if (auto resolved_filter = svg_box.resolve_filter(context, filter); resolved_filter.has_value()) {
             context.display_list_recorder().apply_filter(*resolved_filter);
             filter_applied = true;
         }

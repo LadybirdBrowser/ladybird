@@ -78,9 +78,10 @@ public:
         return promise;
     }
 
-    void resolve(Result&& result)
+    template<typename R = Result>
+    void resolve(R&& result)
     {
-        m_result_or_rejection = move(result);
+        m_result_or_rejection = forward<R>(result);
 
         if (on_resolution) {
             auto handler_result = on_resolution(m_result_or_rejection->value());
@@ -88,9 +89,10 @@ public:
         }
     }
 
-    void reject(ErrorType&& error)
+    template<typename E = ErrorType>
+    void reject(E&& error)
     {
-        m_result_or_rejection = move(error);
+        m_result_or_rejection = forward<E>(error);
         possibly_handle_rejection(*m_result_or_rejection);
     }
 

@@ -70,6 +70,11 @@ u64 create_cache_key(StringView url, StringView method)
     return result;
 }
 
+LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key)
+{
+    return cache_directory.append(MUST(String::formatted("{:016x}", cache_key)));
+}
+
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
 bool is_cacheable(StringView method)
 {
@@ -89,14 +94,14 @@ bool is_cacheable(u32 status_code, HTTP::HeaderMap const& headers)
         return false;
 
     auto cache_control = headers.get("Cache-Control"sv);
-    if (!cache_control.has_value())
+    if (!cache_control.has_value() && !headers.contains("Expires"sv))
         return false;
 
     // * if the response status code is 206 or 304, or the must-understand cache directive (see Section 5.2.2.3) is
     //   present: the cache understands the response status code;
 
     // * the no-store cache directive is not present in the response (see Section 5.2.2.5);
-    if (cache_control->contains("no-store"sv, CaseSensitivity::CaseInsensitive))
+    if (cache_control.has_value() && cache_control->contains("no-store"sv, CaseSensitivity::CaseInsensitive))
         return false;
 
     // * if the cache is shared: the private response directive is either not present or allows a shared cache to store

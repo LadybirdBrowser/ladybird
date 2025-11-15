@@ -104,6 +104,51 @@ String human_readable_time(Duration duration)
     return MUST(builder.to_string());
 }
 
+String human_readable_short_time(Duration duration)
+{
+    auto nanoseconds = duration.to_nanoseconds();
+    if (nanoseconds < 1'000)
+        return MUST(String::formatted("{}ns", nanoseconds));
+    if (nanoseconds < 1'000'000)
+        return MUST(String::formatted("{:.3}µs", static_cast<double>(nanoseconds) / 1'000.0));
+    if (nanoseconds < 1'000'000'000)
+        return MUST(String::formatted("{:.3}ms", static_cast<double>(nanoseconds) / 1'000'000.0));
+    if (nanoseconds < 60'000'000'000)
+        return MUST(String::formatted("{:.3}s", static_cast<double>(nanoseconds) / 1'000'000'000.0));
+
+    auto days = nanoseconds / 86'400'000'000'000;
+    nanoseconds = nanoseconds % 86'400'000'000'000;
+    auto hours = nanoseconds / 3'600'000'000'000;
+    nanoseconds = nanoseconds % 3'600'000'000'000;
+    auto minutes = nanoseconds / 60'000'000'000;
+    nanoseconds = nanoseconds % 60'000'000'000;
+    auto seconds = static_cast<double>(nanoseconds) / 1'000'000'000.0;
+
+    StringBuilder builder;
+    if (days > 0)
+        builder.appendff("{}d", days);
+
+    if (hours > 0) {
+        if (!builder.is_empty())
+            builder.append(' ');
+        builder.appendff("{}h", hours);
+    }
+
+    if (minutes > 0) {
+        if (!builder.is_empty())
+            builder.append(' ');
+        builder.appendff("{}m", minutes);
+    }
+
+    if (seconds > 0.0) {
+        if (!builder.is_empty())
+            builder.append(' ');
+        builder.appendff("{:.3}s", seconds);
+    }
+
+    return MUST(builder.to_string());
+}
+
 String human_readable_digital_time(i64 time_in_seconds)
 {
     auto hours = time_in_seconds / 3600;

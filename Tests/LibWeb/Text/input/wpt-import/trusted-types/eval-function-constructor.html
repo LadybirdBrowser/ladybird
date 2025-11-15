@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="help" href="https://w3c.github.io/webappsec-csp/#can-compile-strings">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <!-- This CSP rule as well as the null default policy will make the
+       "Get Trusted Type compliant string" algorithm throw for String input. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+  let policy = trustedTypes.createPolicy("p", { createScript: s => s });
+  const args = ["a", "b", "c = 5", "return (a+b)*c;"];
+  const arg_max = 2 ** args.length -1;
+
+  const AsyncFunction = async function() {}.constructor;
+  const GeneratorFunction = function*() {}.constructor;
+  const AsyncGeneratorFunction = async function*() {}.constructor;
+
+  // Call 'new Function(...args)', but with a subset of args being Strings,
+  // and a subset being TrustedScript. We use a bitmask to determine which
+  // argument gets to be trusted or not.
+  function new_function_with_maybe_trusted_args(mask, type) {
+    let maybe_trusted_args = args.map((value, arg_nr) => {
+      return (mask & (2**arg_nr)) ? policy.createScript(value) : value;
+    });
+    switch (type) {
+      case "Function":
+        return new Function(...maybe_trusted_args);
+      case "AsyncFunction":
+        return new AsyncFunction(...maybe_trusted_args);
+      case "GeneratorFunction":
+        return new GeneratorFunction(...maybe_trusted_args);
+      case "AsyncGeneratorFunction":
+        return new AsyncGeneratorFunction(...maybe_trusted_args);
+    }
+  }
+
+  // Generate all combinations of String/TrustedScript, except for the one
+  // where all arguments are TrustedScript. The first String argument will set
+  // isTrusted=false in EnsureCSPDoesNotBlockStringCompilation and so
+  // "Get Trusted Type compliant string" will be executed on the function text.
+  for (let mask = 0; mask < arg_max; mask++) {
+    test(t => {
+      assert_throws_js(EvalError,
+                       _ => new_function_with_maybe_trusted_args(mask, "Function"));
+    }, "Function constructor with mixed plain and trusted strings, mask #" + mask);
+    test(t => {
+      assert_throws_js(EvalError,
+                       _ => new_function_with_maybe_trusted_args(mask, "AsyncFunction"));
+    }, "AsyncFunction constructor with mixed plain and trusted strings, mask #" + mask);
+    test(t => {
+      assert_throws_js(EvalError,
+                       _ => new_function_with_maybe_trusted_args(mask, "GeneratorFunction"));
+    }, "GeneratorFunction constructor with mixed plain and trusted strings, mask #" + mask);
+    test(t => {
+      assert_throws_js(EvalError,
+                       _ => new_function_with_maybe_trusted_args(mask, "AsyncGeneratorFunction"));
+    }, "AsyncGeneratorFunction constructor with mixed plain and trusted strings, mask #" + mask);
+  }
+
+  // Now do one with all trusted arguments. In that case, isTrusted=true in
+  // EnsureCSPDoesNotBlockStringCompilation and the function is built without
+  // error.
+  test(t => {
+    const f = new_function_with_maybe_trusted_args(arg_max, "Function");
+    assert_equals(f(1,2,3), 9);
+    assert_equals(f(1,2), 15);
+  }, `Function constructor with mixed plain and trusted strings, mask #${arg_max}`);
+
+  // Similarly wrap all args in TrustedScript objects, but forges the toString()
+  // method at one index so that it adds extra leading/trailing space compared
+  // to the trusted data. This string mismatch also lead to isTrusted=false in
+  // EnsureCSPDoesNotBlockStringCompilation.
+  args.forEach((_, index) => {
+    test(t => {
+      let mixed_args = args.map((arg_value, arg_index) => {
+        let obj = policy.createScript(arg_value);
+        return arg_index == index ?
+          Object.assign(obj, { toString: () => ` ${arg_value} ` }) : obj;
+      });
+      assert_throws_js(EvalError, _ => new Function(...mixed_args));
+    }, `Function constructor with trusted strings, and a forged toString() for the one at index ${index}`);
+  });
+</script>
+

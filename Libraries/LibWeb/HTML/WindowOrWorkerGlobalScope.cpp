@@ -214,11 +214,11 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
         // The "high" value indicates a preference for a high level of image interpolation quality. High-quality image interpolation may be more computationally expensive than lower settings.
     case Bindings::ResizeQuality::Medium:
         // The "medium" value indicates a preference for a medium level of image interpolation quality.
-        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BoxSampling, .width = output_width, .height = output_height });
+        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BilinearMipmap, .width = output_width, .height = output_height });
         break;
     case Bindings::ResizeQuality::Low:
         // The "low" value indicates a preference for a low level of image interpolation quality. Low-quality image interpolation may be more computationally efficient than higher settings.
-        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BilinearBlend, .width = output_width, .height = output_height });
+        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::Bilinear, .width = output_width, .height = output_height });
         break;
     case Bindings::ResizeQuality::Pixelated: {
         // The "pixelated" value indicates a preference for scaling the image to preserve the pixelation of the original as much as possible, with minor smoothing as necessary to avoid distorting the image when the target size is not a clean multiple of the original.
@@ -237,7 +237,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
             scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::NearestNeighbor, .width = source_width * width_multiple, .height = source_height * height_multiple });
 
         // then scale it the rest of the way to the target size using bilinear interpolation.
-        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::BilinearBlend, .width = output_width, .height = output_height });
+        scaling_passes.append(ScalingPass { .mode = Gfx::ScalingMode::Bilinear, .width = output_width, .height = output_height });
     } break;
     }
     for (ScalingPass& scaling_pass : scaling_passes) {
@@ -557,7 +557,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
     auto& vm = this_impl().vm();
 
-    // FIXME 8. Let uniqueHandle be null.
+    // FIXME: 8. Let uniqueHandle be null.
 
     // 9. Let task be a task that runs the following substeps:
     auto task = GC::create_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {

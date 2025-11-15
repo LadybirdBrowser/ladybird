@@ -684,11 +684,11 @@ Parser::ParserState::ParserState(Lexer l, Program::Type program_type)
 {
     if (program_type == Program::Type::Module)
         lexer.disallow_html_comments();
-    current_token = lexer.next();
+    lexer.next();
 }
 
 Parser::Parser(Lexer lexer, Program::Type program_type, Optional<EvalInitialState> initial_state_for_eval)
-    : m_source_code(SourceCode::create(lexer.filename(), lexer.source()))
+    : m_source_code(lexer.source_code())
     , m_state(move(lexer), program_type)
     , m_program_type(program_type)
 {
@@ -747,7 +747,7 @@ bool Parser::parse_directive(ScopeNode& body)
 {
     bool found_use_strict = false;
     while (!done() && match(TokenType::StringLiteral)) {
-        auto raw_value = m_state.current_token.original_value();
+        auto raw_value = m_state.current_token().original_value();
         // It cannot be a labelled function since we hit a string literal.
         auto statement = parse_statement(AllowLabelledFunction::No);
         body.append(statement);
@@ -823,8 +823,8 @@ void Parser::parse_module(Program& program)
             break;
 
         if (match_export_or_import()) {
-            VERIFY(m_state.current_token.type() == TokenType::Export || m_state.current_token.type() == TokenType::Import);
-            if (m_state.current_token.type() == TokenType::Export)
+            VERIFY(m_state.current_token().type() == TokenType::Export || m_state.current_token().type() == TokenType::Import);
+            if (m_state.current_token().type() == TokenType::Export)
                 program.append_export(parse_export_statement(program));
             else
                 program.append_import(parse_import_statement(program));
@@ -876,9 +876,9 @@ void Parser::parse_module(Program& program)
 NonnullRefPtr<Declaration const> Parser::parse_declaration()
 {
     auto rule_start = push_start();
-    if (m_state.current_token.type() == TokenType::Async && next_token().type() == TokenType::Function)
+    if (m_state.current_token().type() == TokenType::Async && next_token().type() == TokenType::Function)
         return parse_function_node<FunctionDeclaration>();
-    switch (m_state.current_token.type()) {
+    switch (m_state.current_token().type()) {
     case TokenType::Class:
         return parse_class_declaration();
     case TokenType::Function:
@@ -887,7 +887,7 @@ NonnullRefPtr<Declaration const> Parser::parse_declaration()
     case TokenType::Const:
         return parse_variable_declaration();
     case TokenType::Identifier:
-        if (m_state.current_token.original_value() == "using"sv) {
+        if (m_state.current_token().original_value() == "using"sv) {
             if (!m_state.current_scope_pusher->can_have_using_declaration())
                 syntax_error("'using' not allowed outside of block, for loop or function"_string);
 
@@ -904,7 +904,7 @@ NonnullRefPtr<Declaration const> Parser::parse_declaration()
 NonnullRefPtr<Statement const> Parser::parse_statement(AllowLabelledFunction allow_labelled_function)
 {
     auto rule_start = push_start();
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     switch (type) {
     case TokenType::CurlyOpen:
         return parse_block_statement();
@@ -944,7 +944,7 @@ NonnullRefPtr<Statement const> Parser::parse_statement(AllowLabelledFunction all
         return create_ast_node<EmptyStatement>({ m_source_code, rule_start.position(), position() });
     case TokenType::Slash:
     case TokenType::SlashEquals:
-        m_state.current_token = m_state.lexer.force_slash_as_regex();
+        m_state.lexer.force_slash_as_regex();
         [[fallthrough]];
     default:
         if (match_invalid_escaped_keyword())
@@ -961,7 +961,7 @@ NonnullRefPtr<Statement const> Parser::parse_statement(AllowLabelledFunction all
                 if (lookahead_token.type() == TokenType::Function && !lookahead_token.trivia_contains_line_terminator())
                     syntax_error("Async function declaration not allowed in single-statement context"_string);
             } else if (match(TokenType::Function) || match(TokenType::Class)) {
-                syntax_error(MUST(String::formatted("{} declaration not allowed in single-statement context", m_state.current_token.name())));
+                syntax_error(MUST(String::formatted("{} declaration not allowed in single-statement context", m_state.current_token().name())));
             } else if (match(TokenType::Let) && next_token().type() == TokenType::BracketOpen) {
                 syntax_error(MUST(String::formatted("let followed by [ is not allowed in single-statement context")));
             }
@@ -978,9 +978,9 @@ NonnullRefPtr<Statement const> Parser::parse_statement(AllowLabelledFunction all
 
 bool Parser::match_invalid_escaped_keyword() const
 {
-    if (m_state.current_token.type() != TokenType::EscapedKeyword)
+    if (m_state.current_token().type() != TokenType::EscapedKeyword)
         return false;
-    auto token_value = m_state.current_token.value();
+    auto token_value = m_state.current_token().value();
     if (token_value == "await"sv)
         return m_program_type == Program::Type::Module || m_state.await_expression_is_valid;
     if (token_value == "async"sv)
@@ -1042,7 +1042,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
     if (is_async) {
         consume(TokenType::Async);
         function_kind = FunctionKind::Async;
-        if (m_state.current_token.trivia_contains_line_terminator())
+        if (m_state.current_token().trivia_contains_line_terminator())
             return nullptr;
 
         // Since we have async it can be followed by paren open in the expect_parens case
@@ -1053,7 +1053,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
         }
     }
 
-    auto parameters = FunctionParameters::empty();
+    NonnullRefPtr<FunctionParameters const> parameters = FunctionParameters::empty();
     i32 function_length = -1;
     FunctionParsingInsights parsing_insights;
     parsing_insights.might_need_arguments_object = false;
@@ -1070,8 +1070,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
             auto previous_syntax_errors = m_state.errors.size();
             TemporaryChange in_async_context(m_state.await_expression_is_valid, is_async || m_state.await_expression_is_valid);
 
-            auto const_correct_parameters = parse_formal_parameters(function_length, FunctionNodeParseOptions::IsArrowFunction | (is_async ? FunctionNodeParseOptions::IsAsyncFunction : 0));
-            parameters = fixme_launder_const_through_pointer_cast(const_correct_parameters);
+            parameters = parse_formal_parameters(function_length, FunctionNodeParseOptions::IsArrowFunction | (is_async ? FunctionNodeParseOptions::IsAsyncFunction : 0));
             if (m_state.errors.size() > previous_syntax_errors) {
                 auto error_message = m_state.errors[previous_syntax_errors].message.bytes_as_string_view();
                 if (error_message.starts_with("Unexpected token"sv) || error_message.starts_with("Duplicate parameter names"sv)) {
@@ -1097,7 +1096,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
 
         // If there's a newline between the closing paren and arrow it's not a valid arrow function,
         // ASI should kick in instead (it'll then fail with "Unexpected token Arrow")
-        if (m_state.current_token.trivia_contains_line_terminator())
+        if (m_state.current_token().trivia_contains_line_terminator())
             return nullptr;
         if (!match(TokenType::Arrow))
             return nullptr;
@@ -1166,7 +1165,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
     }
 
     auto function_start_offset = rule_start.position().offset;
-    auto function_end_offset = position().offset - m_state.current_token.trivia().length_in_code_units();
+    auto function_end_offset = position().offset - m_state.current_token().trivia().length_in_code_units();
 
     auto source_text = m_state.lexer.source().substring_view(function_start_offset, function_end_offset - function_start_offset);
 
@@ -1190,16 +1189,16 @@ RefPtr<LabelledStatement const> Parser::try_parse_labelled_statement(AllowLabell
         load_state();
     };
 
-    if (m_state.current_token.value() == "yield"sv && (m_state.strict_mode || m_state.in_generator_function_context)) {
+    if (m_state.current_token().value() == "yield"sv && (m_state.strict_mode || m_state.in_generator_function_context)) {
         return {};
     }
 
-    if (m_state.current_token.value() == "await"sv && (m_program_type == Program::Type::Module || m_state.await_expression_is_valid || m_state.in_class_static_init_block)) {
+    if (m_state.current_token().value() == "await"sv && (m_program_type == Program::Type::Module || m_state.await_expression_is_valid || m_state.in_class_static_init_block)) {
         return {};
     }
 
     auto identifier = [&] {
-        if (m_state.current_token.value() == "await"sv) {
+        if (m_state.current_token().value() == "await"sv) {
             return consume().fly_string_value();
         }
         return consume_identifier_reference().fly_string_value();
@@ -1391,7 +1390,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
                 continue;
             }
             if (match(TokenType::BracketOpen) || match(TokenType::Period) || match(TokenType::ParenOpen)) {
-                auto precedence = g_operator_precedence.get(m_state.current_token.type());
+                auto precedence = g_operator_precedence.get(m_state.current_token().type());
                 expression = parse_secondary_expression(move(expression), precedence).expression;
                 continue;
             }
@@ -1444,7 +1443,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
         Utf16FlyString name;
         if (match_property_key() || match(TokenType::PrivateIdentifier)) {
-            if (!is_generator && !is_async && m_state.current_token.original_value() == "static"sv) {
+            if (!is_generator && !is_async && m_state.current_token().original_value() == "static"sv) {
                 if (match(TokenType::Identifier)) {
                     consume();
                     is_static = true;
@@ -1461,7 +1460,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             }
 
             if (match(TokenType::Identifier)) {
-                auto identifier_name = m_state.current_token.original_value();
+                auto identifier_name = m_state.current_token().original_value();
 
                 if (identifier_name == "get"sv) {
                     method_kind = ClassMethod::Kind::Getter;
@@ -1473,7 +1472,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             }
 
             if (match_property_key() || match(TokenType::PrivateIdentifier)) {
-                switch (m_state.current_token.type()) {
+                switch (m_state.current_token().type()) {
                 case TokenType::Identifier:
                     name = consume().fly_string_value();
                     property_key = create_ast_node<StringLiteral>({ m_source_code, rule_start.position(), position() }, name.to_utf16_string());
@@ -1698,7 +1697,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
     }
 
     auto function_start_offset = rule_start.position().offset;
-    auto function_end_offset = position().offset - m_state.current_token.trivia().length_in_code_units();
+    auto function_end_offset = position().offset - m_state.current_token().trivia().length_in_code_units();
 
     auto source_text = m_state.lexer.source().substring_view(function_start_offset, function_end_offset - function_start_offset);
 
@@ -1722,7 +1721,7 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
         return nullptr;
     };
 
-    switch (m_state.current_token.type()) {
+    switch (m_state.current_token().type()) {
     case TokenType::ParenOpen: {
         auto paren_position = position();
         consume(TokenType::ParenOpen);
@@ -1768,7 +1767,7 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
         if (auto arrow_function_result = try_arrow_function_parse_or_fail(position(), false))
             return { arrow_function_result.release_nonnull(), false };
 
-        auto string = m_state.current_token.fly_string_value();
+        auto string = m_state.current_token().fly_string_value();
         // This could be 'eval' or 'arguments' and thus needs a custom check (`eval[1] = true`)
         if (m_state.strict_mode && (string == "let"sv || is_strict_reserved_word(string)))
             syntax_error(MUST(String::formatted("Identifier must not be a reserved word in strict mode ('{}')", string)));
@@ -1850,7 +1849,7 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
         return { parse_await_expression() };
     case TokenType::PrivateIdentifier:
         if (!is_private_identifier_valid())
-            syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token.value())));
+            syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token().value())));
         if (next_token().type() != TokenType::In)
             syntax_error("Cannot have a private identifier in expression if not followed by 'in'"_string);
         return { create_ast_node<PrivateIdentifier>({ m_source_code, rule_start.position(), position() }, consume().fly_string_value()) };
@@ -1911,8 +1910,8 @@ static bool is_simple_assignment_target(Expression const& expression, bool allow
 NonnullRefPtr<Expression const> Parser::parse_unary_prefixed_expression()
 {
     auto rule_start = push_start();
-    auto precedence = g_operator_precedence.get_unary(m_state.current_token.type());
-    auto associativity = operator_associativity(m_state.current_token.type());
+    auto precedence = g_operator_precedence.get_unary(m_state.current_token().type());
+    auto associativity = operator_associativity(m_state.current_token().type());
 
     auto verify_next_token_is_not_exponentiation = [this]() {
         auto lookahead_token = next_token();
@@ -1920,7 +1919,7 @@ NonnullRefPtr<Expression const> Parser::parse_unary_prefixed_expression()
             syntax_error("Unary operator must not be used before exponentiation expression without brackets"_string);
     };
 
-    switch (m_state.current_token.type()) {
+    switch (m_state.current_token().type()) {
     case TokenType::PlusPlus: {
         consume();
         auto rhs_start = position();
@@ -2056,7 +2055,7 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
             continue;
         }
 
-        auto type = m_state.current_token.type();
+        auto type = m_state.current_token().type();
         auto function_start = position();
 
         if (match(TokenType::Async)) {
@@ -2344,14 +2343,14 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
     if (should_continue_parsing) {
         auto original_forbidden = forbidden;
         while (match_secondary_expression(forbidden)) {
-            int new_precedence = g_operator_precedence.get(m_state.current_token.type());
+            int new_precedence = g_operator_precedence.get(m_state.current_token().type());
             if (new_precedence < min_precedence)
                 break;
             if (new_precedence == min_precedence && associativity == Associativity::Left)
                 break;
             check_for_invalid_object_property(expression);
 
-            Associativity new_associativity = operator_associativity(m_state.current_token.type());
+            Associativity new_associativity = operator_associativity(m_state.current_token().type());
             auto result = parse_secondary_expression(move(expression), new_precedence, new_associativity, original_forbidden);
             expression = result.expression;
             forbidden = forbidden.merge(result.forbidden);
@@ -2391,7 +2390,7 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
 Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity associativity, ForbiddenTokens forbidden)
 {
     auto rule_start = push_start();
-    switch (m_state.current_token.type()) {
+    switch (m_state.current_token().type()) {
     case TokenType::Plus:
         consume();
         return create_ast_node<BinaryExpression>({ m_source_code, rule_start.position(), position() }, BinaryOp::Addition, move(lhs), parse_expression(min_precedence, associativity, forbidden));
@@ -2490,9 +2489,9 @@ Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expres
         consume();
         if (match(TokenType::PrivateIdentifier)) {
             if (!is_private_identifier_valid())
-                syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token.value())));
+                syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token().value())));
             else if (is<SuperExpression>(*lhs))
-                syntax_error(MUST(String::formatted("Cannot access private field or method '{}' on super", m_state.current_token.value())));
+                syntax_error(MUST(String::formatted("Cannot access private field or method '{}' on super", m_state.current_token().value())));
 
             return create_ast_node<MemberExpression>({ m_source_code, rule_start.position(), position() }, move(lhs), create_ast_node<PrivateIdentifier>({ m_source_code, rule_start.position(), position() }, consume().fly_string_value()));
         } else if (!match_identifier_name()) {
@@ -2578,7 +2577,7 @@ bool Parser::is_private_identifier_valid() const
         return false;
 
     // We might not have hit the declaration yet so class will check this in the end
-    m_state.referenced_private_names->set(m_state.current_token.fly_string_value());
+    m_state.referenced_private_names->set(m_state.current_token().fly_string_value());
     return true;
 }
 
@@ -2597,7 +2596,7 @@ RefPtr<BindingPattern const> Parser::synthesize_binding_pattern(Expression const
     auto source_end_offset = expression.source_range().end.offset;
     auto source = m_state.lexer.source().substring_view(source_start_offset, source_end_offset - source_start_offset);
 
-    Lexer lexer { Utf16String::from_utf16(source), m_state.lexer.filename(), expression.source_range().start.line, expression.source_range().start.column };
+    Lexer lexer(SourceCode::create(m_state.lexer.filename(), Utf16String::from_utf16(source)), expression.source_range().start.line, expression.source_range().start.column);
     Parser parser { lexer };
 
     parser.m_state.current_scope_pusher = m_state.current_scope_pusher;
@@ -2762,7 +2761,7 @@ NonnullRefPtr<YieldExpression const> Parser::parse_yield_expression()
     RefPtr<Expression const> argument;
     bool yield_from = false;
 
-    if (!m_state.current_token.trivia_contains_line_terminator()) {
+    if (!m_state.current_token().trivia_contains_line_terminator()) {
         if (match(TokenType::Asterisk)) {
             consume();
             yield_from = true;
@@ -2802,7 +2801,7 @@ NonnullRefPtr<ReturnStatement const> Parser::parse_return_statement()
     consume(TokenType::Return);
 
     // Automatic semicolon insertion: terminate statement when return is followed by newline
-    if (m_state.current_token.trivia_contains_line_terminator())
+    if (m_state.current_token().trivia_contains_line_terminator())
         return create_ast_node<ReturnStatement>({ m_source_code, rule_start.position(), position() }, nullptr);
 
     if (match_expression()) {
@@ -3031,7 +3030,7 @@ NonnullRefPtr<FunctionNodeType> Parser::parse_function_node(u16 parse_options, O
         check_identifier_name_for_assignment_validity(name->string(), true);
 
     auto function_start_offset = rule_start.position().offset;
-    auto function_end_offset = position().offset - m_state.current_token.trivia().length_in_code_units();
+    auto function_end_offset = position().offset - m_state.current_token().trivia().length_in_code_units();
     auto source_text = m_state.lexer.source().substring_view(function_start_offset, function_end_offset - function_start_offset);
 
     parsing_insights.might_need_arguments_object = m_state.function_might_need_arguments_object;
@@ -3138,6 +3137,10 @@ NonnullRefPtr<FunctionParameters const> Parser::parse_formal_parameters(int& fun
     // Otherwise, we need a closing parenthesis (which is consumed elsewhere). If we get neither, it's an error.
     if (!match(TokenType::Eof) && !match(TokenType::ParenClose))
         expected(Token::name(TokenType::ParenClose));
+
+    // OPTIMIZATION: If there are no parameters, return the shared empty FunctionParameters instance.
+    if (parameters.is_empty())
+        return FunctionParameters::empty();
 
     parameters.shrink_to_fit();
     return FunctionParameters::create(move(parameters));
@@ -3375,7 +3378,7 @@ NonnullRefPtr<VariableDeclaration const> Parser::parse_variable_declaration(IsFo
     auto rule_start = push_start();
     DeclarationKind declaration_kind;
 
-    switch (m_state.current_token.type()) {
+    switch (m_state.current_token().type()) {
     case TokenType::Var:
         declaration_kind = DeclarationKind::Var;
         break;
@@ -3459,9 +3462,9 @@ NonnullRefPtr<UsingDeclaration const> Parser::parse_using_declaration(IsForLoopV
 {
     //  using [no LineTerminator here] BindingList[?In, ?Yield, ?Await, +Using] ;
     auto rule_start = push_start();
-    VERIFY(m_state.current_token.original_value() == "using"sv);
+    VERIFY(m_state.current_token().original_value() == "using"sv);
     consume(TokenType::Identifier);
-    VERIFY(!m_state.current_token.trivia_contains_line_terminator());
+    VERIFY(!m_state.current_token().trivia_contains_line_terminator());
     Vector<NonnullRefPtr<VariableDeclarator const>> declarations;
 
     for (;;) {
@@ -3510,7 +3513,7 @@ NonnullRefPtr<ThrowStatement const> Parser::parse_throw_statement()
     consume(TokenType::Throw);
 
     // Automatic semicolon insertion: terminate statement when throw is followed by newline
-    if (m_state.current_token.trivia_contains_line_terminator()) {
+    if (m_state.current_token().trivia_contains_line_terminator()) {
         syntax_error("No line break is allowed between 'throw' and its expression"_string);
         return create_ast_node<ThrowStatement>({ m_source_code, rule_start.position(), position() }, create_ast_node<ErrorExpression>({ m_source_code, rule_start.position(), position() }));
     }
@@ -3528,7 +3531,7 @@ NonnullRefPtr<BreakStatement const> Parser::parse_break_statement()
     if (match(TokenType::Semicolon)) {
         consume();
     } else {
-        if (!m_state.current_token.trivia_contains_line_terminator() && match_identifier()) {
+        if (!m_state.current_token().trivia_contains_line_terminator() && match_identifier()) {
             target_label = consume().fly_string_value();
 
             auto label = m_state.labels_in_scope.find(target_label.value());
@@ -3558,7 +3561,7 @@ NonnullRefPtr<ContinueStatement const> Parser::parse_continue_statement()
         return create_ast_node<ContinueStatement>({ m_source_code, rule_start.position(), position() }, OptionalNone {});
     }
 
-    if (!m_state.current_token.trivia_contains_line_terminator() && match_identifier()) {
+    if (!m_state.current_token().trivia_contains_line_terminator() && match_identifier()) {
         auto label_position = position();
         target_label = consume().fly_string_value();
 
@@ -3591,7 +3594,7 @@ NonnullRefPtr<OptionalChain const> Parser::parse_optional_chain(NonnullRefPtr<Ex
     do {
         if (match(TokenType::QuestionMarkPeriod)) {
             consume(TokenType::QuestionMarkPeriod);
-            switch (m_state.current_token.type()) {
+            switch (m_state.current_token().type()) {
             case TokenType::ParenOpen:
                 chain.append(OptionalChain::Call { parse_arguments(), OptionalChain::Mode::Optional });
                 break;
@@ -3602,7 +3605,7 @@ NonnullRefPtr<OptionalChain const> Parser::parse_optional_chain(NonnullRefPtr<Ex
                 break;
             case TokenType::PrivateIdentifier: {
                 if (!is_private_identifier_valid())
-                    syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token.value())));
+                    syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token().value())));
 
                 auto start = position();
                 auto private_identifier = consume();
@@ -3638,7 +3641,7 @@ NonnullRefPtr<OptionalChain const> Parser::parse_optional_chain(NonnullRefPtr<Ex
             consume();
             if (match(TokenType::PrivateIdentifier)) {
                 if (!is_private_identifier_valid())
-                    syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token.value())));
+                    syntax_error(MUST(String::formatted("Reference to undeclared private field or method '{}'", m_state.current_token().value())));
 
                 auto start = position();
                 auto private_identifier = consume();
@@ -3947,7 +3950,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_statement()
     };
 
     auto match_for_in_of = [&]() {
-        bool is_of = match_of(m_state.current_token);
+        bool is_of = match_of(m_state.current_token());
         if (is_await_loop == IsForAwaitLoop::Yes) {
             if (!is_of)
                 syntax_error("for await loop is only valid with 'of'"_string);
@@ -3976,7 +3979,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_statement()
     if (!match(TokenType::Semicolon)) {
 
         auto match_for_using_declaration = [&] {
-            if (!match(TokenType::Identifier) || m_state.current_token.original_value() != "using"sv)
+            if (!match(TokenType::Identifier) || m_state.current_token().original_value() != "using"sv)
                 return false;
 
             auto lookahead = next_token();
@@ -3992,7 +3995,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_statement()
         if (match_for_using_declaration()) {
             auto declaration = parse_using_declaration(IsForLoopVariableDeclaration::Yes);
 
-            if (match_of(m_state.current_token)) {
+            if (match_of(m_state.current_token())) {
                 if (declaration->declarations().size() != 1)
                     syntax_error("Must have exactly one declaration in for using of"_string);
                 else if (declaration->declarations().first()->init())
@@ -4031,7 +4034,7 @@ NonnullRefPtr<Statement const> Parser::parse_for_statement()
             init = parse_expression(0, Associativity::Right, { TokenType::In });
             if (match_for_in_of()) {
                 if (is_await_loop != IsForAwaitLoop::Yes
-                    && starts_with_async_of && match_of(m_state.current_token))
+                    && starts_with_async_of && match_of(m_state.current_token()))
                     syntax_error("for-of loop may not start with async of"_string);
                 return parse_for_in_of_statement(*init, is_await_loop);
             }
@@ -4130,12 +4133,12 @@ NonnullRefPtr<DebuggerStatement const> Parser::parse_debugger_statement()
 
 bool Parser::match(TokenType type) const
 {
-    return m_state.current_token.type() == type;
+    return m_state.current_token().type() == type;
 }
 
 bool Parser::match_expression() const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     if (type == TokenType::Import) {
         auto lookahead_token = next_token();
         return lookahead_token.type() == TokenType::Period || lookahead_token.type() == TokenType::ParenOpen;
@@ -4168,7 +4171,7 @@ bool Parser::match_expression() const
 
 bool Parser::match_unary_prefixed_expression() const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     return type == TokenType::PlusPlus
         || type == TokenType::MinusMinus
         || type == TokenType::ExclamationMark
@@ -4182,7 +4185,7 @@ bool Parser::match_unary_prefixed_expression() const
 
 bool Parser::match_secondary_expression(ForbiddenTokens forbidden) const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     if (!forbidden.allows(type))
         return false;
     return type == TokenType::Plus
@@ -4209,8 +4212,8 @@ bool Parser::match_secondary_expression(ForbiddenTokens forbidden) const
         || type == TokenType::ParenOpen
         || type == TokenType::Period
         || type == TokenType::BracketOpen
-        || (type == TokenType::PlusPlus && !m_state.current_token.trivia_contains_line_terminator())
-        || (type == TokenType::MinusMinus && !m_state.current_token.trivia_contains_line_terminator())
+        || (type == TokenType::PlusPlus && !m_state.current_token().trivia_contains_line_terminator())
+        || (type == TokenType::MinusMinus && !m_state.current_token().trivia_contains_line_terminator())
         || type == TokenType::In
         || type == TokenType::Instanceof
         || type == TokenType::QuestionMark
@@ -4237,7 +4240,7 @@ bool Parser::match_secondary_expression(ForbiddenTokens forbidden) const
 
 bool Parser::match_statement() const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     return match_expression()
         || type == TokenType::Return
         || type == TokenType::Yield
@@ -4259,14 +4262,14 @@ bool Parser::match_statement() const
 
 bool Parser::match_export_or_import() const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     return type == TokenType::Export
         || type == TokenType::Import;
 }
 
 bool Parser::match_declaration(AllowUsingDeclaration allow_using) const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
 
     if (type == TokenType::Let && !m_state.strict_mode) {
         return try_match_let_declaration();
@@ -4277,7 +4280,7 @@ bool Parser::match_declaration(AllowUsingDeclaration allow_using) const
         return lookahead_token.type() == TokenType::Function && !lookahead_token.trivia_contains_line_terminator();
     }
 
-    if (allow_using == AllowUsingDeclaration::Yes && type == TokenType::Identifier && m_state.current_token.original_value() == "using"sv)
+    if (allow_using == AllowUsingDeclaration::Yes && type == TokenType::Identifier && m_state.current_token().original_value() == "using"sv)
         return try_match_using_declaration();
 
     return type == TokenType::Function
@@ -4288,15 +4291,13 @@ bool Parser::match_declaration(AllowUsingDeclaration allow_using) const
 
 Token Parser::next_token() const
 {
-    // We need to keep the lookahead lexer alive to prevent UAF on the lookahead token, as the token may hold a view
-    // into a short string stored on the stack.
-    m_state.lookahead_lexer = m_state.lexer;
-    return m_state.lookahead_lexer->next();
+    auto lookahead_lexer = m_state.lexer;
+    return lookahead_lexer.next();
 }
 
 bool Parser::try_match_let_declaration() const
 {
-    VERIFY(m_state.current_token.type() == TokenType::Let);
+    VERIFY(m_state.current_token().type() == TokenType::Let);
     auto token_after = next_token();
 
     if (token_after.is_identifier_name() && token_after.value() != "in"sv)
@@ -4310,8 +4311,8 @@ bool Parser::try_match_let_declaration() const
 
 bool Parser::try_match_using_declaration() const
 {
-    VERIFY(m_state.current_token.type() == TokenType::Identifier);
-    VERIFY(m_state.current_token.original_value() == "using"sv);
+    VERIFY(m_state.current_token().type() == TokenType::Identifier);
+    VERIFY(m_state.current_token().original_value() == "using"sv);
 
     auto token_after = next_token();
     if (token_after.trivia_contains_line_terminator())
@@ -4322,7 +4323,7 @@ bool Parser::try_match_using_declaration() const
 
 bool Parser::match_variable_declaration() const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
 
     if (type == TokenType::Let && !m_state.strict_mode) {
         return try_match_let_declaration();
@@ -4335,7 +4336,7 @@ bool Parser::match_variable_declaration() const
 
 bool Parser::match_identifier() const
 {
-    return token_is_identifier(m_state.current_token);
+    return token_is_identifier(m_state.current_token());
 }
 
 bool Parser::token_is_identifier(Token const& token) const
@@ -4359,12 +4360,12 @@ bool Parser::token_is_identifier(Token const& token) const
 
 bool Parser::match_identifier_name() const
 {
-    return m_state.current_token.is_identifier_name();
+    return m_state.current_token().is_identifier_name();
 }
 
 bool Parser::match_property_key() const
 {
-    auto type = m_state.current_token.type();
+    auto type = m_state.current_token().type();
     return match_identifier_name()
         || type == TokenType::BracketOpen
         || type == TokenType::StringLiteral
@@ -4379,12 +4380,12 @@ bool Parser::done() const
 
 Token Parser::consume()
 {
-    auto old_token = m_state.current_token;
-    m_state.current_token = m_state.lexer.next();
+    auto old_token = m_state.current_token();
+    m_state.lexer.next();
 
     // If an IdentifierName is not parsed as an Identifier a slash after it should not be a division
-    if (old_token.is_identifier_name() && (m_state.current_token.type() == TokenType::Slash || m_state.current_token.type() == TokenType::SlashEquals)) {
-        m_state.current_token = m_state.lexer.force_slash_as_regex();
+    if (old_token.is_identifier_name() && (m_state.current_token().type() == TokenType::Slash || m_state.current_token().type() == TokenType::SlashEquals)) {
+        m_state.lexer.force_slash_as_regex();
     }
     m_state.previous_token_was_period = old_token.type() == TokenType::Period;
     return old_token;
@@ -4392,8 +4393,8 @@ Token Parser::consume()
 
 Token Parser::consume_and_allow_division()
 {
-    auto old_token = m_state.current_token;
-    m_state.current_token = m_state.lexer.next();
+    auto old_token = m_state.current_token();
+    m_state.lexer.next();
 
     // NOTE: This is the bare minimum needed to decide whether we might need an `arguments` object
     //       in a function expression or declaration. ("Might" because ESFO implements some further
@@ -4417,7 +4418,7 @@ void Parser::consume_or_insert_semicolon()
     }
     // Insert semicolon if...
     // ...token is preceded by one or more newlines
-    if (m_state.current_token.trivia_contains_line_terminator())
+    if (m_state.current_token().trivia_contains_line_terminator())
         return;
     // ...token is a closing curly brace
     if (match(TokenType::CurlyClose))
@@ -4473,7 +4474,7 @@ Token Parser::consume_identifier_reference()
         return consume(TokenType::Identifier);
 
     if (match(TokenType::EscapedKeyword)) {
-        auto name = m_state.current_token.value();
+        auto name = m_state.current_token().value();
         if (m_state.strict_mode && (name == "let"sv || name == "yield"sv))
             syntax_error(MUST(String::formatted("'{}' is not allowed as an identifier in strict mode", name)));
         if (m_program_type == Program::Type::Module && name == "await"sv)
@@ -4530,25 +4531,25 @@ Token Parser::consume_and_validate_numeric_literal()
     auto token = consume(TokenType::NumericLiteral);
     if (m_state.strict_mode && is_unprefixed_octal_number(token.value()))
         syntax_error("Unprefixed octal number not allowed in strict mode"_string, literal_start);
-    if (match_identifier_name() && m_state.current_token.trivia().is_empty())
+    if (match_identifier_name() && m_state.current_token().trivia().is_empty())
         syntax_error("Numeric literal must not be immediately followed by identifier"_string);
     return token;
 }
 
 void Parser::expected(char const* what)
 {
-    auto message = MUST(String::from_utf8(m_state.current_token.message()));
+    auto message = m_state.current_token().message();
     if (message.is_empty())
-        message = MUST(String::formatted("Unexpected token {}. Expected {}", m_state.current_token.name(), what));
+        message = MUST(String::formatted("Unexpected token {}. Expected {}", m_state.current_token().name(), what));
     syntax_error(message);
 }
 
 Position Parser::position() const
 {
     return {
-        m_state.current_token.line_number(),
-        m_state.current_token.line_column(),
-        m_state.current_token.offset(),
+        m_state.current_token().line_number(),
+        m_state.current_token().line_column(),
+        m_state.current_token().offset(),
     };
 }
 
@@ -4641,7 +4642,7 @@ ModuleRequest Parser::parse_module_request()
     while (!done() && !match(TokenType::CurlyClose)) {
         Utf16String key;
         if (match(TokenType::StringLiteral)) {
-            key = parse_string_literal(m_state.current_token)->value();
+            key = parse_string_literal(m_state.current_token())->value();
             consume();
         } else if (match_identifier_name()) {
             key = consume().fly_string_value().to_utf16_string();
@@ -4657,7 +4658,7 @@ ModuleRequest Parser::parse_module_request()
                 if (entries.key == key)
                     syntax_error(MUST(String::formatted("Duplicate attribute clauses with name: {}", key)));
             }
-            request.add_attribute(move(key), parse_string_literal(m_state.current_token)->value());
+            request.add_attribute(move(key), parse_string_literal(m_state.current_token())->value());
         }
         consume(TokenType::StringLiteral);
 
@@ -4698,7 +4699,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
     };
 
     auto match_as = [&] {
-        return match(TokenType::Identifier) && m_state.current_token.original_value() == "as"sv;
+        return match(TokenType::Identifier) && m_state.current_token().original_value() == "as"sv;
     };
 
     bool continue_parsing = true;
@@ -4738,7 +4739,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
         consume(TokenType::Asterisk);
 
         if (!match_as())
-            syntax_error(MUST(String::formatted("Unexpected token: {}", m_state.current_token.name())));
+            syntax_error(MUST(String::formatted("Unexpected token: {}", m_state.current_token().name())));
 
         consume(TokenType::Identifier);
 
@@ -4747,7 +4748,7 @@ NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& pro
             auto namespace_name = consume().fly_string_value();
             entries_with_location.append({ ImportEntry({}, move(namespace_name)), namespace_position });
         } else {
-            syntax_error(MUST(String::formatted("Unexpected token: {}", m_state.current_token.name())));
+            syntax_error(MUST(String::formatted("Unexpected token: {}", m_state.current_token().name())));
         }
 
     } else if (match(TokenType::CurlyOpen)) {
@@ -4850,15 +4851,15 @@ NonnullRefPtr<ExportStatement const> Parser::parse_export_statement(Program& pro
         syntax_error("Cannot use export statement outside a module"_string);
 
     auto match_as = [&] {
-        return match(TokenType::Identifier) && m_state.current_token.original_value() == "as"sv;
+        return match(TokenType::Identifier) && m_state.current_token().original_value() == "as"sv;
     };
 
     auto match_from = [&] {
-        return match(TokenType::Identifier) && m_state.current_token.original_value() == "from"sv;
+        return match(TokenType::Identifier) && m_state.current_token().original_value() == "from"sv;
     };
 
     auto match_default = [&] {
-        return match(TokenType::Default) && m_state.current_token.original_value() == "default"sv;
+        return match(TokenType::Default) && m_state.current_token().original_value() == "default"sv;
     };
 
     consume(TokenType::Export);
@@ -4911,7 +4912,7 @@ NonnullRefPtr<ExportStatement const> Parser::parse_export_statement(Program& pro
             // Hack part 1.
             // Match a function declaration with a name, since we have async and generator
             // and asyncgenerator variants this is quite complicated.
-            auto current_type = m_state.current_token.type();
+            auto current_type = m_state.current_token().type();
             Lexer lookahead_lexer = m_state.lexer;
             lookahead_lexer.next();
 
@@ -5230,7 +5231,7 @@ Parser Parser::parse_function_body_from_string(ByteString const& body_string, u1
 {
     RefPtr<FunctionBody const> function_body;
 
-    auto body_parser = Parser { Lexer { body_string } };
+    auto body_parser = Parser(Lexer(SourceCode::create({}, Utf16String::from_utf8(body_string))));
     {
         // Set up some parser state to accept things like return await, and yield in the plain function body.
         body_parser.m_state.in_function_context = true;

@@ -183,7 +183,7 @@ static ErrorOr<void> write_to_file(String const& path)
     return {};
 }
 
-static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringView source_name)
+static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringView source_name, bool parse_only = false)
 {
     auto& vm = realm.vm();
 
@@ -210,7 +210,8 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             outln("{}", error_string);
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
-            run_script_or_module(script_or_error.value());
+            if (!parse_only)
+                run_script_or_module(script_or_error.value());
         }
     } else {
         auto module_or_error = JS::SourceTextModule::parse(source, realm, source_name);
@@ -226,7 +227,8 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             outln("{}", error_string);
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
-            run_script_or_module(module_or_error.value());
+            if (!parse_only)
+                run_script_or_module(module_or_error.value());
         }
     }
 
@@ -511,7 +513,7 @@ static ErrorOr<String> read_next_piece()
 
         piece.append(line);
         piece.append('\n');
-        auto lexer = JS::Lexer(line);
+        auto lexer = JS::Lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
 
         enum {
             NotInLabelOrObjectKey,
@@ -620,7 +622,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
         size_t open_indents = s_repl_line_level;
 
         auto line = editor.line();
-        JS::Lexer lexer(line);
+        JS::Lexer lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
         bool indenters_starting_line = true;
         for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
             auto length = token.value().length_in_code_units();
@@ -676,7 +678,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
     auto complete = [&realm, &global_environment](Line::Editor const& editor) -> Vector<Line::CompletionSuggestion> {
         auto line = editor.line(editor.cursor());
 
-        JS::Lexer lexer { line };
+        JS::Lexer lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
         enum {
             Initial,
             CompleteVariable,
@@ -816,11 +818,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_syntax_highlight = false;
     bool disable_debug_printing = false;
     bool use_test262_global = false;
+    bool parse_only = false;
     StringView evaluate_script;
     Vector<StringView> script_paths;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("This is a JavaScript interpreter.");
+    args_parser.add_option(parse_only, "Parse only", "parse-only", 'p');
     args_parser.add_option(s_dump_ast, "Dump the AST", "dump-ast", 'A');
     args_parser.add_option(JS::Bytecode::g_dump_bytecode, "Dump the bytecode", "dump-bytecode", 'd');
     args_parser.add_option(s_as_module, "Treat as module", "as-module", 'm');
@@ -917,7 +921,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         // We resolve modules as if it is the first file
 
-        if (!TRY(parse_and_run(realm, builder.string_view(), source_name)))
+        if (!TRY(parse_and_run(realm, builder.string_view(), source_name, parse_only)))
             return 1;
     }
 

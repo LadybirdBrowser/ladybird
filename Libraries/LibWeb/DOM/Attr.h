@@ -31,7 +31,6 @@ public:
     Optional<FlyString> const& prefix() const { return m_qualified_name.prefix(); }
     FlyString const& local_name() const { return m_qualified_name.local_name(); }
     FlyString const& name() const { return m_qualified_name.as_string(); }
-    FlyString const& lowercase_name() const { return m_lowercase_name; }
 
     String const& value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(String value);
@@ -53,7 +52,6 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     QualifiedName m_qualified_name;
-    FlyString m_lowercase_name;
     String m_value;
     GC::Ptr<Element> m_owner_element;
 };

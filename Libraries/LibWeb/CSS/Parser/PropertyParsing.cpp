@@ -4691,7 +4691,7 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_line_value(TokenStream<Co
         if (auto maybe_line = keyword_to_text_decoration_line(value->to_keyword()); maybe_line.has_value()) {
             if (maybe_line == TextDecorationLine::None) {
                 if (!style_values.is_empty())
-                    break;
+                    return nullptr;
                 return value;
             }
             if (first_is_one_of(*maybe_line, TextDecorationLine::SpellingError, TextDecorationLine::GrammarError)) {
@@ -4703,7 +4703,7 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_line_value(TokenStream<Co
             continue;
         }
 
-        break;
+        VERIFY_NOT_REACHED();
     }
 
     if (style_values.is_empty())
@@ -4712,9 +4712,6 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_line_value(TokenStream<Co
     // These can only appear on their own.
     if (style_values.size() > 1 && includes_spelling_or_grammar_error_value)
         return nullptr;
-
-    if (style_values.size() == 1)
-        return *style_values.first();
 
     quick_sort(style_values, [](auto& left, auto& right) {
         return *keyword_to_text_decoration_line(left->to_keyword()) < *keyword_to_text_decoration_line(right->to_keyword());
@@ -5719,7 +5716,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
 // https://www.w3.org/TR/css-grid-2/#track-sizing
 RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens)
 {
-    // none | <track-list> | <auto-track-list> | FIXME subgrid <line-name-list>?
+    // none | <track-list> | <auto-track-list> | FIXME: subgrid <line-name-list>?
 
     // none
     {

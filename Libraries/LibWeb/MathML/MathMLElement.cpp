@@ -91,17 +91,17 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             // The mathcolor and mathbackground attributes, if present, must have a value that is a <color>. In that case,
             // the user agent is expected to treat these attributes as a presentational hint setting the element's color
             // and background-color properties to the corresponding values.
-            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::Color))
+            if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::Color))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, parsed_value.release_nonnull());
         } else if (name == AttributeNames::mathbackground) {
-            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::BackgroundColor))
+            if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::Color))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, parsed_value.release_nonnull());
         } else if (name == AttributeNames::mathsize) {
             // https://w3c.github.io/mathml-core/#dfn-mathsize
             // The mathsize attribute, if present, must have a value that is a valid <length-percentage>.
             // In that case, the user agent is expected to treat the attribute as a presentational hint setting the
             // element's font-size property to the corresponding value.
-            if (auto parsed_value = HTML::parse_dimension_value(value))
+            if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::LengthPercentage))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::FontSize, parsed_value.release_nonnull());
         } else if (name == AttributeNames::displaystyle) {
             // https://w3c.github.io/mathml-core/#dfn-displaystyle
@@ -121,9 +121,9 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             // are respectively mapped to add(<U>) add(<-U>) and <U>.
             if (Optional<StringView> parsed_value = HTML::parse_integer_digits(value); parsed_value.has_value()) {
                 auto string_value = parsed_value.value();
-                if (auto value = parsed_value->to_number<i32>(TrimWhitespace::No); value.has_value()) {
-                    auto style_value = string_value[0] == '+' || string_value[0] == '-' ? CSS::MathDepthStyleValue::create_add(CSS::IntegerStyleValue::create(value.release_value()))
-                                                                                        : CSS::MathDepthStyleValue::create_integer(CSS::IntegerStyleValue::create(value.release_value()));
+                if (auto integer_value = parsed_value->to_number<i32>(TrimWhitespace::No); integer_value.has_value()) {
+                    auto style_value = string_value[0] == '+' || string_value[0] == '-' ? CSS::MathDepthStyleValue::create_add(CSS::IntegerStyleValue::create(integer_value.release_value()))
+                                                                                        : CSS::MathDepthStyleValue::create_integer(CSS::IntegerStyleValue::create(integer_value.release_value()));
                     cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MathDepth, style_value);
                 }
             }

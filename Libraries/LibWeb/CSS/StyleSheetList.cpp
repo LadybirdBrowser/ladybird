@@ -116,8 +116,15 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
         return;
     }
 
-    document().style_computer().invalidate_rule_cache();
-    document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListAddSheet);
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root())) {
+        if (auto* host = shadow_root->host()) {
+            host->invalidate_style(DOM::StyleInvalidationReason::StyleSheetListAddSheet);
+        }
+        shadow_root->style_scope().invalidate_rule_cache();
+    } else {
+        document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListAddSheet);
+        document_or_shadow_root().document().style_scope().invalidate_rule_cache();
+    }
 }
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
@@ -131,8 +138,15 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
         return;
     }
 
-    m_document_or_shadow_root->document().style_computer().invalidate_rule_cache();
-    document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root())) {
+        if (auto* host = shadow_root->host()) {
+            host->invalidate_style(DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
+        }
+        shadow_root->style_scope().invalidate_rule_cache();
+    } else {
+        document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
+        document_or_shadow_root().document().style_scope().invalidate_rule_cache();
+    }
 }
 
 GC::Ref<StyleSheetList> StyleSheetList::create(GC::Ref<DOM::Node> document_or_shadow_root)

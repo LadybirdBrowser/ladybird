@@ -12,7 +12,7 @@
 namespace Crypto {
 
 class BigFraction {
-    // FIXME Make the whole API more error-friendly. This includes:
+    // FIXME: Make the whole API more error-friendly. This includes:
     //   - Propagating errors from BigIntegers
     //   - Returns errors from BigFraction(numerator, denominator);
     //   - Duplicate fallible operators with a error-friendly version

@@ -150,6 +150,15 @@ select:focus {
     outline: none;
 }
 
+input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+
+    accent-color: var(--violet-100);
+
+    outline: none;
+}
+
 input[type="checkbox"][switch] {
     width: 50px;
     height: 24px;

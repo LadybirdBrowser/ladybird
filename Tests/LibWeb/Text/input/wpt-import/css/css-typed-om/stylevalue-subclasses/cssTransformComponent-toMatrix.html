@@ -66,14 +66,15 @@ test(() => {
 }, 'CSSSkewY.toMatrix() returns correct matrix');
 
 test(() => {
-  const length = 10;
-  const component = new CSSPerspective(new CSSUnitValue(length, 'px'));
-  const expectedMatrix = new DOMMatrixReadOnly(
-        [1, 0, 0, 0,
-         0, 1, 0, 0,
-         0, 0, 1, -1/length,
-         0, 0, 0, 1]);
-  assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+  for (const length of [10, 1, 0.5, 0, -10]) {
+    const component = new CSSPerspective(new CSSUnitValue(length, 'px'));
+    const expectedMatrix = new DOMMatrixReadOnly(
+          [1, 0, 0, 0,
+           0, 1, 0, 0,
+           0, 0, 1, -1/Math.max(1, length),
+           0, 0, 0, 1]);
+    assert_matrix_approx_equals(component.toMatrix(), expectedMatrix, gEpsilon);
+  }
 }, 'CSSPerspective.toMatrix() returns correct matrix');
 
 test(() => {

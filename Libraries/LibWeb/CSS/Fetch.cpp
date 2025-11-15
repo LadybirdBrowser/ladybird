@@ -15,7 +15,7 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_style_resource_impl(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode)
+static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode)
 {
     // AD-HOC: Not every caller has a CSSStyleSheet, so allow passing a Document in instead for URL completion.
     //         Spec issue: https://github.com/w3c/csswg-drafts/issues/12065
@@ -40,9 +40,15 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
         [](::URL::URL const& url) { return url.to_string(); },
         [](CSS::URL const& url) { return url.url(); });
 
+    // https://drafts.csswg.org/css-values-4/#url-empty
+    // If the value of the <url> is the empty string (like url("") or url()), the url must resolve to an invalid
+    // resource (similar to what the url about:invalid does).
+    if (url_string.is_empty())
+        return {};
+
     auto parsed_url = DOMURL::parse(url_string, base);
     if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::URIError, "Failed to parse URL"sv };
+        return {};
 
     // 4. Let req be a new request whose url is parsedUrl, whose destination is destination, mode is corsMode,
     //    origin is environmentSettings’s origin, credentials mode is "same-origin", use-url-credentials flag is set,
@@ -91,9 +97,12 @@ static WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::Request>> fetch_a_styl
 }
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-WebIDL::ExceptionOr<GC::Ref<Fetch::Infrastructure::FetchController>> fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
+GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleResourceURL const& url_value, StyleSheetOrDocument sheet_or_document, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_response)
 {
-    auto request = TRY(fetch_a_style_resource_impl(url_value, sheet_or_document, destination, cors_mode));
+    auto request = fetch_a_style_resource_impl(url_value, sheet_or_document, destination, cors_mode);
+    if (!request)
+        return {};
+
     auto& environment_settings = HTML::relevant_settings_object(sheet_or_document.visit([](auto& it) -> JS::Object& { return it; }));
     auto& vm = environment_settings.vm();
 
@@ -114,10 +123,9 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
     // NB: We can't directly call fetch_a_style_resource() because we want to make use of SharedResourceRequest to
     //     deduplicate image requests.
 
-    auto maybe_request = fetch_a_style_resource_impl(url_value, sheet_or_document, Fetch::Infrastructure::Request::Destination::Image, CorsMode::NoCors);
-    if (maybe_request.is_error())
-        return nullptr;
-    auto& request = maybe_request.value();
+    auto request = fetch_a_style_resource_impl(url_value, sheet_or_document, Fetch::Infrastructure::Request::Destination::Image, CorsMode::NoCors);
+    if (!request)
+        return {};
 
     auto document = sheet_or_document.visit(
         [&](GC::Ref<CSSStyleSheet> const& sheet) -> GC::Ref<DOM::Document> { return *sheet->owning_document(); },

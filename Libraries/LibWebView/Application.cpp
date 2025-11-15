@@ -133,7 +133,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
-        .help_string = "Run Ladybird without a browser window. Mode may be 'screenshot' (default), 'layout-tree', or 'text'.",
+        .help_string = "Run Ladybird without a browser window. Mode may be 'screenshot' (default), 'layout-tree', 'text', or 'manual'.",
         .long_name = "headless",
         .value_name = "mode",
         .accept_value = [&](StringView value) {
@@ -146,6 +146,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
                 headless_mode = HeadlessMode::LayoutTree;
             else if (value.equals_ignoring_ascii_case("text"sv))
                 headless_mode = HeadlessMode::Text;
+            else if (value.equals_ignoring_ascii_case("manual"sv))
+                headless_mode = HeadlessMode::Manual;
 
             return headless_mode.has_value();
         },
@@ -512,6 +514,15 @@ static void load_page_for_info_and_exit(Core::EventLoop& event_loop, HeadlessWeb
     view.load(url);
 }
 
+static void load_page_and_exit_on_close(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url)
+{
+    view.on_close = [&event_loop]() {
+        event_loop.quit(0);
+    };
+
+    view.load(url);
+}
+
 ErrorOr<int> Application::execute()
 {
     OwnPtr<HeadlessWebView> view;
@@ -536,6 +547,9 @@ ErrorOr<int> Application::execute()
                 break;
             case HeadlessMode::Text:
                 load_page_for_info_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), WebView::PageInfoType::Text);
+                break;
+            case HeadlessMode::Manual:
+                load_page_and_exit_on_close(*m_event_loop, *view, m_browser_options.urls.first());
                 break;
             case HeadlessMode::Test:
                 VERIFY_NOT_REACHED();
@@ -659,6 +673,52 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
 void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
 {
     m_clipboard = move(entry);
+}
+
+NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estimate_browsing_data_size_accessed_since(UnixDateTime since)
+{
+    auto promise = Core::Promise<BrowsingDataSizes>::construct();
+
+    m_request_server_client->estimate_cache_size_accessed_since(since)
+        ->when_resolved([this, promise, since](Requests::CacheSizes cache_sizes) {
+            auto cookie_sizes = m_cookie_jar->estimate_storage_size_accessed_since(since);
+            auto storage_sizes = m_storage_jar->estimate_storage_size_accessed_since(since);
+
+            BrowsingDataSizes sizes;
+
+            sizes.cache_size_since_requested_time = cache_sizes.since_requested_time;
+            sizes.total_cache_size = cache_sizes.total;
+
+            sizes.site_data_size_since_requested_time = cookie_sizes.since_requested_time + storage_sizes.since_requested_time;
+            sizes.total_site_data_size = cookie_sizes.total + storage_sizes.total;
+
+            promise->resolve(sizes);
+        })
+        .when_rejected([promise](Error& error) {
+            promise->reject(move(error));
+        });
+
+    return promise;
+}
+
+void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
+{
+    if (options.delete_cached_files == ClearBrowsingDataOptions::Delete::Yes) {
+        m_request_server_client->async_remove_cache_entries_accessed_since(options.since);
+
+        // FIXME: Maybe we should forward the "since" parameter to the WebContent process, but the in-memory cache is
+        //        transient anyways, so just assuming they were all accessed in the last hour is fine for now.
+        ViewImplementation::for_each_view([](ViewImplementation& view) {
+            // FIXME: This should be promoted from a debug request to a proper endpoint.
+            view.debug_request("clear-cache"sv);
+            return IterationDecision::Continue;
+        });
+    }
+
+    if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
+        m_cookie_jar->expire_cookies_accessed_since(options.since);
+        m_storage_jar->remove_items_accessed_since(options.since);
+    }
 }
 
 void Application::initialize_actions()
@@ -830,11 +890,6 @@ void Application::initialize_actions()
     m_debug_menu->add_separator();
 
     m_debug_menu->add_action(Action::create("Collect Garbage"sv, ActionID::CollectGarbage, debug_request("collect-garbage"sv)));
-    m_debug_menu->add_action(Action::create("Clear Cache"sv, ActionID::ClearCache, [this, clear_memory_cache = debug_request("clear-cache")]() {
-        m_request_server_client->async_clear_cache();
-        clear_memory_cache();
-    }));
-    m_debug_menu->add_action(Action::create("Clear All Cookies"sv, ActionID::ClearCookies, [this]() { m_cookie_jar->clear_all_cookies(); }));
     m_debug_menu->add_separator();
 
     auto spoof_user_agent_menu = Menu::create_group("Spoof User Agent"sv);

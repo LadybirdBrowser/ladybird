@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test: transform: perspective(0)</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org">
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="author" title="Psychpsyo" href="mailto:psychpsyo@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#funcdef-perspective">
+<meta name="assert" content="perspective(0.5px) should be clamped to 1px">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/green.html">
+<style>
+#cover-me {
+  width: 100px;
+  height: 100px;
+  background: red;
+  position: relative;
+  margin-bottom: -100px;
+}
+#test {
+  background: green;
+  transform-origin: top left;
+  width: 50px;
+  height: 50px;
+  /* perspective(0.5px) should be treated as perspective(1px), which should
+   * cause this box to be much larger. */
+  transform: perspective(0.5px) translateZ(0.5px);
+}
+</style>
+<p>Pass if there is NO red below:</p>
+<div id="cover-me"></div><div id="test"></div>

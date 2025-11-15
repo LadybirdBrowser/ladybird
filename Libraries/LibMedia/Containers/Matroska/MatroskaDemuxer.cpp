@@ -192,6 +192,8 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
     }
 
     track_status.iterator = move(seeked_iterator);
+    track_status.block = {};
+    track_status.frame_index = 0;
     return DemuxerSeekResult::MovedPosition;
 }
 

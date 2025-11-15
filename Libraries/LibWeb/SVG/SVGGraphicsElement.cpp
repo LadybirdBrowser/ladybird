@@ -225,7 +225,7 @@ Optional<CSS::StrokeLinejoin> SVGGraphicsElement::stroke_linejoin() const
     return layout_node()->computed_values().stroke_linejoin();
 }
 
-Optional<CSS::NumberOrCalculated> SVGGraphicsElement::stroke_miterlimit() const
+Optional<double> SVGGraphicsElement::stroke_miterlimit() const
 {
     if (!layout_node())
         return {};
@@ -347,8 +347,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
 GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
 {
     dbgln("(STUBBED) SVGGraphicsElement::transform(). Called on: {}", debug_description());
-    auto base_val = SVGTransformList::create(realm());
-    auto anim_val = SVGTransformList::create(realm());
+    auto base_val = SVGTransformList::create(realm(), ReadOnlyList::Yes);
+    auto anim_val = SVGTransformList::create(realm(), ReadOnlyList::Yes);
     return SVGAnimatedTransformList::create(realm(), base_val, anim_val);
 }
 

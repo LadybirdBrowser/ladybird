@@ -117,7 +117,7 @@ public:
         struct Name {
             Name(FlyString n)
                 : name(move(n))
-                , lowercase_name(name.to_string().to_lowercase().release_value_but_fixme_should_propagate_errors())
+                , lowercase_name(name.to_ascii_lowercase())
             {
             }
 

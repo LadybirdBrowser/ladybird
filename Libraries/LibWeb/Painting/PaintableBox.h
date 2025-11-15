@@ -201,6 +201,9 @@ public:
     void set_transform(Gfx::FloatMatrix4x4 transform) { m_transform = transform; }
     Gfx::FloatMatrix4x4 const& transform() const { return m_transform; }
 
+    void set_perspective_matrix(Gfx::FloatMatrix4x4 perspective_matrix) { m_perspective_matrix = perspective_matrix; }
+    Gfx::FloatMatrix4x4 const& perspective_matrix() const { return m_perspective_matrix; }
+
     void set_transform_origin(CSSPixelPoint transform_origin) { m_transform_origin = transform_origin; }
     CSSPixelPoint const& transform_origin() const { return m_transform_origin; }
 
@@ -261,7 +264,7 @@ public:
     [[nodiscard]] RefPtr<ClipFrame const> enclosing_clip_frame() const { return m_enclosing_clip_frame; }
     [[nodiscard]] RefPtr<ClipFrame const> own_clip_frame() const { return m_own_clip_frame; }
 
-    Optional<Gfx::Filter> resolve_filter(CSS::Filter const& computed_filter) const;
+    Optional<Gfx::Filter> resolve_filter(DisplayListRecordingContext&, CSS::Filter const& computed_filter) const;
 
 protected:
     explicit PaintableBox(Layout::Box const&);
@@ -328,6 +331,7 @@ private:
     BorderRadiiData m_border_radii_data;
     Vector<ShadowData> m_box_shadow_data;
     Gfx::FloatMatrix4x4 m_transform { Gfx::FloatMatrix4x4::identity() };
+    Gfx::FloatMatrix4x4 m_perspective_matrix { Gfx::FloatMatrix4x4::identity() };
     CSSPixelPoint m_transform_origin;
 
     Optional<BordersData> m_outline_data;

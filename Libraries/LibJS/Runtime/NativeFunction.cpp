@@ -16,18 +16,11 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(NativeFunction);
 
-void NativeFunction::initialize(Realm& realm)
-{
-    Base::initialize(realm);
-    m_name_string = PrimitiveString::create(vm(), m_name);
-}
-
 void NativeFunction::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit_possible_values(m_native_function.raw_capture_range());
     visitor.visit(m_realm);
-    visitor.visit(m_name_string);
 }
 
 // 10.3.3 CreateBuiltinFunction ( behaviour, length, name, additionalInternalSlotsList [ , realm [ , prototype [ , prefix ] ] ] ), https://tc39.es/ecma262/#sec-createbuiltinfunction

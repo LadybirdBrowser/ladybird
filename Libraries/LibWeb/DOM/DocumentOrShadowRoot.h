@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/Animations/Animation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Utils.h>
 
@@ -45,6 +46,34 @@ GC::Ptr<Element> calculate_active_element(T& self)
 
     // 7. Return null.
     return nullptr;
+}
+
+// https://drafts.csswg.org/web-animations-1/#dom-documentorshadowroot-getanimations
+template<DocumentOrShadowRoot T>
+WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> calculate_get_animations(T& self)
+{
+    // Returns the set of relevant animations for a subtree for the document or shadow root on which this
+    // method is called.
+    Vector<GC::Ref<Animations::Animation>> relevant_animations;
+    TRY(self.template for_each_child_of_type_fallible<Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
+        relevant_animations.extend(TRY(child.get_animations(Animations::GetAnimationsOptions { .subtree = true })));
+        return IterationDecision::Continue;
+    }));
+
+    // The returned list is sorted using the composite order described for the associated animations of
+    // effects in § 5.4.2 The effect stack.
+    quick_sort(relevant_animations, [](GC::Ref<Animations::Animation>& a, GC::Ref<Animations::Animation>& b) {
+        auto& a_effect = as<Animations::KeyframeEffect>(*a->effect());
+        auto& b_effect = as<Animations::KeyframeEffect>(*b->effect());
+        return Animations::KeyframeEffect::composite_order(a_effect, b_effect) < 0;
+    });
+
+    // Calling this method triggers a style change event for the document. As a result, the returned list
+    // reflects the state after applying any pending style changes to animation such as changes to
+    // animation-related style properties that have yet to be processed.
+    // FIXME: Implement this.
+
+    return relevant_animations;
 }
 
 }

@@ -15,11 +15,6 @@
 
 namespace RequestServer {
 
-static LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key)
-{
-    return cache_directory.append(MUST(String::formatted("{:016x}", cache_key)));
-}
-
 ErrorOr<CacheHeader> CacheHeader::read_from_stream(Stream& stream)
 {
     CacheHeader header;

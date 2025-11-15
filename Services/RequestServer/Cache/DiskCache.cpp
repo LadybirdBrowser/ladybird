@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/DirIterator.h>
 #include <LibCore/StandardPaths.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/URL.h>
@@ -139,28 +138,22 @@ bool DiskCache::check_if_cache_has_open_entry(Request& request, u64 cache_key, C
     return false;
 }
 
-void DiskCache::clear_cache()
+Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime since) const
 {
-    for (auto const& [_, open_entries] : m_open_cache_entries) {
-        for (auto const& open_entry : open_entries)
-            open_entry->mark_for_deletion({});
-    }
+    return m_index.estimate_cache_size_accessed_since(since);
+}
 
-    m_index.remove_all_entries();
+void DiskCache::remove_entries_accessed_since(UnixDateTime since)
+{
+    m_index.remove_entries_accessed_since(since, [&](auto cache_key) {
+        if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
+            for (auto const& open_entry : *open_entries)
+                open_entry->mark_for_deletion({});
+        }
 
-    Core::DirIterator it { m_cache_directory.string(), Core::DirIterator::SkipDots };
-    size_t cache_entries { 0 };
-
-    while (it.has_next()) {
-        auto entry = it.next_full_path();
-        if (LexicalPath { entry }.title() == INDEX_DATABASE)
-            continue;
-
-        (void)FileSystem::remove(entry, FileSystem::RecursionMode::Disallowed);
-        ++cache_entries;
-    }
-
-    dbgln("Cleared {} disk cache entries", cache_entries);
+        auto cache_path = path_for_cache_key(m_cache_directory, cache_key);
+        (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
+    });
 }
 
 void DiskCache::cache_entry_closed(Badge<CacheEntry>, CacheEntry const& cache_entry)

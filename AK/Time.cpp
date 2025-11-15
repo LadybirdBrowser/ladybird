@@ -218,6 +218,113 @@ Duration Duration::from_half_sanitized(i64 seconds, i32 extra_seconds, u32 nanos
     return Duration { seconds + extra_seconds, nanoseconds };
 }
 
+ErrorOr<void> Formatter<Duration>::format(FormatBuilder& builder, Duration value)
+{
+    if (value.m_nanoseconds >= 1'000'000'000)
+        return builder.put_string("{ INVALID }"sv);
+
+    auto align = m_align;
+    if (align == FormatBuilder::Align::Default)
+        align = FormatBuilder::Align::Right;
+
+    auto sign_mode = m_sign_mode;
+    if (sign_mode == FormatBuilder::SignMode::Default)
+        sign_mode = FormatBuilder::SignMode::OnlyIfNeeded;
+
+    auto align_width = m_width.value_or(0);
+
+    u8 base;
+    bool upper_case = false;
+    if (m_mode == Mode::Default || m_mode == Mode::FixedPoint) {
+        base = 10;
+    } else if (m_mode == Mode::Hexfloat) {
+        base = 16;
+    } else if (m_mode == Mode::HexfloatUppercase) {
+        base = 16;
+        upper_case = true;
+    } else if (m_mode == Mode::Binary) {
+        base = 2;
+    } else if (m_mode == Mode::BinaryUppercase) {
+        base = 2;
+        upper_case = true;
+    } else if (m_mode == Mode::Octal) {
+        base = 8;
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    auto is_negative = value.m_seconds < 0;
+    auto seconds = is_negative ? 0 - static_cast<u64>(value.m_seconds) : static_cast<u64>(value.m_seconds);
+    auto nanoseconds = value.m_nanoseconds;
+    if (is_negative && nanoseconds > 0) {
+        seconds--;
+        nanoseconds = 1'000'000'000 - nanoseconds;
+    }
+
+    VERIFY(nanoseconds < 1'000'000'000);
+
+    size_t integer_width = 1;
+    if (seconds != 0) {
+        auto remaining_seconds = seconds / 10;
+        while (remaining_seconds != 0) {
+            remaining_seconds /= base;
+            integer_width++;
+        }
+    }
+    if (sign_mode != FormatBuilder::SignMode::OnlyIfNeeded)
+        integer_width++;
+
+    constexpr size_t nanoseconds_length = 9;
+    size_t precision = 0;
+    u64 nanoseconds_to_precision = nanoseconds;
+    if (m_precision.has_value()) {
+        precision = min(m_precision.value(), nanoseconds_length);
+        for (size_t i = nanoseconds_length; i > precision; i--)
+            nanoseconds_to_precision /= base;
+    } else if (nanoseconds_to_precision != 0) {
+        auto trailing_zeroes = 0;
+        while ((nanoseconds_to_precision % base) == 0) {
+            nanoseconds_to_precision /= base;
+            trailing_zeroes++;
+        }
+        precision = nanoseconds_length - trailing_zeroes;
+    }
+
+    size_t non_integer_width = 0;
+    if (precision != 0)
+        non_integer_width = precision + 1;
+    if (m_alternative_form)
+        non_integer_width++;
+
+    auto total_width = integer_width + non_integer_width;
+
+    size_t integer_align_width = 0;
+    if (align == FormatBuilder::Align::Right)
+        integer_align_width = Checked<size_t>::saturating_sub(align_width, non_integer_width);
+    else if (align == FormatBuilder::Align::Center)
+        integer_align_width = integer_width + Checked<size_t>::saturating_sub(align_width, total_width) / 2;
+    TRY(builder.put_u64(seconds, base, false, upper_case, m_zero_pad, m_use_separator, FormatBuilder::Align::Right, integer_align_width, m_fill, m_sign_mode, is_negative));
+
+    if (nanoseconds_to_precision != 0) {
+        TRY(builder.builder().try_append('.'));
+        TRY(builder.put_u64(nanoseconds_to_precision, base, false, upper_case, true, m_use_separator, FormatBuilder::Align::Right, precision));
+        if (m_precision.has_value() && m_precision.value() > nanoseconds_length) {
+            auto zeroes = m_precision.value() - nanoseconds_length;
+            TRY(builder.put_padding('0', zeroes));
+        }
+    }
+
+    if (m_alternative_form)
+        TRY(builder.builder().try_append('s'));
+
+    if (align_width > 0 && align != FormatBuilder::Align::Right) {
+        auto padding_width = Checked<size_t>::saturating_sub(align_width, max(integer_width, integer_align_width) + non_integer_width);
+        TRY(builder.builder().try_append_repeated(m_fill, padding_width));
+    }
+
+    return {};
+}
+
 namespace {
 
 #if defined(AK_OS_WINDOWS)

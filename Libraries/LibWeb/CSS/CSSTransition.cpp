@@ -38,7 +38,7 @@ Animations::AnimationClass CSSTransition::animation_class() const
     return Animations::AnimationClass::CSSTransition;
 }
 
-Optional<int> CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
+int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
 {
     auto other = GC::Ref { as<CSSTransition>(*other_animation) };
 
@@ -66,7 +66,7 @@ Optional<int> CSSTransition::class_specific_composite_order(GC::Ref<Animations::
     //    - element children
     if (owning_element().ptr() != other->owning_element().ptr()) {
         // FIXME: Actually sort by tree order
-        return {};
+        return 0;
     }
 
     // 4. Otherwise, if A and B have different transition generation values, sort by their corresponding transition
@@ -74,11 +74,11 @@ Optional<int> CSSTransition::class_specific_composite_order(GC::Ref<Animations::
     if (m_transition_generation != other->m_transition_generation)
         return m_transition_generation - other->m_transition_generation;
 
-    // FIXME:
     // 5. Otherwise, sort A and B in ascending order by the Unicode codepoints that make up the expanded transition
     //    property name of each transition (i.e. without attempting case conversion and such that ‘-moz-column-width’
     //    sorts before ‘column-width’).
-    return {};
+    // FIXME: This should operate on Unicode strings, not StringViews.
+    return transition_property().compare(other->transition_property());
 }
 
 CSSTransition::CSSTransition(JS::Realm& realm, DOM::AbstractElement abstract_element, PropertyID property_id, size_t transition_generation,

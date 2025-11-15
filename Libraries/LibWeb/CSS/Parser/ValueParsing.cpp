@@ -3233,6 +3233,9 @@ RefPtr<URLStyleValue const> Parser::parse_url_value(TokenStream<ComponentValue>&
 // https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius
 Optional<ShapeRadius> Parser::parse_shape_radius(TokenStream<ComponentValue>& tokens)
 {
+    // FIXME: <shape-radius> has been replaced <radial-size> as defined in CSS Images:
+    //        https://drafts.csswg.org/css-images-3/#typedef-radial-size
+
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto maybe_radius = parse_length_percentage(tokens);
@@ -3298,6 +3301,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
         return nullptr;
 
     auto function_name = component_value.function().name.bytes_as_string_view();
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
     auto parse_fill_rule_argument = [](Vector<ComponentValue> const& component_values) -> Optional<Gfx::WindingRule> {
         TokenStream tokens { component_values };
@@ -4212,6 +4216,10 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                         "hwb"sv, "lab"sv, "lch"sv, "oklab"sv, "oklch"sv,
                         "color"sv)) {
                     return CalculationContext {};
+                }
+                if (function.name.is_one_of_ignoring_ascii_case(
+                        "circle"sv, "ellipse"sv, "inset"sv, "polygon"sv, "rect"sv, "xywh"sv)) {
+                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
                 }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};

@@ -1,4 +1,5 @@
 #include <LibHTTP/HeaderMap.h>
+#include <LibRequests/CacheSizes.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -21,4 +22,6 @@ endpoint RequestClient
 
     // Certificate requests
     certificate_requested(i32 request_id) =|
+
+    estimated_cache_size(u64 cache_size_estimation_id, Requests::CacheSizes sizes) =|
 }

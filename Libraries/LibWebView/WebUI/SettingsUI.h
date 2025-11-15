@@ -36,6 +36,8 @@ private:
     void remove_site_setting_filter(JsonValue const&);
     void remove_all_site_setting_filters(JsonValue const&);
 
+    void estimate_browsing_data_sizes(JsonValue const&);
+    void clear_browsing_data(JsonValue const&);
     void set_global_privacy_control(JsonValue const&);
 
     void set_dns_settings(JsonValue const&);

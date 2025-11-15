@@ -1,0 +1,10 @@
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEComponentTransferElement
+[Exposed=Window]
+interface SVGFEComponentTransferElement : SVGElement {
+    readonly attribute SVGAnimatedString in1;
+};
+
+SVGFEComponentTransferElement includes SVGFilterPrimitiveStandardAttributes;

@@ -132,7 +132,7 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
 Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(StringView source_text, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
     // 1. Let body be ParseText(sourceText, Module).
-    auto parser = Parser(Lexer(source_text, filename), Program::Type::Module);
+    auto parser = Parser(Lexer(SourceCode::create(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source_text))), Program::Type::Module);
     auto body = parser.parse_program();
 
     // 2. If body is a List of errors, return body.

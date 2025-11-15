@@ -1,0 +1,8 @@
+#import <SVG/SVGNumberList.idl>
+
+// https://www.w3.org/TR/SVG2/types.html#InterfaceSVGAnimatedNumberList
+[Exposed=Window]
+interface SVGAnimatedNumberList {
+    [SameObject] readonly attribute SVGNumberList baseVal;
+    [SameObject] readonly attribute SVGNumberList animVal;
+};

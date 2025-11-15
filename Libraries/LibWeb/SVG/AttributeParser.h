@@ -148,6 +148,7 @@ public:
     static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(StringView input);
     static Optional<SVGUnits> parse_units(StringView input);
     static Optional<SpreadMethod> parse_spread_method(StringView input);
+    static Vector<float> parse_table_values(StringView);
     static Optional<ViewBox> parse_viewbox(StringView input);
 
 private:

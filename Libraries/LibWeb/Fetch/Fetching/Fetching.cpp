@@ -1865,7 +1865,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 13. Append the Fetch metadata headers for httpRequest.
         append_fetch_metadata_headers_for_request(*http_request);
 
-        // 14. FIXME If httpRequest’s initiator is "prefetch", then set a structured field value
+        // 14. FIXME: If httpRequest’s initiator is "prefetch", then set a structured field value
         //     given (`Sec-Purpose`, the token prefetch) in httpRequest’s header list.
 
         // 15. If httpRequest’s header list does not contain `User-Agent`, then user agents should append

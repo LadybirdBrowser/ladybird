@@ -844,7 +844,11 @@
     "border-box",
     "fill-box",
     "stroke-box",
-    "view-box "
+    "view-box"
+  ],
+  "transform-style": [
+    "flat",
+    "preserve-3d"
   ],
   "transition-behavior": [
     "normal",

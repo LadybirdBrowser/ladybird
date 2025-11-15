@@ -717,7 +717,7 @@ RoundingIncrement maximum_temporal_duration_rounding_increment(Unit unit)
     return temporal_units[to_underlying(unit)].maximum_duration_rounding_increment;
 }
 
-// AD-HOC
+// https://tc39.es/proposal-temporal/#table-temporal-units
 Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit unit)
 {
     switch (unit) {
@@ -947,10 +947,11 @@ Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResu
         return r2;
 
     // 6. Let d1 be x – r1.
-    auto d1 = x.remainder.unsigned_value();
+    auto const& d1 = x.remainder;
 
     // 7. Let d2 be r2 – x.
-    auto d2 = MUST(increment.minus(x.remainder.unsigned_value()));
+    auto d2 = x.remainder.is_negative() ? x.remainder.plus(increment) : x.remainder.minus(increment);
+    d2.negate();
 
     // 8. If d1 < d2, return r1.
     if (d1 < d2)
@@ -1117,7 +1118,7 @@ Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::Signed
     return rounded.multiplied_by(increment);
 }
 
-// 13.34 ParseISODateTime ( isoString, allowedFormats ), https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
+// 13.35 ParseISODateTime ( isoString, allowedFormats ), https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
 ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_string, ReadonlySpan<Production> allowed_formats)
 {
     // 1. Let parseResult be EMPTY.
@@ -1333,7 +1334,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
     return ParsedISODateTime { .year = year_return, .month = static_cast<u8>(month_value), .day = static_cast<u8>(day_value), .time = move(time), .time_zone = move(time_zone_result), .calendar = move(calendar) };
 }
 
-// 13.35 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
+// 13.36 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
 ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& string)
 {
     // 1. Let parseResult be Completion(ParseISODateTime(string, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned],
@@ -1370,7 +1371,7 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& s
     return string;
 }
 
-// 13.36 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
+// 13.37 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, StringView iso_string)
 {
     // 1. Let duration be ParseText(StringToCodePoints(isoString), TemporalDurationString).
@@ -1590,8 +1591,8 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
     return TRY(create_temporal_duration(vm, years_value, months_value, weeks_value, days_value, hours_value, factored_minutes_value, factored_seconds_value, factored_milliseconds_value, factored_microseconds_value, factored_nanoseconds_value));
 }
 
-// 13.37 ParseTemporalTimeZoneString ( timeZoneString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring
-ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string)
+// 13.38 ParseTemporalTimeZoneString ( timeZoneString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(timeZoneString), TimeZoneIdentifier).
     auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, time_zone_string);
@@ -1640,7 +1641,7 @@ ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView t
     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, time_zone_string);
 }
 
-// 13.40 ToOffsetString ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
+// 13.41 ToOffsetString ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
 ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
 {
     // 1. Let offset be ? ToPrimitive(argument, STRING).
@@ -1657,7 +1658,7 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
     return offset.as_string().utf8_string();
 }
 
-// 13.41 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
+// 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
 CalendarFields iso_date_to_fields(StringView calendar, ISODate iso_date, DateType type)
 {
     // 1. Let fields be an empty Calendar Fields Record with all fields set to unset.
@@ -1685,7 +1686,7 @@ CalendarFields iso_date_to_fields(StringView calendar, ISODate iso_date, DateTyp
     return fields;
 }
 
-// 13.42 GetDifferenceSettings ( operation, options, unitGroup, disallowedUnits, fallbackSmallestUnit, smallestLargestDefaultUnit ), https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
+// 13.43 GetDifferenceSettings ( operation, options, unitGroup, disallowedUnits, fallbackSmallestUnit, smallestLargestDefaultUnit ), https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOperation operation, Object const& options, UnitGroup unit_group, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit)
 {
     // 1. NOTE: The following steps read options and perform independent validation in alphabetical order.

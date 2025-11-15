@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<title>'transform-style: preserve-3d' establishes a stacking context.</title>
+<link rel="author" title="Psychpsyo" href="mailto:psychpsyo@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#transform-style-property">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+<style>
+  div {
+    width: 100px;
+    height: 100px;
+  }
+  #front {
+    background-color: lime;
+    /* makes a stacking context and puts this on top */
+    position: absolute;
+    z-index: 10;
+  }
+  #back {
+    transform-style: preserve-3d;
+  }
+  #notOnTop {
+    background-color: red;
+    /* z-index is higher than on #front, but this should still be covered up because it is inside #back, which has 'transform-style: preserve-3d' */
+    position: absolute;
+    z-index: 1000;
+  }
+</style>
+<div id="front"></div>
+<div id="back">
+  <div id="notOnTop"></div>
+</div>

@@ -60,6 +60,8 @@ public:
     String debug_description() const;
     bool operator==(AbstractElement const&) const = default;
 
+    CSS::StyleScope const& style_scope() const;
+
 private:
     enum class WalkMethod : u8 {
         Previous,
