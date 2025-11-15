@@ -184,6 +184,79 @@ static bool should_block_request(LoadRequest const& request)
     return false;
 }
 
+template<typename FileHandler, typename ErrorHandler>
+void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error)
+{
+    auto page = request.page();
+    if (!page) {
+        auto const error_message = ByteString("INTERNAL ERROR: No Page for file scheme request"sv);
+        on_error(error_message);
+        return;
+    }
+
+    auto const& url = request.url().value();
+
+    FileRequest file_request(url.file_path(), [this, request, on_file, on_error, url](ErrorOr<i32> file_or_error) mutable {
+        --m_pending_loads;
+        if (on_load_counter_change)
+            on_load_counter_change();
+
+        if (file_or_error.is_error()) {
+            auto const message = ByteString::formatted("{}", file_or_error.error());
+            on_error(message);
+            return;
+        }
+
+        auto const fd = file_or_error.value();
+
+        auto maybe_is_valid_directory = Core::Directory::is_valid_directory(fd);
+        if (!maybe_is_valid_directory.is_error() && maybe_is_valid_directory.value()) {
+            auto maybe_response = load_file_directory_page(url);
+            if (maybe_response.is_error()) {
+                auto const message = ByteString::formatted("{}", maybe_response.error());
+                on_error(message);
+                return;
+            }
+
+            FileLoadResult load_result;
+            load_result.data = maybe_response.value().bytes();
+            load_result.response_headers.set("Content-Type"sv, "text/html"sv);
+            on_file(load_result);
+            return;
+        }
+
+        auto st_or_error = Core::System::fstat(fd);
+        if (st_or_error.is_error()) {
+            on_error(ByteString::formatted("{}", st_or_error.error()));
+            return;
+        }
+
+        auto maybe_file = Core::File::adopt_fd(fd, Core::File::OpenMode::Read);
+        if (maybe_file.is_error()) {
+            on_error(ByteString::formatted("{}", maybe_file.error()));
+            return;
+        }
+
+        auto file = maybe_file.release_value();
+        auto maybe_data = file->read_until_eof();
+        if (maybe_data.is_error()) {
+            on_error(ByteString::formatted("{}", maybe_data.error()));
+            return;
+        }
+
+        FileLoadResult load_result;
+        load_result.data = maybe_data.value().bytes();
+        load_result.response_headers = response_headers_for_file(request.url()->file_path(), st_or_error.value().st_mtime);
+        on_file(load_result);
+    });
+
+    page->client().request_file(move(file_request));
+
+    ++m_pending_loads;
+    if (on_load_counter_change)
+        on_load_counter_change();
+}
+
 void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback, Optional<u32> timeout, GC::Root<TimeoutCallback> timeout_callback)
 {
     auto const& url = request.url().value();
@@ -309,74 +382,17 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     }
 
     if (url.scheme() == "file") {
-        auto page = request.page();
-        if (!page) {
-            log_failure(request, "INTERNAL ERROR: No Page for file scheme request");
-            return;
-        }
-
-        FileRequest file_request(url.file_path(), [this, success_callback, error_callback, request, respond_directory_page](ErrorOr<i32> file_or_error) {
-            --m_pending_loads;
-            if (on_load_counter_change)
-                on_load_counter_change();
-
-            if (file_or_error.is_error()) {
-                log_failure(request, file_or_error.error());
+        handle_file_load_request(
+            request,
+            [success_callback, request](FileLoadResult const& load_result) {
+                log_success(request);
+                success_callback->function()(load_result.data, load_result.timing_info, load_result.response_headers, {}, {});
+            },
+            [error_callback, request](ByteString const& error_message) {
+                log_failure(request, error_message);
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", file_or_error.error()), {}, {}, {}, {}, {});
-                return;
-            }
-
-            auto const fd = file_or_error.value();
-
-            // When local file is a directory use file directory loader to generate response
-            auto maybe_is_valid_directory = Core::Directory::is_valid_directory(fd);
-            if (!maybe_is_valid_directory.is_error() && maybe_is_valid_directory.value()) {
-                respond_directory_page(request, request.url().value(), success_callback, error_callback);
-                return;
-            }
-
-            auto st_or_error = Core::System::fstat(fd);
-            if (st_or_error.is_error()) {
-                log_failure(request, st_or_error.error());
-                if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", st_or_error.error()), {}, {}, {}, {}, {});
-                return;
-            }
-
-            // Try to read file normally
-            auto maybe_file = Core::File::adopt_fd(fd, Core::File::OpenMode::Read);
-            if (maybe_file.is_error()) {
-                log_failure(request, maybe_file.error());
-                if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", maybe_file.error()), {}, {}, {}, {}, {});
-                return;
-            }
-
-            auto file = maybe_file.release_value();
-            auto maybe_data = file->read_until_eof();
-            if (maybe_data.is_error()) {
-                log_failure(request, maybe_data.error());
-                if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", maybe_data.error()), {}, {}, {}, {}, {});
-                return;
-            }
-
-            auto data = maybe_data.release_value();
-            auto response_headers = response_headers_for_file(request.url()->file_path(), st_or_error.value().st_mtime);
-
-            // FIXME: Implement timing info for file requests.
-            Requests::RequestTimingInfo fixme_implement_timing_info {};
-
-            log_success(request);
-            success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
-        });
-
-        page->client().request_file(move(file_request));
-
-        ++m_pending_loads;
-        if (on_load_counter_change)
-            on_load_counter_change();
+                    error_callback->function()(error_message, {}, {}, {}, {}, {});
+            });
 
         return;
     }
@@ -455,6 +471,23 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
 
     if (should_block_request(request)) {
         on_complete->function()(false, {}, "Request was blocked"sv);
+        return;
+    }
+
+    if (url.scheme() == "file"sv) {
+        handle_file_load_request(
+            request,
+            [request, on_headers_received, on_data_received, on_complete](FileLoadResult const& load_result) {
+                log_success(request);
+                on_headers_received->function()(load_result.response_headers, {}, {});
+                on_data_received->function()(load_result.data);
+                on_complete->function()(true, load_result.timing_info, {});
+            },
+            [on_complete, request](ByteString const& message) {
+                log_failure(request, message);
+                on_complete->function()(false, {}, StringView(message));
+            });
+
         return;
     }
 
