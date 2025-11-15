@@ -541,6 +541,9 @@ public:
     void increment_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>);
     void decrement_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>);
 
+    void add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
+    void remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
+
     bool page_showing() const { return m_page_showing; }
     void set_page_showing(bool);
 
@@ -1093,6 +1096,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/semantics.html#script-blocking-style-sheet-set
     HashTable<GC::Ref<DOM::Element>> m_script_blocking_style_sheet_set;
+
+    HashTable<GC::Ref<CSS::CSSImportRule>> m_pending_css_import_rules;
 
     GC::Ptr<HTML::History> m_history;
 

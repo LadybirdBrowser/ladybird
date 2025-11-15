@@ -123,11 +123,15 @@ void CSSImportRule::fetch()
     // FIXME: Figure out the "correct" way to delay the load event.
     m_document_load_event_delayer.emplace(*m_document);
 
+    // AD-HOC: Track pending import rules to block rendering until they are done.
+    m_document->add_pending_css_import_rule({}, *this);
+
     // 4. Fetch a style resource from parsedUrl, with stylesheet parentStylesheet, destination "style", CORS mode "no-cors", and processResponse being the following steps given response response and byte stream, null or failure byteStream:
     (void)fetch_a_style_resource(parsed_url.value(), { parent_style_sheet }, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
-        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, parsed_url = parsed_url.value()](auto response, auto maybe_byte_stream) {
+        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, parsed_url = parsed_url.value(), document = m_document](auto response, auto maybe_byte_stream) {
             // AD-HOC: Stop delaying the load event.
-            ScopeGuard guard = [strong_this] {
+            ScopeGuard guard = [strong_this, document] {
+                document->remove_pending_css_import_rule({}, strong_this);
                 strong_this->m_document_load_event_delayer.clear();
             };
 
