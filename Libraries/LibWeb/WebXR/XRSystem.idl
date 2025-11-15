@@ -3,7 +3,7 @@
 [SecureContext, Exposed=Window] interface XRSystem : EventTarget {
     // Methods
     Promise<boolean> isSessionSupported(XRSessionMode mode);
-    [FIXME, NewObject] Promise<XRSession> requestSession(XRSessionMode mode, optional XRSessionInit options = {});
+    [NewObject] Promise<XRSession> requestSession(XRSessionMode mode, optional XRSessionInit options = {});
 
     // Events
     [FIXME] attribute EventHandler ondevicechange;

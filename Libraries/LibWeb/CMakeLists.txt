@@ -1084,6 +1084,8 @@ set(SOURCES
     WebSockets/WebSocket.cpp
     WebVTT/VTTCue.cpp
     WebVTT/VTTRegion.cpp
+    WebXR/XRSession.cpp
+    WebXR/XRSessionEvent.cpp
     WebXR/XRSystem.cpp
     Worker/WebWorkerClient.cpp
     XHR/EventNames.cpp
