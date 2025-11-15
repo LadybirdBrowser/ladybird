@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/MappedFile.h>
+#include <LibMedia/Containers/Matroska/Utilities.h>
 
 #include "Reader.h"
 
@@ -56,6 +57,7 @@ constexpr u32 TRACK_LANGUAGE_BCP_47_ID = 0x22B59D;
 constexpr u32 TRACK_CODEC_ID = 0x86;
 constexpr u32 TRACK_CODEC_PRIVATE_ID = 0x63A2;
 constexpr u32 TRACK_CODEC_DELAY_ID = 0x56AA;
+constexpr u32 TRACK_SEEK_PRE_ROLL_ID = 0x56BB;
 constexpr u32 TRACK_TIMESTAMP_SCALE_ID = 0x23314F;
 constexpr u32 TRACK_OFFSET_ID = 0x537F;
 constexpr u32 TRACK_VIDEO_ID = 0xE0;
@@ -73,6 +75,7 @@ constexpr u32 BITS_PER_CHANNEL_ID = 0x55B2;
 
 // Audio
 constexpr u32 CHANNELS_ID = 0x9F;
+constexpr u32 SAMPLING_FREQUENCY_ID = 0xB5;
 constexpr u32 BIT_DEPTH_ID = 0x6264;
 
 // Clusters
@@ -329,11 +332,11 @@ static DecoderErrorOr<SegmentInformation> parse_information(Streamer& streamer)
             break;
         case MUXING_APP_ID:
             segment_information.set_muxing_app(TRY_READ(streamer.read_string()));
-            dbgln_if(MATROSKA_DEBUG, "Read MuxingApp attribute: {}", segment_information.muxing_app().as_string());
+            dbgln_if(MATROSKA_DEBUG, "Read MuxingApp attribute: {}", segment_information.muxing_app());
             break;
         case WRITING_APP_ID:
             segment_information.set_writing_app(TRY_READ(streamer.read_string()));
-            dbgln_if(MATROSKA_DEBUG, "Read WritingApp attribute: {}", segment_information.writing_app().as_string());
+            dbgln_if(MATROSKA_DEBUG, "Read WritingApp attribute: {}", segment_information.writing_app());
             break;
         case DURATION_ID:
             segment_information.set_duration_unscaled(TRY_READ(streamer.read_float()));
@@ -449,6 +452,10 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
             audio_track.channels = TRY_READ(streamer.read_u64());
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's Channels attribute: {}", audio_track.channels);
             break;
+        case SAMPLING_FREQUENCY_ID:
+            audio_track.sampling_frequency = TRY_READ(streamer.read_float());
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's SamplingFrequency attribute: {}", audio_track.channels);
+            break;
         case BIT_DEPTH_ID:
             audio_track.bit_depth = TRY_READ(streamer.read_u64());
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's BitDepth attribute: {}", audio_track.bit_depth);
@@ -481,19 +488,19 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry->track_type()));
             break;
         case TRACK_NAME_ID:
-            track_entry->set_name(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_name(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Name attribute: {}", track_entry->name());
             break;
         case TRACK_LANGUAGE_ID:
-            track_entry->set_language(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_language(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Language attribute: {}", track_entry->language());
             break;
         case TRACK_LANGUAGE_BCP_47_ID:
-            track_entry->set_language_bcp_47(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_language_bcp_47(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's LanguageBCP47 attribute: {}", track_entry->language());
             break;
         case TRACK_CODEC_ID:
-            track_entry->set_codec_id(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            track_entry->set_codec_id(TRY_READ(streamer.read_string()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
             break;
         case TRACK_CODEC_PRIVATE_ID: {
@@ -505,6 +512,10 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
         case TRACK_CODEC_DELAY_ID:
             track_entry->set_codec_delay(TRY_READ(streamer.read_u64()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecDelay attribute: {}", track_entry->codec_delay());
+            break;
+        case TRACK_SEEK_PRE_ROLL_ID:
+            track_entry->set_seek_pre_roll(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's SeekPreRoll attribute: {}", track_entry->seek_pre_roll());
             break;
         case TRACK_TIMESTAMP_SCALE_ID:
             track_entry->set_timestamp_scale(TRY_READ(streamer.read_float()));
@@ -543,7 +554,94 @@ DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
 
         return IterationDecision::Continue;
     }));
+
+    TRY(segment_information());
+    fix_track_quirks();
+
     return {};
+}
+
+void Reader::fix_track_quirks()
+{
+    fix_ffmpeg_webm_quirk();
+}
+
+void Reader::fix_ffmpeg_webm_quirk()
+{
+    VERIFY(m_segment_information.has_value());
+
+    // In libavformat versions <= 59.30.100, blocks were not allowed to have negative timestamps. This means that
+    // all blocks were shifted forward until any negative timestamps became zero.
+    //
+    // Additionally, the pre-skip value for Opus tracks was incorrectly scaled based on the audio sample rate when
+    // it was written to the CodecDelay element.
+    //
+    // In order to get the correct timestamps, we must shift all tracks' timestamps back by the maximum of all the
+    // tracks' codec-inherent delays, corrected based on the sample rate in the case of Opus.
+    auto& segment_information = m_segment_information.value();
+    auto muxing_app = segment_information.muxing_app();
+    auto libavformatPrefix = "Lavf"sv;
+
+    if (muxing_app.starts_with(libavformatPrefix)) {
+        auto versionString = muxing_app.substring_view(libavformatPrefix.length());
+        auto split = versionString.split_view('.');
+
+        if (split.size() < 3)
+            return;
+
+        auto is_affected_version = [&] {
+            constexpr uint final_major_version = 59;
+            constexpr uint final_minor_version = 30;
+            constexpr uint final_micro_version = 100;
+
+            auto major_version = split[0].to_number<uint>();
+            if (!major_version.has_value() || major_version.value() > final_major_version)
+                return false;
+            if (major_version.value() < final_major_version)
+                return true;
+
+            auto minor_version = split[1].to_number<uint>();
+            if (!minor_version.has_value() || minor_version.value() > final_minor_version)
+                return false;
+            if (minor_version.value() < final_minor_version)
+                return true;
+
+            auto micro_version = split[2].to_number<uint>();
+            return micro_version.has_value() && micro_version.value() <= final_micro_version;
+        }();
+        if (!is_affected_version)
+            return;
+
+        u64 max_codec_delay = 0;
+        for (auto& [id, track] : m_tracks) {
+            auto delay = track->codec_delay();
+
+            if (codec_id_from_matroska_id_string(track->codec_id()) == CodecID::Opus && track->audio_track().has_value()) {
+                auto sampling_frequency = AK::clamp_to<u64>(track->audio_track()->sampling_frequency);
+                if (sampling_frequency == 0)
+                    return;
+                delay = delay * 48'000 / sampling_frequency;
+            }
+
+            max_codec_delay = max(max_codec_delay, delay);
+        }
+
+        auto timestamp_scale = segment_information.timestamp_scale();
+        max_codec_delay = ((max_codec_delay + (timestamp_scale / 2)) / timestamp_scale) * timestamp_scale;
+
+        for (auto& [id, track] : m_tracks) {
+            if (track->codec_delay() != 0)
+                continue;
+            track->set_codec_delay(max_codec_delay);
+        }
+
+        auto duration = segment_information.duration_unscaled();
+
+        if (duration.has_value()) {
+            auto max_codec_delay_in_duration_units = static_cast<double>(max_codec_delay) / static_cast<double>(segment_information.timestamp_scale());
+            segment_information.set_duration_unscaled(duration.value() - max_codec_delay_in_duration_units);
+        }
+    }
 }
 
 DecoderErrorOr<void> Reader::for_each_track(TrackEntryCallback callback)
@@ -581,7 +679,7 @@ DecoderErrorOr<size_t> Reader::track_count()
     return m_tracks.size();
 }
 
-constexpr size_t get_element_id_size(u32 element_id)
+static constexpr size_t get_element_id_size(u32 element_id)
 {
     return sizeof(element_id) - (count_leading_zeroes(element_id) / 8);
 }
@@ -611,7 +709,7 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
     TRY_READ(streamer.seek_to_position(first_element_position));
 
     Cluster cluster;
-    cluster.set_timestamp(AK::Duration::from_nanoseconds(timestamp.release_value() * timestamp_scale));
+    cluster.set_timestamp(AK::Duration::from_nanoseconds(AK::clamp_to<i64>(timestamp.release_value() * timestamp_scale)));
     return cluster;
 }
 
@@ -997,6 +1095,8 @@ DecoderErrorOr<bool> Reader::has_cues_for_track(u64 track_number)
 
 DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, AK::Duration timestamp)
 {
+    timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(iterator.m_track->seek_pre_roll()));
+
     if (TRY(has_cues_for_track(iterator.m_track->track_number()))) {
         TRY(seek_to_cue_for_timestamp(iterator, timestamp));
         VERIFY(iterator.last_timestamp().has_value());
@@ -1088,13 +1188,13 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point
     return {};
 }
 
-ErrorOr<ByteString> Streamer::read_string()
+ErrorOr<String> Streamer::read_string()
 {
     auto string_length = TRY(read_variable_size_integer());
     if (remaining() < string_length)
         return Error::from_string_literal("String length extends past the end of the stream");
-    auto string_data = data_as_chars();
-    auto string_value = ByteString(string_data, strnlen(string_data, string_length));
+    auto const* string_data = data_as_chars();
+    auto string_value = String::from_utf8(ReadonlyBytes(string_data, strnlen(string_data, string_length)));
     TRY(read_raw_octets(string_length));
     return string_value;
 }

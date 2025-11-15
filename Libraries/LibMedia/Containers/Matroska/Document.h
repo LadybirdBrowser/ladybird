@@ -19,7 +19,7 @@
 namespace Media::Matroska {
 
 struct EBMLHeader {
-    ByteString doc_type;
+    String doc_type;
     u32 doc_type_version;
 };
 
@@ -27,10 +27,10 @@ class SegmentInformation {
 public:
     u64 timestamp_scale() const { return m_timestamp_scale; }
     void set_timestamp_scale(u64 timestamp_scale) { m_timestamp_scale = timestamp_scale; }
-    Utf8View muxing_app() const LIFETIME_BOUND { return Utf8View(m_muxing_app); }
-    void set_muxing_app(ByteString muxing_app) { m_muxing_app = move(muxing_app); }
-    Utf8View writing_app() const LIFETIME_BOUND { return Utf8View(m_writing_app); }
-    void set_writing_app(ByteString writing_app) { m_writing_app = move(writing_app); }
+    StringView muxing_app() const LIFETIME_BOUND { return m_muxing_app; }
+    void set_muxing_app(String muxing_app) { m_muxing_app = move(muxing_app); }
+    StringView writing_app() const LIFETIME_BOUND { return m_writing_app; }
+    void set_writing_app(String writing_app) { m_writing_app = move(writing_app); }
     Optional<double> duration_unscaled() const { return m_duration_unscaled; }
     void set_duration_unscaled(double duration) { m_duration_unscaled.emplace(duration); }
     Optional<AK::Duration> duration() const
@@ -42,8 +42,8 @@ public:
 
 private:
     u64 m_timestamp_scale { 1'000'000 };
-    ByteString m_muxing_app;
-    ByteString m_writing_app;
+    String m_muxing_app;
+    String m_writing_app;
     Optional<double> m_duration_unscaled;
 };
 
@@ -99,15 +99,16 @@ public:
     };
 
     struct VideoTrack {
-        u64 pixel_width;
-        u64 pixel_height;
+        u64 pixel_width { 0 };
+        u64 pixel_height { 0 };
 
         ColorFormat color_format;
     };
 
     struct AudioTrack {
-        u64 channels;
-        u64 bit_depth;
+        u64 channels { 1 };
+        double sampling_frequency { 8000.0 };
+        u64 bit_depth { 0 };
     };
 
     u64 track_number() const { return m_track_number; }
@@ -134,21 +135,13 @@ public:
     void set_timestamp_scale(double timestamp_scale) { m_timestamp_scale = timestamp_scale; }
     u64 codec_delay() const { return m_codec_delay; }
     void set_codec_delay(u64 codec_delay) { m_codec_delay = codec_delay; }
+    u64 seek_pre_roll() const { return m_seek_pre_roll; }
+    void set_seek_pre_roll(u64 seek_pre_roll) { m_seek_pre_roll = seek_pre_roll; }
     u64 timestamp_offset() const { return m_timestamp_offset; }
     void set_timestamp_offset(u64 timestamp_offset) { m_timestamp_offset = timestamp_offset; }
-    Optional<VideoTrack> video_track() const
-    {
-        if (track_type() != Video)
-            return {};
-        return m_video_track;
-    }
+    Optional<VideoTrack> video_track() const { return m_video_track; }
     void set_video_track(VideoTrack video_track) { m_video_track = video_track; }
-    Optional<AudioTrack> audio_track() const
-    {
-        if (track_type() != Audio)
-            return {};
-        return m_audio_track;
-    }
+    Optional<AudioTrack> audio_track() const { return m_audio_track; }
     void set_audio_track(AudioTrack audio_track) { m_audio_track = audio_track; }
 
 private:
@@ -162,12 +155,10 @@ private:
     FixedArray<u8> m_codec_private_data;
     double m_timestamp_scale { 1 };
     u64 m_codec_delay { 0 };
+    u64 m_seek_pre_roll { 0 };
     u64 m_timestamp_offset { 0 };
-
-    union {
-        VideoTrack m_video_track {};
-        AudioTrack m_audio_track;
-    };
+    Optional<VideoTrack> m_video_track;
+    Optional<AudioTrack> m_audio_track;
 };
 
 class Block {

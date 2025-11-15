@@ -56,6 +56,8 @@ private:
 
     DecoderErrorOr<void> ensure_tracks_are_parsed();
     DecoderErrorOr<void> parse_tracks(Streamer&);
+    void fix_track_quirks();
+    void fix_ffmpeg_webm_quirk();
 
     DecoderErrorOr<void> parse_cues(Streamer&);
     DecoderErrorOr<void> ensure_cues_are_parsed();
@@ -147,7 +149,7 @@ public:
     ErrorOr<u64> read_u64();
     ErrorOr<double> read_float();
 
-    ErrorOr<ByteString> read_string();
+    ErrorOr<String> read_string();
 
     ErrorOr<void> read_unknown_element();
 
