@@ -664,6 +664,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'paintOrder': 'normal'
 'paint-order': 'normal'
 'perspective': 'none'
+'perspectiveOrigin': '50% 50%'
+'perspective-origin': '50% 50%'
 'placeContent': 'normal'
 'place-content': 'normal'
 'placeItems': 'normal legacy'
