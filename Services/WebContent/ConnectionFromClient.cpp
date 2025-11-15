@@ -440,6 +440,13 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 }
 
+void ConnectionFromClient::set_debug_dump_setting(u64 page_id, String debug_dump_path)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        Web::set_debug_dump_path(debug_dump_path);
+    }
+}
+
 void ConnectionFromClient::get_source(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {

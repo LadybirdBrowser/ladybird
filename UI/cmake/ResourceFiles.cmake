@@ -75,6 +75,7 @@ set(ABOUT_PAGES
 list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 
 set(ABOUT_SETTINGS_RESOURCES
+    debug.js
     default-zoom-level.js
     languages.js
     network.js
