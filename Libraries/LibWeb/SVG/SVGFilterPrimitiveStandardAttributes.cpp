@@ -15,6 +15,7 @@
 #include <LibWeb/SVG/SVGFEGaussianBlurElement.h>
 #include <LibWeb/SVG/SVGFEImageElement.h>
 #include <LibWeb/SVG/SVGFEMergeElement.h>
+#include <LibWeb/SVG/SVGFEMorphologyElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
 
 namespace Web::SVG {
@@ -60,6 +61,7 @@ template class SVGFilterPrimitiveStandardAttributes<SVGFEFloodElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEGaussianBlurElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEImageElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEMergeElement>;
+template class SVGFilterPrimitiveStandardAttributes<SVGFEMorphologyElement>;
 template class SVGFilterPrimitiveStandardAttributes<SVGFEOffsetElement>;
 
 }

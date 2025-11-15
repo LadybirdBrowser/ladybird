@@ -76,6 +76,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(preserveAspectRatio, "preserveAspectRatio") \
     __ENUMERATE_SVG_ATTRIBUTE(primitiveUnits, "primitiveUnits")           \
     __ENUMERATE_SVG_ATTRIBUTE(r, "r")                                     \
+    __ENUMERATE_SVG_ATTRIBUTE(radius, "radius")                           \
     __ENUMERATE_SVG_ATTRIBUTE(refX, "refX")                               \
     __ENUMERATE_SVG_ATTRIBUTE(refY, "refY")                               \
     __ENUMERATE_SVG_ATTRIBUTE(repeatCount, "repeatCount")                 \

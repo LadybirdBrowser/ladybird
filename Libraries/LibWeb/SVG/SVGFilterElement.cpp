@@ -27,6 +27,7 @@
 #include <LibWeb/SVG/SVGFEImageElement.h>
 #include <LibWeb/SVG/SVGFEMergeElement.h>
 #include <LibWeb/SVG/SVGFEMergeNodeElement.h>
+#include <LibWeb/SVG/SVGFEMorphologyElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 
@@ -284,6 +285,24 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::merge(merge_inputs);
             update_result_map(*merge_primitive);
+        } else if (auto* morphology_primitive = as_if<SVGFEMorphologyElement>(node)) {
+            auto input = resolve_input_filter(morphology_primitive->in1()->base_val());
+
+            auto radius_x = morphology_primitive->radius_x()->base_val();
+            auto radius_y = morphology_primitive->radius_y()->base_val();
+            auto morphology_operator = morphology_primitive->morphology_operator();
+            switch (morphology_operator) {
+            case Gfx::MorphologyOperator::Erode:
+                root_filter = Gfx::Filter::erode(radius_x, radius_y, input);
+                break;
+            case Gfx::MorphologyOperator::Dilate:
+                root_filter = Gfx::Filter::dilate(radius_x, radius_y, input);
+                break;
+            case Gfx::MorphologyOperator::Unknown:
+                VERIFY_NOT_REACHED();
+            }
+
+            update_result_map(*morphology_primitive);
         } else if (auto* offset_primitive = as_if<SVGFEOffsetElement>(node)) {
             auto input = resolve_input_filter(offset_primitive->in1()->base_val());
 

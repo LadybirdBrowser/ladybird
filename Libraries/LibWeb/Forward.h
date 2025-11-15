@@ -1116,6 +1116,7 @@ class SVGFEFuncGElement;
 class SVGFEFuncRElement;
 class SVGFEGaussianBlurElement;
 class SVGFEImageElement;
+class SVGFEMorphologyElement;
 class SVGFilterElement;
 class SVGFitToViewBox;
 class SVGForeignObjectElement;

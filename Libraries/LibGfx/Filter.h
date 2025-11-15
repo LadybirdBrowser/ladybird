@@ -48,6 +48,8 @@ public:
     static Filter image(Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode);
     static Filter merge(Vector<Optional<Filter>> const&);
     static Filter offset(float dx, float dy, Optional<Filter const&> input = {});
+    static Filter erode(float radius_x, float radius_y, Optional<Filter> const& input = {});
+    static Filter dilate(float radius_x, float radius_y, Optional<Filter> const& input = {});
 
     FilterImpl const& impl() const;
 
