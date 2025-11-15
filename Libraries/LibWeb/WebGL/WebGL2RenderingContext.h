@@ -31,7 +31,6 @@ public:
 
     GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const;
 
-    bool is_context_lost() const;
     Optional<WebGLContextAttributes> get_context_attributes();
 
     RefPtr<Gfx::PaintingSurface> surface();
