@@ -1339,6 +1339,8 @@ class VTTRegion;
 
 namespace Web::WebXR {
 
+class XRSession;
+class XRSessionEvent;
 class XRSystem;
 
 }
