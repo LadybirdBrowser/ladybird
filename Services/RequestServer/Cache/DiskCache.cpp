@@ -83,7 +83,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     }
 
     auto const& response_headers = cache_entry.value()->response_headers();
-    auto freshness_lifetime = calculate_freshness_lifetime(response_headers);
+    auto freshness_lifetime = calculate_freshness_lifetime(cache_entry.value()->status_code(), response_headers);
     auto current_age = calculate_age(response_headers, index_entry->request_time, index_entry->response_time);
 
     switch (cache_lifetime_status(response_headers, freshness_lifetime, current_age)) {

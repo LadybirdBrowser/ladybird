@@ -23,7 +23,7 @@ bool is_cacheable(StringView method);
 bool is_cacheable(u32 status_code, HTTP::HeaderMap const&);
 bool is_header_exempted_from_storage(StringView name);
 
-AK::Duration calculate_freshness_lifetime(HTTP::HeaderMap const&);
+AK::Duration calculate_freshness_lifetime(u32 status_code, HTTP::HeaderMap const&);
 AK::Duration calculate_age(HTTP::HeaderMap const&, UnixDateTime request_time, UnixDateTime response_time);
 
 enum class CacheLifetimeStatus {
