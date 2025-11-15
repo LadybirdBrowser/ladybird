@@ -134,6 +134,20 @@
       }
     },
     {
+      "name": "ThreadSanitizer",
+      "inherits": [
+        "unix_base",
+        "Release"
+      ],
+      "displayName": "Thread Sanitizer Config",
+      "description": "Thread Sanitizer Unix build",
+      "binaryDir": "${fileDir}/Build/threadsanitizer",
+      "cacheVariables": {
+        "ENABLE_THREAD_SANITIZER": "ON",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
+    },
+    {
       "name": "Windows_Sanitizer_Experimental",
       "inherits": [
         "Windows_Experimental"
@@ -274,6 +288,13 @@
       "description": "Build the project with Sanitizers on Unix"
     },
     {
+      "name": "ThreadSanitizer",
+      "inherits": "unix_base",
+      "configurePreset": "ThreadSanitizer",
+      "displayName": "Thread Sanitizer Build",
+      "description": "Build the project with Thread Sanitizer on Unix"
+    },
+    {
       "name": "Windows_Sanitizer_Experimental",
       "inherits": "windows_base",
       "configurePreset": "Windows_Sanitizer_Experimental",
@@ -374,6 +395,14 @@
         "sanitizer_base"
       ],
       "configurePreset": "Sanitizer"
+    },
+    {
+      "name": "ThreadSanitizer",
+      "inherits": [
+        "unix_base",
+        "sanitizer_base"
+      ],
+      "configurePreset": "ThreadSanitizer"
     },
     {
       "name": "Windows_Sanitizer_Experimental",
