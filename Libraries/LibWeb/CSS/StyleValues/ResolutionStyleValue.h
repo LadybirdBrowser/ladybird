@@ -33,6 +33,11 @@ public:
         return m_resolution == other_resolution.m_resolution;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return ResolutionStyleValue::create(Resolution(0, ResolutionUnit::Dpcm));
+    }
+
 private:
     explicit ResolutionStyleValue(Resolution resolution)
         : DimensionStyleValue(Type::Resolution)

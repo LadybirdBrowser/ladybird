@@ -166,6 +166,8 @@ public:
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
     };
 
+    static ValueComparingNonnullRefPtr<StyleValue const> get_neutral_value_for_type(Type type);
+
     Type type() const { return m_type; }
 
     bool is_abstract_image() const

@@ -11,6 +11,7 @@
 
 #include <AK/FlyString.h>
 #include <LibGfx/Color.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -49,6 +50,11 @@ public:
     };
     ColorType color_type() const { return m_color_type; }
     ColorSyntax color_syntax() const { return m_color_syntax; }
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Modern, {});
+    }
 
 protected:
     explicit ColorStyleValue(ColorType color_type, ColorSyntax color_syntax)

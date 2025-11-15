@@ -20,6 +20,11 @@ public:
     {
         return adopt_ref(*new (nothrow) AngleStyleValue(move(angle)));
     }
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        Angle angle(0, AngleUnit::Deg);
+        return create(angle);
+    }
     virtual ~AngleStyleValue() override;
 
     Angle const& angle() const { return m_angle; }

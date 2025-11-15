@@ -24,6 +24,11 @@ public:
 
     bool properties_equal(RectStyleValue const& other) const { return m_rect == other.m_rect; }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return RectStyleValue::create({ LengthOrAuto(Length::make_px(0)), LengthOrAuto(Length::make_px(0)), LengthOrAuto(Length::make_px(0)), LengthOrAuto(Length::make_px(0)) });
+    }
+
 private:
     explicit RectStyleValue(EdgeRect rect)
         : StyleValueWithDefaultOperators(Type::Rect)

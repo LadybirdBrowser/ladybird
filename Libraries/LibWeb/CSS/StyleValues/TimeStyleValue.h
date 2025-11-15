@@ -36,6 +36,13 @@ public:
         return m_time == other_time.m_time;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto unit = TimeUnit::Ms;
+        auto time = Time(0, unit);
+        return TimeStyleValue(time);
+    }
+
 private:
     explicit TimeStyleValue(Time time)
         : DimensionStyleValue(Type::Time)

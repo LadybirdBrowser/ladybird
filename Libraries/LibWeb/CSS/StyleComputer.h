@@ -76,6 +76,9 @@ private:
     CounterType m_buckets[bucket_count];
 };
 
+struct NoKeyframeEffect { };
+struct KeyframeEffectInterpolateFailed { };
+
 struct FontFaceKey;
 
 struct OwnFontFaceKey {

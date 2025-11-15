@@ -36,6 +36,11 @@ public:
 
     bool properties_equal(RatioStyleValue const& other) const { return m_ratio == other.m_ratio; }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return RatioStyleValue::create(Ratio(1, 0));
+    }
+
 private:
     RatioStyleValue(Ratio&& ratio)
         : StyleValueWithDefaultOperators(Type::Ratio)

@@ -36,6 +36,11 @@ public:
         return m_percentage == other_percentage.m_percentage;
     }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        return PercentageStyleValue::create(Percentage(0));
+    }
+
 private:
     PercentageStyleValue(Percentage&& percentage)
         : DimensionStyleValue(Type::Percentage)

@@ -29,6 +29,13 @@ public:
 
     bool equals(StyleValue const& other) const override;
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto unit = LengthUnit::Px;
+        Length length = Length(0, unit);
+        return LengthStyleValue::create(length);
+    }
+
 private:
     explicit LengthStyleValue(Length const& length)
         : DimensionStyleValue(Type::Length)

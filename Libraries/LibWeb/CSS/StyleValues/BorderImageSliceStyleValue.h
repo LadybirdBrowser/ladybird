@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -29,6 +30,16 @@ public:
     virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(BorderImageSliceStyleValue const& other) const { return m_properties == other.m_properties; }
+
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto top = IntegerStyleValue::create(0);
+        auto right = IntegerStyleValue::create(0);
+        auto bottom = IntegerStyleValue::create(0);
+        auto left = IntegerStyleValue::create(0);
+        // note: 'fill' is not additive
+        return create(top, right, bottom, left, false);
+    }
 
 private:
     BorderImageSliceStyleValue(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left, bool fill)

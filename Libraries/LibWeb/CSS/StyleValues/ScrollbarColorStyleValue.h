@@ -23,6 +23,12 @@ public:
     NonnullRefPtr<StyleValue const> thumb_color() const { return m_thumb_color; }
     NonnullRefPtr<StyleValue const> track_color() const { return m_track_color; }
 
+    static ValueComparingNonnullRefPtr<StyleValue const> neutral_value()
+    {
+        auto transparent_color = ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Modern, {});
+        return ScrollbarColorStyleValue::create(transparent_color, transparent_color);
+    }
+
 private:
     explicit ScrollbarColorStyleValue(NonnullRefPtr<StyleValue const> thumb_color, NonnullRefPtr<StyleValue const> track_color)
         : StyleValueWithDefaultOperators(Type::ScrollbarColor)
