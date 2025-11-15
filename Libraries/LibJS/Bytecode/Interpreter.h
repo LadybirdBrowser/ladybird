@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Export.h>
@@ -77,6 +78,7 @@ public:
     Executable const& current_executable() const { return *m_running_execution_context->executable; }
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
+    ExecutionContext const& running_execution_context() const { return *m_running_execution_context; }
 
     [[nodiscard]] Utf16FlyString const& get_identifier(IdentifierTableIndex) const;
     [[nodiscard]] Optional<Utf16FlyString const&> get_identifier(Optional<IdentifierTableIndex> index) const
@@ -97,6 +99,8 @@ private:
 
     VM& m_vm;
     ExecutionContext* m_running_execution_context { nullptr };
+
+    friend struct InterpreterPrivate;
 };
 
 JS_API extern bool g_dump_bytecode;

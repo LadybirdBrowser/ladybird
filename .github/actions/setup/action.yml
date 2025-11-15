@@ -40,8 +40,8 @@ runs:
 
         sudo apt-get update -y
         sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 \
-            gcc-14 g++-14 libcurl4-openssl-dev libdrm-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
-            libstdc++-14-dev lld-20 llvm-20 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
+            gcc-15 g++-15 libcurl4-openssl-dev libdrm-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
+            libstdc++-15-dev lld-20 llvm-20 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
         if ${{ inputs.toolchain == 'Clang' }} ; then
           sudo apt-get install -y clang-20 clang++-20 clang-tools-20
@@ -50,8 +50,8 @@ runs:
         fi
 
         sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-20 100
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100
 
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}

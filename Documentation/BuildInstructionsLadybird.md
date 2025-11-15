@@ -4,7 +4,7 @@
 
 Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler are required.
 
-We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
+We currently use gcc-15 and clang-20 in our CI pipeline. If these versions are not available on your system, see
 [`Meta/find_compiler.py`](../Meta/find_compiler.py) for the minimum compatible version.
 
 CMake 3.25 or newer must be available in $PATH.
@@ -59,7 +59,7 @@ sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-f
 
 ```bash
 sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-sudo apt update && sudo apt install g++-14 libstdc++-14-dev
+sudo apt update && sudo apt install g++-15 libstdc++-15-dev
 ```
 
 #### Audio support:

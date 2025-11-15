@@ -191,6 +191,7 @@ public:
     op,
         ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
 #undef __BYTECODE_OP
+            __Last
     };
 
     Type type() const { return m_type; }
