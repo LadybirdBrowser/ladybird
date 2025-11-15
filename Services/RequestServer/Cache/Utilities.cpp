@@ -278,7 +278,7 @@ void update_header_fields(HTTP::HeaderMap& stored_headers, HTTP::HeaderMap const
         // * Header fields that are automatically processed and removed by the recipient, as described below, and
 
         // * The Content-Length header field.
-        if (name.equals_ignoring_ascii_case("Content-Type"sv))
+        if (name.equals_ignoring_ascii_case("Content-Length"sv))
             return true;
 
         return false;
