@@ -225,6 +225,27 @@ private:
     Operand m_dst;
 };
 
+class NewObjectWithNoPrototype final : public Instruction {
+public:
+    explicit NewObjectWithNoPrototype(Operand dst)
+        : Instruction(Type::NewObjectWithNoPrototype)
+        , m_dst(dst)
+    {
+    }
+
+    void execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+    }
+
+    Operand dst() const { return m_dst; }
+
+private:
+    Operand m_dst;
+};
+
 class NewRegExp final : public Instruction {
 public:
     NewRegExp(Operand dst, StringTableIndex source_index, StringTableIndex flags_index, RegexTableIndex regex_index)
@@ -408,6 +429,28 @@ private:
     Operand m_dst;
     u32 m_element_count { 0 };
     Value m_elements[];
+};
+
+class NewArrayWithLength final : public Instruction {
+public:
+    NewArrayWithLength(Operand dst, Operand length)
+        : Instruction(Type::NewArrayWithLength)
+        , m_dst(dst)
+        , m_length(length)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_length);
+    }
+
+private:
+    Operand m_dst;
+    Operand m_length;
 };
 
 class AddPrivateName final : public Instruction {
@@ -3035,6 +3078,216 @@ public:
 
 private:
     StringView m_text;
+    Operand m_value;
+};
+
+class IsCallable final : public Instruction {
+public:
+    explicit IsCallable(Operand dst, Operand value)
+        : Instruction(Type::IsCallable)
+        , m_dst(dst)
+        , m_value(value)
+    {
+    }
+
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_value);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand value() const { return m_value; }
+
+private:
+    Operand m_dst;
+    Operand m_value;
+};
+
+class IsConstructor final : public Instruction {
+public:
+    explicit IsConstructor(Operand dst, Operand value)
+        : Instruction(Type::IsConstructor)
+        , m_dst(dst)
+        , m_value(value)
+    {
+    }
+
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_value);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand value() const { return m_value; }
+
+private:
+    Operand m_dst;
+    Operand m_value;
+};
+
+class ToObject final : public Instruction {
+public:
+    explicit ToObject(Operand dst, Operand value)
+        : Instruction(Type::ToObject)
+        , m_dst(dst)
+        , m_value(value)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_value);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand value() const { return m_value; }
+
+private:
+    Operand m_dst;
+    Operand m_value;
+};
+
+class ToBoolean final : public Instruction {
+public:
+    explicit ToBoolean(Operand dst, Operand value)
+        : Instruction(Type::ToBoolean)
+        , m_dst(dst)
+        , m_value(value)
+    {
+    }
+
+    void execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_value);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand value() const { return m_value; }
+
+private:
+    Operand m_dst;
+    Operand m_value;
+};
+
+class ToLength final : public Instruction {
+public:
+    explicit ToLength(Operand dst, Operand value)
+        : Instruction(Type::ToLength)
+        , m_dst(dst)
+        , m_value(value)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_value);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand value() const { return m_value; }
+
+private:
+    Operand m_dst;
+    Operand m_value;
+};
+
+class GetWellKnownSymbol final : public Instruction {
+public:
+    enum class WellKnownSymbol {
+        Iterator,
+        AsyncIterator,
+    };
+
+    explicit GetWellKnownSymbol(Operand dst, WellKnownSymbol well_known_symbol)
+        : Instruction(Type::GetWellKnownSymbol)
+        , m_dst(dst)
+        , m_well_known_symbol(well_known_symbol)
+    {
+    }
+
+    void execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+    }
+
+    Operand dst() const { return m_dst; }
+
+private:
+    Operand m_dst;
+    WellKnownSymbol m_well_known_symbol;
+};
+
+class CreateAsyncFromSyncIterator final : public Instruction {
+public:
+    CreateAsyncFromSyncIterator(Operand dst, Operand iterator, Operand next_method, Operand done)
+        : Instruction(Type::CreateAsyncFromSyncIterator)
+        , m_dst(dst)
+        , m_iterator(iterator)
+        , m_next_method(next_method)
+        , m_done(done)
+    {
+    }
+
+    void execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_iterator);
+        visitor(m_next_method);
+        visitor(m_done);
+    }
+
+    Operand dst() const { return m_dst; }
+
+private:
+    Operand m_dst;
+    Operand m_iterator;
+    Operand m_next_method;
+    Operand m_done;
+};
+
+class CreateDataPropertyOrThrow final : public Instruction {
+public:
+    explicit CreateDataPropertyOrThrow(Operand object, Operand property, Operand value)
+        : Instruction(Type::CreateDataPropertyOrThrow)
+        , m_object(object)
+        , m_property(property)
+        , m_value(value)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_object);
+        visitor(m_property);
+        visitor(m_value);
+    }
+
+    Operand object() const { return m_object; }
+    Operand property() const { return m_property; }
+    Operand value() const { return m_value; }
+
+private:
+    Operand m_object;
+    Operand m_property;
     Operand m_value;
 };
 

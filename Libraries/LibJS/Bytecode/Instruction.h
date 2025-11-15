@@ -36,6 +36,8 @@
     O(ContinuePendingUnwind)           \
     O(CopyObjectExcludingProperties)   \
     O(CreateArguments)                 \
+    O(CreateAsyncFromSyncIterator)     \
+    O(CreateDataPropertyOrThrow)       \
     O(CreateLexicalEnvironment)        \
     O(CreateImmutableBinding)          \
     O(CreateMutableBinding)            \
@@ -72,6 +74,7 @@
     O(GetPrivateById)                  \
     O(GetBinding)                      \
     O(GetInitializedBinding)           \
+    O(GetWellKnownSymbol)              \
     O(GreaterThan)                     \
     O(GreaterThanEquals)               \
     O(HasPrivateId)                    \
@@ -81,6 +84,8 @@
     O(InitializeLexicalBinding)        \
     O(InitializeVariableBinding)       \
     O(InstanceOf)                      \
+    O(IsCallable)                      \
+    O(IsConstructor)                   \
     O(IteratorClose)                   \
     O(IteratorNext)                    \
     O(IteratorNextUnpack)              \
@@ -112,9 +117,11 @@
     O(Mov)                             \
     O(Mul)                             \
     O(NewArray)                        \
+    O(NewArrayWithLength)              \
     O(NewClass)                        \
     O(NewFunction)                     \
     O(NewObject)                       \
+    O(NewObjectWithNoPrototype)        \
     O(NewPrimitiveArray)               \
     O(NewRegExp)                       \
     O(NewTypeError)                    \
@@ -172,6 +179,9 @@
     O(ThrowIfNotObject)                \
     O(ThrowIfNullish)                  \
     O(ThrowIfTDZ)                      \
+    O(ToBoolean)                       \
+    O(ToLength)                        \
+    O(ToObject)                        \
     O(Typeof)                          \
     O(TypeofBinding)                   \
     O(UnaryMinus)                      \

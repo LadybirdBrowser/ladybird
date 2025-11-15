@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/MapIteratorPrototype.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/ProxyObject.h>
@@ -1420,6 +1421,11 @@ void Object::define_native_function(Realm& realm, PropertyKey const& property_ke
     define_direct_property(property_key, function, attribute);
     if (builtin.has_value())
         realm.define_builtin(builtin.value(), function);
+}
+
+void Object::define_native_javascript_backed_function(PropertyKey const& property_key, GC::Ref<NativeJavaScriptBackedFunction> function, i32, PropertyAttributes attributes)
+{
+    define_direct_property(property_key, function, attributes);
 }
 
 // 20.1.2.3.1 ObjectDefineProperties ( O, Properties ), https://tc39.es/ecma262/#sec-objectdefineproperties
