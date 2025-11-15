@@ -1,0 +1,41 @@
+#import <DOM/EventTarget.idl>
+
+enum XRVisibilityState {
+    "visible",
+    "visible-blurred",
+    "hidden",
+};
+
+[SecureContext, Exposed=Window] interface XRSession : EventTarget {
+    // Attributes
+    [FIXME] readonly attribute XRVisibilityState visibilityState;
+    [FIXME] readonly attribute float? frameRate;
+    [FIXME] readonly attribute Float32Array? supportedFrameRates;
+    [FIXME, SameObject] readonly attribute XRRenderState renderState;
+    [FIXME, SameObject] readonly attribute XRInputSourceArray inputSources;
+    [FIXME, SameObject] readonly attribute XRInputSourceArray trackedSources;
+    [FIXME] readonly attribute FrozenArray<DOMString> enabledFeatures;
+    [FIXME] readonly attribute boolean isSystemKeyboardSupported;
+    
+    // Methods
+    [FIXME] undefined updateRenderState(optional XRRenderStateInit state = {});
+    [FIXME] Promise<undefined> updateTargetFrameRate(float rate);
+    [FIXME, NewObject] Promise<XRReferenceSpace> requestReferenceSpace(XRReferenceSpaceType type);
+    
+    [FIXME] unsigned long requestAnimationFrame(XRFrameRequestCallback callback);
+    [FIXME] undefined cancelAnimationFrame(unsigned long handle);
+
+    Promise<undefined> end();
+
+    // Events
+    attribute EventHandler onend;
+    [FIXME] attribute EventHandler oninputsourceschange;
+    [FIXME] attribute EventHandler onselect;
+    [FIXME] attribute EventHandler onselectstart;
+    [FIXME] attribute EventHandler onselectend;
+    [FIXME] attribute EventHandler onsqueeze;
+    [FIXME] attribute EventHandler onsqueezestart;
+    [FIXME] attribute EventHandler onsqueezeend;
+    [FIXME] attribute EventHandler onvisibilitychange;
+    [FIXME] attribute EventHandler onframeratechange;
+};

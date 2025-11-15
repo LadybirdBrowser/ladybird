@@ -56,6 +56,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(drop)                     \
     __ENUMERATE_HTML_EVENT(durationchange)           \
     __ENUMERATE_HTML_EVENT(emptied)                  \
+    __ENUMERATE_HTML_EVENT(end)                      \
     __ENUMERATE_HTML_EVENT(ended)                    \
     __ENUMERATE_HTML_EVENT(enter)                    \
     __ENUMERATE_HTML_EVENT(error)                    \
