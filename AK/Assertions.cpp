@@ -33,12 +33,6 @@
 #    include <cxxabi.h>
 #endif
 
-#if defined(AK_OS_SERENITY)
-#    define ERRORLN dbgln
-#else
-#    define ERRORLN warnln
-#endif
-
 extern "C" {
 
 #if defined(AK_HAS_CPPTRACE)
@@ -106,7 +100,7 @@ void dump_backtrace([[maybe_unused]] unsigned frames_to_skip, [[maybe_unused]] u
 
 bool ak_colorize_output(void)
 {
-#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
+#if defined(AK_OS_ANDROID)
     return true;
 #elif defined(AK_OS_WINDOWS)
     HANDLE hStdErr = GetStdHandle(STD_ERROR_HANDLE);
@@ -165,9 +159,9 @@ void ak_verification_failed(char const* message)
         assertion_handler(message);
     }
     if (ak_colorize_output())
-        ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
+        warnln("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else
-        ERRORLN("VERIFICATION FAILED: {}", message);
+        warnln("VERIFICATION FAILED: {}", message);
 
     ak_trap();
 }
@@ -178,9 +172,9 @@ void ak_assertion_failed(char const* message)
         assertion_handler(message);
     }
     if (ak_colorize_output())
-        ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
+        warnln("\033[31;1mASSERTION FAILED\033[0m: {}", message);
     else
-        ERRORLN("ASSERTION FAILED: {}", message);
+        warnln("ASSERTION FAILED: {}", message);
 
     ak_trap();
 }
