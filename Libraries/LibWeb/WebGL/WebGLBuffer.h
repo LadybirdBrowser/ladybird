@@ -2,6 +2,7 @@
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2025, Undefine <undefine@undefine.pl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,10 +23,16 @@ public:
 
     virtual ~WebGLBuffer();
 
+    void mark_as_index_buffer(bool value) { m_is_index_buffer = value ? TriState::True : TriState::False; }
+    TriState is_index_buffer() const { return m_is_index_buffer; }
+
 protected:
     explicit WebGLBuffer(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
+
+private:
+    TriState m_is_index_buffer { TriState::Unknown };
 };
 
 }
