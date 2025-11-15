@@ -14,11 +14,14 @@ extern "C" {
 
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
@@ -168,6 +171,85 @@ void WebGLRenderingContextBase::set_error(GLenum error)
         m_error = context_error;
     else
         m_error = error;
+}
+
+bool WebGLRenderingContextBase::is_context_lost() const
+{
+    dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::is_context_lost()");
+    return m_context_lost;
+}
+
+// https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
+GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
+{
+    // 1. If the requesting document’s origin is not allowed to use the "xr-spatial-tracking" permissions policy,
+    //    resolve promise and return it.
+    // FIXME: Implement this.
+
+    // 2. Let promise be a new Promise created in the Realm of this WebGLRenderingContextBase.
+    auto& realm = this->realm();
+    auto promise = WebIDL::create_promise(realm);
+
+    // 3. Let context be this.
+    auto context = this;
+
+    // 4. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, context, promise]() {
+        // 1. Let device be the result of ensuring an immersive XR device is selected.
+        // FIXME: Implement https://immersive-web.github.io/webxr/#ensure-an-immersive-xr-device-is-selected
+
+        // 2. Set context’s XR compatible boolean as follows:
+
+        // -> If context’s WebGL context lost flag is set:
+        if (context->is_context_lost()) {
+            // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+                context->set_xr_compatible(false);
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "The WebGL context has been lost."_utf16));
+            }));
+        }
+        // -> If device is null:
+        else if (false) {
+            // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+                context->set_xr_compatible(false);
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Could not select an immersive XR device."_utf16));
+            }));
+        }
+        // -> If context’s XR compatible boolean is true:
+        else if (context->xr_compatible()) {
+            // Queue a task to resolve promise.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise]() {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, promise);
+            }));
+        }
+        // -> If context was created on a compatible graphics adapter for device:
+        // FIXME: For now we just pretend that this happened, so that we can resolve the promise and proceed running basic WPT tests for this.
+        else if (true) {
+            // Queue a task to set context’s XR compatible boolean to true and resolve promise.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+                context->set_xr_compatible(true);
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                WebIDL::resolve_promise(realm, promise);
+            }));
+        }
+        // -> Otherwise:
+        else {
+            // Queue a task on the WebGL task source to perform the following steps:
+            HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(realm.heap(), []() {
+                // 1. Force context to be lost.
+
+                // 2. Handle the context loss as described by the WebGL specification:
+                // FIXME: Implement https://registry.khronos.org/webgl/specs/latest/1.0/#CONTEXT_LOST
+            }));
+        }
+    }));
+
+    // 5. Return promise.
+    return promise;
 }
 
 }
