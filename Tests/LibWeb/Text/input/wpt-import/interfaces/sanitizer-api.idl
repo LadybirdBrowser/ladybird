@@ -1,0 +1,64 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: HTML Sanitizer API (https://wicg.github.io/sanitizer-api/)
+
+enum SanitizerPresets { "default" };
+dictionary SetHTMLOptions {
+  (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = "default";
+};
+dictionary SetHTMLUnsafeOptions {
+  (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer = {};
+};
+
+[Exposed=Window]
+interface Sanitizer {
+  constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
+
+  // Query configuration:
+  SanitizerConfig get();
+
+  // Modify a Sanitizer’s lists and fields:
+  boolean allowElement(SanitizerElementWithAttributes element);
+  boolean removeElement(SanitizerElement element);
+  boolean replaceElementWithChildren(SanitizerElement element);
+  boolean allowAttribute(SanitizerAttribute attribute);
+  boolean removeAttribute(SanitizerAttribute attribute);
+  boolean setComments(boolean allow);
+  boolean setDataAttributes(boolean allow);
+
+  // Remove markup that executes script.
+  boolean removeUnsafe();
+};
+
+dictionary SanitizerElementNamespace {
+  required DOMString name;
+  DOMString? _namespace = "http://www.w3.org/1999/xhtml";
+};
+
+// Used by "elements"
+dictionary SanitizerElementNamespaceWithAttributes : SanitizerElementNamespace {
+  sequence<SanitizerAttribute> attributes;
+  sequence<SanitizerAttribute> removeAttributes;
+};
+
+typedef (DOMString or SanitizerElementNamespace) SanitizerElement;
+typedef (DOMString or SanitizerElementNamespaceWithAttributes) SanitizerElementWithAttributes;
+
+dictionary SanitizerAttributeNamespace {
+  required DOMString name;
+  DOMString? _namespace = null;
+};
+typedef (DOMString or SanitizerAttributeNamespace) SanitizerAttribute;
+
+dictionary SanitizerConfig {
+  sequence<SanitizerElementWithAttributes> elements;
+  sequence<SanitizerElement> removeElements;
+  sequence<SanitizerElement> replaceWithChildrenElements;
+
+  sequence<SanitizerAttribute> attributes;
+  sequence<SanitizerAttribute> removeAttributes;
+
+  boolean comments;
+  boolean dataAttributes;
+};
