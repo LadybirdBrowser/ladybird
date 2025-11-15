@@ -17,9 +17,11 @@
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Internals/XRTest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
+#include <LibWeb/WebXR/XRSystem.h>
 
 namespace Web::HTML {
 
@@ -76,6 +78,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
+    visitor.visit(m_xr);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -125,6 +128,17 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
     if (!m_credentials)
         m_credentials = realm().create<CredentialManagement::CredentialsContainer>(realm());
     return *m_credentials;
+}
+
+GC::Ref<WebXR::XRSystem> Navigator::xr()
+{
+    if (!m_xr) {
+        auto& realm = this->realm();
+        m_xr = realm.create<WebXR::XRSystem>(realm);
+        if (Window::is_internals_object_exposed())
+            m_xr->define_direct_property("test"_utf16_fly_string, realm.create<Internals::XRTest>(realm), JS::default_attributes);
+    }
+    return *m_xr;
 }
 
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints

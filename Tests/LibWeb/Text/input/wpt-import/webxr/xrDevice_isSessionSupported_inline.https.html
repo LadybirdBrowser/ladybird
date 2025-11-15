@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<body>
+  <script src=../resources/testharness.js></script>
+  <script src=../resources/testharnessreport.js></script>
+  <script src="resources/webxr_util.js"></script>
+  <script src="resources/webxr_test_constants.js"></script>
+  <script>
+    xr_promise_test(
+      "isSessionSupported resolves to true when inline options supported",
+      (t) => {
+      return navigator.xr.test.simulateDeviceConnection(TRACKED_IMMERSIVE_DEVICE)
+        .then( (controller) => {
+          // Inline sessions should be supported.
+          return navigator.xr.isSessionSupported('inline').then((supported) => {
+            t.step(() => {
+              assert_true(supported);
+            });
+          });
+        });
+    });
+  </script>
+</body>

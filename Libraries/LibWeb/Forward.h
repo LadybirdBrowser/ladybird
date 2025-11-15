@@ -834,9 +834,11 @@ class RequestList;
 
 namespace Web::Internals {
 
+class FakeXRDevice;
 class Internals;
 class InternalGamepad;
 class WebUI;
+class XRTest;
 
 }
 
@@ -1290,6 +1292,14 @@ namespace Web::WebVTT {
 
 class VTTCue;
 class VTTRegion;
+
+}
+
+namespace Web::WebXR {
+
+class XRSession;
+class XRSessionEvent;
+class XRSystem;
 
 }
 
