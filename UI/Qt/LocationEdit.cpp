@@ -41,7 +41,31 @@ LocationEdit::LocationEdit(QWidget* parent)
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
 
-        if (auto url = WebView::sanitize_url(query, WebView::Application::settings().search_engine(), append_tld); url.has_value())
+        auto const bang_char = '!'; // This should be a setting
+
+        auto search_engine = WebView::Application::settings().search_engine();
+
+        auto const splits = query.split(' ');
+        if (!splits.is_error()) {
+            if (auto const last = splits.value().last(); last.starts_with(bang_char)) {
+                auto exist = WebView::find_search_engine_by_bang(last);
+                if (exist.has_value()) {
+                    search_engine->name = exist->name;
+                    search_engine->query_url = exist->query_url;
+                    query = MUST(query.substring_from_byte_offset(0, query.bytes().size() - last.bytes().size()));
+                }
+            }
+            if (auto const first = splits.value().first(); first.starts_with(bang_char)) {
+                auto exist = WebView::find_search_engine_by_bang(first);
+                if (exist.has_value()) {
+                    search_engine->name = exist->name;
+                    search_engine->query_url = exist->query_url;
+                    query = MUST(query.substring_from_byte_offset(first.bytes().size() + 1));
+                }
+            }
+        }
+
+        if (auto url = WebView::sanitize_url(query, search_engine, append_tld); url.has_value())
             set_url(url.release_value());
     });
 
