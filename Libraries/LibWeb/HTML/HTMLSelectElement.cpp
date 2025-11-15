@@ -37,6 +37,11 @@ GC_DEFINE_ALLOCATOR(HTMLSelectElement);
 HTMLSelectElement::HTMLSelectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
+    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
+        .supports_indexed_properties = true,
+        .has_indexed_property_setter = true,
+        .indexed_property_setter_has_identifier = true,
+    };
 }
 
 HTMLSelectElement::~HTMLSelectElement() = default;
@@ -118,15 +123,29 @@ void HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-options
-GC::Ptr<HTMLOptionsCollection> const& HTMLSelectElement::options()
+GC::Ptr<HTMLOptionsCollection> const& HTMLSelectElement::options() const
 {
     if (!m_options) {
-        m_options = HTMLOptionsCollection::create(*this, [](DOM::Element const& element) {
+        m_options = HTMLOptionsCollection::create(const_cast<HTMLSelectElement&>(*this), [this](DOM::Element const& element) {
             // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
             // The list of options for a select element consists of all the option element children of
             // the select element, and all the option element children of all the optgroup element children
             // of the select element, in tree order.
-            return is<HTMLOptionElement>(element);
+
+            if (!is<HTMLOptionElement>(element))
+                return false;
+
+            auto parent = element.parent_element();
+
+            // <option> is a direct child of the <select> element
+            if (parent == this)
+                return true;
+
+            // <option> is a child of an <optgroup> that is a direct child of the <select>
+            if (is<HTMLOptGroupElement>(*parent) && parent->parent_element() == this)
+                return true;
+
+            return false;
         });
     }
     return m_options;
@@ -152,6 +171,14 @@ HTMLOptionElement* HTMLSelectElement::item(WebIDL::UnsignedLong index)
     return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).item(index));
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:htmlselectelement
+Optional<JS::Value> HTMLSelectElement::item_value(size_t index) const
+{
+    // The options collection is also mirrored on the HTMLSelectElement object. The supported property indices at any
+    // instant are the indices supported by the object returned by the options attribute at that instant.
+    return (const_cast<HTMLOptionsCollection&>(*options()).item_value(index));
+}
+
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
 HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
 {
@@ -166,6 +193,16 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::add(HTMLOptionOrOptGroupElement ele
     TRY(const_cast<HTMLOptionsCollection&>(*options()).add(move(element), move(before)));
 
     update_selectedness(); // Not in spec
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:set-the-value-of-a-new-indexed-property
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_indexed_property(u32 n, JS::Value new_value)
+{
+    // When the user agent is to set the value of a new indexed property or set the value of an existing indexed property
+    // for a select element, it must instead run the corresponding algorithm on the select element's options collection.
+    TRY(const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(n, new_value));
 
     return {};
 }
