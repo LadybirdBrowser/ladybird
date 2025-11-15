@@ -65,6 +65,7 @@ public:
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
+    [[nodiscard]] GC::Ref<WebXR::XRSystem> xr();
 
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 
@@ -108,6 +109,9 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
+
+    // https://immersive-web.github.io/webxr/#dom-navigator-xr
+    GC::Ptr<WebXR::XRSystem> m_xr;
 };
 
 }
