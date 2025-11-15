@@ -63,9 +63,10 @@ public slots:
     Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab);
     Tab& new_child_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void activate_tab(int index);
-    void close_tab(int index);
+    void definitely_close_tab(int index);
     void move_tab(int old_index, int new_index);
-    void close_current_tab();
+    void request_to_close_tab(int index);
+    void request_to_close_current_tab();
     void open_next_tab();
     void open_previous_tab();
     void open_file();

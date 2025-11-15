@@ -63,4 +63,6 @@
 - (void)findInPageNextMatch;
 - (void)findInPagePreviousMatch;
 
+- (void)requestClose;
+
 @end

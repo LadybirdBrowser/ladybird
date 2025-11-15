@@ -1025,4 +1025,9 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>,
         m_media_context_menu->on_activation(to_widget_position(content_position));
 }
 
+void ViewImplementation::request_close()
+{
+    client().async_request_close(page_id());
+}
+
 }
