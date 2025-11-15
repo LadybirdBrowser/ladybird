@@ -9,7 +9,11 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Concepts.h>
+#include <AK/Forward.h>
 #include <AK/Noncopyable.h>
+#include <AK/Platform.h>
+#include <AK/StdLibExtraDetails.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
 #include <AK/Try.h>
@@ -33,10 +37,17 @@ struct ConditionallyResultType<false, T> {
     using Type = T;
 };
 
+template<typename Self, typename T>
+struct AddConstIfNeeded {
+    using Type = Conditional<IsConst<RemoveReference<Self>> && !IsConst<T>, AddConst<T>, T>;
+};
+
 }
 
 template<auto condition, typename T>
 using ConditionallyResultType = typename Detail::ConditionallyResultType<condition, T>::Type;
+template<typename Self, typename T>
+using AddConstIfNeeded = typename Detail::AddConstIfNeeded<Self, T>::Type;
 
 // NOTE: If you're here because of an internal compiler error in GCC 10.3.0+,
 //       it's because of the following bug:
@@ -53,116 +64,92 @@ struct OptionalNone {
     explicit constexpr OptionalNone() = default;
 };
 
-template<typename T, typename Self = Optional<T>>
-requires(!IsLvalueReference<Self>) class [[nodiscard]] OptionalBase {
+template<typename T>
+requires(!IsLvalueReference<T>)
+class [[nodiscard]] OptionalBase {
 public:
     using ValueType = T;
 
-    template<SameAs<OptionalNone> V>
-    ALWAYS_INLINE constexpr Self& operator=(V)
+    template<typename Self, SameAs<OptionalNone> V>
+    ALWAYS_INLINE constexpr Self& operator=(this Self& self, V)
     {
-        static_cast<Self&>(*this).clear();
-        return static_cast<Self&>(*this);
+        self.clear();
+        return self;
     }
 
-    [[nodiscard]] ALWAYS_INLINE constexpr T* ptr() &
+    template<typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr AddConstIfNeeded<Self, T>* ptr(this Self& self)
     {
-        return static_cast<Self&>(*this).has_value() ? __builtin_launder(reinterpret_cast<T*>(&static_cast<Self&>(*this).value())) : nullptr;
+        return self.has_value() ? &self.value() : nullptr;
     }
 
-    [[nodiscard]] ALWAYS_INLINE constexpr T const* ptr() const&
+    template<typename O = T, typename Fallback = O, typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr O value_or(this Self&& self, Fallback&& fallback)
     {
-        return static_cast<Self const&>(*this).has_value() ? __builtin_launder(reinterpret_cast<T const*>(&static_cast<Self const&>(*this).value())) : nullptr;
+        if (self.has_value())
+            return forward<Self>(self).value();
+        return forward<Fallback>(fallback);
     }
 
-    template<typename O = T, typename Fallback = O>
-    [[nodiscard]] ALWAYS_INLINE constexpr O value_or(Fallback const& fallback) const&
+    template<typename Callback, typename O = T, typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr O value_or_lazy_evaluated(this Self&& self, Callback callback)
     {
-        if (static_cast<Self const&>(*this).has_value())
-            return static_cast<Self const&>(*this).value();
-        return fallback;
-    }
-
-    template<typename O = T, typename Fallback = O>
-    requires(!IsLvalueReference<O> && !IsRvalueReference<O>)
-    [[nodiscard]] ALWAYS_INLINE constexpr O value_or(Fallback&& fallback) &&
-    {
-        if (static_cast<Self&>(*this).has_value())
-            return move(static_cast<Self&>(*this).value());
-        return move(fallback);
-    }
-
-    template<typename Callback, typename O = T>
-    [[nodiscard]] ALWAYS_INLINE constexpr O value_or_lazy_evaluated(Callback callback) const
-    {
-        if (static_cast<Self const&>(*this).has_value())
-            return static_cast<Self const&>(*this).value();
+        if (self.has_value())
+            return forward<Self>(self).value();
         return callback();
     }
 
-    template<typename Callback, typename O = T>
-    [[nodiscard]] ALWAYS_INLINE constexpr Optional<O> value_or_lazy_evaluated_optional(Callback callback) const
+    template<typename Callback, typename O = T, typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr Optional<O> value_or_lazy_evaluated_optional(this Self&& self, Callback callback)
     {
-        if (static_cast<Self const&>(*this).has_value())
-            return static_cast<Self const&>(*this).value();
+        if (self.has_value())
+            return forward<Self>(self);
         return callback();
     }
 
-    template<typename Callback, typename O = T>
-    [[nodiscard]] ALWAYS_INLINE constexpr ErrorOr<O> try_value_or_lazy_evaluated(Callback callback) const
+    template<typename Callback, typename O = T, typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr ErrorOr<O> try_value_or_lazy_evaluated(this Self&& self, Callback callback)
     {
-        if (static_cast<Self const&>(*this).has_value())
-            return static_cast<Self const&>(*this).value();
+        if (self.has_value())
+            return forward<Self>(self).value();
         return TRY(callback());
     }
 
-    template<typename Callback, typename O = T>
-    [[nodiscard]] ALWAYS_INLINE constexpr ErrorOr<Optional<O>> try_value_or_lazy_evaluated_optional(Callback callback) const
+    template<typename Callback, typename O = T, typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr ErrorOr<Optional<O>> try_value_or_lazy_evaluated_optional(this Self&& self, Callback callback)
     {
-        if (static_cast<Self const&>(*this).has_value())
-            return static_cast<Self const&>(*this).value();
+        if (self.has_value())
+            return forward<Self>(self);
         return TRY(callback());
     }
 
-    template<typename Callable>
-    [[nodiscard]] ALWAYS_INLINE constexpr T& ensure(Callable callable) &
+    template<typename Callable, typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr T& ensure(this Self& self, Callable callable)
     {
-        if (!static_cast<Self&>(*this).has_value())
-            static_cast<Self&>(*this) = callable();
-        return static_cast<Self&>(*this).value();
+        if (!self.has_value())
+            self = callable();
+        return self.value();
     }
 
-    [[nodiscard]] ALWAYS_INLINE constexpr T const& operator*() const { return static_cast<Self const&>(*this).value(); }
-    [[nodiscard]] ALWAYS_INLINE constexpr T& operator*() { return static_cast<Self&>(*this).value(); }
+    template<typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr auto operator*(this Self&& self) -> decltype(forward<Self>(self).value()) { return forward<Self>(self).value(); }
+    template<typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr AddConstIfNeeded<Self, T>* operator->(this Self&& self) { return &self.value(); }
 
-    ALWAYS_INLINE constexpr T const* operator->() const { return &static_cast<Self const&>(*this).value(); }
-    ALWAYS_INLINE constexpr T* operator->() { return &static_cast<Self&>(*this).value(); }
-
-    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
-    ALWAYS_INLINE constexpr Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper)
+    template<typename F,
+        typename MappedType = decltype(declval<F>()(declval<T&>())),
+        auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>,
+        typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>,
+        typename Self>
+    ALWAYS_INLINE constexpr Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(this Self&& self, F&& mapper)
     {
         if constexpr (IsErrorOr) {
-            if (static_cast<Self&>(*this).has_value())
-                return OptionalType { TRY(mapper(static_cast<Self&>(*this).value())) };
+            if (self.has_value())
+                return OptionalType { TRY(mapper(forward<Self>(self).value())) };
             return OptionalType {};
         } else {
-            if (static_cast<Self&>(*this).has_value())
-                return OptionalType { mapper(static_cast<Self&>(*this).value()) };
-
-            return OptionalType {};
-        }
-    }
-
-    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
-    ALWAYS_INLINE constexpr Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper) const
-    {
-        if constexpr (IsErrorOr) {
-            if (static_cast<Self const&>(*this).has_value())
-                return OptionalType { TRY(mapper(static_cast<Self const&>(*this).value())) };
-            return OptionalType {};
-        } else {
-            if (static_cast<Self const&>(*this).has_value())
-                return OptionalType { mapper(static_cast<Self const&>(*this).value()) };
+            if (self.has_value())
+                return OptionalType { mapper(forward<Self>(self).value()) };
 
             return OptionalType {};
         }
@@ -170,7 +157,7 @@ public:
 };
 
 template<typename T>
-requires(!IsLvalueReference<T>) class [[nodiscard]] Optional<T> : public OptionalBase<T, Optional<T>> {
+requires(!IsLvalueReference<T>) class [[nodiscard]] Optional<T> : public OptionalBase<T> {
     template<typename U>
     friend class Optional;
 
@@ -509,12 +496,12 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE constexpr bool has_value() const { return m_pointer != nullptr; }
 
-    [[nodiscard]] ALWAYS_INLINE RemoveReference<T>* ptr()
+    [[nodiscard]] ALWAYS_INLINE constexpr RemoveReference<T>* ptr()
     {
         return m_pointer;
     }
 
-    [[nodiscard]] ALWAYS_INLINE RemoveReference<T> const* ptr() const
+    [[nodiscard]] ALWAYS_INLINE constexpr RemoveReference<T> const* ptr() const
     {
         return m_pointer;
     }
@@ -532,7 +519,7 @@ public:
     }
 
     template<typename U>
-    requires(IsBaseOf<RemoveReference<T>, U>) [[nodiscard]] ALWAYS_INLINE constexpr AddConstToReferencedType<T> value_or(U& fallback) const
+    requires(IsBaseOf<RemoveCVReference<T>, U>) [[nodiscard]] ALWAYS_INLINE constexpr AddConstToReferencedType<T> value_or(U& fallback) const
     {
         if (m_pointer)
             return value();
@@ -555,8 +542,8 @@ public:
     ALWAYS_INLINE constexpr AddConstToReferencedType<T> operator*() const { return value(); }
     ALWAYS_INLINE constexpr T operator*() { return value(); }
 
-    ALWAYS_INLINE RawPtr<AddConst<RemoveReference<T>>> operator->() const { return &value(); }
-    ALWAYS_INLINE RawPtr<RemoveReference<T>> operator->() { return &value(); }
+    ALWAYS_INLINE constexpr RawPtr<AddConst<RemoveReference<T>>> operator->() const { return &value(); }
+    ALWAYS_INLINE constexpr RawPtr<RemoveReference<T>> operator->() { return &value(); }
 
     // Conversion operators from Optional<T&> -> Optional<T>, implicit when T is trivially copyable.
     ALWAYS_INLINE constexpr operator Optional<RemoveCVReference<T>>() const

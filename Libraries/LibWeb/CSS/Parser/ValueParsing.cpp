@@ -4010,14 +4010,14 @@ Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentV
         auto const& function_token = token.function();
         if (function_token.name.equals_ignoring_ascii_case("minmax"sv)) {
             {
-                GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto& it) { return GridSize(Size::make_length_percentage(it)); }); };
+                GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto&& it) { return GridSize(Size::make_length_percentage(it)); }); };
                 GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_track_breadth(tokens); };
                 if (auto result = parse_grid_minmax(tokens, parse_min, parse_max); result.has_value())
                     return result;
             }
             {
                 GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_inflexible_breadth(tokens); };
-                GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto& it) { return GridSize(Size::make_length_percentage(it)); }); };
+                GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto&& it) { return GridSize(Size::make_length_percentage(it)); }); };
                 if (auto result = parse_grid_minmax(tokens, parse_min, parse_max); result.has_value())
                     return result;
             }
