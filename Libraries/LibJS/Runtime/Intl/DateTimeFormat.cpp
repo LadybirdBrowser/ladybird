@@ -364,8 +364,8 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
     // 13. Let anyPresent be false.
     auto any_present = false;
 
-    // 14. For each property name prop of « "weekday", "year", "month", "day", "era", "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" », do
-    static constexpr auto all_fields = AK::Array { Weekday, Year, Month, Day, Era, DayPeriod, Hour, Minute, Second, FractionalSecondDigits };
+    // 14. For each property name prop of « "weekday", "year", "month", "day", "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" », do
+    static constexpr auto all_fields = AK::Array { Weekday, Year, Month, Day, DayPeriod, Hour, Minute, Second, FractionalSecondDigits };
 
     options.for_each_calendar_field_zipped_with(format_options, all_fields, [&](auto const& option, auto&) {
         // a. If options.[[<prop>]] is not undefined, set anyPresent to true.
