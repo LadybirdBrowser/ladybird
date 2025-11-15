@@ -854,9 +854,11 @@ class RequestList;
 
 namespace Web::Internals {
 
+class FakeXRDevice;
 class Internals;
 class InternalGamepad;
 class WebUI;
+class XRTest;
 
 }
 
