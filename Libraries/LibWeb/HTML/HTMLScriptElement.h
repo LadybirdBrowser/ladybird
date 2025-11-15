@@ -92,6 +92,9 @@ private:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
+    // https://www.w3.org/TR/trusted-types/#prepare-script-text
+    WebIDL::ExceptionOr<void> prepare_script_text();
+
     // https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element
     void prepare_script();
 

@@ -1,0 +1,269 @@
+Harness status: OK
+
+Found 264 tests
+
+264 Pass
+Pass	Element.setAttribute applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Element.setAttribute applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Element.setAttribute applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Element.setAttribute applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Element.setAttribute applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Element.setAttribute applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Element.setAttribute does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Element.setAttribute does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Element.setAttribute does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Element.setAttributeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	Element.setAttributeNS does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Element.setAttributeNS does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Element.setAttributeNS does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	Element.setAttributeNode does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Element.setAttributeNode does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Element.setAttributeNode does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	Element.setAttributeNode does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	Element.setAttributeNodeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	NamedNodeMap.setNamedItem does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	NamedNodeMap.setNamedItemNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	Attr.value does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Attr.value does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Attr.value does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	Attr.value does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	Node.nodeValue does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Node.nodeValue does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Node.nodeValue does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	Node.nodeValue does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=onclick
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=ondblclick
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow, attrName=onmousedown
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=srcdoc
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=src
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=href
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink, attrName=href
+Pass	Node.textContent does not apply default policy for elementNS=https://example.com/namespace, element=foo, attrName=onmouseup
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrNS=https://example.com/namespace, attrName=onclick
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=ondoesnotexist
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=data-onclick
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=srcdoc
+Pass	Node.textContent does not apply default policy for elementNS=https://example.com/namespace, element=iframe, attrName=srcdoc
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrNS=https://example.com/namespace, attrName=srcdoc
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME, attrName=data-srcdoc
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV, attrName=src
+Pass	Node.textContent does not apply default policy for elementNS=https://example.com/namespace, element=script, attrName=src
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrNS=https://example.com/namespace, attrName=src
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=data-src
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g, attrName=href
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT, attrName=href
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=https://example.com/namespace, attrName=href
+Pass	Node.textContent does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrName=src
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Element.setAttribute does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Element.setAttributeNS does not apply default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Element.setAttributeNode applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Element.setAttributeNodeNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	NamedNodeMap.setNamedItem applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	NamedNodeMap.setNamedItemNS applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Attr.value applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Node.nodeValue applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=DIV,  attrName=onclick and a TrustedScript input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/2000/svg, element=g,  attrName=ondblclick and a TrustedScript input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1998/Math/MathML, element=mrow,  attrName=onmousedown and a TrustedScript input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=IFRAME,  attrName=srcdoc and a TrustedHTML input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/1999/xhtml, element=SCRIPT,  attrName=src and a TrustedScriptURL input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/2000/svg, element=script,  attrName=href and a TrustedScriptURL input.
+Pass	Node.textContent applies default policy for elementNS=http://www.w3.org/2000/svg, element=script, attrNS=http://www.w3.org/1999/xlink,  attrName=href and a TrustedScriptURL input.
