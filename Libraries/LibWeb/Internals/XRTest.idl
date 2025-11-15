@@ -1,0 +1,23 @@
+#import <WebIDL/Function.idl>
+#import <Internals/FakeXRDevice.idl>
+
+// https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
+[Exposed=Nobody]
+partial interface XRSystem {
+    [SameObject] readonly attribute XRTest test;
+};
+
+[Exposed=Nobody]
+interface XRTest {
+    // Simulates connecting a device to the system.
+    // Used to instantiate a fake device for use in tests.
+    Promise<FakeXRDevice> simulateDeviceConnection(FakeXRDeviceInit init);
+    
+    // Simulates a user activation (aka user gesture) for the current scope.
+    // The activation is only guaranteed to be valid in the provided function and only applies to WebXR
+    // Device API methods.
+    undefined simulateUserActivation(Function f);
+    
+    // Disconnect all fake devices
+    Promise<undefined> disconnectAllDevices();
+};

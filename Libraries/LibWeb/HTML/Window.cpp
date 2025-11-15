@@ -737,6 +737,10 @@ void Window::set_internals_object_exposed(bool exposed)
 {
     s_internals_object_exposed = exposed;
 }
+bool Window::is_internals_object_exposed()
+{
+    return s_internals_object_exposed;
+}
 
 WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>)
 {

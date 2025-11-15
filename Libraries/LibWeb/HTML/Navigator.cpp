@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Internals/XRTest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
@@ -131,8 +132,12 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
 
 GC::Ref<WebXR::XRSystem> Navigator::xr()
 {
-    if (!m_xr)
-        m_xr = realm().create<WebXR::XRSystem>(realm());
+    if (!m_xr) {
+        auto& realm = this->realm();
+        m_xr = realm.create<WebXR::XRSystem>(realm);
+        if (Window::is_internals_object_exposed())
+            m_xr->define_direct_property("test"_utf16_fly_string, realm.create<Internals::XRTest>(realm), JS::default_attributes);
+    }
     return *m_xr;
 }
 
