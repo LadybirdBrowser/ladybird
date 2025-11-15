@@ -97,6 +97,7 @@ if (WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(AK PRIVATE clang_rt.builtins-x86_64.lib)
     target_link_libraries(AK PRIVATE Bcrypt.lib)
+    target_link_libraries(AK PRIVATE advapi32)
     target_link_libraries(AK PRIVATE delayimp.lib)
     set(DELAYLOAD_DBGHLP_VISIBILITY PRIVATE)
     if (NOT BUILD_SHARED_LIBS)
