@@ -75,29 +75,6 @@ RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
     return mixing_data->provider;
 }
 
-static inline i64 duration_to_sample(AK::Duration duration, u32 sample_rate)
-{
-    VERIFY(sample_rate != 0);
-    auto seconds = duration.to_truncated_seconds();
-    auto nanoseconds = (duration - AK::Duration::from_seconds(seconds)).to_nanoseconds();
-
-    auto sample = seconds * sample_rate;
-    sample += nanoseconds * sample_rate / 1'000'000'000;
-    return sample;
-}
-
-static inline AK::Duration sample_to_duration(i64 sample, u32 sample_rate)
-{
-    VERIFY(sample_rate != 0);
-    auto seconds = sample / sample_rate;
-    auto seconds_in_time_units = seconds * sample_rate;
-
-    auto remainder_in_time_units = sample - seconds_in_time_units;
-    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000) + (sample_rate / 2)) / sample_rate;
-
-    return AK::Duration::from_seconds(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
-}
-
 void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
 {
     if (m_playback_stream_sample_rate >= sample_rate && m_playback_stream_channel_count >= channel_count) {
@@ -134,14 +111,7 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
                 if (new_block.is_empty())
                     return false;
 
-                auto new_block_first_sample_offset = duration_to_sample(new_block.start_timestamp(), sample_rate);
-                if (!track_data.current_block.is_empty() && track_data.current_block.sample_rate() == sample_rate && track_data.current_block.channel_count() == channel_count) {
-                    auto current_block_end = track_data.current_block_first_sample_offset + static_cast<i64>(track_data.current_block.sample_count());
-                    new_block_first_sample_offset = max(new_block_first_sample_offset, current_block_end);
-                }
-
                 track_data.current_block = move(new_block);
-                track_data.current_block_first_sample_offset = new_block_first_sample_offset;
                 return true;
             };
 
@@ -160,7 +130,7 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
                     continue;
                 }
 
-                auto first_sample_offset = track_data.current_block_first_sample_offset;
+                auto first_sample_offset = current_block.timestamp_in_samples();
                 if (first_sample_offset >= samples_end)
                     break;
 
@@ -223,7 +193,7 @@ AK::Duration AudioMixingSink::current_time() const
         return m_last_media_time;
 
     auto time = m_last_media_time + (m_playback_stream->total_time_played() - m_last_stream_time);
-    auto max_time = sample_to_duration(m_next_sample_to_write.load(MemoryOrder::memory_order_acquire), m_playback_stream_sample_rate);
+    auto max_time = AK::Duration::from_time_units(m_next_sample_to_write.load(MemoryOrder::memory_order_acquire), 1, m_playback_stream_sample_rate);
     time = min(time, max_time);
     return time;
 }
@@ -266,7 +236,7 @@ void AudioMixingSink::pause()
                 return;
 
             auto new_stream_time = self->m_playback_stream->total_time_played();
-            auto new_media_time = sample_to_duration(self->m_next_sample_to_write, self->m_playback_stream_sample_rate);
+            auto new_media_time = AK::Duration::from_time_units(self->m_next_sample_to_write, 1, self->m_playback_stream_sample_rate);
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time, new_media_time]() {
                 self->m_last_stream_time = new_stream_time;
@@ -299,13 +269,11 @@ void AudioMixingSink::set_time(AK::Duration time)
 
                     {
                         Threading::MutexLocker mixing_locker { self->m_mutex };
-                        self->m_next_sample_to_write = duration_to_sample(time, self->m_playback_stream_sample_rate);
+                        self->m_next_sample_to_write = time.to_time_units(1, self->m_playback_stream_sample_rate);
                     }
 
-                    for (auto& [track, track_data] : self->m_track_mixing_datas) {
+                    for (auto& [track, track_data] : self->m_track_mixing_datas)
                         track_data.current_block.clear();
-                        track_data.current_block_first_sample_offset = 0;
-                    }
                 }
 
                 if (self->m_playing)

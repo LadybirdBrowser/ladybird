@@ -67,6 +67,28 @@ Duration Duration::from_timeval(const struct timeval& tv)
     return Duration::from_half_sanitized(tv.tv_sec, extra_secs, usecs * 1'000);
 }
 
+Duration Duration::from_time_units(i64 time_units, u32 numerator, u32 denominator)
+{
+    VERIFY(numerator != 0);
+    VERIFY(denominator != 0);
+
+    auto seconds_checked = Checked<i64>(time_units);
+    seconds_checked.mul(numerator);
+    seconds_checked.div(denominator);
+    if (time_units < 0)
+        seconds_checked.sub(1);
+
+    if (seconds_checked.has_overflow())
+        return Duration(time_units >= 0 ? NumericLimits<i64>::max() : NumericLimits<i64>::min(), 0);
+    auto seconds = seconds_checked.value_unchecked();
+    auto seconds_in_time_units = seconds * denominator / numerator;
+    auto remainder_in_time_units = time_units - seconds_in_time_units;
+    auto nanoseconds = ((remainder_in_time_units * 1'000'000'000 * numerator) + (denominator / 2)) / denominator;
+    VERIFY(nanoseconds >= 0);
+    VERIFY(nanoseconds < 1'000'000'000);
+    return Duration(seconds, static_cast<u32>(nanoseconds));
+}
+
 i64 Duration::to_truncated_seconds() const
 {
     VERIFY(m_nanoseconds < 1'000'000'000);
@@ -194,6 +216,22 @@ timeval Duration::to_timeval() const
     using sec_type = decltype(declval<timeval>().tv_sec);
     using usec_type = decltype(declval<timeval>().tv_usec);
     return { static_cast<sec_type>(m_seconds), static_cast<usec_type>(m_nanoseconds) / 1000 };
+}
+
+i64 Duration::to_time_units(u32 numerator, u32 denominator) const
+{
+    VERIFY(numerator != 0);
+    VERIFY(denominator != 0);
+
+    auto seconds_product = Checked<i64>::saturating_mul(m_seconds, denominator);
+    auto time_units = seconds_product / numerator;
+    auto remainder = seconds_product % numerator;
+
+    auto remainder_in_nanoseconds = remainder * 1'000'000'000;
+    auto rounding_half = static_cast<i64>(numerator) * 500'000'000;
+    time_units = Checked<i64>::saturating_add(time_units, ((static_cast<i64>(m_nanoseconds) * denominator + remainder_in_nanoseconds + rounding_half) / numerator) / 1'000'000'000);
+
+    return time_units;
 }
 
 Duration Duration::from_half_sanitized(i64 seconds, i32 extra_seconds, u32 nanoseconds)

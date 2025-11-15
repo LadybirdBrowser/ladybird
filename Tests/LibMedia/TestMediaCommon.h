@@ -90,6 +90,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     auto time_limit = AK::Duration::from_seconds(1);
     auto start_time = MonotonicTime::now_coarse();
 
+    i64 last_sample = 0;
     size_t sample_count = 0;
 
     while (true) {
@@ -100,6 +101,9 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
         } else {
             EXPECT_EQ(block.sample_rate(), sample_rate);
             EXPECT_EQ(block.channel_count(), channel_count);
+
+            VERIFY(sample_count == 0 || last_sample <= block.timestamp_in_samples());
+            last_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
 
             sample_count += block.sample_count();
         }

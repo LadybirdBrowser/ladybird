@@ -105,6 +105,21 @@ bool AudioDataProvider::ThreadData::should_thread_exit() const
     return m_exit;
 }
 
+void AudioDataProvider::ThreadData::flush_decoder()
+{
+    m_decoder->flush();
+    m_last_sample = NumericLimits<i64>::min();
+}
+
+DecoderErrorOr<void> AudioDataProvider::ThreadData::retrieve_next_block(AudioBlock& block)
+{
+    TRY(m_decoder->write_next_block(block));
+    if (block.timestamp_in_samples() < m_last_sample)
+        block.set_timestamp_in_samples(m_last_sample);
+    m_last_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
+    return {};
+}
+
 template<typename T>
 void AudioDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&& function)
 {
@@ -166,7 +181,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
         auto demuxer_seek_result = demuxer_seek_result_or_error.value_or(DemuxerSeekResult::MovedPosition);
 
         if (demuxer_seek_result == DemuxerSeekResult::MovedPosition)
-            m_decoder->flush();
+            flush_decoder();
 
         auto new_seek_id = seek_id;
         AudioBlock last_block;
@@ -191,7 +206,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
 
             while (new_seek_id == seek_id) {
                 AudioBlock current_block;
-                auto block_result = m_decoder->write_next_block(current_block);
+                auto block_result = retrieve_next_block(current_block);
                 if (block_result.is_error()) {
                     if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         resolve_seek(seek_id);
@@ -205,7 +220,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
                     return true;
                 }
 
-                if (current_block.start_timestamp() > timestamp) {
+                if (current_block.timestamp() > timestamp) {
                     auto locker = take_lock();
                     m_queue.clear();
 
@@ -291,7 +306,7 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }
 
         auto block = AudioBlock();
-        auto timestamp_result = m_decoder->write_next_block(block);
+        auto timestamp_result = retrieve_next_block(block);
         if (timestamp_result.is_error()) {
             if (timestamp_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                 break;
