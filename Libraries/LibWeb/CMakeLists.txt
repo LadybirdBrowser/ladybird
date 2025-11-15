@@ -927,6 +927,7 @@ set(SOURCES
     SVG/SVGFEImageElement.cpp
     SVG/SVGFEMergeElement.cpp
     SVG/SVGFEMergeNodeElement.cpp
+    SVG/SVGFEMorphologyElement.cpp
     SVG/SVGFEOffsetElement.cpp
     SVG/SVGFilterElement.cpp
     SVG/SVGFilterPrimitiveStandardAttributes.cpp
