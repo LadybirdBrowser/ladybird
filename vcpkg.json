@@ -175,7 +175,18 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd | windows",
+      "platform": "windows",
+      "features": [
+        "direct3d",
+        "freetype",
+        "fontconfig",
+        "harfbuzz",
+        "icu"
+      ]
+    },
+    {
+      "name": "skia",
+      "platform": "linux | freebsd | openbsd",
       "features": [
         "freetype",
         "fontconfig",
