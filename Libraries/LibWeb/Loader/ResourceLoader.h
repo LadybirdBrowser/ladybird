@@ -14,6 +14,7 @@
 #include <LibGC/Function.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibRequests/Forward.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/UserAgent.h>
@@ -71,6 +72,14 @@ public:
 
 private:
     explicit ResourceLoader(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);
+
+    struct FileLoadResult {
+        ReadonlyBytes data;
+        HTTP::HeaderMap response_headers;
+        Requests::RequestTimingInfo timing_info;
+    };
+    template<typename FileHandler, typename ErrorHandler>
+    void handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error);
 
     RefPtr<Requests::Request> start_network_request(LoadRequest const&);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
