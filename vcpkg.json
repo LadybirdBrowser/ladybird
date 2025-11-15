@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "b0b3de1b1a0aa4b8f2822460aa7f42f991629b3f",
+  "builtin-baseline": "be017f19187ad59d9c4944b42d371c802022881f",
   "dependencies": [
     {
       "name": "angle",
@@ -210,7 +210,7 @@
     },
     {
       "name": "curl",
-      "version": "8.16.0#0"
+      "version": "8.17.0#0"
     },
     {
       "name": "dbus",
