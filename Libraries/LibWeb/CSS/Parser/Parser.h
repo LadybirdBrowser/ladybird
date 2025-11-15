@@ -40,8 +40,6 @@
 
 namespace Web::CSS::Parser {
 
-class PropertyDependencyNode;
-
 namespace CalcParsing {
 
 struct Operator {
@@ -79,6 +77,7 @@ enum SpecialContext : u8 {
     CubicBezierFunctionXCoordinate,
     DOMMatrixInitString,
     MediaCondition,
+    RandomValueSharingFixedValue,
     ShadowBlurRadius,
     StepsIntervalsJumpNone,
     StepsIntervalsNormal,
@@ -381,6 +380,7 @@ private:
     RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     Optional<FlyString> parse_dashed_ident(TokenStream<ComponentValue>&);
     RefPtr<CustomIdentStyleValue const> parse_dashed_ident_value(TokenStream<ComponentValue>&);
+    RefPtr<RandomValueSharingStyleValue const> parse_random_value_sharing(TokenStream<ComponentValue>&);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
     RefPtr<CalculationNode const> parse_math_function(Function const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calc_function_node(Function const&, CalculationContext const&);
@@ -535,7 +535,7 @@ private:
     RefPtr<StyleValue const> parse_list_of_time_values(PropertyID, TokenStream<ComponentValue>&);
 
     RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
-    RefPtr<CalculationNode const> parse_a_calculation(Vector<ComponentValue> const&, CalculationContext const&);
+    RefPtr<CalculationNode const> parse_a_calculation(TokenStream<ComponentValue>&, CalculationContext const&);
 
     ParseErrorOr<NonnullRefPtr<Selector>> parse_complex_selector(TokenStream<ComponentValue>&, SelectorType);
     ParseErrorOr<Optional<Selector::CompoundSelector>> parse_compound_selector(TokenStream<ComponentValue>&);
@@ -583,13 +583,22 @@ private:
     TokenStream<Token> m_token_stream;
 
     Vector<ValueParsingContext> m_value_context;
+    size_t m_random_function_index = 0;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
     {
         m_value_context.append(context);
-        return ScopeGuard { [&] { m_value_context.take_last(); } };
+        return ScopeGuard { [&] {
+            auto removed_context = m_value_context.take_last();
+
+            // Reset the random function index when we leave the top-level property parsing context
+            if (removed_context.has<PropertyID>() && !m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value())
+                m_random_function_index = 0;
+        } };
     }
     bool context_allows_quirky_length() const;
     bool context_allows_tree_counting_functions() const;
+    bool context_allows_random_functions() const;
+    FlyString random_value_sharing_auto_name() const;
 
     Vector<RuleContext> m_rule_context;
     HashTable<FlyString> m_declared_namespaces;

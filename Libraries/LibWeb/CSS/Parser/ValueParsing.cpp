@@ -60,6 +60,7 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
@@ -3643,6 +3644,86 @@ RefPtr<CustomIdentStyleValue const> Parser::parse_custom_ident_value(TokenStream
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-values-5/#typedef-random-value-sharing
+RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(TokenStream<ComponentValue>& tokens)
+{
+    // <random-value-sharing> = [ [ auto | <dashed-ident> ] || element-shared ] | fixed <number [0,1]>
+    auto transaction = tokens.begin_transaction();
+
+    tokens.discard_whitespace();
+
+    if (!tokens.has_next_token())
+        return nullptr;
+
+    // fixed <number [0,1]>
+    if (tokens.next_token().is_ident("fixed"sv)) {
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::RandomValueSharingFixedValue);
+        if (auto fixed_value = parse_number_value(tokens)) {
+            tokens.discard_whitespace();
+
+            if (tokens.has_next_token())
+                return nullptr;
+
+            if (fixed_value->is_number() && (fixed_value->as_number().number() < 0 || fixed_value->as_number().number() >= 1))
+                return nullptr;
+
+            transaction.commit();
+            return RandomValueSharingStyleValue::create_fixed(fixed_value.release_nonnull());
+        }
+
+        return nullptr;
+    }
+
+    // [ [ auto | <dashed-ident> ] || element-shared ]
+    bool has_explicit_auto = false;
+    Optional<FlyString> dashed_ident;
+    bool element_shared = false;
+
+    while (tokens.has_next_token()) {
+        if (auto maybe_dashed_ident_value = parse_dashed_ident_value(tokens)) {
+            if (has_explicit_auto || dashed_ident.has_value())
+                return nullptr;
+
+            dashed_ident = maybe_dashed_ident_value->custom_ident();
+
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        auto maybe_keyword_value = parse_keyword_value(tokens);
+
+        if (maybe_keyword_value && maybe_keyword_value->to_keyword() == Keyword::Auto) {
+            if (has_explicit_auto || dashed_ident.has_value())
+                return nullptr;
+
+            has_explicit_auto = true;
+
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        if (maybe_keyword_value && maybe_keyword_value->to_keyword() == Keyword::ElementShared) {
+            if (element_shared)
+                return nullptr;
+
+            element_shared = true;
+
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    if (!dashed_ident.has_value())
+        return RandomValueSharingStyleValue::create_auto(random_value_sharing_auto_name(), element_shared);
+
+    return RandomValueSharingStyleValue::create_dashed_ident(dashed_ident.value(), element_shared);
+}
+
 // https://drafts.csswg.org/css-values-4/#typedef-dashed-ident
 Optional<FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& tokens)
 {
@@ -4235,6 +4316,9 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::CubicBezierFunctionXCoordinate:
                     // Coordinates on the X axis must be between 0 and 1
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                case SpecialContext::RandomValueSharingFixedValue:
+                    // Fixed values have to be less than one and numbers serialize with six digits of precision
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 0.999999 } } } };
                 case SpecialContext::StepsIntervalsJumpNone:
                     return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 2, NumericLimits<float>::max() } } } };
                 case SpecialContext::StepsIntervalsNormal:
@@ -4271,8 +4355,10 @@ RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const&
 {
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
-    if (function.name.equals_ignoring_ascii_case("calc"sv))
-        return parse_a_calculation(function.value, context);
+    if (function.name.equals_ignoring_ascii_case("calc"sv)) {
+        TokenStream tokens { function.value };
+        return parse_a_calculation(tokens, context);
+    }
 
     if (auto maybe_function = parse_math_function(function, context)) {
         // NOTE: We have to simplify manually here, since parse_math_function() is a helper for calc() parsing
@@ -4331,7 +4417,8 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
 
             // 1. If leaf is a parenthesized simple block, replace leaf with the result of parsing a calculation from leaf’s contents.
             if (component_value->is_block() && component_value->block().is_paren()) {
-                auto leaf_calculation = parse_a_calculation(component_value->block().value, context);
+                TokenStream tokens { component_value->block().value };
+                auto leaf_calculation = parse_a_calculation(tokens, context);
                 if (!leaf_calculation)
                     return nullptr;
 
@@ -4427,13 +4514,16 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
 }
 
 // https://drafts.csswg.org/css-values-4/#parse-a-calculation
-RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue> const& original_values, CalculationContext const& context)
+RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentValue>& tokens, CalculationContext const& context)
 {
+    auto transaction = tokens.begin_transaction();
+
     // 1. Discard any <whitespace-token>s from values.
     // 2. An item in values is an “operator” if it’s a <delim-token> with the value "+", "-", "*", or "/". Otherwise, it’s a “value”.
 
     Vector<CalcParsing::Node> values;
-    for (auto const& value : original_values) {
+    while (tokens.has_next_token()) {
+        auto const& value = tokens.consume_a_token();
         if (value.is(Token::Type::Whitespace))
             continue;
         if (value.is(Token::Type::Delim)) {
@@ -4557,6 +4647,7 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(Vector<ComponentValue>
         return nullptr;
 
     // 6. Return the result of simplifying a calculation tree from values.
+    transaction.commit();
     return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {});
 }
 
