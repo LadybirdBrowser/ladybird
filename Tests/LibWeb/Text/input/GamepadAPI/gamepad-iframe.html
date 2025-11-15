@@ -16,10 +16,16 @@
             window.parent.postMessage('done', '*');
             break;
         }
+        case 'PARENT_LISTENER_ACTIVE': {
+            window.parent.postMessage('IFRAME_READY', '*');
+            break;
+        }
         default:
             break;
         }
     };
+
+    window.parent.postMessage('IFRAME_READY', '*');
 </script>
 "></iframe>
 <script src="../include.js"></script>
@@ -28,15 +34,34 @@
     asyncTest(async (done) => {
         const testIframe = document.getElementById("test-iframe");
 
+
+        const waitForIframeReady = () => {
+            return new Promise((resolve) => {
+                const listener = (event) => {
+                    if (event.data === 'IFRAME_READY') {
+                        window.removeEventListener('message', listener);
+                        resolve();
+                    }
+                };
+                window.addEventListener('message', listener);
+
+                // trigger the iframe if it was ready before we attached the event listener
+                testIframe.contentWindow.postMessage('PARENT_LISTENER_ACTIVE', "*");
+            });
+        };
+
         const sendMessageAndWait = (message) => {
             return new Promise((resolve) => {
-                window.onmessage = ({ data }) => {
+                const listener = ({ data }) => {
+                    window.removeEventListener('message', listener);
                     resolve(data);
                 };
-
+                window.addEventListener('message', listener);
                 testIframe.contentWindow.postMessage(message, "*");
             });
         };
+
+        await waitForIframeReady();
 
         const gamepad = internals.connectVirtualGamepad();
         await handleSDLInputEvents();
