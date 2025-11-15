@@ -546,6 +546,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_style_scope.visit_edges(visitor);
+    visitor.visit(m_pending_css_import_rules);
     visitor.visit(m_page);
     visitor.visit(m_window);
     visitor.visit(m_layout_root);
@@ -6284,6 +6285,10 @@ bool Document::is_render_blocked() const
     if (now > max_time_to_block_rendering_in_ms)
         return false;
 
+    // AD-HOC: Consider pending CSS @import rules as render-blocking
+    if (!m_pending_css_import_rules.is_empty())
+        return true;
+
     return !m_render_blocking_elements.is_empty() || allows_adding_render_blocking_elements();
 }
 
@@ -6898,6 +6903,16 @@ StringView to_string(UpdateLayoutReason reason)
 #undef ENUMERATE_UPDATE_LAYOUT_REASON
     }
     VERIFY_NOT_REACHED();
+}
+
+void Document::add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule> rule)
+{
+    m_pending_css_import_rules.set(rule);
+}
+
+void Document::remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule> rule)
+{
+    m_pending_css_import_rules.remove(rule);
 }
 
 }
