@@ -14,14 +14,12 @@ On macOS:
 endif()
 
 string(REGEX MATCH "^[0-9]*" ICU_VERSION_MAJOR "${VERSION}")
-string(REPLACE "." "_" VERSION2 "${VERSION}")
-string(REPLACE "." "-" VERSION3 "${VERSION}")
 
 vcpkg_download_distfile(
     ARCHIVE
-    URLS "https://github.com/unicode-org/icu/releases/download/release-${VERSION3}/icu4c-${VERSION2}-src.tgz"
-    FILENAME "icu4c-${VERSION2}-src.tgz"
-    SHA512 b702ab62fb37a1574d5f4a768326d0f8fa30d9db5b015605b5f8215b5d8547f83d84880c586d3dcc7b6c76f8d47ef34e04b0f51baa55908f737024dd79a42a6c
+    URLS "https://github.com/unicode-org/icu/releases/download/release-${VERSION}/icu4c-${VERSION}-sources.tgz"
+    FILENAME "icu4c-${VERSION}-sources.tgz"
+    SHA512 c366398fdb50afc6355a8c45ed1d68a18eaa5f07a5d1c4555becbcfb9d4073e65ebe1e9caf24b93779b11b36cd813c98dd59e4b19f008851f25c7262811c112d
 )
 
 vcpkg_extract_source_archive(SOURCE_PATH
