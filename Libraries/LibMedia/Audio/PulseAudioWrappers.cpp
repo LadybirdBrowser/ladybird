@@ -6,35 +6,31 @@
 
 #include "PulseAudioWrappers.h"
 
-#include <AK/WeakPtr.h>
 #include <LibThreading/Mutex.h>
 
 namespace Audio {
 
-WeakPtr<PulseAudioContext> PulseAudioContext::weak_instance()
-{
-    // Use a weak pointer to allow the context to be shut down if we stop outputting audio.
-    static WeakPtr<PulseAudioContext> the_instance;
-    return the_instance;
-}
+static PulseAudioContext* s_pulse_audio_context;
+static Threading::Mutex s_pulse_audio_context_mutex;
 
-ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::instance()
+ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
-    static Threading::Mutex instantiation_mutex;
+    auto instantiation_locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
-    auto atexit_result = atexit([]() {
-        instantiation_mutex.lock();
-        instantiation_mutex.unlock();
-    });
-    if (atexit_result) {
-        return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
+    static bool registered_atexit_callback = false;
+    if (!registered_atexit_callback) {
+        auto atexit_result = atexit([]() {
+            s_pulse_audio_context_mutex.lock();
+            s_pulse_audio_context_mutex.unlock();
+        });
+        if (atexit_result)
+            return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
+        registered_atexit_callback = true;
     }
 
-    auto instantiation_locker = Threading::MutexLocker(instantiation_mutex);
-
-    auto the_instance = weak_instance();
-    RefPtr<PulseAudioContext> strong_instance_pointer = the_instance.strong_ref();
+    RefPtr<PulseAudioContext> strong_instance_pointer = RefPtr<PulseAudioContext>(s_pulse_audio_context);
 
     if (strong_instance_pointer == nullptr) {
         auto* main_loop = pa_threaded_mainloop_new();
@@ -99,10 +95,16 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::instance()
             pa_context_set_state_callback(context, nullptr, nullptr);
         }
 
-        the_instance = strong_instance_pointer;
+        s_pulse_audio_context = strong_instance_pointer;
     }
 
     return strong_instance_pointer.release_nonnull();
+}
+
+bool PulseAudioContext::is_connected()
+{
+    auto locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+    return s_pulse_audio_context != nullptr;
 }
 
 PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloop_api* api, pa_context* context)
@@ -114,13 +116,17 @@ PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloo
 
 PulseAudioContext::~PulseAudioContext()
 {
+    auto locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+
     {
-        auto locker = main_loop_locker();
+        auto loop_locker = main_loop_locker();
         pa_context_disconnect(m_context);
         pa_context_unref(m_context);
     }
     pa_threaded_mainloop_stop(m_main_loop);
     pa_threaded_mainloop_free(m_main_loop);
+
+    s_pulse_audio_context = nullptr;
 }
 
 bool PulseAudioContext::current_thread_is_main_loop_thread()
@@ -206,7 +212,7 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
         },
         this);
 
-    auto stream_wrapper = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PulseAudioStream(NonnullRefPtr(*this), stream)));
+    auto stream_wrapper = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PulseAudioStream(*this, stream)));
 
     stream_wrapper->m_write_callback = move(write_callback);
     pa_stream_set_write_callback(
@@ -278,6 +284,12 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
     pa_stream_set_state_callback(stream, nullptr, nullptr);
 
     return stream_wrapper;
+}
+
+PulseAudioStream::PulseAudioStream(NonnullRefPtr<PulseAudioContext>&& context, pa_stream* stream)
+    : m_context(context)
+    , m_stream(stream)
+{
 }
 
 PulseAudioStream::~PulseAudioStream()

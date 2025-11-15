@@ -42,6 +42,6 @@ TEST_CASE(create_and_destroy_playback_stream)
     }
 
 #if defined(HAVE_PULSEAUDIO)
-    VERIFY(!Audio::PulseAudioContext::weak_instance());
+    VERIFY(!Audio::PulseAudioContext::is_connected());
 #endif
 }
