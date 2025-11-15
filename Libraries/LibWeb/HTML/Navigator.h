@@ -22,6 +22,7 @@
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
 #include <LibWeb/Serial/Serial.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
+#include <LibWeb/WebGPU/GPU.h>
 
 namespace Web::HTML {
 
@@ -70,6 +71,8 @@ public:
 
     GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
 
+    [[nodiscard]] GC::Ref<WebGPU::GPU> gpu();
+
     static WebIDL::Long max_touch_points();
 
     virtual ~Navigator() override;
@@ -108,6 +111,9 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
+
+    // https://www.w3.org/TR/webgpu/#navigator-gpu
+    GC::Ptr<WebGPU::GPU> m_gpu;
 };
 
 }
