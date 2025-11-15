@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<body>
+  <script src=../resources/testharness.js></script>
+  <script src=../resources/testharnessreport.js></script>
+  <script src="resources/webxr_util.js"></script>
+  <script src="resources/webxr_test_constants.js"></script>
+  <script>
+    xr_promise_test(
+      "isSessionSupported resolves to false when options not supported",
+      (t) => {
+      return navigator.xr.test.simulateDeviceConnection(VALID_NON_IMMERSIVE_DEVICE)
+        .then( (controller) => {
+          return navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+            t.step(() => {
+              assert_false(supported);
+            });
+          });
+        });
+    });
+  </script>
+</body>
