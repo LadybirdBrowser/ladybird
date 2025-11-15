@@ -37,6 +37,7 @@ private:
         Yes,
     };
     void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
+    void build_tree_of_pseudo_elements(DOM::Element&, DOM::PseudoElementTreeNode*);
 
     void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(node); }
     void pop_parent() { m_ancestor_stack.take_last(); }
