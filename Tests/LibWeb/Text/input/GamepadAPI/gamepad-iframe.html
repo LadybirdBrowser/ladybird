@@ -30,13 +30,21 @@
 
         const sendMessageAndWait = (message) => {
             return new Promise((resolve) => {
-                window.onmessage = ({ data }) => {
+                const listener = ({ data }) => {
+                    window.removeEventListener('message', listener);
                     resolve(data);
                 };
-
+                window.addEventListener('message', listener);
                 testIframe.contentWindow.postMessage(message, "*");
             });
         };
+
+        // wait for the iframe to be ready
+        await new Promise((resolve) => {
+            testIframe.addEventListener('load', resolve);
+            if (testIframe.contentDocument.readyState === 'complete')
+                resolve();
+        });
 
         const gamepad = internals.connectVirtualGamepad();
         await handleSDLInputEvents();
