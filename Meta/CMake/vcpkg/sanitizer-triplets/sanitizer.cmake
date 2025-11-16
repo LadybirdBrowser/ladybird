@@ -1,5 +1,7 @@
 set(VCPKG_BUILD_TYPE release)
-set(VCPKG_LIBRARY_LINKAGE dynamic)
+if (NOT DEFINED VCPKG_LIBRARY_LINKAGE)
+    set(VCPKG_LIBRARY_LINKAGE dynamic)
+endif()
 
 set(VCPKG_C_FLAGS "")
 
