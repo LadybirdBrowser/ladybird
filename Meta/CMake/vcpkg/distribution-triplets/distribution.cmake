@@ -1,2 +1,4 @@
 set(VCPKG_BUILD_TYPE release)
-set(VCPKG_LIBRARY_LINKAGE static)
+if (NOT DEFINED VCPKG_LIBRARY_LINKAGE)
+    set(VCPKG_LIBRARY_LINKAGE static)
+endif()
