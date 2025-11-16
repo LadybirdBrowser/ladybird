@@ -1,0 +1,48 @@
+From 85f9aa5907e3e445dabdf24be64032b8a76455ce Mon Sep 17 00:00:00 2001
+From: Ben Wagner <bungeman@google.com>
+Date: Thu, 9 Oct 2025 10:55:24 -0400
+Subject: [PATCH] Remove DirectWrite direct dependency on png codec
+
+SkScalerContext_DW::generatePngMetrics was still calling the png codec
+directly, while SkScalerContext_DW::drawPngImage used the png codec
+indirectly already. Make generatePngMetrics work like drawPngImage.
+
+Bug: 446241210
+Change-Id: Iddbc76f80e85a12fac2be8126d1efb102fc79d2c
+Reviewed-on: https://skia-review.googlesource.com/c/skia/+/1070816
+Auto-Submit: Ben Wagner <bungeman@google.com>
+Reviewed-by: Kaylee Lubick <kjlubick@google.com>
+Commit-Queue: Kaylee Lubick <kjlubick@google.com>
+---
+ src/ports/SkScalerContext_win_dw.cpp | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/ports/SkScalerContext_win_dw.cpp b/src/ports/SkScalerContext_win_dw.cpp
+index b6fc437f3922..deaea1f48993 100644
+--- a/src/ports/SkScalerContext_win_dw.cpp
++++ b/src/ports/SkScalerContext_win_dw.cpp
+@@ -11,8 +11,6 @@
+ 
+ #undef GetGlyphIndices
+ 
+-#include "include/codec/SkCodec.h"
+-#include "include/codec/SkPngDecoder.h"
+ #include "include/core/SkBBHFactory.h"
+ #include "include/core/SkBitmap.h"
+ #include "include/core/SkData.h"
+@@ -1737,12 +1735,12 @@ bool SkScalerContext_DW::generatePngMetrics(const SkGlyph& glyph, SkRect* bounds
+                                               &ReleaseProc,
+                                               context);
+ 
+-    std::unique_ptr<SkCodec> codec = SkPngDecoder::Decode(std::move(data), nullptr);
+-    if (!codec) {
++    sk_sp<SkImage> image = SkImages::DeferredFromEncodedData(std::move(data));
++    if (!image) {
+         return false;
+     }
+ 
+-    SkImageInfo info = codec->getInfo();
++    SkImageInfo info = image->imageInfo();
+     *bounds = SkRect::Make(info.bounds());
+ 
+     SkMatrix matrix = fSkXform;

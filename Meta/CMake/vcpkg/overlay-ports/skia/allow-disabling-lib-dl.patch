@@ -1,0 +1,28 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 306bfffaf8..1632feccd4 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -1740,7 +1740,9 @@ skia_component("skia") {
+     if (is_ios) {
+       sources += [ "src/ports/SkOSFile_ios.h" ]
+     }
+-    libs += [ "dl" ]
++    if (skia_vcpkg_has_lib_dl) {
++      libs += [ "dl" ]
++    }
+   }
+ 
+   if (is_android) {
+diff --git a/gn/skia.gni b/gn/skia.gni
+index bea9cd832a..56a2125ea9 100644
+--- a/gn/skia.gni
++++ b/gn/skia.gni
+@@ -105,6 +105,8 @@ declare_args() {
+   }
+ 
+   skia_build_rust_targets = false
++
++  skia_vcpkg_has_lib_dl = true
+ }
+ 
+ declare_args() {
