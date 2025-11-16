@@ -80,6 +80,8 @@ private:
     };
     template<typename FileHandler, typename ErrorHandler>
     void handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error);
+    template<typename Callback>
+    void handle_about_load_request(LoadRequest const& request, Callback callback);
 
     RefPtr<Requests::Request> start_network_request(LoadRequest const&);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);

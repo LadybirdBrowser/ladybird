@@ -257,6 +257,50 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
         on_load_counter_change();
 }
 
+template<typename Callback>
+void ResourceLoader::handle_about_load_request(LoadRequest const& request, Callback callback)
+{
+    auto const& url = request.url().value();
+
+    dbgln_if(SPAM_DEBUG, "Loading about: URL {}", url);
+
+    HTTP::HeaderMap response_headers;
+    response_headers.set("Content-Type"sv, "text/html; charset=UTF-8"sv);
+
+    // FIXME: Implement timing info for about requests.
+    Requests::RequestTimingInfo timing_info {};
+
+    auto serialized_path = URL::percent_decode(url.serialize_path());
+
+    // About version page
+    if (serialized_path == "version") {
+        auto version_page = MUST(load_about_version_page());
+        callback(version_page.bytes(), timing_info, response_headers);
+        return;
+    }
+
+    // Other about static HTML pages
+    auto target_file = ByteString::formatted("{}.html", serialized_path);
+
+    auto about_directory = MUST(Core::Resource::load_from_uri("resource://ladybird/about-pages"_string));
+    if (about_directory->children().contains_slow(target_file.view())) {
+        auto resource = Core::Resource::load_from_uri(ByteString::formatted("resource://ladybird/about-pages/{}", target_file));
+        if (!resource.is_error()) {
+            auto const& buffer = resource.value()->data();
+            ReadonlyBytes data(buffer.data(), buffer.size());
+            callback(data, timing_info, response_headers);
+            return;
+        }
+    }
+
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(
+        m_heap,
+        [callback, timing_info, response_headers = move(response_headers)]() mutable {
+            auto buffer = ByteString::empty().to_byte_buffer();
+            callback(buffer.bytes(), timing_info, response_headers);
+        }));
+}
+
 void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback, Optional<u32> timeout, GC::Root<TimeoutCallback> timeout_callback)
 {
     auto const& url = request.url().value();
@@ -288,39 +332,10 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     };
 
     if (url.scheme() == "about") {
-        dbgln_if(SPAM_DEBUG, "Loading about: URL {}", url);
-        log_success(request);
-
-        HTTP::HeaderMap response_headers;
-        response_headers.set("Content-Type", "text/html; charset=UTF-8");
-
-        // FIXME: Implement timing info for about requests.
-        Requests::RequestTimingInfo fixme_implement_timing_info {};
-
-        auto serialized_path = URL::percent_decode(url.serialize_path());
-
-        // About version page
-        if (serialized_path == "version") {
-            success_callback->function()(MUST(load_about_version_page()).bytes(), fixme_implement_timing_info, response_headers, {}, {});
-            return;
-        }
-
-        // Other about static HTML pages
-        auto target_file = ByteString::formatted("{}.html", serialized_path);
-
-        auto about_directory = MUST(Core::Resource::load_from_uri("resource://ladybird/about-pages"_string));
-        if (about_directory->children().contains_slow(target_file.view())) {
-            auto resource = Core::Resource::load_from_uri(ByteString::formatted("resource://ladybird/about-pages/{}", target_file));
-            if (!resource.is_error()) {
-                auto data = resource.value()->data();
-                success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
-                return;
-            }
-        }
-
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(m_heap, [success_callback, response_headers = move(response_headers), fixme_implement_timing_info = move(fixme_implement_timing_info)] {
-            success_callback->function()(ByteString::empty().to_byte_buffer(), fixme_implement_timing_info, response_headers, {}, {});
-        }));
+        handle_about_load_request(request, [success_callback, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderMap const& response_headers) {
+            log_success(request);
+            success_callback->function()(data, timing_info, response_headers, {}, {});
+        });
         return;
     }
 
@@ -471,6 +486,16 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
 
     if (should_block_request(request)) {
         on_complete->function()(false, {}, "Request was blocked"sv);
+        return;
+    }
+
+    if (url.scheme() == "about"sv) {
+        handle_about_load_request(request, [on_headers_received, on_data_received, on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderMap const& response_headers) {
+            log_success(request);
+            on_headers_received->function()(response_headers, {}, {});
+            on_data_received->function()(data);
+            on_complete->function()(true, timing_info, {});
+        });
         return;
     }
 
