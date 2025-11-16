@@ -26,6 +26,11 @@
 
 namespace Web::CSS {
 
+enum class AnimatedPropertyResultOfTransition : u8 {
+    No,
+    Yes
+};
+
 class WEB_API ComputedProperties final : public JS::Cell {
     GC_CELL(ComputedProperties, JS::Cell);
     GC_DECLARE_ALLOCATOR(ComputedProperties);
@@ -55,13 +60,15 @@ public:
     bool is_property_important(PropertyID property_id) const;
     bool is_property_inherited(PropertyID property_id) const;
     bool is_animated_property_inherited(PropertyID property_id) const;
+    bool is_animated_property_result_of_transition(PropertyID property_id) const;
     void set_property_important(PropertyID, Important);
     void set_property_inherited(PropertyID, Inherited);
     void set_animated_property_inherited(PropertyID, Inherited);
+    void set_animated_property_result_of_transition(PropertyID, AnimatedPropertyResultOfTransition);
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
-    void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No);
+    void set_animated_property(PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     void remove_animated_property(PropertyID);
     enum class WithAnimationsApplied {
         No,
@@ -292,6 +299,7 @@ private:
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_important {};
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_inherited {};
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_animated_property_inherited {};
+    Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_animated_property_result_of_transition {};
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 

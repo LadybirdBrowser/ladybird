@@ -860,7 +860,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
         if (computed_properties->is_animated_property_inherited(property_id) || !computed_properties->animated_property_values().contains(property_id)) {
             if (auto new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this }); new_animated_value.has_value())
-                computed_properties->set_animated_property(property_id, new_animated_value.value(), CSS::ComputedProperties::Inherited::Yes);
+                computed_properties->set_animated_property(property_id, new_animated_value->value, new_animated_value->is_result_of_transition, CSS::ComputedProperties::Inherited::Yes);
             else if (computed_properties->animated_property_values().contains(property_id))
                 computed_properties->remove_animated_property(property_id);
         }
