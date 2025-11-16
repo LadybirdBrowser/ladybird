@@ -1,143 +1,207 @@
 <!DOCTYPE html>
 <body>
-<iframe style="display: none" id="message-iframe" srcdoc="
-<body>
+    <script src="../include.js"></script>
     <script>
+        const iframe = document.createElement("iframe");
+        const iframeScript = `
         window.addEventListener('message', (event) => {
             window.parent.postMessage(event.data, '*', event.ports);
         });
-    </script>
-<body>
-"></iframe>
-<script src="../include.js"></script>
-<script>
-    const iframe = document.getElementById("message-iframe");
-
-    const blobSrcdoc = new Blob([iframe.srcdoc], {
-        type: "text/html",
-    });
-    const iframeSrcdocBlobUrl = URL.createObjectURL(blobSrcdoc);
-
-    const blobIframe = document.createElement("iframe");
-    blobIframe.src = iframeSrcdocBlobUrl;
-    blobIframe.setAttribute("style", "display: none");
-
-    document.body.append(blobIframe);
-
-    let messageCount = 1;
-    window.onmessage = (messageEvent) => {
-        try {
-            println(`Message ${messageCount} data: ${messageEvent.data}`);
-            println(`Message ${messageCount} origin: ${messageEvent.origin}`);
-            println(`Message ${messageCount} lastEventId: ${messageEvent.lastEventId}`);
-            println(`Message ${messageCount} source: ${messageEvent.source}`);
-            println(`Message ${messageCount} ports: ${messageEvent.ports}`);
-            println(`Message ${messageCount} ports === ports: ${messageEvent.ports === messageEvent.ports}`);
-            println(`Message ${messageCount} Object.isFrozen(ports): ${Object.isFrozen(messageEvent.ports)}`);
-            println(`Message ${messageCount} source === window: ${messageEvent.source === window}`);
-            println(`Message ${messageCount} source === iframe.contentWindow: ${messageEvent.source === iframe.contentWindow}`);
-            println(`Message ${messageCount} source === blobIframe.contentWindow: ${messageEvent.source === blobIframe.contentWindow}`);
-        } catch (ex) {
-            println(`Accessing attributes of message ${messageCount} threw exception: ${ex}`);
-        }
-        messageCount++;
-
-        if (messageEvent.source === blobIframe.contentWindow && messageEvent.data === "All done :^)")
-        {
-            globalThis.doneCallback();
-        }
-    };
-
-    function performTest() {
-        window.postMessage(undefined, "*");
-        window.postMessage(null, "*");
-        window.postMessage(true, "*");
-        window.postMessage(false, "*");
-        window.postMessage(123, "*");
-        window.postMessage(123.456, "*");
-        window.postMessage(BigInt("0x1fffffffffffff"), "*");
-        window.postMessage("This is a string", "/");
-        window.postMessage("I shouldn't appear, I'm not same origin!", "https://serenityos.org");
-        iframe.contentWindow.postMessage("I am from another ~planet~ iframe", "*");
-        let channel = new MessageChannel();
-        window.postMessage({foo: [channel.port1]}, "*", [channel.port1]);
-        blobIframe.contentWindow.postMessage("All done :^)", iframeSrcdocBlobUrl);
-
-        try {
-            window.postMessage("This is a bad origin string", "aaaa");
-        } catch (originError) {
-            println(`originError instanceof DOMException: ${originError instanceof DOMException}`);
-            println(`originError.name: ${originError.name}`);
-            println(`originError.message: ${originError.message}`);
-            println(`originError.constructor === window.DOMException: ${originError.constructor === window.DOMException}`);
-        }
-
-        try {
-            window.postMessage(document, "aaaa");
-        } catch (originParsedBeforeSerializeError) {
-            println(`originParsedBeforeSerializeError instanceof DOMException: ${originParsedBeforeSerializeError instanceof DOMException}`);
-            println(`originParsedBeforeSerializeError.name: ${originParsedBeforeSerializeError.name}`);
-            println(`originParsedBeforeSerializeError.message: ${originParsedBeforeSerializeError.message}`);
-            println(`originParsedBeforeSerializeError.constructor === window.DOMException: ${originParsedBeforeSerializeError.constructor === window.DOMException}`);
-        }
-
-        try {
-            window.postMessage(document, "*");
-        } catch (serializeError) {
-            println(`serializeError instanceof DOMException: ${serializeError instanceof DOMException}`);
-            println(`serializeError.name: ${serializeError.name}`);
-            println(`serializeError.message: ${serializeError.message}`);
-            println(`serializeError.constructor === window.DOMException: ${serializeError.constructor === window.DOMException}`);
-        }
-
-        try {
-            iframe.contentWindow.postMessage("This is a bad origin string", "aaaa");
-        } catch (originIframeError) {
-            println(`originIframeError instanceof DOMException: ${originIframeError instanceof DOMException}`);
-            println(`originIframeError instanceof iframe.contentWindow.DOMException: ${originIframeError instanceof iframe.contentWindow.DOMException}`);
-            println(`originIframeError.name: ${originIframeError.name}`);
-            println(`originIframeError.message: ${originIframeError.message}`);
-            println(`originIframeError.constructor === DOMException: ${originIframeError.constructor === DOMException}`);
-            println(`originIframeError.constructor === iframe.contentWindow.DOMException: ${originIframeError.constructor === iframe.contentWindow.DOMException}`);
-        }
-
-        try {
-            iframe.contentWindow.postMessage(document, "aaaa");
-        } catch (originParsedBeforeSerializeIframeError) {
-            println(`originParsedBeforeSerializeIframeError instanceof DOMException: ${originParsedBeforeSerializeIframeError instanceof DOMException}`);
-            println(`originParsedBeforeSerializeIframeError instanceof iframe.contentWindow.DOMException: ${originParsedBeforeSerializeIframeError instanceof iframe.contentWindow.DOMException}`);
-            println(`originParsedBeforeSerializeIframeError.name: ${originParsedBeforeSerializeIframeError.name}`);
-            println(`originParsedBeforeSerializeIframeError.message: ${originParsedBeforeSerializeIframeError.message}`);
-            println(`originParsedBeforeSerializeIframeError.constructor === DOMException: ${originParsedBeforeSerializeIframeError.constructor === DOMException}`);
-            println(`originParsedBeforeSerializeIframeError.constructor === iframe.contentWindow.DOMException: ${originParsedBeforeSerializeIframeError.constructor === iframe.contentWindow.DOMException}`);
-        }
-
-        try {
-            iframe.contentWindow.postMessage(document, "*");
-        } catch (serializeIframeError) {
-            println(`serializeIframeError instanceof DOMException: ${serializeIframeError instanceof DOMException}`);
-            println(`serializeIframeError instanceof iframe.contentWindow.DOMException: ${serializeIframeError instanceof iframe.contentWindow.DOMException}`);
-            println(`serializeIframeError.name: ${serializeIframeError.name}`);
-            println(`serializeIframeError.message: ${serializeIframeError.message}`);
-            println(`serializeIframeError.constructor === DOMException: ${serializeIframeError.constructor === DOMException}`);
-            println(`serializeIframeError.constructor === iframe.contentWindow.DOMException: ${serializeIframeError.constructor === iframe.contentWindow.DOMException}`);
-        }
-    }
-
-    asyncTest((done) => {
-        globalThis.doneCallback = done;
-
-        const blobIframeLoadPromise = new Promise(resolve => {
-            blobIframe.onload = () => resolve();
-        });
-
+`;
+        iframe.srcdoc = "<body><script>" + iframeScript + "<\/script></body>";
         const srcdocIframeLoadPromise = new Promise(resolve => {
-            iframe.onload = () => resolve();
+            iframe.onload = () => {
+                resolve();
+            };
         });
+        document.body.append(iframe);
 
-        Promise.all([blobIframeLoadPromise, srcdocIframeLoadPromise]).then(() => {
-            performTest();
+        const blobSrcdoc = new Blob([iframe.srcdoc], {
+            type: "text/html",
         });
-    });
-</script>
+        const iframeSrcdocBlobUrl = URL.createObjectURL(blobSrcdoc);
+
+        const blobIframe = document.createElement("iframe");
+        blobIframe.src = iframeSrcdocBlobUrl;
+        blobIframe.setAttribute("style", "display: none");
+
+        document.body.append(blobIframe);
+
+        let messageCount = 1;
+        window.onmessage = messageEvent => {
+            try {
+                println(`Message ${messageCount} data: ${messageEvent.data}`);
+                println(`Message ${messageCount} origin: ${messageEvent.origin}`);
+                println(`Message ${messageCount} lastEventId: ${messageEvent.lastEventId}`);
+                println(`Message ${messageCount} source: ${messageEvent.source}`);
+                println(`Message ${messageCount} ports: ${messageEvent.ports}`);
+                println(`Message ${messageCount} ports === ports: ${messageEvent.ports === messageEvent.ports}`);
+                println(`Message ${messageCount} Object.isFrozen(ports): ${Object.isFrozen(messageEvent.ports)}`);
+                println(`Message ${messageCount} source === window: ${messageEvent.source === window}`);
+                println(
+                    `Message ${messageCount} source === iframe.contentWindow: ${
+                        messageEvent.source === iframe.contentWindow
+                    }`
+                );
+                println(
+                    `Message ${messageCount} source === blobIframe.contentWindow: ${
+                        messageEvent.source === blobIframe.contentWindow
+                    }`
+                );
+            } catch (ex) {
+                println(`Accessing attributes of message ${messageCount} threw exception: ${ex}`);
+            }
+            messageCount++;
+
+            if (messageEvent.source === blobIframe.contentWindow && messageEvent.data === "All done :^)") {
+                globalThis.doneCallback();
+            }
+        };
+
+        function performTest() {
+            window.postMessage(undefined, "*");
+            window.postMessage(null, "*");
+            window.postMessage(true, "*");
+            window.postMessage(false, "*");
+            window.postMessage(123, "*");
+            window.postMessage(123.456, "*");
+            window.postMessage(BigInt("0x1fffffffffffff"), "*");
+            window.postMessage("This is a string", "/");
+            window.postMessage("I shouldn't appear, I'm not same origin!", "https://serenityos.org");
+            iframe.contentWindow.postMessage("I am from another ~planet~ iframe", "*");
+            let channel = new MessageChannel();
+            window.postMessage({ foo: [channel.port1] }, "*", [channel.port1]);
+            blobIframe.contentWindow.postMessage("All done :^)", iframeSrcdocBlobUrl);
+
+            try {
+                window.postMessage("This is a bad origin string", "aaaa");
+            } catch (originError) {
+                println(`originError instanceof DOMException: ${originError instanceof DOMException}`);
+                println(`originError.name: ${originError.name}`);
+                println(`originError.message: ${originError.message}`);
+                println(
+                    `originError.constructor === window.DOMException: ${
+                        originError.constructor === window.DOMException
+                    }`
+                );
+            }
+
+            try {
+                window.postMessage(document, "aaaa");
+            } catch (originParsedBeforeSerializeError) {
+                println(
+                    `originParsedBeforeSerializeError instanceof DOMException: ${
+                        originParsedBeforeSerializeError instanceof DOMException
+                    }`
+                );
+                println(`originParsedBeforeSerializeError.name: ${originParsedBeforeSerializeError.name}`);
+                println(`originParsedBeforeSerializeError.message: ${originParsedBeforeSerializeError.message}`);
+                println(
+                    `originParsedBeforeSerializeError.constructor === window.DOMException: ${
+                        originParsedBeforeSerializeError.constructor === window.DOMException
+                    }`
+                );
+            }
+
+            try {
+                window.postMessage(document, "*");
+            } catch (serializeError) {
+                println(`serializeError instanceof DOMException: ${serializeError instanceof DOMException}`);
+                println(`serializeError.name: ${serializeError.name}`);
+                println(`serializeError.message: ${serializeError.message}`);
+                println(
+                    `serializeError.constructor === window.DOMException: ${
+                        serializeError.constructor === window.DOMException
+                    }`
+                );
+            }
+
+            try {
+                iframe.contentWindow.postMessage("This is a bad origin string", "aaaa");
+            } catch (originIframeError) {
+                println(`originIframeError instanceof DOMException: ${originIframeError instanceof DOMException}`);
+                println(
+                    `originIframeError instanceof iframe.contentWindow.DOMException: ${
+                        originIframeError instanceof iframe.contentWindow.DOMException
+                    }`
+                );
+                println(`originIframeError.name: ${originIframeError.name}`);
+                println(`originIframeError.message: ${originIframeError.message}`);
+                println(
+                    `originIframeError.constructor === DOMException: ${originIframeError.constructor === DOMException}`
+                );
+                println(
+                    `originIframeError.constructor === iframe.contentWindow.DOMException: ${
+                        originIframeError.constructor === iframe.contentWindow.DOMException
+                    }`
+                );
+            }
+
+            try {
+                iframe.contentWindow.postMessage(document, "aaaa");
+            } catch (originParsedBeforeSerializeIframeError) {
+                println(
+                    `originParsedBeforeSerializeIframeError instanceof DOMException: ${
+                        originParsedBeforeSerializeIframeError instanceof DOMException
+                    }`
+                );
+                println(
+                    `originParsedBeforeSerializeIframeError instanceof iframe.contentWindow.DOMException: ${
+                        originParsedBeforeSerializeIframeError instanceof iframe.contentWindow.DOMException
+                    }`
+                );
+                println(`originParsedBeforeSerializeIframeError.name: ${originParsedBeforeSerializeIframeError.name}`);
+                println(
+                    `originParsedBeforeSerializeIframeError.message: ${originParsedBeforeSerializeIframeError.message}`
+                );
+                println(
+                    `originParsedBeforeSerializeIframeError.constructor === DOMException: ${
+                        originParsedBeforeSerializeIframeError.constructor === DOMException
+                    }`
+                );
+                println(
+                    `originParsedBeforeSerializeIframeError.constructor === iframe.contentWindow.DOMException: ${
+                        originParsedBeforeSerializeIframeError.constructor === iframe.contentWindow.DOMException
+                    }`
+                );
+            }
+
+            try {
+                iframe.contentWindow.postMessage(document, "*");
+            } catch (serializeIframeError) {
+                println(
+                    `serializeIframeError instanceof DOMException: ${serializeIframeError instanceof DOMException}`
+                );
+                println(
+                    `serializeIframeError instanceof iframe.contentWindow.DOMException: ${
+                        serializeIframeError instanceof iframe.contentWindow.DOMException
+                    }`
+                );
+                println(`serializeIframeError.name: ${serializeIframeError.name}`);
+                println(`serializeIframeError.message: ${serializeIframeError.message}`);
+                println(
+                    `serializeIframeError.constructor === DOMException: ${
+                        serializeIframeError.constructor === DOMException
+                    }`
+                );
+                println(
+                    `serializeIframeError.constructor === iframe.contentWindow.DOMException: ${
+                        serializeIframeError.constructor === iframe.contentWindow.DOMException
+                    }`
+                );
+            }
+        }
+
+        asyncTest(done => {
+            globalThis.doneCallback = done;
+
+            const blobIframeLoadPromise = new Promise(resolve => {
+                blobIframe.onload = () => resolve();
+            });
+
+            Promise.all([blobIframeLoadPromise, srcdocIframeLoadPromise]).then(() => {
+                performTest();
+            });
+        });
+    </script>
 </body>
