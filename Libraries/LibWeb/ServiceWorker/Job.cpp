@@ -499,9 +499,8 @@ static void run_job(JS::VM& vm, JobQueue& job_queue)
     });
 
     // FIXME: How does the user agent ensure this happens? Is this a normative note?
-    // Spec-Note:
-    // For a register job and an update job, the user agent delays queuing a task for running the job
-    // until after a DOMContentLoaded event has been dispatched to the document that initiated the job.
+    // NOTE: For a register job and an update job, the user agent delays queuing a task for running the job until after
+    //       a DOMContentLoaded event has been dispatched to the document that initiated the job.
 
     // FIXME: Spec should be updated to avoid 'queue a task' and use 'queue a global task' instead
     // FIXME: On which task source? On which event loop? On behalf of which document?

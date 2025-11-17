@@ -154,9 +154,9 @@ bool HTMLButtonElement::has_activation_behavior() const
     return true;
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:activation-behaviour
 void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 {
-    // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:activation-behaviour
     // 1. If element is disabled, then return.
     if (!enabled())
         return;
@@ -223,8 +223,12 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
                 return;
         }
 
-        // 5. Let continue be the result of firing an event named command at target, using CommandEvent, with its command attribute initialized to command, its source attribute initialized to element, and its cancelable and composed attributes initialized to true.
-        // SPEC-NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes sense on Events. Currently an event attribute initialized to a value cannot also have a getter, and so an internal slot (or map of additional fields) is required to properly specify this.
+        // 5. Let continue be the result of firing an event named command at target, using CommandEvent, with its
+        //    command attribute initialized to command, its source attribute initialized to element, and its cancelable
+        //    and composed attributes initialized to true.
+        // NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes
+        //       sense on Events. Currently an event attribute initialized to a value cannot also have a getter, and so
+        //       an internal slot (or map of additional fields) is required to properly specify this.
         CommandEventInit event_init {};
         event_init.command = command;
         event_init.source = this;

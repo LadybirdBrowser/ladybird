@@ -786,10 +786,10 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     children_changed(&metadata);
 
     // 10. Let staticNodeList be a list of nodes, initially « ».
-    // Spec-Note: We collect all nodes before calling the post-connection steps on any one of them, instead of calling
-    //            the post-connection steps while we’re traversing the node tree. This is because the post-connection
-    //            steps can modify the tree’s structure, making live traversal unsafe, possibly leading to the
-    //            post-connection steps being called multiple times on the same node.
+    // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
+    //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
+    //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
+    //       being called multiple times on the same node.
     GC::RootVector<GC::Ref<Node>> static_node_list(heap());
 
     // 11. For each node of nodes, in tree order:

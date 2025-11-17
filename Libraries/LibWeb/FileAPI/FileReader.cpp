@@ -258,7 +258,8 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     if (m_state != State::Loading)
                         dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
 
-                    // Spec-Note: Event handler for the load or error events could have started another load, if that happens the loadend event for this load is not fired.
+                    // NOTE: Event handler for the load or error events could have started another load, if that happens
+                    //       the loadend event for this load is not fired.
                 }));
 
                 return;
@@ -278,7 +279,8 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     if (m_state != State::Loading)
                         dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
 
-                    // Spec-Note: Event handler for the error event could have started another load, if that happens the loadend event for this load is not fired.
+                    // NOTE: Event handler for the error event could have started another load, if that happens the
+                    //       loadend event for this load is not fired.
                 }));
 
                 return;

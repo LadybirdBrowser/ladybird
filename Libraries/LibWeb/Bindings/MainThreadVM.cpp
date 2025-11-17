@@ -535,12 +535,12 @@ void initialize_main_thread_vm(AgentType type)
                     return;
                 }
 
-                // Spec-Note: This step is essentially validating all of the requested module specifiers and type attributes
-                //            when the first call to HostLoadImportedModule for a static module dependency list is made, to
-                //            avoid further loading operations in the case any one of the dependencies has a static error.
-                //            We treat a module with unresolvable module specifiers or unsupported type attributes the same
-                //            as one that cannot be parsed; in both cases, a syntactic issue makes it impossible to ever
-                //            contemplate linking the module later.
+                // NOTE: This step is essentially validating all of the requested module specifiers and type attributes
+                //       when the first call to HostLoadImportedModule for a static module dependency list is made, to
+                //       avoid further loading operations in the case any one of the dependencies has a static error. We
+                //       treat a module with unresolvable module specifiers or unsupported type attributes the same as
+                //       one that cannot be parsed; in both cases, a syntactic issue makes it impossible to ever
+                //       contemplate linking the module later.
             }
         }
 

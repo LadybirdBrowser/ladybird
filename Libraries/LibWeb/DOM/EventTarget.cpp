@@ -734,16 +734,18 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
     if (special_error_event_handling) {
         // -> If special error event handling is true
         //      If return value is true, then set event's canceled flag.
-        // NOTE: the return type of EventHandler is `any`, so no coercion happens, meaning we have to check if it's a boolean first.
+        // NB: the return type of EventHandler is `any`, so no coercion happens, meaning we have to check if it's a
+        //     boolean first.
         if (return_value.is_boolean() && return_value.as_bool())
             event.set_cancelled(true);
     } else {
         // -> Otherwise
         //      If return value is false, then set event's canceled flag.
-        // NOTE: the return type of EventHandler is `any`, so no coercion happens, meaning we have to check if it's a boolean first.
-        // Spec-Note: If we've gotten to this "Otherwise" clause because event's type is "beforeunload" but event is
-        //            not a BeforeUnloadEvent object, then return value will never be false, since in such cases
-        //            return value will have been coerced into either null or a DOMString.
+        // NB: the return type of EventHandler is `any`, so no coercion happens, meaning we have to check if it's a
+        //     boolean first.
+        // NOTE: If we've gotten to this "Otherwise" clause because event's type is "beforeunload" but event is not a
+        //       BeforeUnloadEvent object, then return value will never be false, since in such cases return value will
+        //       have been coerced into either null or a DOMString.
         if (return_value.is_boolean() && !return_value.as_bool() && !is_beforeunload)
             event.set_cancelled(true);
     }

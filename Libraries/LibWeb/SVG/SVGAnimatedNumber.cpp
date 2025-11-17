@@ -63,8 +63,8 @@ void SVGAnimatedNumber::set_base_val(float new_value)
 
         // 3. Let second be the second number in current if it has been explicitly specified, and if not, the implicit
         //    value as described in the definition of the attribute.
-        // LB-NOTE: All known usages of <number-optional-number> specify that a missing second number defaults to the
-        //          value of the first number.
+        // NB: All known usages of <number-optional-number> specify that a missing second number defaults to the value
+        //     of the first number.
         auto second = current_values.size() > 1 && !current_values[1].is_empty()
             ? parse_value_or_initial(current_values[1])
             : first;
@@ -130,8 +130,8 @@ float SVGAnimatedNumber::get_base_or_anim_value() const
         // 2. Otherwise, this SVGAnimatedNumber object reflects the second number. Return the second value in value if
         //    it has been explicitly specified, and if not, return the implicit value as described in the definition of
         //    the attribute.
-        // LB-NOTE: All known usages of <number-optional-number> specify that a missing second number defaults to the
-        //          value of the first number.
+        // NB: All known usages of <number-optional-number> specify that a missing second number defaults to the value
+        //     of the first number.
         VERIFY(m_value_represented == ValueRepresented::Second);
         if (values.size() > 1 && !values[1].is_empty())
             return parse_value_or_initial(values[1]);
