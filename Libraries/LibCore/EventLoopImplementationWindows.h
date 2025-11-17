@@ -48,7 +48,8 @@ private:
     bool m_exit_requested { false };
     int m_exit_code { 0 };
 
-    void const* m_wake_completion_key;
+    // The wake event handle of this event loop needs to be accessible from other threads.
+    void*& m_wake_event;
 };
 
 using EventLoopManagerPlatform = EventLoopManagerWindows;
