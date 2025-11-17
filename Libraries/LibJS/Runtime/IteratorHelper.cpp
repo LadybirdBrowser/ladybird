@@ -19,7 +19,7 @@ ThrowCompletionOr<GC::Ref<IteratorHelper>> IteratorHelper::create(Realm& realm, 
 }
 
 IteratorHelper::IteratorHelper(Realm& realm, Object& prototype, GC::Ref<IteratorRecord> underlying_iterator, GC::Ref<Closure> closure, GC::Ptr<AbruptClosure> abrupt_closure)
-    : GeneratorObject(realm, prototype, realm.vm().running_execution_context().copy(), "Iterator Helper"sv)
+    : GeneratorObject(realm, &prototype, realm.vm().running_execution_context().copy(), "Iterator Helper"sv)
     , m_underlying_iterator(move(underlying_iterator))
     , m_closure(closure)
     , m_abrupt_closure(abrupt_closure)

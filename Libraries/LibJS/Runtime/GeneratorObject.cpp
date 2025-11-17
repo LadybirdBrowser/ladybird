@@ -32,15 +32,17 @@ ThrowCompletionOr<GC::Ref<GeneratorObject>> GeneratorObject::create(Realm& realm
         static Bytecode::PropertyLookupCache cache;
         generating_function_prototype = TRY(generating_function->get(vm.names.prototype, cache));
     }
-    auto generating_function_prototype_object = TRY(generating_function_prototype.to_object(vm));
+    GC::Ptr<Object> generating_function_prototype_object = nullptr;
+    if (!generating_function_prototype.is_nullish())
+        generating_function_prototype_object = MUST(generating_function_prototype.to_object(vm));
     auto object = realm.create<GeneratorObject>(realm, generating_function_prototype_object, move(execution_context));
     object->m_generating_function = generating_function;
     object->m_previous_value = initial_value;
     return object;
 }
 
-GeneratorObject::GeneratorObject(Realm&, Object& prototype, NonnullOwnPtr<ExecutionContext> context, Optional<StringView> generator_brand)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+GeneratorObject::GeneratorObject(Realm& realm, Object* prototype, NonnullOwnPtr<ExecutionContext> context, Optional<StringView> generator_brand)
+    : Object(realm, prototype)
     , m_execution_context(move(context))
     , m_generator_brand(move(generator_brand))
 {
