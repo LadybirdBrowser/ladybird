@@ -78,10 +78,6 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     // 12. Set request's initiator type to "other".
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
 
-    // AD-HOC: We must not buffer the response as the connection generally never ends, thus we can't wait for the end
-    //         of the response body.
-    request->set_buffer_policy(Fetch::Infrastructure::Request::BufferPolicy::DoNotBufferResponse);
-
     // 13. Set ev's request to request.
     event_source->m_request = request;
 
