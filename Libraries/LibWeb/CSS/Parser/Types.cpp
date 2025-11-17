@@ -34,7 +34,7 @@ String SimpleBlock::to_string() const
     StringBuilder builder;
 
     builder.append(token.bracket_string());
-    builder.join(' ', value);
+    builder.join(""sv, value);
     builder.append(token.bracket_mirror_string());
 
     return builder.to_string_without_validation();
