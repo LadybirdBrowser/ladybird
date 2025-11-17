@@ -28,7 +28,7 @@ public:
         Completed,
     };
 
-    static ThrowCompletionOr<GC::Ref<AsyncGenerator>> create(Realm&, Value, ECMAScriptFunctionObject*, NonnullOwnPtr<ExecutionContext>);
+    static GC::Ref<AsyncGenerator> create(Realm&, Value, ECMAScriptFunctionObject*, NonnullOwnPtr<ExecutionContext>);
 
     virtual ~AsyncGenerator() override;
 
