@@ -874,11 +874,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
 {
     // To append a node to a parent, pre-insert node into parent before null.
     return pre_insert(node, nullptr);
-
-    // AD-HOC: invalidate the ordinal of the first list_item of the first child sibling of the appended node, if any.
-    // NOTE: This works since ordinal values are accessed (for layout and paint) in the preorder of list_item nodes !!
-    if (auto* first_child_element = this->first_child_of_type<Element>())
-        first_child_element->maybe_invalidate_ordinals_for_list_owner();
 }
 
 // https://dom.spec.whatwg.org/#live-range-pre-remove-steps
