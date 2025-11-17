@@ -35,7 +35,8 @@ Optional<Vector<ByteString>> Header::extract_header_values() const
             "Access-Control-Request-Headers"sv,
             "Access-Control-Expose-Headers"sv,
             "Access-Control-Allow-Headers"sv,
-            "Access-Control-Allow-Methods"sv)
+            "Access-Control-Allow-Methods"sv,
+            "Clear-Site-Data"sv)
         && !value.is_empty()) {
         Vector<ByteString> trimmed_values;
 
