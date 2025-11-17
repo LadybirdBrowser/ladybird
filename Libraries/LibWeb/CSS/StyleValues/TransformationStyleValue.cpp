@@ -100,37 +100,44 @@ Transformation TransformationStyleValue::to_transformation() const
 {
     auto function_metadata = transform_function_metadata(m_properties.transform_function);
     Vector<TransformValue> values;
+    values.ensure_capacity(m_properties.values.size());
     size_t argument_index = 0;
     for (auto& transformation_value : m_properties.values) {
-        auto const function_type = function_metadata.parameters[argument_index].type;
+        auto const function_type = function_metadata.parameters[argument_index++].type;
 
         if (transformation_value->is_calculated()) {
             auto& calculated = transformation_value->as_calculated();
             if (calculated.resolves_to_length()) {
-                values.append(LengthPercentage { calculated });
+                values.unchecked_append(LengthPercentage { calculated });
             } else if (calculated.resolves_to_number() || calculated.resolves_to_percentage()) {
-                values.append(NumberPercentage { calculated });
+                values.unchecked_append(NumberPercentage { calculated });
             } else if (calculated.resolves_to_angle()) {
-                values.append(AngleOrCalculated { calculated });
+                values.unchecked_append(AngleOrCalculated { calculated });
             } else {
                 dbgln("FIXME: Unsupported calc value in transform! {}", calculated.to_string(SerializationMode::Normal));
             }
+        } else if (transformation_value->is_keyword()) {
+            if (function_type == TransformFunctionParameterType::LengthNone
+                && transformation_value->as_keyword().keyword() == Keyword::None) {
+                // We don't add 'none' to the list of values.
+            } else {
+                dbgln("FIXME: Unsupported keyword value '{}' in transform", transformation_value->to_string(SerializationMode::Normal));
+            }
         } else if (transformation_value->is_length()) {
-            values.append({ transformation_value->as_length().length() });
+            values.unchecked_append({ transformation_value->as_length().length() });
         } else if (transformation_value->is_percentage()) {
             if (function_type == TransformFunctionParameterType::NumberPercentage) {
-                values.append(NumberPercentage { transformation_value->as_percentage().percentage() });
+                values.unchecked_append(NumberPercentage { transformation_value->as_percentage().percentage() });
             } else {
-                values.append(LengthPercentage { transformation_value->as_percentage().percentage() });
+                values.unchecked_append(LengthPercentage { transformation_value->as_percentage().percentage() });
             }
         } else if (transformation_value->is_number()) {
-            values.append({ Number(Number::Type::Number, transformation_value->as_number().number()) });
+            values.unchecked_append({ Number(Number::Type::Number, transformation_value->as_number().number()) });
         } else if (transformation_value->is_angle()) {
-            values.append({ transformation_value->as_angle().angle() });
+            values.unchecked_append({ transformation_value->as_angle().angle() });
         } else {
             dbgln("FIXME: Unsupported value in transform! {}", transformation_value->to_string(SerializationMode::Normal));
         }
-        argument_index++;
     }
     return Transformation { m_properties.transform_function, move(values) };
 }

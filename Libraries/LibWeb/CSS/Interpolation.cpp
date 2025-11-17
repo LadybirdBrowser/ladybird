@@ -1246,46 +1246,6 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     if (index == from_transformations.size())
         return StyleValueList::create(move(result), StyleValueList::Separator::Space);
 
-    static constexpr auto make_transformation = [](TransformationStyleValue const& transformation) -> Optional<Transformation> {
-        Vector<TransformValue> values;
-        values.ensure_capacity(transformation.values().size());
-
-        for (auto const& value : transformation.values()) {
-            switch (value->type()) {
-            case StyleValue::Type::Angle:
-                values.unchecked_append(AngleOrCalculated { value->as_angle().angle() });
-                break;
-            case StyleValue::Type::Calculated: {
-                auto& calculated = value->as_calculated();
-                if (calculated.resolves_to_angle()) {
-                    values.unchecked_append(AngleOrCalculated { calculated });
-                } else if (calculated.resolves_to_length()) {
-                    values.unchecked_append(LengthPercentage { calculated });
-                } else if (calculated.resolves_to_number() || calculated.resolves_to_percentage()) {
-                    values.unchecked_append(NumberPercentage { calculated });
-                } else {
-                    dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(SerializationMode::Normal), to_string(transformation.transform_function()));
-                    return {};
-                }
-                break;
-            }
-            case StyleValue::Type::Length:
-                values.unchecked_append(LengthPercentage { value->as_length().length() });
-                break;
-            case StyleValue::Type::Percentage:
-                values.unchecked_append(LengthPercentage { value->as_percentage().percentage() });
-                break;
-            case StyleValue::Type::Number:
-                values.unchecked_append(NumberPercentage { Number(Number::Type::Number, value->as_number().number()) });
-                break;
-            default:
-                return {};
-            }
-        }
-
-        return Transformation { transformation.transform_function(), move(values) };
-    };
-
     //   * If the pair do not have a common name or primitive transform function, post-multiply the remaining
     //     transform functions in each of Va and Vb respectively to produce two 4x4 matrices. Interpolate these two
     //     matrices as described in § 11 Interpolation of Matrices, append the result to Vresult, and cease
@@ -1297,12 +1257,8 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) {
         FloatMatrix4x4 result = FloatMatrix4x4::identity();
         for (auto index = start_index; index < transformations.size(); ++index) {
-            auto transformation = make_transformation(transformations[index]);
-            if (!transformation.has_value()) {
-                dbgln("Unable to interpret a transformation; bailing out of interpolation.");
-                break;
-            }
-            auto transformation_matrix = transformation->to_matrix(paintable_box);
+            auto transformation = transformations[index]->to_transformation();
+            auto transformation_matrix = transformation.to_matrix(paintable_box);
             if (transformation_matrix.is_error()) {
                 dbgln("Unable to interpret a transformation's matrix; bailing out of interpolation.");
                 break;
