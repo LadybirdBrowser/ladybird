@@ -27,6 +27,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
+#include <LibWeb/SecureContexts/AbstractOperations.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web {
 
@@ -115,6 +118,121 @@ static void store_response_cookies(Page& page, URL::URL const& url, StringView s
         return;
 
     page.client().page_did_set_cookie(url, cookie.value(), HTTP::Cookie::Source::Http);
+}
+
+enum class ClearSiteDataType : u8 {
+    None = 0,
+    Cache = 1 << 0,
+    ClientHints = 1 << 1,
+    Cookies = 1 << 2,
+    ExecutionContexts = 1 << 3,
+    Storage = 1 << 4,
+};
+
+AK_ENUM_BITWISE_OPERATORS(ClearSiteDataType);
+
+// https://w3c.github.io/webappsec-clear-site-data/#parsing
+static ClearSiteDataType parse_clear_site_data_header(HTTP::HeaderList const& response_headers)
+{
+    // 1. Let types be an empty list.
+    auto types = ClearSiteDataType::None;
+
+    // 2. Let header be the result of extracting header list values given Clear-Site-Data and response's header list.
+    auto header = response_headers.extract_header_list_values("Clear-Site-Data"sv);
+
+    // 3. If header is null or failure, return an empty list.
+    if (header.has<Empty>() || header.has<HTTP::HeaderList::ExtractHeaderParseFailure>())
+        return ClearSiteDataType::None;
+
+    // 4. For each type in header, execute the first matching statement, if any, switching on type:
+    for (auto const& type : header.get<Vector<ByteString>>()) {
+        // `"cache"`
+        if (type == "\"cache\"") {
+            // Append "cache" and "clientHints" to types.
+            types |= ClearSiteDataType::Cache;
+            types |= ClearSiteDataType::ClientHints;
+        }
+        // `"cookies"`
+        else if (type == "\"cookies\"") {
+            // Append "cookies" and "clientHints" to types.
+            types |= ClearSiteDataType::Cookies;
+            types |= ClearSiteDataType::ClientHints;
+        }
+        // `"storage"`
+        else if (type == "\"storage\"") {
+            // Append "storage" to types.
+            types |= ClearSiteDataType::Storage;
+        }
+        // `"executionContexts"`
+        else if (type == "\"executionContexts\"") {
+            // Append "executionContexts" to types.
+            types |= ClearSiteDataType::ExecutionContexts;
+        }
+        // `"clientHints"`
+        else if (type == "\"clientHints\"") {
+            // Append "clientHints" to types.
+            types |= ClearSiteDataType::ClientHints;
+        }
+        // `"*"`
+        else if (type == "\"*\"") {
+            // Append "cache", "cookies", "storage", "clientHints", and "executionContexts" to types.
+            types |= ClearSiteDataType::Cache;
+            types |= ClearSiteDataType::Cookies;
+            types |= ClearSiteDataType::Storage;
+            types |= ClearSiteDataType::ClientHints;
+            types |= ClearSiteDataType::ExecutionContexts;
+        }
+    }
+
+    // 5. Return types.
+    return types;
+}
+
+// https://w3c.github.io/webappsec-clear-site-data/#clear-response
+static void handle_clear_site_data(Page& page, URL::URL const& url, HTTP::HeaderList const& response_headers)
+{
+    // 1. If response's url is not an a priori authenticated URL, then break.
+    if (SecureContexts::is_url_potentially_trustworthy(url) == SecureContexts::Trustworthiness::NotTrustworthy)
+        return;
+
+    // 2. Let types be the result of parsing response's Clear-Site-Data header.
+    auto types = parse_clear_site_data_header(response_headers);
+    if (types == ClearSiteDataType::None)
+        return;
+
+    // 3. Let origin be response's url's origin.
+    auto origin = url.origin();
+
+    // FIXME: 4. Let browsing contexts be the result of preparing to clear data for origin and types.
+
+    // 5. For each type in types:
+    //     1. Execute the first matching statement, if any, switching on type:
+
+    // "cache"
+    if (has_flag(types, ClearSiteDataType::Cache)) {
+        // FIXME: Clear cache for origin.
+    }
+    // "cookies"
+    if (has_flag(types, ClearSiteDataType::Cookies)) {
+        // Clear cookies for origin.
+        page.client().page_did_clear_cookies_for_origin(origin);
+    }
+    // "storage"
+    if (has_flag(types, ClearSiteDataType::Storage)) {
+        // Clear DOM-accessible storage for origin.
+        auto storage_key = StorageAPI::StorageKey { url.origin() }.to_string();
+        page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::LocalStorage, storage_key);
+        page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::SessionStorage, storage_key);
+        page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::IndexedDB, storage_key);
+        page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::ServiceWorkerRegistrations, storage_key);
+        page.client().page_did_clear_storage(StorageAPI::StorageEndpointType::Caches, storage_key);
+    }
+    // "clientHints"
+    if (has_flag(types, ClearSiteDataType::ClientHints)) {
+        // FIXME: Empty Accept-CH cache[origin].
+    }
+
+    // FIXME: 6. If types contains "executionContexts", then reload browsing contexts.
 }
 
 static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
@@ -505,11 +623,13 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
         // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:
         // 15. If includeCredentials is true, then the user agent should parse and store response
         //     `Set-Cookie` headers given request and response.
-        for (auto const& [header, value] : response_headers) {
+        for (auto const& [header, value] : response_headers.headers()) {
             if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
                 store_response_cookies(*request.page(), request.url().value(), value);
             }
         }
+
+        handle_clear_site_data(*request.page(), request.url().value(), response_headers);
     }
 }
 
