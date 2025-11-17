@@ -18,12 +18,12 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(AsyncGenerator);
 
-ThrowCompletionOr<GC::Ref<AsyncGenerator>> AsyncGenerator::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
+GC::Ref<AsyncGenerator> AsyncGenerator::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
 {
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
     static Bytecode::PropertyLookupCache cache;
-    auto generating_function_prototype = TRY(generating_function->get(vm.names.prototype, cache));
+    auto generating_function_prototype = MUST(generating_function->get(vm.names.prototype, cache));
     GC::Ptr<Object> generating_function_prototype_object = nullptr;
     if (!generating_function_prototype.is_nullish())
         generating_function_prototype_object = MUST(generating_function_prototype.to_object(vm));

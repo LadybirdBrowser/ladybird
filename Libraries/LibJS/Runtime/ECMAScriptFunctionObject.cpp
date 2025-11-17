@@ -893,12 +893,10 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
     if (kind() == FunctionKind::Normal)
         return result;
 
-    if (kind() == FunctionKind::AsyncGenerator) {
-        auto async_generator_object = TRY(AsyncGenerator::create(*context.realm, result, this, context.copy()));
-        return async_generator_object;
-    }
+    if (kind() == FunctionKind::AsyncGenerator)
+        return AsyncGenerator::create(*context.realm, result, this, context.copy());
 
-    auto generator_object = TRY(GeneratorObject::create(*context.realm, result, this, context.copy()));
+    auto generator_object = GeneratorObject::create(*context.realm, result, this, context.copy());
 
     // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise
     //       See AwaitExpression::generate_bytecode() for the transformation.

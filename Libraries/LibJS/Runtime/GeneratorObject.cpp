@@ -18,7 +18,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(GeneratorObject);
 
-ThrowCompletionOr<GC::Ref<GeneratorObject>> GeneratorObject::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
+GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
 {
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
@@ -30,7 +30,7 @@ ThrowCompletionOr<GC::Ref<GeneratorObject>> GeneratorObject::create(Realm& realm
         generating_function_prototype = realm.intrinsics().generator_prototype();
     } else {
         static Bytecode::PropertyLookupCache cache;
-        generating_function_prototype = TRY(generating_function->get(vm.names.prototype, cache));
+        generating_function_prototype = MUST(generating_function->get(vm.names.prototype, cache));
     }
     GC::Ptr<Object> generating_function_prototype_object = nullptr;
     if (!generating_function_prototype.is_nullish())
