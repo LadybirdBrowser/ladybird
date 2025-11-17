@@ -203,14 +203,17 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 auto* timer = static_cast<EventLoopTimer*>(packet);
                 if (auto owner = timer->owner.strong_ref())
                     event_queue.post_event(*owner, make<TimerEvent>());
-                if (timer->is_periodic)
-                    g_system.NtAssociateWaitCompletionPacket(timer->wait_packet.handle, thread_data->iocp.handle, timer->timer.handle, timer, NULL, 0, 0, NULL);
+                if (timer->is_periodic) {
+                    NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(timer->wait_packet.handle, thread_data->iocp.handle, timer->timer.handle, timer, NULL, 0, 0, NULL);
+                    VERIFY(NT_SUCCESS(status));
+                }
                 continue;
             }
             if (packet->type == CompletionType::Notifer) {
                 auto* notifier_data = static_cast<EventLoopNotifier*>(packet);
                 event_queue.post_event(*notifier_data->notifier, make<NotifierActivationEvent>(notifier_data->notifier_fd(), notifier_data->notifier_type()));
-                g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
+                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
+                VERIFY(NT_SUCCESS(status));
                 continue;
             }
             VERIFY_NOT_REACHED();
@@ -278,9 +281,9 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
     notifier_data->notifier = &notifier;
     notifier_data->m_notifier_type = notifier.type();
     notifier_data->wait_event.handle = event;
-    NTSTATUS status = NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+    NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
     VERIFY(NT_SUCCESS(status));
-    status = NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, event, notifier_data.ptr(), NULL, 0, 0, NULL);
+    status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, event, notifier_data.ptr(), NULL, 0, 0, NULL);
     VERIFY(NT_SUCCESS(status));
     notifiers.set(&notifier, move(notifier_data));
 }
@@ -345,7 +348,8 @@ void EventLoopManagerWindows::unregister_timer(intptr_t timer_id)
         if (!maybe_timer.has_value())
             return;
         auto timer = move(maybe_timer.value());
-        g_system.NtCancelWaitCompletionPacket(timer->wait_packet.handle, TRUE);
+        NTSTATUS status = g_system.NtCancelWaitCompletionPacket(timer->wait_packet.handle, TRUE);
+        VERIFY(NT_SUCCESS(status));
     }
 }
 
