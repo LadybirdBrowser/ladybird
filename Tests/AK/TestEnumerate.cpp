@@ -49,3 +49,43 @@ TEST_CASE(enumerate)
         EXPECT_EQ(result, (Vector<IndexAndValue> { { 0, 9 }, { 1, 8 }, { 2, 7 }, { 3, 6 } }));
     }
 }
+
+class CopyCounter {
+public:
+    static inline size_t copy_count = 0;
+
+    CopyCounter() = default;
+    CopyCounter(CopyCounter const&) { ++copy_count; }
+    CopyCounter(CopyCounter&&) { }
+
+    auto begin() const { return m_vec.begin(); }
+    auto end() const { return m_vec.end(); }
+
+private:
+    Vector<int> m_vec { 1, 2, 3, 4 };
+};
+
+TEST_CASE(do_not_copy)
+{
+    {
+        Vector<IndexAndValue> result;
+        CopyCounter::copy_count = 0;
+        CopyCounter counter {};
+
+        for (auto [i, value] : enumerate(counter))
+            result.append({ i, value });
+
+        EXPECT_EQ(result, (Vector<IndexAndValue> { { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 } }));
+        EXPECT_EQ(CopyCounter::copy_count, 0uz);
+    }
+    {
+        Vector<IndexAndValue> result;
+        CopyCounter::copy_count = 0;
+
+        for (auto [i, value] : enumerate(CopyCounter {}))
+            result.append({ i, value });
+
+        EXPECT_EQ(result, (Vector<IndexAndValue> { { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 } }));
+        EXPECT_EQ(CopyCounter::copy_count, 0uz);
+    }
+}
