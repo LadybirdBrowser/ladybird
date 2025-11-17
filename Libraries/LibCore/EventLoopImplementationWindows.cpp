@@ -288,9 +288,14 @@ intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int mill
     VERIFY(thread_data);
     auto& timers = thread_data->timers;
 
+    // FIXME: This is a temporary fix for issue #3641
+    bool manual_reset = static_cast<Timer&>(object).is_single_shot();
+    HANDLE timer = CreateWaitableTimer(NULL, manual_reset, NULL);
+    VERIFY(timer);
+
     auto timer_data = make<EventLoopTimer>();
     timer_data->type = CompletionType::Timer;
-    timer_data->timer.handle = CreateWaitableTimer(NULL, FALSE, NULL);
+    timer_data->timer.handle = timer;
     timer_data->owner = object.make_weak_ptr();
     timer_data->is_periodic = should_reload;
     VERIFY(timer_data->timer.handle);
