@@ -510,6 +510,14 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
+// FIXME: https://www.w3.org/TR/clear-site-data/#clear-cookies
+// CookieJar lacks a domain-scoped API. We currently clear ALL cookies globally.
+void WebContentClient::did_clear_all_cookies(URL::URL url)
+{
+    (void)url;
+    Application::cookie_jar().expire_cookies_accessed_since(UnixDateTime::from_seconds_since_epoch(0));
+}
+
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)
 {
     return Application::storage_jar().get_item(storage_endpoint, storage_key, bottle_key);
