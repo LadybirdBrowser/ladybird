@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/Paintable.h>
 
