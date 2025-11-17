@@ -72,6 +72,11 @@ struct CompletionPacket {
     CompletionType type;
 };
 
+struct EventLoopWake final : CompletionPacket {
+    OwnHandle wait_packet;
+    OwnHandle wait_event;
+};
+
 struct EventLoopTimer final : CompletionPacket {
 
     ~EventLoopTimer()
@@ -112,11 +117,24 @@ struct ThreadData {
     }
 
     ThreadData()
-        : wake_completion_key(make<CompletionPacket>(CompletionType::Wake))
+        : wake_data(make<EventLoopWake>())
     {
+        wake_data->type = CompletionType::Wake;
+        wake_data->wait_event.handle = CreateEvent(NULL, FALSE, FALSE, NULL);
+
         // Consider a way for different event loops to have a different number of threads
         iocp.handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
         VERIFY(iocp.handle);
+
+        NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&wake_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+        VERIFY(NT_SUCCESS(status));
+        status = g_system.NtAssociateWaitCompletionPacket(wake_data->wait_packet.handle, iocp.handle, wake_data->wait_event.handle, wake_data.ptr(), NULL, 0, 0, NULL);
+        VERIFY(NT_SUCCESS(status));
+    }
+    ~ThreadData()
+    {
+        NTSTATUS status = g_system.NtCancelWaitCompletionPacket(wake_data->wait_packet.handle, TRUE);
+        VERIFY(NT_SUCCESS(status));
     }
 
     OwnHandle iocp;
@@ -125,12 +143,12 @@ struct ThreadData {
     HashMap<intptr_t, NonnullOwnPtr<EventLoopTimer>> timers;
     HashMap<Notifier*, NonnullOwnPtr<EventLoopNotifier>> notifiers;
 
-    // The wake completion key is posted to the thread's event loop to wake it.
-    NonnullOwnPtr<CompletionPacket> wake_completion_key;
+    // The wake completion packet is posted to the thread's event loop to wake it.
+    NonnullOwnPtr<EventLoopWake> wake_data;
 };
 
 EventLoopImplementationWindows::EventLoopImplementationWindows()
-    : m_wake_completion_key((void*)ThreadData::the()->wake_completion_key.ptr())
+    : m_wake_event(ThreadData::the()->wake_data->wait_event.handle)
 {
 }
 
@@ -175,7 +193,10 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
             auto& entry = entries[i];
             auto* packet = reinterpret_cast<CompletionPacket*>(entry.lpCompletionKey);
 
-            if (packet == thread_data->wake_completion_key) {
+            if (packet->type == CompletionType::Wake) {
+                auto* wake_data = static_cast<EventLoopWake*>(packet);
+                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(wake_data->wait_packet.handle, thread_data->iocp.handle, wake_data->wait_event.handle, wake_data, NULL, 0, 0, NULL);
+                VERIFY(NT_SUCCESS(status));
                 continue;
             }
             if (packet->type == CompletionType::Timer) {
@@ -223,8 +244,7 @@ void EventLoopImplementationWindows::post_event(EventReceiver& receiver, Nonnull
 
 void EventLoopImplementationWindows::wake()
 {
-    auto* thread_data = ThreadData::the();
-    PostQueuedCompletionStatus(thread_data->iocp.handle, 0, (ULONG_PTR)m_wake_completion_key, NULL);
+    SetEvent(m_wake_event);
 }
 
 static int notifier_type_to_network_event(NotificationType type)
