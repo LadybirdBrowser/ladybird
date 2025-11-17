@@ -26,6 +26,7 @@
                 status: 200,
                 headers: {
                     "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "text/html",
                 },
                 body: `<!doctype html><meta charset="${encoding}"><script>parent.postMessage({"encoding": "${encoding}", "characterSet": document.characterSet}, "*")<\/script>`,
             });
