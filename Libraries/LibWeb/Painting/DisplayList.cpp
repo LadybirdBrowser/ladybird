@@ -258,7 +258,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
         else HANDLE_COMMAND(ApplyOpacity, apply_opacity)
         else HANDLE_COMMAND(ApplyCompositeAndBlendingOperator, apply_composite_and_blending_operator)
-        else HANDLE_COMMAND(ApplyFilter, apply_filters)
+        else HANDLE_COMMAND(ApplyFilter, apply_filter)
         else HANDLE_COMMAND(ApplyTransform, apply_transform)
         else HANDLE_COMMAND(ApplyMaskBitmap, apply_mask_bitmap)
         else VERIFY_NOT_REACHED();
