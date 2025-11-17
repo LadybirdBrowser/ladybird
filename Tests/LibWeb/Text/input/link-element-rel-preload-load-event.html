@@ -2,16 +2,23 @@
 <script src="include.js"></script>
 <script>
     asyncTest(done => {
-        let eventCount = 0;
+        const logs = [];
+        const printLogs = () => {
+            logs.sort();
+            for (const log of logs) {
+                println(log);
+            }
+        };
 
         let goodLink = document.createElement("link");
         goodLink.setAttribute("rel", "preload");
         goodLink.setAttribute("href", "valid.css");
         goodLink.setAttribute("as", "style");
         goodLink.addEventListener("load", function () {
-            println("Got load event");
+            logs.push("Got load event");
 
-            if (++eventCount == 2) {
+            if (logs.length == 2) {
+                printLogs();
                 done();
             }
         });
@@ -22,9 +29,10 @@
         badLink.setAttribute("href", "this-file-does-not-exist-and-so-is-invalid.css");
         badLink.setAttribute("as", "style");
         badLink.addEventListener("error", function () {
-            println("Got error event");
+            logs.push("Got error event");
 
-            if (++eventCount == 2) {
+            if (logs.length == 2) {
+                printLogs();
                 done();
             }
         });
