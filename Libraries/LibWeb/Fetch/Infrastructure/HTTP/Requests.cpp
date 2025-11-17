@@ -264,7 +264,6 @@ GC::Ref<Request> Request::clone(JS::Realm& realm) const
     new_request->set_prevent_no_cache_cache_control_header_modification(m_prevent_no_cache_cache_control_header_modification);
     new_request->set_done(m_done);
     new_request->set_timing_allow_failed(m_timing_allow_failed);
-    new_request->set_buffer_policy(m_buffer_policy);
 
     // 2. If request’s body is non-null, set newRequest’s body to the result of cloning request’s body.
     if (auto const* body = m_body.get_pointer<GC::Ref<Body>>())
