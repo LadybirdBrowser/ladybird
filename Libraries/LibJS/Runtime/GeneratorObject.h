@@ -46,7 +46,7 @@ public:
     void set_generator_state(GeneratorState generator_state) { m_generator_state = generator_state; }
 
 protected:
-    GeneratorObject(Realm&, Object& prototype, NonnullOwnPtr<ExecutionContext>, Optional<StringView> generator_brand = {});
+    GeneratorObject(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>, Optional<StringView> generator_brand = {});
 
     ThrowCompletionOr<GeneratorState> validate(VM&, Optional<StringView> const& generator_brand);
     virtual ThrowCompletionOr<IterationResult> execute(VM&, JS::Completion const& completion);

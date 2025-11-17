@@ -24,15 +24,17 @@ ThrowCompletionOr<GC::Ref<AsyncGenerator>> AsyncGenerator::create(Realm& realm, 
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
     static Bytecode::PropertyLookupCache cache;
     auto generating_function_prototype = TRY(generating_function->get(vm.names.prototype, cache));
-    auto generating_function_prototype_object = TRY(generating_function_prototype.to_object(vm));
+    GC::Ptr<Object> generating_function_prototype_object = nullptr;
+    if (!generating_function_prototype.is_nullish())
+        generating_function_prototype_object = MUST(generating_function_prototype.to_object(vm));
     auto object = realm.create<AsyncGenerator>(realm, generating_function_prototype_object, move(execution_context));
     object->m_generating_function = generating_function;
     object->m_previous_value = initial_value;
     return object;
 }
 
-AsyncGenerator::AsyncGenerator(Realm&, Object& prototype, NonnullOwnPtr<ExecutionContext> context)
-    : Object(ConstructWithPrototypeTag::Tag, prototype)
+AsyncGenerator::AsyncGenerator(Realm& realm, Object* prototype, NonnullOwnPtr<ExecutionContext> context)
+    : Object(realm, prototype)
     , m_async_generator_context(move(context))
 {
 }

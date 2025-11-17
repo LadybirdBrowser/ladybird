@@ -44,7 +44,7 @@ public:
     Optional<String> const& generator_brand() const { return m_generator_brand; }
 
 private:
-    AsyncGenerator(Realm&, Object& prototype, NonnullOwnPtr<ExecutionContext>);
+    AsyncGenerator(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
