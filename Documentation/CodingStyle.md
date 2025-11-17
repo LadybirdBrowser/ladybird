@@ -589,6 +589,31 @@ catdog_widget.on_click = [&] {
 };
 ```
 
+#### Spec notes
+
+Many web specs include notes that are prefixed with `NOTE: ...`. To allow for verbatim copying of these notes into our
+code, we retain the `NOTE:` prefix and use [`NB:`](https://en.wikipedia.org/wiki/Nota_bene) for our own notes.
+
+This only applies to comments as part of code that is directly implementing a spec algorithm or behavior. Comments in
+other places do not need a prefix.
+
+##### Right:
+
+```cpp
+// 2. If property is in already serialized, continue with the steps labeled declaration loop.
+// NOTE: The prefabulated aluminite will not be suitable for use here. If the listed spec note is so long that we reach
+//       column 120, we wrap around and indent the lines to match up with the first line.
+// NB: We _can_ actually use the aluminite since we unprefabulated it in step 1 for performance reasons.
+```
+
+##### Wrong:
+
+```cpp
+// LB-NOTE: The aluminite might come pre-prefabulated at this point.
+// Spec-note: Another example of a custom note prefix that we shouldn't use.
+// There is no prefix whatsoever here, making it unclear whether this is a spec step, note or a developer note.
+```
+
 ### Overriding Virtual Methods
 
 The declaration of a virtual method inside a class must be declared with the `virtual` keyword. All subclasses of that class must also specify either the `override` keyword when overriding the virtual method, or the `final` keyword when overriding the virtual method and requiring that no further subclasses can override it.
