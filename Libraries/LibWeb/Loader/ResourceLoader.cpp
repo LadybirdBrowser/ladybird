@@ -301,6 +301,50 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Callb
         }));
 }
 
+template<typename ResourceHandler, typename ErrorHandler>
+void ResourceLoader::handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
+{
+    auto const& url = request.url().value();
+
+    auto resource = Core::Resource::load_from_uri(url.serialize());
+    if (resource.is_error()) {
+        on_error(ByteString::formatted("{}", resource.error()));
+        return;
+    }
+
+    auto resource_value = resource.release_value();
+
+    // When resource URI is a directory use file directory loader to generate response
+    if (resource_value->is_directory()) {
+        auto directory_url = URL::Parser::basic_parse(resource_value->file_url());
+        VERIFY(directory_url.has_value());
+
+        auto maybe_response = load_file_directory_page(directory_url.release_value());
+        if (maybe_response.is_error()) {
+            on_error(ByteString::formatted("{}", maybe_response.error()));
+            return;
+        }
+
+        FileLoadResult load_result;
+        load_result.data = maybe_response.release_value().bytes();
+        load_result.response_headers.set("Content-Type"sv, "text/html"sv);
+        on_resource(load_result);
+        return;
+    }
+
+    auto const& buffer = resource_value->data();
+    auto response_headers = response_headers_for_file(url.file_path(), resource_value->modified_time());
+
+    // FIXME: Implement timing info for resource requests.
+    Requests::RequestTimingInfo timing_info {};
+
+    FileLoadResult load_result;
+    load_result.data = buffer;
+    load_result.response_headers = move(response_headers);
+    load_result.timing_info = timing_info;
+    on_resource(load_result);
+}
+
 void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback, Optional<u32> timeout, GC::Root<TimeoutCallback> timeout_callback)
 {
     auto const& url = request.url().value();
@@ -312,24 +356,6 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
         error_callback->function()("Request was blocked", {}, {}, {}, {}, {});
         return;
     }
-
-    auto respond_directory_page = [](LoadRequest const& request, URL::URL const& url, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback) {
-        // FIXME: Implement timing info for directory requests.
-        Requests::RequestTimingInfo fixme_implement_timing_info {};
-
-        auto maybe_response = load_file_directory_page(url);
-        if (maybe_response.is_error()) {
-            log_failure(request, maybe_response.error());
-            if (error_callback)
-                error_callback->function()(ByteString::formatted("{}", maybe_response.error()), fixme_implement_timing_info, 500u, {}, {}, {});
-            return;
-        }
-
-        log_success(request);
-        HTTP::HeaderMap response_headers;
-        response_headers.set("Content-Type"sv, "text/html"sv);
-        success_callback->function()(maybe_response.release_value().bytes(), fixme_implement_timing_info, response_headers, {}, {});
-    };
 
     if (url.scheme() == "about") {
         handle_about_load_request(request, [success_callback, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderMap const& response_headers) {
@@ -368,31 +394,17 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     }
 
     if (url.scheme() == "resource") {
-        auto resource = Core::Resource::load_from_uri(url.serialize());
-        if (resource.is_error()) {
-            log_failure(request, resource.error());
-            if (error_callback)
-                error_callback->function()(ByteString::formatted("{}", resource.error()), {}, {}, {}, {}, {});
-            return;
-        }
-
-        // When resource URI is a directory use file directory loader to generate response
-        if (resource.value()->is_directory()) {
-            auto url = URL::Parser::basic_parse(resource.value()->file_url());
-            VERIFY(url.has_value());
-            respond_directory_page(request, url.release_value(), success_callback, error_callback);
-            return;
-        }
-
-        auto data = resource.value()->data();
-        auto response_headers = response_headers_for_file(url.file_path(), resource.value()->modified_time());
-
-        // FIXME: Implement timing info for resource requests.
-        Requests::RequestTimingInfo fixme_implement_timing_info {};
-
-        log_success(request);
-        success_callback->function()(data, fixme_implement_timing_info, response_headers, {}, {});
-
+        handle_resource_load_request(
+            request,
+            [success_callback, request](FileLoadResult const& load_result) {
+                log_success(request);
+                success_callback->function()(load_result.data, load_result.timing_info, load_result.response_headers, {}, {});
+            },
+            [error_callback, request](ByteString const& error_message) {
+                log_failure(request, error_message);
+                if (error_callback)
+                    error_callback->function()(error_message, {}, {}, {}, {}, {});
+            });
         return;
     }
 
@@ -496,6 +508,21 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, GC::Root<OnHeadersRec
             on_data_received->function()(data);
             on_complete->function()(true, timing_info, {});
         });
+        return;
+    }
+
+    if (url.scheme() == "resource"sv) {
+        handle_resource_load_request(
+            request,
+            [on_headers_received, on_data_received, on_complete](FileLoadResult const& load_result) {
+                on_headers_received->function()(load_result.response_headers, {}, {});
+                on_data_received->function()(load_result.data);
+                on_complete->function()(true, load_result.timing_info, {});
+            },
+            [on_complete](ByteString const& message) {
+                Requests::RequestTimingInfo fixme_implement_timing_info {};
+                on_complete->function()(false, fixme_implement_timing_info, StringView(message));
+            });
         return;
     }
 
