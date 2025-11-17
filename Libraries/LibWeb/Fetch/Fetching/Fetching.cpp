@@ -2435,7 +2435,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
+    ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_complete);
 
     return pending_response;
 }
