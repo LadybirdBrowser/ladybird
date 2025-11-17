@@ -772,6 +772,9 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
 void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
 {
+    if (!document().is_fully_active())
+        return;
+
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
     Optional<String> mime_type_charset;
