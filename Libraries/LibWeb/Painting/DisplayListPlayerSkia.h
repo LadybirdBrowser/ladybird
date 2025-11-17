@@ -55,7 +55,7 @@ private:
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
     void apply_opacity(ApplyOpacity const&) override;
     void apply_composite_and_blending_operator(ApplyCompositeAndBlendingOperator const&) override;
-    void apply_filters(ApplyFilter const&) override;
+    void apply_filter(ApplyFilter const&) override;
     void apply_transform(ApplyTransform const&) override;
     void apply_mask_bitmap(ApplyMaskBitmap const&) override;
 

@@ -968,7 +968,7 @@ void DisplayListPlayerSkia::apply_composite_and_blending_operator(ApplyComposite
     canvas.saveLayer(nullptr, &paint);
 }
 
-void DisplayListPlayerSkia::apply_filters(ApplyFilter const& command)
+void DisplayListPlayerSkia::apply_filter(ApplyFilter const& command)
 {
     sk_sp<SkImageFilter> image_filter = to_skia_image_filter(command.filter);
 
