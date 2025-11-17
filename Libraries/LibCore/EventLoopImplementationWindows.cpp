@@ -92,12 +92,12 @@ struct EventLoopNotifier final : CompletionPacket {
     }
 
     Notifier::Type notifier_type() const { return m_notifier_type; }
-    int fd() const { return to_fd(object_handle); }
+    int notifier_fd() const { return m_notifier_fd; }
 
     // These are a space tradeoff for avoiding a double indirection through the notifier*.
     Notifier* notifier;
     Notifier::Type m_notifier_type;
-    HANDLE object_handle;
+    int m_notifier_fd { -1 };
     OwnHandle wait_packet;
     OwnHandle wait_event;
 };
@@ -187,8 +187,8 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 continue;
             }
             if (packet->type == CompletionType::Notifer) {
-                auto* notifier_data = reinterpret_cast<EventLoopNotifier*>(packet);
-                event_queue.post_event(*notifier_data->notifier, make<NotifierActivationEvent>(notifier_data->fd(), notifier_data->notifier_type()));
+                auto* notifier_data = static_cast<EventLoopNotifier*>(packet);
+                event_queue.post_event(*notifier_data->notifier, make<NotifierActivationEvent>(notifier_data->notifier_fd(), notifier_data->notifier_type()));
                 g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
                 continue;
             }
