@@ -58,7 +58,7 @@ LOCAL_INCLUDE_SUFFIX_EXCLUDES = [
 SINGLE_PAGE_HTML_SPEC_LINK = re.compile("//.*https://html\\.spec\\.whatwg\\.org/#")
 
 # We similarily check and disallow AD-HOCs and FIXMEs that aren't followed by a colon.
-INVALID_AD_HOC_OR_FIXME = re.compile(r'^(?:[\s\d./\-(*]+(?:AD-HOC|FIXME)[^:]|.*"FIXME[^:"]).*$', re.MULTILINE)
+INVALID_AD_HOC_OR_FIXME = re.compile(r'^(?:[\s\d./\-(*]+(?:AD-HOC|FIXME|NB|NOTE)[^:]|.*"FIXME[^:"]).*$', re.MULTILINE)
 
 
 def should_check_file(filename):

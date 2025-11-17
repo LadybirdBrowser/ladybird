@@ -146,7 +146,7 @@ struct RsaKeyGenParams : public AlgorithmParams {
     }
 
     u32 modulus_length;
-    // NOTE that the raw data is going to be in Big Endian u8[] format
+    // NOTE: The raw data is going to be in Big Endian u8[] format
     ::Crypto::UnsignedBigInteger public_exponent;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
