@@ -300,8 +300,8 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
     // 1. Let newImportMapScopes be a deep copy of newImportMap's scopes.
     auto new_import_map_scopes = new_import_map.scopes();
 
-    // Spec-Note: We're mutating these copies and removing items from them when they are used to ignore scope-specific
-    //            rules. This is true for newImportMapScopes, as well as to newImportMapImports below.
+    // NOTE: We're mutating these copies and removing items from them when they are used to ignore scope-specific rules.
+    //       This is true for newImportMapScopes, as well as to newImportMapImports below.
 
     // 2. Let oldImportMap be global's import map.
     auto& old_import_map = global.import_map();

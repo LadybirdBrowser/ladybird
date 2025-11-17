@@ -58,8 +58,8 @@ struct SpecifierResolution {
     // A specifier as a URL
     //     A URL-or-null that represents the URL in case of a URL-like module specifier.
     //
-    // Spec-Note: Implementations can replace specifier as a URL with a boolean that indicates
-    //            that the specifier is either bare or URL-like that is special.
+    // NOTE: Implementations can replace specifier as a URL with a boolean that indicates that the specifier is either
+    //       bare or URL-like that is special.
     bool specifier_is_null_or_url_like_that_is_special { false };
 };
 
@@ -300,10 +300,10 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#resolved-module-set
     // A global object has a resolved module set, a set of specifier resolution records, initially empty.
     //
-    // Spec-Note: The resolved module set ensures that module specifier resolution returns the same result when called
-    //            multiple times with the same (referrer, specifier) pair. It does that by ensuring that import map rules
-    //            that impact the specifier in its referrer's scope cannot be defined after its initial resolution. For
-    //            now, only Window global objects have their module set data structures modified from the initial empty one.
+    // NOTE: The resolved module set ensures that module specifier resolution returns the same result when called
+    //       multiple times with the same (referrer, specifier) pair. It does that by ensuring that import map rules
+    //       that impact the specifier in its referrer's scope cannot be defined after its initial resolution. For now,
+    //       only Window global objects have their module set data structures modified from the initial empty one.
     Vector<SpecifierResolution> m_resolved_module_set;
 
     GC::Ptr<CSS::Screen> m_screen;

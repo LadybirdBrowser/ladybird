@@ -157,7 +157,8 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
         result = TRY(resolve_imports_match(normalized_specifier.to_byte_string(), as_url, import_map.imports()));
 
     // 12. If result is null, set it to asURL.
-    // Spec-Note: By this point, if result was null, specifier wasn't remapped to anything by importMap, but it might have been able to be turned into a URL.
+    // NOTE: By this point, if result was null, specifier wasn't remapped to anything by importMap, but it might have
+    //       been able to be turned into a URL.
     if (!result.has_value())
         result = as_url;
 
