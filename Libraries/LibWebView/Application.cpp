@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LibWebView/Options.h"
 #include <AK/Debug.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
@@ -238,6 +239,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .headless_mode = headless_mode,
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
         .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,
+        .force_cpu_painting = force_cpu_painting ? ForceCpuPainting::Yes : ForceCpuPainting::No,
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,

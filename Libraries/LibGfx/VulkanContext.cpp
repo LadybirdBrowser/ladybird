@@ -10,6 +10,8 @@
 
 namespace Gfx {
 
+static Extensions s_extensions { USE_DRM_EXTENSIONS };
+
 static ErrorOr<VkInstance> create_instance(uint32_t api_version)
 {
     VkInstance instance;
@@ -65,7 +67,7 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     VERIFY_NOT_REACHED();
 }
 
-static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family)
+static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family, Extensions extensions = USE_DRM_EXTENSIONS)
 {
     VkDevice device;
 
@@ -99,23 +101,23 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     queue_create_info.pQueuePriorities = &queue_priority;
 
     VkPhysicalDeviceFeatures deviceFeatures {};
+    Vector<char const*> device_extensions;
 #ifdef USE_VULKAN_IMAGES
-    char const* device_extensions[] = {
-        VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME
-    };
-    uint32_t device_extension_count = array_size(device_extensions);
-#else
-    const char** device_extensions = nullptr;
-    uint32_t device_extension_count = 0;
+    if (extensions == Extensions::USE_DRM_EXTENSIONS) {
+        device_extensions.append(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+        device_extensions.append(VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME);
+    }
 #endif
+    uint32_t device_extension_count = device_extensions.size();
+    dbgln("ROCCO: extension count: {}", device_extension_count);
+
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
     create_device_info.enabledExtensionCount = device_extension_count;
-    create_device_info.ppEnabledExtensionNames = device_extensions;
+    create_device_info.ppEnabledExtensionNames = device_extensions.data();
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
         return Error::from_string_literal("Logical device creation failed");
@@ -173,16 +175,34 @@ ErrorOr<VulkanContext> create_vulkan_context()
     vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
 
 #ifdef USE_VULKAN_IMAGES
-    VkCommandPool command_pool = TRY(create_command_pool(logical_device, graphics_queue_family));
-    VkCommandBuffer command_buffer = TRY(allocate_command_buffer(logical_device, command_pool));
+    if (s_extensions == Extensions::USE_DRM_EXTENSIONS) {
+        VkCommandPool command_pool = TRY(create_command_pool(logical_device, graphics_queue_family));
+        VkCommandBuffer command_buffer = TRY(allocate_command_buffer(logical_device, command_pool));
 
-    auto pfn_vk_get_memory_fd_khr = reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetDeviceProcAddr(logical_device, "vkGetMemoryFdKHR"));
-    if (pfn_vk_get_memory_fd_khr == nullptr) {
-        return Error::from_string_literal("vkGetMemoryFdKHR unavailable");
-    }
-    auto pfn_vk_get_image_drm_format_modifier_properties_khr = reinterpret_cast<PFN_vkGetImageDrmFormatModifierPropertiesEXT>(vkGetDeviceProcAddr(logical_device, "vkGetImageDrmFormatModifierPropertiesEXT"));
-    if (pfn_vk_get_image_drm_format_modifier_properties_khr == nullptr) {
-        return Error::from_string_literal("vkGetImageDrmFormatModifierPropertiesEXT unavailable");
+        auto pfn_vk_get_memory_fd_khr = reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetDeviceProcAddr(logical_device, "vkGetMemoryFdKHR"));
+        if (pfn_vk_get_memory_fd_khr == nullptr) {
+            return Error::from_string_literal("vkGetMemoryFdKHR unavailable");
+        }
+        auto pfn_vk_get_image_drm_format_modifier_properties_khr = reinterpret_cast<PFN_vkGetImageDrmFormatModifierPropertiesEXT>(vkGetDeviceProcAddr(logical_device, "vkGetImageDrmFormatModifierPropertiesEXT"));
+        if (pfn_vk_get_image_drm_format_modifier_properties_khr == nullptr) {
+            return Error::from_string_literal("vkGetImageDrmFormatModifierPropertiesEXT unavailable");
+        }
+
+        return VulkanContext {
+            .api_version = api_version,
+            .instance = instance,
+            .physical_device = physical_device,
+            .logical_device = logical_device,
+            .graphics_queue = graphics_queue,
+            .graphics_queue_family = graphics_queue_family,
+
+            .command_pool = command_pool,
+            .command_buffer = command_buffer,
+            .ext_procs = {
+                .get_memory_fd = pfn_vk_get_memory_fd_khr,
+                .get_image_drm_format_modifier_properties = pfn_vk_get_image_drm_format_modifier_properties_khr,
+            },
+        };
     }
 #endif
 
@@ -193,15 +213,28 @@ ErrorOr<VulkanContext> create_vulkan_context()
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
-#ifdef USE_VULKAN_IMAGES
-        .command_pool = command_pool,
-        .command_buffer = command_buffer,
-        .ext_procs = {
-            .get_memory_fd = pfn_vk_get_memory_fd_khr,
-            .get_image_drm_format_modifier_properties = pfn_vk_get_image_drm_format_modifier_properties_khr,
-        },
-#endif
+        .ext_procs = {},
     };
+}
+
+void init_vulkan_context()
+{
+    auto maybe_vulkan_context = Gfx::create_vulkan_context();
+    if (maybe_vulkan_context.is_error()) {
+        dbgln("Failed to create vulkan context with drm extensions. Trying without extensions");
+        s_extensions = DONT_USE_DRM_EXTENSIONS;
+        maybe_vulkan_context = Gfx::create_vulkan_context();
+        if (maybe_vulkan_context.is_error()) {
+            dbgln("Can't create vulkan context: {}", maybe_vulkan_context.error());
+            dbgln("Falling back to backend CPU painting");
+            return;
+        }
+    }
+
+    VkPhysicalDeviceProperties device_properties;
+    vkGetPhysicalDeviceProperties(maybe_vulkan_context.value().physical_device, &device_properties);
+
+    dbgln("Selected Vulkan graphical device: {}", device_properties.deviceName);
 }
 
 #ifdef USE_VULKAN_IMAGES

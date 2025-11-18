@@ -33,6 +33,11 @@ enum class ForceNewProcess {
     Yes,
 };
 
+enum class ForceCpuPainting {
+    No,
+    Yes,
+};
+
 enum class AllowPopups {
     No,
     Yes,
@@ -82,6 +87,7 @@ struct BrowserOptions {
     int window_height { 600 };
     NewWindow new_window { NewWindow::No };
     ForceNewProcess force_new_process { ForceNewProcess::No };
+    ForceCpuPainting force_cpu_painting { ForceCpuPainting::No };
     AllowPopups allow_popups { AllowPopups::No };
     DisableScripting disable_scripting { DisableScripting::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };

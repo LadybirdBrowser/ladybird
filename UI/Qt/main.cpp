@@ -5,6 +5,7 @@
  */
 
 #include <LibMain/Main.h>
+#include <LibGfx/Graphics.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/URL.h>
@@ -57,6 +58,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 return 0;
             }
         }
+
+        Gfx::init_graphics(browser_options.force_cpu_painting);
 
         app->on_open_file = [&](auto const& file_url) {
             auto& window = app->active_window();

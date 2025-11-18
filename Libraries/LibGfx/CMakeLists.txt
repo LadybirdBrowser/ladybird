@@ -21,6 +21,7 @@ set(SOURCES
     Font/WOFF/Loader.cpp
     Font/WOFF2/Loader.cpp
     GradientPainting.cpp
+    Graphics.cpp
     ImageFormats/AVIFLoader.cpp
     ImageFormats/BMPLoader.cpp
     ImageFormats/BMPWriter.cpp
