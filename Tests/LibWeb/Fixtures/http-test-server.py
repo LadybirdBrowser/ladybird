@@ -132,20 +132,36 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         method = self.command.upper()
         key = f"{method} {self.path}"
 
+        is_revalidation_request = "If-Modified-Since" in self.headers
+        send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
+
         if key in echo_store:
             echo = echo_store[key]
+            response_headers = echo.headers
 
             if echo.delay_ms is not None:
                 time.sleep(echo.delay_ms / 1000)
 
-            # Send the status code without any default headers
-            self.send_response_only(echo.status, echo.reason_phrase)
+            if send_not_modified:
+                self.send_response(304)
+            else:
+                self.send_response_only(echo.status, echo.reason_phrase)
+
+                if is_revalidation_request:
+                    if response_headers is None:
+                        response_headers = {}
+
+                    # Override the Last-Modified header to prevent cURL from thinking the response is still fresh.
+                    response_headers["Last-Modified"] = "Thu, 01 Jan 1970 00:00:00 GMT"
 
             # Set only the headers defined in the echo definition
-            if echo.headers is not None:
-                for header, value in echo.headers.items():
+            if response_headers is not None:
+                for header, value in response_headers.items():
                     self.send_header(header, value)
                 self.end_headers()
+
+            if send_not_modified:
+                return
 
             if echo.reflect_headers_in_body:
                 headers = defaultdict(list)
