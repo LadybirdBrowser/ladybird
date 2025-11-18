@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/Transformation.h>
@@ -1638,6 +1639,22 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             interpolate_length_or_auto(from_rect.bottom_edge, to_rect.bottom_edge, calculation_context, delta),
             interpolate_length_or_auto(from_rect.left_edge, to_rect.left_edge, calculation_context, delta),
         });
+    }
+    case StyleValue::Type::TextIndent: {
+        auto& from_text_indent = from.as_text_indent();
+        auto& to_text_indent = to.as_text_indent();
+
+        if (from_text_indent.each_line() != to_text_indent.each_line()
+            || from_text_indent.hanging() != to_text_indent.hanging())
+            return {};
+
+        auto interpolated_length_percentage = interpolate_value(element, calculation_context, from_text_indent.length_percentage(), to_text_indent.length_percentage(), delta, allow_discrete);
+        if (!interpolated_length_percentage)
+            return {};
+
+        return TextIndentStyleValue::create(interpolated_length_percentage.release_nonnull(),
+            from_text_indent.hanging() ? TextIndentStyleValue::Hanging::Yes : TextIndentStyleValue::Hanging::No,
+            from_text_indent.each_line() ? TextIndentStyleValue::EachLine::Yes : TextIndentStyleValue::EachLine::No);
     }
     case StyleValue::Type::Superellipse: {
         // https://drafts.csswg.org/css-borders-4/#corner-shape-interpolation

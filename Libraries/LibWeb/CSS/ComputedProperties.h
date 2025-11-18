@@ -122,6 +122,7 @@ public:
     TextDecorationThickness text_decoration_thickness() const;
     TextTransform text_transform() const;
     Vector<ShadowData> text_shadow(Layout::Node const&) const;
+    TextIndentData text_indent() const;
     TextWrapMode text_wrap_mode() const;
     ListStyleType list_style_type() const;
     ListStylePosition list_style_position() const;

@@ -3680,6 +3680,10 @@
       "length [-∞,∞]",
       "percentage [-∞,∞]"
     ],
+    "valid-identifiers": [
+      "each-line",
+      "hanging"
+    ],
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"

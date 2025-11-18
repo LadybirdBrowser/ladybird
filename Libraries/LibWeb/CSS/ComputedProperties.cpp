@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -1367,6 +1368,17 @@ Vector<ShadowData> ComputedProperties::box_shadow(Layout::Node const& layout_nod
 Vector<ShadowData> ComputedProperties::text_shadow(Layout::Node const& layout_node) const
 {
     return shadow(PropertyID::TextShadow, layout_node);
+}
+
+TextIndentData ComputedProperties::text_indent() const
+{
+    auto const& value = property(PropertyID::TextIndent).as_text_indent();
+
+    return TextIndentData {
+        .length_percentage = LengthPercentage::from_style_value(value.length_percentage()),
+        .each_line = value.each_line(),
+        .hanging = value.hanging(),
+    };
 }
 
 TextWrapMode ComputedProperties::text_wrap_mode() const
