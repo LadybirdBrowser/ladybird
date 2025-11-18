@@ -55,6 +55,7 @@ public:
     ByteString const& method() const { return m_method; }
     HTTP::HeaderMap const& request_headers() const { return m_request_headers; }
     UnixDateTime request_start_time() const { return m_request_start_time; }
+    AK::Duration current_time_offset_for_testing() const { return m_current_time_offset_for_testing; }
 
     void notify_request_unblocked(Badge<DiskCache>);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
@@ -170,6 +171,8 @@ private:
     CacheStatus m_cache_status { CacheStatus::Unknown };
 
     Optional<Requests::NetworkError> m_network_error;
+
+    AK::Duration m_current_time_offset_for_testing;
 };
 
 }

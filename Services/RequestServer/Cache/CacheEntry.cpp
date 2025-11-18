@@ -76,7 +76,7 @@ void CacheEntry::close_and_destroy_cache_entry()
     m_disk_cache.cache_entry_closed({}, *this);
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, UnixDateTime request_time)
+ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
 
@@ -87,14 +87,15 @@ ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& dis
     cache_header.url_size = url.byte_count();
     cache_header.url_hash = url.hash();
 
-    return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), move(path), move(file), cache_header, request_time });
+    return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), move(path), move(file), cache_header, request_time, current_time_offset_for_testing });
 }
 
-CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::OutputBufferedFile> file, CacheHeader cache_header, UnixDateTime request_time)
+CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::OutputBufferedFile> file, CacheHeader cache_header, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
     : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_request_time(request_time)
-    , m_response_time(UnixDateTime::now())
+    , m_response_time(UnixDateTime::now() + current_time_offset_for_testing)
+    , m_current_time_offset_for_testing(current_time_offset_for_testing)
 {
 }
 
@@ -116,8 +117,8 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
-        auto freshness_lifetime = calculate_freshness_lifetime(status_code, response_headers);
-        auto current_age = calculate_age(response_headers, m_request_time, m_response_time);
+        auto freshness_lifetime = calculate_freshness_lifetime(status_code, response_headers, m_current_time_offset_for_testing);
+        auto current_age = calculate_age(response_headers, m_request_time, m_response_time, m_current_time_offset_for_testing);
 
         // We can cache already-expired responses if there are other cache directives that allow us to revalidate the
         // response on subsequent requests. For example, `Cache-Control: max-age=0, must-revalidate`.
