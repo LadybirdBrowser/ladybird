@@ -1305,8 +1305,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
         auto existing_transition = element.property_transition(pseudo_element, property_id);
-        bool has_running_transition = existing_transition && !existing_transition->is_finished();
-        bool has_completed_transition = existing_transition && existing_transition->is_finished();
+        bool has_running_transition = existing_transition && !existing_transition->is_finished() && !existing_transition->is_idle();
+        bool has_completed_transition = existing_transition && (existing_transition->is_finished() || existing_transition->is_idle());
 
         auto start_a_transition = [&](auto delay, auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value.to_string(SerializationMode::Normal), end_value.to_string(SerializationMode::Normal));
@@ -1483,7 +1483,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         auto const& existing_transition = element.property_transition(pseudo_element, property_id);
 
         dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
-        if (!existing_transition->is_finished())
+        if (!existing_transition->is_finished() && !existing_transition->is_idle())
             existing_transition->cancel();
         else
             element.remove_transition(pseudo_element, property_id);
