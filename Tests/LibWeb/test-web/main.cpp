@@ -438,7 +438,10 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
 
         auto match_references = metadata_object.get_array("match_references"sv);
         auto mismatch_references = metadata_object.get_array("mismatch_references"sv);
-        VERIFY(!match_references->is_empty() || !mismatch_references->is_empty());
+        if (match_references->is_empty() && mismatch_references->is_empty()) {
+            dbgln("No match or mismatch references in `{}`! Metadata: {}", view.url(), metadata_object.serialized());
+            VERIFY_NOT_REACHED();
+        }
 
         // Read fuzzy configurations.
         test.fuzzy_matches.clear_with_capacity();
