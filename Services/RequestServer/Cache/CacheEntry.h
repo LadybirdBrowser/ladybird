@@ -18,7 +18,7 @@
 
 namespace RequestServer {
 
-struct [[gnu::packed]] CacheHeader {
+struct CacheHeader {
     static ErrorOr<CacheHeader> read_from_stream(Stream&);
     ErrorOr<void> write_to_stream(Stream&) const;
 
@@ -35,7 +35,7 @@ struct [[gnu::packed]] CacheHeader {
     u32 reason_phrase_hash { 0 };
 };
 
-struct [[gnu::packed]] CacheFooter {
+struct CacheFooter {
     static ErrorOr<CacheFooter> read_from_stream(Stream&);
     ErrorOr<void> write_to_stream(Stream&) const;
 

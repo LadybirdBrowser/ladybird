@@ -194,12 +194,14 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
     auto fd = file->fd();
 
     CacheHeader cache_header;
+    size_t cache_header_size { 0 };
 
     String url;
     Optional<String> reason_phrase;
 
     auto result = [&]() -> ErrorOr<void> {
         cache_header = TRY(file->read_value<CacheHeader>());
+        cache_header_size = TRY(file->tell());
 
         if (cache_header.magic != CacheHeader::CACHE_MAGIC)
             return Error::from_string_literal("Magic value mismatch");
@@ -224,7 +226,7 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
         return result.release_error();
     }
 
-    auto data_offset = sizeof(CacheHeader) + cache_header.url_size + cache_header.reason_phrase_size;
+    auto data_offset = cache_header_size + cache_header.url_size + cache_header.reason_phrase_size;
 
     return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
 }
