@@ -22,7 +22,6 @@ namespace Web::Animations {
 struct Animatable::Transition {
     HashMap<CSS::PropertyID, size_t> transition_attribute_indices;
     Vector<TransitionAttributes> transition_attributes;
-    GC::Ptr<CSS::CSSStyleDeclaration const> cached_transition_property_source;
     HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> associated_transitions;
 };
 
@@ -255,7 +254,6 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 
     for (auto const& transition : impl.transitions) {
         if (transition) {
-            visitor.visit(transition->cached_transition_property_source);
             visitor.visit(transition->associated_transitions);
         }
     }
@@ -289,22 +287,6 @@ HashMap<FlyString, GC::Ref<Animation>>* Animatable::css_defined_animations(Optio
         impl.css_defined_animations[index] = make<HashMap<FlyString, GC::Ref<Animation>>>();
 
     return impl.css_defined_animations[index];
-}
-
-GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_transition_property_source(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    auto* maybe_transition = ensure_transition(pseudo_element);
-    if (!maybe_transition)
-        return {};
-    return maybe_transition->cached_transition_property_source;
-}
-
-void Animatable::set_cached_transition_property_source(Optional<CSS::PseudoElement> pseudo_element, GC::Ptr<CSS::CSSStyleDeclaration const> value)
-{
-    auto* maybe_transition = ensure_transition(pseudo_element);
-    if (!maybe_transition)
-        return;
-    maybe_transition->cached_transition_property_source = value;
 }
 
 Animatable::Impl& Animatable::ensure_impl() const

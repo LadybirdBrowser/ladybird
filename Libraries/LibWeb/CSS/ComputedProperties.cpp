@@ -54,7 +54,6 @@ ComputedProperties::~ComputedProperties() = default;
 void ComputedProperties::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_transition_property_source);
 }
 
 bool ComputedProperties::is_property_important(PropertyID property_id) const

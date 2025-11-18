@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div id="foo" style="transition: top 1s; top: 0px"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Transitions properties aren't set until the second computation as a performance optimization so
+        // force a recomputation
+        foo.style.left = "0px";
+        getComputedStyle(foo).left;
+
+        foo.style.transitionDuration = "2s";
+        foo.style.top = "10px";
+        println(document.getAnimations()[0].effect.getComputedTiming().duration);
+    });
+</script>

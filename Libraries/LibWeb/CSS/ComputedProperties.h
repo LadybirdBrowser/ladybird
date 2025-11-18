@@ -70,9 +70,6 @@ public:
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     void revert_property(PropertyID, ComputedProperties const& style_for_revert);
 
-    GC::Ptr<CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
-    void set_transition_property_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
-
     Size size_value(PropertyID) const;
     [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(PropertyID) const;
     Length length(PropertyID) const;
@@ -287,8 +284,6 @@ private:
 
     Overflow overflow(PropertyID) const;
     Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;
-
-    GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
     Array<RefPtr<StyleValue const>, number_of_longhand_properties> m_property_values;
     Array<u8, ceil_div(number_of_longhand_properties, 8uz)> m_property_important {};
