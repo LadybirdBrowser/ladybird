@@ -621,19 +621,18 @@ void ViewTransition::call_the_update_callback()
         // We need to do it here manually.
         // https://webidl.spec.whatwg.org/#js-promise
 
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
         auto promise_capability = WebIDL::create_promise(realm);
         // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
-        // FIXME: We should not need to push an incumbent realm here, but http://wpt.live/css/css-view-transitions/update-callback-timeout.html crashes without it.
-        HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(realm);
         MUST(JS::call(realm.vm(), *promise_capability->resolve(), JS::js_undefined(), promise));
-        HTML::main_thread_event_loop().pop_backup_incumbent_realm_stack();
         // 3. Return promiseCapability.
         callback_promise = GC::make_root(promise_capability);
     }
 
     // 6. Let fulfillSteps be to following steps:
     auto fulfill_steps = GC::create_function(realm.heap(), [this, &realm](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        HTML::TemporaryExecutionContext context(realm);
         // 1. Resolve transition’s update callback done promise with undefined.
         WebIDL::resolve_promise(realm, m_update_callback_done_promise, JS::js_undefined());
 
@@ -645,6 +644,7 @@ void ViewTransition::call_the_update_callback()
 
     // 7. Let rejectSteps be the following steps given reason:
     auto reject_steps = GC::create_function(realm.heap(), [this, &realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        HTML::TemporaryExecutionContext context(realm);
         // 1. Reject transition’s update callback done promise with reason.
         WebIDL::reject_promise(realm, m_update_callback_done_promise, reason);
 
@@ -665,12 +665,8 @@ void ViewTransition::call_the_update_callback()
     });
 
     // 8. React to callbackPromise with fulfillSteps and rejectSteps.
-    // AD-HOC: This can cause an assertion failure when the reaction algorithm ends up accessing the incumbent realm, which may not exist here.
-    //         For now, lets just manually push something onto the incumbent realm stack here as a hack.
-    //         A spec bug for this has been filed at https://github.com/w3c/csswg-drafts/issues/11990
-    HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(realm);
+    HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
     WebIDL::react_to_promise(*callback_promise, fulfill_steps, reject_steps);
-    HTML::main_thread_event_loop().pop_backup_incumbent_realm_stack();
 
     // 9. To skip a transition after a timeout, the user agent may perform the following steps in parallel:
     // FIXME: Figure out if we want to do this.
@@ -729,12 +725,8 @@ void ViewTransition::skip_the_view_transition(JS::Value reason)
 
     // 8. Resolve transition’s finished promise with the result of reacting to transition’s update callback done promise:
     //    - If the promise was fulfilled, then return undefined.
-    // AD-HOC: This can cause an assertion failure when the reaction algorithm ends up accessing the incumbent realm, which may not exist here.
-    //         For now, lets just manually push something onto the incumbent realm stack here as a hack.
-    //         A spec bug for this has been filed at https://github.com/w3c/csswg-drafts/issues/11990
-    HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(realm);
+    HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
     WebIDL::resolve_promise(realm, m_finished_promise, WebIDL::react_to_promise(m_update_callback_done_promise, GC::create_function(realm.heap(), [](JS::Value) -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); }), nullptr)->promise());
-    HTML::main_thread_event_loop().pop_backup_incumbent_realm_stack();
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#handle-transition-frame
