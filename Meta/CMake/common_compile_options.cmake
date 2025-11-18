@@ -49,10 +49,7 @@ macro(add_swift_link_options)
     add_link_options($<$<LINK_LANGUAGE:Swift>:${args}>)
 endmacro()
 
-if (MSVC)
-    # On Windows, we always target the same architecture since there is no -march=native equivalent.
-    add_cxx_compile_options(/arch:AVX2)
-elseif (ENABLE_CI_BASELINE_CPU)
+if (ENABLE_CI_BASELINE_CPU)
     # In CI, we want to target a common architecture so different runners can share ccache caches effectively.
     if (APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
         add_cxx_compile_options(-mcpu=apple-m1)
