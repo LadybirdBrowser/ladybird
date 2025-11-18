@@ -94,6 +94,12 @@ struct ScrollbarColorData {
     Color track_color { Color::Transparent };
 };
 
+struct TextIndentData {
+    LengthPercentage length_percentage;
+    bool each_line { false };
+    bool hanging { false };
+};
+
 struct TextUnderlinePosition {
     TextUnderlinePositionHorizontal horizontal { TextUnderlinePositionHorizontal::Auto };
     TextUnderlinePositionVertical vertical { TextUnderlinePositionVertical::Auto };
@@ -159,7 +165,7 @@ public:
     static TextDecorationStyle text_decoration_style() { return TextDecorationStyle::Solid; }
     static TextTransform text_transform() { return TextTransform::None; }
     static TextOverflow text_overflow() { return TextOverflow::Clip; }
-    static LengthPercentage text_indent() { return Length::make_px(0); }
+    static TextIndentData text_indent() { return { Length::make_px(0) }; }
     static TextWrapMode text_wrap_mode() { return TextWrapMode::Wrap; }
     static CSSPixels text_underline_offset() { return 2; }
     static TextUnderlinePosition text_underline_position() { return { .horizontal = TextUnderlinePositionHorizontal::Auto, .vertical = TextUnderlinePositionVertical::Auto }; }
@@ -497,7 +503,7 @@ public:
     Variant<Length, double> tab_size() const { return m_inherited.tab_size; }
     TextAlign text_align() const { return m_inherited.text_align; }
     TextJustify text_justify() const { return m_inherited.text_justify; }
-    LengthPercentage const& text_indent() const { return m_inherited.text_indent; }
+    TextIndentData const& text_indent() const { return m_inherited.text_indent; }
     TextWrapMode text_wrap_mode() const { return m_inherited.text_wrap_mode; }
     CSSPixels text_underline_offset() const { return m_inherited.text_underline_offset; }
     TextUnderlinePosition text_underline_position() const { return m_inherited.text_underline_position; }
@@ -702,7 +708,7 @@ protected:
         TextAlign text_align { InitialValues::text_align() };
         TextJustify text_justify { InitialValues::text_justify() };
         TextTransform text_transform { InitialValues::text_transform() };
-        LengthPercentage text_indent { InitialValues::text_indent() };
+        TextIndentData text_indent { InitialValues::text_indent() };
         TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
         CSSPixels text_underline_offset { InitialValues::text_underline_offset() };
         TextUnderlinePosition text_underline_position { InitialValues::text_underline_position() };
@@ -915,7 +921,7 @@ public:
     void set_text_decoration_color(Color value) { m_noninherited.text_decoration_color = value; }
     void set_text_transform(TextTransform value) { m_inherited.text_transform = value; }
     void set_text_shadow(Vector<ShadowData>&& value) { m_inherited.text_shadow = move(value); }
-    void set_text_indent(LengthPercentage value) { m_inherited.text_indent = move(value); }
+    void set_text_indent(TextIndentData value) { m_inherited.text_indent = move(value); }
     void set_text_wrap_mode(TextWrapMode value) { m_inherited.text_wrap_mode = value; }
     void set_text_overflow(TextOverflow value) { m_noninherited.text_overflow = value; }
     void set_text_underline_offset(CSSPixels value) { m_inherited.text_underline_offset = value; }

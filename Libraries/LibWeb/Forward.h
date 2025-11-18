@@ -378,6 +378,7 @@ class StyleValueList;
 class SuperellipseStyleValue;
 class Supports;
 class SVGPaint;
+class TextIndentStyleValue;
 class TextUnderlinePositionStyleValue;
 class Time;
 class TimeOrCalculated;

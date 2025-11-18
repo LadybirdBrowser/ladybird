@@ -57,6 +57,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -721,6 +722,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_text_decoration_value(tokens); });
     case PropertyID::TextDecorationLine:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_text_decoration_line_value(tokens); });
+    case PropertyID::TextIndent:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_text_indent_value(tokens); });
     case PropertyID::TextShadow:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_shadow_value(tokens, ShadowStyleValue::ShadowType::Text); });
     case PropertyID::TextUnderlinePosition:
@@ -4729,6 +4732,51 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_line_value(TokenStream<Co
     });
 
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-text-3/#text-indent-property
+RefPtr<StyleValue const> Parser::parse_text_indent_value(TokenStream<ComponentValue>& tokens)
+{
+    // [ <length-percentage> ] && hanging? && each-line?
+    auto transaction = tokens.begin_transaction();
+
+    RefPtr<StyleValue const> length_percentage;
+    bool has_hanging = false;
+    bool has_each_line = false;
+
+    tokens.discard_whitespace();
+
+    while (tokens.has_next_token()) {
+        if (!length_percentage) {
+            if (auto parsed = parse_length_percentage_value(tokens)) {
+                length_percentage = parsed.release_nonnull();
+                tokens.discard_whitespace();
+                continue;
+            }
+        }
+
+        if (auto keyword = parse_keyword_value(tokens)) {
+            if (!has_hanging && keyword->to_keyword() == Keyword::Hanging) {
+                has_hanging = true;
+                continue;
+            }
+            if (!has_each_line && keyword->to_keyword() == Keyword::EachLine) {
+                has_each_line = true;
+                continue;
+            }
+            return nullptr;
+        }
+
+        return nullptr;
+    }
+
+    if (!length_percentage)
+        return nullptr;
+
+    transaction.commit();
+    return TextIndentStyleValue::create(length_percentage.release_nonnull(),
+        has_hanging ? TextIndentStyleValue::Hanging::Yes : TextIndentStyleValue::Hanging::No,
+        has_each_line ? TextIndentStyleValue::EachLine::Yes : TextIndentStyleValue::EachLine::No);
 }
 
 // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property

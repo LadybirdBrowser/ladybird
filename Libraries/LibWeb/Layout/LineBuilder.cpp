@@ -17,7 +17,8 @@ LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_s
     , m_direction(direction)
     , m_writing_mode(writing_mode)
 {
-    m_text_indent = m_context.containing_block().computed_values().text_indent().to_px(m_context.containing_block(), m_containing_block_used_values.content_width());
+    auto text_indent = m_context.containing_block().computed_values().text_indent();
+    m_text_indent = text_indent.length_percentage.to_px(m_context.containing_block(), m_containing_block_used_values.content_width());
     begin_new_line(false);
 }
 

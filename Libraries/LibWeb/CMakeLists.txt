@@ -273,6 +273,7 @@ set(SOURCES
     CSS/StyleValues/StyleValue.cpp
     CSS/StyleValues/StyleValueList.cpp
     CSS/StyleValues/SuperellipseStyleValue.cpp
+    CSS/StyleValues/TextIndentStyleValue.cpp
     CSS/StyleValues/TextUnderlinePositionStyleValue.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TreeCountingFunctionStyleValue.cpp

@@ -83,6 +83,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shorthand, shorthand, ShorthandStyleValue)                                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(String, string, StringStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Superellipse, superellipse, SuperellipseStyleValue)                              \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(TextIndent, text_indent, TextIndentStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(TextUnderlinePosition, text_underline_position, TextUnderlinePositionStyleValue) \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Time, time, TimeStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                        \
