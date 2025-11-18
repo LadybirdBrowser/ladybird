@@ -13,7 +13,7 @@
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
+#include <LibWeb/CSS/Time.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 
@@ -151,25 +151,8 @@ void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo
     auto& transition = *maybe_transition;
     for (size_t i = 0; i < properties.size(); i++) {
         size_t index_of_this_transition = transition.transition_attributes.size();
-        double delay = 0.0;
-        if (delays[i]->is_time()) {
-            delay = delays[i]->as_time().time().to_milliseconds();
-        } else if (delays[i]->is_calculated() && delays[i]->as_calculated().resolves_to_time()) {
-            auto resolved_time = delays[i]->as_calculated().resolve_time({});
-            if (resolved_time.has_value()) {
-                delay = resolved_time.value().to_milliseconds();
-            }
-        }
-
-        double duration = 0.0;
-        if (durations[i]->is_time()) {
-            duration = durations[i]->as_time().time().to_milliseconds();
-        } else if (durations[i]->is_calculated() && durations[i]->as_calculated().resolves_to_time()) {
-            auto resolved_time = durations[i]->as_calculated().resolve_time({});
-            if (resolved_time.has_value()) {
-                duration = resolved_time.value().to_milliseconds();
-            }
-        }
+        auto delay = CSS::Time::from_style_value(delays[i], {}).to_milliseconds();
+        auto duration = CSS::Time::from_style_value(durations[i], {}).to_milliseconds();
         auto timing_function = CSS::EasingFunction::from_style_value(timing_functions[i]);
         auto transition_behavior = CSS::keyword_to_transition_behavior(transition_behaviors[i]->to_keyword()).value_or(CSS::TransitionBehavior::Normal);
         transition.transition_attributes.empend(delay, duration, timing_function, transition_behavior);

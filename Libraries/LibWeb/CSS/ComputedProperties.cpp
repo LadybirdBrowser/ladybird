@@ -2288,16 +2288,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
         auto animation_fill_mode_style_value = coordinated_properties.get(PropertyID::AnimationFillMode).value()[i];
         auto animation_composition_style_value = coordinated_properties.get(PropertyID::AnimationComposition).value()[i];
 
-        auto duration = [&] {
-            if (animation_duration_style_value->is_time())
-                return animation_duration_style_value->as_time().time().to_milliseconds();
-
-            if (animation_duration_style_value->is_calculated())
-                return animation_duration_style_value->as_calculated().resolve_time({}).value().to_milliseconds();
-
-            VERIFY_NOT_REACHED();
-        }();
-
+        auto duration = Time::from_style_value(animation_duration_style_value, {}).to_milliseconds();
         auto timing_function = EasingFunction::from_style_value(animation_timing_function_style_value);
 
         auto iteration_count = [&] {
@@ -2315,15 +2306,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
 
         auto direction = keyword_to_animation_direction(animation_direction_style_value->to_keyword()).value();
         auto play_state = keyword_to_animation_play_state(animation_play_state_style_value->to_keyword()).value();
-        auto delay = [&] {
-            if (animation_delay_style_value->is_time())
-                return animation_delay_style_value->as_time().time().to_milliseconds();
-
-            if (animation_delay_style_value->is_calculated())
-                return animation_delay_style_value->as_calculated().resolve_time({}).value().to_milliseconds();
-
-            VERIFY_NOT_REACHED();
-        }();
+        auto delay = Time::from_style_value(animation_delay_style_value, {}).to_milliseconds();
         auto fill_mode = keyword_to_animation_fill_mode(animation_fill_mode_style_value->to_keyword()).value();
         auto composition = keyword_to_animation_composition(animation_composition_style_value->to_keyword()).value();
 
