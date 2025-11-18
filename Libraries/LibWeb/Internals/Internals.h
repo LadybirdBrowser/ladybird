@@ -56,6 +56,8 @@ public:
     void enable_cookies_on_file_domains();
     void expire_cookies_with_time_offset(WebIDL::LongLong seconds);
 
+    bool set_http_memory_cache_enabled(bool enabled);
+
     String get_computed_role(DOM::Element& element);
     String get_computed_label(DOM::Element& element);
     String get_computed_aria_level(DOM::Element& element);

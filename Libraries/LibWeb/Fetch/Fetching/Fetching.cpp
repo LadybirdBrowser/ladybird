@@ -2848,6 +2848,11 @@ void set_http_cache_enabled(bool const enabled)
     g_http_cache_enabled = enabled;
 }
 
+bool http_cache_enabled()
+{
+    return g_http_cache_enabled;
+}
+
 void clear_http_cache()
 {
     HTTPCache::the().clear_cache();
