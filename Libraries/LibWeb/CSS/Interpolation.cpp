@@ -414,7 +414,7 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
         from_axis.set_z(from_transform.values()[2]->as_number().number());
         from_angle_value = from_transform.values()[3];
     }
-    float from_angle = from_angle_value->as_angle().angle().to_radians();
+    float from_angle = Angle::from_style_value(from_angle_value, {}).to_radians();
 
     FloatVector3 to_axis { 0, 0, 1 };
     auto to_angle_value = to_transform.values()[0];
@@ -424,7 +424,7 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
         to_axis.set_z(to_transform.values()[2]->as_number().number());
         to_angle_value = to_transform.values()[3];
     }
-    float to_angle = to_angle_value->as_angle().angle().to_radians();
+    float to_angle = Angle::from_style_value(to_angle_value, {}).to_radians();
 
     auto from_axis_angle = [](FloatVector3 const& axis, float angle) -> FloatVector4 {
         auto normalized = axis.normalized();
