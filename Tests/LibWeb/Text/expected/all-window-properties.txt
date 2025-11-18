@@ -317,6 +317,7 @@ NodeList
 Notification
 Number
 Object
+OfflineAudioCompletionEvent
 OfflineAudioContext
 OffscreenCanvas
 OffscreenCanvasRenderingContext2D
