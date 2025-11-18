@@ -224,14 +224,13 @@ void Animatable::remove_transition(Optional<CSS::PseudoElement> pseudo_element, 
     transition.associated_transitions.remove(property_id);
 }
 
-void Animatable::clear_transitions(Optional<CSS::PseudoElement> pseudo_element)
+void Animatable::clear_registered_transitions(Optional<CSS::PseudoElement> pseudo_element)
 {
     auto maybe_transition = ensure_transition(pseudo_element);
     if (!maybe_transition)
         return;
 
     auto& transition = *maybe_transition;
-    transition.associated_transitions.clear();
     transition.transition_attribute_indices.clear();
     transition.transition_attributes.clear();
 }

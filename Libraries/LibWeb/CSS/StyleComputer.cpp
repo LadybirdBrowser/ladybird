@@ -1232,7 +1232,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     if (source_declaration == element.cached_transition_property_source(pseudo_element))
         return;
     // Reparse this transition property
-    element.clear_transitions(pseudo_element);
+    element.clear_registered_transitions(pseudo_element);
     element.set_cached_transition_property_source(pseudo_element, *source_declaration);
 
     auto coordinated_transition_list = style.assemble_coordinated_value_list(

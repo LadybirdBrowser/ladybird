@@ -68,7 +68,7 @@ public:
     void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyID);
     Vector<CSS::PropertyID> property_ids_with_existing_transitions(Optional<CSS::PseudoElement>) const;
     GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
-    void clear_transitions(Optional<CSS::PseudoElement>);
+    void clear_registered_transitions(Optional<CSS::PseudoElement>);
 
     void remove_animations_from_timeline();
 
