@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Format.h>
+#include <LibMedia/TrackType.h>
 
 namespace Media {
 
@@ -32,6 +33,32 @@ enum class CodecID : u32 {
     Opus,
     FLAC,
 };
+
+inline TrackType track_type_from_codec_id(CodecID codec)
+{
+    switch (codec) {
+    case CodecID::VP8:
+    case CodecID::VP9:
+    case CodecID::H261:
+    case CodecID::MPEG1:
+    case CodecID::H262:
+    case CodecID::H263:
+    case CodecID::H264:
+    case CodecID::H265:
+    case CodecID::AV1:
+        return TrackType::Video;
+    case CodecID::MP3:
+    case CodecID::AAC:
+    case CodecID::Theora:
+    case CodecID::Vorbis:
+    case CodecID::Opus:
+    case CodecID::FLAC:
+        return TrackType::Audio;
+    case CodecID::Unknown:
+        break;
+    }
+    return TrackType::Unknown;
+}
 
 }
 

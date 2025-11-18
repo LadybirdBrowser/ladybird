@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/MappedFile.h>
+#include <LibMedia/CodecID.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 
 #include "Reader.h"
@@ -538,6 +539,24 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
         return IterationDecision::Continue;
     }));
 
+    if (track_entry->track_type() == TrackEntry::TrackType::Complex) {
+        // A mix of different other TrackType. The codec needs to define how the Matroska Player
+        // should interpret such data.
+        auto codec_track_type = track_type_from_codec_id(codec_id_from_matroska_id_string(track_entry->codec_id()));
+        switch (codec_track_type) {
+        case TrackType::Video:
+            track_entry->set_track_type(TrackEntry::TrackType::Video);
+            break;
+        case TrackType::Audio:
+            track_entry->set_track_type(TrackEntry::TrackType::Audio);
+            break;
+        case TrackType::Subtitles:
+            track_entry->set_track_type(TrackEntry::TrackType::Subtitle);
+            break;
+        case TrackType::Unknown:
+            break;
+        }
+    }
     return track_entry;
 }
 
