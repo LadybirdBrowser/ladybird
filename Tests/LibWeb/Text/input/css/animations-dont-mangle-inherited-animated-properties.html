@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    @keyframes foo {
+        from,
+        to {
+            color: red;
+        }
+    }
+
+    @keyframes bar {
+        from,
+        to {
+            width: 10px;
+        }
+    }
+
+    #foo {
+        animation: foo 1s infinite;
+    }
+
+    #bar {
+        animation: bar 1s infinite;
+    }
+</style>
+<div id="foo"><div id="bar"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(bar).color);
+    });
+</script>
