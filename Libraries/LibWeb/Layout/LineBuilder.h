@@ -48,7 +48,7 @@ public:
     void did_introduce_clearance(CSSPixels);
 
 private:
-    void begin_new_line(bool increment_y, bool is_first_break_in_sequence = true);
+    void begin_new_line(bool increment_y, bool is_first_break_in_sequence = true, ForcedBreak = ForcedBreak::No);
 
     bool should_break(CSSPixels next_item_width);
 
@@ -61,6 +61,8 @@ private:
     CSSPixels m_current_block_offset { 0 };
     CSSPixels m_max_height_on_current_line { 0 };
     CSSPixels m_text_indent { 0 };
+    bool m_text_indent_hanging : 1 { false };
+    bool m_text_indent_each_line : 1 { false };
     CSS::Direction m_direction { CSS::Direction::Ltr };
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
