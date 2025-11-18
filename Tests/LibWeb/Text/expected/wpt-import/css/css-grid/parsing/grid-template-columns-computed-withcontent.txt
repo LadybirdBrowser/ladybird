@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 30 tests
 
-24 Pass
-6 Fail
+25 Pass
+5 Fail
 Pass	Property grid-template-columns value 'none'
 Pass	Property grid-template-columns value '20%'
-Fail	Property grid-template-columns value 'calc(-0.5em + 10px)'
+Pass	Property grid-template-columns value 'calc(-0.5em + 10px)'
 Pass	Property grid-template-columns value 'calc(0.5em + 10px)'
 Pass	Property grid-template-columns value 'calc(30% + 40px)'
 Pass	Property grid-template-columns value '5fr'
