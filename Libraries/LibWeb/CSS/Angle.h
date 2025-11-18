@@ -45,6 +45,7 @@ public:
         return 0;
     }
 
+    static Angle from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Angle> percentage_basis);
     static Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, Angle const& reference_value);
 
 private:
