@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 96 tests
 
-39 Pass
-57 Fail
+41 Pass
+55 Fail
 Pass	Animation of font in ::marker
 Pass	Animation of font-family in ::marker
 Fail	Animation of font-feature-settings in ::marker
@@ -59,7 +59,7 @@ Pass	Transition of font-kerning in ::marker
 Fail	Transition of font-size in ::marker
 Fail	Transition of font-size-adjust in ::marker
 Fail	Transition of font-stretch in ::marker
-Fail	Transition of font-style in ::marker
+Pass	Transition of font-style in ::marker
 Fail	Transition of font-synthesis in ::marker
 Fail	Transition of font-synthesis-small-caps in ::marker
 Fail	Transition of font-synthesis-style in ::marker
@@ -91,7 +91,7 @@ Fail	Transition of text-emphasis in ::marker
 Fail	Transition of text-emphasis-color in ::marker
 Fail	Transition of text-emphasis-position in ::marker
 Fail	Transition of text-emphasis-style in ::marker
-Fail	Transition of text-shadow in ::marker
+Pass	Transition of text-shadow in ::marker
 Pass	Transition of cursor in ::marker
 Fail	Transition of display in ::marker
 Fail	Transition of position in ::marker

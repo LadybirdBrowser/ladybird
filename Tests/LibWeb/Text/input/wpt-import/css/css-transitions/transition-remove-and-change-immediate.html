@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>CSS Transitions Test: Removing transition and changing width applies change immediately</title>
+<meta name="assert" content="When a transition is removed and a width is changed after a previous transition completes, the change is immediate.">
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#starting">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./support/helper.js"></script>
+
+</head>
+<body>
+<div id="log"></div>
+
+<script>
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'transition: width 0.02s; width: 0px;'
+  });
+
+  // Flush initial state
+  getComputedStyle(div).width;
+  div.style.width = '100px';
+
+  // Wait for transition to complete
+  await waitForTransitionEnd(div);
+
+  // Verify the width after first transition
+  const afterFirst = getComputedStyle(div).width;
+  assert_equals(afterFirst, '100px', 'width should be 100px after first transition');
+
+  // Set width back to 0 and remove transition
+  div.style.width = '0px';
+  div.style.transition = '';
+
+  // Force layout update to ensure style computation
+  const afterSecond = getComputedStyle(div).width;
+  // Check width is immediately updated
+  assert_equals(
+    afterSecond,
+    '0px',
+    'width should reset to 0 immediately'
+  );
+
+}, 'Removing transition and changing width applies change immediately');
+</script>
+
+</body>
+</html>
