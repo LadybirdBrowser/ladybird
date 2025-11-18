@@ -41,8 +41,8 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    GC::Ptr<HTMLSelectElement> owner_select_element();
-    GC::Ptr<HTMLSelectElement const> owner_select_element() const { return const_cast<HTMLOptionElement&>(*this).owner_select_element(); }
+    GC::Ptr<HTMLSelectElement> nearest_select_element() { return m_cached_nearest_select_element; }
+    GC::Ptr<HTMLSelectElement const> nearest_select_element() const { return m_cached_nearest_select_element; }
 
 private:
     friend class Bindings::OptionConstructor;
@@ -51,6 +51,7 @@ private:
     HTMLOptionElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
@@ -61,6 +62,11 @@ private:
     void ask_for_a_reset();
     void update_selection_label();
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#update-an-option's-nearest-ancestor-select
+    void update_nearest_select_element();
+    // https://html.spec.whatwg.org/multipage/form-elements.html#option-element-nearest-ancestor-select
+    GC::Ptr<HTMLSelectElement> compute_nearest_select_element();
+
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-selectedness
     bool m_selected { false };
 
@@ -68,6 +74,9 @@ private:
     bool m_dirty { false };
 
     u64 m_selectedness_update_index { 0 };
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#cached-nearest-ancestor-select-element
+    GC::Ptr<HTMLSelectElement> m_cached_nearest_select_element;
 };
 
 }
