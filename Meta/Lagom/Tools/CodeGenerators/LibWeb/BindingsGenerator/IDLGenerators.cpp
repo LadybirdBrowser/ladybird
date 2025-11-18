@@ -176,6 +176,7 @@ static bool is_platform_object(Type const& type)
         "WritableStream"sv,
         "XPathResult"sv,
         "XRSession"sv,
+        "XRWebGLLayer"sv,
     };
     if (type.name().ends_with("Element"sv))
         return true;
