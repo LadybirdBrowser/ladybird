@@ -85,7 +85,9 @@ Request::Request(
     , m_request_body(move(request_body))
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
     , m_proxy_data(proxy_data)
+    , m_current_time_offset_for_testing(compute_current_time_offset_for_testing(m_disk_cache, m_request_headers))
 {
+    m_request_start_time += m_current_time_offset_for_testing;
 }
 
 Request::Request(
@@ -100,7 +102,9 @@ Request::Request(
     , m_curl_multi_handle(curl_multi)
     , m_resolver(resolver)
     , m_url(move(url))
+    , m_current_time_offset_for_testing(compute_current_time_offset_for_testing(m_disk_cache, m_request_headers))
 {
+    m_request_start_time += m_current_time_offset_for_testing;
 }
 
 Request::~Request()
