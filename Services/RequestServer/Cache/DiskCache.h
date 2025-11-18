@@ -21,7 +21,16 @@ namespace RequestServer {
 
 class DiskCache {
 public:
-    static ErrorOr<DiskCache> create();
+    enum class Mode {
+        Normal,
+
+        // In test mode, we only enable caching of responses on a per-request basis, signified by a request header. The
+        // response headers will include some status on how the request was handled.
+        Testing,
+    };
+    static ErrorOr<DiskCache> create(Mode);
+
+    Mode mode() const { return m_mode; }
 
     struct CacheHasOpenEntry { };
     Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(Request&);
@@ -35,13 +44,15 @@ public:
     void cache_entry_closed(Badge<CacheEntry>, CacheEntry const&);
 
 private:
-    DiskCache(NonnullRefPtr<Database::Database>, LexicalPath cache_directory, CacheIndex);
+    DiskCache(Mode, NonnullRefPtr<Database::Database>, LexicalPath cache_directory, CacheIndex);
 
     enum class CheckReaderEntries {
         No,
         Yes,
     };
     bool check_if_cache_has_open_entry(Request&, u64 cache_key, CheckReaderEntries);
+
+    Mode m_mode;
 
     NonnullRefPtr<Database::Database> m_database;
 

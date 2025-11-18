@@ -211,6 +211,9 @@ void Request::handle_initial_state()
         m_disk_cache->create_entry(*this).visit(
             [&](Optional<CacheEntryWriter&> cache_entry_writer) {
                 m_cache_entry_writer = cache_entry_writer;
+
+                if (!m_cache_entry_writer.has_value())
+                    m_cache_status = CacheStatus::NotCached;
             },
             [&](DiskCache::CacheHasOpenEntry) {
                 // If an existing entry is open for reading or writing, we must wait for it to complete. An entry being
@@ -228,15 +231,13 @@ void Request::handle_initial_state()
 
 void Request::handle_read_cache_state()
 {
-    m_status_code = m_cache_entry_reader->status_code();
     m_reason_phrase = m_cache_entry_reader->reason_phrase();
     m_response_headers = m_cache_entry_reader->response_headers();
+    m_cache_status = CacheStatus::ReadFromCache;
 
     if (inform_client_request_started().is_error())
         return;
-
-    m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
-    m_sent_response_headers_to_client = true;
+    transfer_headers_to_client_if_needed();
 
     m_cache_entry_reader->pipe_to(
         m_client_request_pipe->writer_fd(),
@@ -556,13 +557,37 @@ void Request::transfer_headers_to_client_if_needed()
     if (exchange(m_sent_response_headers_to_client, true))
         return;
 
-    m_status_code = acquire_status_code();
-    m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
+    if (m_cache_entry_reader.has_value())
+        m_status_code = m_cache_entry_reader->status_code();
+    else
+        m_status_code = acquire_status_code();
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error())
+        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error()) {
+            m_cache_status = CacheStatus::NotCached;
             m_cache_entry_writer.clear();
+        } else {
+            m_cache_status = CacheStatus::WrittenToCache;
+        }
     }
+
+    if (m_disk_cache.has_value() && m_disk_cache->mode() == DiskCache::Mode::Testing) {
+        switch (m_cache_status) {
+        case CacheStatus::Unknown:
+            break;
+        case CacheStatus::NotCached:
+            m_response_headers.set(TEST_CACHE_STATUS_HEADER, "not-cached"sv);
+            break;
+        case CacheStatus::WrittenToCache:
+            m_response_headers.set(TEST_CACHE_STATUS_HEADER, "written-to-cache"sv);
+            break;
+        case CacheStatus::ReadFromCache:
+            m_response_headers.set(TEST_CACHE_STATUS_HEADER, "read-from-cache"sv);
+            break;
+        }
+    }
+
+    m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()

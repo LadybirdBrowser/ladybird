@@ -15,6 +15,9 @@
 
 namespace RequestServer {
 
+constexpr inline auto TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache"sv;
+constexpr inline auto TEST_CACHE_STATUS_HEADER = "X-Ladybird-Disk-Cache-Status"sv;
+
 String serialize_url_for_cache_storage(URL::URL const&);
 u64 create_cache_key(StringView url, StringView method);
 LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key);
