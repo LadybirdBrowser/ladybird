@@ -2880,7 +2880,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
 {
     // https://drafts.csswg.org/css-fonts/#propdef-font-language-override
     // This is `normal | <string>` but with the constraint that the string has to be 4 characters long:
-    // Shorter strings are right-padded with spaces, and longer strings are invalid.
+    // Shorter strings are right-padded with spaces before use, and longer strings are invalid.
 
     if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
         return normal;
@@ -2927,9 +2927,20 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
             });
             return nullptr;
         }
+        // We're expected to always serialize without any trailing spaces, so remove them now for convenience.
+        auto trimmed = string_value.bytes_as_string_view().trim_whitespace(TrimMode::Right);
+        if (trimmed.is_empty()) {
+            ErrorReporter::the().report(InvalidPropertyError {
+                .rule_name = "style"_fly_string,
+                .property_name = "font-language-override"_fly_string,
+                .value_string = tokens.dump_string(),
+                .description = MUST(String::formatted("<string> value \"{}\" is only whitespace", string_value)),
+            });
+            return nullptr;
+        }
         transaction.commit();
-        if (length < 4)
-            return StringStyleValue::create(MUST(String::formatted("{:<4}", string_value)));
+        if (trimmed != string_value.bytes_as_string_view())
+            return StringStyleValue::create(FlyString::from_utf8_without_validation(trimmed.bytes()));
         return string;
     }
 
