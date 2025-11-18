@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 82 tests
 
-64 Pass
-18 Fail
+68 Pass
+14 Fail
 Pass	Interpolation between translateX(0px) and translateX(50px) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between translateX(0px) and translateX(50px) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between translateX(0%) and translateX(50%) gives the correct computed value halfway according to computedStyleMap.
@@ -40,8 +40,8 @@ Fail	Interpolation between rotateX(0deg) and rotateX(90deg) gives the correct co
 Fail	Interpolation between rotateX(0deg) and rotateX(90deg) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Fail	Interpolation between rotate(0deg) and rotateX(90deg) gives the correct computed value halfway according to computedStyleMap.
 Fail	Interpolation between rotate(0deg) and rotateX(90deg) gives the correct computed value halfway according to computedStyleMap with zoom active.
-Fail	Interpolation between scale(1) and scale(2) gives the correct computed value halfway according to computedStyleMap.
-Fail	Interpolation between scale(1) and scale(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
+Pass	Interpolation between scale(1) and scale(2) gives the correct computed value halfway according to computedStyleMap.
+Pass	Interpolation between scale(1) and scale(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between scale(1, 3) and scale(2) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between scale(1, 3) and scale(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between scaleX(1) and scaleX(2) gives the correct computed value halfway according to computedStyleMap.
@@ -50,8 +50,8 @@ Pass	Interpolation between scaleY(1) and scaleY(2) gives the correct computed va
 Pass	Interpolation between scaleY(1) and scaleY(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between scaleZ(1) and scaleZ(2) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between scaleZ(1) and scaleZ(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
-Fail	Interpolation between scaleX(2) and scaleY(2) gives the correct computed value halfway according to computedStyleMap.
-Fail	Interpolation between scaleX(2) and scaleY(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
+Pass	Interpolation between scaleX(2) and scaleY(2) gives the correct computed value halfway according to computedStyleMap.
+Pass	Interpolation between scaleX(2) and scaleY(2) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between scaleX(2) and scaleY(3) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between scaleX(2) and scaleY(3) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between scaleZ(1) and scale(2) gives the correct computed value halfway according to computedStyleMap.

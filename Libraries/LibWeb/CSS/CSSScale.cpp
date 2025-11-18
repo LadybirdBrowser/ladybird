@@ -119,10 +119,8 @@ WebIDL::ExceptionOr<Utf16String> CSSScale::to_string() const
         builder.append(TRY(m_x->to_string()));
 
         // 3. If this’s x and y internal slots are equal numeric values, append ")" to s and return s.
-        if (m_x->is_equal_numeric_value(m_y)) {
-            builder.append(")"sv);
-            return builder.to_utf16_string();
-        }
+        // AD-HOC: Don't do this - neither Chrome nor Safari show this behavior.
+        //         Upstream issue: https://github.com/w3c/css-houdini-drafts/issues/1161
 
         // 4. Otherwise, append ", " to s.
         builder.append(", "sv);
