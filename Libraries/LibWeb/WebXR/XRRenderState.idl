@@ -1,0 +1,18 @@
+// https://immersive-web.github.io/webxr/#xrrenderstate-interface
+
+dictionary XRRenderStateInit {
+    double depthNear;
+    double depthFar;
+    boolean passthroughFullyObscured;
+    double inlineVerticalFieldOfView;
+    // FIXME: XRWebGLLayer? baseLayer;
+    // FIXME: sequence<XRLayer>? layers;
+};
+
+[SecureContext, Exposed=Window] interface XRRenderState {
+    // FIXME: readonly attribute double depthNear;
+    // FIXME: readonly attribute double depthFar;
+    // FIXME: readonly attribute boolean? passthroughFullyObscured;
+    // FIXME: readonly attribute double? inlineVerticalFieldOfView;
+    // FIXME: readonly attribute XRWebGLLayer? baseLayer;
+};

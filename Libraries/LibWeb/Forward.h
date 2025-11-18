@@ -1398,9 +1398,12 @@ class VTTRegion;
 
 namespace Web::WebXR {
 
+class XRLayer;
+class XRRenderState;
 class XRSession;
 class XRSessionEvent;
 class XRSystem;
+class XRWebGLLayer;
 
 }
 

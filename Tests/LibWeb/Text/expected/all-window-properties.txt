@@ -564,9 +564,12 @@ XMLSerializer
 XPathEvaluator
 XPathExpression
 XPathResult
+XRLayer
+XRRenderState
 XRSession
 XRSessionEvent
 XRSystem
+XRWebGLLayer
 __finishTest
 __preventMultipleTestFunctions
 animationFrame
