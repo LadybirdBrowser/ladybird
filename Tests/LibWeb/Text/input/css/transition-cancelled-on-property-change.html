@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    #foo {
+        transition: transform 100s;
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // No animations to start with
+        println(document.getAnimations().length);
+
+        foo.style.transform = "rotate(90deg)";
+
+        // One animation when transition starts
+        println(document.getAnimations().length);
+
+        foo.style.transitionProperty = "none";
+
+        // No animations after transition is cancelled because relevant transition property no longer exists
+        println(document.getAnimations().length);
+    });
+</script>
