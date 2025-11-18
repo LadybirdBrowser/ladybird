@@ -1203,6 +1203,7 @@ class BaseAudioContext;
 class BiquadFilterNode;
 class DynamicsCompressorNode;
 class GainNode;
+class OfflineAudioCompletionEvent;
 class OfflineAudioContext;
 class OscillatorNode;
 class PannerNode;

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1147 tests
 
-882 Pass
-265 Fail
+892 Pass
+255 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: member names are unique
@@ -184,16 +184,16 @@ Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must
 Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createWaveShaper()" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?)" with the proper type
 Pass	BaseAudioContext interface: calling decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
-Fail	OfflineAudioCompletionEvent interface: existence and properties of interface object
-Fail	OfflineAudioCompletionEvent interface object length
-Fail	OfflineAudioCompletionEvent interface object name
-Fail	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object
-Fail	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's "constructor" property
-Fail	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's @@unscopables property
-Fail	OfflineAudioCompletionEvent interface: attribute renderedBuffer
-Fail	OfflineAudioCompletionEvent must be primary interface of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer})
-Fail	Stringification of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer})
-Fail	OfflineAudioCompletionEvent interface: new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) must inherit property "renderedBuffer" with the proper type
+Pass	OfflineAudioCompletionEvent interface: existence and properties of interface object
+Pass	OfflineAudioCompletionEvent interface object length
+Pass	OfflineAudioCompletionEvent interface object name
+Pass	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object
+Pass	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	OfflineAudioCompletionEvent interface: attribute renderedBuffer
+Pass	OfflineAudioCompletionEvent must be primary interface of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer})
+Pass	Stringification of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer})
+Pass	OfflineAudioCompletionEvent interface: new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) must inherit property "renderedBuffer" with the proper type
 Pass	AudioBuffer interface: existence and properties of interface object
 Pass	AudioBuffer interface object length
 Pass	AudioBuffer interface object name
