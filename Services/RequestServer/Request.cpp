@@ -6,6 +6,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/GenericShorthands.h>
 #include <LibCore/Notifier.h>
 #include <LibTextCodec/Decoder.h>
 #include <RequestServer/CURL.h>
@@ -614,7 +615,7 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
 
     auto result = m_client_request_pipe->write(bytes_to_send);
     if (result.is_error()) {
-        if (result.error().code() != EAGAIN)
+        if (!first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
             return result.release_error();
 
         m_client_writer_notifier->set_enabled(true);
