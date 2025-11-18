@@ -47,6 +47,8 @@ interface Internals {
     undefined enableCookiesOnFileDomains();
     undefined expireCookiesWithTimeOffset(long long seconds);
 
+    boolean setHttpMemoryCacheEnabled(boolean enabled);
+
     DOMString getComputedRole(Element element);
     DOMString getComputedLabel(Element element);
     DOMString getComputedAriaLevel(Element element);

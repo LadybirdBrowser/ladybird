@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Window.h>
@@ -296,6 +297,13 @@ void Internals::enable_cookies_on_file_domains()
 void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
 {
     page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
+}
+
+bool Internals::set_http_memory_cache_enabled(bool enabled)
+{
+    auto was_enabled = Web::Fetch::Fetching::http_cache_enabled();
+    Web::Fetch::Fetching::set_http_cache_enabled(enabled);
+    return was_enabled;
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static
