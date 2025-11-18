@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Martin Falisse <mfalisse@outlook.com>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -110,6 +111,41 @@ String GridSize::to_string(SerializationMode mode) const
     return m_value.visit([mode](auto const& it) { return it.to_string(mode); });
 }
 
+GridSize GridSize::absolutized(ComputationContext const& context) const
+{
+    auto absolutize_length_percentage = [&context](LengthPercentage const& length_percentage) -> Optional<LengthPercentage> {
+        if (length_percentage.is_length()) {
+            auto length = length_percentage.length().absolutize(context.length_resolution_context.viewport_rect, context.length_resolution_context.font_metrics, context.length_resolution_context.root_font_metrics);
+            if (length.has_value())
+                return length.release_value();
+            return {};
+        }
+
+        if (length_percentage.is_calculated())
+            return LengthPercentage::from_style_value(length_percentage.calculated()->absolutized(context));
+
+        return {};
+    };
+    return m_value.visit(
+        [&](Size const& size) -> GridSize {
+            if (size.is_length_percentage()) {
+                if (auto result = absolutize_length_percentage(size.length_percentage()); result.has_value())
+                    return Size::make_length_percentage(result.release_value());
+            }
+
+            if (size.is_fit_content() && size.fit_content_available_space().has_value()) {
+                if (auto result = absolutize_length_percentage(size.fit_content_available_space().value()); result.has_value()) {
+                    return Size::make_fit_content(result.release_value());
+                }
+            }
+
+            return GridSize { size };
+        },
+        [](Flex const& flex) {
+            return GridSize { flex };
+        });
+}
+
 GridMinMax::GridMinMax(GridSize min_grid_size, GridSize max_grid_size)
     : m_min_grid_size(move(min_grid_size))
     , m_max_grid_size(move(max_grid_size))
@@ -125,6 +161,14 @@ String GridMinMax::to_string(SerializationMode mode) const
     builder.appendff("{}", m_max_grid_size.to_string(mode));
     builder.append(")"sv);
     return MUST(builder.to_string());
+}
+
+GridMinMax GridMinMax::absolutized(ComputationContext const& context) const
+{
+    return GridMinMax {
+        m_min_grid_size.absolutized(context),
+        m_max_grid_size.absolutized(context),
+    };
 }
 
 GridRepeat::GridRepeat(GridRepeatType grid_repeat_type, GridTrackSizeList&& grid_track_size_list, size_t repeat_count)
@@ -162,6 +206,15 @@ String GridRepeat::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
+GridRepeat GridRepeat::absolutized(ComputationContext const& context) const
+{
+    return GridRepeat {
+        m_type,
+        m_grid_track_size_list.absolutized(context),
+        m_repeat_count,
+    };
+}
+
 ExplicitGridTrack::ExplicitGridTrack(Variant<GridRepeat, GridMinMax, GridSize>&& value)
     : m_value(move(value))
 {
@@ -171,6 +224,13 @@ String ExplicitGridTrack::to_string(SerializationMode mode) const
 {
     return m_value.visit([&mode](auto const& track) {
         return track.to_string(mode);
+    });
+}
+
+ExplicitGridTrack ExplicitGridTrack::absolutized(ComputationContext const& context) const
+{
+    return m_value.visit([&](auto const& it) {
+        return ExplicitGridTrack { it.absolutized(context) };
     });
 }
 
@@ -237,6 +297,21 @@ void GridTrackSizeList::append(GridLineNames&& line_names)
 void GridTrackSizeList::append(ExplicitGridTrack&& explicit_track)
 {
     m_list.append(move(explicit_track));
+}
+
+GridTrackSizeList GridTrackSizeList::absolutized(ComputationContext const& context) const
+{
+    GridTrackSizeList result;
+    for (auto const& item : m_list) {
+        item.visit(
+            [&result, &context](ExplicitGridTrack const& track) {
+                result.append(track.absolutized(context));
+            },
+            [&result](GridLineNames names) {
+                result.append(move(names));
+            });
+    }
+    return result;
 }
 
 }

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Martin Falisse <mfalisse@outlook.com>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -40,6 +41,7 @@ public:
     bool is_definite() const;
 
     String to_string(SerializationMode) const;
+    GridSize absolutized(ComputationContext const&) const;
     bool operator==(GridSize const& other) const = default;
 
 private:
@@ -54,6 +56,7 @@ public:
     GridSize const& max_grid_size() const& { return m_max_grid_size; }
 
     String to_string(SerializationMode) const;
+    GridMinMax absolutized(ComputationContext const&) const;
     bool operator==(GridMinMax const& other) const = default;
 
 private:
@@ -97,6 +100,8 @@ public:
     void append(GridLineNames&&);
     void append(ExplicitGridTrack&&);
 
+    GridTrackSizeList absolutized(ComputationContext const&) const;
+
 private:
     Vector<Variant<ExplicitGridTrack, GridLineNames>> m_list;
 };
@@ -129,6 +134,7 @@ public:
     GridRepeatType type() const& { return m_type; }
 
     String to_string(SerializationMode) const;
+    GridRepeat absolutized(ComputationContext const&) const;
     bool operator==(GridRepeat const& other) const = default;
 
 private:
@@ -151,6 +157,7 @@ public:
     GridSize const& grid_size() const { return m_value.get<GridSize>(); }
 
     String to_string(SerializationMode) const;
+    ExplicitGridTrack absolutized(ComputationContext const&) const;
     bool operator==(ExplicitGridTrack const& other) const = default;
 
 private:

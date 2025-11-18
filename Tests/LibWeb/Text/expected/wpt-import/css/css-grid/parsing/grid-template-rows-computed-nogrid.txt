@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 24 tests
 
-21 Pass
-3 Fail
+24 Pass
 Pass	Property grid-template-rows value 'none'
 Pass	Property grid-template-rows value '1px'
 Pass	Property grid-template-rows value '1px [a]'
@@ -25,6 +24,6 @@ Pass	Property grid-template-rows value '[a] 1px repeat(auto-fit, 2px [b] 3px) 4p
 Pass	Property grid-template-rows value '100% [a] repeat(1, [b] 200% [c]) [d] 300%'
 Pass	Property grid-template-rows value '100% [a] repeat(auto-fill, [b] 200% [c]) [d] 300%'
 Pass	Property grid-template-rows value '100% [a] repeat(auto-fit, [b] 200% [c]) [d] 300%'
-Fail	Property grid-template-rows value '[a] 1em repeat(1, 2em [b] 3em) 4em [d]'
-Fail	Property grid-template-rows value '[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]'
-Fail	Property grid-template-rows value '[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]'
+Pass	Property grid-template-rows value '[a] 1em repeat(1, 2em [b] 3em) 4em [d]'
+Pass	Property grid-template-rows value '[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]'
+Pass	Property grid-template-rows value '[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]'
