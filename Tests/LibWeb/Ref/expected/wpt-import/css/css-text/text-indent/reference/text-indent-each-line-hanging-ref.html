@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>text-indent 'each-line' and 'hanging' modifiers</title>
+
+    <link rel="stylesheet" href="../../../../../../data/fonts/ahem.css" />
+    <style>
+    div { width:80px; font: 10px Ahem; background-color:lightgray; }
+    .indent { color: blue; padding-left:4em; }
+    </style>
+</head>
+<body>
+All black boxes should be left-aligned. All blue boxes should be right-aligned.
+
+<div>
+<span class="indent">xxxx</span><br>xxxx<br>xxxx
+</div>
+<br>
+<div>
+<span class="indent">xxxx</span> xxxx xxxx
+</div>
+<br>
+<div>
+<span class="indent">xxxx</span><br><span class="indent">xxxx</span><br><span class="indent">xxxx</span>
+</div>
+<br>
+<div>
+<span class="indent">xxxx</span> xxxx<br><span class="indent">xxxx</span>
+</div>
+<br>
+<div>
+xxxx<br><span class="indent">xxxx</span><br><span class="indent">xxxx</span>
+</div>
+<br>
+<div>
+xxxx <span class="indent">xxxx</span> <span class="indent">xxxx</span>
+</div>
+<br>
+<div>
+xxxx<br>xxxx<br>xxxx
+</div>
+<br>
+<div>
+xxxx <span class="indent">xxxx</span><br>xxxx
+</div>
+</body>
+</html>

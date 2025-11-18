@@ -19,6 +19,8 @@ LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_s
 {
     auto text_indent = m_context.containing_block().computed_values().text_indent();
     m_text_indent = text_indent.length_percentage.to_px(m_context.containing_block(), m_containing_block_used_values.content_width());
+    m_text_indent_each_line = text_indent.each_line;
+    m_text_indent_hanging = text_indent.hanging;
     begin_new_line(false);
 }
 
@@ -37,7 +39,7 @@ void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_
     bool floats_intrude_at_current_y = false;
     do {
         m_containing_block_used_values.line_boxes.append(LineBox(m_direction, m_writing_mode));
-        begin_new_line(true, break_count == 0);
+        begin_new_line(true, break_count == 0, forced_break);
         break_count++;
         floats_intrude_at_current_y = m_context.any_floats_intrude_at_block_offset(m_current_block_offset);
     } while (floats_intrude_at_current_y
@@ -45,7 +47,7 @@ void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_
             || (next_item_width.value_or(0) > m_available_width_for_current_line)));
 }
 
-void LineBuilder::begin_new_line(bool increment_y, bool is_first_break_in_sequence)
+void LineBuilder::begin_new_line(bool increment_y, bool is_first_break_in_sequence, ForcedBreak forced_break)
 {
     if (increment_y) {
         if (is_first_break_in_sequence) {
@@ -66,13 +68,19 @@ void LineBuilder::begin_new_line(bool increment_y, bool is_first_break_in_sequen
         }
     }
     recalculate_available_space();
-    ensure_last_line_box().m_original_available_width = m_available_width_for_current_line;
+    auto& line_box = ensure_last_line_box();
+    line_box.m_original_available_width = m_available_width_for_current_line;
     m_max_height_on_current_line = 0;
     m_last_line_needs_update = true;
 
-    // FIXME: Support text-indent with "each-line".
-    if (m_containing_block_used_values.line_boxes.size() <= 1)
-        ensure_last_line_box().m_inline_length += m_text_indent;
+    bool should_indent = m_containing_block_used_values.line_boxes.size() <= 1
+        || (m_text_indent_each_line && forced_break == ForcedBreak::Yes);
+
+    if (m_text_indent_hanging)
+        should_indent = !should_indent;
+
+    if (should_indent)
+        line_box.m_inline_length += m_text_indent;
 }
 
 LineBox& LineBuilder::ensure_last_line_box()
