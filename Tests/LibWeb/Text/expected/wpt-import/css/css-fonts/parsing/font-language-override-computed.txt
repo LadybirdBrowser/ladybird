@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-1 Pass
-4 Fail
+5 Pass
 Pass	Property font-language-override value 'normal'
-Fail	Property font-language-override value '"KSW"'
-Fail	Property font-language-override value '"ENG "'
-Fail	Property font-language-override value '"en  "'
-Fail	Property font-language-override value '" en "'
+Pass	Property font-language-override value '"KSW"'
+Pass	Property font-language-override value '"ENG "'
+Pass	Property font-language-override value '"en  "'
+Pass	Property font-language-override value '" en "'
