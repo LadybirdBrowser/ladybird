@@ -160,9 +160,12 @@ void ComputedProperties::remove_animated_property(PropertyID id)
     m_animated_property_values.remove(id);
 }
 
-void ComputedProperties::reset_animated_properties(Badge<Animations::KeyframeEffect>)
+void ComputedProperties::reset_non_inherited_animated_properties(Badge<Animations::KeyframeEffect>)
 {
-    m_animated_property_values.clear();
+    for (auto property_id : m_animated_property_values.keys()) {
+        if (!is_animated_property_inherited(property_id))
+            m_animated_property_values.remove(property_id);
+    }
 }
 
 StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
