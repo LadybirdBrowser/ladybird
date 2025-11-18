@@ -53,6 +53,7 @@ public:
 
     URL::URL const& url() const { return m_url; }
     ByteString const& method() const { return m_method; }
+    HTTP::HeaderMap const& request_headers() const { return m_request_headers; }
     UnixDateTime request_start_time() const { return m_request_start_time; }
 
     void notify_request_unblocked(Badge<DiskCache>);
@@ -73,6 +74,13 @@ private:
         Fetch,        // Issue a network request to fetch the URL.
         Complete,     // Finalize the request with the client.
         Error,        // Any error occured during the request's lifetime.
+    };
+
+    enum class CacheStatus : u8 {
+        Unknown,
+        NotCached,
+        WrittenToCache,
+        ReadFromCache,
     };
 
     Request(
@@ -159,6 +167,7 @@ private:
 
     Optional<CacheEntryReader&> m_cache_entry_reader;
     Optional<CacheEntryWriter&> m_cache_entry_writer;
+    CacheStatus m_cache_status { CacheStatus::Unknown };
 
     Optional<Requests::NetworkError> m_network_error;
 };

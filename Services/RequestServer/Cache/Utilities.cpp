@@ -192,7 +192,7 @@ bool is_header_exempted_from_storage(StringView name)
         "Proxy-Connection"sv,
         "TE"sv,
         "Transfer-Encoding"sv,
-        "Upgrade"sv
+        "Upgrade"sv,
 
         // * Likewise, some fields' semantics require them to be removed before forwarding the message, and this MAY be
         //   implemented by doing so before storage; see Section 7.6.1 of [HTTP] for some examples.
@@ -204,7 +204,10 @@ bool is_header_exempted_from_storage(StringView name)
         //   unless the cache incorporates the identity of the proxy into the cache key. Effectively, this is limited to
         //   Proxy-Authenticate (Section 11.7.1 of [HTTP]), Proxy-Authentication-Info (Section 11.7.3 of [HTTP]), and
         //   Proxy-Authorization (Section 11.7.2 of [HTTP]).
-    );
+
+        // AD-HOC: Exclude headers used only for testing.
+        TEST_CACHE_ENABLED_HEADER,
+        TEST_CACHE_STATUS_HEADER);
 }
 
 // https://httpwg.org/specs/rfc9111.html#heuristic.freshness

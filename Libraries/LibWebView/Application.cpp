@@ -262,7 +262,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     m_request_server_options = {
         .certificates = move(certificates),
-        .enable_http_disk_cache = enable_http_disk_cache ? EnableHTTPDiskCache::Yes : EnableHTTPDiskCache::No,
+        .http_disk_cache_mode = enable_http_disk_cache ? HTTPDiskCacheMode::Enabled : HTTPDiskCacheMode::Disabled,
     };
 
     m_web_content_options = {
