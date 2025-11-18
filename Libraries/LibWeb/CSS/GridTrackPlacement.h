@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2022, Martin Falisse <mfalisse@outlook.com>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -54,6 +55,8 @@ public:
     IntegerOrCalculated span() const { return m_value.get<Span>().value; }
 
     String to_string(SerializationMode mode) const;
+
+    GridTrackPlacement absolutized(ComputationContext const&) const;
 
     bool operator==(GridTrackPlacement const& other) const = default;
 

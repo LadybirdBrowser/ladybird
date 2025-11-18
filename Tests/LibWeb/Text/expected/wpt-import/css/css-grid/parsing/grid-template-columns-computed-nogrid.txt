@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-29 Pass
-3 Fail
+32 Pass
 Pass	Property grid-template-columns value 'none'
 Pass	Property grid-template-columns value '1px'
 Pass	Property grid-template-columns value '1px [a]'
@@ -28,9 +27,9 @@ Pass	Property grid-template-columns value '[a] 1px repeat(auto-fit, 2px [b] 3px)
 Pass	Property grid-template-rows value '100% [a] repeat(1, [b] 200% [c]) [d] 300%'
 Pass	Property grid-template-rows value '100% [a] repeat(auto-fill, [b] 200% [c]) [d] 300%'
 Pass	Property grid-template-rows value '100% [a] repeat(auto-fit, [b] 200% [c]) [d] 300%'
-Fail	Property grid-template-columns value '[a] 1em repeat(1, 2em [b] 3em) 4em [d]'
-Fail	Property grid-template-columns value '[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]'
-Fail	Property grid-template-columns value '[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]'
+Pass	Property grid-template-columns value '[a] 1em repeat(1, 2em [b] 3em) 4em [d]'
+Pass	Property grid-template-columns value '[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]'
+Pass	Property grid-template-columns value '[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]'
 Pass	Property grid-template-columns value 'repeat(1, 2px [a] 3px) [b] repeat(auto-fill, [c] 200% [d]) [e] 300%'
 Pass	Property grid-template-columns value '[a] repeat(auto-fill, [b] 200% [c]) repeat(1, 2px [d] 3px) [e] 300%'
 Pass	Property grid-template-columns value 'repeat(1, [a] 2px [b] 3px) [b] repeat(auto-fill, [c] 200% [d]) [e] 300%'

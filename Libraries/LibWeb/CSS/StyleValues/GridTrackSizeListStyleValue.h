@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -25,6 +25,8 @@ public:
     CSS::GridTrackSizeList grid_track_size_list() const { return m_grid_track_size_list; }
 
     virtual String to_string(SerializationMode) const override;
+
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(GridTrackSizeListStyleValue const& other) const { return m_grid_track_size_list == other.m_grid_track_size_list; }
 
