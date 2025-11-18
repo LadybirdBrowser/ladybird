@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLDataListElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLHRElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
@@ -120,13 +121,12 @@ void HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-options
 GC::Ptr<HTMLOptionsCollection> const& HTMLSelectElement::options()
 {
+    // The options IDL attribute must return an HTMLOptionsCollection rooted at the select node,
+    // whose filter matches the elements in the list of options.
     if (!m_options) {
-        m_options = HTMLOptionsCollection::create(*this, [](DOM::Element const& element) {
-            // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
-            // The list of options for a select element consists of all the option element children of
-            // the select element, and all the option element children of all the optgroup element children
-            // of the select element, in tree order.
-            return is<HTMLOptionElement>(element);
+        m_options = HTMLOptionsCollection::create(*this, [this](DOM::Element const& element) {
+            auto const* maybe_option = as_if<HTML::HTMLOptionElement>(element);
+            return maybe_option && maybe_option->nearest_select_element() == this;
         });
     }
     return m_options;
@@ -189,10 +189,10 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
     // The selectedOptions IDL attribute must return an HTMLCollection rooted at the select node,
     // whose filter matches the elements in the list of options that have their selectedness set to true.
     if (!m_selected_options) {
-        m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [](Element const& element) {
-            if (is<HTML::HTMLOptionElement>(element)) {
-                auto const& option_element = as<HTMLOptionElement>(element);
-                return option_element.selected();
+        m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
+            auto const* maybe_option = as_if<HTML::HTMLOptionElement>(element);
+            if (maybe_option && maybe_option->nearest_select_element() == this) {
+                return maybe_option->selected();
             }
             return false;
         });
@@ -203,28 +203,55 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
 void HTMLSelectElement::update_cached_list_of_options() const
 {
-    // The list of options for a select element consists of all the option element children of the select element,
-    // and all the option element children of all the optgroup element children of the select element, in tree order.
+    // 1. Let options be « ».
     m_cached_list_of_options.clear();
     m_cached_number_of_selected_options = 0;
 
-    for (auto* node = first_child(); node; node = node->next_sibling()) {
-        if (auto* maybe_option = as_if<HTMLOptionElement>(*node)) {
+    // Check if node is an optgroup element and node has an ancestor optgroup in between itself and this select
+    auto is_nested_optgroup = [this](DOM::Node const& node) {
+        if (!is<HTMLOptGroupElement>(node))
+            return false;
+
+        for (auto const* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
+            if (ancestor == this)
+                return false; // reached the select without another optgroup
+            if (is<HTMLOptGroupElement>(*ancestor))
+                return true; // found an optgroup above us
+        }
+        return false;
+    };
+
+    // 2. Let node be the first child of select in tree order.
+    // 3. While node is not null:
+    for_each_in_subtree([&](auto& node) {
+        // 1. If node is an option element, then append node to options.
+        if (auto maybe_option = as_if<HTMLOptionElement>(node)) {
             if (maybe_option->selected())
                 ++m_cached_number_of_selected_options;
             m_cached_list_of_options.append(const_cast<HTMLOptionElement&>(*maybe_option));
-            continue;
         }
 
-        if (auto* maybe_opt_group = as_if<HTMLOptGroupElement>(node)) {
-            maybe_opt_group->for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-                if (option_element.selected())
-                    ++m_cached_number_of_selected_options;
-                m_cached_list_of_options.append(option_element);
-                return IterationDecision::Continue;
-            });
+        // 2. If any of the following conditions are true:
+        //    - node is a select element;
+        //    - node is an hr element;
+        //    - node is an option element;
+        //    - node is a datalist element;
+        //    - node is an optgroup element and node has an ancestor optgroup in between itself and select,
+        if (is<HTMLSelectElement>(node)
+            || is<HTMLHRElement>(node)
+            || is<HTMLOptionElement>(node)
+            || is<HTMLDataListElement>(node)
+            || is_nested_optgroup(node)) {
+            // then set node to the next descendant of select in tree order, excluding node's descendants, if any such
+            // node exists; otherwise null.
+            return TraversalDecision::SkipChildrenAndContinue;
         }
-    }
+        // Otherwise, set node to the next descendant of select in tree order, if any such node exists; otherwise null.
+        return TraversalDecision::Continue;
+    });
+
+    // 4. Return options.
+    // (Implicit by updating m_cached_list_of_options)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list

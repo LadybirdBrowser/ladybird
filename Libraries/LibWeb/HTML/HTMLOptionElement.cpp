@@ -11,6 +11,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/HTMLDataListElement.h>
+#include <LibWeb/HTML/HTMLHRElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
@@ -36,6 +38,12 @@ void HTMLOptionElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptionElement);
     Base::initialize(realm);
+}
+
+void HTMLOptionElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_cached_nearest_select_element);
 }
 
 // FIXME: This needs to be called any time a descendant's text is modified.
@@ -194,27 +202,73 @@ bool HTMLOptionElement::disabled() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-form
 GC::Ptr<HTMLFormElement const> HTMLOptionElement::form() const
 {
-    // The form IDL attribute's behavior depends on whether the option element is in a select element or not.
-    // If the option has a select element as its parent, or has an optgroup element as its parent and that optgroup element has a select element as its parent,
-    // then the form IDL attribute must return the same value as the form IDL attribute on that select element.
-    // Otherwise, it must return null.
-    if (auto select_element = owner_select_element())
-        return select_element->form();
+    // The form getter steps are:
 
-    return {};
+    // 1. Let select be this's option element nearest ancestor select.
+    auto select = nearest_select_element();
+
+    // 2. If select is null, then return null.
+    if (!select)
+        return {};
+
+    // 3. Return select's form owner.
+    return select->form();
 }
 
-GC::Ptr<HTMLSelectElement> HTMLOptionElement::owner_select_element()
+// https://html.spec.whatwg.org/multipage/form-elements.html#update-an-option's-nearest-ancestor-select
+void HTMLOptionElement::update_nearest_select_element()
 {
-    if (auto* maybe_parent = parent()) {
-        if (auto* select_element = as_if<HTMLSelectElement>(*maybe_parent))
-            return select_element;
-        if (auto* opt_group_element = as_if<HTMLOptGroupElement>(*maybe_parent)) {
-            if (auto* maybe_parent = opt_group_element->parent())
-                return as_if<HTMLSelectElement>(*maybe_parent);
-        }
+    // 1. Let oldSelect be option's cached nearest ancestor select element.
+    auto old_select = m_cached_nearest_select_element;
+
+    // 2. Let newSelect be option's option element nearest ancestor select.
+    auto new_select = compute_nearest_select_element();
+
+    // 3. If oldSelect is not newSelect:
+    if (old_select != new_select) {
+        // 1. If oldSelect is not null, then run the selectedness setting algorithm given oldSelect.
+        if (old_select)
+            old_select->update_selectedness();
+
+        // 2. If newSelect is not null, then run the selectedness setting algorithm given newSelect.
+        if (new_select)
+            new_select->update_selectedness();
     }
 
+    // 4. Set option's cached nearest ancestor select element to newSelect.
+    m_cached_nearest_select_element = new_select;
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#option-element-nearest-ancestor-select
+GC::Ptr<HTMLSelectElement> HTMLOptionElement::compute_nearest_select_element()
+{
+    // 1. Let ancestorOptgroup be null.
+    GC::Ptr<HTMLOptGroupElement> ancestor_optgroup;
+
+    // 2. For each ancestor of option's ancestors, in reverse tree order:
+    for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+        // 1. If ancestor is a datalist, hr, or option element, then return null.
+        if (is<HTMLDataListElement>(*ancestor)
+            || is<HTMLHRElement>(*ancestor)
+            || is<HTMLOptionElement>(*ancestor))
+            return nullptr;
+
+        // 2. If ancestor is an optgroup element:
+        if (auto* optgroup_element = as_if<HTMLOptGroupElement>(*ancestor)) {
+            // 1. If ancestorOptgroup is not null, then return null.
+            if (ancestor_optgroup)
+                return nullptr;
+
+            // 2. Set ancestorOptgroup to ancestor.
+            ancestor_optgroup = optgroup_element;
+        }
+
+        // 3. If ancestor is a select, then return ancestor.
+        if (auto* select_element = as_if<HTMLSelectElement>(*ancestor))
+            return select_element;
+    }
+
+    // 3. Return null.
     return nullptr;
 }
 
@@ -231,29 +285,18 @@ void HTMLOptionElement::inserted()
 
     set_selected_internal(selected());
 
-    // 1. The option HTML element insertion steps, given insertedNode, are:
-    //    If insertedNode's parent is a select element,
-    //    or insertedNode's parent is an optgroup element whose parent is a select element,
-    //    then run that select element's selectedness setting algorithm.
-    if (auto select_element = owner_select_element()) {
-        if (!select_element->can_skip_selectedness_update_for_inserted_option(*this))
-            select_element->update_selectedness();
-    }
+    // The option HTML element insertion steps, given insertedOption,
+    // are to run update an option's nearest ancestor select given insertedOption.
+    update_nearest_select_element();
 }
 
 void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
 {
     Base::removed_from(old_parent, old_root);
 
-    // The option HTML element removing steps, given removedNode and oldParent, are:
-    // 1. If oldParent is a select element, or oldParent is an optgroup element whose parent is a select element,
-    //    then run that select element's selectedness setting algorithm.
-    if (old_parent) {
-        if (is<HTMLSelectElement>(*old_parent))
-            static_cast<HTMLSelectElement&>(*old_parent).update_selectedness();
-        else if (is<HTMLOptGroupElement>(*old_parent) && old_parent->parent_element() && is<HTMLSelectElement>(*old_parent->parent_element()))
-            static_cast<HTMLSelectElement&>(*old_parent->parent_element()).update_selectedness();
-    }
+    // The option HTML element removing steps, given removedOption and oldParent,
+    // are to run update an option's nearest ancestor select given removedOption.
+    update_nearest_select_element();
 }
 
 void HTMLOptionElement::children_changed(ChildrenChangedMetadata const* metadata)
