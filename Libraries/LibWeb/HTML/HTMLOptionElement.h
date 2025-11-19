@@ -44,6 +44,11 @@ public:
     GC::Ptr<HTMLSelectElement> nearest_select_element() { return m_cached_nearest_select_element; }
     GC::Ptr<HTMLSelectElement const> nearest_select_element() const { return m_cached_nearest_select_element; }
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:clone-an-option-into-a-selectedcontent
+    WebIDL::ExceptionOr<void> maybe_clone_into_selectedcontent();
+    // https://html.spec.whatwg.org/multipage/form-elements.html#clone-an-option-into-a-selectedcontent
+    WebIDL::ExceptionOr<void> clone_into_selectedcontent(GC::Ref<HTMLSelectedContentElement>);
+
 private:
     friend class Bindings::OptionConstructor;
     friend class HTMLSelectElement;

@@ -548,6 +548,7 @@ set(SOURCES
     HTML/HTMLProgressElement.cpp
     HTML/HTMLQuoteElement.cpp
     HTML/HTMLScriptElement.cpp
+    HTML/HTMLSelectedContentElement.cpp
     HTML/HTMLSelectElement.cpp
     HTML/HTMLSlotElement.cpp
     HTML/HTMLSourceElement.cpp

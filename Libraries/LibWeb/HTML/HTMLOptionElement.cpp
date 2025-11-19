@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLSelectedContentElement.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
@@ -277,6 +278,50 @@ Optional<ARIA::Role> HTMLOptionElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-option
     // TODO: Only an option element that is in a list of options or that represents a suggestion in a datalist should return option
     return ARIA::Role::option;
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:clone-an-option-into-a-selectedcontent
+WebIDL::ExceptionOr<void> HTMLOptionElement::maybe_clone_into_selectedcontent()
+{
+    // To maybe clone an option into selectedcontent, given an option option:
+
+    // 1. Let select be option's option element nearest ancestor select.
+    auto select = m_cached_nearest_select_element;
+
+    // 2. If all of the following conditions are true:
+    //      - select is not null;
+    //      - option's selectedness is true; and
+    //      - select's enabled selectedcontent is not null,
+    //    then run clone an option into a selectedcontent given option and select's enabled selectedcontent.
+    if (select && selected()) {
+        if (auto selectedcontent = select->enabled_selectedcontent())
+            TRY(clone_into_selectedcontent(*selectedcontent));
+    }
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#clone-an-option-into-a-selectedcontent
+WebIDL::ExceptionOr<void> HTMLOptionElement::clone_into_selectedcontent(GC::Ref<HTMLSelectedContentElement> selectedcontent)
+{
+    // To clone an option into a selectedcontent, given an option element option and a selectedcontent element selectedcontent:
+
+    // 1. Let documentFragment be a new DocumentFragment whose node document is option's node document.
+    auto fragment = realm().create<DOM::DocumentFragment>(document());
+
+    // 2. For each child of option's children:
+    for (auto* child = first_child(); child; child = child->next_sibling()) {
+        // 1. Let childClone be the result of running clone given child with subtree set to true.
+        auto child_clone = TRY(child->clone_node(&document(), true));
+
+        // 2. Append childClone to documentFragment.
+        TRY(fragment->append_child(child_clone));
+    }
+
+    // 3. Replace all with documentFragment within selectedcontent.
+    selectedcontent->replace_all(fragment);
+
+    return {};
 }
 
 void HTMLOptionElement::inserted()

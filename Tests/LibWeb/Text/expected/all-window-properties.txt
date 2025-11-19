@@ -233,6 +233,7 @@ HTMLProgressElement
 HTMLQuoteElement
 HTMLScriptElement
 HTMLSelectElement
+HTMLSelectedContentElement
 HTMLSlotElement
 HTMLSourceElement
 HTMLSpanElement

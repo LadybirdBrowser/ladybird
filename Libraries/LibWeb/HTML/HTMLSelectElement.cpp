@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLSelectedContentElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Window.h>
@@ -393,8 +394,12 @@ Optional<ARIA::Role> HTMLSelectElement::default_role() const
     return ARIA::Role::combobox;
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-value
 Utf16String HTMLSelectElement::value() const
 {
+    // The value getter steps are to return the value of the first option element in this's
+    // list of options in tree order that has its selectedness set to true, if any. If there
+    // isn't one, then return the empty string.
     update_cached_list_of_options();
     for (auto const& option_element : m_cached_list_of_options)
         if (option_element->selected())
@@ -402,12 +407,36 @@ Utf16String HTMLSelectElement::value() const
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-value
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(Utf16String const& value)
 {
+    // The value setter steps are:
     update_cached_list_of_options();
-    for (auto const& option_element : list_of_options())
-        option_element->set_selected(option_element->value() == value);
-    update_inner_text_element();
+
+    // 1. Let firstMatchingOption be null.
+    GC::Ptr<HTMLOptionElement> first_matching_option;
+
+    // 2. For each option of this's list of options:
+    for (auto const& option_element : m_cached_list_of_options) {
+        // 1. Set option's selectedness to false.
+        option_element->set_selected_internal(false);
+
+        // 2. If firstMatchingOption is null and option's value is equal to the given value, then set
+        //    firstMatchingOption to option.
+        if (!first_matching_option && option_element->value() == value)
+            first_matching_option = option_element;
+    }
+
+    // 3. If firstMatchingOption is not null, then set firstMatchingOption's selectedness to true and set
+    //    firstMatchingOption's dirtiness to true.
+    if (first_matching_option) {
+        first_matching_option->set_selected_internal(true);
+        first_matching_option->m_dirty = true;
+    }
+
+    // 4. Run update a select's selectedcontent given this.
+    TRY(update_selectedcontent());
+
     return {};
 }
 
@@ -743,6 +772,88 @@ HTMLOptionElement* HTMLSelectElement::placeholder_label_option() const
         if (first_option_element->value().is_empty() && first_option_element->parent() == this)
             return first_option_element;
     }
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#select-enabled-selectedcontent
+GC::Ptr<HTMLSelectedContentElement> HTMLSelectElement::enabled_selectedcontent() const
+{
+    // To get a select's enabled selectedcontent given a select element select:
+
+    // 1. If select has the multiple attribute, then return null.
+    if (has_attribute(AttributeNames::multiple))
+        return nullptr;
+
+    // 2. Let selectedcontent be the first selectedcontent element descendant of select in tree order if any such
+    //    element exists; otherwise return null.
+    GC::Ptr<HTMLSelectedContentElement> selectedcontent;
+    for_each_in_subtree_of_type<HTMLSelectedContentElement>([&](auto& element) {
+        selectedcontent = const_cast<HTMLSelectedContentElement*>(&element);
+        return TraversalDecision::Break;
+    });
+    if (!selectedcontent)
+        return nullptr;
+
+    // 3. If selectedcontent is disabled, then return null.
+    if (selectedcontent->disabled())
+        return nullptr;
+
+    // 4. Return selectedcontent.
+    return selectedcontent;
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#clear-a-select%27s-non-primary-selectedcontent-elements
+void HTMLSelectElement::clear_non_primary_selectedcontent()
+{
+    // To clear a select's non-primary selectedcontent elements, given a select element select:
+
+    // 1. Let passedFirstSelectedcontent be false.
+    bool passed_first_selectedcontent = false;
+
+    // 2. For each descendant of select's descendants in tree order that is a selectedcontent element:
+    for_each_in_subtree_of_type<HTMLSelectedContentElement>([&](auto& element) {
+        // 1. If passedFirstSelectedcontent is false, then set passedFirstSelectedcontent to true.
+        if (!passed_first_selectedcontent)
+            passed_first_selectedcontent = true;
+        // 2. Otherwise, run clear a selectedcontent given descendant.
+        else
+            element.clear_selectedcontent();
+
+        return TraversalDecision::Continue;
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#update-a-select%27s-selectedcontent
+WebIDL::ExceptionOr<void> HTMLSelectElement::update_selectedcontent()
+{
+    // To update a select's selectedcontent given a select element select:
+
+    // 1. Let selectedcontent be the result of get a select's enabled selectedcontent given select.
+    auto selectedcontent = enabled_selectedcontent();
+
+    // 2. If selectedcontent is null, then return.
+    if (!selectedcontent)
+        return {};
+
+    // 3. Let option be the first option in select's list of options whose selectedness is true,
+    //    if any such option exists, otherwise null.
+    update_cached_list_of_options();
+    GC::Ptr<HTML::HTMLOptionElement> option;
+    for (auto const& candidate : m_cached_list_of_options) {
+        if (candidate->selected()) {
+            option = candidate;
+            break;
+        }
+    }
+
+    // 4. If option is null, then run clear a selectedcontent given selectedcontent.
+    if (!option) {
+        selectedcontent->clear_selectedcontent();
+        return {};
+    }
+
+    // 5. Otherwise, run clone an option into a selectedcontent given option and selectedcontent.
+    TRY(option->clone_into_selectedcontent(*selectedcontent));
     return {};
 }
 
