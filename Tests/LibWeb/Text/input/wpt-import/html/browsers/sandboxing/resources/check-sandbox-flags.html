@@ -1,0 +1,8 @@
+<script>
+  try {
+    document.domain = document.domain;
+    parent.postMessage('document-domain-is-allowed', '*');
+  } catch (error) {
+    parent.postMessage('document-domain-is-disallowed', '*');
+  }
+</script>

@@ -45,7 +45,7 @@ promise_test(async (t) => {
 
 promise_test(async (t) => {
   const iframe = document.createElement("iframe");
-  iframe.src = "/common/blank.html";
+  iframe.src = "../common/blank.html";
   document.body.appendChild(iframe);
   await new Promise(resolve => {
     iframe.addEventListener("load", resolve, {once: true});
@@ -57,7 +57,7 @@ promise_test(async (t) => {
 
 promise_test(async (t) => {
   const iframe = document.createElement("iframe");
-  iframe.src = "/common/blank.html";
+  iframe.src = "../common/blank.html";
   document.body.appendChild(iframe);
   await new Promise(resolve => {
     iframe.addEventListener("load", resolve, {once: true});

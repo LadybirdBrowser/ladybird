@@ -73,6 +73,7 @@ class LinkedResourceFinder(HTMLParser):
         self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
         self._match_fetch_import_path = re.compile(r"fetch\((\"|\')(?P<url>.*)(\"|\')\)")
         self._match_worker_import_path = re.compile(r"Worker\(\"(?P<url>.*)\"\)")
+        self._match_src_import_path = re.compile(r"\.src\s*=\s*(\"|\')(?P<url>.*\.html?)(\"|\')")
         self._resources = set()
 
     @property
@@ -118,6 +119,10 @@ class LinkedResourceFinder(HTMLParser):
             # Look for uses of Worker()
             filepath_iterator = self._match_worker_import_path.finditer(data)
             for match in filepath_iterator:
+                self._resources.add(match.group("url"))
+
+            # Look for .src eg. iframe.src
+            for match in self._match_src_import_path.finditer(data):
                 self._resources.add(match.group("url"))
 
 
