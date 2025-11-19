@@ -1,0 +1,7 @@
+AudioContext state: suspended
+AudioContext.suspend: function
+AudioContext.resume: function
+AudioContext.close: function
+suspend() returns Promise: true
+OfflineAudioContext channels: 2
+OfflineAudioContext.startRendering: function
