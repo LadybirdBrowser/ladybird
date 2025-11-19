@@ -11,7 +11,6 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <LibWeb/SVG/AttributeParser.h>
-#include <ctype.h>
 
 namespace Web::SVG {
 
@@ -800,7 +799,7 @@ bool AttributeParser::match_length() const
     if (ch(offset) == '.')
         offset++;
 
-    return !done() && isdigit(ch(offset));
+    return !done() && is_ascii_digit(ch(offset));
 }
 
 }
