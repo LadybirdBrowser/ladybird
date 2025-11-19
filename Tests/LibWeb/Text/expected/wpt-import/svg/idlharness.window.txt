@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-1020 Pass
-761 Fail
+1028 Pass
+753 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -374,14 +374,14 @@ Fail	SVGAnimatedNumberList must be primary interface of objects.text.rotate
 Fail	Stringification of objects.text.rotate
 Fail	SVGAnimatedNumberList interface: objects.text.rotate must inherit property "baseVal" with the proper type
 Fail	SVGAnimatedNumberList interface: objects.text.rotate must inherit property "animVal" with the proper type
-Fail	SVGAnimatedLengthList interface: existence and properties of interface object
-Fail	SVGAnimatedLengthList interface object length
-Fail	SVGAnimatedLengthList interface object name
-Fail	SVGAnimatedLengthList interface: existence and properties of interface prototype object
-Fail	SVGAnimatedLengthList interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGAnimatedLengthList interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGAnimatedLengthList interface: attribute baseVal
-Fail	SVGAnimatedLengthList interface: attribute animVal
+Pass	SVGAnimatedLengthList interface: existence and properties of interface object
+Pass	SVGAnimatedLengthList interface object length
+Pass	SVGAnimatedLengthList interface object name
+Pass	SVGAnimatedLengthList interface: existence and properties of interface prototype object
+Pass	SVGAnimatedLengthList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGAnimatedLengthList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGAnimatedLengthList interface: attribute baseVal
+Pass	SVGAnimatedLengthList interface: attribute animVal
 Fail	SVGAnimatedLengthList must be primary interface of objects.text.x
 Fail	Stringification of objects.text.x
 Fail	SVGAnimatedLengthList interface: objects.text.x must inherit property "baseVal" with the proper type
