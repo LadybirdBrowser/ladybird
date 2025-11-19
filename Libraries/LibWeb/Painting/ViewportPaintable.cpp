@@ -167,6 +167,7 @@ void ViewportPaintable::assign_clip_frames()
 
             auto clip_rect = block_paintable_box.overflow_clip_edge_rect();
             if (block_paintable_box.get_clip_rect().has_value()) {
+                clip_frame.includes_rect_from_clip_property = true;
                 clip_rect.intersect(block_paintable_box.get_clip_rect().value());
                 clip_x = true;
                 clip_y = true;

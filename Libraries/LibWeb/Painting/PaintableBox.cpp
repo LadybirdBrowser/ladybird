@@ -332,11 +332,20 @@ void PaintableBox::before_paint(DisplayListRecordingContext& context, PaintPhase
     if (!is_visible())
         return;
 
-    if (first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground) && own_clip_frame()) {
-        context.display_list_recorder().push_clip_frame(own_clip_frame());
+    auto const& own_clip_frame = this->own_clip_frame();
+    bool apply_own_clip_frame = [&] {
+        if (phase == PaintPhase::Background)
+            return own_clip_frame && own_clip_frame->includes_rect_from_clip_property;
+        if (phase == PaintPhase::Foreground)
+            return !own_clip_frame.is_null();
+        return false;
+    }();
+    if (apply_own_clip_frame) {
+        context.display_list_recorder().push_clip_frame(own_clip_frame);
     } else if (!has_css_transform()) {
         apply_clip_overflow_rect(context, phase);
     }
+
     apply_scroll_offset(context);
 }
 
@@ -346,7 +355,16 @@ void PaintableBox::after_paint(DisplayListRecordingContext& context, PaintPhase 
         return;
 
     reset_scroll_offset(context);
-    if (first_is_one_of(phase, PaintPhase::Background, PaintPhase::Foreground) && own_clip_frame()) {
+
+    auto const& own_clip_frame = this->own_clip_frame();
+    bool reset_own_clip_frame = [&] {
+        if (phase == PaintPhase::Background)
+            return own_clip_frame && own_clip_frame->includes_rect_from_clip_property;
+        if (phase == PaintPhase::Foreground)
+            return !own_clip_frame.is_null();
+        return false;
+    }();
+    if (reset_own_clip_frame) {
         context.display_list_recorder().pop_clip_frame();
     } else if (!has_css_transform()) {
         clear_clip_overflow_rect(context, phase);
