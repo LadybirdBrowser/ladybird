@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-1005 Pass
-776 Fail
+1020 Pass
+761 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -219,21 +219,21 @@ Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property 
 Fail	SVGNumberList interface: calling removeItem(unsigned long) on objects.text.rotate.baseVal with too few arguments must throw TypeError
 Fail	SVGNumberList interface: objects.text.rotate.baseVal must inherit property "appendItem(SVGNumber)" with the proper type
 Fail	SVGNumberList interface: calling appendItem(SVGNumber) on objects.text.rotate.baseVal with too few arguments must throw TypeError
-Fail	SVGLengthList interface: existence and properties of interface object
-Fail	SVGLengthList interface object length
-Fail	SVGLengthList interface object name
-Fail	SVGLengthList interface: existence and properties of interface prototype object
-Fail	SVGLengthList interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGLengthList interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGLengthList interface: attribute length
-Fail	SVGLengthList interface: attribute numberOfItems
-Fail	SVGLengthList interface: operation clear()
-Fail	SVGLengthList interface: operation initialize(SVGLength)
-Fail	SVGLengthList interface: operation getItem(unsigned long)
-Fail	SVGLengthList interface: operation insertItemBefore(SVGLength, unsigned long)
-Fail	SVGLengthList interface: operation replaceItem(SVGLength, unsigned long)
-Fail	SVGLengthList interface: operation removeItem(unsigned long)
-Fail	SVGLengthList interface: operation appendItem(SVGLength)
+Pass	SVGLengthList interface: existence and properties of interface object
+Pass	SVGLengthList interface object length
+Pass	SVGLengthList interface object name
+Pass	SVGLengthList interface: existence and properties of interface prototype object
+Pass	SVGLengthList interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGLengthList interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGLengthList interface: attribute length
+Pass	SVGLengthList interface: attribute numberOfItems
+Pass	SVGLengthList interface: operation clear()
+Pass	SVGLengthList interface: operation initialize(SVGLength)
+Pass	SVGLengthList interface: operation getItem(unsigned long)
+Pass	SVGLengthList interface: operation insertItemBefore(SVGLength, unsigned long)
+Pass	SVGLengthList interface: operation replaceItem(SVGLength, unsigned long)
+Pass	SVGLengthList interface: operation removeItem(unsigned long)
+Pass	SVGLengthList interface: operation appendItem(SVGLength)
 Fail	SVGStringList interface: existence and properties of interface object
 Fail	SVGStringList interface object length
 Fail	SVGStringList interface object name

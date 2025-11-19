@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGList.h>
 #include <LibWeb/SVG/SVGNumber.h>
 #include <LibWeb/SVG/SVGTransform.h>
@@ -204,6 +205,7 @@ WebIDL::ExceptionOr<T> SVGList<T>::append_item(T new_item)
     return new_item;
 }
 
+template class SVGList<GC::Ref<SVGLength>>;
 template class SVGList<GC::Ref<SVGNumber>>;
 template class SVGList<GC::Ref<SVGTransform>>;
 
