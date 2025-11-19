@@ -17,12 +17,13 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
+#include <LibCore/Promise.h>
 #include <LibHTTP/HttpResponse.h>
 #include <LibWeb/WebDriver/Client.h>
 
 namespace Web::WebDriver {
 
-using RouteHandler = Response (*)(Client&, Parameters, JsonValue);
+using RouteHandler = NonnullRefPtr<Core::Promise<JsonValue, Error>> (*)(Client&, Parameters, JsonValue);
 
 struct Route {
     HTTP::HttpRequest::Method method {};
@@ -227,20 +228,54 @@ ErrorOr<void, Client::WrappedError> Client::on_ready_to_read()
         return {};
 
     m_remaining_request.clear();
-    auto request = parsed_request.release_value();
+    auto pending_request = adopt_ref(*new PendingRequest(parsed_request.release_value()));
+    m_pending_requests.enqueue(move(pending_request));
 
-    deferred_invoke([this, request = move(request)]() {
-        auto body = read_body_as_json(request);
+    if (m_pending_requests.size() == 1) {
+        process_next_pending_request();
+    }
+
+    return {};
+}
+
+void Client::process_next_pending_request()
+{
+    deferred_invoke([this_ref = NonnullRefPtr { *this }] {
+        auto pending_request = this_ref->m_pending_requests.head();
+        auto body = read_body_as_json(pending_request->http_request);
         if (body.is_error()) {
-            handle_error(request, body.release_error());
+            this_ref->handle_error(pending_request->http_request, body.release_error());
+            this_ref->dequeue_current_pending_request();
             return;
         }
 
-        if (auto result = handle_request(request, body.release_value()); result.is_error())
-            handle_error(request, result.release_error());
-    });
+        auto initial_result = this_ref->handle_request(pending_request->http_request, body.release_value());
+        if (initial_result.is_error()) {
+            this_ref->handle_error(pending_request->http_request, initial_result.release_error());
+            this_ref->dequeue_current_pending_request();
+            return;
+        }
 
-    return {};
+        auto promise = initial_result.release_value();
+        promise->when_resolved([this_ref, pending_request](JsonValue& value) {
+                   auto response_error = this_ref->send_success_response(pending_request->http_request, value);
+                   if (response_error.is_error())
+                       this_ref->handle_error(pending_request->http_request, response_error.release_error());
+
+                   this_ref->dequeue_current_pending_request();
+               })
+            .when_rejected([this_ref, pending_request](Error& error) {
+                this_ref->handle_error(pending_request->http_request, error);
+                this_ref->dequeue_current_pending_request();
+            });
+    });
+}
+
+void Client::dequeue_current_pending_request()
+{
+    (void)m_pending_requests.dequeue();
+    if (!m_pending_requests.is_empty())
+        process_next_pending_request();
 }
 
 ErrorOr<JsonValue, Client::WrappedError> Client::read_body_as_json(HTTP::HttpRequest const& request)
@@ -262,7 +297,7 @@ ErrorOr<JsonValue, Client::WrappedError> Client::read_body_as_json(HTTP::HttpReq
     return TRY(JsonValue::from_string(request.body()));
 }
 
-ErrorOr<void, Client::WrappedError> Client::handle_request(HTTP::HttpRequest const& request, JsonValue body)
+ErrorOr<NonnullRefPtr<Core::Promise<JsonValue, Error>>, Client::WrappedError> Client::handle_request(HTTP::HttpRequest const& request, JsonValue body)
 {
     if constexpr (WEBDRIVER_DEBUG) {
         dbgln("Got HTTP request: {} {}", request.method_name(), request.resource());
@@ -270,8 +305,7 @@ ErrorOr<void, Client::WrappedError> Client::handle_request(HTTP::HttpRequest con
     }
 
     auto [handler, parameters] = TRY(match_route(request));
-    auto result = TRY((*handler)(*this, move(parameters), move(body)));
-    return send_success_response(request, move(result));
+    return (*handler)(*this, move(parameters), move(body));
 }
 
 void Client::handle_error(HTTP::HttpRequest const& request, WrappedError const& error)
