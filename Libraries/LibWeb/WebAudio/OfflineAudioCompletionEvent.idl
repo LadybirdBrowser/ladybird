@@ -1,0 +1,13 @@
+#import <DOM/Event.idl>
+
+// https://webaudio.github.io/web-audio-api/#OfflineAudioCompletionEventInit
+dictionary OfflineAudioCompletionEventInit : EventInit {
+    required AudioBuffer renderedBuffer;
+};
+
+// https://webaudio.github.io/web-audio-api/#OfflineAudioCompletionEvent
+[Exposed=Window]
+interface OfflineAudioCompletionEvent : Event {
+    constructor (DOMString type, OfflineAudioCompletionEventInit eventInitDict);
+    readonly attribute AudioBuffer renderedBuffer;
+};

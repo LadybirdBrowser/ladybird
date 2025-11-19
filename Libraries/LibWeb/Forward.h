@@ -1203,6 +1203,7 @@ class BaseAudioContext;
 class BiquadFilterNode;
 class DynamicsCompressorNode;
 class GainNode;
+class OfflineAudioCompletionEvent;
 class OfflineAudioContext;
 class OscillatorNode;
 class PannerNode;
@@ -1212,6 +1213,7 @@ enum class AudioContextState;
 
 struct AudioContextOptions;
 struct DynamicsCompressorOptions;
+struct OfflineAudioCompletionEventInit;
 struct OscillatorOptions;
 
 }
