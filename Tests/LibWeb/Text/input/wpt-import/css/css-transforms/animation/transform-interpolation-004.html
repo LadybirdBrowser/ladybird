@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-property">
+<meta name="assert" content="transform supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.target {
+  color: white;
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  display: inline-block;
+  overflow: hidden;
+}
+.expected {
+  background-color: green;
+}
+.target > div {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  background: orange;
+  margin: 1px;
+}
+.test {
+  overflow: hidden;
+}
+</style>
+
+<body>
+  <template id="target-template">
+    <div></div>
+  </template>
+</body>
+
+<script>
+// Translate
+test_interpolation({
+  property: 'transform',
+  from: 'translate(12px, 70%)',
+  to: 'translate(13px, 90%)'
+}, [
+  {at: -1, expect: 'translate(11px, 50%)'},
+  {at: 0, expect: 'translate(12px, 70%)'},
+  {at: 0.25, expect: 'translate(12.25px, 75%)'},
+  {at: 0.75, expect: 'translate(12.75px, 85%)'},
+  {at: 1, expect: 'translate(13px, 90%)'},
+  {at: 2, expect: 'translate(14px, 110%)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translateX(12px)',
+  to: 'translateX(13px)'
+}, [
+  {at: -1, expect: 'translateX(11px)'},
+  {at: 0, expect: 'translateX(12px)'},
+  {at: 0.25, expect: 'translateX(12.25px)'},
+  {at: 0.75, expect: 'translateX(12.75px)'},
+  {at: 1, expect: 'translateX(13px)'},
+  {at: 2, expect: 'translateX(14px)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translateY(70%)',
+  to: 'translateY(90%)'
+}, [
+  {at: -1, expect: 'translateY(50%)'},
+  {at: 0, expect: 'translateY(70%)'},
+  {at: 0.25, expect: 'translateY(75%)'},
+  {at: 0.75, expect: 'translateY(85%)'},
+  {at: 1, expect: 'translateY(90%)'},
+  {at: 2, expect: 'translateY(110%)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translateZ(2em)',
+  to: 'translateZ(3em)'
+}, [
+  {at: -1, expect: 'translateZ(1em)'},
+  {at: 0, expect: 'translateZ(2em)'},
+  {at: 0.25, expect: 'translateZ(2.25em)'},
+  {at: 0.75, expect: 'translateZ(2.75em)'},
+  {at: 1, expect: 'translateZ(3em)'},
+  {at: 2, expect: 'translateZ(4em)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translate3d(12px, 70%, 2em)',
+  to: 'translate3d(13px, 90%, 3em)'
+}, [
+  {at: -1, expect: 'translate3d(11px, 50%, 1em)'},
+  {at: 0, expect: 'translate3d(12px, 70%, 2em)'},
+  {at: 0.25, expect: 'translate3d(12.25px, 75%, 2.25em)'},
+  {at: 0.75, expect: 'translate3d(12.75px, 85%, 2.75em)'},
+  {at: 1, expect: 'translate3d(13px, 90%, 3em)'},
+  {at: 2, expect: 'translate3d(14px, 110%, 4em)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translateX(12px) translateY(70%) translateZ(2em)',
+  to: 'translateX(13px) translateY(90%) translateZ(3em)'
+}, [
+  {at: -1, expect: 'translateX(11px) translateY(50%) translateZ(1em)'},
+  {at: 0, expect: 'translateX(12px) translateY(70%) translateZ(2em)'},
+  {at: 0.25, expect: 'translateX(12.25px) translateY(75%) translateZ(2.25em)'},
+  {at: 0.75, expect: 'translateX(12.75px) translateY(85%) translateZ(2.75em)'},
+  {at: 1, expect: 'translateX(13px) translateY(90%) translateZ(3em)'},
+  {at: 2, expect: 'translateX(14px) translateY(110%) translateZ(4em)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'skewX(10rad) translateY(70%)',
+  to: 'skewX(20rad) translateY(90%)'
+}, [
+  {at: -1, expect: 'skewX(0rad) translateY(50%)'},
+  {at: 0, expect: 'skewX(10rad) translateY(70%)'},
+  {at: 0.25, expect: 'skewX(12.5rad) translateY(75%)'},
+  {at: 0.75, expect: 'skewX(17.5rad) translateY(85%)'},
+  {at: 1, expect: 'skewX(20rad) translateY(90%)'},
+  {at: 2, expect: 'skewX(30rad) translateY(110%)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'skewX(1rad)',
+  to: 'translate3d(8px, -4px, 12px) skewX(2rad)'
+}, [
+  {at: -1, expect: 'matrix3d(1, 0, 0, 0, 5.2998553125713235, 1, 0, 0, 0, 0, 1, 0, -8, 4, -12, 1)'},
+  {at: 0, expect: 'matrix(1, 0, 1.5574077246549023, 1, 0, 0)'},
+  {at: 0.25, expect: 'matrix3d(1, 0, 0, 0, 0.621795827675797, 1, 0, 0, 0, 0, 1, 0, 2, -1, 3, 1)'},
+  {at: 0.75, expect: 'matrix3d(1, 0, 0, 0, -1.2494279662824135, 1, 0, 0, 0, 0, 1, 0, 6, -3, 9, 1)'},
+  {at: 1, expect: 'matrix3d(1, 0, 0, 0, -2.185039863261519, 1, 0, 0, 0, 0, 1, 0, 8, -4, 12, 1)'},
+  {at: 2, expect: 'matrix3d(1, 0, 0, 0, -5.9274874511779405, 1, 0, 0, 0, 0, 1, 0, 16, -8, 24, 1)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translate3d(8px, -4px, 12px) skewX(1rad) perspective(400px)',
+  to: 'scaleY(2) skewX(2rad) perspective(500px)'
+}, [
+  {at: -1, expect: 'matrix3d(1, 0, 0, 0, 0, 0, 0, 0, -0.03876288659793814, 0.01938144329896907, 0.94, -0.0029653608247422686, 16, -8, 24, 0.986144329896907)'},
+  {at: 0, expect: 'matrix3d(1, 0, 0, 0, 1.5574077246549023, 1, 0, 0, -0.02, 0.01, 0.97, -0.0025, 8, -4, 12, 1)'},
+  {at: 0.25, expect: 'matrix3d(1, 0, 0, 0, 1.1186572632293585, 1.25, 0, 0, -0.0151159793814433, 0.00755798969072165, 0.9775, -0.002378247422680413, 6, -3, 9, 1.0012989690721648)'},
+  {at: 0.75, expect: 'matrix3d(1, 0, 0, 0, -0.7525665307288518, 1.75, 0, 0, -0.005115979381443298, 0.002557989690721649, 0.9924999999999999, -0.002128247422680412, 2, -1, 3, 1.001298969072165)'},
+  {at: 1, expect: 'matrix3d(1, 0, 0, 0, -2.185039863261519, 2, 0, 0, 0, 0, 1, -0.002, 0, 0, 0, 1)'},
+  {at: 2, expect: 'matrix3d(1, 0, 0, 0, -11.227342763749263, 3, 0, 0, 0.021237113402061854, -0.010618556701030927, 1.03, -0.0014653608247422677, -8, 4, -12, 0.9861443298969074)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translate3d(8px, -4px, 12px) skewX(1rad) perspective(400px)',
+  to: 'translate3d(4px, -12px, 8px) scaleY(2) perspective(500px)'
+}, [
+  {at: -1, expect: 'translate3d(12px, 4px, 16px) matrix3d(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, -0.003, 0, 0, 0, 1)'},
+  {at: 0, expect: 'translate3d(8px, -4px, 12px) matrix3d(1, 0, 0, 0, 1.55741, 1, 0, 0, 0, 0, 1, -0.0025, 0, 0, 0, 1)'},
+  {at: 0.25, expect: 'translate3d(7px, -6px, 11px) matrix3d(1, 0, 0, 0, 1.46007, 1.25, 0, 0, 0, 0, 1, -0.002375, 0, 0, 0, 1)'},
+  {at: 0.75, expect: 'translate3d(5px, -10px, 9px) matrix3d(1, 0, 0, 0, 0.681366, 1.75, 0, 0, 0, 0, 1, -0.002125, 0, 0, 0, 1)'},
+  {at: 1, expect: 'translate3d(4px, -12px, 8px) matrix3d(1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, -0.002, 0, 0, 0, 1)'},
+  {at: 2, expect: 'translate3d(0px, -20px, 4px) matrix3d(1, 0, 0, 0, -4.67222, 3, 0, 0, 0, 0, 1, -0.0015, 0, 0, 0, 1)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translate3d(8px, -4px, 12px) skewX(1rad) perspective(400px)',
+  to: 'translate3d(4px, -12px, 8px) skewX(2rad) scaleY(2)'
+}, [
+  {at: -1, expect: 'translate3d(12px, 4px, 16px) skewX(0rad) matrix3d(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, -0.005, 0, 0, 0, 1)'},
+  {at: 0, expect: 'translate3d(8px, -4px, 12px) skewX(1rad) matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.0025, 0, 0, 0, 1)'},
+  {at: 0.25, expect: 'translate3d(7px, -6px, 11px) skewX(1.25rad) matrix3d(1, 0, 0, 0, 0, 1.25, 0, 0, 0, 0, 1, -0.001875, 0, 0, 0, 1)'},
+  {at: 0.75, expect: 'translate3d(5px, -10px, 9px) skewX(1.75rad) matrix3d(1, 0, 0, 0, 0, 1.75, 0, 0, 0, 0, 1, -0.000625, 0, 0, 0, 1)'},
+  {at: 1, expect: 'translate3d(4px, -12px, 8px) skewX(2rad) matrix(1, 0, 0, 2, 0, 0)'},
+  {at: 2, expect: 'translate3d(0px, -20px, 4px) skewX(3rad) matrix3d(1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1, 0.0025, 0, 0, 0, 1)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'translate3D(100px, 200px, 300px)',
+  to: 'none'
+}, [
+  {at: -1, expect: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 200, 400, 600, 1)'},
+  {at: 0, expect: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 200, 300, 1)'},
+  {at: 0.25, expect: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 75, 150, 225, 1)'},
+  {at: 0.75, expect: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 25, 50, 75, 1)'},
+  {at: 1, expect: 'matrix(1, 0, 0, 1, 0, 0) '},
+  {at: 2, expect: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -100, -200, -300, 1)'},
+]);
+</script>

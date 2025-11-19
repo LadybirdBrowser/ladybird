@@ -971,6 +971,15 @@ static Optional<FloatMatrix4x4> interpolate_matrices(FloatMatrix4x4 const& from,
     return recompose(interpolated_decomposed);
 }
 
+static StyleValueVector matrix_to_style_value_vector(FloatMatrix4x4 const& matrix)
+{
+    StyleValueVector values;
+    values.ensure_capacity(16);
+    for (int i = 0; i < 16; i++)
+        values.unchecked_append(NumberStyleValue::create(matrix[i % 4, i / 4]));
+    return values;
+}
+
 // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
 RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, CalculationContext const& calculation_context,
     StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete)
@@ -1153,7 +1162,8 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
             parameters.append(transform->values()[0]);
             break;
         default:
-            VERIFY_NOT_REACHED();
+            generic_function = TransformFunction::Matrix3d;
+            parameters = matrix_to_style_value_vector(MUST(transform->to_transformation().to_matrix({})));
         }
         return TransformationStyleValue::create(PropertyID::Transform, generic_function, move(parameters));
     };
@@ -1272,12 +1282,8 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
 
     auto maybe_interpolated_matrix = interpolate_matrices(from_matrix, to_matrix, delta);
     if (maybe_interpolated_matrix.has_value()) {
-        auto interpolated_matrix = maybe_interpolated_matrix.release_value();
-        StyleValueVector values;
-        values.ensure_capacity(16);
-        for (int i = 0; i < 16; i++)
-            values.unchecked_append(NumberStyleValue::create(interpolated_matrix[i % 4, i / 4]));
-        result.append(TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(values)));
+        result.append(TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d,
+            matrix_to_style_value_vector(maybe_interpolated_matrix.release_value())));
     } else {
         dbgln("Unable to interpolate matrices.");
     }
