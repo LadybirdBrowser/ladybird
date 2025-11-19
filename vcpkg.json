@@ -56,7 +56,7 @@
     },
     {
       "name": "fontconfig",
-      "platform": "linux | freebsd | openbsd | osx | windows"
+      "platform": "linux | freebsd | openbsd | osx"
     },
     {
       "name": "harfbuzz",
@@ -175,7 +175,17 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd | windows",
+      "platform": "windows",
+      "features": [
+        "freetype",
+        "harfbuzz",
+        "icu",
+        "vulkan"
+      ]
+    },
+    {
+      "name": "skia",
+      "platform": "linux | freebsd | openbsd",
       "features": [
         "freetype",
         "fontconfig",
