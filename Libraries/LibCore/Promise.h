@@ -36,6 +36,11 @@ public:
     static NonnullRefPtr<Promise> after(Vector<NonnullRefPtr<Promise<U, E>>> promises)
     {
         auto promise = Promise::construct();
+        if (promises.is_empty()) {
+            promise->resolve({});
+            return promise;
+        }
+
         struct Resolved : RefCounted<Resolved> {
             explicit Resolved(size_t n)
                 : needed(n)
