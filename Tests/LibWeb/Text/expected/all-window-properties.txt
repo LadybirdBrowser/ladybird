@@ -401,6 +401,7 @@ SVGGradientElement
 SVGGraphicsElement
 SVGImageElement
 SVGLength
+SVGLengthList
 SVGLineElement
 SVGLinearGradientElement
 SVGMaskElement

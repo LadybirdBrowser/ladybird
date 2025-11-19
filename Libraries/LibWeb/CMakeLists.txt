@@ -940,6 +940,7 @@ set(SOURCES
     SVG/SVGGraphicsElement.cpp
     SVG/SVGImageElement.cpp
     SVG/SVGLength.cpp
+    SVG/SVGLengthList.cpp
     SVG/SVGLinearGradientElement.cpp
     SVG/SVGLineElement.cpp
     SVG/SVGList.cpp
