@@ -27,7 +27,6 @@ public:
     void assign_scroll_frames();
     void refresh_scroll_state();
 
-    HashMap<GC::Ptr<PaintableBox const>, RefPtr<ClipFrame>> clip_state;
     void assign_clip_frames();
 
     void resolve_paint_only_properties();
@@ -53,6 +52,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    HashMap<GC::Ptr<PaintableBox const>, RefPtr<ClipFrame>> m_clip_state;
     ScrollState m_scroll_state;
     bool m_needs_to_refresh_scroll_state { true };
 

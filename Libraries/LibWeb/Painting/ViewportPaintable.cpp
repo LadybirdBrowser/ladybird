@@ -127,7 +127,7 @@ void ViewportPaintable::assign_clip_frames()
         auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
         if (has_hidden_overflow || paintable_box.get_clip_rect().has_value() || paintable_box.layout_node().has_paint_containment()) {
             auto clip_frame = adopt_ref(*new ClipFrame());
-            clip_state.set(paintable_box, move(clip_frame));
+            m_clip_state.set(paintable_box, move(clip_frame));
         }
         return TraversalDecision::Continue;
     });
@@ -135,12 +135,12 @@ void ViewportPaintable::assign_clip_frames()
     for_each_in_subtree([&](auto& paintable) {
         if (paintable.is_paintable_box()) {
             auto& paintable_box = static_cast<PaintableBox&>(paintable);
-            if (auto clip_frame = clip_state.get(paintable_box); clip_frame.has_value()) {
+            if (auto clip_frame = m_clip_state.get(paintable_box); clip_frame.has_value()) {
                 paintable_box.set_own_clip_frame(clip_frame.value());
             }
         }
         for (auto block = paintable.containing_block(); !block->is_viewport_paintable(); block = block->containing_block()) {
-            if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
+            if (auto clip_frame = m_clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
                     auto& paintable_box = static_cast<PaintableBox&>(paintable);
                     paintable_box.set_enclosing_clip_frame(clip_frame.value());
@@ -153,7 +153,7 @@ void ViewportPaintable::assign_clip_frames()
         return TraversalDecision::Continue;
     });
 
-    for (auto& it : clip_state) {
+    for (auto& it : m_clip_state) {
         auto const& paintable_box = *it.key;
         auto& clip_frame = *it.value;
         for (auto const* block = &paintable_box.layout_node_with_style_and_box_metrics(); !block->is_viewport(); block = block->containing_block()) {
@@ -404,7 +404,7 @@ bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, un
 void ViewportPaintable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(clip_state);
+    visitor.visit(m_clip_state);
     visitor.visit(m_paintable_boxes_with_auto_content_visibility);
 }
 
