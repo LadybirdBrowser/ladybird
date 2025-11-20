@@ -99,18 +99,18 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
     auto root_element = root();
 
     if (index >= length) {
-        // 3. Let n be index minus length.
-        auto n = index - length;
+        // 3. Let delta be index minus length
+        auto delta = index - length;
 
-        // 4. If n is greater than zero, then append a DocumentFragment consisting of n-1 new option elements with no attributes and no child nodes to the select element on which the HTMLOptionsCollection is rooted.
-        if (n > 0) {
-            // AD-HOC: https://github.com/whatwg/html/issues/11905
-            for (WebIDL::UnsignedLong i = 0; i < n; i++) {
+        // 4. If delta is greater than zero, then append a DocumentFragment consisting of delta new option elements with
+        //    no attributes and no child nodes to the select element on which the HTMLOptionsCollection is rooted.
+        if (delta > 0) {
+            for (WebIDL::UnsignedLong i = 0; i < delta; i++) {
                 TRY(root_element->append_child(TRY(DOM::create_element(root_element->document(), HTML::TagNames::option, Namespace::HTML))));
             }
         }
 
-        // 5. If n is greater than or equal to zero, append value to the select element.
+        // 5. If delta is greater than or equal to zero, append value to the select element.
         TRY(root_element->append_child(option));
     } else {
         // 5 (cont). Otherwise, replace the indexth element in the collection by value.
