@@ -158,8 +158,8 @@ template<typename T>
 void VideoDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&& function)
 {
     m_last_processed_seek_id = seek_id;
-    m_main_thread_event_loop.deferred_invoke([this, seek_id, function] mutable {
-        if (m_seek_id != seek_id)
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), seek_id, function] mutable {
+        if (self->m_seek_id != seek_id)
             return;
         function();
     });
@@ -168,8 +168,8 @@ void VideoDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&&
 void VideoDataProvider::ThreadData::resolve_seek(u32 seek_id, AK::Duration const& timestamp)
 {
     m_is_in_error_state = false;
-    process_seek_on_main_thread(seek_id, [this, timestamp] {
-        auto handler = move(m_seek_completion_handler);
+    process_seek_on_main_thread(seek_id, [self = NonnullRefPtr(*this), timestamp] {
+        auto handler = move(self->m_seek_completion_handler);
         if (handler)
             handler(timestamp);
     });
@@ -198,9 +198,9 @@ bool VideoDataProvider::ThreadData::handle_seek()
             m_queue.clear();
         }
         process_seek_on_main_thread(seek_id,
-            [this, error = move(error)] mutable {
-                m_error_handler(move(error));
-                m_seek_completion_handler = nullptr;
+            [self = NonnullRefPtr(*this), error = move(error)] mutable {
+                self->m_error_handler(move(error));
+                self->m_seek_completion_handler = nullptr;
             });
     };
 
@@ -346,8 +346,8 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             m_is_in_error_state = true;
             while (!m_error_handler)
                 m_wait_condition.wait();
-            m_main_thread_event_loop.deferred_invoke([this, error = move(error)] mutable {
-                m_error_handler(move(error));
+            m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), error = move(error)] mutable {
+                self->m_error_handler(move(error));
             });
         }
 
