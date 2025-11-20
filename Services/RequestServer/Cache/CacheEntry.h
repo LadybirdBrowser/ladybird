@@ -22,10 +22,14 @@ struct CacheHeader {
     static ErrorOr<CacheHeader> read_from_stream(Stream&);
     ErrorOr<void> write_to_stream(Stream&) const;
 
+    u32 hash() const;
+
     static constexpr auto CACHE_MAGIC = 0xcafef00du;
 
     u32 magic { CACHE_MAGIC };
     u32 version { CACHE_VERSION };
+
+    u32 key_hash { 0 };
 
     u32 url_size { 0 };
     u32 url_hash { 0 };
@@ -40,7 +44,7 @@ struct CacheFooter {
     ErrorOr<void> write_to_stream(Stream&) const;
 
     u64 data_size { 0 };
-    u32 crc32 { 0 };
+    u32 header_hash { 0 };
 };
 
 // A cache entry is an amalgamation of all information needed to reconstruct HTTP responses. It is created once we have
