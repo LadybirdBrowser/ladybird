@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-name">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+
+test_valid_value('scroll-timeline-name', 'initial');
+test_valid_value('scroll-timeline-name', 'inherit');
+test_valid_value('scroll-timeline-name', 'unset');
+test_valid_value('scroll-timeline-name', 'revert');
+
+test_valid_value('scroll-timeline-name', 'none');
+test_valid_value('scroll-timeline-name', '--abc');
+test_valid_value('scroll-timeline-name', '  --abc', '--abc');
+test_valid_value('scroll-timeline-name', '--aBc');
+test_valid_value('scroll-timeline-name', '--foo, --bar');
+test_valid_value('scroll-timeline-name', '--bar, --foo');
+test_valid_value('scroll-timeline-name', 'none, none');
+test_valid_value('scroll-timeline-name', '--a, none, --b');
+
+test_invalid_value('scroll-timeline-name', 'auto');
+test_invalid_value('scroll-timeline-name', 'abc');
+test_invalid_value('scroll-timeline-name', 'default');
+test_invalid_value('scroll-timeline-name', '10px');
+test_invalid_value('scroll-timeline-name', 'foo bar');
+test_invalid_value('scroll-timeline-name', '"foo" "bar"');
+test_invalid_value('scroll-timeline-name', 'rgb(1, 2, 3)');
+test_invalid_value('scroll-timeline-name', '#fefefe');
+
+</script>
