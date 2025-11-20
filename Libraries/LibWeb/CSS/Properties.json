@@ -3440,6 +3440,16 @@
     "affects-layout": false,
     "affects-stacking-context": true
   },
+  "scroll-timeline": {
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "none block",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "scroll-timeline-name",
+      "scroll-timeline-axis"
+    ]
+  },
   "scroll-timeline-axis": {
     "affects-layout": false,
     "animation-type": "none",
