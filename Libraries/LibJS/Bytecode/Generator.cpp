@@ -41,13 +41,13 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             }
         }
         if (has_non_local_parameters)
-            emit<Op::CreateLexicalEnvironment>();
+            emit<Op::CreateLexicalEnvironment>(OptionalNone {}, 0);
     }
 
     for (auto const& parameter_name : function.shared_data().m_parameter_names) {
         if (parameter_name.value == SharedFunctionInstanceData::ParameterIsLocal::No) {
             auto id = intern_identifier(parameter_name.key);
-            emit<Op::CreateVariable>(id, Op::EnvironmentMode::Lexical, false);
+            emit<Op::CreateVariable>(id, Op::EnvironmentMode::Lexical, false, false, false);
             if (function.shared_data().m_has_duplicates) {
                 emit<Op::InitializeLexicalBinding>(id, add_constant(js_undefined()));
             }
@@ -61,9 +61,9 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             dst = local(Identifier::Local::variable(local_var_index.value()));
 
         if (function.is_strict_mode() || !function.has_simple_parameter_list()) {
-            emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Unmapped, function.is_strict_mode());
+            emit<Op::CreateArguments>(dst, Op::ArgumentsKind::Unmapped, function.is_strict_mode());
         } else {
-            emit<Op::CreateArguments>(dst, Op::CreateArguments::Kind::Mapped, function.is_strict_mode());
+            emit<Op::CreateArguments>(dst, Op::ArgumentsKind::Mapped, function.is_strict_mode());
         }
 
         if (local_var_index.has_value())
@@ -123,7 +123,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
                     emit<Op::Mov>(local(id.local_index()), add_constant(js_undefined()));
                 } else {
                     auto intern_id = intern_identifier(id.string());
-                    emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false);
+                    emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
                     emit<Op::InitializeVariableBinding>(intern_id, add_constant(js_undefined()));
                 }
             }
@@ -161,7 +161,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
                     emit<Op::Mov>(local(id.local_index()), initial_value);
                 } else {
                     auto intern_id = intern_identifier(id.string());
-                    emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false);
+                    emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
                     emit<Op::InitializeVariableBinding>(intern_id, initial_value);
                 }
             }
@@ -171,7 +171,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     if (!function.is_strict_mode() && scope_body) {
         for (auto const& function_name : function.shared_data().m_function_names_to_initialize_binding) {
             auto intern_id = intern_identifier(function_name);
-            emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false);
+            emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
             emit<Op::InitializeVariableBinding>(intern_id, add_constant(js_undefined()));
         }
     }
@@ -203,11 +203,11 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         auto const& identifier = *declaration.name_identifier();
         if (identifier.is_local()) {
             auto local_index = identifier.local_index();
-            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {});
+            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {}, OptionalNone {});
             set_local_initialized(local_index);
         } else {
             auto function = allocate_register();
-            emit<Op::NewFunction>(function, declaration, OptionalNone {});
+            emit<Op::NewFunction>(function, declaration, OptionalNone {}, OptionalNone {});
             emit<Op::SetVariableBinding>(intern_identifier(declaration.name()), function);
         }
     }
@@ -583,7 +583,7 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
         return false;
 
     auto environment = allocate_register();
-    emit<Bytecode::Op::CreateLexicalEnvironment>(environment);
+    emit<Bytecode::Op::CreateLexicalEnvironment>(environment, 0);
     start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
     MUST(scope_node.for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
@@ -618,7 +618,7 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
 
             // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
             auto fo = allocate_register();
-            emit<Bytecode::Op::NewFunction>(fo, function_declaration, OptionalNone {});
+            emit<Bytecode::Op::NewFunction>(fo, function_declaration, OptionalNone {}, OptionalNone {});
 
             // iii. Perform ! env.InitializeBinding(fn, fo). NOTE: This step is replaced in section B.3.2.6.
             if (function_declaration.name_identifier()->is_local()) {
@@ -640,7 +640,7 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
 void Generator::begin_variable_scope()
 {
     start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-    emit<Bytecode::Op::CreateLexicalEnvironment>();
+    emit<Bytecode::Op::CreateLexicalEnvironment>(OptionalNone {}, 0);
 }
 
 void Generator::end_variable_scope()
@@ -1144,7 +1144,7 @@ void Generator::pop_home_object()
 void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name)
 {
     if (m_home_objects.is_empty()) {
-        emit<Op::NewFunction>(dst, function_node, lhs_name);
+        emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {});
     } else {
         emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last());
     }
