@@ -36,7 +36,7 @@ struct Resolver
     DNS::Resolver dns;
 
 private:
-    explicit Resolver(Function<ErrorOr<DNS::Resolver::SocketResult>()> create_socket);
+    explicit Resolver(DNS::Resolver::CreateSocketFunction create_socket);
 };
 
 ByteString const& default_certificate_path();

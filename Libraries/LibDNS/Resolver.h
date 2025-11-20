@@ -232,7 +232,9 @@ public:
         ConnectionMode mode;
     };
 
-    Resolver(Function<ErrorOr<SocketResult>()> create_socket)
+    using CreateSocketFunction = Function<NonnullRefPtr<Core::Promise<SocketResult>>()>;
+
+    Resolver(CreateSocketFunction create_socket)
         : m_pending_lookups(make<RedBlackTree<u16, PendingLookup>>())
         , m_create_socket(move(create_socket))
     {
@@ -256,15 +258,36 @@ public:
     NonnullRefPtr<Core::Promise<Empty>> when_socket_ready()
     {
         auto promise = Core::Promise<Empty>::construct();
-        m_socket_ready_promises.append(promise);
-        if (has_connection(false)) {
-            promise->resolve({});
-            return promise;
-        }
 
-        if (!has_connection())
-            promise->reject(Error::from_string_literal("Failed to create socket"));
+        auto has_connection_without_restart_promise = has_connection(false);
+        has_connection_without_restart_promise->when_resolved([this, promise](bool ready) {
+            if (ready) {
+                promise->resolve({});
+                return;
+            }
 
+            auto has_connection_with_restart_promise = has_connection();
+            has_connection_with_restart_promise->when_resolved([promise](bool ready) {
+                if (ready) {
+                    promise->resolve({});
+                    return;
+                }
+
+                promise->reject(Error::from_string_literal("Failed to create socket"));
+            });
+
+            has_connection_with_restart_promise->when_rejected([promise](Error const& error) {
+                promise->reject(Error::copy(error));
+            });
+
+            promise->add_child(move(has_connection_with_restart_promise));
+        });
+
+        has_connection_without_restart_promise->when_rejected([promise](Error const& error) {
+            promise->reject(Error::copy(error));
+        });
+
+        promise->add_child(move(has_connection_without_restart_promise));
         return promise;
     }
 
@@ -358,7 +381,7 @@ public:
             return promise;
         }
 
-        auto promise = options.repeating_lookup ? options.repeating_lookup->promise : Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+        auto lookup_promise = options.repeating_lookup ? options.repeating_lookup->promise : Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
 
         if (auto maybe_ipv4 = IPv4Address::from_string(name); maybe_ipv4.has_value()) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} as IPv4", name);
@@ -366,8 +389,8 @@ public:
                 auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
                 result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { maybe_ipv4.release_value() }, .raw = {} });
                 result->finished_request();
-                promise->resolve(move(result));
-                return promise;
+                lookup_promise->resolve(move(result));
+                return lookup_promise;
             }
         }
 
@@ -377,8 +400,8 @@ public:
                 auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
                 result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { maybe_ipv6.release_value() }, .raw = {} });
                 result->finished_request();
-                promise->resolve(move(result));
-                return promise;
+                lookup_promise->resolve(move(result));
+                return lookup_promise;
             }
         }
 
@@ -386,18 +409,222 @@ public:
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
             if (!options.validate_dnssec_locally || result->is_dnssec_validated()) {
                 dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
-                promise->resolve(result.release_nonnull());
-                return promise;
+                lookup_promise->resolve(result.release_nonnull());
+                return lookup_promise;
             }
             dbgln_if(DNS_DEBUG, "DNS: Cache entry for {} is not DNSSEC validated (and we expect that), re-resolving", name);
         }
 
         auto domain_name = Messages::DomainName::from_string(name);
 
-        if (!has_connection()) {
+        auto has_established_connection = [=, this] {
+            auto already_in_cache = false;
+            auto result = m_cache.with_write_locked([&](auto& cache) -> NonnullRefPtr<LookupResult> {
+                dbgln_if(DNS_DEBUG, "DNS: Resolving {}...", name);
+                auto existing = [&] -> RefPtr<LookupResult> {
+                    if (cache.contains(name)) {
+                        dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
+                        auto ptr = *cache.get(name);
+
+                        already_in_cache = (!options.validate_dnssec_locally && !ptr->is_being_dnssec_validated()) || ptr->is_dnssec_validated();
+                        for (auto const& type : desired_types) {
+                            if (!ptr->has_record_of_type(type, !options.validate_dnssec_locally && !ptr->is_being_dnssec_validated())) {
+                                already_in_cache = false;
+                                break;
+                            }
+                        }
+
+                        dbgln_if(DNS_DEBUG, "DNS: Found {} in cache, already_in_cache={}", name, already_in_cache);
+                        dbgln_if(DNS_DEBUG, "DNS: That entry is {} DNSSEC validated", ptr->is_dnssec_validated() ? "already" : "not");
+                        for (auto const& entry : ptr->records())
+                            dbgln_if(DNS_DEBUG, "DNS: Found record of type {}", Messages::to_string(entry.type));
+                        return ptr;
+                    }
+                    return nullptr;
+                }();
+
+                if (existing) {
+                    dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
+                    return *existing;
+                }
+
+                dbgln_if(DNS_DEBUG, "DNS: Adding {} to cache", name);
+                auto ptr = make_ref_counted<LookupResult>(domain_name);
+                if (!ptr->is_dnssec_validated())
+                    ptr->set_dnssec_validated(options.validate_dnssec_locally);
+                for (auto const& type : desired_types)
+                    ptr->will_add_record_of_type(type);
+                cache.set(name, ptr);
+                return ptr;
+            });
+
+            Optional<u16> cached_result_id;
+            if (already_in_cache) {
+                auto id = result->id();
+                cached_result_id = id;
+                auto existing_promise = m_pending_lookups.with_write_locked(
+                    [&](auto& lookups) -> RefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> {
+                        if (auto* lookup = lookups->find(id))
+                            return lookup->promise;
+                        return nullptr;
+                    });
+                if (existing_promise) {
+                    auto previous_on_resolution = move(existing_promise->on_resolution);
+                    existing_promise->on_resolution = [lookup_promise, previous_on_resolution = move(previous_on_resolution)](NonnullRefPtr<LookupResult const> result) -> ErrorOr<void> {
+                        TRY(previous_on_resolution(result));
+                        lookup_promise->resolve(move(result));
+                        return {};
+                    };
+
+                    auto previous_on_rejection = move(existing_promise->on_rejection);
+                    existing_promise->on_rejection = [lookup_promise, previous_on_rejection = move(previous_on_rejection)](Error& error) -> void {
+                        previous_on_rejection(error);
+                        lookup_promise->reject(Error::copy(error));
+                    };
+
+                    existing_promise->add_child(lookup_promise);
+                    return;
+                }
+
+                // Something has gone wrong if there are no pending lookups but the result isn't done.
+                // Continue on and hope that we eventually resolve or timeout in that case.
+                if (result->is_done()) {
+                    lookup_promise->resolve(*result);
+                    return;
+                }
+            }
+
+            Messages::Message query;
+            if (cached_result_id.has_value()) {
+                query.header.id = cached_result_id.value();
+            } else if (options.repeating_lookup) {
+                query.header.id = options.repeating_lookup->id;
+                options.repeating_lookup->times_repeated++;
+            } else {
+                m_pending_lookups.with_read_locked([&](auto& lookups) {
+                    do
+                        fill_with_random({ &query.header.id, sizeof(query.header.id) });
+                    while (lookups->find(query.header.id) != nullptr);
+                });
+            }
+            query.header.question_count = max(1u, desired_types.size());
+            query.header.options.set_response_code(Messages::Options::ResponseCode::NoError);
+            query.header.options.set_recursion_desired(true);
+            query.header.options.set_op_code(Messages::OpCode::Query);
+            for (auto const& type : desired_types) {
+                query.questions.append(Messages::Question {
+                    .name = domain_name,
+                    .type = type,
+                    .class_ = class_,
+                });
+            }
+
+            if (query.questions.is_empty()) {
+                query.questions.append(Messages::Question {
+                    .name = Messages::DomainName::from_string(name),
+                    .type = Messages::ResourceType::A,
+                    .class_ = class_,
+                });
+            }
+
             if (options.validate_dnssec_locally) {
-                promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
-                return promise;
+                query.header.additional_count = 1;
+                query.header.options.set_checking_disabled(true);
+                query.header.options.set_authenticated_data(true);
+                auto opt = Messages::Records::OPT {
+                    .udp_payload_size = 4096,
+                    .extended_rcode_and_flags = 0,
+                    .options = {},
+                };
+                opt.set_dnssec_ok(true);
+
+                query.additional_records.append(Messages::ResourceRecord {
+                    .name = Messages::DomainName::from_string(""sv),
+                    .type = Messages::ResourceType::OPT,
+                    .class_ = class_,
+                    .ttl = 0,
+                    .record = move(opt),
+                    .raw = {},
+                });
+            }
+
+            result->set_id(query.header.id);
+
+            auto cached_entry = options.repeating_lookup
+                ? nullptr
+                : m_pending_lookups.with_write_locked([&](auto& pending_lookups) -> PendingLookup* {
+                      // One more try to make sure we're not overwriting an existing lookup
+                      if (cached_result_id.has_value()) {
+                          if (auto* lookup = pending_lookups->find(*cached_result_id))
+                              return lookup;
+                      }
+
+                      pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, result->make_weak_ptr(), lookup_promise, Core::Timer::create(), 0 });
+                      auto p = pending_lookups->find(query.header.id);
+                      p->repeat_timer->set_single_shot(true);
+                      p->repeat_timer->set_interval(1000);
+                      p->repeat_timer->on_timeout = [=, this] {
+                          (void)lookup(name, class_, desired_types, { .validate_dnssec_locally = options.validate_dnssec_locally, .repeating_lookup = p });
+                      };
+
+                      return nullptr;
+                  });
+
+            if (cached_entry) {
+                dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Lookup already underway", name);
+                auto previous_on_resolution = move(cached_entry->promise->on_resolution);
+                cached_entry->promise->on_resolution = [lookup_promise, previous_on_resolution = move(previous_on_resolution)](NonnullRefPtr<LookupResult const> result) -> ErrorOr<void> {
+                    TRY(previous_on_resolution(result));
+                    lookup_promise->resolve(move(result));
+                    return {};
+                };
+
+                auto previous_on_rejection = move(cached_entry->promise->on_rejection);
+                cached_entry->promise->on_rejection = [lookup_promise, previous_on_rejection = move(previous_on_rejection)](Error& error) -> void {
+                    previous_on_rejection(error);
+                    lookup_promise->reject(Error::copy(error));
+                };
+
+                cached_entry->promise->add_child(lookup_promise);
+                return;
+            }
+
+            auto pending_lookup = m_pending_lookups.with_write_locked([&](auto& lookups) -> PendingLookup* {
+                return lookups->find(query.header.id);
+            });
+
+            ByteBuffer query_bytes;
+            MUST(query.to_raw(query_bytes));
+
+            if (m_mode == ConnectionMode::TCP) {
+                auto original_query_bytes = query_bytes;
+                query_bytes = MUST(ByteBuffer::create_uninitialized(query_bytes.size() + sizeof(u16)));
+                NetworkOrdered<u16> size = original_query_bytes.size();
+                query_bytes.overwrite(0, &size, sizeof(size));
+                query_bytes.overwrite(sizeof(size), original_query_bytes.data(), original_query_bytes.size());
+            }
+
+            auto write_result = m_socket.with_write_locked([&](auto& socket) {
+                return (*socket)->write_until_depleted(query_bytes.bytes());
+            });
+            if (write_result.is_error()) {
+                lookup_promise->reject(write_result.release_error());
+                return;
+            }
+
+            pending_lookup->repeat_timer->start();
+        };
+
+        auto has_connection_with_restart_promise = has_connection();
+        has_connection_with_restart_promise->when_resolved([options, name, domain_name, lookup_promise, has_established_connection = move(has_established_connection)](bool has_connection) {
+            if (has_connection) {
+                has_established_connection();
+                return;
+            }
+
+            if (options.validate_dnssec_locally) {
+                lookup_promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
+                return;
             }
 
             // Use system resolver
@@ -405,8 +632,8 @@ public:
             dbgln_if(DNS_DEBUG, "Not ready to resolve, using system resolver and skipping cache for {}", name);
             auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream);
             if (record_or_error.is_error()) {
-                promise->reject(record_or_error.release_error());
-                return promise;
+                lookup_promise->reject(record_or_error.release_error());
+                return;
             }
             auto result = make_ref_counted<LookupResult>(domain_name);
             auto records = record_or_error.release_value();
@@ -421,189 +648,15 @@ public:
                     });
             }
             result->finished_request();
-            promise->resolve(result);
-            return promise;
-        }
-
-        auto already_in_cache = false;
-        auto result = m_cache.with_write_locked([&](auto& cache) -> NonnullRefPtr<LookupResult> {
-            dbgln_if(DNS_DEBUG, "DNS: Resolving {}...", name);
-            auto existing = [&] -> RefPtr<LookupResult> {
-                if (cache.contains(name)) {
-                    dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
-                    auto ptr = *cache.get(name);
-
-                    already_in_cache = (!options.validate_dnssec_locally && !ptr->is_being_dnssec_validated()) || ptr->is_dnssec_validated();
-                    for (auto const& type : desired_types) {
-                        if (!ptr->has_record_of_type(type, !options.validate_dnssec_locally && !ptr->is_being_dnssec_validated())) {
-                            already_in_cache = false;
-                            break;
-                        }
-                    }
-
-                    dbgln_if(DNS_DEBUG, "DNS: Found {} in cache, already_in_cache={}", name, already_in_cache);
-                    dbgln_if(DNS_DEBUG, "DNS: That entry is {} DNSSEC validated", ptr->is_dnssec_validated() ? "already" : "not");
-                    for (auto const& entry : ptr->records())
-                        dbgln_if(DNS_DEBUG, "DNS: Found record of type {}", Messages::to_string(entry.type));
-                    return ptr;
-                }
-                return nullptr;
-            }();
-
-            if (existing) {
-                dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
-                return *existing;
-            }
-
-            dbgln_if(DNS_DEBUG, "DNS: Adding {} to cache", name);
-            auto ptr = make_ref_counted<LookupResult>(domain_name);
-            if (!ptr->is_dnssec_validated())
-                ptr->set_dnssec_validated(options.validate_dnssec_locally);
-            for (auto const& type : desired_types)
-                ptr->will_add_record_of_type(type);
-            cache.set(name, ptr);
-            return ptr;
+            lookup_promise->resolve(result);
         });
 
-        Optional<u16> cached_result_id;
-        if (already_in_cache) {
-            auto id = result->id();
-            cached_result_id = id;
-            auto existing_promise = m_pending_lookups.with_write_locked(
-                [&](auto& lookups) -> RefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> {
-                    if (auto* lookup = lookups->find(id))
-                        return lookup->promise;
-                    return nullptr;
-                });
-            if (existing_promise)
-                return existing_promise.release_nonnull();
-
-            // Something has gone wrong if there are no pending lookups but the result isn't done.
-            // Continue on and hope that we eventually resolve or timeout in that case.
-            if (result->is_done()) {
-                promise->resolve(*result);
-                return promise;
-            }
-        }
-
-        Messages::Message query;
-        if (cached_result_id.has_value()) {
-            query.header.id = cached_result_id.value();
-        } else if (options.repeating_lookup) {
-            query.header.id = options.repeating_lookup->id;
-            options.repeating_lookup->times_repeated++;
-        } else {
-            m_pending_lookups.with_read_locked([&](auto& lookups) {
-                do
-                    fill_with_random({ &query.header.id, sizeof(query.header.id) });
-                while (lookups->find(query.header.id) != nullptr);
-            });
-        }
-        query.header.question_count = max(1u, desired_types.size());
-        query.header.options.set_response_code(Messages::Options::ResponseCode::NoError);
-        query.header.options.set_recursion_desired(true);
-        query.header.options.set_op_code(Messages::OpCode::Query);
-        for (auto const& type : desired_types) {
-            query.questions.append(Messages::Question {
-                .name = domain_name,
-                .type = type,
-                .class_ = class_,
-            });
-        }
-
-        if (query.questions.is_empty()) {
-            query.questions.append(Messages::Question {
-                .name = Messages::DomainName::from_string(name),
-                .type = Messages::ResourceType::A,
-                .class_ = class_,
-            });
-        }
-
-        if (options.validate_dnssec_locally) {
-            query.header.additional_count = 1;
-            query.header.options.set_checking_disabled(true);
-            query.header.options.set_authenticated_data(true);
-            auto opt = Messages::Records::OPT {
-                .udp_payload_size = 4096,
-                .extended_rcode_and_flags = 0,
-                .options = {},
-            };
-            opt.set_dnssec_ok(true);
-
-            query.additional_records.append(Messages::ResourceRecord {
-                .name = Messages::DomainName::from_string(""sv),
-                .type = Messages::ResourceType::OPT,
-                .class_ = class_,
-                .ttl = 0,
-                .record = move(opt),
-                .raw = {},
-            });
-        }
-
-        result->set_id(query.header.id);
-
-        auto cached_entry = options.repeating_lookup
-            ? nullptr
-            : m_pending_lookups.with_write_locked([&](auto& pending_lookups) -> PendingLookup* {
-                  // One more try to make sure we're not overwriting an existing lookup
-                  if (cached_result_id.has_value()) {
-                      if (auto* lookup = pending_lookups->find(*cached_result_id))
-                          return lookup;
-                  }
-
-                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
-                  auto p = pending_lookups->find(query.header.id);
-                  p->repeat_timer->set_single_shot(true);
-                  p->repeat_timer->set_interval(1000);
-                  p->repeat_timer->on_timeout = [=, this] {
-                      (void)lookup(name, class_, desired_types, { .validate_dnssec_locally = options.validate_dnssec_locally, .repeating_lookup = p });
-                  };
-
-                  return nullptr;
-              });
-
-        if (cached_entry) {
-            dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Lookup already underway", name);
-            auto user_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
-            promise->on_resolution = [user_promise, cached_promise = cached_entry->promise](auto& result) {
-                user_promise->resolve(*result);
-                cached_promise->resolve(*result);
-                return ErrorOr<void> {};
-            };
-            promise->on_rejection = [user_promise, cached_promise = cached_entry->promise](auto& error) {
-                user_promise->reject(Error::copy(error));
-                cached_promise->reject(Error::copy(error));
-            };
-            cached_entry->promise = move(promise);
-            return user_promise;
-        }
-
-        auto pending_lookup = m_pending_lookups.with_write_locked([&](auto& lookups) -> PendingLookup* {
-            return lookups->find(query.header.id);
+        has_connection_with_restart_promise->when_rejected([lookup_promise](Error const& error) {
+            lookup_promise->reject(Error::copy(error));
         });
 
-        ByteBuffer query_bytes;
-        MUST(query.to_raw(query_bytes));
-
-        if (m_mode == ConnectionMode::TCP) {
-            auto original_query_bytes = query_bytes;
-            query_bytes = MUST(ByteBuffer::create_uninitialized(query_bytes.size() + sizeof(u16)));
-            NetworkOrdered<u16> size = original_query_bytes.size();
-            query_bytes.overwrite(0, &size, sizeof(size));
-            query_bytes.overwrite(sizeof(size), original_query_bytes.data(), original_query_bytes.size());
-        }
-
-        auto write_result = m_socket.with_write_locked([&](auto& socket) {
-            return (*socket)->write_until_depleted(query_bytes.bytes());
-        });
-        if (write_result.is_error()) {
-            promise->reject(write_result.release_error());
-            return promise;
-        }
-
-        pending_lookup->repeat_timer->start();
-
-        return promise;
+        lookup_promise->add_child(move(has_connection_with_restart_promise));
+        return lookup_promise;
     }
 
 private:
@@ -1222,25 +1275,35 @@ private:
         return promise;
     }
 
-    bool has_connection(bool attempt_restart = true)
+    NonnullRefPtr<Core::Promise<bool>> has_connection(bool attempt_restart = true)
     {
+        auto promise = Core::Promise<bool>::construct();
+
         auto result = m_socket.with_read_locked(
             [&](auto& socket) { return socket.has_value() && (*socket)->is_open(); });
 
         if (attempt_restart && !result && !m_attempting_restart) {
-            TemporaryChange change(m_attempting_restart, true);
-            auto create_result = m_create_socket();
-            if (create_result.is_error()) {
-                dbgln_if(DNS_DEBUG, "DNS: Failed to create socket: {}", create_result.error());
-                return false;
-            }
+            m_attempting_restart = true;
 
-            auto [socket, mode] = MUST(move(create_result));
-            set_socket(move(socket), mode);
-            result = true;
+            auto create_socket_promise = m_create_socket();
+            create_socket_promise->when_resolved([this, promise](SocketResult& result) {
+                m_attempting_restart = false;
+                set_socket(move(result.socket), result.mode);
+                promise->resolve(true);
+            });
+
+            create_socket_promise->when_rejected([this, promise](Error const& error) {
+                dbgln_if(DNS_DEBUG, "DNS: Failed to create socket: {}", error);
+                m_attempting_restart = false;
+                promise->resolve(false);
+            });
+
+            promise->add_child(move(create_socket_promise));
+        } else {
+            promise->resolve(move(result));
         }
 
-        return result;
+        return promise;
     }
 
     void set_socket(MaybeOwned<Core::Socket> socket, ConnectionMode mode = ConnectionMode::UDP)
@@ -1253,11 +1316,6 @@ private:
             };
             (*s)->set_notifications_enabled(true);
         });
-
-        for (auto& promise : m_socket_ready_promises)
-            promise->resolve({});
-
-        m_socket_ready_promises.clear();
     }
 
     void flush_cache()
@@ -1277,10 +1335,9 @@ private:
     Threading::RWLockProtected<HashMap<ByteString, NonnullRefPtr<LookupResult>>> m_cache;
     Threading::RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
     Threading::RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
-    Function<ErrorOr<SocketResult>()> m_create_socket;
+    CreateSocketFunction m_create_socket;
     bool m_attempting_restart { false };
     ConnectionMode m_mode { ConnectionMode::UDP };
-    Vector<NonnullRefPtr<Core::Promise<Empty>>> m_socket_ready_promises;
 };
 
 }
