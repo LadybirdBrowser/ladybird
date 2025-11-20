@@ -27,6 +27,7 @@ public:
 
     void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
 
     Vector<ColorStopListElement> const& color_stop_list() const
@@ -42,7 +43,7 @@ public:
         return InterpolationMethod { .color_space = InterpolationMethod::default_color_space(m_properties.color_syntax) };
     }
 
-    float angle_degrees(CalculationResolutionContext const&) const;
+    float angle_degrees() const;
 
     bool is_paintable() const override { return true; }
 

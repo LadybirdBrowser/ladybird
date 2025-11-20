@@ -54,6 +54,7 @@ public:
 
     void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
 
     Vector<ColorStopListElement> const& color_stop_list() const
@@ -73,7 +74,7 @@ public:
 
     void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
-    CSSPixelSize resolve_size(Layout::Node const&, CSSPixelPoint, CSSPixelRect const&) const;
+    CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&) const;
 
     bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
 

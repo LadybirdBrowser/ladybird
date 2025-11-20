@@ -122,15 +122,14 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
 
     CSS::CalculationResolutionContext context {
         .percentage_basis = CSS::Length::make_px(gradient_length_px),
-        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
     };
     auto resolved_color_stops = resolve_color_stop_positions(
         node, linear_gradient.color_stop_list(), [&](auto const& position) -> float {
             if (position.is_length())
-                return position.as_length().length().to_px_without_rounding(*context.length_resolution_context) / gradient_length_px;
+                return position.as_length().length().absolute_length_to_px_without_rounding() / gradient_length_px;
             if (position.is_percentage())
                 return position.as_percentage().percentage().as_fraction();
-            return position.as_calculated().resolve_length(context)->to_px_without_rounding(*context.length_resolution_context) / gradient_length_px;
+            return position.as_calculated().resolve_length(context)->absolute_length_to_px_without_rounding() / gradient_length_px;
         },
         linear_gradient.is_repeating());
 
@@ -140,37 +139,28 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
 ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node, CSS::ConicGradientStyleValue const& conic_gradient)
 {
     CSS::Angle const one_turn { 360.0f, CSS::AngleUnit::Deg };
-    CSS::CalculationResolutionContext context {
-        .percentage_basis = one_turn,
-        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
-    };
     auto resolved_color_stops = resolve_color_stop_positions(
         node, conic_gradient.color_stop_list(), [&](auto const& position) -> float {
-            if (position.is_angle())
-                return position.as_angle().angle().to_degrees() / one_turn.to_degrees();
-            if (position.is_percentage())
-                return position.as_percentage().percentage().as_fraction();
-            return position.as_calculated().resolve_angle(context)->to_degrees() / one_turn.to_degrees();
+            return CSS::Angle::from_style_value(position, one_turn).to_degrees() / one_turn.to_degrees();
         },
         conic_gradient.is_repeating());
-    return { conic_gradient.angle_degrees(context), resolved_color_stops, conic_gradient.interpolation_method() };
+    return { conic_gradient.angle_degrees(), resolved_color_stops, conic_gradient.interpolation_method() };
 }
 
 RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
 {
     CSS::CalculationResolutionContext context {
         .percentage_basis = CSS::Length::make_px(gradient_size.width()),
-        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
     };
 
     // Start center, goes right to ending point, where the gradient line intersects the ending shape
     auto resolved_color_stops = resolve_color_stop_positions(
         node, radial_gradient.color_stop_list(), [&](auto const& position) -> float {
             if (position.is_length())
-                return position.as_length().length().to_px_without_rounding(*context.length_resolution_context) / gradient_size.width().to_float();
+                return position.as_length().length().absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
             if (position.is_percentage())
                 return position.as_percentage().percentage().as_fraction();
-            return position.as_calculated().resolve_length(context)->to_px_without_rounding(*context.length_resolution_context) / gradient_size.width().to_float();
+            return position.as_calculated().resolve_length(context)->absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
         },
         radial_gradient.is_repeating());
     return { resolved_color_stops, radial_gradient.interpolation_method() };

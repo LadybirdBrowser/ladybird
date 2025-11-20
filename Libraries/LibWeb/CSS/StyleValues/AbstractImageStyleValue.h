@@ -172,6 +172,7 @@ struct ColorStopListElement {
     } color_stop;
 
     bool operator==(ColorStopListElement const&) const = default;
+    ColorStopListElement absolutized(ComputationContext const& context) const;
 };
 void serialize_color_stop_list(StringBuilder&, Vector<ColorStopListElement> const&, SerializationMode);
 
