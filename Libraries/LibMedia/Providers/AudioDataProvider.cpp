@@ -124,8 +124,8 @@ template<typename T>
 void AudioDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&& function)
 {
     m_last_processed_seek_id = seek_id;
-    m_main_thread_event_loop.deferred_invoke([this, seek_id, function] mutable {
-        if (m_seek_id != seek_id)
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), seek_id, function] mutable {
+        if (self->m_seek_id != seek_id)
             return;
         function();
     });
@@ -133,13 +133,13 @@ void AudioDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&&
 
 void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
 {
-    process_seek_on_main_thread(seek_id, [this] {
+    process_seek_on_main_thread(seek_id, [self = NonnullRefPtr(*this)] {
         {
-            auto locker = take_lock();
-            m_is_in_error_state = false;
-            m_wait_condition.broadcast();
+            auto locker = self->take_lock();
+            self->m_is_in_error_state = false;
+            self->m_wait_condition.broadcast();
         }
-        auto handler = move(m_seek_completion_handler);
+        auto handler = move(self->m_seek_completion_handler);
         if (handler)
             handler();
     });
@@ -158,9 +158,9 @@ bool AudioDataProvider::ThreadData::handle_seek()
         }
 
         process_seek_on_main_thread(seek_id,
-            [this, error = move(error)] mutable {
-                m_error_handler(move(error));
-                m_seek_completion_handler = nullptr;
+            [self = NonnullRefPtr(*this), error = move(error)] mutable {
+                self->m_error_handler(move(error));
+                self->m_seek_completion_handler = nullptr;
             });
     };
 
@@ -251,8 +251,8 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
             m_is_in_error_state = true;
             while (!m_error_handler)
                 m_wait_condition.wait();
-            m_main_thread_event_loop.deferred_invoke([this, error = move(error)] mutable {
-                m_error_handler(move(error));
+            m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), error = move(error)] mutable {
+                self->m_error_handler(move(error));
             });
         }
 
