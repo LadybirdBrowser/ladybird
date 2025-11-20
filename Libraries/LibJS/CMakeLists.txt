@@ -1,3 +1,5 @@
+include(libjs_generators)
+
 set(SOURCES
     AST.cpp
     Bytecode/ASTCodegen.cpp
@@ -264,6 +266,10 @@ set(SOURCES
     SyntheticModule.cpp
     Token.cpp
 )
+
+generate_bytecode_def_derived()
+
+set(GENERATED_SOURCES Bytecode/Op.cpp)
 
 ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC)

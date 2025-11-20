@@ -15,6 +15,7 @@
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
+#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Forward.h>
@@ -310,7 +311,7 @@ public:
         if constexpr (IsSame<OpType, Op::Return>)
             emit<Op::Return>(value);
         else
-            emit<Op::Yield>(nullptr, value);
+            emit<Op::Yield>(OptionalNone {}, value);
     }
 
     void start_boundary(BlockBoundaryType type) { m_boundaries.append(type); }
