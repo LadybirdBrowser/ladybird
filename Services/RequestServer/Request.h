@@ -162,8 +162,6 @@ private:
     AllocatingMemoryStream m_response_buffer;
     RefPtr<Core::Notifier> m_client_writer_notifier;
     Optional<RequestPipe> m_client_request_pipe;
-
-    Optional<size_t> m_start_offset_of_response_resumed_from_cache;
     size_t m_bytes_transferred_to_client { 0 };
 
     Optional<CacheEntryReader&> m_cache_entry_reader;
