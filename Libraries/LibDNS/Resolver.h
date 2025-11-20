@@ -346,14 +346,21 @@ public:
                     if (!result_promise.ptr())
                         return;
                     VERIFY(promises.first()->is_resolved());
-                    result_promise->resolve(MUST(promises.first()->await()));
+
+                    // NOTE: Since this is already resolved, this will be called immediately.
+                    promises.first()->when_resolved([result_promise](NonnullRefPtr<LookupResult const> const& result) {
+                        result_promise->resolve(result);
+                    });
                 })
                 .when_rejected([promises, result_promise = result_promise->make_weak_ptr<ResultPromise>()](auto&& error) {
                     if (!result_promise.ptr())
                         return;
                     for (auto& promise : promises) {
                         if (promise->is_resolved()) {
-                            result_promise->resolve(MUST(promise->await()));
+                            // NOTE: Since this is already resolved, this will be called immediately.
+                            promise->when_resolved([result_promise](NonnullRefPtr<LookupResult const> const& result) {
+                                result_promise->resolve(result);
+                            });
                             return;
                         }
                     }
