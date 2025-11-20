@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -343,14 +344,14 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     nested_context.run(*m_available_space);
 }
 
-Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box)
+Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box) const
 {
-    auto& text_element = static_cast<SVG::SVGTextPositioningElement const&>(text_box.dom_node());
+    auto& text_element = text_box.dom_node();
     // FIXME: Use per-code-point fonts.
     auto& font = text_box.first_available_font();
     auto text_contents = text_element.text_contents();
     auto text_width = font.width(text_contents);
-    auto text_offset = text_element.get_offset(m_viewport_size);
+    auto text_offset = m_current_text_position;
 
     // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
     switch (text_element.text_anchor().value_or(SVG::TextAnchor::Start)) {
@@ -381,7 +382,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
     return path;
 }
 
-Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const& text_path_box)
+Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const& text_path_box) const
 {
     auto& text_path_element = static_cast<SVG::SVGTextPathElement const&>(text_path_box.dom_node());
     auto path_or_shape = text_path_element.path_or_shape();
@@ -409,27 +410,33 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
     if (is<SVGGeometryBox>(graphics_box)) {
         auto& geometry_box = static_cast<SVGGeometryBox const&>(graphics_box);
         path = const_cast<SVGGeometryBox&>(geometry_box).dom_node().get_path(m_viewport_size);
-    } else if (is<SVGTextBox>(graphics_box)) {
-        auto& text_box = static_cast<SVGTextBox const&>(graphics_box);
-        path = compute_path_for_text(text_box);
+    } else if (auto* text_box = as_if<SVGTextBox>(graphics_box)) {
+        // FIXME: Text offsets must be calculated per character. This only applies the first character's offset.
+        auto text_positioning = text_box->dom_node().text_positioning();
+        text_positioning.apply_to_text_position(*text_box, m_viewport_size, m_current_text_position, 0u);
+
+        path = compute_path_for_text(*text_box);
+
         // <text> and <tspan> elements can contain more text elements.
-        text_box.for_each_child_of_type<SVGGraphicsBox>([&](auto& child) {
+        text_box->for_each_child_of_type<SVGGraphicsBox>([&](auto& child) {
             if (is<SVGTextBox>(child) || is<SVGTextPathBox>(child))
                 layout_graphics_element(child);
             return IterationDecision::Continue;
         });
-    } else if (is<SVGTextPathBox>(graphics_box)) {
+    } else if (auto* text_path_box = as_if<SVGTextPathBox>(graphics_box)) {
         // FIXME: Support <tspan> in <textPath>.
-        path = compute_path_for_text_path(static_cast<SVGTextPathBox const&>(graphics_box));
+        path = compute_path_for_text_path(*text_path_box);
     }
 
-    auto path_bounding_box = to_css_pixels_transform.map(path.bounding_box()).to_type<CSSPixels>();
+    auto path_bounding_box = path.bounding_box();
+    m_current_text_position = path_bounding_box.bottom_right();
+    auto transformed_bounding_box = to_css_pixels_transform.map(path_bounding_box).to_type<CSSPixels>();
     // Stroke increases the path's size by stroke_width/2 per side.
     CSSPixels stroke_width = CSSPixels::nearest_value_for(graphics_box.dom_node().visible_stroke_width() * m_current_viewbox_transform.x_scale());
-    path_bounding_box.inflate(stroke_width, stroke_width);
-    graphics_box_state.set_content_offset(path_bounding_box.top_left());
-    graphics_box_state.set_content_width(path_bounding_box.width());
-    graphics_box_state.set_content_height(path_bounding_box.height());
+    transformed_bounding_box.inflate(stroke_width, stroke_width);
+    graphics_box_state.set_content_offset(transformed_bounding_box.top_left());
+    graphics_box_state.set_content_width(transformed_bounding_box.width());
+    graphics_box_state.set_content_height(transformed_bounding_box.height());
     graphics_box_state.set_has_definite_width(true);
     graphics_box_state.set_has_definite_height(true);
     graphics_box_state.set_computed_svg_path(move(path));

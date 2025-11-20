@@ -84,6 +84,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(requiredExtensions, "requiredExtensions")   \
     __ENUMERATE_SVG_ATTRIBUTE(requiredFeatures, "requiredFeatures")       \
     __ENUMERATE_SVG_ATTRIBUTE(result, "result")                           \
+    __ENUMERATE_SVG_ATTRIBUTE(rotate, "rotate")                           \
     __ENUMERATE_SVG_ATTRIBUTE(rx, "rx")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(ry, "ry")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(slope, "slope")                             \
