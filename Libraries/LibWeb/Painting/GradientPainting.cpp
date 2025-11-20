@@ -6,6 +6,7 @@
 
 #include <AK/Math.h>
 #include <LibGfx/Gradients.h>
+#include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
@@ -132,7 +133,10 @@ ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node,
             return angle_percentage.resolved(node, one_turn).to_degrees() / one_turn.to_degrees();
         },
         conic_gradient.is_repeating());
-    return { conic_gradient.angle_degrees(), resolved_color_stops, conic_gradient.interpolation_method() };
+    CSS::CalculationResolutionContext context {
+        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
+    };
+    return { conic_gradient.angle_degrees(context), resolved_color_stops, conic_gradient.interpolation_method() };
 }
 
 RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
@@ -10,6 +10,7 @@
 
 #include <AK/NonnullRawPtr.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
@@ -408,15 +409,12 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
     if (!tokens.has_next_token())
         return nullptr;
 
-    auto from_angle = Angle::make_degrees(0);
+    RefPtr<StyleValue const> from_angle;
     RefPtr<PositionStyleValue const> at_position;
     Optional<InterpolationMethod> maybe_interpolation_method;
 
     // conic-gradient( [ [ [ from [ <angle> | <zero> ] ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <angular-color-stop-list> )
     NonnullRawPtr<ComponentValue const> token = tokens.next_token();
-    bool got_from_angle = false;
-    bool got_color_interpolation_method = false;
-    bool got_at_position = false;
     while (token->is(Token::Type::Ident)) {
         auto consume_identifier = [&](auto identifier) {
             auto token_string = token->token().ident();
@@ -430,42 +428,28 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
 
         if (consume_identifier("from"sv)) {
             // from [ <angle> | <zero> ]
-            if (got_from_angle || got_at_position)
+            if (from_angle || at_position)
                 return nullptr;
-            if (!tokens.has_next_token())
-                return nullptr;
-
-            auto const& angle_token = tokens.consume_a_token();
-            if (angle_token.is(Token::Type::Dimension)) {
-                auto angle = angle_token.token().dimension_value();
-                auto angle_unit = angle_token.token().dimension_unit();
-                auto angle_type = string_to_angle_unit(angle_unit);
-                if (!angle_type.has_value())
-                    return nullptr;
-
-                from_angle = Angle(angle, *angle_type);
-                got_from_angle = true;
-            } else if (angle_token.is(Token::Type::Number) && angle_token.token().number().value() == 0) {
-                from_angle = Angle::make_degrees(0);
-                got_from_angle = true;
+            if (auto maybe_angle = parse_angle_value(tokens)) {
+                from_angle = maybe_angle.release_nonnull();
+            } else if (auto peek_token = tokens.next_token(); peek_token.is(Token::Type::Number) && peek_token.token().number().value() == 0) {
+                tokens.discard_a_token(); // 0
+                from_angle = AngleStyleValue::create(Angle::make_degrees(0));
             } else {
                 return nullptr;
             }
         } else if (consume_identifier("at"sv)) {
             // at <position>
-            if (got_at_position)
+            if (at_position)
                 return nullptr;
             auto position = parse_position_value(tokens);
             if (!position)
                 return nullptr;
-            at_position = position;
-            got_at_position = true;
+            at_position = move(position);
         } else if (token->token().ident().equals_ignoring_ascii_case("in"sv)) {
             // <color-interpolation-method>
-            if (got_color_interpolation_method)
+            if (maybe_interpolation_method.has_value())
                 return nullptr;
-            got_color_interpolation_method = true;
-
             maybe_interpolation_method = parse_interpolation_method(tokens);
             if (!maybe_interpolation_method.has_value())
                 return nullptr;
@@ -481,7 +465,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
     tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
-    if ((got_from_angle || got_at_position || got_color_interpolation_method) && !tokens.consume_a_token().is(Token::Type::Comma))
+    if ((from_angle || at_position || maybe_interpolation_method.has_value()) && !tokens.consume_a_token().is(Token::Type::Comma))
         return nullptr;
 
     auto color_stops = parse_angular_color_stop_list(tokens);
@@ -492,7 +476,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
         at_position = PositionStyleValue::create_center();
 
     transaction.commit();
-    return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient, maybe_interpolation_method);
+    return ConicGradientStyleValue::create(move(from_angle), at_position.release_nonnull(), move(*color_stops), repeating_gradient, maybe_interpolation_method);
 }
 
 RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)

@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibWeb/CSS/Angle.h>
+#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
@@ -17,11 +18,11 @@ namespace Web::CSS {
 
 class ConicGradientStyleValue final : public AbstractImageStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<ConicGradientStyleValue const> create(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
+    static ValueComparingNonnullRefPtr<ConicGradientStyleValue const> create(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
-        return adopt_ref(*new (nothrow) ConicGradientStyleValue(from_angle, move(position), move(color_stop_list), repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
+        return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
     virtual String to_string(SerializationMode) const override;
@@ -43,7 +44,7 @@ public:
         return InterpolationMethod { .color_space = InterpolationMethod::default_color_space(m_properties.color_syntax) };
     }
 
-    float angle_degrees() const;
+    float angle_degrees(CalculationResolutionContext const&) const;
 
     bool is_paintable() const override { return true; }
 
@@ -54,14 +55,14 @@ public:
     bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
 
 private:
-    ConicGradientStyleValue(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
+    ConicGradientStyleValue(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::ConicGradient)
-        , m_properties { .from_angle = from_angle, .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
+        , m_properties { .from_angle = move(from_angle), .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
     {
     }
 
     struct Properties {
-        Angle from_angle;
+        ValueComparingRefPtr<StyleValue const> from_angle;
         ValueComparingNonnullRefPtr<PositionStyleValue const> position;
         Vector<AngularColorStopListElement> color_stop_list;
         GradientRepeating repeating;

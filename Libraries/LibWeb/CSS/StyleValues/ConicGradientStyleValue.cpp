@@ -8,6 +8,7 @@
  */
 
 #include "ConicGradientStyleValue.h"
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -20,12 +21,12 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
     if (is_repeating())
         builder.append("repeating-"sv);
     builder.append("conic-gradient("sv);
-    bool has_from_angle = m_properties.from_angle.to_degrees() != 0;
+    bool has_from_angle = m_properties.from_angle;
     bool has_at_position = !m_properties.position->is_center();
     bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
     if (has_from_angle)
-        builder.appendff("from {}", m_properties.from_angle.to_string());
+        builder.appendff("from {}", m_properties.from_angle->to_string(mode));
     if (has_at_position) {
         if (has_from_angle)
             builder.append(' ');
@@ -72,9 +73,18 @@ bool ConicGradientStyleValue::equals(StyleValue const& other) const
     return m_properties == other_gradient.m_properties;
 }
 
-float ConicGradientStyleValue::angle_degrees() const
+float ConicGradientStyleValue::angle_degrees(CalculationResolutionContext const& context) const
 {
-    return m_properties.from_angle.to_degrees();
+    if (!m_properties.from_angle)
+        return 0;
+    if (m_properties.from_angle->is_angle())
+        return m_properties.from_angle->as_angle().angle().to_degrees();
+    if (m_properties.from_angle->is_calculated()) {
+        if (auto maybe_angle = m_properties.from_angle->as_calculated().resolve_angle(context); maybe_angle.has_value())
+            return maybe_angle->to_degrees();
+        return 0;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }
