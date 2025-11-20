@@ -17,7 +17,7 @@
 <script>
 promise_test(async t => {
   const div = addDiv(t, {
-    style: 'transition: width 100ms; width: 0px;'
+    style: 'transition: width 5000ms; width: 0px;'
   });
 
   // Flush initial state
@@ -29,8 +29,8 @@ promise_test(async t => {
     div.addEventListener('transitionrun', resolve, { once: true });
   });
 
-  // MID-TRANSITION CHANGE: Switch to 0s duration + 100ms delay
-  div.style.transition = 'width 0s 100ms';
+  // MID-TRANSITION CHANGE: Switch to 0s duration + 5000ms delay
+  div.style.transition = 'width 0s 5000ms';
   assert_not_equals(
     getComputedStyle(div).width,
     '100px',
@@ -38,12 +38,12 @@ promise_test(async t => {
   );
 
   // Trigger new width change mid-transition
-  div.style.width = '0px';
+  div.style.width = '200px';
 
   assert_not_equals(
     getComputedStyle(div).width,
-    '0px',
-    'Width should not changed to 0px immediately'
+    '200px',
+    'Width should not change to 0px immediately'
   );
 
   await waitForTransitionEnd(div);
@@ -51,8 +51,8 @@ promise_test(async t => {
   // Final computed style
   assert_equals(
     getComputedStyle(div).width,
-    '0px',
-    'Final width should be 0px'
+    '200px',
+    'Final width should be 200px'
   );
 }, 'Mid-transition transition changes affect subsequent transitions');
 </script>
