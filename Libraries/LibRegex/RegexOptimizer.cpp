@@ -1467,7 +1467,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                     node_key_bytes.append(edge.jump_insn);
             }
 
-            active_node = static_cast<decltype(active_node)>(MUST(active_node->ensure_child(DisjointSpans<ByteCodeValueType const> { move(node_key_bytes) }, Vector<NodeMetadataEntry> {})));
+            active_node = static_cast<decltype(active_node)>(MUST(active_node->ensure_child(DisjointSpans<ByteCodeValueType const> { move(node_key_bytes) }, [] -> Vector<NodeMetadataEntry> { return {}; })));
 
             auto next_compare = [&alternative, &state](StaticallyInterpretedCompares& compares) {
                 TemporaryChange state_change { state.instruction_position, state.instruction_position };

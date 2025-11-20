@@ -95,23 +95,29 @@ public:
     ValueType const& value() const { return m_value; }
     ValueType& value() { return m_value; }
 
-    ErrorOr<Trie*> ensure_child(ValueType value, Optional<MetadataType> metadata = {})
+    template<typename F = Function<Optional<MetadataType>()>>
+    ErrorOr<Trie*> ensure_child(ValueType value, F metadata_if_missing = [] { return OptionalNone {}; })
     {
         auto it = m_children.find(value);
         if (it == m_children.end()) {
             OwnPtr<Trie> node;
-            if constexpr (requires { { value->try_clone() } -> SpecializationOf<ErrorOr>; })
-                node = TRY(adopt_nonnull_own_or_enomem(new (nothrow) Trie(TRY(value->try_clone()), move(metadata))));
+            Optional<MetadataType> missing_metadata;
+
+            if constexpr (requires { { metadata_if_missing() } -> SpecializationOf<ErrorOr>; })
+                missing_metadata = TRY(metadata_if_missing());
             else
-                node = TRY(adopt_nonnull_own_or_enomem(new (nothrow) Trie(value, move(metadata))));
+                missing_metadata = metadata_if_missing();
+
+            if constexpr (requires { { value->try_clone() } -> SpecializationOf<ErrorOr>; })
+                node = TRY(adopt_nonnull_own_or_enomem(new (nothrow) Trie(TRY(value->try_clone()), move(missing_metadata))));
+            else
+                node = TRY(adopt_nonnull_own_or_enomem(new (nothrow) Trie(value, move(missing_metadata))));
             auto& node_ref = *node;
             TRY(m_children.try_set(move(value), node.release_nonnull()));
             return &static_cast<BaseType&>(node_ref);
         }
 
         auto& node_ref = *it->value;
-        if (metadata.has_value())
-            node_ref.m_metadata = move(metadata);
         return &static_cast<BaseType&>(node_ref);
     }
 
@@ -129,9 +135,9 @@ public:
         };
         for (; it != end; ++it) {
             if constexpr (requires { { ValueType::ElementType::try_create(*it) } -> SpecializationOf<ErrorOr>; })
-                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(TRY(ValueType::ElementType::try_create(*it)), TRY(invoke_provide_missing_metadata(static_cast<BaseType&>(*last_root_node), it)))));
+                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(TRY(ValueType::ElementType::try_create(*it)), [&] { return invoke_provide_missing_metadata(static_cast<BaseType&>(*last_root_node), it); })));
             else
-                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(*it, TRY(invoke_provide_missing_metadata(static_cast<BaseType&>(*last_root_node), it)))));
+                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(*it, [&] { return invoke_provide_missing_metadata(static_cast<BaseType&>(*last_root_node), it); })));
         }
         last_root_node->set_metadata(move(metadata));
         return static_cast<BaseType*>(last_root_node);
@@ -144,9 +150,9 @@ public:
         Trie* last_root_node = &traverse_until_last_accessible_node(it, end);
         for (; it != end; ++it) {
             if constexpr (requires { { ValueType::ElementType::try_create(*it) } -> SpecializationOf<ErrorOr>; })
-                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(TRY(ValueType::ElementType::try_create(*it)), {})));
+                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(TRY(ValueType::ElementType::try_create(*it)))));
             else
-                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(*it, {})));
+                last_root_node = static_cast<Trie*>(TRY(last_root_node->ensure_child(*it)));
         }
         return static_cast<BaseType*>(last_root_node);
     }
