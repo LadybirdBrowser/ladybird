@@ -110,6 +110,12 @@
     "textarea",
     "textfield"
   ],
+  "axis": [
+    "block",
+    "inline",
+    "x",
+    "y"
+  ],
   "background-attachment": [
     "fixed",
     "local",
