@@ -257,6 +257,7 @@ row-gap: normal
 rx: auto
 ry: auto
 scale: none
+scroll-timeline-axis: block
 scroll-timeline-name: none
 scrollbar-color: auto
 scrollbar-gutter: auto

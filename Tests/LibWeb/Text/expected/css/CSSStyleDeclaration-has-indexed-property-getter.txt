@@ -259,6 +259,7 @@ All properties associated with getComputedStyle(document.body):
     "rx",
     "ry",
     "scale",
+    "scroll-timeline-axis",
     "scroll-timeline-name",
     "scrollbar-color",
     "scrollbar-gutter",

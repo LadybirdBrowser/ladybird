@@ -694,6 +694,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'rx': 'auto'
 'ry': 'auto'
 'scale': 'none'
+'scrollTimelineAxis': 'block'
+'scroll-timeline-axis': 'block'
 'scrollTimelineName': 'none'
 'scroll-timeline-name': 'none'
 'scrollbarColor': 'auto'
