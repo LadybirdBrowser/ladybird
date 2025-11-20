@@ -41,18 +41,38 @@ function(remove_path_if_version_changed version version_file cache_path)
 endfunction()
 
 function(invoke_generator_impl name generator primary_source header implementation)
-    cmake_parse_arguments(invoke_generator_impl "" "" "command;arguments;dependencies" ${ARGN})
+    cmake_parse_arguments(invoke_generator_impl "" "extra_header" "command;arguments;dependencies" ${ARGN})
+
+    set(extra_outputs)
+    set(extra_commands)
+
+    if (invoke_generator_impl_extra_header)
+        set(extra_outputs "${invoke_generator_impl_extra_header}")
+        list(APPEND extra_commands
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${invoke_generator_impl_extra_header}.tmp"
+                    "${invoke_generator_impl_extra_header}"
+            COMMAND "${CMAKE_COMMAND}" -E remove
+                    "${invoke_generator_impl_extra_header}.tmp"
+        )
+    endif()
+
     add_custom_command(
-        OUTPUT "${header}" "${implementation}"
-        COMMAND ${invoke_generator_impl_command} ${generator} -h "${header}.tmp" -c "${implementation}.tmp" ${invoke_generator_impl_arguments}
+        OUTPUT "${header}" "${implementation}" ${extra_outputs}
+        COMMAND ${invoke_generator_impl_command} ${generator}
+                -h "${header}.tmp"
+                -c "${implementation}.tmp"
+                ${invoke_generator_impl_arguments}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${header}.tmp" "${header}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${implementation}.tmp" "${implementation}"
         COMMAND "${CMAKE_COMMAND}" -E remove "${header}.tmp" "${implementation}.tmp"
+        ${extra_commands}
         VERBATIM
         DEPENDS ${generator} ${invoke_generator_impl_dependencies} "${primary_source}"
     )
 
-    add_custom_target("generate_${name}" DEPENDS "${header}" "${implementation}")
+    add_custom_target("generate_${name}" DEPENDS
+        "${header}" "${implementation}" ${extra_outputs})
     add_dependencies(ladybird_codegen_accumulator "generate_${name}")
     list(APPEND CURRENT_LIB_GENERATED "${name}")
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
@@ -72,8 +92,15 @@ function(invoke_cpp_generator name generator primary_source header implementatio
 endfunction()
 
 function(invoke_py_generator name script primary_source header implementation)
-    cmake_parse_arguments(invoke_py_generator "" "" "arguments" ${ARGN})
+    cmake_parse_arguments(invoke_py_generator "" "EXTRA_HEADER" "arguments" ${ARGN})
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    set(py_generator_arguments ${invoke_py_generator_arguments})
+    if (invoke_py_generator_EXTRA_HEADER)
+        list(APPEND py_generator_arguments
+            -x "${invoke_py_generator_EXTRA_HEADER}.tmp")
+    endif()
+
     invoke_generator_impl(
         ${name}
         "${LADYBIRD_PROJECT_ROOT}/Meta/${script}"
@@ -81,7 +108,8 @@ function(invoke_py_generator name script primary_source header implementation)
         ${header}
         ${implementation}
         command ${Python3_EXECUTABLE}
-        arguments ${invoke_py_generator_arguments}
+        arguments ${py_generator_arguments}
+        extra_header "${invoke_py_generator_EXTRA_HEADER}"
     )
 endfunction()
 
