@@ -104,6 +104,15 @@ struct DurationNudgeResult {
     bool did_expand_calendar_unit { false };
 };
 
+struct NudgeWindow {
+    double r1 { 0 };
+    double r2 { 0 };
+    Crypto::SignedBigInteger start_epoch_ns;
+    Crypto::SignedBigInteger end_epoch_ns;
+    DateDuration start_duration;
+    DateDuration end_duration;
+};
+
 struct CalendarNudgeResult {
     DurationNudgeResult nudge_result;
     Crypto::BigFraction total;
@@ -137,6 +146,7 @@ i8 time_duration_sign(TimeDuration const&);
 ThrowCompletionOr<double> date_duration_days(VM&, DateDuration const&, PlainDate const&);
 ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
 Crypto::BigFraction total_time_duration(TimeDuration const&, Unit);
+ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, bool additional_shift);
 ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
 ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, StringView time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
 ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM&, InternalDuration const&, Crypto::SignedBigInteger const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);

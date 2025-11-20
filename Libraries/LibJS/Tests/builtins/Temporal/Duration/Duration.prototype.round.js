@@ -120,6 +120,14 @@ describe("correct behavior", () => {
 
         expect(result.toString()).toBe("PT0S");
     });
+
+    test("leap day rounding", () => {
+        const duration = new Temporal.Duration(1, 0, 0, 0, 1);
+        const relativeTo = new Temporal.PlainDate(2020, 2, 29);
+
+        const result = duration.round({ smallestUnit: "years", relativeTo });
+        expect(result.toString()).toBe("P1Y");
+    });
 });
 
 describe("errors", () => {
