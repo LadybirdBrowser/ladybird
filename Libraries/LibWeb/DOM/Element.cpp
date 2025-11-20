@@ -830,23 +830,32 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
-    HashMap<size_t, RefPtr<CSS::StyleValue const>> old_values_with_relative_units;
+    HashMap<size_t, RefPtr<CSS::StyleValue const>> property_values_affected_by_inherited_style;
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         // FIXME: We should use the specified value rather than the cascaded value as the cascaded value may include
         //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
         auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
         RefPtr old_value = computed_properties->property(property_id);
-        // FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue, StyleValues which contain lengths (e.g. StyleValueList))
-        // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
-        if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
-            auto is_inherited = computed_properties->is_property_inherited(property_id);
-            computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
-            old_values_with_relative_units.set(i, old_value);
+
+        if (preabsolutized_value) {
+            // A property needs updating if:
+            // - It uses relative units as it might have been affected by a change in ancestor element style.
+            //   FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue,
+            //          StyleValues which contain lengths (e.g. StyleValueList))
+            // - font-weight is `bolder` or `lighter`
+            // - font-size is `larger` or `smaller`
+            // FIXME: Consider any other properties that rely on inherited values for computation.
+            auto needs_updating = (preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative())
+                || (property_id == CSS::PropertyID::FontWeight && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Bolder, CSS::Keyword::Lighter))
+                || (property_id == CSS::PropertyID::FontSize && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Larger, CSS::Keyword::Smaller));
+            if (needs_updating) {
+                auto is_inherited = computed_properties->is_property_inherited(property_id);
+                computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
+                property_values_affected_by_inherited_style.set(i, old_value);
+            }
         }
 
-        // FIXME: We should also consider properties which depend on their inherited values for computation (e.g.
-        //        relative font-sizes or font-weights)
         if (!computed_properties->is_property_inherited(property_id))
             continue;
 
@@ -867,7 +876,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
     }
 
-    if (invalidation.is_none() && old_values_with_relative_units.is_empty())
+    if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty())
         return invalidation;
 
     AbstractElement abstract_element { *this };
@@ -875,7 +884,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     document().style_computer().compute_font(*computed_properties, abstract_element);
     document().style_computer().compute_property_values(*computed_properties, abstract_element);
 
-    for (auto [property_id, old_value] : old_values_with_relative_units) {
+    for (auto const& [property_id, old_value] : property_values_affected_by_inherited_style) {
         auto const& new_value = computed_properties->property(static_cast<CSS::PropertyID>(property_id));
         invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value, new_value);
     }
