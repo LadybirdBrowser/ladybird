@@ -65,6 +65,20 @@ void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, Device
     context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, m_resolved->data, position);
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+    RefPtr<StyleValue const> absolutized_from_angle;
+    if (m_properties.from_angle)
+        absolutized_from_angle = m_properties.from_angle->absolutized(context);
+    ValueComparingNonnullRefPtr<PositionStyleValue const> absolutized_position = m_properties.position->absolutized(context)->as_position();
+    return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, m_properties.interpolation_method);
+}
+
 bool ConicGradientStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
@@ -73,18 +87,11 @@ bool ConicGradientStyleValue::equals(StyleValue const& other) const
     return m_properties == other_gradient.m_properties;
 }
 
-float ConicGradientStyleValue::angle_degrees(CalculationResolutionContext const& context) const
+float ConicGradientStyleValue::angle_degrees() const
 {
     if (!m_properties.from_angle)
         return 0;
-    if (m_properties.from_angle->is_angle())
-        return m_properties.from_angle->as_angle().angle().to_degrees();
-    if (m_properties.from_angle->is_calculated()) {
-        if (auto maybe_angle = m_properties.from_angle->as_calculated().resolve_angle(context); maybe_angle.has_value())
-            return maybe_angle->to_degrees();
-        return 0;
-    }
-    VERIFY_NOT_REACHED();
+    return Angle::from_style_value(*m_properties.from_angle, {}).to_degrees();
 }
 
 }

@@ -72,7 +72,7 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-CSSPixelSize RadialGradientStyleValue::resolve_size(Layout::Node const& node, CSSPixelPoint center, CSSPixelRect const& size) const
+CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& size) const
 {
     auto const side_shape = [&](auto distance_function) {
         auto const distance_from = [&](CSSPixels v, CSSPixels a, CSSPixels b, auto distance_function) {
@@ -180,31 +180,23 @@ CSSPixelSize RadialGradientStyleValue::resolve_size(Layout::Node const& node, CS
         },
         [&](CircleSize const& circle_size) {
             if (circle_size.radius->is_length()) {
-                auto radius = circle_size.radius->as_length().length().to_px(node);
+                auto radius = circle_size.radius->as_length().length().absolute_length_to_px();
                 return CSSPixelSize { radius, radius };
             }
             if (circle_size.radius->is_calculated()) {
-                CalculationResolutionContext context {
-                    .length_resolution_context = Length::ResolutionContext::for_layout_node(node),
-                };
-                auto radius = circle_size.radius->as_calculated().resolve_length(context)->to_px(node);
+                auto radius = circle_size.radius->as_calculated().resolve_length({})->absolute_length_to_px();
                 return CSSPixelSize { radius, radius };
             }
             VERIFY_NOT_REACHED();
         },
         [&](EllipseSize const& ellipse_size) {
             auto resolve = [&](StyleValue const& radius_value, auto percentage_basis_pixels) {
-                auto percentage_basis = Length::make_px(percentage_basis_pixels);
-                CalculationResolutionContext context {
-                    .percentage_basis = percentage_basis,
-                    .length_resolution_context = Length::ResolutionContext::for_layout_node(node),
-                };
                 if (radius_value.is_length())
-                    return radius_value.as_length().length().to_px(node);
+                    return radius_value.as_length().length().absolute_length_to_px();
                 if (radius_value.is_percentage())
-                    return percentage_basis.percentage_of(radius_value.as_percentage().percentage()).to_px(node);
+                    return CSSPixels { radius_value.as_percentage().percentage().as_fraction() * percentage_basis_pixels };
                 if (radius_value.is_calculated())
-                    return radius_value.as_calculated().resolve_length(context)->to_px(node);
+                    return radius_value.as_calculated().resolve_length({})->absolute_length_to_px();
                 VERIFY_NOT_REACHED();
             };
             auto radius_a = resolve(*ellipse_size.radius_a, size.width());
@@ -246,7 +238,7 @@ void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& nod
 {
     CSSPixelRect gradient_box { { 0, 0 }, paint_size };
     auto center = m_properties.position->resolved(node, gradient_box);
-    auto gradient_size = resolve_size(node, center, gradient_box);
+    auto gradient_size = resolve_size(center, gradient_box);
 
     ResolvedDataCacheKey cache_key {
         .length_resolution_context = Length::ResolutionContext::for_layout_node(node),
@@ -260,6 +252,35 @@ void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& nod
             center,
         };
     }
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+
+    auto absolutized_size = m_properties.size.visit(
+        [&](Extent extent) -> Size {
+            return extent;
+        },
+        [&](CircleSize const& circle_size) -> Size {
+            return CircleSize {
+                .radius = circle_size.radius->absolutized(context),
+            };
+        },
+        [&](EllipseSize const& ellipse_size) -> Size {
+            return EllipseSize {
+                .radius_a = ellipse_size.radius_a->absolutized(context),
+                .radius_b = ellipse_size.radius_b->absolutized(context),
+            };
+        });
+
+    NonnullRefPtr absolutized_position = m_properties.position->absolutized(context)->as_position();
+
+    return create(m_properties.ending_shape, move(absolutized_size), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, m_properties.interpolation_method);
 }
 
 bool RadialGradientStyleValue::equals(StyleValue const& other) const

@@ -74,6 +74,16 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+    return create(m_properties.direction, move(absolutized_color_stops), m_properties.gradient_type, m_properties.repeating, m_properties.interpolation_method);
+}
+
 bool LinearGradientStyleValue::equals(StyleValue const& other_) const
 {
     if (type() != other_.type())
@@ -117,13 +127,7 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
             return angle;
         },
         [&](NonnullRefPtr<StyleValue const> const& style_value) {
-            if (style_value->is_angle())
-                return style_value->as_angle().angle().to_degrees();
-            if (style_value->is_calculated()) {
-                if (auto maybe_angle = style_value->as_calculated().resolve_angle({}); maybe_angle.has_value())
-                    return maybe_angle->to_degrees();
-            }
-            return 0.0;
+            return Angle::from_style_value(style_value, {}).to_degrees();
         });
 }
 
