@@ -300,21 +300,12 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
     tokens.discard_whitespace();
 
     auto const& first_param = tokens.next_token();
-    if (first_param.is(Token::Type::Dimension)) {
-        // <angle>
-        tokens.discard_a_token(); // <angle>
-        auto angle_value = first_param.token().dimension_value();
-        auto unit_string = first_param.token().dimension_unit();
-        auto angle_type = string_to_angle_unit(unit_string);
-
-        if (!angle_type.has_value())
-            return nullptr;
-
-        gradient_direction = Angle { angle_value, angle_type.release_value() };
+    if (auto maybe_angle = parse_angle_value(tokens)) {
+        gradient_direction = maybe_angle.release_nonnull();
     } else if (first_param.is(Token::Type::Number) && first_param.token().number().value() == 0) {
         // <zero>
         tokens.discard_a_token(); // <zero>
-        gradient_direction = Angle::make_degrees(0);
+        gradient_direction = { AngleStyleValue::create(Angle::make_degrees(0)) };
     } else if (is_to_side_or_corner(first_param)) {
         // <side-or-corner> = [left | right] || [top | bottom]
 
@@ -379,7 +370,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
         return nullptr;
 
     transaction.commit();
-    return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient, maybe_interpolation_method);
+    return LinearGradientStyleValue::create(move(gradient_direction), move(*color_stops), gradient_type, repeating_gradient, maybe_interpolation_method);
 }
 
 RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)

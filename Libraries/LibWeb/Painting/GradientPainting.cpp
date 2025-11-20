@@ -120,8 +120,7 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
     CSS::CalculationResolutionContext context {
         .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
     };
-    // FIXME: angle_degrees() should take the context.
-    auto gradient_angle = linear_gradient.angle_degrees(gradient_size);
+    auto gradient_angle = linear_gradient.angle_degrees(gradient_size, context);
     auto gradient_length_px = Gfx::calculate_gradient_length(gradient_size.to_type<float>(), gradient_angle);
 
     context.percentage_basis = CSS::Length::make_px(gradient_length_px);
