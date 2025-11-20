@@ -1630,21 +1630,9 @@ private:
         if (request.cache_mode() == Infrastructure::Request::CacheMode::NoStore)
             return false;
 
-        // FIXME: - if the cache is shared: the private response directive is either not present
-        //          or allows a shared cache to store a modified response; see Section 5.2.2.7);
-
-        // FIXME: - if the cache is shared: the Authorization header field is not present in the
-        //          request (see Section 11.6.2 of [HTTP]) or a response directive is present
-        //          that explicitly allows shared caching (see Section 3.5); and
-
-        // FIXME: - the response contains at least one of the following:
-        //          + a public response directive (see Section 5.2.2.9);
-        //          + a private response directive, if the cache is not shared (see Section 5.2.2.7);
-        //          + an Expires header field (see Section 5.3);
-        //          + a max-age response directive (see Section 5.2.2.1);
-        //          + if the cache is shared: an s-maxage response directive (see Section 5.2.2.10);
-        //          + a cache extension that allows it to be cached (see Section 5.2.3); or
-        //          + a status code that is defined as heuristically cacheable (see Section 4.2.2).
+        if (!response.has_explicit_cacheability_indicator()) {
+            return false;
+        }
 
         return true;
     }

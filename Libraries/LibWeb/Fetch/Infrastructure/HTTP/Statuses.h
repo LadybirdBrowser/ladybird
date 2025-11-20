@@ -18,5 +18,6 @@ using Status = u16;
 [[nodiscard]] WEB_API bool is_null_body_status(Status);
 [[nodiscard]] WEB_API bool is_ok_status(Status);
 [[nodiscard]] WEB_API bool is_redirect_status(Status);
+[[nodiscard]] WEB_API bool is_heuristically_cacheable_status(Status);
 
 }

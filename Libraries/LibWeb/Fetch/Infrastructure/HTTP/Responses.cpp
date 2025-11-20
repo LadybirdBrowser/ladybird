@@ -14,6 +14,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -241,6 +242,35 @@ bool Response::is_stale() const
 {
     // A stale response is a response that is not a fresh response or a stale-while-revalidate response.
     return !is_fresh() && !is_stale_while_revalidate();
+}
+
+// https://httpwg.org/specs/rfc9111.html#response.cacheability
+bool Response::has_explicit_cacheability_indicator() const
+{
+    auto const cache_control_header = header_list()->get_decode_and_split("Cache-Control"sv.bytes());
+    if (cache_control_header.has_value()) {
+        for (auto const& directive : *cache_control_header) {
+            if (directive == "public"sv.bytes())
+                return true;
+
+            if (directive == "private"sv.bytes())
+                return true;
+
+            if (directive.starts_with_bytes("max-age"sv))
+                return true;
+
+            // NOTE: s-maxage is for shared caches only - ignore it
+            // (browser caches are always private)
+        }
+    }
+
+    if (header_list()->contains("Expires"sv.bytes()))
+        return true;
+
+    if (Infrastructure::is_heuristically_cacheable_status(status()))
+        return true;
+
+    return false;
 }
 
 // https://httpwg.org/specs/rfc9111.html#age.calculations
