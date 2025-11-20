@@ -8,6 +8,7 @@
 #include <AK/Backtrace.h>
 #include <AK/Format.h>
 #include <AK/Platform.h>
+#include <AK/StringView.h>
 
 #ifdef AK_OS_WINDOWS
 #    include <Windows.h>
@@ -49,7 +50,8 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
     auto* var = getenv("LADYBIRD_BACKTRACE_SNIPPETS");
     bool print_snippets = var && strnlen(var, 1) > 0;
     static auto formatter = cpptrace::formatter {}.snippets(print_snippets);
-    formatter.print(std::cerr, stacktrace);
+    auto string = formatter.format(stacktrace, true);
+    warnln("{}", StringView { string.c_str(), string.length() });
 }
 #elif defined(AK_HAS_BACKTRACE_HEADER)
 void dump_backtrace(unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth)
