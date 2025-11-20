@@ -252,11 +252,10 @@ void Request::handle_read_cache_state()
             transition_to_state(State::Complete);
         },
         [this](auto bytes_sent) {
-            // FIXME: We should also have a way to validate the data once CacheEntry is storing its crc.
-            m_start_offset_of_response_resumed_from_cache = bytes_sent;
-            m_disk_cache.clear();
+            m_bytes_transferred_to_client = bytes_sent;
+            m_network_error = Requests::NetworkError::CacheReadFailed;
 
-            transition_to_state(State::DNSLookup);
+            transition_to_state(State::Error);
         });
 }
 
@@ -321,7 +320,7 @@ void Request::handle_fetch_state()
 
     auto is_revalidation_request = m_cache_entry_reader.has_value() && m_cache_entry_reader->must_revalidate();
 
-    if (!m_start_offset_of_response_resumed_from_cache.has_value() && !is_revalidation_request) {
+    if (!is_revalidation_request) {
         if (inform_client_request_started().is_error())
             return;
     }
@@ -396,9 +395,6 @@ void Request::handle_fetch_state()
             set_option(CURLOPT_TIMECONDITION, CURL_TIMECOND_IFMODSINCE);
             set_option(CURLOPT_TIMEVALUE, revalidation_attributes.last_modified->seconds_since_epoch());
         }
-    } else if (m_start_offset_of_response_resumed_from_cache.has_value()) {
-        auto range = ByteString::formatted("{}-", *m_start_offset_of_response_resumed_from_cache);
-        set_option(CURLOPT_RANGE, range.characters());
     }
 
     if (curl_headers) {
@@ -606,40 +602,8 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         };
     }
 
-    auto available_bytes = m_response_buffer.used_buffer_size();
-
-    // If we've received a response to a range request that is not the partial content (206) we requested, we must
-    // only transfer the subset of data that WebContent now needs. We discard all received bytes up to the expected
-    // start of the remaining data, and then transfer the remaining bytes.
-    if (m_start_offset_of_response_resumed_from_cache.has_value()) {
-        if (m_status_code == 206) {
-            m_start_offset_of_response_resumed_from_cache.clear();
-        } else if (m_status_code == 200) {
-            // All bytes currently available have already been transferred. Discard them entirely.
-            if (m_bytes_transferred_to_client + available_bytes <= *m_start_offset_of_response_resumed_from_cache) {
-                m_bytes_transferred_to_client += available_bytes;
-
-                MUST(m_response_buffer.discard(available_bytes));
-                return {};
-            }
-
-            // Some bytes currently available have already been transferred. Discard those bytes and transfer the rest.
-            if (m_bytes_transferred_to_client + available_bytes > *m_start_offset_of_response_resumed_from_cache) {
-                auto bytes_to_discard = *m_start_offset_of_response_resumed_from_cache - m_bytes_transferred_to_client;
-                m_bytes_transferred_to_client += bytes_to_discard;
-                available_bytes -= bytes_to_discard;
-
-                MUST(m_response_buffer.discard(bytes_to_discard));
-            }
-
-            m_start_offset_of_response_resumed_from_cache.clear();
-        } else {
-            return Error::from_string_literal("Unacceptable status code for resumed HTTP request");
-        }
-    }
-
     Vector<u8> bytes_to_send;
-    bytes_to_send.resize(available_bytes);
+    bytes_to_send.resize(m_response_buffer.used_buffer_size());
     m_response_buffer.peek_some(bytes_to_send);
 
     auto result = m_client_request_pipe->write(bytes_to_send);
