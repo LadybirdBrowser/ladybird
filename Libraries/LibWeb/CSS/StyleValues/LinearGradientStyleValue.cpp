@@ -74,6 +74,16 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+    return create(m_properties.direction, move(absolutized_color_stops), m_properties.gradient_type, m_properties.repeating, m_properties.interpolation_method);
+}
+
 bool LinearGradientStyleValue::equals(StyleValue const& other_) const
 {
     if (type() != other_.type())

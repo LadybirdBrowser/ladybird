@@ -262,6 +262,35 @@ void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& nod
     }
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+
+    auto absolutized_size = m_properties.size.visit(
+        [&](Extent extent) -> Size {
+            return extent;
+        },
+        [&](CircleSize const& circle_size) -> Size {
+            return CircleSize {
+                .radius = circle_size.radius->absolutized(context),
+            };
+        },
+        [&](EllipseSize const& ellipse_size) -> Size {
+            return EllipseSize {
+                .radius_a = ellipse_size.radius_a->absolutized(context),
+                .radius_b = ellipse_size.radius_b->absolutized(context),
+            };
+        });
+
+    NonnullRefPtr absolutized_position = m_properties.position->absolutized(context)->as_position();
+
+    return create(m_properties.ending_shape, move(absolutized_size), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, m_properties.interpolation_method);
+}
+
 bool RadialGradientStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())
