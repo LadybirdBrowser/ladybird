@@ -23,6 +23,7 @@
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
+#include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -2573,7 +2574,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // 5. Add or modify CSS-defined animations
     process_animation_definitions(computed_style, abstract_element);
 
-    auto animations = abstract_element.element().get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
+    auto animations = abstract_element.element().get_animations_internal(
+        Animations::Animatable::GetAnimationsSorted::Yes,
+        Animations::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {
