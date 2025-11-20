@@ -1231,6 +1231,25 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 
     element.clear_registered_transitions(pseudo_element);
 
+    auto const& delay = style.property(PropertyID::TransitionDelay);
+    auto const& duration = style.property(PropertyID::TransitionDuration);
+
+    // FIXME: Change this to support the associated StyleValueList values when we update
+    //        parse_simple_comma_separated_value_list to always return a StyleValueList.
+    // OPTIMIZATION: Registered transitions with a "combined duration" of less than or equal to 0s are equivalent to not
+    //               having a transition registered at all, except in the case that we already have an associated
+    //               transition for that property, so we can skip registering them. This implementation intentionally
+    //               ignores some of those cases (e.g. transitions being registered but for other properties, multiple
+    //               transitions, negative delays, etc) since it covers the common (initial property values) case and
+    //               the other cases are rare enough that the cost of identifying them would likely more than offset any
+    //               gains.
+    if (
+        element.property_ids_with_existing_transitions(pseudo_element).is_empty()
+        && delay.is_time() && delay.as_time().time().to_seconds() == 0
+        && duration.is_time() && duration.as_time().time().to_seconds() == 0) {
+        return;
+    }
+
     auto coordinated_transition_list = style.assemble_coordinated_value_list(
         PropertyID::TransitionProperty,
         { PropertyID::TransitionProperty, PropertyID::TransitionDuration, PropertyID::TransitionTimingFunction, PropertyID::TransitionDelay, PropertyID::TransitionBehavior });
