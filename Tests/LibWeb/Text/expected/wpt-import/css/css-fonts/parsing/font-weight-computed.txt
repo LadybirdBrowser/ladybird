@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 58 tests
 
-26 Pass
-32 Fail
+57 Pass
+1 Fail
 Pass	Property font-weight value 'normal'
 Pass	Property font-weight value 'bold'
 Pass	Property font-weight value '1'
@@ -30,35 +30,35 @@ Pass	100 made bolder computes to 400
 Pass	200 made bolder computes to 400
 Pass	300 made bolder computes to 400
 Pass	349 made bolder computes to 400
-Fail	350 made bolder computes to 700
-Fail	400 made bolder computes to 700
-Fail	500 made bolder computes to 700
-Fail	549 made bolder computes to 700
-Fail	550 made bolder computes to 900
-Fail	600 made bolder computes to 900
-Fail	700 made bolder computes to 900
-Fail	749 made bolder computes to 900
-Fail	750 made bolder computes to 900
-Fail	800 made bolder computes to 900
-Fail	900 made bolder computes to 900
-Fail	950 made bolder computes to 950
-Fail	1000 made bolder computes to 1000
+Pass	350 made bolder computes to 700
+Pass	400 made bolder computes to 700
+Pass	500 made bolder computes to 700
+Pass	549 made bolder computes to 700
+Pass	550 made bolder computes to 900
+Pass	600 made bolder computes to 900
+Pass	700 made bolder computes to 900
+Pass	749 made bolder computes to 900
+Pass	750 made bolder computes to 900
+Pass	800 made bolder computes to 900
+Pass	900 made bolder computes to 900
+Pass	950 made bolder computes to 950
+Pass	1000 made bolder computes to 1000
 Pass	1 made lighter computes to 1
-Fail	50 made lighter computes to 50
-Fail	100 made lighter computes to 100
-Fail	200 made lighter computes to 100
-Fail	300 made lighter computes to 100
-Fail	349 made lighter computes to 100
-Fail	350 made lighter computes to 100
-Fail	400 made lighter computes to 100
-Fail	500 made lighter computes to 100
-Fail	549 made lighter computes to 100
-Fail	550 made lighter computes to 400
-Fail	600 made lighter computes to 400
-Fail	700 made lighter computes to 400
-Fail	749 made lighter computes to 400
-Fail	750 made lighter computes to 700
-Fail	800 made lighter computes to 700
-Fail	900 made lighter computes to 700
-Fail	950 made lighter computes to 700
-Fail	1000 made lighter computes to 700
+Pass	50 made lighter computes to 50
+Pass	100 made lighter computes to 100
+Pass	200 made lighter computes to 100
+Pass	300 made lighter computes to 100
+Pass	349 made lighter computes to 100
+Pass	350 made lighter computes to 100
+Pass	400 made lighter computes to 100
+Pass	500 made lighter computes to 100
+Pass	549 made lighter computes to 100
+Pass	550 made lighter computes to 400
+Pass	600 made lighter computes to 400
+Pass	700 made lighter computes to 400
+Pass	749 made lighter computes to 400
+Pass	750 made lighter computes to 700
+Pass	800 made lighter computes to 700
+Pass	900 made lighter computes to 700
+Pass	950 made lighter computes to 700
+Pass	1000 made lighter computes to 700
