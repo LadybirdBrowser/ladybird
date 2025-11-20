@@ -78,7 +78,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return { value.release_nonnull() };
     };
 
-    auto const coordinating_value_list_shorthand_to_string = [&](StringView entry_when_all_longhands_initial) {
+    auto const coordinating_value_list_shorthand_to_string = [&](StringView entry_when_all_longhands_initial, Vector<PropertyID> required_longhands = {}) {
         auto entry_count = style_value_as_value_list(longhand(m_properties.sub_properties[0])).size();
 
         // If we don't have the same number of values for each longhand, we can't serialize this shorthand.
@@ -86,10 +86,15 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return ""_string;
 
         // We should serialize a longhand if:
+        // - The longhand is required
         // - The value is not the initial value
         // - Another longhand value which will be included later in the serialization is valid for this longhand.
         auto should_serialize_longhand = [&](size_t entry_index, size_t longhand_index) {
             auto longhand_id = m_properties.sub_properties[longhand_index];
+
+            if (required_longhands.contains_slow(longhand_id))
+                return true;
+
             auto longhand_value = style_value_as_value_list(longhand(longhand_id))[entry_index];
 
             if (!longhand_value->equals(style_value_as_value_list(property_initial_value(longhand_id))[0]))
@@ -815,6 +820,10 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     case PropertyID::PlaceItems:
     case PropertyID::PlaceSelf:
         return positional_value_list_shorthand_to_string(m_properties.values);
+    case PropertyID::ScrollTimeline:
+        // NB: We don't need to specify a value to use when the entry is empty as all values are initial since
+        //     scroll-timeline-name is always included
+        return coordinating_value_list_shorthand_to_string(""sv, { PropertyID::ScrollTimelineName });
     case PropertyID::TextDecoration: {
         // The rule here seems to be, only print what's different from the default value,
         // but if they're all default, print the line.

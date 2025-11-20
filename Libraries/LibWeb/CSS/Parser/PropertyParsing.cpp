@@ -745,6 +745,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_translate_value(tokens); });
     case PropertyID::Scale:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_scale_value(tokens); });
+    case PropertyID::ScrollTimeline:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scroll_timeline_value(tokens); });
     case PropertyID::ScrollTimelineAxis:
     case PropertyID::ScrollTimelineName:
         return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
@@ -5180,6 +5182,73 @@ RefPtr<StyleValue const> Parser::parse_scale_value(TokenStream<ComponentValue>& 
 
     transaction.commit();
     return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale3d, { maybe_x.release_nonnull(), maybe_y.release_nonnull(), maybe_z.release_nonnull() });
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-shorthand
+RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<ComponentValue>& tokens)
+{
+    // [ <'scroll-timeline-name'> <'scroll-timeline-axis'>? ]#
+    StyleValueVector names;
+    StyleValueVector axes;
+
+    auto transaction = tokens.begin_transaction();
+
+    do {
+        tokens.discard_whitespace();
+
+        auto maybe_name = parse_css_value_for_property(PropertyID::ScrollTimelineName, tokens);
+
+        if (!maybe_name)
+            return nullptr;
+
+        names.append(maybe_name.release_nonnull());
+
+        tokens.discard_whitespace();
+
+        if (tokens.next_token().is(Token::Type::Comma)) {
+            axes.append(KeywordStyleValue::create(Keyword::Block));
+            tokens.discard_a_token();
+
+            // Disallow trailing commas
+            if (!tokens.has_next_token())
+                return nullptr;
+
+            continue;
+        }
+
+        if (!tokens.has_next_token()) {
+            axes.append(KeywordStyleValue::create(Keyword::Block));
+            break;
+        }
+
+        auto maybe_axis = parse_css_value_for_property(PropertyID::ScrollTimelineAxis, tokens);
+
+        if (!maybe_axis)
+            return nullptr;
+
+        axes.append(maybe_axis.release_nonnull());
+
+        tokens.discard_whitespace();
+
+        if (tokens.next_token().is(Token::Type::Comma)) {
+            tokens.discard_a_token();
+
+            // Disallow trailing commas
+            if (!tokens.has_next_token())
+                return nullptr;
+
+            continue;
+        }
+
+        if (tokens.has_next_token())
+            return nullptr;
+    } while (tokens.has_next_token());
+
+    transaction.commit();
+
+    return ShorthandStyleValue::create(PropertyID::ScrollTimeline,
+        { PropertyID::ScrollTimelineName, PropertyID::ScrollTimelineAxis },
+        { StyleValueList::create(move(names), StyleValueList::Separator::Comma), StyleValueList::create(move(axes), StyleValueList::Separator::Comma) });
 }
 
 // https://drafts.csswg.org/css-scrollbars/#propdef-scrollbar-color
