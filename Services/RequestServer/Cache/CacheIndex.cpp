@@ -67,7 +67,8 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
         CACHE_METADATA_KEY);
 
     if (cache_version != CACHE_VERSION) {
-        dbgln("\033[31;1mDisk cache version mismatch:\033[0m stored version = {}, new version = {}", cache_version, CACHE_VERSION);
+        if (cache_version != 0)
+            dbgln("\033[31;1mDisk cache version mismatch:\033[0m stored version = {}, new version = {}", cache_version, CACHE_VERSION);
 
         // FIXME: We should more elegantly handle minor changes, i.e. use ALTER TABLE to add fields to CacheIndex.
         auto delete_cache_index_table = TRY(database.prepare_statement("DROP TABLE IF EXISTS CacheIndex;"sv));
