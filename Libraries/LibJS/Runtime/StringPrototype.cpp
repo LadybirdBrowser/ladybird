@@ -568,10 +568,14 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
 
     // OPTIMIZATION: If both locales and options are undefined, we can use a cached default-constructed Collator.
     GC::Ptr<Object> collator;
-    if (locales.is_undefined() && options.is_undefined())
+    if (locales.is_undefined() && options.is_undefined()) {
+        // OPTIMIZATION: Identical strings are equal with the default options.
+        if (string == that_value)
+            return Value(0);
         collator = realm.intrinsics().default_collator();
-    else
+    } else {
         collator = TRY(construct(vm, realm.intrinsics().intl_collator_constructor(), locales, options));
+    }
 
     // 5. Return CompareStrings(collator, S, thatValue).
     return Intl::compare_strings(static_cast<Intl::Collator const&>(*collator), string, that_value);
