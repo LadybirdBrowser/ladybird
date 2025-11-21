@@ -295,15 +295,15 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
                 auto const& attribute_name = attribute->name();
                 attribute_list.append(attribute->name());
 
-                if (attribute_name == "http-equiv") {
+                if (attribute_name == AttributeNames::http_equiv) {
                     got_pragma = attribute->value() == "content-type";
-                } else if (attribute_name == "content") {
+                } else if (attribute_name == AttributeNames::content) {
                     auto encoding = extract_character_encoding_from_meta_element(attribute->value().to_byte_string());
                     if (encoding.has_value() && !charset.has_value()) {
                         charset = encoding.value();
                         need_pragma = true;
                     }
-                } else if (attribute_name == "charset") {
+                } else if (attribute_name == AttributeNames::charset) {
                     auto maybe_charset = TextCodec::get_standardized_encoding(attribute->value());
                     if (maybe_charset.has_value()) {
                         charset = Optional<ByteString> { maybe_charset };
