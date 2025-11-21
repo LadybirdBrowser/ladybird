@@ -165,6 +165,7 @@ static bool is_platform_object(Type const& type)
         "WindowProxy"sv,
         "WritableStream"sv,
         "XPathResult"sv,
+        "XRSession"sv,
     };
     if (type.name().ends_with("Element"sv))
         return true;
@@ -4977,6 +4978,7 @@ using namespace Web::WebGL;
 using namespace Web::WebGL::Extensions;
 using namespace Web::WebIDL;
 using namespace Web::WebVTT;
+using namespace Web::WebXR;
 using namespace Web::XHR;
 using namespace Web::XPath;
 )~~~"sv);
