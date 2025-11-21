@@ -667,8 +667,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
         auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
         light_dismiss_activities(pointer_event, node);
-        node->dispatch_event(pointer_event);
-        node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+        if (!node->dispatch_event(pointer_event))
+            return EventResult::Cancelled;
+        if (!node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors()))
+            return EventResult::Cancelled;
     }
 
     // NOTE: Dispatching an event may have disturbed the world.
