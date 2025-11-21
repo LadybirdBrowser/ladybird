@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,23 +14,32 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/Infra/CharacterTypes.h>
-#include <ctype.h>
 
 namespace Web::HTML {
 
-bool prescan_should_abort(ByteBuffer const& input, size_t const& position)
+static bool prescan_should_abort(ByteBuffer const& input, size_t const& position)
 {
     return position >= input.size() || position >= 1024;
 }
 
-bool prescan_is_whitespace_or_slash(u8 const& byte)
+static constexpr bool is_whitespace(u8 byte)
 {
-    return byte == '\t' || byte == '\n' || byte == '\f' || byte == '\r' || byte == ' ' || byte == '/';
+    return byte == '\t' || byte == '\n' || byte == '\f' || byte == '\r' || byte == ' ';
 }
 
-bool prescan_skip_whitespace_and_slashes(ByteBuffer const& input, size_t& position)
+static constexpr bool is_whitespace_or_slash(u8 byte)
 {
-    while (!prescan_should_abort(input, position) && (input[position] == '\t' || input[position] == '\n' || input[position] == '\f' || input[position] == '\r' || input[position] == ' ' || input[position] == '/'))
+    return is_whitespace(byte) || byte == '/';
+}
+
+static constexpr bool is_whitespace_or_end_chevron(u8 byte)
+{
+    return is_whitespace(byte) || byte == '>';
+}
+
+static bool prescan_skip_whitespace_and_slashes(ByteBuffer const& input, size_t& position)
+{
+    while (!prescan_should_abort(input, position) && is_whitespace_or_slash(input[position]))
         ++position;
     return !prescan_should_abort(input, position);
 }
@@ -117,7 +127,7 @@ GC::Ptr<DOM::Attr> prescan_get_attribute(DOM::Document& document, ByteBuffer con
             goto value;
         }
         // -> If it is 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), or 0x20 (SP)
-        if (input[position] == '\t' || input[position] == '\n' || input[position] == '\f' || input[position] == '\r' || input[position] == ' ') {
+        if (is_whitespace(input[position])) {
             // Jump to the step below labeled spaces.
             goto spaces;
         }
@@ -227,7 +237,7 @@ value:
     // 11. Process the byte at position as follows:
     for (; !prescan_should_abort(input, position); ++position) {
         // -> If it is 0x09 (HT), 0x0A (LF), 0x0C (FF), 0x0D (CR), 0x20 (SP), or 0x3E (>)
-        if (input[position] == '\t' || input[position] == '\n' || input[position] == '\f' || input[position] == '\r' || input[position] == ' ' || input[position] == '>') {
+        if (is_whitespace_or_end_chevron(input[position])) {
             // Abort the get an attribute algorithm. The attribute's name is the value of attribute name and its value is the value of attribute value.
             return DOM::Attr::create(document, MUST(attribute_name.to_string()), MUST(attribute_value.to_string()));
         }
@@ -251,8 +261,6 @@ value:
 // https://html.spec.whatwg.org/multipage/parsing.html#prescan-a-byte-stream-to-determine-its-encoding
 Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, ByteBuffer const& input)
 {
-    // https://html.spec.whatwg.org/multipage/parsing.html#prescan-a-byte-stream-to-determine-its-encoding
-
     // Detects '<?x'
     if (!prescan_should_abort(input, 5)) {
         // A sequence of bytes starting with: 0x3C, 0x0, 0x3F, 0x0, 0x78, 0x0
@@ -279,7 +287,7 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
             && (input[position + 2] == 'E' || input[position + 2] == 'e')
             && (input[position + 3] == 'T' || input[position + 3] == 't')
             && (input[position + 4] == 'A' || input[position + 4] == 'a')
-            && prescan_is_whitespace_or_slash(input[position + 5])) {
+            && is_whitespace_or_slash(input[position + 5])) {
             position += 6;
             Vector<FlyString> attribute_list {};
             bool got_pragma = false;
@@ -322,9 +330,9 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
             else
                 return charset.value();
         } else if (!prescan_should_abort(input, position + 3) && input[position] == '<'
-            && ((input[position + 1] == '/' && isalpha(input[position + 2])) || isalpha(input[position + 1]))) {
-            position += 2;
-            prescan_skip_whitespace_and_slashes(input, position);
+            && ((input[position + 1] == '/' && is_ascii_alpha(input[position + 2])) || is_ascii_alpha(input[position + 1]))) {
+            while (!prescan_should_abort(input, position) && !is_whitespace_or_end_chevron(input[position]))
+                ++position;
             while (prescan_get_attribute(document, input, position)) { };
         } else if (!prescan_should_abort(input, position + 1) && input[position] == '<' && (input[position + 1] == '!' || input[position + 1] == '/' || input[position + 1] == '?')) {
             position += 1;
