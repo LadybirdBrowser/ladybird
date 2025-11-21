@@ -1716,39 +1716,39 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOp
     if (auto* unit = largest_unit.get_pointer<Unit>(); unit && disallowed_units.contains_slow(*unit))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.largestUnit);
 
-    // 9. If operation is SINCE, then
+    // 9. Perform ? ValidateTemporalUnitValue(smallestUnit, unitGroup).
+    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, unit_group));
+
+    // 10. If smallestUnit is UNSET, then
+    //     a. Set smallestUnit to fallbackSmallestUnit.
+    auto smallest_unit_value = smallest_unit.has<Unset>() ? fallback_smallest_unit : smallest_unit.get<Unit>();
+
+    // 11. If disallowedUnits contains smallestUnit, throw a RangeError exception.
+    if (disallowed_units.contains_slow(smallest_unit_value))
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(smallest_unit_value), vm.names.smallestUnit);
+
+    // 12. Let defaultLargestUnit be LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
+    auto default_largest_unit = larger_of_two_temporal_units(smallest_largest_default_unit, smallest_unit_value);
+
+    // 13. If largestUnit is AUTO, set largestUnit to defaultLargestUnit.
+    auto largest_unit_value = largest_unit.has<Auto>() ? default_largest_unit : largest_unit.get<Unit>();
+
+    // 14. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
+    if (larger_of_two_temporal_units(largest_unit_value, smallest_unit_value) != largest_unit_value)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidUnitRange, temporal_unit_to_string(smallest_unit_value), temporal_unit_to_string(largest_unit_value));
+
+    // 15. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
+
+    // 16. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    if (!maximum.has<Unset>())
+        TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
+
+    // 17. If operation is SINCE, then
     if (operation == DurationOperation::Since) {
         // a. Set roundingMode to NegateRoundingMode(roundingMode).
         rounding_mode = negate_rounding_mode(rounding_mode);
     }
-
-    // 10. Perform ? ValidateTemporalUnitValue(smallestUnit, unitGroup).
-    TRY(validate_temporal_unit_value(vm, vm.names.smallestUnit, smallest_unit, unit_group));
-
-    // 11. If smallestUnit is UNSET, then
-    //     a. Set smallestUnit to fallbackSmallestUnit.
-    auto smallest_unit_value = smallest_unit.has<Unset>() ? fallback_smallest_unit : smallest_unit.get<Unit>();
-
-    // 12. If disallowedUnits contains smallestUnit, throw a RangeError exception.
-    if (disallowed_units.contains_slow(smallest_unit_value))
-        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(smallest_unit_value), vm.names.smallestUnit);
-
-    // 13. Let defaultLargestUnit be LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
-    auto default_largest_unit = larger_of_two_temporal_units(smallest_largest_default_unit, smallest_unit_value);
-
-    // 14. If largestUnit is AUTO, set largestUnit to defaultLargestUnit.
-    auto largest_unit_value = largest_unit.has<Auto>() ? default_largest_unit : largest_unit.get<Unit>();
-
-    // 15. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
-    if (larger_of_two_temporal_units(largest_unit_value, smallest_unit_value) != largest_unit_value)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidUnitRange, temporal_unit_to_string(smallest_unit_value), temporal_unit_to_string(largest_unit_value));
-
-    // 16. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
-    auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
-
-    // 17. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
-    if (!maximum.has<Unset>())
-        TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
 
     // 18. Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]: largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]: roundingIncrement,  }.
     return DifferenceSettings { .smallest_unit = smallest_unit_value, .largest_unit = largest_unit_value, .rounding_mode = rounding_mode, .rounding_increment = rounding_increment };
