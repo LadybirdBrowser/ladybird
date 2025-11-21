@@ -590,23 +590,23 @@ void Reader::fix_ffmpeg_webm_quirk()
             return;
 
         auto is_affected_version = [&] {
-            constexpr uint final_major_version = 59;
-            constexpr uint final_minor_version = 30;
-            constexpr uint final_micro_version = 100;
+            constexpr u32 final_major_version = 59;
+            constexpr u32 final_minor_version = 30;
+            constexpr u32 final_micro_version = 100;
 
-            auto major_version = split[0].to_number<uint>();
+            auto major_version = split[0].to_number<u32>();
             if (!major_version.has_value() || major_version.value() > final_major_version)
                 return false;
             if (major_version.value() < final_major_version)
                 return true;
 
-            auto minor_version = split[1].to_number<uint>();
+            auto minor_version = split[1].to_number<u32>();
             if (!minor_version.has_value() || minor_version.value() > final_minor_version)
                 return false;
             if (minor_version.value() < final_minor_version)
                 return true;
 
-            auto micro_version = split[2].to_number<uint>();
+            auto micro_version = split[2].to_number<u32>();
             return micro_version.has_value() && micro_version.value() <= final_micro_version;
         }();
         if (!is_affected_version)
