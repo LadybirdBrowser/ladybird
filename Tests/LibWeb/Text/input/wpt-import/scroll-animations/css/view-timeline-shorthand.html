@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#view-timeline-shorthand">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script src="../../css/support/shorthand-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_valid_value('view-timeline', '--abcd');
+test_valid_value('view-timeline', 'none block', 'none');
+test_valid_value('view-timeline', 'none inline');
+
+// view-timeline-name: inline/block/x/y.
+test_valid_value('view-timeline', '--inline block', '--inline');
+test_valid_value('view-timeline', '--block block', '--block');
+test_valid_value('view-timeline', '--y block', '--y');
+test_valid_value('view-timeline', '--x block', '--x');
+
+test_valid_value('view-timeline', '--a, --b, --c');
+test_valid_value('view-timeline', '--a inline, --b block, --c y', '--a inline, --b, --c y');
+test_valid_value('view-timeline', '--auto');
+test_valid_value('view-timeline', '--abcd block auto', '--abcd');
+test_valid_value('view-timeline', '--abcd block auto auto', '--abcd');
+test_valid_value('view-timeline', '--abcd block 1px 2px', '--abcd 1px 2px');
+test_valid_value('view-timeline', '--abcd inline 1px 2px', '--abcd inline 1px 2px');
+test_valid_value('view-timeline', '--abcd 1px 2px inline', '--abcd inline 1px 2px');
+test_valid_value('view-timeline', '--abcd 1px 2px block', '--abcd 1px 2px');
+test_valid_value('view-timeline', '--abcd auto auto block', '--abcd');
+test_valid_value('view-timeline', '--abcd auto block', '--abcd');
+test_valid_value('view-timeline', '--abcd block 1px 1px', '--abcd 1px');
+
+test_invalid_value('view-timeline', '--abc --abc');
+test_invalid_value('view-timeline', 'block none');
+test_invalid_value('view-timeline', 'none none');
+test_invalid_value('view-timeline', 'default');
+test_invalid_value('view-timeline', ',');
+test_invalid_value('view-timeline', ',,--block,,');
+test_invalid_value('view-timeline', 'auto');
+test_invalid_value('view-timeline', 'auto auto');
+test_invalid_value('view-timeline', '--abc 500kg');
+test_invalid_value('view-timeline', '--abc #ff0000');
+test_invalid_value('view-timeline', '--abc red red');
+
+test_computed_value('view-timeline', '--abcd');
+test_computed_value('view-timeline', 'none block', 'none');
+test_computed_value('view-timeline', 'none inline');
+test_computed_value('view-timeline', '--inline block', '--inline');
+test_computed_value('view-timeline', '--block block', '--block');
+test_computed_value('view-timeline', '--y block', '--y');
+test_computed_value('view-timeline', '--x block', '--x');
+test_computed_value('view-timeline', '--a, --b, --c');
+test_computed_value('view-timeline', '--a inline, --b block, --c y', '--a inline, --b, --c y');
+test_computed_value('view-timeline', '--abcd block auto', '--abcd');
+test_computed_value('view-timeline', '--abcd block auto auto', '--abcd');
+test_computed_value('view-timeline', '--abcd block 1px 2px', '--abcd 1px 2px');
+test_computed_value('view-timeline', '--abcd inline 1px 2px', '--abcd inline 1px 2px');
+test_computed_value('view-timeline', '--abcd 1px 2px inline', '--abcd inline 1px 2px');
+test_computed_value('view-timeline', '--abcd 1px 2px block', '--abcd 1px 2px');
+test_computed_value('view-timeline', '--abcd auto auto block', '--abcd');
+test_computed_value('view-timeline', '--abcd auto block', '--abcd');
+test_computed_value('view-timeline', '--abcd block 1px 1px', '--abcd 1px');
+
+test_shorthand_value('view-timeline', '--abc y',
+{
+  'view-timeline-name': '--abc',
+  'view-timeline-axis': 'y',
+  'view-timeline-inset': 'auto',
+});
+test_shorthand_value('view-timeline', '--abc y, --def',
+{
+  'view-timeline-name': '--abc, --def',
+  'view-timeline-axis': 'y, block',
+  'view-timeline-inset': 'auto, auto',
+});
+test_shorthand_value('view-timeline', '--abc, --def',
+{
+  'view-timeline-name': '--abc, --def',
+  'view-timeline-axis': 'block, block',
+  'view-timeline-inset': 'auto, auto',
+});
+test_shorthand_value('view-timeline', '--inline x',
+{
+  'view-timeline-name': '--inline',
+  'view-timeline-axis': 'x',
+  'view-timeline-inset': 'auto',
+});
+test_shorthand_value('view-timeline', '--abc 1px 2px',
+{
+  'view-timeline-name': '--abc',
+  'view-timeline-axis': 'block',
+  'view-timeline-inset': '1px 2px',
+});
+test_shorthand_value('view-timeline', '--abc 1px',
+{
+  'view-timeline-name': '--abc',
+  'view-timeline-axis': 'block',
+  'view-timeline-inset': '1px',
+});
+test_shorthand_value('view-timeline', '--abc 1px inline',
+{
+  'view-timeline-name': '--abc',
+  'view-timeline-axis': 'inline',
+  'view-timeline-inset': '1px',
+});
+
+function test_shorthand_contraction(shorthand, longhands, expected) {
+  let longhands_fmt = Object.entries(longhands).map((e) => `${e[0]}:${e[1]}:${e[2]}`).join(';');
+  test((t) => {
+    t.add_cleanup(() => {
+      for (let shorthand of Object.keys(longhands))
+        target.style.removeProperty(shorthand);
+    });
+    for (let [shorthand, value] of Object.entries(longhands))
+      target.style.setProperty(shorthand, value);
+    assert_equals(target.style.getPropertyValue(shorthand), expected, 'Declared value');
+    assert_equals(getComputedStyle(target).getPropertyValue(shorthand), expected, 'Computed value');
+  }, `Shorthand contraction of ${longhands_fmt}`);
+}
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': '--abc',
+  'view-timeline-axis': 'inline',
+  'view-timeline-inset': 'auto',
+}, '--abc inline');
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': '--a, --b',
+  'view-timeline-axis': 'inline, block',
+  'view-timeline-inset': 'auto, auto',
+}, '--a inline, --b');
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': '--a, --b',
+  'view-timeline-axis': 'inline, block',
+  'view-timeline-inset': '1px 2px, 3px 3px',
+}, '--a inline 1px 2px, --b 3px');
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': 'none, none',
+  'view-timeline-axis': 'block, block',
+  'view-timeline-inset': 'auto auto, auto',
+}, 'none, none');
+
+// Longhands with different lengths:
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': '--a, --b, --c',
+  'view-timeline-axis': 'inline, inline',
+  'view-timeline-inset': 'auto, auto',
+}, '--a inline, --b inline, --c inline');
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': '--a, --b',
+  'view-timeline-axis': 'inline, inline, inline',
+  'view-timeline-inset': 'auto, auto, auto',
+}, '--a inline, --b inline');
+
+test_shorthand_contraction('view-timeline', {
+  'view-timeline-name': '--a, --b',
+  'view-timeline-axis': 'inline, inline',
+  'view-timeline-inset': 'auto, auto, auto',
+}, '--a inline, --b inline');
+</script>
