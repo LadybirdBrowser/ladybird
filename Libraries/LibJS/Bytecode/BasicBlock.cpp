@@ -21,15 +21,7 @@ BasicBlock::BasicBlock(u32 index, String name)
 {
 }
 
-BasicBlock::~BasicBlock()
-{
-    Bytecode::InstructionStreamIterator it(instruction_stream());
-    while (!it.at_end()) {
-        auto& to_destroy = (*it);
-        ++it;
-        Instruction::destroy(const_cast<Instruction&>(to_destroy));
-    }
-}
+BasicBlock::~BasicBlock() = default;
 
 void BasicBlock::grow(size_t additional_size)
 {
