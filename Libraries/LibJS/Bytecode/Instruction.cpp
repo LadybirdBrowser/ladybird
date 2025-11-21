@@ -78,17 +78,6 @@ size_t Instruction::length() const
 #undef __BYTECODE_OP
 }
 
-UnrealizedSourceRange InstructionStreamIterator::source_range() const
-{
-    VERIFY(m_executable);
-    auto record = m_executable->source_map.get(offset()).value();
-    return {
-        .source_code = m_executable->source_code,
-        .start_offset = record.source_start_offset,
-        .end_offset = record.source_end_offset,
-    };
-}
-
 Operand::Operand(Register reg)
     : m_type(Type::Register)
     , m_index(reg.index())
