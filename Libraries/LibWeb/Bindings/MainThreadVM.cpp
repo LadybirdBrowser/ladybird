@@ -723,27 +723,36 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
     surrounding_agent.mutation_observer_microtask_queued = true;
 
     // 3. Queue a microtask to notify mutation observers.
-    // NOTE: This uses the implied document concept. In the case of mutation observers, it is always done in a node context, so document should be that node's document.
+    // NOTE: This uses the implied document concept. In the case of mutation observers, it is always done in a node
+    //       context, so document should be that node's document.
     HTML::queue_a_microtask(&document, GC::create_function(vm.heap(), [&surrounding_agent, &heap = document.heap()]() {
+        // https://dom.spec.whatwg.org/#notify-mutation-observers
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         surrounding_agent.mutation_observer_microtask_queued = false;
 
-        // 2. Let notifySet be a clone of the surrounding agent’s mutation observers.
+        // 2. Let notifySet be a clone of the surrounding agent’s pending mutation observers.
         GC::RootVector<DOM::MutationObserver*> notify_set(heap);
-        for (auto& observer : surrounding_agent.mutation_observers)
+        for (auto& observer : surrounding_agent.pending_mutation_observers)
             notify_set.append(&observer);
 
-        // 3. Let signalSet be a clone of the surrounding agent’s signal slots.
-        // 4. Empty the surrounding agent’s signal slots.
+        // 3. Empty the surrounding agent’s pending mutation observers.
+        // NB: We instead do this at the end of the microtask. Steps 2 and 3 are equivalent to moving
+        //     surrounding_agent.pending_mutation_observers, but it's unmovable. Actually copying the MutationObservers
+        //     causes issues, so for now, keep notify_set as pointers and defer this step until after we've finished
+        //     using the notify_set.
+
+        // 4. Let signalSet be a clone of the surrounding agent’s signal slots.
+        // 5. Empty the surrounding agent’s signal slots.
         auto signal_set = move(surrounding_agent.signal_slots);
 
-        // 5. For each mo of notifySet:
+        // 6. For each mo of notifySet:
         for (auto& mutation_observer : notify_set) {
             // 1. Let records be a clone of mo’s record queue.
             // 2. Empty mo’s record queue.
             auto records = mutation_observer->take_records();
 
-            // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from node’s registered observer list.
+            // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from
+            //    node’s registered observer list.
             for (auto& node : mutation_observer->node_list()) {
                 // FIXME: Is this correct?
                 if (!node)
@@ -756,7 +765,8 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                 }
             }
 
-            // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with callback this value mo.
+            // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with
+            //    callback this value mo.
             if (!records.is_empty()) {
                 auto& callback = mutation_observer->callback();
                 auto& realm = callback.callback_context;
@@ -772,12 +782,15 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
             }
         }
 
-        // 6. For each slot of signalSet, fire an event named slotchange, with its bubbles attribute set to true, at slot.
+        // 7. For each slot of signalSet, fire an event named slotchange, with its bubbles attribute set to true, at slot.
         for (auto& slot : signal_set) {
             DOM::EventInit event_init;
             event_init.bubbles = true;
             slot->dispatch_event(DOM::Event::create(slot->realm(), HTML::EventNames::slotchange, event_init));
         }
+
+        // NB: Step 3, done later.
+        surrounding_agent.pending_mutation_observers.clear();
     }));
 }
 

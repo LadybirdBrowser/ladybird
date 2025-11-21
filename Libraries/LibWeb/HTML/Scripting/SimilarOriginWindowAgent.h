@@ -29,7 +29,7 @@ struct SimilarOriginWindowAgent : public Agent {
 
     // https://dom.spec.whatwg.org/#mutation-observer-list
     // Each similar-origin window agent also has pending mutation observers (a set of zero or more MutationObserver objects), which is initially empty.
-    DOM::MutationObserver::List mutation_observers;
+    DOM::MutationObserver::List pending_mutation_observers;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reactions-stack
     // Each similar-origin window agent has a custom element reactions stack, which is initially empty.

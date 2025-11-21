@@ -26,21 +26,10 @@ MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackTyp
     : PlatformObject(realm)
     , m_callback(move(callback))
 {
-
-    // 1. Set this’s callback to callback.
-
-    // 2. Append this to this’s relevant agent’s mutation observers.
-    HTML::relevant_similar_origin_window_agent(*this).mutation_observers.append(*this);
+    // The new MutationObserver(callback) constructor steps are to set this’s callback to callback.
 }
 
-MutationObserver::~MutationObserver()
-{
-}
-
-void MutationObserver::finalize()
-{
-    HTML::relevant_similar_origin_window_agent(*this).mutation_observers.remove(*this);
-}
+MutationObserver::~MutationObserver() = default;
 
 void MutationObserver::initialize(JS::Realm& realm)
 {
@@ -119,7 +108,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
         auto new_registered_observer = RegisteredObserver::create(*this, options);
         target.add_registered_observer(new_registered_observer);
 
-        // 2. Append target to this’s node list.
+        // 2. Append a weak reference to target to this’s node list.
         m_node_list.append(target);
     }
 

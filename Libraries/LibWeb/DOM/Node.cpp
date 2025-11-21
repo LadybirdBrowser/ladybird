@@ -53,6 +53,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
@@ -2588,13 +2589,16 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     auto removed_nodes_list = StaticNodeList::create(realm(), move(removed_nodes));
 
     // 4. For each observer → mappedOldValue of interestedObservers:
-    for (auto& interested_observer : interested_observers) {
+    for (auto& [observer, mapped_old_value] : interested_observers) {
         // 1. Let record be a new MutationRecord object with its type set to type, target set to target, attributeName set to name, attributeNamespace set to namespace, oldValue set to mappedOldValue,
         //    addedNodes set to addedNodes, removedNodes set to removedNodes, previousSibling set to previousSibling, and nextSibling set to nextSibling.
-        auto record = MutationRecord::create(realm(), type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, string_attribute_name, string_attribute_namespace, /* mappedOldValue */ interested_observer.value);
+        auto record = MutationRecord::create(realm(), type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, string_attribute_name, string_attribute_namespace, mapped_old_value);
 
         // 2. Enqueue record to observer’s record queue.
-        interested_observer.key->enqueue_record({}, move(record));
+        observer->enqueue_record({}, move(record));
+
+        // 3. Append observer to the surrounding agent’s pending mutation observers.
+        HTML::relevant_similar_origin_window_agent(*this).pending_mutation_observers.append(*observer);
     }
 
     // 5. Queue a mutation observer microtask.
