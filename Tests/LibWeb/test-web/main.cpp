@@ -38,7 +38,7 @@ namespace TestWeb {
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
-static HashMap<WebView::ViewImplementation const*, Test const*> s_test_by_view;
+static HashMap<WebView::ViewImplementation const*, Test*> s_test_by_view;
 
 static constexpr StringView test_result_to_string(TestResult result)
 {
@@ -152,13 +152,6 @@ static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& t
     return {};
 }
 
-static void clear_test_callbacks(TestWebView& view)
-{
-    view.on_load_finish = {};
-    view.on_test_finish = {};
-    view.on_web_content_crashed = {};
-}
-
 static String generate_wait_for_test_string(StringView wait_class)
 {
     return MUST(String::formatted(R"(
@@ -195,12 +188,7 @@ static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest
 
 static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
-    auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
-        view.on_load_finish = {};
-        view.on_test_finish = {};
-        view.on_set_test_timeout = {};
-        view.reset_zoom();
-
+    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_test_complete({ test, TestResult::Timeout });
     });
 
@@ -259,22 +247,11 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
         return TestResult::Fail;
     };
 
-    auto on_test_complete = [&view, &test, timer, handle_completed_test]() {
-        view.reset_zoom();
-        clear_test_callbacks(view);
-        timer->stop();
-
+    auto on_test_complete = [&view, &test, handle_completed_test]() {
         if (auto result = handle_completed_test(); result.is_error())
             view.on_test_complete({ test, TestResult::Fail });
         else
             view.on_test_complete({ test, result.value() });
-    };
-
-    view.on_web_content_crashed = [&view, &test, timer]() {
-        clear_test_callbacks(view);
-        timer->stop();
-
-        view.on_test_complete({ test, TestResult::Crashed });
     };
 
     if (test.mode == TestMode::Layout) {
@@ -342,25 +319,18 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
         };
     }
 
-    view.on_set_test_timeout = [timer, timeout_in_milliseconds](double milliseconds) {
-        if (milliseconds <= timeout_in_milliseconds)
-            return;
-        timer->stop();
-        timer->start(milliseconds);
+    view.on_set_test_timeout = [&test, timeout_in_milliseconds](double milliseconds) {
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(milliseconds);
     };
 
     view.load(url);
-    timer->start();
+    test.timeout_timer->start();
 }
 
 static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
-        view.on_load_finish = {};
-        view.on_test_finish = {};
-        view.on_set_test_timeout = {};
-        view.reset_zoom();
-
         view.on_test_complete({ test, TestResult::Timeout });
     });
 
@@ -394,21 +364,11 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
         return TestResult::Fail;
     };
 
-    auto on_test_complete = [&view, &test, timer, handle_completed_test]() {
-        clear_test_callbacks(view);
-        timer->stop();
-
+    auto on_test_complete = [&view, &test, handle_completed_test]() {
         if (auto result = handle_completed_test(); result.is_error())
             view.on_test_complete({ test, TestResult::Fail });
         else
             view.on_test_complete({ test, result.value() });
-    };
-
-    view.on_web_content_crashed = [&view, &test, timer]() {
-        clear_test_callbacks(view);
-        timer->stop();
-
-        view.on_test_complete({ test, TestResult::Crashed });
     };
 
     view.on_load_finish = [&view](auto const&) {
@@ -483,11 +443,9 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
         view.load(URL::Parser::basic_parse(reference_to_load).release_value());
     };
 
-    view.on_set_test_timeout = [timer, timeout_in_milliseconds](double milliseconds) {
-        if (milliseconds <= timeout_in_milliseconds)
-            return;
-        timer->stop();
-        timer->start(milliseconds);
+    view.on_set_test_timeout = [&test, timeout_in_milliseconds](double milliseconds) {
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(milliseconds);
     };
 
     view.load(url);
@@ -579,6 +537,11 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
     view.on_request_alert = [&](auto const&) {
         // For tests, just close the alert right away to unblock JS execution.
         view.alert_closed();
+    };
+
+    view.on_web_content_crashed = [&view]() {
+        if (auto test = s_test_by_view.get(&view); test.has_value())
+            view.on_test_complete({ *test.value(), TestResult::Crashed });
     };
 }
 
@@ -699,6 +662,17 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         };
 
         view->test_promise().when_resolved([&, run_next_test, view_id](auto result) {
+            view->on_load_finish = {};
+            view->on_test_finish = {};
+            view->on_reference_test_metadata = {};
+            view->on_set_test_timeout = {};
+            view->reset_zoom();
+
+            if (result.test.timeout_timer) {
+                result.test.timeout_timer->stop();
+                result.test.timeout_timer.clear();
+            }
+
             result.test.end_time = UnixDateTime::now();
             s_test_by_view.remove(view);
 

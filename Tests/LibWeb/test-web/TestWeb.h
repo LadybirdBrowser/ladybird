@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
 
@@ -59,6 +60,8 @@ struct Test {
 
     RefPtr<Gfx::Bitmap const> actual_screenshot {};
     RefPtr<Gfx::Bitmap const> expectation_screenshot {};
+
+    RefPtr<Core::Timer> timeout_timer {};
 };
 
 struct TestCompletion {
