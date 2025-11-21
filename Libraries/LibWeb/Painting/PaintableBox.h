@@ -212,6 +212,8 @@ public:
 
     virtual bool wants_mouse_events() const override;
 
+    CSS::TransformStyle transform_style_used_value() const;
+
     CSSPixelRect transform_reference_box() const;
     virtual void resolve_paint_properties() override;
 

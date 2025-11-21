@@ -179,6 +179,16 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
         matrix = matrix * scale->to_matrix(paintable_box).release_value();
     for (auto const& transform : computed_values.transformations())
         matrix = matrix * transform->to_matrix(paintable_box).release_value();
+
+    // https://drafts.csswg.org/css-transforms-2/#accumulated-3d-transformation-matrix-computation
+    // AD-HOC: Flatten an element's transform only if it's not in a 3D rendering context.
+    //         The spec defines a whole algorithm for how we should be doing positioning and rendering inside of a
+    //         3D rendering context, but just not flattening the transform is a reasonable approximation of that
+    //         for now.
+    if (paintable_box.transform_style_used_value() == CSS::TransformStyle::Flat) {
+        matrix = matrix * CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::ScaleZ, CSS::StyleValueVector { CSS::LengthStyleValue::create(CSS::Length::make_px(0)) })->to_matrix({}).release_value();
+    }
+
     auto const& css_transform_origin = computed_values.transform_origin();
     auto reference_box = paintable_box.transform_reference_box();
     auto origin_x = reference_box.left() + css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width());
