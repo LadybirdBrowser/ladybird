@@ -4013,6 +4013,16 @@
       "unitless-length"
     ]
   },
+  "view-timeline-axis": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "block",
+    "valid-types": [
+      "axis"
+    ],
+    "multiplicity": "coordinating-list"
+  },
   "view-timeline-name": {
     "affects-layout": false,
     "animation-type": "none",
