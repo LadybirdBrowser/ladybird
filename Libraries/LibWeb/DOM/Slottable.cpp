@@ -256,7 +256,10 @@ void assign_a_slot(Slottable const& slottable)
 void signal_a_slot_change(GC::Ref<HTML::HTMLSlotElement> slottable)
 {
     // 1. Append slot to slot’s relevant agent’s signal slots.
-    HTML::relevant_similar_origin_window_agent(slottable).signal_slots.append(slottable);
+    // NB: signal_slots is supposed to be a set, so ensure the slottable is not already there.
+    auto& signal_slots = HTML::relevant_similar_origin_window_agent(slottable).signal_slots;
+    if (!signal_slots.contains_slow(slottable))
+        signal_slots.append(slottable);
 
     // 2. Queue a mutation observer microtask.
     Bindings::queue_mutation_observer_microtask(slottable->document());
