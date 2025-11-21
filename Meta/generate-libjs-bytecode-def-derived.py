@@ -322,6 +322,7 @@ def generate_class(op: OpDef) -> str:
                 lines.append(f"    {f.type} {f.name};")
 
     lines.append("};")
+    lines.append(f"static_assert(IsTriviallyDestructible<{op.name}>);")
     return "\n".join(lines)
 
 

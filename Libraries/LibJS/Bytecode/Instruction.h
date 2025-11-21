@@ -8,7 +8,6 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
-#include <AK/Span.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/OpCodes.h>
 #include <LibJS/Forward.h>
@@ -85,7 +84,6 @@ public:
     ByteString to_byte_string(Bytecode::Executable const&) const;
     void visit_labels(Function<void(Label&)> visitor);
     void visit_operands(Function<void(Operand&)> visitor);
-    static void destroy(Instruction&);
 
     Strict strict() const { return m_strict; }
     void set_strict(Strict strict) { m_strict = strict; }
