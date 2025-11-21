@@ -267,13 +267,18 @@ Utf16String FormAssociatedElement::validation_message() const
     if (!is_candidate_for_constraint_validation() || satisfies_its_constraints())
         return {};
 
-    // FIXME:
     // 2. Return a suitably localized message that the user agent would show the user if this were the only form
     //    control with a validity constraint problem. If the user agent would not actually show a textual message in
     //    such a situation (e.g., it would show a graphical cue instead), then return a suitably localized message that
-    //    expresses (one or more of) the validity constraint(s) that the control does not satisfy. If the element is a
-    //    candidate for constraint validation and is suffering from a custom error, then the custom validity error
-    //    message should be present in the return value.
+    //    expresses (one or more of) the validity constraint(s) that the control does not satisfy.
+
+    // If the element is a candidate for constraint validation and is suffering from a custom error, then
+    // the custom validity error message should be present in the return value.
+    if (suffering_from_a_custom_error()) {
+        return Utf16String::from_utf8(m_custom_validity_error_message);
+    }
+
+    // FIXME: Return more specific localized messages
     return "Invalid form"_utf16;
 }
 
