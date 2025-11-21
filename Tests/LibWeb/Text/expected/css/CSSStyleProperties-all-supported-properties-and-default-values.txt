@@ -801,6 +801,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'user-select': 'auto'
 'verticalAlign': 'baseline'
 'vertical-align': 'baseline'
+'viewTimelineName': 'none'
+'view-timeline-name': 'none'
 'viewTransitionName': 'none'
 'view-transition-name': 'none'
 'visibility': 'visible'
