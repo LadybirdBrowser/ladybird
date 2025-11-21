@@ -4013,6 +4013,19 @@
       "unitless-length"
     ]
   },
+  "view-timeline-name": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none"
+    ],
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "multiplicity": "coordinating-list"
+  },
   "view-transition-name": {
     "affects-layout": false,
     "affects-stacking-context": true,
