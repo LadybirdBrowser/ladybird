@@ -3832,9 +3832,13 @@ Element::Directionality Element::parent_directionality() const
 // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
 void Element::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
+    // AD-HOC: Everything below requires that there is no namespace, so return early if there is one.
+    if (namespace_.has_value())
+        return;
+
     // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-change-ext①
     // 1. If localName is slot and namespace is null, then:
-    if (local_name == HTML::AttributeNames::slot && !namespace_.has_value()) {
+    if (local_name == HTML::AttributeNames::slot) {
         // 1. If value is oldValue, then return.
         if (value == old_value)
             return;
@@ -3926,10 +3930,10 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
     // 1. If localName is not attr or namespace is not null, then return.
     // 2. Set element's explicitly set attr-element to null.
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                               \
-    else if (local_name == ARIA::AttributeNames::referencing_attribute && !namespace_.has_value()) \
-    {                                                                                              \
-        set_##attribute({});                                                                       \
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)    \
+    else if (local_name == ARIA::AttributeNames::referencing_attribute) \
+    {                                                                   \
+        set_##attribute({});                                            \
     }
     ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
@@ -3937,10 +3941,10 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext-2
     // 1. If localName is not attr or namespace is not null, then return.
     // 2. Set element's explicitly set attr-elements to null.
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                               \
-    else if (local_name == ARIA::AttributeNames::referencing_attribute && !namespace_.has_value()) \
-    {                                                                                              \
-        set_##attribute({});                                                                       \
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)    \
+    else if (local_name == ARIA::AttributeNames::referencing_attribute) \
+    {                                                                   \
+        set_##attribute({});                                            \
     }
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
