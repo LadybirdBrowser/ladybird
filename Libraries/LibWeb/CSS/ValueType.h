@@ -49,6 +49,7 @@ enum class ValueType : u8 {
     TransformFunction,
     TransformList,
     Url,
+    ViewTimelineInset
 };
 
 StringView value_type_to_string(ValueType);

@@ -443,6 +443,8 @@ private:
     RefPtr<StyleValue const> parse_time_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_time_percentage_value(TokenStream<ComponentValue>&);
 
+    RefPtr<StyleValue const> parse_view_timeline_inset_value(TokenStream<ComponentValue>&);
+
     using ParseFunction = AK::Function<RefPtr<StyleValue const>(TokenStream<ComponentValue>&)>;
     RefPtr<StyleValue const> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
     RefPtr<StyleValue const> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);

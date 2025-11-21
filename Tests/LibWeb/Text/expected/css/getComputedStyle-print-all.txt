@@ -288,6 +288,7 @@ unicode-bidi: normal
 user-select: auto
 vertical-align: baseline
 view-timeline-axis: block
+view-timeline-inset: auto
 view-timeline-name: none
 view-transition-name: none
 white-space-trim: none

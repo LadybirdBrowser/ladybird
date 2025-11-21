@@ -803,6 +803,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'vertical-align': 'baseline'
 'viewTimelineAxis': 'block'
 'view-timeline-axis': 'block'
+'viewTimelineInset': 'auto'
+'view-timeline-inset': 'auto'
 'viewTimelineName': 'none'
 'view-timeline-name': 'none'
 'viewTransitionName': 'none'
