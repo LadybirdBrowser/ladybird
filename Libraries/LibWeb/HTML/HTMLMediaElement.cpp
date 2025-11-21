@@ -12,6 +12,7 @@
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MediaSessionPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/HTML/HTMLSourceElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/MediaError.h>
+#include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -38,8 +40,10 @@
 #include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -1693,6 +1697,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     if (m_ready_state == ReadyState::HaveNothing)
         return;
 
+    // Save whether we were already seeking to detect recursive calls
+    bool was_already_seeking = m_seeking;
+
     // 3. If the element's seeking IDL attribute is true, then another instance of this algorithm is already running.
     //    Abort that other instance of the algorithm without waiting for the step that it is running to complete.
     // NOTE: PlaybackManager will restart any ongoing seek, and only exit the seeking state once, so we don't need to
@@ -1779,6 +1786,19 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // 11. Set the current playback position to the new playback position.
     // NOTE: We set the playback position in finish_seeking_element(), once we've established the new playback position using
     //       the seek mode we've been provided.
+
+    // Only call the handler if this is not a recursive seek
+    auto const& mediasession = document().window()->navigator()->media_session();
+    if (mediasession->has_action_handler(Bindings::MediaSessionAction::Seekto) && !was_already_seeking) {
+        mediasession->handle_media_session_action({
+                Bindings::MediaSessionAction::Seekto,
+                0,
+                playback_position,
+                seek_mode == MediaSeekMode::ApproximateForSpeed,
+                false,
+                Bindings::MediaSessionEnterPictureInPictureReason::Other
+                });
+    }
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
@@ -2212,29 +2232,72 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
     if (modifiers != UIEvents::KeyModifier::Mod_None)
         return false;
 
+    auto const& mediasession = document().window()->navigator()->media_session();
+
+    auto details = MediaSession::MediaSessionActionDetails {
+        Bindings::MediaSessionAction::Pause,
+        0,
+        0,
+        true, // because we triggered a hardware key event
+        // TODO
+        false,
+        // TODO: no PiP browser support
+        Bindings::MediaSessionEnterPictureInPictureReason::Other
+    };
+
+    auto is_action_handler = false;
+
     switch (key) {
-    case UIEvents::KeyCode::Key_Space:
-        toggle_playback();
+    case UIEvents::KeyCode::Key_PlayPause:
+    case UIEvents::KeyCode::Key_Space: {
+        is_action_handler = potentially_playing();
+        if (!mediasession->has_action_handler(Bindings::MediaSessionAction::Play) &&
+                !mediasession->has_action_handler(Bindings::MediaSessionAction::Pause)) {
+            toggle_playback();
+            break;
+        }
+
+        if (potentially_playing())
+            details.action = Bindings::MediaSessionAction::Play;
+        else
+            details.action = Bindings::MediaSessionAction::Pause;
+        is_action_handler = true;
+
         break;
+    }
 
     case UIEvents::KeyCode::Key_Home:
         set_current_time(0);
         break;
     case UIEvents::KeyCode::Key_End:
+        details.seekTime = duration();
         set_current_time(duration());
         break;
 
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right: {
-        static constexpr double time_skipped_per_key_press = 5.0;
-        auto current_time = this->current_time();
+        if (!mediasession->has_action_handler(Bindings::MediaSessionAction::Seekforward) &&
+                !mediasession->has_action_handler(Bindings::MediaSessionAction::Seekbackward)) {
+            static constexpr double time_skipped_per_key_press = 5.0;
+            auto current_time = this->current_time();
+
+            details.seekOffset = time_skipped_per_key_press;
+
+            if (key == UIEvents::KeyCode::Key_Left)
+                current_time = max(0.0, current_time - time_skipped_per_key_press);
+            else
+                current_time = min(duration(), current_time + time_skipped_per_key_press);
+
+            set_current_time(current_time);
+            break;
+        }
 
         if (key == UIEvents::KeyCode::Key_Left)
-            current_time = max(0.0, current_time - time_skipped_per_key_press);
+            details.action = Bindings::MediaSessionAction::Seekbackward;
         else
-            current_time = min(duration(), current_time + time_skipped_per_key_press);
+            details.action = Bindings::MediaSessionAction::Seekforward;
+        is_action_handler = true;
 
-        set_current_time(current_time);
         break;
     }
 
@@ -2257,9 +2320,30 @@ bool HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCod
         set_muted(!muted());
         break;
 
+    case UIEvents::KeyCode::Key_NextTrack:
+        // TODO: impl NextTrack, currently only implemented for MediaSession::setActionHandler.
+        details.action = Bindings::MediaSessionAction::Nexttrack;
+        is_action_handler = true;
+        break;
+
+    case UIEvents::KeyCode::Key_PreviousTrack:
+        // TODO: impl PreviousTrack, currently only implemented for MediaSession::setActionHandler.
+        details.action = Bindings::MediaSessionAction::Previoustrack;
+        is_action_handler = true;
+        break;
+
+    case UIEvents::KeyCode::Key_Stop:
+        // TODO: impl KeyStop, currently only implemented for MediaSession::setActionHandler.
+        details.action = Bindings::MediaSessionAction::Stop;
+        is_action_handler = true;
+        break;
+
     default:
         return false;
     }
+
+    if (is_action_handler)
+        mediasession->handle_media_session_action(details);
 
     return true;
 }
