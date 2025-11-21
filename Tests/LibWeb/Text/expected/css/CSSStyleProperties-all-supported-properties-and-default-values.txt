@@ -801,6 +801,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'user-select': 'auto'
 'verticalAlign': 'baseline'
 'vertical-align': 'baseline'
+'viewTimeline': 'none'
+'view-timeline': 'none'
 'viewTimelineAxis': 'block'
 'view-timeline-axis': 'block'
 'viewTimelineInset': 'auto'

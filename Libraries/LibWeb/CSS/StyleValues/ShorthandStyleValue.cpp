@@ -849,6 +849,36 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     }
     case PropertyID::Transition:
         return coordinating_value_list_shorthand_to_string("all"sv);
+    case PropertyID::ViewTimeline: {
+        // FIXME: We can use coordinating_value_list_shorthand_to_string function once parse_comma_separated_value_list
+        //        always returns a list, currently it doesn't properly handle the fact that the entries for
+        //        view-timeline-inset are themselves StyleValueLists
+        StringBuilder builder;
+
+        auto const& name_values = style_value_as_value_list(longhand(PropertyID::ViewTimelineName));
+        auto const& axis_values = style_value_as_value_list(longhand(PropertyID::ViewTimelineAxis));
+        auto const& inset_values = style_value_as_value_list(longhand(PropertyID::ViewTimelineInset));
+
+        if (name_values.size() != axis_values.size())
+            return ""_string;
+
+        for (size_t i = 0; i < name_values.size(); i++) {
+            if (!builder.is_empty())
+                builder.append(", "sv);
+
+            builder.append(name_values[i]->to_string(mode));
+
+            if (axis_values[i]->to_keyword() != Keyword::Block)
+                builder.appendff(" {}", axis_values[i]->to_string(mode));
+
+            auto stringified_inset = inset_values[i]->to_string(mode);
+
+            if (stringified_inset != "auto"sv)
+                builder.appendff(" {}", stringified_inset);
+        }
+
+        return builder.to_string_without_validation();
+    }
     case PropertyID::WhiteSpace: {
         auto white_space_collapse_property = longhand(PropertyID::WhiteSpaceCollapse);
         auto text_wrap_mode_property = longhand(PropertyID::TextWrapMode);

@@ -4013,6 +4013,17 @@
       "unitless-length"
     ]
   },
+  "view-timeline": {
+    "affects-layout": false,
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "view-timeline-name",
+      "view-timeline-axis",
+      "view-timeline-inset"
+    ]
+  },
   "view-timeline-axis": {
     "affects-layout": false,
     "animation-type": "none",

@@ -532,6 +532,7 @@ private:
     RefPtr<StyleValue const> parse_grid_area_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_grid_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_touch_action_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_view_timeline_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_white_space_shorthand(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_white_space_trim_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_will_change_value(TokenStream<ComponentValue>&);

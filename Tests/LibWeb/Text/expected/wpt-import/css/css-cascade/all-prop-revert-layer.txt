@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 274 tests
+Found 277 tests
 
-268 Pass
+271 Pass
 6 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -271,6 +271,9 @@ Pass	translate
 Pass	unicode-bidi
 Pass	user-select
 Pass	vertical-align
+Pass	view-timeline-axis
+Pass	view-timeline-inset
+Pass	view-timeline-name
 Pass	view-transition-name
 Pass	white-space-trim
 Fail	width
