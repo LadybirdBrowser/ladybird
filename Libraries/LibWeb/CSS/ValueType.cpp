@@ -79,6 +79,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::TransformList;
     if (string.equals_ignoring_ascii_case("url"sv))
         return ValueType::Url;
+    if (string.equals_ignoring_ascii_case("view-timeline-inset"sv))
+        return ValueType::ViewTimelineInset;
     return {};
 }
 
@@ -157,6 +159,8 @@ StringView value_type_to_string(ValueType value_type)
         return "TransformList"sv;
     case Web::CSS::ValueType::Url:
         return "Url"sv;
+    case Web::CSS::ValueType::ViewTimelineInset:
+        return "ViewTimelineInset"sv;
     }
 
     VERIFY_NOT_REACHED();

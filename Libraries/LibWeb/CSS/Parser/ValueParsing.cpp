@@ -1377,6 +1377,43 @@ RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<Compone
     return nullptr;
 }
 
+// https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset
+RefPtr<StyleValue const> Parser::parse_view_timeline_inset_value(TokenStream<ComponentValue>& tokens)
+{
+    // [ [ auto | <length-percentage> ]{1,2} ]
+    auto transaction = tokens.begin_transaction();
+
+    StyleValueVector inset_values;
+
+    while (tokens.has_next_token() && inset_values.size() < 2) {
+        tokens.discard_whitespace();
+
+        if (tokens.next_token().is_ident("auto"sv)) {
+            tokens.discard_a_token(); // auto
+            inset_values.append(KeywordStyleValue::create(Keyword::Auto));
+            continue;
+        }
+
+        if (auto length_percentage = parse_length_percentage_value(tokens)) {
+            inset_values.append(length_percentage.release_nonnull());
+            continue;
+        }
+
+        break;
+    }
+
+    if (inset_values.is_empty())
+        return nullptr;
+
+    transaction.commit();
+
+    // If the second value is omitted, it is set to the first.
+    if (inset_values.size() == 1)
+        return StyleValueList::create({ inset_values[0], inset_values[0] }, StyleValueList::Separator::Space);
+
+    return StyleValueList::create(move(inset_values), StyleValueList::Separator::Space);
+}
+
 RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>& tokens)
 {
     tokens.discard_whitespace();
@@ -5049,6 +5086,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_transform_list_value(tokens);
     case ValueType::Url:
         return parse_url_value(tokens);
+    case ValueType::ViewTimelineInset:
+        return parse_view_timeline_inset_value(tokens);
     }
     VERIFY_NOT_REACHED();
 }

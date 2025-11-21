@@ -290,6 +290,7 @@ All properties associated with getComputedStyle(document.body):
     "user-select",
     "vertical-align",
     "view-timeline-axis",
+    "view-timeline-inset",
     "view-timeline-name",
     "view-transition-name",
     "white-space-trim",

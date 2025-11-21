@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7243">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_valid_value('view-timeline-inset', 'initial');
+test_valid_value('view-timeline-inset', 'inherit');
+test_valid_value('view-timeline-inset', 'unset');
+test_valid_value('view-timeline-inset', 'revert');
+
+test_valid_value('view-timeline-inset', '1px');
+test_valid_value('view-timeline-inset', '1px 2px');
+test_valid_value('view-timeline-inset', '1px 2em');
+test_valid_value('view-timeline-inset', 'calc(1em + 1px) 2px');
+test_valid_value('view-timeline-inset', '1px 2px, 3px 4px');
+test_valid_value('view-timeline-inset', '1px auto, auto 4px');
+test_valid_value('view-timeline-inset', '1px, 2px, 3px');
+test_valid_value('view-timeline-inset', '1px 1px, 2px 3px', '1px, 2px 3px');
+test_valid_value('view-timeline-inset', 'auto auto, auto auto', 'auto, auto');
+
+test_invalid_value('view-timeline-inset', 'none');
+test_invalid_value('view-timeline-inset', 'foo bar');
+test_invalid_value('view-timeline-inset', '"foo" "bar"');
+test_invalid_value('view-timeline-inset', 'rgb(1, 2, 3)');
+test_invalid_value('view-timeline-inset', '#fefefe');
+test_invalid_value('view-timeline-inset', '1px 2px 3px');
+test_invalid_value('view-timeline-inset', '1px 2px auto');
+test_invalid_value('view-timeline-inset', 'auto 2px 3px');
+test_invalid_value('view-timeline-inset', 'auto auto auto');
+test_invalid_value('view-timeline-inset', '1px / 2px');
+</script>

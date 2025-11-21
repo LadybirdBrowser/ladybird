@@ -254,6 +254,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Url); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::ViewTimelineInset); parsed.has_value())
+        return parsed.release_value();
 
     // <integer>/<number> come before <length>, so that 0 is not interpreted as a <length> in case both are allowed.
     if (auto property = any_property_accepts_type(property_ids, ValueType::Integer); property.has_value()) {
@@ -751,6 +753,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     case PropertyID::ScrollTimelineName:
         return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::ViewTimelineAxis:
+    case PropertyID::ViewTimelineInset:
     case PropertyID::ViewTimelineName:
         return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::WhiteSpace:

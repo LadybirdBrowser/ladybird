@@ -4023,6 +4023,17 @@
     ],
     "multiplicity": "coordinating-list"
   },
+  "view-timeline-inset": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "view-timeline-inset"
+    ],
+    "percentages-resolve-to": "length",
+    "multiplicity": "coordinating-list"
+  },
   "view-timeline-name": {
     "affects-layout": false,
     "animation-type": "none",
