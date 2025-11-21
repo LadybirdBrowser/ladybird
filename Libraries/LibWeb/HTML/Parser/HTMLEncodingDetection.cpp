@@ -180,8 +180,10 @@ value:
             // 3. If the value of the byte at position is the value of b, then advance position to the next byte
             //    and abort the "get an attribute" algorithm.
             //    The attribute's name is the value of attribute name, and its value is the value of attribute value.
-            if (input[position] == quote_character)
+            if (input[position] == quote_character) {
+                ++position;
                 return DOM::Attr::create(document, MUST(attribute_name.to_string()), MUST(attribute_value.to_string()));
+            }
 
             // 4. Otherwise, if the value of the byte at position is in the range 0x41 (A) to 0x5A (Z),
             //    then append a code point to attribute value whose value is 0x20 more than the value of the byte at position.
