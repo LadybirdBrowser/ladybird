@@ -1355,4 +1355,55 @@ static PhysicalResizeAxes compute_physical_resize_axes(CSS::ComputedValues const
     };
 }
 
+CSS::TransformStyle PaintableBox::transform_style_used_value() const
+{
+    // https://drafts.csswg.org/css-transforms-2/#transform-style-property
+    // Used value: flat if a grouping property is present, specified keyword otherwise
+    auto const& computed_values = this->computed_values();
+
+    // https://drafts.csswg.org/css-transforms-2/#grouping-property-values
+    // 'overflow': any value other than 'visible' or 'clip'.
+    if (!first_is_one_of(computed_values.overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip) || !first_is_one_of(computed_values.overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
+        return CSS::TransformStyle::Flat;
+
+    // 'opacity': any value less than 1.
+    if (computed_values.opacity() < 1)
+        return CSS::TransformStyle::Flat;
+
+    // 'filter': any value other than 'none'.
+    if (computed_values.filter().has_filters())
+        return CSS::TransformStyle::Flat;
+
+    // 'clip': any value other than 'auto'.
+    if (!computed_values.clip().is_auto())
+        return CSS::TransformStyle::Flat;
+
+    // 'clip-path': any value other than 'none'.
+    if (computed_values.clip_path().has_value())
+        return CSS::TransformStyle::Flat;
+
+    // 'isolation': used value of 'isolate'.
+    if (computed_values.isolation() == CSS::Isolation::Isolate)
+        return CSS::TransformStyle::Flat;
+
+    // 'mask-image': any value other than 'none'.
+    if (computed_values.mask_image())
+        return CSS::TransformStyle::Flat;
+
+    // 'mask-border-source': any value other than 'none'.
+    // FIXME: Implement this once we have 'mask-border-source'
+
+    // 'mix-blend-mode': any value other than 'normal'.
+    if (computed_values.mix_blend_mode() != CSS::MixBlendMode::Normal)
+        return CSS::TransformStyle::Flat;
+
+    // 'contain': 'paint' and any other property/value combination that causes paint containment. Note:
+    // this includes any property that affect the used value of the 'contain' property, such as 'content-
+    // visibility: hidden'.
+    if (layout_node().has_paint_containment())
+        return CSS::TransformStyle::Flat;
+
+    return computed_values.transform_style();
+}
+
 }
