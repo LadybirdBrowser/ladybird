@@ -508,22 +508,23 @@ bool is_valid_duration(double years, double months, double weeks, double days, d
     if (AK::fabs(weeks) > NumericLimits<u32>::max())
         return false;
 
-    // 6. Let normalizedSeconds be days × 86,400 + hours × 3600 + minutes × 60 + seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 + ℝ(𝔽(nanoseconds)) × 10**-9.
-    // 7. NOTE: The above step cannot be implemented directly using floating-point arithmetic. Multiplying by 10**-3,
-    //          10**-6, and 10**-9 respectively may be imprecise when milliseconds, microseconds, or nanoseconds is an
-    //          unsafe integer. This multiplication can be implemented in C++ with an implementation of std::remquo()
-    //          with sufficient bits in the quotient. String manipulation will also give an exact result, since the
+    // 6. Let normalizedNanoseconds be days × 86,400 × 10**9 + hours × 3600 × 10**9 + minutes × 60 × 10**9 + seconds × 10**9 + ℝ(𝔽(milliseconds)) × 10**6 + ℝ(𝔽(microseconds)) × 10**3 + ℝ(𝔽(nanoseconds)).
+    // 7. NOTE: The above step cannot be implemented directly using 64-bit floating-point arithmetic. Multiplying by
+    //          10**-3, 10**-6, and 10**-9 respectively may be imprecise when milliseconds, microseconds, or nanoseconds
+    //          is an unsafe integer. The step can be implemented by using 128-bit integers and performing all arithmetic
+    //          on nanosecond values. It could also be implemented in C++ with an implementation of std::remquo() with
+    //          sufficient bits in the quotient. String manipulation will also give an exact result, since the
     //          multiplication is by a power of 10.
-    auto normalized_seconds = TimeDuration { days }.multiplied_by(NANOSECONDS_PER_DAY);
-    normalized_seconds = normalized_seconds.plus(TimeDuration { hours }.multiplied_by(NANOSECONDS_PER_HOUR));
-    normalized_seconds = normalized_seconds.plus(TimeDuration { minutes }.multiplied_by(NANOSECONDS_PER_MINUTE));
-    normalized_seconds = normalized_seconds.plus(TimeDuration { seconds }.multiplied_by(NANOSECONDS_PER_SECOND));
-    normalized_seconds = normalized_seconds.plus(TimeDuration { milliseconds }.multiplied_by(NANOSECONDS_PER_MILLISECOND));
-    normalized_seconds = normalized_seconds.plus(TimeDuration { microseconds }.multiplied_by(NANOSECONDS_PER_MICROSECOND));
-    normalized_seconds = normalized_seconds.plus(TimeDuration { nanoseconds });
+    auto normalized_nanoseconds = TimeDuration { days }.multiplied_by(NANOSECONDS_PER_DAY);
+    normalized_nanoseconds = normalized_nanoseconds.plus(TimeDuration { hours }.multiplied_by(NANOSECONDS_PER_HOUR));
+    normalized_nanoseconds = normalized_nanoseconds.plus(TimeDuration { minutes }.multiplied_by(NANOSECONDS_PER_MINUTE));
+    normalized_nanoseconds = normalized_nanoseconds.plus(TimeDuration { seconds }.multiplied_by(NANOSECONDS_PER_SECOND));
+    normalized_nanoseconds = normalized_nanoseconds.plus(TimeDuration { milliseconds }.multiplied_by(NANOSECONDS_PER_MILLISECOND));
+    normalized_nanoseconds = normalized_nanoseconds.plus(TimeDuration { microseconds }.multiplied_by(NANOSECONDS_PER_MICROSECOND));
+    normalized_nanoseconds = normalized_nanoseconds.plus(TimeDuration { nanoseconds });
 
-    // 8. If abs(normalizedSeconds) ≥ 2**53, return false.
-    if (normalized_seconds.unsigned_value() > MAX_TIME_DURATION.unsigned_value())
+    // 8. If abs(normalizedNanoseconds) ≥ 10**9 × 2**53, return false.
+    if (normalized_nanoseconds.unsigned_value() > MAX_TIME_DURATION.unsigned_value())
         return false;
 
     // 9. Return true.
