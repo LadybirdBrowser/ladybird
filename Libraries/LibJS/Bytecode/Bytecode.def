@@ -234,12 +234,6 @@ op Div < Instruction
     m_rhs: Operand
 endop
 
-op Dump < Instruction
-    @nothrow
-    m_text: String
-    m_value: Operand
-endop
-
 op End < Instruction
     @terminator
     m_value: Operand
