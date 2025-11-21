@@ -506,7 +506,6 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(DeleteByValueWithThis);
             HANDLE_INSTRUCTION(DeleteVariable);
             HANDLE_INSTRUCTION(Div);
-            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Dump);
             HANDLE_INSTRUCTION(EnterObjectEnvironment);
             HANDLE_INSTRUCTION(Exp);
             HANDLE_INSTRUCTION(GetById);
@@ -1745,30 +1744,6 @@ ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) c
 }
 
 namespace JS::Bytecode::Op {
-
-static void dump_object(Object& o, HashTable<Object const*>& seen, int indent = 0)
-{
-    if (seen.contains(&o))
-        return;
-    seen.set(&o);
-    for (auto& it : o.shape().property_table()) {
-        auto value = o.get_direct(it.value.offset);
-        dbgln("{}  {} -> {}", String::repeated(' ', indent).release_value(), it.key.to_string(), value);
-        if (value.is_object()) {
-            dump_object(value.as_object(), seen, indent + 2);
-        }
-    }
-}
-
-void Dump::execute_impl(Bytecode::Interpreter& interpreter) const
-{
-    auto value = interpreter.get(m_value);
-    dbgln("(DUMP) {}: {}", m_text, value);
-    if (value.is_object()) {
-        HashTable<Object const*> seen;
-        dump_object(value.as_object(), seen);
-    }
-}
 
 #define JS_DEFINE_EXECUTE_FOR_COMMON_BINARY_OP(OpTitleCase, op_snake_case)                      \
     ThrowCompletionOr<void> OpTitleCase::execute_impl(Bytecode::Interpreter& interpreter) const \
