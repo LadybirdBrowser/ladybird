@@ -122,8 +122,6 @@ public:
         m_ptr += dereference().length();
     }
 
-    UnrealizedSourceRange source_range() const;
-
     Executable const* executable() const { return m_executable; }
 
 private:
