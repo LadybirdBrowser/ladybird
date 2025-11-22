@@ -43,6 +43,7 @@ enum class ValueType : u8 {
     Ratio,
     Rect,
     Resolution,
+    ScrollFunction,
     String,
     Time,
     TimePercentage,

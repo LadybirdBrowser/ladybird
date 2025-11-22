@@ -345,13 +345,14 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
-      "dashed-ident"
+      "dashed-ident",
+      "scroll-function"
     ],
     "valid-identifiers": [
       "auto",
       "none"
     ],
-    "__comment": "FIXME: animation properties should be coordinating-lists, FIXME: support scroll() and view() functions",
+    "__comment": "FIXME: animation properties should be coordinating-lists, FIXME: support view() functions",
     "multiplicity": "single"
   },
   "animation-timing-function": {
