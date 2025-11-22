@@ -27,6 +27,9 @@ public:
 
     virtual int register_signal(int signal_number, Function<void(int)> handler) override;
     virtual void unregister_signal(int handler_id) override;
+
+    virtual void register_process(pid_t pid, ESCAPING Function<void(pid_t)> exit_handler) override;
+    virtual void unregister_process(pid_t pid) override;
 };
 
 class EventLoopImplementationWindows final : public EventLoopImplementation {
