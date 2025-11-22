@@ -43,6 +43,7 @@ public:
     virtual void autoplay_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
+    virtual void debug_dump_path_changed() { }
 };
 
 class WEBVIEW_API Settings {
@@ -86,6 +87,10 @@ public:
     DNSSettings const& dns_settings() const { return m_dns_settings; }
     void set_dns_settings(DNSSettings const&, bool override_by_command_line = false);
 
+    String debug_dump_path() const { return m_debug_dump_path; }
+    void set_debug_dump_path(String const& debug_dump_path);
+    static String get_default_debug_dump_path();
+
     static void add_observer(Badge<SettingsObserver>, SettingsObserver&);
     static void remove_observer(Badge<SettingsObserver>, SettingsObserver&);
 
@@ -108,6 +113,7 @@ private:
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };
+    String m_debug_dump_path;
 
     Vector<SettingsObserver&> m_observers;
 };
