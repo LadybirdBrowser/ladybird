@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 15 tests
 
-11 Pass
-4 Fail
+13 Pass
+2 Fail
 Pass	Property animation-duration value '500ms'
 Pass	Property animation-duration value 'calc(2 * 3s)'
 Fail	Property animation-duration value 'calc(10s + (sign(2cqw - 10px) * 5s))'
 Pass	Property animation-duration value '20s, 10s'
-Fail	Property animation-duration value 'auto'
+Pass	Property animation-duration value 'auto'
 Fail	Property animation-duration value 'auto, auto'
-Fail	Resolved value of animation-duration:auto with animation-timeline:auto
+Pass	Resolved value of animation-duration:auto with animation-timeline:auto
 Pass	Resolved value of animation-duration:auto with animation-timeline:auto, auto
 Pass	Resolved value of animation-duration:auto with animation-timeline:--t
 Pass	Resolved value of animation-duration:auto with animation-timeline:--t, --t2

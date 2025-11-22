@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -869,6 +870,38 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             };
             return TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(parameters));
         }
+    }
+    case PropertyID::AnimationDuration: {
+        // https://drafts.csswg.org/css-animations-2/#animation-duration
+        // For backwards-compatibility with Level 1, when the computed value of animation-timeline is auto (i.e. only
+        // one list value, and that value being auto), the resolved value of auto for animation-duration is 0s whenever
+        // its used value would also be 0s.
+        auto const& animation_timeline_computed_value = get_computed_value(PropertyID::AnimationTimeline);
+        auto const& animation_duration_computed_value = get_computed_value(PropertyID::AnimationDuration);
+
+        if (animation_timeline_computed_value.to_keyword() == Keyword::Auto) {
+
+            // FIXME: We can remove these two branches once parse_comma_separated_value_list always returns StyleValueList.
+            if (animation_duration_computed_value.to_keyword() == Keyword::Auto)
+                return TimeStyleValue::create(Time::make_seconds(0));
+
+            if (!animation_duration_computed_value.is_value_list())
+                return animation_duration_computed_value;
+
+            StyleValueVector resolved_durations;
+
+            for (auto const& duration : animation_duration_computed_value.as_value_list().values()) {
+                if (duration->to_keyword() == Keyword::Auto) {
+                    resolved_durations.append(TimeStyleValue::create(Time::make_seconds(0)));
+                } else {
+                    resolved_durations.append(duration);
+                }
+            }
+
+            return StyleValueList::create(move(resolved_durations), StyleValueList::Separator::Comma);
+        }
+
+        return animation_duration_computed_value;
     }
 
         // -> Any other property
