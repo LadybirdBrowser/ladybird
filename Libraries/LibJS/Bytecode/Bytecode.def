@@ -134,6 +134,7 @@ endop
 
 op ContinuePendingUnwind < Instruction
     @terminator
+    @nothrow
     m_resume_target: Label
 endop
 
@@ -161,7 +162,7 @@ endop
 op CreateImmutableBinding < Instruction
     m_environment: Operand
     m_identifier: IdentifierTableIndex
-    m_strict: bool
+    m_strict_binding: bool
 endop
 
 op CreateMutableBinding < Instruction
@@ -236,6 +237,7 @@ endop
 
 op End < Instruction
     @terminator
+    @nothrow
     m_value: Operand
 endop
 
@@ -245,6 +247,7 @@ endop
 
 op EnterUnwindContext < Instruction
     @terminator
+    @nothrow
     m_entry_point: Label
 endop
 
@@ -451,17 +454,20 @@ endop
 
 op Jump < Instruction
     @terminator
+    @nothrow
     m_target: Label
 endop
 
 op JumpFalse < Instruction
     @terminator
+    @nothrow
     m_condition: Operand
     m_target: Label
 endop
 
 op JumpGreaterThan < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -470,6 +476,7 @@ endop
 
 op JumpGreaterThanEquals < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -478,6 +485,7 @@ endop
 
 op JumpIf < Instruction
     @terminator
+    @nothrow
     m_condition: Operand
     m_true_target: Label
     m_false_target: Label
@@ -485,6 +493,7 @@ endop
 
 op JumpLessThan < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -493,6 +502,7 @@ endop
 
 op JumpLessThanEquals < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -501,6 +511,7 @@ endop
 
 op JumpLooselyEquals < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -509,6 +520,7 @@ endop
 
 op JumpLooselyInequals < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -517,6 +529,7 @@ endop
 
 op JumpNullish < Instruction
     @terminator
+    @nothrow
     m_condition: Operand
     m_true_target: Label
     m_false_target: Label
@@ -524,6 +537,7 @@ endop
 
 op JumpStrictlyEquals < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -532,6 +546,7 @@ endop
 
 op JumpStrictlyInequals < Instruction
     @terminator
+    @nothrow
     m_lhs: Operand
     m_rhs: Operand
     m_true_target: Label
@@ -540,12 +555,14 @@ endop
 
 op JumpTrue < Instruction
     @terminator
+    @nothrow
     m_condition: Operand
     m_target: Label
 endop
 
 op JumpUndefined < Instruction
     @terminator
+    @nothrow
     m_condition: Operand
     m_true_target: Label
     m_false_target: Label
@@ -604,6 +621,7 @@ op Mod < Instruction
 endop
 
 op Mov < Instruction
+    @nothrow
     m_dst: Operand
     m_src: Operand
 endop
@@ -954,13 +972,14 @@ endop
 
 op ScheduleJump < Instruction
     @terminator
+    @nothrow
     m_target: Label
 endop
 
 op SetCompletionType < Instruction
     @nothrow
     m_completion: Operand
-    m_type: Completion::Type
+    m_completion_type: Completion::Type
 endop
 
 op SetGlobal < Instruction
