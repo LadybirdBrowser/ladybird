@@ -258,6 +258,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Url); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::ViewFunction); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::ViewTimelineInset); parsed.has_value())
         return parsed.release_value();
 

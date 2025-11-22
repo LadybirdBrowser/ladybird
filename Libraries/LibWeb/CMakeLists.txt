@@ -280,6 +280,7 @@ set(SOURCES
     CSS/StyleValues/TreeCountingFunctionStyleValue.cpp
     CSS/StyleValues/UnicodeRangeStyleValue.cpp
     CSS/StyleValues/UnresolvedStyleValue.cpp
+    CSS/StyleValues/ViewFunctionStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
     CSS/SystemColor.cpp

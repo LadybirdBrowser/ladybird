@@ -50,6 +50,7 @@ enum class ValueType : u8 {
     TransformFunction,
     TransformList,
     Url,
+    ViewFunction,
     ViewTimelineInset
 };
 
