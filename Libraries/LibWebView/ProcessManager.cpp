@@ -48,23 +48,12 @@ StringView process_name_from_type(ProcessType type)
 }
 
 ProcessManager::ProcessManager()
-    : on_process_exited([](Process&&) { })
+    : on_process_exited([](Process&&) {})
+    , m_process_monitor(ProcessMonitor([this](pid_t pid) {
+        if (auto process = remove_process(pid); process.has_value())
+            on_process_exited(process.release_value());
+    }))
 {
-    // FIXME: Handle exiting child processes on Windows
-#ifndef AK_OS_WINDOWS
-    m_signal_handle = Core::EventLoop::register_signal(SIGCHLD, [this](int) {
-        auto result = Core::System::waitpid(-1, WNOHANG);
-        while (!result.is_error() && result.value().pid > 0) {
-            auto& [pid, status] = result.value();
-            if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                if (auto process = remove_process(pid); process.has_value())
-                    on_process_exited(process.release_value());
-            }
-            result = Core::System::waitpid(-1, WNOHANG);
-        }
-    });
-#endif
-
     add_process(Process(WebView::ProcessType::Browser, nullptr, Core::Process::current()));
 
 #ifdef AK_OS_MACH
@@ -72,14 +61,6 @@ ProcessManager::ProcessManager()
     auto res = mach_port_mod_refs(mach_task_self(), self_send_port, MACH_PORT_RIGHT_SEND, +1);
     VERIFY(res == KERN_SUCCESS);
     set_process_mach_port(getpid(), Core::MachPort::adopt_right(self_send_port, Core::MachPort::PortRight::Send));
-#endif
-}
-
-ProcessManager::~ProcessManager()
-{
-    // FIXME: Handle exiting child processes on Windows
-#ifndef AK_OS_WINDOWS
-    Core::EventLoop::unregister_signal(m_signal_handle);
 #endif
 }
 
@@ -96,6 +77,7 @@ void ProcessManager::add_process(WebView::Process&& process)
     auto result = m_processes.set(pid, move(process));
     VERIFY(result == AK::HashSetResult::InsertedNewEntry);
     m_statistics.processes.append(make<Core::Platform::ProcessInfo>(pid));
+    m_process_monitor.add_process(pid);
 }
 
 #if defined(AK_OS_MACH)

@@ -17,6 +17,7 @@ set(SOURCES
     Process.cpp
     ProcessHandle.cpp
     ProcessManager.cpp
+    ProcessMonitor.cpp
     SearchEngine.cpp
     Settings.cpp
     SiteIsolation.cpp
