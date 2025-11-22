@@ -151,9 +151,15 @@ static constexpr auto POPOVER_PADDING = 6uz;
 
     [self showRelativeToToolbarItem:self.toolbar_item];
 
+    auto* window = [self.toolbar_item.view window];
+    auto* first_responder = [window firstResponder];
+
     [self showRelativeToRect:self.toolbar_item.view.frame
                       ofView:self.toolbar_item.view
                preferredEdge:NSRectEdgeMaxY];
+
+    if (first_responder)
+        [window makeFirstResponder:first_responder];
 }
 
 - (void)selectRow:(NSInteger)row
