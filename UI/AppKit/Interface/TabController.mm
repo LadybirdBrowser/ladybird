@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Nicolas Danelon <nicolasdanelon@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,6 +28,7 @@ static NSString* const TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER = @"ToolbarNavigateFo
 static NSString* const TOOLBAR_RELOAD_IDENTIFIER = @"ToolbarReloadIdentifier";
 static NSString* const TOOLBAR_LOCATION_IDENTIFIER = @"ToolbarLocationIdentifier";
 static NSString* const TOOLBAR_ZOOM_IDENTIFIER = @"ToolbarZoomIdentifier";
+static NSString* const TOOLBAR_SHARE_IDENTIFIER = @"ToolbarShareIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
 
@@ -65,6 +67,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @property (nonatomic, strong) NSToolbarItem* reload_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* zoom_toolbar_item;
+@property (nonatomic, strong) NSToolbarItem* share_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
 
@@ -82,6 +85,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @synthesize reload_toolbar_item = _reload_toolbar_item;
 @synthesize location_toolbar_item = _location_toolbar_item;
 @synthesize zoom_toolbar_item = _zoom_toolbar_item;
+@synthesize share_toolbar_item = _share_toolbar_item;
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
 
@@ -176,6 +180,33 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
                activateTab:Web::HTML::ActivateTab::Yes];
 
     self.tab.titlebarAppearsTransparent = YES;
+}
+
+- (void)sharePage:(id)sender
+{
+    auto& view = [[[self tab] web_view] view];
+    auto const& current_url = view.url();
+    auto* ns_url_string = Ladybird::string_to_ns_string(current_url.serialize());
+    NSURL* ns_url = [NSURL URLWithString:ns_url_string];
+
+    if (ns_url == nil) {
+        return;
+    }
+
+    NSSharingServicePicker* picker = [[NSSharingServicePicker alloc] initWithItems:@[ ns_url ]];
+
+    NSView* anchor_view = nil;
+    if ([sender isKindOfClass:[NSView class]]) {
+        anchor_view = (NSView*)sender;
+    } else if (self.share_toolbar_item.view != nil) {
+        anchor_view = self.share_toolbar_item.view;
+    }
+
+    if (anchor_view != nil) {
+        [picker showRelativeToRect:[anchor_view bounds]
+                            ofView:anchor_view
+                     preferredEdge:NSMinYEdge];
+    }
 }
 
 - (void)setLocationFieldText:(StringView)url
@@ -321,6 +352,20 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     return _zoom_toolbar_item;
 }
 
+- (NSToolbarItem*)share_toolbar_item
+{
+    if (!_share_toolbar_item) {
+        auto* button = [self create_button:NSImageNameShareTemplate
+                               with_action:@selector(sharePage:)
+                              with_tooltip:@"Share"];
+
+        _share_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_SHARE_IDENTIFIER];
+        [_share_toolbar_item setView:button];
+    }
+
+    return _share_toolbar_item;
+}
+
 - (NSToolbarItem*)new_tab_toolbar_item
 {
     if (!_new_tab_toolbar_item) {
@@ -360,6 +405,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
             TOOLBAR_LOCATION_IDENTIFIER,
             TOOLBAR_ZOOM_IDENTIFIER,
             NSToolbarFlexibleSpaceItemIdentifier,
+            TOOLBAR_SHARE_IDENTIFIER,
             TOOLBAR_NEW_TAB_IDENTIFIER,
             TOOLBAR_TAB_OVERVIEW_IDENTIFIER,
         ];
@@ -452,6 +498,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     }
     if ([identifier isEqual:TOOLBAR_ZOOM_IDENTIFIER]) {
         return self.zoom_toolbar_item;
+    }
+    if ([identifier isEqual:TOOLBAR_SHARE_IDENTIFIER]) {
+        return self.share_toolbar_item;
     }
     if ([identifier isEqual:TOOLBAR_NEW_TAB_IDENTIFIER]) {
         return self.new_tab_toolbar_item;
