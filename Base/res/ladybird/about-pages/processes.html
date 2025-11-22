@@ -83,14 +83,41 @@
                 maximumFractionDigits: 2,
             });
 
-            const memoryFormatter = new Intl.NumberFormat([], {
-                style: "unit",
-                unit: "byte",
-                notation: "compact",
-                unitDisplay: "narrow",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
+            const memoryFormatters = [];
+            const formatMemory = (bytes) => {
+                const units = [
+                    'byte',
+                    'kibibyte',
+                    'megabyte',
+                    'gigabyte',
+                    'terabyte',
+                    'petabyte',
+                ];
+                // Intl.NumberFormat uses base 10 memory formats. We use that here so that numbers in the exabyte range
+                // are formatted consistently (1EB is displayed as 1.00KPB).
+                const base = 1000;
+                let unitIndex = 0;
+                let value = bytes;
+                if (bytes > base) {
+                    unitIndex = Math.floor(Math.log(bytes) / Math.log(base));
+                    if (unitIndex >= units.length) {
+                        unitIndex = units.length - 1;
+                    }
+                    value = bytes / Math.pow(base, unitIndex);
+                }
+                if (!memoryFormatters[unitIndex]) {
+                    memoryFormatters[unitIndex] = new Intl.NumberFormat([], {
+                        style: "unit",
+                        unit: units[unitIndex],
+                        notation: "compact",
+                        unitDisplay: "narrow",
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    });
+                }
+
+                return memoryFormatters[unitIndex].format(value);
+            }
 
             const Direction = Object.freeze({
                 ascending: 1,
@@ -141,7 +168,7 @@
                     insertColumn(row, process.name);
                     insertColumn(row, process.pid);
                     insertColumn(row, cpuFormatter.format(process.cpu));
-                    insertColumn(row, memoryFormatter.format(process.memory));
+                    insertColumn(row, formatMemory(process.memory));
                 });
 
                 oldTable.parentNode.replaceChild(newTable, oldTable);
