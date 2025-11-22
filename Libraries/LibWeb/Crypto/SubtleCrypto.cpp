@@ -1368,6 +1368,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
     for (auto const& name : { "ML-DSA-44"_string, "ML-DSA-65"_string, "ML-DSA-87"_string }) {
         define_an_algorithm<MLDSA, ContextParams>("sign"_string, name);
+        define_an_algorithm<MLDSA, ContextParams>("verify"_string, name);
         define_an_algorithm<MLDSA>("generateKey"_string, name);
     }
 

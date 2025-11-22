@@ -8326,6 +8326,41 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLDSA::sign(AlgorithmParams const&
     return JS::ArrayBuffer::create(m_realm, maybe_result.value());
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
+WebIDL::ExceptionOr<JS::Value> MLDSA::verify(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+{
+    // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
+
+    // 2. Let context be the context member of normalizedAlgorithm or the empty octet string if the
+    //    context member of normalizedAlgorithm is not present.
+    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
+    auto context = normalized_algorithm.context.value_or(ByteBuffer());
+
+    // 3. Let result be the result of performing the ML-DSA.Verify verification algorithm, as specified in
+    //    Section 5.3 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
+    //    using the ML-DSA public key associated with key as pk, message as M, signature as σ and context as ctx.
+    VERIFY(key->handle().has<::Crypto::PK::MLDSAPublicKey>());
+    auto lattice = [&] {
+        if (params.name == "ML-DSA-44")
+            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA44, key->handle().get<::Crypto::PK::MLDSAPublicKey>(), context);
+        if (params.name == "ML-DSA-65")
+            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA65, key->handle().get<::Crypto::PK::MLDSAPublicKey>(), context);
+        if (params.name == "ML-DSA-87")
+            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA87, key->handle().get<::Crypto::PK::MLDSAPublicKey>(), context);
+        VERIFY_NOT_REACHED();
+    }();
+    auto const maybe_result = lattice.verify(message, signature);
+
+    // 4. If the ML-DSA.Verify algorithm returned an error, return an OperationError.
+    if (maybe_result.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to verify message"_utf16);
+
+    // 5. Return result.
+    return maybe_result.value();
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
