@@ -25,6 +25,10 @@
 #include <QSocketNotifier>
 #include <QThread>
 #include <QTimer>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#    include <QWinEventNotifier>
+#endif
 
 namespace Ladybird {
 
@@ -61,6 +65,9 @@ struct ThreadData {
 
     Threading::Mutex mutex;
     HashMap<Core::Notifier*, NonnullOwnPtr<QSocketNotifier>> notifiers;
+#if defined(AK_OS_WINDOWS)
+    HashMap<pid_t, QWinEventNotifier*> processes;
+#endif
 };
 
 class QtEventLoopManagerEvent final : public QEvent {
@@ -375,6 +382,44 @@ void EventLoopManagerQt::unregister_signal(int handler_id)
     if (remove_signal_number != 0)
         info.signal_handlers.remove(remove_signal_number);
 }
+
+#if defined(AK_OS_WINDOWS)
+
+void EventLoopManagerQt::register_process(pid_t pid, ESCAPING Function<void(pid_t)> exit_handler)
+{
+    HANDLE process_handle = OpenProcess(SYNCHRONIZE, FALSE, pid);
+    VERIFY(process_handle);
+
+    auto* process = new QWinEventNotifier(process_handle);
+    QObject::connect(process, &QWinEventNotifier::activated, [process_id = pid, exit_handler = move(exit_handler), process_handle = process_handle](HANDLE terminated_process_handle) {
+        if (process_handle == terminated_process_handle) {
+            exit_handler(process_id);
+        }
+    });
+
+    {
+        auto& thread_data = ThreadData::the();
+        Threading::MutexLocker locker(thread_data.mutex);
+        thread_data.processes.set(pid, process);
+    }
+}
+
+void EventLoopManagerQt::unregister_process(pid_t pid)
+{
+    {
+        auto& thread_data = ThreadData::the();
+        Threading::MutexLocker locker(thread_data.mutex);
+        auto maybe_process = thread_data.processes.take(pid);
+        if (!maybe_process.has_value())
+            return;
+        if (auto* process = maybe_process.release_value()) {
+            CloseHandle(process->handle());
+            delete process;
+        }
+    }
+}
+
+#endif
 
 void EventLoopManagerQt::did_post_event()
 {
