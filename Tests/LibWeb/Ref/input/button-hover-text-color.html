@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/button-hover-text-color-ref.html" />
+<style>
+    .btn {
+        background: black;
+        color: red;
+    }
+
+    .btn:hover {
+        color: white;
+    }
+</style>
+<button type="button" class="btn">BUTTON</button>
+<script>
+    requestAnimationFrame(() => internals.movePointerTo(15, 15));
+</script>
