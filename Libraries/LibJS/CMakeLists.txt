@@ -158,6 +158,7 @@ set(SOURCES
     Runtime/ModuleEnvironment.cpp
     Runtime/ModuleNamespaceObject.cpp
     Runtime/NativeFunction.cpp
+    Runtime/NativeJavaScriptBackedFunction.cpp
     Runtime/NumberConstructor.cpp
     Runtime/NumberObject.cpp
     Runtime/NumberPrototype.cpp
@@ -199,6 +200,7 @@ set(SOURCES
     Runtime/Shape.cpp
     Runtime/SharedArrayBufferConstructor.cpp
     Runtime/SharedArrayBufferPrototype.cpp
+    Runtime/SharedFunctionInstanceData.cpp
     Runtime/StringConstructor.cpp
     Runtime/StringIterator.cpp
     Runtime/StringIteratorPrototype.cpp

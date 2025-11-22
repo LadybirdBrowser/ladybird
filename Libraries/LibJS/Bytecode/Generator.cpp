@@ -13,11 +13,12 @@
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS::Bytecode {
 
-Generator::Generator(VM& vm, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion)
+Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_function_instance_data, MustPropagateCompletion must_propagate_completion, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
     : m_vm(vm)
     , m_string_table(make<StringTable>())
     , m_identifier_table(make<IdentifierTable>())
@@ -26,15 +27,16 @@ Generator::Generator(VM& vm, GC::Ptr<ECMAScriptFunctionObject const> function, M
     , m_accumulator(*this, Operand(Register::accumulator()))
     , m_this_value(*this, Operand(Register::this_value()))
     , m_must_propagate_completion(must_propagate_completion == MustPropagateCompletion::Yes)
-    , m_function(function)
+    , m_builtin_abstract_operations_enabled(builtin_abstract_operations_enabled == BuiltinAbstractOperationsEnabled::Yes)
+    , m_shared_function_instance_data(shared_function_instance_data)
 {
 }
 
-CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(ECMAScriptFunctionObject const& function)
+CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(SharedFunctionInstanceData const& shared_function_instance_data)
 {
-    if (function.shared_data().m_has_parameter_expressions) {
+    if (shared_function_instance_data.m_has_parameter_expressions) {
         bool has_non_local_parameters = false;
-        for (auto const& parameter_name : function.shared_data().m_parameter_names) {
+        for (auto const& parameter_name : shared_function_instance_data.m_parameter_names) {
             if (parameter_name.value == SharedFunctionInstanceData::ParameterIsLocal::No) {
                 has_non_local_parameters = true;
                 break;
@@ -44,33 +46,33 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             emit<Op::CreateLexicalEnvironment>(OptionalNone {}, 0);
     }
 
-    for (auto const& parameter_name : function.shared_data().m_parameter_names) {
+    for (auto const& parameter_name : shared_function_instance_data.m_parameter_names) {
         if (parameter_name.value == SharedFunctionInstanceData::ParameterIsLocal::No) {
             auto id = intern_identifier(parameter_name.key);
             emit<Op::CreateVariable>(id, Op::EnvironmentMode::Lexical, false, false, false);
-            if (function.shared_data().m_has_duplicates) {
+            if (shared_function_instance_data.m_has_duplicates) {
                 emit<Op::InitializeLexicalBinding>(id, add_constant(js_undefined()));
             }
         }
     }
 
-    if (function.shared_data().m_arguments_object_needed) {
+    if (shared_function_instance_data.m_arguments_object_needed) {
         Optional<Operand> dst;
-        auto local_var_index = function.shared_data().m_local_variables_names.find_first_index_if([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; });
+        auto local_var_index = shared_function_instance_data.m_local_variables_names.find_first_index_if([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; });
         if (local_var_index.has_value())
             dst = local(Identifier::Local::variable(local_var_index.value()));
 
-        if (function.is_strict_mode() || !function.has_simple_parameter_list()) {
-            emit<Op::CreateArguments>(dst, Op::ArgumentsKind::Unmapped, function.is_strict_mode());
+        if (shared_function_instance_data.m_strict || !shared_function_instance_data.m_has_simple_parameter_list) {
+            emit<Op::CreateArguments>(dst, Op::ArgumentsKind::Unmapped, shared_function_instance_data.m_strict);
         } else {
-            emit<Op::CreateArguments>(dst, Op::ArgumentsKind::Mapped, function.is_strict_mode());
+            emit<Op::CreateArguments>(dst, Op::ArgumentsKind::Mapped, shared_function_instance_data.m_strict);
         }
 
         if (local_var_index.has_value())
             set_local_initialized(Identifier::Local::variable(local_var_index.value()));
     }
 
-    auto const& formal_parameters = function.formal_parameters();
+    auto const& formal_parameters = *shared_function_instance_data.m_formal_parameters;
     for (u32 param_index = 0; param_index < formal_parameters.size(); ++param_index) {
         auto const& parameter = formal_parameters.parameters()[param_index];
 
@@ -98,7 +100,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
                 set_local_initialized((*identifier)->local_index());
             } else {
                 auto id = intern_identifier((*identifier)->string());
-                if (function.shared_data().m_has_duplicates) {
+                if (shared_function_instance_data.m_has_duplicates) {
                     emit<Op::SetLexicalBinding>(id, Operand { Operand::Type::Argument, param_index });
                 } else {
                     emit<Op::InitializeLexicalBinding>(id, Operand { Operand::Type::Argument, param_index });
@@ -106,18 +108,18 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
             }
         } else if (auto const* binding_pattern = parameter.binding.get_pointer<NonnullRefPtr<BindingPattern const>>(); binding_pattern) {
             ScopedOperand argument { *this, Operand { Operand::Type::Argument, param_index } };
-            auto init_mode = function.shared_data().m_has_duplicates ? Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize;
+            auto init_mode = shared_function_instance_data.m_has_duplicates ? Op::BindingInitializationMode::Set : Bytecode::Op::BindingInitializationMode::Initialize;
             TRY((*binding_pattern)->generate_bytecode(*this, init_mode, argument));
         }
     }
 
     ScopeNode const* scope_body = nullptr;
-    if (is<ScopeNode>(function.ecmascript_code()))
-        scope_body = &static_cast<ScopeNode const&>(function.ecmascript_code());
+    if (is<ScopeNode>(*shared_function_instance_data.m_ecmascript_code))
+        scope_body = &static_cast<ScopeNode const&>(*shared_function_instance_data.m_ecmascript_code);
 
-    if (!function.shared_data().m_has_parameter_expressions) {
+    if (!shared_function_instance_data.m_has_parameter_expressions) {
         if (scope_body) {
-            for (auto const& variable_to_initialize : function.shared_data().m_var_names_to_initialize_binding) {
+            for (auto const& variable_to_initialize : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 auto const& id = variable_to_initialize.identifier;
                 if (id.is_local()) {
                     emit<Op::Mov>(local(id.local_index()), add_constant(js_undefined()));
@@ -131,7 +133,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     } else {
         bool has_non_local_parameters = false;
         if (scope_body) {
-            for (auto const& variable_to_initialize : function.shared_data().m_var_names_to_initialize_binding) {
+            for (auto const& variable_to_initialize : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 auto const& id = variable_to_initialize.identifier;
                 if (!id.is_local()) {
                     has_non_local_parameters = true;
@@ -141,10 +143,10 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         }
 
         if (has_non_local_parameters)
-            emit<Op::CreateVariableEnvironment>(function.shared_data().m_var_environment_bindings_count);
+            emit<Op::CreateVariableEnvironment>(shared_function_instance_data.m_var_environment_bindings_count);
 
         if (scope_body) {
-            for (auto const& variable_to_initialize : function.shared_data().m_var_names_to_initialize_binding) {
+            for (auto const& variable_to_initialize : shared_function_instance_data.m_var_names_to_initialize_binding) {
                 auto const& id = variable_to_initialize.identifier;
                 auto initial_value = allocate_register();
                 if (!variable_to_initialize.parameter_binding || variable_to_initialize.function_name) {
@@ -168,18 +170,18 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         }
     }
 
-    if (!function.is_strict_mode() && scope_body) {
-        for (auto const& function_name : function.shared_data().m_function_names_to_initialize_binding) {
+    if (!shared_function_instance_data.m_strict && scope_body) {
+        for (auto const& function_name : shared_function_instance_data.m_function_names_to_initialize_binding) {
             auto intern_id = intern_identifier(function_name);
             emit<Op::CreateVariable>(intern_id, Op::EnvironmentMode::Var, false, false, false);
             emit<Op::InitializeVariableBinding>(intern_id, add_constant(js_undefined()));
         }
     }
 
-    if (!function.is_strict_mode()) {
+    if (!shared_function_instance_data.m_strict) {
         bool can_elide_lexical_environment = !scope_body || !scope_body->has_non_local_lexical_declarations();
         if (!can_elide_lexical_environment) {
-            emit<Op::CreateLexicalEnvironment>(OptionalNone {}, function.shared_data().m_lex_environment_bindings_count);
+            emit<Op::CreateLexicalEnvironment>(OptionalNone {}, shared_function_instance_data.m_lex_environment_bindings_count);
         }
     }
 
@@ -199,7 +201,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
         }));
     }
 
-    for (auto const& declaration : function.shared_data().m_functions_to_initialize) {
+    for (auto const& declaration : shared_function_instance_data.m_functions_to_initialize) {
         auto const& identifier = *declaration.name_identifier();
         if (identifier.is_local()) {
             auto local_index = identifier.local_index();
@@ -215,9 +217,9 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     return {};
 }
 
-CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<LocalVariable> local_variable_names)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<SharedFunctionInstanceData const> shared_function_instance_data, MustPropagateCompletion must_propagate_completion, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled, Vector<LocalVariable> local_variable_names)
 {
-    Generator generator(vm, function, must_propagate_completion);
+    Generator generator(vm, shared_function_instance_data, must_propagate_completion, builtin_abstract_operations_enabled);
 
     if (is<Program>(node))
         generator.m_strict = static_cast<Program const&>(node).is_strict_mode() ? Strict::Yes : Strict::No;
@@ -225,7 +227,6 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         generator.m_strict = static_cast<FunctionBody const&>(node).in_strict_mode() ? Strict::Yes : Strict::No;
     else if (is<FunctionDeclaration>(node))
         generator.m_strict = static_cast<FunctionDeclaration const&>(node).is_strict_mode() ? Strict::Yes : Strict::No;
-
     generator.m_local_variables = local_variable_names;
 
     generator.switch_to_basic_block(generator.make_block());
@@ -240,8 +241,8 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         //       will not enter the generator from the SuspendedStart state and immediately completes the generator.
     }
 
-    if (function)
-        TRY(generator.emit_function_declaration_instantiation(*function));
+    if (shared_function_instance_data)
+        TRY(generator.emit_function_declaration_instantiation(*shared_function_instance_data));
 
     if (generator.is_in_generator_function()) {
         // Immediately yield with no value.
@@ -306,7 +307,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
     auto number_of_registers = generator.m_next_register;
     auto number_of_constants = generator.m_constants.size();
-    auto number_of_locals = function ? function->local_variables_names().size() : 0;
+    auto number_of_locals = shared_function_instance_data ? shared_function_instance_data->m_local_variables_names.size() : 0;
 
     // Pass: Rewrite the bytecode to use the correct register and constant indices.
     for (auto& block : generator.m_root_basic_blocks) {
@@ -499,12 +500,12 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_ast_node(VM&
     Vector<LocalVariable> local_variable_names;
     if (is<ScopeNode>(node))
         local_variable_names = static_cast<ScopeNode const&>(node).local_variables_names();
-    return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, move(local_variable_names));
+    return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, BuiltinAbstractOperationsEnabled::No, move(local_variable_names));
 }
 
-CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_function(VM& vm, ECMAScriptFunctionObject const& function)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_function(VM& vm, GC::Ref<SharedFunctionInstanceData const> shared_function_instance_data, BuiltinAbstractOperationsEnabled builtin_abstract_operations_enabled)
 {
-    return compile(vm, function.ecmascript_code(), function.kind(), &function, MustPropagateCompletion::No, function.local_variables_names());
+    return compile(vm, *shared_function_instance_data->m_ecmascript_code, shared_function_instance_data->m_kind, shared_function_instance_data, MustPropagateCompletion::No, builtin_abstract_operations_enabled, shared_function_instance_data->m_local_variables_names);
 }
 
 void Generator::grow(size_t additional_size)
@@ -1349,7 +1350,7 @@ ScopedOperand Generator::get_this(Optional<ScopedOperand> preferred_dst)
     // OPTIMIZATION: If we're compiling a function that doesn't allocate a FunctionEnvironment,
     //               it will always have the same `this` value as the outer function,
     //               and so the `this` value is already in the `this` register!
-    if (m_function && !m_function->allocates_function_environment())
+    if (m_shared_function_instance_data && !m_shared_function_instance_data->m_function_environment_needed)
         return this_value();
 
     auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
@@ -1469,6 +1470,300 @@ ScopedOperand Generator::add_constant(Value value)
         });
     }
     return append_new_constant();
+}
+
+CodeGenerationErrorOr<void> Generator::generate_builtin_abstract_operation(Identifier const& builtin_identifier, ReadonlySpan<CallExpression::Argument> arguments, ScopedOperand const& dst)
+{
+    VERIFY(m_builtin_abstract_operations_enabled);
+    for (auto const& argument : arguments) {
+        if (argument.is_spread) {
+            return CodeGenerationError {
+                argument.value.ptr(),
+                "Spread arguments not allowed for builtin abstract operations"sv,
+            };
+        }
+    }
+
+    auto const& operation_name = builtin_identifier.string();
+
+    if (operation_name == "IsCallable"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "IsCallable only accepts one argument"sv,
+            };
+        }
+
+        auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::IsCallable>(dst, source);
+        return {};
+    }
+
+    if (operation_name == "IsConstructor"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "IsConstructor only accepts one argument"sv,
+            };
+        }
+
+        auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::IsConstructor>(dst, source);
+        return {};
+    }
+
+    if (operation_name == "ToBoolean"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "ToBoolean only accepts one argument"sv,
+            };
+        }
+
+        auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::ToBoolean>(dst, source);
+        return {};
+    }
+
+    if (operation_name == "ToObject"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "ToObject only accepts one argument"sv,
+            };
+        }
+
+        auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::ToObject>(dst, source);
+        return {};
+    }
+
+    if (operation_name == "ThrowTypeError"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "throw_type_error only accepts one argument"sv,
+            };
+        }
+
+        auto const* message = as_if<StringLiteral>(*arguments[0].value);
+        if (!message) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "ThrowTypeError's message must be a string literal"sv,
+            };
+        }
+
+        auto message_string = intern_string(message->value());
+        auto type_error_register = allocate_register();
+        emit<Op::NewTypeError>(type_error_register, message_string);
+        perform_needed_unwinds<Op::Throw>();
+        emit<Op::Throw>(type_error_register);
+        return {};
+    }
+
+    if (operation_name == "ThrowIfNotObject"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "ThrowIfNotObject only accepts one argument"sv,
+            };
+        }
+
+        auto source = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::ThrowIfNotObject>(source);
+        return {};
+    }
+
+    if (operation_name == "Call"sv) {
+        if (arguments.size() < 2) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "Call must have at least two arguments"sv,
+            };
+        }
+
+        auto const& callee_argument = arguments[0].value;
+        auto callee = TRY(callee_argument->generate_bytecode(*this)).value();
+        auto this_value = TRY(arguments[1].value->generate_bytecode(*this)).value();
+        auto arguments_to_call_with = arguments.slice(2);
+
+        Vector<ScopedOperand> argument_operands;
+        argument_operands.ensure_capacity(arguments_to_call_with.size());
+        for (auto const& argument : arguments_to_call_with) {
+            auto argument_value = TRY(argument.value->generate_bytecode(*this)).value();
+            argument_operands.unchecked_append(copy_if_needed_to_preserve_evaluation_order(argument_value));
+        }
+
+        auto expression_string = ([&callee_argument] -> Optional<Utf16String> {
+            if (auto const* identifier = as_if<Identifier>(*callee_argument))
+                return identifier->string().to_utf16_string();
+
+            if (auto const* member_expression = as_if<MemberExpression>(*callee_argument))
+                return member_expression->to_string_approximation();
+
+            return {};
+        })();
+
+        Optional<Bytecode::StringTableIndex> expression_string_index;
+        if (expression_string.has_value())
+            expression_string_index = intern_string(expression_string.release_value());
+
+        emit_with_extra_operand_slots<Bytecode::Op::Call>(
+            argument_operands.size(),
+            dst,
+            callee,
+            this_value,
+            expression_string_index,
+            argument_operands);
+        return {};
+    }
+
+    if (operation_name == "NewObjectWithNoPrototype"sv) {
+        if (!arguments.is_empty()) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "NewObjectWithNoPrototype does not take any arguments"sv,
+            };
+        }
+
+        emit<Op::NewObjectWithNoPrototype>(dst);
+        return {};
+    }
+
+    if (operation_name == "CreateAsyncFromSyncIterator"sv) {
+        if (arguments.size() != 3) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "CreateAsyncFromSyncIterator only accepts exactly three arguments"sv,
+            };
+        }
+
+        auto iterator = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        auto next_method = TRY(arguments[1].value->generate_bytecode(*this)).value();
+        auto done = TRY(arguments[2].value->generate_bytecode(*this)).value();
+
+        emit<Op::CreateAsyncFromSyncIterator>(dst, iterator, next_method, done);
+        return {};
+    }
+
+    if (operation_name == "ToLength"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "ToLength only accepts exactly one argument"sv,
+            };
+        }
+
+        auto value = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::ToLength>(dst, value);
+        return {};
+    }
+
+    if (operation_name == "NewTypeError"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "NewTypeError only accepts one argument"sv,
+            };
+        }
+
+        auto const* message = as_if<StringLiteral>(*arguments[0].value);
+        if (!message) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "new_type_error's message must be a string literal"sv,
+            };
+        }
+
+        auto message_string = intern_string(message->value());
+        emit<Op::NewTypeError>(dst, message_string);
+        return {};
+    }
+
+    if (operation_name == "NewArrayWithLength"sv) {
+        if (arguments.size() != 1) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "NewArrayWithLength only accepts one argument"sv,
+            };
+        }
+
+        auto length = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        emit<Op::NewArrayWithLength>(dst, length);
+        return {};
+    }
+
+    if (operation_name == "CreateDataPropertyOrThrow"sv) {
+        if (arguments.size() != 3) {
+            return CodeGenerationError {
+                &builtin_identifier,
+                "CreateDataPropertyOrThrow only accepts three arguments"sv,
+            };
+        }
+
+        auto object = TRY(arguments[0].value->generate_bytecode(*this)).value();
+        auto property = TRY(arguments[1].value->generate_bytecode(*this)).value();
+        auto value = TRY(arguments[2].value->generate_bytecode(*this)).value();
+        emit<Op::CreateDataPropertyOrThrow>(object, property, value);
+        return {};
+    }
+
+#define __JS_ENUMERATE(snake_name, functionName, length)                                                     \
+    if (operation_name == #functionName##sv) {                                                               \
+        Vector<ScopedOperand> argument_operands;                                                             \
+        argument_operands.ensure_capacity(arguments.size());                                                 \
+        for (auto const& argument : arguments) {                                                             \
+            auto argument_value = TRY(argument.value->generate_bytecode(*this)).value();                     \
+            argument_operands.unchecked_append(copy_if_needed_to_preserve_evaluation_order(argument_value)); \
+        }                                                                                                    \
+        emit_with_extra_operand_slots<Bytecode::Op::Call>(                                                   \
+            argument_operands.size(),                                                                        \
+            dst,                                                                                             \
+            add_constant(m_vm.current_realm()->intrinsics().snake_name##_abstract_operation_function()),     \
+            add_constant(js_undefined()),                                                                    \
+            intern_string(builtin_identifier.string().to_utf16_string()),                                    \
+            argument_operands);                                                                              \
+        return {};                                                                                           \
+    }
+    JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
+#undef __JS_ENUMERATE
+
+    dbgln("Unknown builtin abstract operation: '{}'", operation_name);
+    return CodeGenerationError {
+        &builtin_identifier,
+        "Unknown builtin abstract operation"sv,
+    };
+}
+
+CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::maybe_generate_builtin_constant(Identifier const& builtin_identifier)
+{
+    auto const& constant_name = builtin_identifier.string();
+
+    if (constant_name == "undefined"sv) {
+        return add_constant(js_undefined());
+    }
+
+    if (!m_builtin_abstract_operations_enabled)
+        return OptionalNone {};
+
+    if (constant_name == "SYMBOL_ITERATOR"sv) {
+        return add_constant(vm().well_known_symbol_iterator());
+    }
+
+    if (constant_name == "SYMBOL_ASYNC_ITERATOR"sv) {
+        return add_constant(vm().well_known_symbol_async_iterator());
+    }
+
+    if (constant_name == "MAX_ARRAY_LIKE_INDEX"sv) {
+        return add_constant(Value(MAX_ARRAY_LIKE_INDEX));
+    }
+
+    dbgln("Unknown builtin constant: '{}'", constant_name);
+    return CodeGenerationError {
+        &builtin_identifier,
+        "Unknown builtin constant"sv,
+    };
 }
 
 }
