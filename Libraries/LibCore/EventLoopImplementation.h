@@ -35,6 +35,9 @@ public:
     virtual int register_signal(int signal_number, Function<void(int)> handler) = 0;
     virtual void unregister_signal(int handler_id) = 0;
 
+    virtual void register_process([[maybe_unused]] pid_t pid, [[maybe_unused]] ESCAPING Function<void(pid_t)> exit_handler) { VERIFY_NOT_REACHED(); }
+    virtual void unregister_process([[maybe_unused]] pid_t pid) { VERIFY_NOT_REACHED(); }
+
 protected:
     EventLoopManager();
 };
