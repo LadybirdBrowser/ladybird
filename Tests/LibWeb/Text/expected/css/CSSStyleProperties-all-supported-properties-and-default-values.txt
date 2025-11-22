@@ -177,6 +177,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'animation-name': 'none'
 'animationPlayState': 'running'
 'animation-play-state': 'running'
+'animationTimeline': 'auto'
+'animation-timeline': 'auto'
 'animationTimingFunction': 'ease'
 'animation-timing-function': 'ease'
 'appearance': 'none'
