@@ -481,7 +481,7 @@ i64 Navigation::get_the_navigation_api_entry_index(SessionHistoryEntry const& sh
     // 2. For each nhe of navigation's entry list:
     for (auto const& nhe : m_entry_list) {
         // 1. If nhe's session history entry is equal to she, then return index.
-        if (&nhe->session_history_entry() == &she)
+        if (nhe->session_history_entry().navigation_api_id() == she.navigation_api_id())
             return index;
 
         // 2. Increment index by 1.
@@ -692,7 +692,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         // 3. If targetSHE is navigable's active session history entry, then abort these steps.
         // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
         //       In that case the previous traversal will have dealt with apiMethodTracker already.
-        if (target_she == navigable->active_session_history_entry())
+        if (target_she->navigation_api_id() == navigable->active_session_history_entry()->navigation_api_id())
             return;
 
         // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
@@ -1272,7 +1272,7 @@ bool Navigation::fire_a_traverse_navigate_event(GC::Ref<SessionHistoryEntry> des
     // 5. Let destinationNHE be the NavigationHistoryEntry in navigation's entry list whose session history entry is destinationSHE,
     //    or null if no such NavigationHistoryEntry exists.
     auto destination_nhe = m_entry_list.find_if([destination_she](auto& nhe) {
-        return &nhe->session_history_entry() == destination_she;
+        return nhe->session_history_entry().navigation_api_id() == destination_she->navigation_api_id();
     });
 
     // 6. If destinationNHE is non-null, then:
