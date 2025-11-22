@@ -362,12 +362,9 @@ void initialize_main_thread_vm(AgentType type)
             if (is<HTML::ClassicScript>(script)) {
                 script_execution_context->script_or_module = GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record());
             } else if (is<HTML::ModuleScript>(script)) {
-                if (is<HTML::JavaScriptModuleScript>(script)) {
-                    script_execution_context->script_or_module = GC::Ref<JS::Module>(*as<HTML::JavaScriptModuleScript>(script)->record());
-                } else {
-                    // NOTE: Handle CSS and JSON module scripts once we have those.
-                    VERIFY_NOT_REACHED();
-                }
+                script_execution_context->script_or_module = as<HTML::ModuleScript>(script)->record().visit(
+                    [](Empty) -> JS::ScriptOrModule { return {}; },
+                    [](auto& module) -> JS::ScriptOrModule { return GC::Ref<JS::Module> { module }; });
             } else {
                 VERIFY_NOT_REACHED();
             }
@@ -625,7 +622,7 @@ void initialize_main_thread_vm(AgentType type)
                 }
                 // 4. Otherwise, set completion to NormalCompletion(moduleScript's record).
                 else {
-                    module = static_cast<HTML::JavaScriptModuleScript&>(*module_script).record();
+                    module = static_cast<HTML::ModuleScript&>(*module_script).record().visit([](Empty) -> GC::Ptr<JS::Module> { return nullptr; }, [](GC::Ref<JS::Module> module) -> GC::Ptr<JS::Module> { return module; });
                     return JS::ThrowCompletionOr<GC::Ref<JS::Module>>(*module);
                 }
             }();
