@@ -267,6 +267,8 @@ public:
 
     CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
 
+    double ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const&);
+
     Optional<String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
 
     virtual FlyString node_name() const override { return "#document"_fly_string; }
@@ -1351,6 +1353,9 @@ private:
     HashMap<FlyString, GC::Ref<Web::CSS::CSSPropertyRule>> m_registered_custom_properties;
 
     CSS::StyleScope m_style_scope;
+
+    // https://drafts.csswg.org/css-values-5/#random-caching
+    HashMap<CSS::RandomCachingKey, double> m_element_shared_css_random_base_value_cache;
 };
 
 template<>

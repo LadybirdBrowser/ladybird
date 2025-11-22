@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -4318,6 +4319,19 @@ GC::Ref<CSS::StylePropertyMapReadOnly> Element::computed_style_map()
 
     // 2. Return this’s [[computedStyleMapCache]] internal slot.
     return *m_computed_style_map_cache;
+}
+
+double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random_caching_key)
+{
+    // NB: We cache element-shared random base values on the Document and non-element-shared ones on the Element itself
+    //     so that when an element is removed it takes it's non-shared cache with it.
+    if (!random_caching_key.element_id.has_value())
+        return document().ensure_element_shared_css_random_base_value(random_caching_key);
+
+    return m_element_specific_css_random_base_value_cache.ensure(random_caching_key, []() {
+        static XorShift128PlusRNG random_number_generator;
+        return random_number_generator.get();
+    });
 }
 
 // The element to inherit style from.

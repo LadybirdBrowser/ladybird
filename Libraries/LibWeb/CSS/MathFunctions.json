@@ -168,6 +168,33 @@
       }
     ]
   },
+  "random": {
+    "parameter-validation": "consistent",
+    "parameters": [
+      {
+        "name": "random-value-sharing",
+        "type": "<random-value-sharing>",
+        "required": false,
+        "default": "auto",
+        "__comment": "NOTE: The actual default is hardcoded and we don't respect the value above, we have it there so we know that this argument has a default"
+      },
+      {
+        "name": "minimum",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": true
+      },
+      {
+        "name": "maximum",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": true
+      },
+      {
+        "name": "step",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": false
+      }
+    ]
+  },
   "rem": {
     "parameter-validation": "same",
     "parameters": [
