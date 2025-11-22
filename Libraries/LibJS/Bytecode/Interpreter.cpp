@@ -3284,13 +3284,13 @@ void SetCompletionType::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& completion_cell = static_cast<CompletionCell&>(interpreter.get(m_completion).as_cell());
     auto completion = completion_cell.completion();
-    completion_cell.set_completion(Completion { m_type, completion.value() });
+    completion_cell.set_completion(Completion { m_completion_type, completion.value() });
 }
 
 ThrowCompletionOr<void> CreateImmutableBinding::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& environment = as<Environment>(interpreter.get(m_environment).as_cell());
-    return environment.create_immutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_strict);
+    return environment.create_immutable_binding(interpreter.vm(), interpreter.get_identifier(m_identifier), m_strict_binding);
 }
 
 ThrowCompletionOr<void> CreateMutableBinding::execute_impl(Bytecode::Interpreter& interpreter) const
