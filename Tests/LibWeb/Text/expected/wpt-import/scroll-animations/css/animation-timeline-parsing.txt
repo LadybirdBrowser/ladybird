@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 69 tests
 
-31 Pass
-38 Fail
+45 Pass
+24 Fail
 Pass	e.style['animation-timeline'] = "initial" should set the property value
 Pass	e.style['animation-timeline'] = "inherit" should set the property value
 Pass	e.style['animation-timeline'] = "unset" should set the property value
@@ -26,20 +26,20 @@ Pass	e.style['animation-timeline'] = "\"foo\" \"bar\"" should not set the proper
 Pass	e.style['animation-timeline'] = "rgb(1, 2, 3)" should not set the property value
 Pass	e.style['animation-timeline'] = "#fefefe" should not set the property value
 Pass	e.style['animation-timeline'] = "\"test\"" should not set the property value
-Fail	e.style['animation-timeline'] = "scroll()" should set the property value
-Fail	e.style['animation-timeline'] = " scroll() " should set the property value
-Fail	e.style['animation-timeline'] = "scroll(block)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(inline)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(x)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(y)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(root)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(nearest)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(self)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(inline nearest)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(nearest inline)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(block self)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(self block)" should set the property value
-Fail	e.style['animation-timeline'] = "scroll(y root)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll()" should set the property value
+Pass	e.style['animation-timeline'] = " scroll() " should set the property value
+Pass	e.style['animation-timeline'] = "scroll(block)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(inline)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(x)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(y)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(root)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(nearest)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(self)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(inline nearest)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(nearest inline)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(block self)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(self block)" should set the property value
+Pass	e.style['animation-timeline'] = "scroll(y root)" should set the property value
 Pass	e.style['animation-timeline'] = "scroll(abc root)" should not set the property value
 Pass	e.style['animation-timeline'] = "scroll(abc)" should not set the property value
 Pass	e.style['animation-timeline'] = "scroll(y abc)" should not set the property value

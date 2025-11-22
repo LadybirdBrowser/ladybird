@@ -64,6 +64,7 @@
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
@@ -1427,6 +1428,61 @@ RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>
     }
 
     return nullptr;
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#funcdef-scroll
+RefPtr<ScrollFunctionStyleValue const> Parser::parse_scroll_function_value(TokenStream<ComponentValue>& tokens)
+{
+    // <scroll()> = scroll( [ <scroller> || <axis> ]? )
+    auto transaction = tokens.begin_transaction();
+    auto const& function_token = tokens.consume_a_token();
+    if (!function_token.is_function("scroll"sv))
+        return nullptr;
+
+    Optional<Scroller> scroller;
+    Optional<Axis> axis;
+
+    auto argument_tokens = TokenStream { function_token.function().value };
+
+    while (argument_tokens.has_next_token()) {
+        tokens.discard_whitespace();
+
+        if (!argument_tokens.has_next_token())
+            break;
+
+        auto keyword_value = parse_keyword_value(argument_tokens);
+
+        if (!keyword_value)
+            return nullptr;
+
+        if (auto maybe_scroller = keyword_to_scroller(keyword_value->to_keyword()); maybe_scroller.has_value()) {
+            if (scroller.has_value())
+                return nullptr;
+
+            scroller = maybe_scroller;
+            continue;
+        }
+
+        if (auto maybe_axis = keyword_to_axis(keyword_value->to_keyword()); maybe_axis.has_value()) {
+            if (axis.has_value())
+                return nullptr;
+
+            axis = maybe_axis;
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    // By default, scroll() references the block axis of the nearest ancestor scroll container.
+    if (!scroller.has_value())
+        scroller = Scroller::Nearest;
+
+    if (!axis.has_value())
+        axis = Axis::Block;
+
+    transaction.commit();
+    return ScrollFunctionStyleValue::create(scroller.value(), axis.value());
 }
 
 // https://www.w3.org/TR/CSS2/visufx.html#value-def-shape
@@ -5074,6 +5130,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_rect_value(tokens);
     case ValueType::Resolution:
         return parse_resolution_value(tokens);
+    case ValueType::ScrollFunction:
+        return parse_scroll_function_value(tokens);
     case ValueType::String:
         return parse_string_value(tokens);
     case ValueType::Time:

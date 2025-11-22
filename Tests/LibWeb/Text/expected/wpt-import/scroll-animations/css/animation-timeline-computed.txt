@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 44 tests
 
-13 Pass
-31 Fail
+27 Pass
+17 Fail
 Pass	Property animation-timeline value 'initial'
 Pass	Property animation-timeline value 'inherit'
 Pass	Property animation-timeline value 'unset'
@@ -19,20 +19,20 @@ Pass	Property animation-timeline value '--test1, --test2'
 Pass	Property animation-timeline value '--test1, --test2, none, --test3, auto'
 Pass	The animation-timeline property shows up in CSSStyleDeclaration enumeration
 Pass	The animation-timeline property shows up in CSSStyleDeclaration.cssText
-Fail	Property animation-timeline value 'scroll()'
-Fail	Property animation-timeline value 'scroll(block)'
-Fail	Property animation-timeline value 'scroll(inline)'
-Fail	Property animation-timeline value 'scroll(x)'
-Fail	Property animation-timeline value 'scroll(y)'
-Fail	Property animation-timeline value 'scroll(root)'
-Fail	Property animation-timeline value 'scroll(nearest)'
-Fail	Property animation-timeline value 'scroll(self)'
-Fail	Property animation-timeline value 'scroll(self), scroll(nearest)'
-Fail	Property animation-timeline value 'scroll(inline nearest)'
-Fail	Property animation-timeline value 'scroll(nearest inline)'
-Fail	Property animation-timeline value 'scroll(block self)'
-Fail	Property animation-timeline value 'scroll(self block)'
-Fail	Property animation-timeline value 'scroll(y root)'
+Pass	Property animation-timeline value 'scroll()'
+Pass	Property animation-timeline value 'scroll(block)'
+Pass	Property animation-timeline value 'scroll(inline)'
+Pass	Property animation-timeline value 'scroll(x)'
+Pass	Property animation-timeline value 'scroll(y)'
+Pass	Property animation-timeline value 'scroll(root)'
+Pass	Property animation-timeline value 'scroll(nearest)'
+Pass	Property animation-timeline value 'scroll(self)'
+Pass	Property animation-timeline value 'scroll(self), scroll(nearest)'
+Pass	Property animation-timeline value 'scroll(inline nearest)'
+Pass	Property animation-timeline value 'scroll(nearest inline)'
+Pass	Property animation-timeline value 'scroll(block self)'
+Pass	Property animation-timeline value 'scroll(self block)'
+Pass	Property animation-timeline value 'scroll(y root)'
 Fail	Property animation-timeline value 'view()'
 Fail	Property animation-timeline value 'view(block)'
 Fail	Property animation-timeline value 'view(inline)'

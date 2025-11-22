@@ -67,6 +67,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::Rect;
     if (string.equals_ignoring_ascii_case("resolution"sv))
         return ValueType::Resolution;
+    if (string.equals_ignoring_ascii_case("scroll-function"sv))
+        return ValueType::ScrollFunction;
     if (string.equals_ignoring_ascii_case("string"sv))
         return ValueType::String;
     if (string.equals_ignoring_ascii_case("time"sv))
@@ -147,6 +149,8 @@ StringView value_type_to_string(ValueType value_type)
         return "Rect"sv;
     case Web::CSS::ValueType::Resolution:
         return "Resolution"sv;
+    case Web::CSS::ValueType::ScrollFunction:
+        return "ScrollFunction"sv;
     case Web::CSS::ValueType::String:
         return "String"sv;
     case Web::CSS::ValueType::Time:

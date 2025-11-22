@@ -721,6 +721,11 @@
     "thin",
     "none"
   ],
+  "scroller": [
+    "root",
+    "nearest",
+    "self"
+  ],
   "shape-box": [
     "content-box",
     "padding-box",

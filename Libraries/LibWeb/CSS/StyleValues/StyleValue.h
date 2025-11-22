@@ -79,6 +79,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Resolution, resolution, ResolutionStyleValue)                                    \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarColor, scrollbar_color, ScrollbarColorStyleValue)                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarGutter, scrollbar_gutter, ScrollbarGutterStyleValue)                    \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollFunction, scroll_function, ScrollFunctionStyleValue)                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shadow, shadow, ShadowStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shorthand, shorthand, ShorthandStyleValue)                                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(String, string, StringStyleValue)                                                \

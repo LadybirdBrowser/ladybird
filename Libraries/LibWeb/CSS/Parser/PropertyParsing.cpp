@@ -248,6 +248,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Rect); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::ScrollFunction); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::String); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::TransformFunction); parsed.has_value())
