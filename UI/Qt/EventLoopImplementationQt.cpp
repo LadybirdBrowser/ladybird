@@ -15,6 +15,7 @@
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/Mutex.h>
+#include <LibThreading/MutexProtected.h>
 #include <LibThreading/RWLock.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/EventLoopImplementationQtEventTarget.h>
@@ -25,6 +26,10 @@
 #include <QSocketNotifier>
 #include <QThread>
 #include <QTimer>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#    include <QWinEventNotifier>
+#endif
 
 namespace Ladybird {
 
@@ -33,6 +38,9 @@ static thread_local OwnPtr<ThreadData> s_this_thread_data;
 static HashMap<pthread_t, ThreadData*> s_thread_data;
 static Threading::RWLock s_thread_data_lock;
 static thread_local Optional<pthread_t> s_thread_id;
+#if defined(AK_OS_WINDOWS)
+static Threading::MutexProtected<HashMap<pid_t, QWinEventNotifier*>> s_processes;
+#endif
 
 struct ThreadData {
     static ThreadData& the()
@@ -375,6 +383,60 @@ void EventLoopManagerQt::unregister_signal(int handler_id)
     if (remove_signal_number != 0)
         info.signal_handlers.remove(remove_signal_number);
 }
+
+#if defined(AK_OS_WINDOWS)
+
+void EventLoopManagerQt::register_process(pid_t pid, ESCAPING Function<void(pid_t)> exit_handler)
+{
+    s_processes.with_locked([&](auto& processes) {
+        if (processes.contains(pid))
+            return;
+
+        HANDLE process_handle = OpenProcess(SYNCHRONIZE, FALSE, pid);
+        VERIFY(process_handle);
+
+        auto* process = new QWinEventNotifier(process_handle);
+        QObject::connect(process, &QWinEventNotifier::activated, process, [process, process_id = pid, exit_handler = move(exit_handler), process_handle = process_handle](HANDLE terminated_process_handle) {
+            if (process_handle != terminated_process_handle)
+                return;
+
+            s_processes.with_locked([&](auto& processes) {
+                auto maybe_process = processes.take(process_id);
+                if (maybe_process.has_value())
+                    VERIFY(maybe_process.value() == process);
+            });
+
+            CloseHandle(process_handle);
+            process->deleteLater();
+            exit_handler(process_id);
+        });
+
+        processes.set(pid, process);
+    });
+}
+
+void EventLoopManagerQt::unregister_process(pid_t pid)
+{
+    auto maybe_process = s_processes.with_locked([&](auto& processes) {
+        return processes.take(pid);
+    });
+    if (!maybe_process.has_value())
+        return;
+
+    auto* process = maybe_process.release_value();
+    HANDLE process_handle = process->handle();
+    if (QThread::currentThread() != process->thread()) {
+        QMetaObject::invokeMethod(process, [process, process_handle] {
+            CloseHandle(process_handle);
+            delete process; }, Qt::QueuedConnection);
+        return;
+    }
+
+    CloseHandle(process_handle);
+    delete process;
+}
+
+#endif
 
 void EventLoopManagerQt::did_post_event()
 {
