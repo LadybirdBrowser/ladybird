@@ -4333,4 +4333,35 @@ GC::Ptr<Element const> Element::element_to_inherit_style_from(Optional<CSS::Pseu
     return parent_or_shadow_host_element();
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#block-rendering
+void Element::block_rendering()
+{
+    // 1. Let document be el's node document.
+    auto& document = this->document();
+
+    // 2. If document allows adding render-blocking elements, then append el to document's render-blocking element set.
+    if (document.allows_adding_render_blocking_elements()) {
+        document.add_render_blocking_element(*this);
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#unblock-rendering
+void Element::unblock_rendering()
+{
+    // 1. Let document be el's node document.
+    auto& document = this->document();
+
+    // 2. Remove el from document's render-blocking element set.
+    document.remove_render_blocking_element(*this);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#potentially-render-blocking
+bool Element::is_potentially_render_blocking()
+{
+    // An element is potentially render-blocking if
+    // FIXME: its blocking tokens set contains "render",
+    // or if it is implicitly potentially render-blocking, which will be defined at the individual elements.
+    return is_implicitly_potentially_render_blocking();
+}
+
 }
