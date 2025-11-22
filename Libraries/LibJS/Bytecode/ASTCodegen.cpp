@@ -172,8 +172,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
         case BinaryOp::RightShift:
         case BinaryOp::UnsignedRightShift:
             // LHS will always be converted to i32 for these ops.
-            if (side.is_numeric_literal()) {
-                auto value = MUST(static_cast<NumericLiteral const&>(side).value().to_i32(generator.vm()));
+            if (auto const* literal = as_if<NumericLiteral>(side)) {
+                auto value = MUST(literal->value().to_i32(generator.vm()));
                 return generator.add_constant(Value(value));
             }
             break;
@@ -190,8 +190,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
         case BinaryOp::BitwiseOr:
         case BinaryOp::BitwiseXor:
             // RHS will always be converted to i32 for these ops.
-            if (side.is_numeric_literal()) {
-                auto value = MUST(static_cast<NumericLiteral const&>(side).value().to_i32(generator.vm()));
+            if (auto const* literal = as_if<NumericLiteral const>(&side)) {
+                auto value = MUST(literal->value().to_i32(generator.vm()));
                 return generator.add_constant(Value(value));
             }
             break;
@@ -199,8 +199,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
         case BinaryOp::RightShift:
         case BinaryOp::UnsignedRightShift:
             // RHS will always be converted to u32 for these ops.
-            if (side.is_numeric_literal()) {
-                auto value = MUST(static_cast<NumericLiteral const&>(side).value().to_u32(generator.vm()));
+            if (auto const* literal = as_if<NumericLiteral const>(&side)) {
+                auto value = MUST(literal->value().to_u32(generator.vm()));
                 return generator.add_constant(Value(value));
             }
             break;
@@ -585,9 +585,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                         auto property = TRY(expression.property().generate_bytecode(generator)).value();
                         computed_property = generator.copy_if_needed_to_preserve_evaluation_order(property);
                         // To be continued later with PutByValue.
-                    } else if (expression.property().is_identifier()) {
+                    } else if (is<Identifier>(expression.property())) {
                         // Do nothing, this will be handled by PutById later.
-                    } else if (expression.property().is_private_identifier()) {
+                    } else if (is<PrivateIdentifier>(expression.property())) {
                         // Do nothing, this will be handled by PutPrivateById later.
                     } else {
                         return Bytecode::CodeGenerationError {
@@ -621,8 +621,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                 // i. Let rref be the result of evaluating AssignmentExpression.
                 // ii. Let rval be ? GetValue(rref).
                 auto rval = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
-                    if (lhs->is_identifier()) {
-                        return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs).string())));
+                    if (auto const* id = as_if<Identifier>(*lhs)) {
+                        return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(id->string())));
                     } else {
                         return TRY(m_rhs->generate_bytecode(generator)).value();
                     }
@@ -648,14 +648,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                             generator.emit_put_by_value(*base, *computed_property, rval, Bytecode::PutKind::Normal, move(base_identifier));
                         else
                             generator.emit_put_by_value_with_this(*base, *computed_property, *this_value, rval, PutKind::Normal);
-                    } else if (expression.property().is_identifier()) {
-                        auto identifier_table_ref = generator.intern_identifier(as<Identifier>(expression.property()).string());
+                    } else if (auto const* identifier = as_if<Identifier>(expression.property())) {
+                        auto identifier_table_ref = generator.intern_identifier(identifier->string());
                         if (!lhs_is_super_expression)
                             generator.emit_put_by_id(*base, identifier_table_ref, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache(), move(base_identifier));
                         else
                             generator.emit<Bytecode::Op::PutNormalByIdWithThis>(*base, *this_value, identifier_table_ref, rval, generator.next_property_lookup_cache());
-                    } else if (expression.property().is_private_identifier()) {
-                        auto identifier_table_ref = generator.intern_identifier(as<PrivateIdentifier>(expression.property()).string());
+                    } else if (auto const* private_identifier = as_if<PrivateIdentifier>(expression.property())) {
+                        auto identifier_table_ref = generator.intern_identifier(private_identifier->string());
                         generator.emit<Bytecode::Op::PutPrivateById>(*base, identifier_table_ref, rval);
                     } else {
                         return Bytecode::CodeGenerationError {
@@ -731,8 +731,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
         generator.switch_to_basic_block(*rhs_block_ptr);
 
     auto rhs = TRY([&]() -> Bytecode::CodeGenerationErrorOr<ScopedOperand> {
-        if (lhs_expression->is_identifier()) {
-            return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(static_cast<Identifier const&>(*lhs_expression).string())));
+        if (auto const* lhs_identifier = as_if<Identifier>(*lhs_expression)) {
+            return TRY(generator.emit_named_evaluation_if_anonymous_function(*m_rhs, generator.intern_identifier(lhs_identifier->string())));
         }
         return TRY(m_rhs->generate_bytecode(generator)).value();
     }());
@@ -793,8 +793,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
         };
     }
 
-    if (lhs_expression->is_identifier())
-        generator.emit_set_variable(static_cast<Identifier const&>(*lhs_expression), dst);
+    if (auto const* lhs_identifier = as_if<Identifier>(*lhs_expression))
+        generator.emit_set_variable(*lhs_identifier, dst);
     else
         (void)TRY(generator.emit_store_to_reference(reference_operands, dst));
 
@@ -1014,23 +1014,22 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     Vector<IdentifierTableIndex> per_iteration_bindings;
 
     if (m_init) {
-        if (m_init->is_variable_declaration()) {
-            auto& variable_declaration = as<VariableDeclaration>(*m_init);
+        if (auto const* variable_declaration = as_if<VariableDeclaration>(*m_init)) {
 
             auto has_non_local_variables = false;
-            MUST(variable_declaration.for_each_bound_identifier([&](auto const& identifier) {
+            MUST(variable_declaration->for_each_bound_identifier([&](auto const& identifier) {
                 if (!identifier.is_local())
                     has_non_local_variables = true;
             }));
 
-            if (variable_declaration.is_lexical_declaration() && has_non_local_variables) {
+            if (variable_declaration->is_lexical_declaration() && has_non_local_variables) {
                 has_lexical_environment = true;
                 // Setup variable scope for bound identifiers
                 generator.begin_variable_scope();
 
-                bool is_const = variable_declaration.is_constant_declaration();
+                bool is_const = variable_declaration->is_constant_declaration();
                 // NOTE: Nothing in the callback throws an exception.
-                MUST(variable_declaration.for_each_bound_identifier([&](auto const& identifier) {
+                MUST(variable_declaration->for_each_bound_identifier([&](auto const& identifier) {
                     if (identifier.is_local())
                         return;
                     auto index = generator.intern_identifier(identifier.string());
