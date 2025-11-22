@@ -110,7 +110,11 @@ class WEB_API StyleComputer final : public GC::Cell {
 public:
     static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
     static NonnullRefPtr<StyleValue const> get_non_animated_inherit_value(PropertyID, DOM::AbstractElement);
-    static Optional<NonnullRefPtr<StyleValue const>> get_animated_inherit_value(PropertyID, DOM::AbstractElement);
+    struct AnimatedInheritValue {
+        NonnullRefPtr<StyleValue const> value;
+        AnimatedPropertyResultOfTransition is_result_of_transition;
+    };
+    static Optional<AnimatedInheritValue> get_animated_inherit_value(PropertyID, DOM::AbstractElement);
 
     static Optional<String> user_agent_style_sheet_source(StringView name);
 

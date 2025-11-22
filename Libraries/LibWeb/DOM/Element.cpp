@@ -850,8 +850,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
                 || (property_id == CSS::PropertyID::FontWeight && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Bolder, CSS::Keyword::Lighter))
                 || (property_id == CSS::PropertyID::FontSize && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Larger, CSS::Keyword::Smaller));
             if (needs_updating) {
-                auto is_inherited = computed_properties->is_property_inherited(property_id);
-                computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
+                computed_properties->set_property_without_modifying_flags(property_id, *preabsolutized_value);
                 property_values_affected_by_inherited_style.set(i, old_value);
             }
         }
@@ -859,21 +858,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         if (!computed_properties->is_property_inherited(property_id))
             continue;
 
-        RefPtr<CSS::StyleValue const> old_animated_value = computed_properties->animated_property_values().get(property_id).value_or({});
-        RefPtr<CSS::StyleValue const> new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this })
-                                                               .map([](auto&& value) { return value.ptr(); })
-                                                               .value_or({});
-
-        invalidation |= CSS::compute_property_invalidation(property_id, old_animated_value, new_animated_value);
-
-        if (new_animated_value)
-            computed_properties->set_animated_property(property_id, new_animated_value.release_nonnull(), CSS::ComputedProperties::Inherited::Yes);
-        else if (old_animated_value && computed_properties->is_animated_property_inherited(property_id))
-            computed_properties->remove_animated_property(property_id);
+        if (computed_properties->is_animated_property_inherited(property_id) || !computed_properties->animated_property_values().contains(property_id)) {
+            if (auto new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this }); new_animated_value.has_value())
+                computed_properties->set_animated_property(property_id, new_animated_value->value, new_animated_value->is_result_of_transition, CSS::ComputedProperties::Inherited::Yes);
+            else if (computed_properties->animated_property_values().contains(property_id))
+                computed_properties->remove_animated_property(property_id);
+        }
 
         RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value, computed_properties->property(property_id));
     }
 
     if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty())

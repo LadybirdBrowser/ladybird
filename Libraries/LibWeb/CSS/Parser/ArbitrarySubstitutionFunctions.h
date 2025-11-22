@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Parser/Parser.h>
+#include <AK/String.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
 
