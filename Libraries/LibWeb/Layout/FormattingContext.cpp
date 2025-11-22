@@ -115,7 +115,12 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
             return true;
     }
 
-    // FIXME: Multicol containers (elements where column-count or column-width isn't auto, including elements with column-count: 1).
+    // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
+    // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a multi-
+    // column container (or multicol container for short), and therefore acts as a container for multi-column layout.
+    // FIXME: Maybe add column-height, depending on the resolution for https://github.com/w3c/csswg-drafts/issues/12688
+    if (!box.computed_values().column_width().is_auto() || !box.computed_values().column_count().is_auto())
+        return true;
 
     // FIXME: column-span: all should always create a new formatting context, even when the column-span: all element isn't contained by a multicol container (Spec change, Chrome bug).
 
