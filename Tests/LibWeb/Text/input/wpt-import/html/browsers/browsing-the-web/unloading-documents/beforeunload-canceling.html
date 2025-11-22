@@ -213,7 +213,7 @@ function runNextTest() {
         runNextTest();
     });
 
-    iframe.src = "support/beforeunload-canceling-1.html";
+    iframe.src = "beforeunload-canceling-1.html";
     document.body.appendChild(iframe);
   }, `Returning ${testCase.valueToReturn} with a real iframe unloading${suffixLabels}`);
 }
