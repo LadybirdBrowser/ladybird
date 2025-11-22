@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>transition from transparent background</title>
+  <link rel="help" href="https://www.w3.org/TR/css-color-4/#interpolation-alpha">
+  <style>
+    .box {
+      width: 100px;
+      height: 100px;
+      margin: 10px;
+      border: 1px solid black;
+      transition: background-color 1s linear;
+    }
+
+    #one {
+      background-color: transparent;
+    }
+
+    #one.changed {
+      background-color: green;
+    }
+
+    #two {
+      background-color: rgba(0, 255, 0, 0);
+    }
+
+    #two.changed {
+      background-color: rgba(0, 0, 255, 1);
+    }
+  </style>
+</head>
+<body>
+  <div class="box" id="one"></div>
+  <div class="box" id="two"></div>
+</body>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/css-transitions/support/helper.js"></script>
+<script type="text/javascript">
+
+promise_test(async t => {
+  // Make sure we have rendered the page before making the style change
+  // to ensure we get transitions.
+  await waitForAnimationFrames(2);
+  promises = [];
+
+  const elem1 = document.getElementById('one');
+  const elem2 = document.getElementById('two');
+  elem1.classList.add('changed');
+  elem2.classList.add('changed');
+
+  document.getAnimations().forEach(anim => {
+    anim.pause();
+    anim.currentTime = 500;
+    promises.push(anim.ready);
+  });
+
+  Promise.all(promises).then(() => {
+    assert_equals(promises.length, 2, 'Unexpected animation count');
+    assert_equals(getComputedStyle(elem1).backgroundColor,
+                  'rgba(0, 128, 0, 0.5)');
+    assert_equals(getComputedStyle(elem2).backgroundColor,
+                  'rgba(0, 0, 255, 0.5)');
+  });
+}, 'Transition from transparent background');
+
+</script>
+</html>

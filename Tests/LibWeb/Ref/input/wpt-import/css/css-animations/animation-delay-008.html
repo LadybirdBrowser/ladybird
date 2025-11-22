@@ -1,0 +1,37 @@
+<!doctype html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Animations Test: animation-delay - liveness</title>
+<link rel="author" title="Brian Birtles" href="mailto:bbirtles@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-animations-1/#animations">
+<meta name="assert" content="Check that changes to animation-delay on a running
+animation are reflected in output">
+<meta name="flags" content="dom">
+<link rel="match" href="../../../../expected/wpt-import/css/css-animations/animation-common-ref.html">
+<style>
+@keyframes two-step {
+  from { background-color: red }
+  50% { background-color: green }
+  to { background-color: green }
+}
+div {
+  width: 100px;
+  height: 100px;
+  background-color: orange;
+}
+</style>
+<div></div>
+<script>
+// Set up animation with no delay
+var div = document.querySelector('div');
+div.style.animation = 'two-step 200s steps(1)';
+window.getComputedStyle(div).animation;
+
+// Wait until animation has started and change delay
+window.requestAnimationFrame(function() {
+  // Fast-forward to mid-point
+  div.style.animationDelay = '-100s';
+  document.documentElement.removeAttribute('class');
+});
+</script>
+</html>
