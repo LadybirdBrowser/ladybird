@@ -96,13 +96,7 @@ struct EventLoopNotifier final : CompletionPacket {
     {
     }
 
-    Notifier::Type notifier_type() const { return m_notifier_type; }
-    int notifier_fd() const { return m_notifier_fd; }
-
-    // These are a space tradeoff for avoiding a double indirection through the notifier*.
     Notifier* notifier;
-    Notifier::Type m_notifier_type;
-    int m_notifier_fd { -1 };
     OwnHandle wait_packet;
     OwnHandle wait_event;
 };
@@ -211,7 +205,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
             }
             if (packet->type == CompletionType::Notifer) {
                 auto* notifier_data = static_cast<EventLoopNotifier*>(packet);
-                event_queue.post_event(*notifier_data->notifier, make<NotifierActivationEvent>(notifier_data->notifier_fd(), notifier_data->notifier_type()));
+                event_queue.post_event(*notifier_data->notifier, make<NotifierActivationEvent>());
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
                 continue;
@@ -279,7 +273,6 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
     auto notifier_data = make<EventLoopNotifier>();
     notifier_data->type = CompletionType::Notifer;
     notifier_data->notifier = &notifier;
-    notifier_data->m_notifier_type = notifier.type();
     notifier_data->wait_event.handle = event;
     NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
     VERIFY(NT_SUCCESS(status));

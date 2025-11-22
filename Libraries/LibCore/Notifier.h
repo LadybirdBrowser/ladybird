@@ -13,6 +13,16 @@
 
 namespace Core {
 
+enum class NotificationType : u8 {
+    None = 0,
+    Read = 1,
+    Write = 2,
+    HangUp = 4,
+    Error = 8,
+};
+
+AK_ENUM_BITWISE_OPERATORS(NotificationType);
+
 class Notifier final : public EventReceiver {
     C_OBJECT(Notifier);
 
