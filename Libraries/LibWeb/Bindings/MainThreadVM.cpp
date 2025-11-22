@@ -9,6 +9,7 @@
  */
 
 #include <LibGC/DeferGC.h>
+#include <AK/Optional.h>
 #include <LibJS/AST.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/Array.h>
@@ -56,6 +57,7 @@
 namespace Web::Bindings {
 
 static RefPtr<JS::VM> s_main_thread_vm;
+static Optional<AgentType> s_main_thread_agent_type;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#active-script
 HTML::Script* active_script()
@@ -99,6 +101,7 @@ void initialize_main_thread_vm(AgentType type)
 
     s_main_thread_vm = JS::VM::create();
     s_main_thread_vm->set_agent(create_agent(s_main_thread_vm->heap(), type));
+    s_main_thread_agent_type = type;
 
     s_main_thread_vm->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
         dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_string());
@@ -701,6 +704,12 @@ void initialize_main_thread_vm(AgentType type)
 
         return default_host_resize_array_buffer(buffer, new_byte_length);
     };
+}
+
+AgentType main_thread_agent_type()
+{
+    VERIFY(s_main_thread_agent_type.has_value());
+    return *s_main_thread_agent_type;
 }
 
 JS::VM& main_thread_vm()

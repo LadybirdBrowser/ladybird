@@ -36,6 +36,7 @@ HTML::Script* active_script();
 
 WEB_API void initialize_main_thread_vm(AgentType);
 WEB_API JS::VM& main_thread_vm();
+WEB_API AgentType main_thread_agent_type();
 
 void queue_mutation_observer_microtask(DOM::Document const&);
 WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, Function<JS::Object*(JS::Realm&)> create_global_object, Function<JS::Object*(JS::Realm&)> create_global_this_value);
