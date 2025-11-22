@@ -45,9 +45,14 @@ public:
 
     virtual ~Animatable() = default;
 
+    enum class GetAnimationsSorted {
+        No,
+        Yes
+    };
+
     WebIDL::ExceptionOr<GC::Ref<Animation>> animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options = {});
     WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Optional<GetAnimationsOptions> options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(Optional<GetAnimationsOptions> options = {});
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, Optional<GetAnimationsOptions> options = {});
 
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Utils.h>
@@ -56,7 +57,9 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> calculate_get_animat
     // method is called.
     Vector<GC::Ref<Animations::Animation>> relevant_animations;
     TRY(self.template for_each_child_of_type_fallible<Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
-        relevant_animations.extend(TRY(child.get_animations(Animations::GetAnimationsOptions { .subtree = true })));
+        relevant_animations.extend(TRY(child.get_animations_internal(
+            Animations::Animatable::GetAnimationsSorted::No,
+            Animations::GetAnimationsOptions { .subtree = true })));
         return IterationDecision::Continue;
     }));
 
