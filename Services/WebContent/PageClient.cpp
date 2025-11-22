@@ -526,6 +526,11 @@ void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
     client().async_did_expire_cookies_with_time_offset(offset);
 }
 
+void PageClient::page_did_clear_all_cookies(URL::URL const& url)
+{
+    client().async_did_clear_all_cookies(url);
+}
+
 Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(storage_endpoint, storage_key, bottle_key);
