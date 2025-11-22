@@ -73,6 +73,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ViewFunctionStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -1483,6 +1484,58 @@ RefPtr<ScrollFunctionStyleValue const> Parser::parse_scroll_function_value(Token
 
     transaction.commit();
     return ScrollFunctionStyleValue::create(scroller.value(), axis.value());
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#funcdef-view
+RefPtr<ViewFunctionStyleValue const> Parser::parse_view_function_value(TokenStream<ComponentValue>& tokens)
+{
+    // <view()> = view( [ <axis> || <'view-timeline-inset'> ]? )
+    auto transaction = tokens.begin_transaction();
+    auto const& function_token = tokens.consume_a_token();
+    if (!function_token.is_function("view"sv))
+        return nullptr;
+
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { "view"sv });
+
+    Optional<Axis> axis;
+    RefPtr<StyleValue const> inset;
+
+    auto argument_tokens = TokenStream { function_token.function().value };
+
+    while (argument_tokens.has_next_token()) {
+        argument_tokens.discard_whitespace();
+
+        if (!argument_tokens.has_next_token())
+            break;
+
+        if (auto inset_value = parse_view_timeline_inset_value(argument_tokens); inset_value) {
+            if (inset)
+                return nullptr;
+
+            inset = inset_value;
+            continue;
+        }
+
+        if (auto keyword_value = parse_keyword_value(argument_tokens); keyword_value && keyword_to_axis(keyword_value->to_keyword()).has_value()) {
+            if (axis.has_value())
+                return nullptr;
+
+            axis = keyword_to_axis(keyword_value->to_keyword());
+            continue;
+        }
+
+        return nullptr;
+    }
+
+    // By default, view() references the block axis
+    if (!axis.has_value())
+        axis = Axis::Block;
+
+    if (!inset)
+        inset = StyleValueList::create({ KeywordStyleValue::create(Keyword::Auto), KeywordStyleValue::create(Keyword::Auto) }, StyleValueList::Separator::Space);
+
+    transaction.commit();
+    return ViewFunctionStyleValue::create(axis.value(), inset.release_nonnull());
 }
 
 // https://www.w3.org/TR/CSS2/visufx.html#value-def-shape
@@ -4314,6 +4367,9 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                         "circle"sv, "ellipse"sv, "inset"sv, "polygon"sv, "rect"sv, "xywh"sv)) {
                     return CalculationContext { .percentages_resolve_as = ValueType::Length };
                 }
+                if (function.name.equals_ignoring_ascii_case("view"sv)) {
+                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
+                }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
             },
@@ -5144,6 +5200,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_transform_list_value(tokens);
     case ValueType::Url:
         return parse_url_value(tokens);
+    case ValueType::ViewFunction:
+        return parse_view_function_value(tokens);
     case ValueType::ViewTimelineInset:
         return parse_view_timeline_inset_value(tokens);
     }

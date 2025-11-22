@@ -392,6 +392,7 @@ class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
 class URL;
 class URLStyleValue;
+class ViewFunctionStyleValue;
 class VisualViewport;
 
 enum class Keyword : u16;

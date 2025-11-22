@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 69 tests
 
-45 Pass
-24 Fail
+67 Pass
+2 Fail
 Pass	e.style['animation-timeline'] = "initial" should set the property value
 Pass	e.style['animation-timeline'] = "inherit" should set the property value
 Pass	e.style['animation-timeline'] = "unset" should set the property value
@@ -44,28 +44,28 @@ Pass	e.style['animation-timeline'] = "scroll(abc root)" should not set the prope
 Pass	e.style['animation-timeline'] = "scroll(abc)" should not set the property value
 Pass	e.style['animation-timeline'] = "scroll(y abc)" should not set the property value
 Pass	e.style['animation-timeline'] = "scroll(\"string\")" should not set the property value
-Fail	e.style['animation-timeline'] = "view()" should set the property value
-Fail	e.style['animation-timeline'] = " view() " should set the property value
-Fail	e.style['animation-timeline'] = "view(block)" should set the property value
-Fail	e.style['animation-timeline'] = "view(inline)" should set the property value
-Fail	e.style['animation-timeline'] = "view(x)" should set the property value
-Fail	e.style['animation-timeline'] = "view(y)" should set the property value
-Fail	e.style['animation-timeline'] = "view(y 1px 2px)" should set the property value
-Fail	e.style['animation-timeline'] = "view(y 1px)" should set the property value
-Fail	e.style['animation-timeline'] = "view(y auto)" should set the property value
-Fail	e.style['animation-timeline'] = "view(y auto auto)" should set the property value
-Fail	e.style['animation-timeline'] = "view(y auto 1px)" should set the property value
-Fail	e.style['animation-timeline'] = "view(1px 2px y)" should set the property value
-Fail	e.style['animation-timeline'] = "view(1px y)" should set the property value
-Fail	e.style['animation-timeline'] = "view(auto x)" should set the property value
-Fail	e.style['animation-timeline'] = "view(1px 2px)" should set the property value
-Fail	e.style['animation-timeline'] = "view(1px)" should set the property value
-Fail	e.style['animation-timeline'] = "view(1px 1px)" should set the property value
-Fail	e.style['animation-timeline'] = "view(1px auto)" should set the property value
-Fail	e.style['animation-timeline'] = "view(auto calc(1% + 1px))" should set the property value
-Fail	e.style['animation-timeline'] = "view(2em calc(1% + 1em))" should set the property value
-Fail	e.style['animation-timeline'] = "view(auto)" should set the property value
-Fail	e.style['animation-timeline'] = "view(auto auto)" should set the property value
+Pass	e.style['animation-timeline'] = "view()" should set the property value
+Pass	e.style['animation-timeline'] = " view() " should set the property value
+Pass	e.style['animation-timeline'] = "view(block)" should set the property value
+Pass	e.style['animation-timeline'] = "view(inline)" should set the property value
+Pass	e.style['animation-timeline'] = "view(x)" should set the property value
+Pass	e.style['animation-timeline'] = "view(y)" should set the property value
+Pass	e.style['animation-timeline'] = "view(y 1px 2px)" should set the property value
+Pass	e.style['animation-timeline'] = "view(y 1px)" should set the property value
+Pass	e.style['animation-timeline'] = "view(y auto)" should set the property value
+Pass	e.style['animation-timeline'] = "view(y auto auto)" should set the property value
+Pass	e.style['animation-timeline'] = "view(y auto 1px)" should set the property value
+Pass	e.style['animation-timeline'] = "view(1px 2px y)" should set the property value
+Pass	e.style['animation-timeline'] = "view(1px y)" should set the property value
+Pass	e.style['animation-timeline'] = "view(auto x)" should set the property value
+Pass	e.style['animation-timeline'] = "view(1px 2px)" should set the property value
+Pass	e.style['animation-timeline'] = "view(1px)" should set the property value
+Pass	e.style['animation-timeline'] = "view(1px 1px)" should set the property value
+Pass	e.style['animation-timeline'] = "view(1px auto)" should set the property value
+Pass	e.style['animation-timeline'] = "view(auto calc(1% + 1px))" should set the property value
+Pass	e.style['animation-timeline'] = "view(2em calc(1% + 1em))" should set the property value
+Pass	e.style['animation-timeline'] = "view(auto)" should set the property value
+Pass	e.style['animation-timeline'] = "view(auto auto)" should set the property value
 Pass	e.style['animation-timeline'] = "view(y 1px 2px 3px)" should not set the property value
 Pass	e.style['animation-timeline'] = "view(1px y 3px)" should not set the property value
 Pass	e.style['animation-timeline'] = "view(1px 2px 3px)" should not set the property value

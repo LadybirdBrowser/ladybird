@@ -92,7 +92,8 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(UnicodeRange, unicode_range, UnicodeRangeStyleValue)                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Unresolved, unresolved, UnresolvedStyleValue)                                    \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                         \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)                                           \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ViewFunction, view_function, ViewFunctionStyleValue)
 
 template<typename T>
 struct ValueComparingNonnullRefPtr : public NonnullRefPtr<T> {

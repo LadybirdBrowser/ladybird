@@ -346,13 +346,14 @@
     "initial": "auto",
     "valid-types": [
       "dashed-ident",
-      "scroll-function"
+      "scroll-function",
+      "view-function"
     ],
     "valid-identifiers": [
       "auto",
       "none"
     ],
-    "__comment": "FIXME: animation properties should be coordinating-lists, FIXME: support view() functions",
+    "__comment": "FIXME: animation properties should be coordinating-lists",
     "multiplicity": "single"
   },
   "animation-timing-function": {
