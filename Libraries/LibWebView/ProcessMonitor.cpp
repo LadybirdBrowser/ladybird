@@ -35,7 +35,9 @@ ProcessMonitor::ProcessMonitor(Function<void(pid_t)> exit_handler)
 ProcessMonitor::~ProcessMonitor()
 {
 #if defined(AK_OS_WINDOWS)
-    // FIXME: Unregister all processes from the event loop on Windows
+    for (pid_t pid : m_monitored_processes) {
+        Core::EventLoop::unregister_process(pid);
+    }
 #else
     Core::EventLoop::unregister_signal(m_signal_handle);
 #endif
@@ -45,7 +47,9 @@ void ProcessMonitor::add_process(pid_t pid)
 {
     m_monitored_processes.set(pid, AK::HashSetExistingEntryBehavior::Keep);
 #if defined(AK_OS_WINDOWS)
-    // FIXME: Register the process with the event loop on Windows
+    Core::EventLoop::register_process(pid, [this](pid_t pid) {
+        m_on_process_exit(pid);
+    });
 #endif
 }
 
