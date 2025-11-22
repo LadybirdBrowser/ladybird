@@ -20,8 +20,9 @@ set(SOURCES
     Hash/SHA1.cpp
     Hash/SHA2.cpp
     Hash/SHA3.cpp
-    PK/RSA.cpp
     PK/EC.cpp
+    PK/MLDSA.cpp
+    PK/RSA.cpp
     SecureRandom.cpp
 )
 
