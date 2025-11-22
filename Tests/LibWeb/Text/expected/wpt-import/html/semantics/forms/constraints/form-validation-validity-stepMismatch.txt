@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 28 tests
 
-26 Pass
-2 Fail
+28 Pass
 Pass	[INPUT in DATE status] The step attribute is not set
 Pass	[INPUT in DATE status] The value attibute is empty string
 Pass	[INPUT in DATE status] The value must match the step
@@ -29,6 +28,6 @@ Pass	[INPUT in NUMBER status] The step attribute is not set and the value attrib
 Pass	[INPUT in NUMBER status] The value attribute is empty string
 Pass	[INPUT in NUMBER status] The value must match the step
 Pass	[INPUT in NUMBER status] The value must mismatch the step
-Fail	[INPUT in NUMBER status] No step mismatch when step is a floating number and value is its integral multiple
-Fail	[INPUT in NUMBER status] No step mismatch when step is a floating number in exponent format and value is its integral multiple
+Pass	[INPUT in NUMBER status] No step mismatch when step is a floating number and value is its integral multiple
+Pass	[INPUT in NUMBER status] No step mismatch when step is a floating number in exponent format and value is its integral multiple
 Pass	[INPUT in NUMBER status] Step mismatch when step is a very small floating number and value is not its integral multiple
