@@ -123,4 +123,52 @@ ErrorOr<ByteBuffer> MLDSA::sign(ReadonlyBytes message)
     return result;
 }
 
+static ErrorOr<OpenSSL_PKEY> public_key_to_openssl_pkey(MLDSASize size, MLDSAPublicKey const& public_key)
+{
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, mldsa_size_to_openssl_name(size), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx.ptr()));
+
+    auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+    ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
+
+    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_PUB_KEY, public_key.public_key().data(), public_key.public_key().size()));
+
+    auto* params = OSSL_PARAM_BLD_to_param(params_bld);
+    ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
+
+    auto key = TRY(OpenSSL_PKEY::create());
+    auto* key_ptr = key.ptr();
+    OPENSSL_TRY(EVP_PKEY_fromdata(ctx.ptr(), &key_ptr, EVP_PKEY_KEYPAIR, params));
+
+    return key;
+}
+
+ErrorOr<bool> MLDSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
+{
+    OSSL_PARAM params[2] = {
+        OSSL_PARAM_END,
+        OSSL_PARAM_END
+    };
+
+    if (!m_context.is_empty()) {
+        params[0] = OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, m_context.data(), m_context.size());
+    }
+
+    auto key = TRY(public_key_to_openssl_pkey(m_size, m_public_key));
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new(key.ptr(), nullptr)));
+    auto* sign_algorithm = OPENSSL_TRY_PTR(EVP_SIGNATURE_fetch(nullptr, mldsa_size_to_openssl_name(m_size), nullptr));
+    ScopeGuard const free_sign_algorithm = [&] { EVP_SIGNATURE_free(sign_algorithm); };
+
+    OPENSSL_TRY(EVP_PKEY_verify_message_init(ctx.ptr(), sign_algorithm, params));
+
+    auto ret = EVP_PKEY_verify(ctx.ptr(), signature.data(), signature.size(), message.data(), message.size());
+    if (ret == 1)
+        return true;
+    if (ret == 0)
+        return false;
+    OPENSSL_TRY(ret);
+    VERIFY_NOT_REACHED();
+}
+
 }
