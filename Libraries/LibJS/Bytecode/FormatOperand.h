@@ -16,11 +16,12 @@
 
 namespace JS::Bytecode {
 
-inline ByteString format_operand(StringView name, Operand operand, Bytecode::Executable const& executable)
+inline ByteString format_operand(StringView name, Operand encoded_operand, Bytecode::Executable const& executable)
 {
     StringBuilder builder;
     if (!name.is_empty())
         builder.appendff("\033[32m{}\033[0m:", name);
+    auto operand = executable.original_operand_from_raw(encoded_operand.raw());
     switch (operand.type()) {
     case Operand::Type::Register:
         if (operand.index() == Register::this_value().index()) {
@@ -30,14 +31,14 @@ inline ByteString format_operand(StringView name, Operand operand, Bytecode::Exe
         }
         break;
     case Operand::Type::Local:
-        builder.appendff("\033[34m{}~{}\033[0m", executable.local_variable_names[operand.index() - executable.local_index_base].name, operand.index() - executable.local_index_base);
+        builder.appendff("\033[34m{}~{}\033[0m", executable.local_variable_names[operand.index()].name, operand.index());
         break;
     case Operand::Type::Argument:
-        builder.appendff("\033[34marg{}\033[0m", operand.index() - executable.argument_index_base);
+        builder.appendff("\033[34marg{}\033[0m", operand.index());
         break;
     case Operand::Type::Constant: {
         builder.append("\033[36m"sv);
-        auto value = executable.constants[operand.index() - executable.number_of_registers];
+        auto value = executable.constants[operand.index()];
         if (value.is_special_empty_value())
             builder.append("<Empty>"sv);
         else if (value.is_boolean())

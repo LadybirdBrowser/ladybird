@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -113,6 +113,17 @@ UnrealizedSourceRange Executable::source_range_at(size_t offset) const
         .start_offset = mapping->source_start_offset,
         .end_offset = mapping->source_end_offset,
     };
+}
+
+Operand Executable::original_operand_from_raw(u32 raw) const
+{
+    if (raw < number_of_registers)
+        return Operand { Operand::Type::Register, raw };
+    if (raw < local_index_base)
+        return Operand { Operand::Type::Constant, raw - static_cast<u32>(number_of_registers) };
+    if (raw < argument_index_base)
+        return Operand { Operand::Type::Local, raw - static_cast<u32>(local_index_base) };
+    return Operand { Operand::Type::Argument, raw - static_cast<u32>(argument_index_base) };
 }
 
 }
