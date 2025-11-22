@@ -26,6 +26,8 @@ public:
 
     MLDSAPublicKey() = default;
 
+    ByteBuffer const& public_key() const { return m_public_key; }
+
 private:
     ByteBuffer m_public_key;
 };
@@ -71,15 +73,18 @@ public:
         m_public_key = { priv_key.public_key() };
     }
 
+    MLDSA(MLDSASize size, PublicKeyType const& pub_key, ByteBuffer context)
+        : m_size(size)
+        , m_context(move(context))
+    {
+        m_public_key = pub_key;
+    }
+
     ErrorOr<ByteBuffer> sign(ReadonlyBytes message) override;
 
     ErrorOr<ByteBuffer> encrypt(ReadonlyBytes) override { return Error::from_string_literal("Operation not supported"); }
     ErrorOr<ByteBuffer> decrypt(ReadonlyBytes) override { return Error::from_string_literal("Operation not supported"); }
-    ErrorOr<bool> verify(ReadonlyBytes, ReadonlyBytes) override
-    {
-        // FIXME
-        return false;
-    }
+    ErrorOr<bool> verify(ReadonlyBytes, ReadonlyBytes) override;
     ByteString class_name() const override { return "ML-DSA"; }
 
 private:
