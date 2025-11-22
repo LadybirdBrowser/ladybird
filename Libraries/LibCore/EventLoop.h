@@ -90,6 +90,10 @@ public:
     static int register_signal(int signo, ESCAPING Function<void(int)> handler);
     static void unregister_signal(int handler_id);
 
+    // Invokes the specified handler when the process exits
+    static void register_process(pid_t pid, ESCAPING Function<void(pid_t)> exit_handler);
+    static void unregister_process(pid_t pid);
+
     static bool is_running();
     static EventLoop& current();
     static NonnullRefPtr<WeakEventLoopReference> current_weak();
