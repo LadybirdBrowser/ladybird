@@ -134,6 +134,11 @@ void WebGLRenderingContextImpl::bind_buffer(WebIDL::UnsignedLong target, GC::Roo
             return;
         }
         buffer_handle = handle_or_error.release_value();
+
+        if (!buffer->is_compatible_with(target)) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
     }
 
     if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
@@ -474,6 +479,8 @@ void WebGLRenderingContextImpl::delete_program(GC::Root<WebGLProgram> program)
         program_handle = handle_or_error.release_value();
     }
     glDeleteProgram(program_handle);
+    if (m_current_program == program)
+        m_current_program = nullptr;
 }
 
 void WebGLRenderingContextImpl::delete_renderbuffer(GC::Root<WebGLRenderbuffer> renderbuffer)
@@ -1521,6 +1528,11 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
             glGetIntegervRobustANGLE(GL_UNPACK_SKIP_ROWS, 1, nullptr, &result);
             return JS::Value(result);
         }
+        case GL_VERTEX_ARRAY_BINDING: { // FIXME: Allow this for VERTEX_ARRAY_BINDING_OES
+            if (!m_current_vertex_array)
+                return JS::js_null();
+            return JS::Value(m_current_vertex_array);
+        }
         case MAX_CLIENT_WAIT_TIMEOUT_WEBGL:
             // FIXME: Make this an actual limit
             return JS::js_infinity();
@@ -1720,7 +1732,7 @@ GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(G
     if (location == -1)
         return nullptr;
 
-    return WebGLUniformLocation::create(m_realm, location);
+    return WebGLUniformLocation::create(m_realm, location, program.ptr());
 }
 
 JS::Value WebGLRenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
@@ -2051,49 +2063,89 @@ void WebGLRenderingContextImpl::tex_parameteri(WebIDL::UnsignedLong target, WebI
 void WebGLRenderingContextImpl::uniform1f(GC::Root<WebGLUniformLocation> location, float x)
 {
     m_context->make_current();
-    glUniform1f(location ? location->handle() : 0, x);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform1f(location_handle, x);
 }
 
 void WebGLRenderingContextImpl::uniform2f(GC::Root<WebGLUniformLocation> location, float x, float y)
 {
     m_context->make_current();
-    glUniform2f(location ? location->handle() : 0, x, y);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform2f(location_handle, x, y);
 }
 
 void WebGLRenderingContextImpl::uniform3f(GC::Root<WebGLUniformLocation> location, float x, float y, float z)
 {
     m_context->make_current();
-    glUniform3f(location ? location->handle() : 0, x, y, z);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform3f(location_handle, x, y, z);
 }
 
 void WebGLRenderingContextImpl::uniform4f(GC::Root<WebGLUniformLocation> location, float x, float y, float z, float w)
 {
     m_context->make_current();
-    glUniform4f(location ? location->handle() : 0, x, y, z, w);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform4f(location_handle, x, y, z, w);
 }
 
 void WebGLRenderingContextImpl::uniform1i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x)
 {
     m_context->make_current();
-    glUniform1i(location ? location->handle() : 0, x);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform1i(location_handle, x);
 }
 
 void WebGLRenderingContextImpl::uniform2i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y)
 {
     m_context->make_current();
-    glUniform2i(location ? location->handle() : 0, x, y);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform2i(location_handle, x, y);
 }
 
 void WebGLRenderingContextImpl::uniform3i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z)
 {
     m_context->make_current();
-    glUniform3i(location ? location->handle() : 0, x, y, z);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform3i(location_handle, x, y, z);
 }
 
 void WebGLRenderingContextImpl::uniform4i(GC::Root<WebGLUniformLocation> location, WebIDL::Long x, WebIDL::Long y, WebIDL::Long z, WebIDL::Long w)
 {
     m_context->make_current();
-    glUniform4i(location ? location->handle() : 0, x, y, z, w);
+
+    GLuint location_handle = 0;
+    if (location)
+        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+
+    glUniform4i(location_handle, x, y, z, w);
 }
 
 void WebGLRenderingContextImpl::use_program(GC::Root<WebGLProgram> program)
@@ -2241,6 +2293,7 @@ void WebGLRenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_transform_feedback_binding);
     visitor.visit(m_pixel_pack_buffer_binding);
     visitor.visit(m_pixel_unpack_buffer_binding);
+    visitor.visit(m_current_vertex_array);
 }
 
 }
