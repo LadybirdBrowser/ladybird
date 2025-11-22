@@ -229,7 +229,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return ""_string;
     }
     case PropertyID::Animation:
-        return coordinating_value_list_shorthand_to_string("none"sv);
+        return coordinating_value_list_shorthand_to_string("none"sv, {}, { PropertyID::AnimationTimeline });
     case PropertyID::Background: {
         auto color = longhand(PropertyID::BackgroundColor);
         auto image = longhand(PropertyID::BackgroundImage);

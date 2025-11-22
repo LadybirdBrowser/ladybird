@@ -232,7 +232,8 @@
       "animation-direction",
       "animation-fill-mode",
       "animation-play-state",
-      "animation-name"
+      "animation-name",
+      "animation-timeline"
     ]
   },
   "animation-composition": {
@@ -337,6 +338,21 @@
       "running",
       "paused"
     ]
+  },
+  "animation-timeline": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "dashed-ident"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "none"
+    ],
+    "__comment": "FIXME: animation properties should be coordinating-lists, FIXME: support scroll() and view() functions",
+    "multiplicity": "single"
   },
   "animation-timing-function": {
     "affects-layout": false,

@@ -539,6 +539,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     case PropertyID::AnimationIterationCount:
     case PropertyID::AnimationName:
     case PropertyID::AnimationPlayState:
+    case PropertyID::AnimationTimeline:
     case PropertyID::AnimationTimingFunction:
         return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackdropFilter:
@@ -1202,7 +1203,9 @@ RefPtr<StyleValue const> Parser::parse_aspect_ratio_value(TokenStream<ComponentV
 RefPtr<StyleValue const> Parser::parse_animation_value(TokenStream<ComponentValue>& tokens)
 {
     // [<'animation-duration'> || <easing-function> || <'animation-delay'> || <single-animation-iteration-count> || <single-animation-direction> || <single-animation-fill-mode> || <single-animation-play-state> || [ none | <keyframes-name> ] || <single-animation-timeline>]#
-    // FIXME: Support <single-animation-timeline>
+    // NB: While it isn't in the spec the CSSWG resolved to include `animation-timeline` as a reset-only sub-property
+    //     of the `animation` shorthand so we shouldn't actually allow <single-animation-timeline>.
+    //     https://github.com/w3c/csswg-drafts/issues/6946#issuecomment-1233190360
 
     Vector<PropertyID> longhand_ids {
         PropertyID::AnimationDuration,
@@ -1216,7 +1219,7 @@ RefPtr<StyleValue const> Parser::parse_animation_value(TokenStream<ComponentValu
     };
 
     // FIXME: The animation-trigger properties are reset-only sub-properties of the animation shorthand.
-    return parse_coordinating_value_list_shorthand(tokens, PropertyID::Animation, longhand_ids);
+    return parse_coordinating_value_list_shorthand(tokens, PropertyID::Animation, longhand_ids, { PropertyID::AnimationTimeline });
 }
 
 RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentValue>& tokens)
