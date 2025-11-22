@@ -6,13 +6,19 @@
 
 #pragma once
 
+#include <AK/Forward.h>
+#include <AK/RefPtr.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
@@ -32,6 +38,7 @@
 #include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasTransform.h>
 #include <LibWeb/HTML/CanvasGradient.h>
+#include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -86,6 +93,7 @@ public:
     virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
+    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
 
     virtual void reset_to_default_state() override;
 
@@ -129,6 +137,9 @@ public:
 
     void set_size(Gfx::IntSize const&);
 
+    void allocate_painting_surface_if_needed();
+    RefPtr<Gfx::PaintingSurface> surface() const;
+
 private:
     explicit OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&, CanvasRenderingContext2DSettings);
 
@@ -142,8 +153,36 @@ private:
     }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
 
+    struct PreparedText {
+        Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
+        Gfx::TextAlignment physical_alignment;
+        Gfx::FloatRect bounding_box;
+    };
+
+    RefPtr<Gfx::FontCascadeList const> font_cascade_list();
+
+    PreparedText prepare_text(Utf16String const&, float max_width = INFINITY);
+
+    [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
+    [[nodiscard]] Gfx::Path text_path(Utf16String const&, float x, float y, Optional<double> max_width);
+
+    Gfx::Color clear_color() const;
+
+    void stroke_internal(Gfx::Path const&);
+    void fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void clip_internal(Gfx::Path&, Gfx::WindingRule);
+    void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void paint_shadow_for_stroke_internal(Gfx::Path const&, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, Vector<float> const&);
+
     GC::Ref<OffscreenCanvas> m_canvas;
+    OwnPtr<Gfx::Painter> m_painter;
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
+    bool m_origin_clean { true };
+
     Gfx::IntSize m_size;
+    Gfx::ShareableBitmap m_bitmap;
+    RefPtr<Gfx::PaintingSurface> m_surface;
     CanvasRenderingContext2DSettings m_context_attributes;
 };
 
