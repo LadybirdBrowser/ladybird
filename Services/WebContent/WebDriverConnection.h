@@ -2,6 +2,7 @@
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -46,70 +47,70 @@ private:
 
     virtual void die() override { }
 
-    virtual void close_session() override;
-    virtual void set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) override;
-    virtual void set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) override;
-    virtual void set_strict_file_interactability(bool strict_file_interactability) override;
-    virtual void set_is_webdriver_active(bool) override;
-    virtual Messages::WebDriverClient::GetTimeoutsResponse get_timeouts() override;
-    virtual Messages::WebDriverClient::SetTimeoutsResponse set_timeouts(JsonValue payload) override;
-    virtual Messages::WebDriverClient::NavigateToResponse navigate_to(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetCurrentUrlResponse get_current_url() override;
-    virtual Messages::WebDriverClient::BackResponse back() override;
-    virtual Messages::WebDriverClient::ForwardResponse forward() override;
-    virtual Messages::WebDriverClient::RefreshResponse refresh() override;
-    virtual Messages::WebDriverClient::GetTitleResponse get_title() override;
-    virtual Messages::WebDriverClient::GetWindowHandleResponse get_window_handle() override;
-    virtual Messages::WebDriverClient::CloseWindowResponse close_window() override;
-    virtual Messages::WebDriverClient::SwitchToWindowResponse switch_to_window(String handle) override;
-    virtual Messages::WebDriverClient::NewWindowResponse new_window(JsonValue payload) override;
-    virtual Messages::WebDriverClient::SwitchToFrameResponse switch_to_frame(JsonValue payload) override;
-    virtual Messages::WebDriverClient::SwitchToParentFrameResponse switch_to_parent_frame(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetWindowRectResponse get_window_rect() override;
-    virtual Messages::WebDriverClient::SetWindowRectResponse set_window_rect(JsonValue payload) override;
-    virtual Messages::WebDriverClient::MaximizeWindowResponse maximize_window() override;
-    virtual Messages::WebDriverClient::MinimizeWindowResponse minimize_window() override;
-    virtual Messages::WebDriverClient::FullscreenWindowResponse fullscreen_window() override;
-    virtual Messages::WebDriverClient::ConsumeUserActivationResponse consume_user_activation() override;
-    virtual Messages::WebDriverClient::FindElementResponse find_element(JsonValue payload) override;
-    virtual Messages::WebDriverClient::FindElementsResponse find_elements(JsonValue payload) override;
-    virtual Messages::WebDriverClient::FindElementFromElementResponse find_element_from_element(JsonValue payload, String element_id) override;
-    virtual Messages::WebDriverClient::FindElementsFromElementResponse find_elements_from_element(JsonValue payload, String element_id) override;
-    virtual Messages::WebDriverClient::FindElementFromShadowRootResponse find_element_from_shadow_root(JsonValue payload, String shadow_id) override;
-    virtual Messages::WebDriverClient::FindElementsFromShadowRootResponse find_elements_from_shadow_root(JsonValue payload, String shadow_id) override;
-    virtual Messages::WebDriverClient::GetActiveElementResponse get_active_element() override;
-    virtual Messages::WebDriverClient::GetElementShadowRootResponse get_element_shadow_root(String element_id) override;
-    virtual Messages::WebDriverClient::IsElementSelectedResponse is_element_selected(String element_id) override;
-    virtual Messages::WebDriverClient::GetElementAttributeResponse get_element_attribute(String element_id, String name) override;
-    virtual Messages::WebDriverClient::GetElementPropertyResponse get_element_property(String element_id, String name) override;
-    virtual Messages::WebDriverClient::GetElementCssValueResponse get_element_css_value(String element_id, String name) override;
-    virtual Messages::WebDriverClient::GetElementTextResponse get_element_text(String element_id) override;
-    virtual Messages::WebDriverClient::GetElementTagNameResponse get_element_tag_name(String element_id) override;
-    virtual Messages::WebDriverClient::GetElementRectResponse get_element_rect(String element_id) override;
-    virtual Messages::WebDriverClient::IsElementEnabledResponse is_element_enabled(String element_id) override;
-    virtual Messages::WebDriverClient::GetComputedRoleResponse get_computed_role(String element_id) override;
-    virtual Messages::WebDriverClient::GetComputedLabelResponse get_computed_label(String element_id) override;
-    virtual Messages::WebDriverClient::ElementClickResponse element_click(String element_id) override;
-    virtual Messages::WebDriverClient::ElementClearResponse element_clear(String element_id) override;
-    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String element_id, JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetSourceResponse get_source() override;
-    virtual Messages::WebDriverClient::ExecuteScriptResponse execute_script(JsonValue payload) override;
-    virtual Messages::WebDriverClient::ExecuteAsyncScriptResponse execute_async_script(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetAllCookiesResponse get_all_cookies() override;
-    virtual Messages::WebDriverClient::GetNamedCookieResponse get_named_cookie(String name) override;
-    virtual Messages::WebDriverClient::AddCookieResponse add_cookie(JsonValue payload) override;
-    virtual Messages::WebDriverClient::DeleteCookieResponse delete_cookie(String name) override;
-    virtual Messages::WebDriverClient::DeleteAllCookiesResponse delete_all_cookies() override;
-    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions(JsonValue payload) override;
-    virtual Messages::WebDriverClient::ReleaseActionsResponse release_actions() override;
-    virtual Messages::WebDriverClient::DismissAlertResponse dismiss_alert() override;
-    virtual Messages::WebDriverClient::AcceptAlertResponse accept_alert() override;
-    virtual Messages::WebDriverClient::GetAlertTextResponse get_alert_text() override;
-    virtual Messages::WebDriverClient::SendAlertTextResponse send_alert_text(JsonValue payload) override;
-    virtual Messages::WebDriverClient::TakeScreenshotResponse take_screenshot() override;
-    virtual Messages::WebDriverClient::TakeElementScreenshotResponse take_element_screenshot(String element_id) override;
-    virtual Messages::WebDriverClient::PrintPageResponse print_page(JsonValue payload) override;
-    virtual Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse ensure_top_level_browsing_context_is_open() override;
+    virtual void close_session(int request_id) override;
+    virtual void set_page_load_strategy(int request_id, Web::WebDriver::PageLoadStrategy page_load_strategy) override;
+    virtual void set_user_prompt_handler(int request_id, Web::WebDriver::UserPromptHandler user_prompt_handler) override;
+    virtual void set_strict_file_interactability(int request_id, bool strict_file_interactability) override;
+    virtual void set_is_webdriver_active(int request_id, bool) override;
+    virtual void get_timeouts(int request_id) override;
+    virtual void set_timeouts(int request_id, JsonValue payload) override;
+    virtual void navigate_to(int request_id, JsonValue payload) override;
+    virtual void get_current_url(int request_id) override;
+    virtual void back(int request_id) override;
+    virtual void forward(int request_id) override;
+    virtual void refresh(int request_id) override;
+    virtual void get_title(int request_id) override;
+    virtual void get_window_handle(int request_id) override;
+    virtual void close_window(int request_id) override;
+    virtual void switch_to_window(int request_id, String handle) override;
+    virtual void new_window(int request_id, JsonValue payload) override;
+    virtual void switch_to_frame(int request_id, JsonValue payload) override;
+    virtual void switch_to_parent_frame(int request_id, JsonValue payload) override;
+    virtual void get_window_rect(int request_id) override;
+    virtual void set_window_rect(int request_id, JsonValue payload) override;
+    virtual void maximize_window(int request_id) override;
+    virtual void minimize_window(int request_id) override;
+    virtual void fullscreen_window(int request_id) override;
+    virtual void consume_user_activation(int request_id) override;
+    virtual void find_element(int request_id, JsonValue payload) override;
+    virtual void find_elements(int request_id, JsonValue payload) override;
+    virtual void find_element_from_element(int request_id, JsonValue payload, String element_id) override;
+    virtual void find_elements_from_element(int request_id, JsonValue payload, String element_id) override;
+    virtual void find_element_from_shadow_root(int request_id, JsonValue payload, String shadow_id) override;
+    virtual void find_elements_from_shadow_root(int request_id, JsonValue payload, String shadow_id) override;
+    virtual void get_active_element(int request_id) override;
+    virtual void get_element_shadow_root(int request_id, String element_id) override;
+    virtual void is_element_selected(int request_id, String element_id) override;
+    virtual void get_element_attribute(int request_id, String element_id, String name) override;
+    virtual void get_element_property(int request_id, String element_id, String name) override;
+    virtual void get_element_css_value(int request_id, String element_id, String name) override;
+    virtual void get_element_text(int request_id, String element_id) override;
+    virtual void get_element_tag_name(int request_id, String element_id) override;
+    virtual void get_element_rect(int request_id, String element_id) override;
+    virtual void is_element_enabled(int request_id, String element_id) override;
+    virtual void get_computed_role(int request_id, String element_id) override;
+    virtual void get_computed_label(int request_id, String element_id) override;
+    virtual void element_click(int request_id, String element_id) override;
+    virtual void element_clear(int request_id, String element_id) override;
+    virtual void element_send_keys(int request_id, String element_id, JsonValue payload) override;
+    virtual void get_source(int request_id) override;
+    virtual void execute_script(int request_id, JsonValue payload) override;
+    virtual void execute_async_script(int request_id, JsonValue payload) override;
+    virtual void get_all_cookies(int request_id) override;
+    virtual void get_named_cookie(int request_id, String name) override;
+    virtual void add_cookie(int request_id, JsonValue payload) override;
+    virtual void delete_cookie(int request_id, String name) override;
+    virtual void delete_all_cookies(int request_id) override;
+    virtual void perform_actions(int request_id, JsonValue payload) override;
+    virtual void release_actions(int request_id) override;
+    virtual void dismiss_alert(int request_id) override;
+    virtual void accept_alert(int request_id) override;
+    virtual void get_alert_text(int request_id) override;
+    virtual void send_alert_text(int request_id, JsonValue payload) override;
+    virtual void take_screenshot(int request_id) override;
+    virtual void take_element_screenshot(int request_id, String element_id) override;
+    virtual void print_page(int request_id, JsonValue payload) override;
+    virtual void ensure_top_level_browsing_context_is_open(int request_id) override;
 
     void set_current_browsing_context(Web::HTML::BrowsingContext&);
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
@@ -121,15 +122,15 @@ private:
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
 
-    Web::WebDriver::Response element_click_impl(StringView element_id);
+    void element_click_impl(int request_id, StringView element_id);
     Web::WebDriver::Response element_clear_impl(StringView element_id);
-    Web::WebDriver::Response element_send_keys_impl(StringView element_id, String const& text);
+    void element_send_keys_impl(int request_id, StringView element_id, String const& text);
     Web::WebDriver::Response add_cookie_impl(JsonObject const&);
 
     Web::WebDriver::PromptHandlerConfiguration get_the_prompt_handler(Web::WebDriver::PromptType type) const;
-    void handle_any_user_prompts(Function<void()> on_dialog_closed);
+    void handle_any_user_prompts(int request_id, Function<void()> on_dialog_closed);
 
-    void maximize_the_window();
+    void maximize_the_window(GC::Ref<GC::Function<void()>>);
     void iconify_the_window(GC::Ref<GC::Function<void()>>);
     void restore_the_window(GC::Ref<GC::Function<void()>>);
     void wait_for_visibility_state(GC::Ref<GC::Function<void()>>, Web::HTML::VisibilityState);
@@ -149,7 +150,7 @@ private:
         GC::RootVector<JS::Value> arguments;
     };
     ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
-    void handle_script_response(Web::WebDriver::ExecutionResult, size_t script_execution_id);
+    void handle_script_response(int request_id, Web::WebDriver::ExecutionResult, GC::Ptr<GC::Function<void()>> script_interrupted_callback);
 
     void delete_cookies(Optional<StringView> const& name = {});
 
@@ -171,10 +172,9 @@ private:
     // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
     GC::Ptr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
-    size_t m_pending_window_rect_requests { 0 };
+    Vector<GC::Ref<GC::Function<void()>>> m_pending_window_rect_requests;
 
-    size_t m_script_execution_id_counter { 0 };
-    Optional<size_t> m_current_script_execution_id;
+    GC::Ptr<GC::Function<void()>> m_script_execution_interrupted_callback;
 
     friend class ElementLocator;
     GC::Ptr<ElementLocator> m_element_locator;
