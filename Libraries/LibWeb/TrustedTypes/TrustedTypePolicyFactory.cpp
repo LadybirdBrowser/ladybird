@@ -49,7 +49,7 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_attribute_type(Utf16String c
         attr_ns.clear();
 
     // 5. Let interface be the element interface for localName and elementNs.
-    Utf16String const interface = element_interface_name(local_name, element_ns.value());
+    auto const interface = element_interface(local_name, element_ns.value().to_utf8());
 
     // 6. Let expectedType be null.
     Optional<Utf16String> expected_type {};
@@ -296,14 +296,17 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
     return result;
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
-Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const& element, Utf16String const& attribute, Optional<Utf16String> const& attribute_ns)
+// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-data-for-attribute
+Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface const& element, Utf16String const& attribute, Optional<Utf16String> const& attribute_ns)
 {
     // 1. Let data be null.
     Optional<TrustedTypeData const&> data {};
 
-    // 2. If attributeNs is null, and attribute is the name of an event handler content attribute, then:
-    if (!attribute_ns.has_value()) {
+    auto const& [element_name, element_ns] = element;
+
+    // 2. If attributeNs is null, « HTML namespace, SVG namespace, MathML namespace » contains element’s namespace, and attribute is the name of an event handler content attribute:
+    if (!attribute_ns.has_value()
+        && (Namespace::HTML == element_ns || Namespace::SVG == element_ns || Namespace::MathML == element_ns)) {
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)                                                                                                       \
     if (attribute == HTML::AttributeNames::attribute_name) {                                                                                          \
@@ -324,8 +327,8 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(Utf16String const&
 
     // 3. Find the row in the following table, where element is in the first column, attributeNs is in the second column,
     // and attribute is in the third column. If a matching row is found, set data to that row.
-    data = table.first_matching([&element, &attribute, &attribute_ns](auto const& row) {
-        return row.element == element && row.attribute_ns == attribute_ns && row.attribute_local_name == attribute;
+    data = table.first_matching([&element_name, &attribute, &attribute_ns](auto const& row) {
+        return row.element == element_name && row.attribute_ns == attribute_ns && row.attribute_local_name == attribute;
     });
 
     // 4. Return data
