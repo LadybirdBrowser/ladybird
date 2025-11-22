@@ -297,7 +297,7 @@ void EventLoopManagerQt::unregister_timer(intptr_t timer_id)
 
 static void qt_notifier_activated(Core::Notifier& notifier)
 {
-    Core::NotifierActivationEvent event(notifier.fd(), notifier.type());
+    Core::NotifierActivationEvent event;
     notifier.dispatch_event(event);
 }
 

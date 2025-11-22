@@ -221,8 +221,10 @@ static int notifier_callback(int fd, int events, void* data)
     if (events & ALOOPER_EVENT_ERROR)
         type |= Core::NotificationType::Error;
 
-    Core::NotifierActivationEvent event(notifier.fd(), type);
-    notifier.dispatch_event(event);
+    if (type != Core::NotificationType::None) {
+        Core::NotifierActivationEvent event;
+        notifier.dispatch_event(event);
+    }
 
     // Wake up from ALooper_pollAll, and service this event on the event queue
     current_impl().wake();

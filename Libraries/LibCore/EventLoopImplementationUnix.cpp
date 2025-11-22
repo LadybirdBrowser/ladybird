@@ -405,7 +405,7 @@ try_select_again:
 
 #ifdef AK_OS_ANDROID
             // FIXME: Make the check work under Android, perhaps use ALooper.
-            ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>(notifier.fd(), notifier.type()));
+            ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>());
 #else
             auto revents = thread_data.poll_fds[i].revents;
 
@@ -422,7 +422,7 @@ try_select_again:
             type &= notifier.type();
 
             if (type != NotificationType::None)
-                ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>(notifier.fd(), type));
+                ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>());
 #endif
         }
     }
