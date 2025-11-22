@@ -1,0 +1,4 @@
+<BUTTON id="button1">
+Clicked button 1
+<BUTTON id="button2">
+Clicked button 2

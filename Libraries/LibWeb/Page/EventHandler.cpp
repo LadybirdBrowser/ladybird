@@ -1458,6 +1458,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_End:
         document->window()->scroll_by(0, INT64_MAX);
         return EventResult::Handled;
+    case UIEvents::KeyCode::Key_Return:
+    case UIEvents::KeyCode::Key_Space:
+        if (auto* element = as_if<HTML::HTMLElement>(focused_area.ptr())) {
+            element->click();
+            return EventResult::Handled;
+        }
+        break;
     default:
         break;
     }
