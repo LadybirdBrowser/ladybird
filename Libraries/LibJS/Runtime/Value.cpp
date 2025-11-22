@@ -381,6 +381,8 @@ String Value::to_string_without_side_effects() const
         return as_bigint().to_string().release_value();
     case OBJECT_TAG:
         return String::formatted("[object {}]", as_object().class_name()).release_value();
+    case INTERNAL_TAG:
+        return String::formatted("[internal object {}]", as_cell().class_name()).release_value();
     case ACCESSOR_TAG:
         return "<accessor>"_string;
     case EMPTY_TAG:
@@ -412,6 +414,8 @@ Utf16String Value::to_utf16_string_without_side_effects() const
         return as_bigint().to_utf16_string();
     case OBJECT_TAG:
         return Utf16String::formatted("[object {}]", as_object().class_name());
+    case INTERNAL_TAG:
+        return Utf16String::formatted("[internal object {}]", as_cell().class_name());
     case ACCESSOR_TAG:
         return "<accessor>"_utf16;
     case EMPTY_TAG:

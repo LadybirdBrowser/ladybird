@@ -34,6 +34,7 @@ static constexpr double MAX_ARRAY_LIKE_INDEX = 9007199254740991.0;
 static constexpr u64 NEGATIVE_ZERO_BITS = ((u64)1 << 63);
 
 // This leaves us 3 bits to tag the type of pointer:
+static constexpr u64 INTERNAL_TAG = 0b000 | GC::IS_CELL_BIT;
 static constexpr u64 OBJECT_TAG = 0b001 | GC::IS_CELL_BIT;
 static constexpr u64 STRING_TAG = 0b010 | GC::IS_CELL_BIT;
 static constexpr u64 SYMBOL_TAG = 0b011 | GC::IS_CELL_BIT;
@@ -42,6 +43,7 @@ static constexpr u64 BIGINT_TAG = 0b101 | GC::IS_CELL_BIT;
 
 // We can then by extracting the top 13 bits quickly check if a Value is
 // pointer backed.
+static_assert((INTERNAL_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
 static_assert((OBJECT_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
 static_assert((STRING_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
 static_assert((GC::CANON_NAN_BITS & GC::IS_CELL_PATTERN) != GC::IS_CELL_PATTERN);
@@ -101,6 +103,7 @@ public:
     bool is_null() const { return m_value.encoded == (NULL_TAG << GC::TAG_SHIFT); }
     bool is_number() const { return is_double() || is_int32(); }
     bool is_string() const { return m_value.tag == STRING_TAG; }
+    bool is_internal() const { return m_value.tag == INTERNAL_TAG; }
     bool is_object() const { return m_value.tag == OBJECT_TAG; }
     bool is_boolean() const { return m_value.tag == BOOLEAN_TAG; }
     bool is_symbol() const { return m_value.tag == SYMBOL_TAG; }
@@ -222,7 +225,7 @@ public:
     }
 
     Value(Cell const* cell)
-        : Value(GC::IS_CELL_BIT << GC::TAG_SHIFT, reinterpret_cast<void const*>(cell))
+        : Value(INTERNAL_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(cell))
     {
     }
 
