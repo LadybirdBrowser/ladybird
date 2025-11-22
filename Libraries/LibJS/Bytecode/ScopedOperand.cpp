@@ -17,7 +17,7 @@ ScopedOperandImpl::~ScopedOperandImpl()
 
 Register Operand::as_register() const
 {
-    return Register { m_index };
+    return Register { index() };
 }
 
 }

@@ -79,8 +79,7 @@ size_t Instruction::length() const
 }
 
 Operand::Operand(Register reg)
-    : m_type(Type::Register)
-    , m_index(reg.index())
+    : Operand(Type::Register, reg.index())
 {
 }
 

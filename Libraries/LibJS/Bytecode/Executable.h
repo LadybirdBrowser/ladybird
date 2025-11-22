@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +15,7 @@
 #include <LibGC/WeakInlines.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
+#include <LibJS/Bytecode/Operand.h>
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
@@ -127,6 +128,8 @@ public:
     [[nodiscard]] UnrealizedSourceRange source_range_at(size_t offset) const;
 
     void dump() const;
+
+    [[nodiscard]] Operand original_operand_from_raw(u32) const;
 
 private:
     virtual void visit_edges(Visitor&) override;
