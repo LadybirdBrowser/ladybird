@@ -431,6 +431,42 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
                 lines.append("")
                 continue
 
+            if t == "Label":
+                lines.append(f"    if ({count_name} != 0) {{")
+                lines.append("        StringBuilder list_builder;")
+                lines.append(f'        list_builder.appendff("{{}}:[", "{label}"sv);')
+                lines.append("        bool first_elem = true;")
+                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
+                lines.append("            if (!first_elem)")
+                lines.append('                list_builder.append(", "sv);')
+                lines.append("            first_elem = false;")
+                lines.append(f'            list_builder.appendff("{{}}", {f.name}[i]);')
+                lines.append("        }")
+                lines.append("        list_builder.append(']');")
+                lines.append("        append_piece(list_builder.to_byte_string());")
+                lines.append("    }")
+                lines.append("")
+                continue
+
+            if t == "Optional<Label>":
+                lines.append(f"    if ({count_name} != 0) {{")
+                lines.append("        StringBuilder list_builder;")
+                lines.append(f'        list_builder.appendff("{{}}:[", "{label}"sv);')
+                lines.append("        bool first_elem = true;")
+                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
+                lines.append(f"            if (!{f.name}[i].has_value())")
+                lines.append("                continue;")
+                lines.append("            if (!first_elem)")
+                lines.append('                list_builder.append(", "sv);')
+                lines.append("            first_elem = false;")
+                lines.append(f'            list_builder.appendff("{{}}", {f.name}[i].value());')
+                lines.append("        }")
+                lines.append("        list_builder.append(']');")
+                lines.append("        append_piece(list_builder.to_byte_string());")
+                lines.append("    }")
+                lines.append("")
+                continue
+
             # other array types not printed
             continue
 
@@ -442,6 +478,17 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
         if t == "Optional<Operand>":
             lines.append(f"    if ({f.name}.has_value())")
             lines.append(f'        append_piece(format_operand("{label}"sv, {f.name}.value(), executable));')
+            lines.append("")
+            continue
+
+        if t == "Label":
+            lines.append(f'    append_piece(ByteString::formatted("{label}:{{}}", {f.name}));')
+            lines.append("")
+            continue
+
+        if t == "Optional<Label>":
+            lines.append(f"    if ({f.name}.has_value())")
+            lines.append(f'        append_piece(ByteString::formatted("{label}:{{}}", {f.name}.value()));')
             lines.append("")
             continue
 
