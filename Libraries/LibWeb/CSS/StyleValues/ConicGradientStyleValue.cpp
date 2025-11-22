@@ -65,6 +65,18 @@ void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, Device
     context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, m_resolved->data, position);
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+    RefPtr absolutized_from_angle = m_properties.from_angle.is_null() ? nullptr : m_properties.from_angle->absolutized(context);
+    ValueComparingNonnullRefPtr<PositionStyleValue const> absolutized_position = m_properties.position->absolutized(context)->as_position();
+    return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, m_properties.interpolation_method);
+}
+
 bool ConicGradientStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())

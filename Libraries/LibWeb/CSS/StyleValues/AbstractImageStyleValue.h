@@ -157,45 +157,23 @@ struct InterpolationMethod {
     bool operator==(InterpolationMethod const&) const = default;
 };
 
-template<typename TPosition>
 struct ColorStopListElement {
-    using PositionType = TPosition;
     struct ColorHint {
-        TPosition value;
-        inline bool operator==(ColorHint const&) const = default;
+        NonnullRefPtr<StyleValue const> value;
+        bool operator==(ColorHint const&) const = default;
     };
 
     Optional<ColorHint> transition_hint;
     struct ColorStop {
         RefPtr<StyleValue const> color;
-        Optional<TPosition> position;
-        Optional<TPosition> second_position = {};
-        inline bool operator==(ColorStop const&) const = default;
+        RefPtr<StyleValue const> position;
+        RefPtr<StyleValue const> second_position {};
+        bool operator==(ColorStop const&) const = default;
     } color_stop;
 
-    inline bool operator==(ColorStopListElement const&) const = default;
+    bool operator==(ColorStopListElement const&) const = default;
+    ColorStopListElement absolutized(ComputationContext const& context) const;
 };
-
-using LinearColorStopListElement = ColorStopListElement<LengthPercentage>;
-using AngularColorStopListElement = ColorStopListElement<AnglePercentage>;
-
-static void serialize_color_stop_list(StringBuilder& builder, auto const& color_stop_list, SerializationMode mode)
-{
-    bool first = true;
-    for (auto const& element : color_stop_list) {
-        if (!first)
-            builder.append(", "sv);
-
-        if (element.transition_hint.has_value())
-            builder.appendff("{}, "sv, element.transition_hint->value.to_string(mode));
-
-        builder.append(element.color_stop.color->to_string(mode));
-        for (auto position : Array { &element.color_stop.position, &element.color_stop.second_position }) {
-            if (position->has_value())
-                builder.appendff(" {}"sv, (*position)->to_string(mode));
-        }
-        first = false;
-    }
-}
+void serialize_color_stop_list(StringBuilder&, Vector<ColorStopListElement> const&, SerializationMode);
 
 }
