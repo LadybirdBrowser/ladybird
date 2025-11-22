@@ -1212,7 +1212,7 @@ SupportedAlgorithmsMap& supported_algorithms_internal()
     return s_supported_algorithms;
 }
 
-// https://w3c.github.io/webcrypto/#algorithm-normalization-internalS
+// https://w3c.github.io/webcrypto/#algorithm-normalization-internal
 SupportedAlgorithmsMap const& supported_algorithms()
 {
     auto& internal_object = supported_algorithms_internal();
