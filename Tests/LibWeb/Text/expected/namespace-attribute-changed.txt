@@ -1,0 +1,4 @@
+Matched elements: 3
+Match: <x class="a"></x>
+Match: <g:x class="a"></g:x>
+Match: <t:x class="a" t:class="a" h:class="a" g:class="a"></t:x>

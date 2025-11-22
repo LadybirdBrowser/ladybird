@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="tests">
+    <x class="a"></x>
+    <g:x class="a"></g:x>
+    <x t:class="a" h:class="a" g:class="a"></x>
+    <g:x t:class="a" h:class="a" g:class="a"></g:x>
+    <t:x class="a" t:class="a" h:class="a" g:class="a"></t:x>
+</div>
+<script>
+    test(() => {
+        const collection = document.getElementsByClassName("a");
+        println(`Matched elements: ${collection.length}`);
+        for (const match of collection) {
+            println(`Match: ${match.outerHTML}`);
+        }
+    })
+</script>
