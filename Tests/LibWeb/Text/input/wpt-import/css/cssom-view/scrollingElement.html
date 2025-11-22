@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>cssom-view - scrollingElement</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+function makeDescription(rootDisplay, bodyDisplay) {
+  let a = [];
+  if (rootDisplay) {
+    a.push(`root ${rootDisplay}`);
+  }
+  if (bodyDisplay) {
+    a.push(`body ${bodyDisplay}`);
+  }
+  let s = a.join(", ");
+  if (s) {
+    s = ` (${s})`;
+  }
+  return s;
+}
+
+function quirksTest(rootDisplay, bodyDisplay) {
+  async_test(function() {
+    let quirksFrame = document.createElement("iframe");
+    quirksFrame.onload = this.step_func_done(function() {
+      var quirksDoc = quirksFrame.contentDocument;
+      assert_equals(quirksDoc.compatMode, "BackCompat", "Should be in quirks mode.");
+      assert_not_equals(quirksDoc.body, null, "Should have a body element");
+
+      quirksDoc.documentElement.style.display = rootDisplay;
+      quirksDoc.body.style.display = bodyDisplay;
+
+      // Tests for quirks mode document.
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body,
+        "scrollingElement in quirks mode should default to body element.");
+
+      quirksDoc.documentElement.style.overflow = "clip";
+      quirksDoc.body.style.overflow = "auto";
+      assert_equals(quirksDoc.scrollingElement, null);
+      quirksDoc.body.style.overflow = "hidden";
+      assert_equals(quirksDoc.scrollingElement, null);
+      quirksDoc.body.style.overflow = "scroll";
+      assert_equals(quirksDoc.scrollingElement, null);
+      quirksDoc.body.style.overflow = "visible";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+      quirksDoc.body.style.overflow = "clip";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+
+      quirksDoc.documentElement.style.overflow = "scroll";
+      quirksDoc.body.style.overflow = "scroll";
+      assert_equals(quirksDoc.scrollingElement, null,
+        "scrollingElement in quirks mode should be null if overflow of body and root element isn't visible.");
+      quirksDoc.documentElement.style.overflow = "visible";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+      quirksDoc.documentElement.style.overflow = "scroll";
+      quirksDoc.body.style.overflow = "visible";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+      quirksDoc.documentElement.style.overflow = "visible";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+
+      quirksDoc.body.style.display = "none";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body)
+      quirksDoc.body.style.display = "block";
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+
+      quirksDoc.documentElement.appendChild(quirksDoc.createElement("body"));
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.getElementsByTagName("body")[0]);
+      quirksDoc.documentElement.removeChild(quirksDoc.documentElement.lastChild);
+      assert_equals(quirksDoc.scrollingElement, quirksDoc.body);
+
+      quirksDoc.documentElement.removeChild(quirksDoc.body);
+      assert_equals(quirksDoc.scrollingElement, null);
+      quirksDoc.documentElement.appendChild(quirksDoc.createElementNS("foobarNS", "body"));
+      assert_equals(quirksDoc.scrollingElement, null);
+
+      quirksDoc.removeChild(quirksDoc.documentElement);
+      assert_equals(quirksDoc.scrollingElement, null);
+
+      quirksDoc.appendChild(quirksDoc.createElementNS("foobarNS", "html"));
+      quirksDoc.documentElement.appendChild(quirksDoc.createElement("body"));
+      assert_equals(quirksDoc.scrollingElement, null);
+
+      quirksDoc.removeChild(quirksDoc.documentElement);
+      quirksDoc.appendChild(quirksDoc.createElement("body"));
+      assert_equals(quirksDoc.scrollingElement, null);
+
+      quirksFrame.remove();
+    });
+    quirksFrame.src =
+      URL.createObjectURL(new Blob([], { type: "text/html" }));
+    document.body.append(quirksFrame);
+  }, `scrollingElement in quirks mode${makeDescription(rootDisplay, bodyDisplay)}`);
+}
+
+function nonQuirksTest(rootDisplay, bodyDisplay) {
+  async_test(function() {
+    let nonQuirksFrame = document.createElement("iframe");
+    nonQuirksFrame.onload = this.step_func_done(function() {
+      var nonQuirksDoc = nonQuirksFrame.contentDocument;
+      assert_equals(nonQuirksDoc.compatMode, "CSS1Compat", "Should be in standards mode.");
+      assert_not_equals(nonQuirksDoc.body, null, "Should have a body element");
+
+      nonQuirksDoc.documentElement.style.display = rootDisplay;
+      nonQuirksDoc.body.style.display = bodyDisplay;
+
+      assert_equals(nonQuirksDoc.scrollingElement, nonQuirksDoc.documentElement,
+        "scrollingElement in standards mode should be the document element.");
+
+      for (let rootOverflow of ["", "clip", "scroll", "hidden", "visible"]) {
+        for (let bodyOverflow of ["", "clip", "scroll", "hidden", "visible"]) {
+          nonQuirksDoc.documentElement.style.overflow = rootOverflow;
+          nonQuirksDoc.body.style.overflow = bodyOverflow;
+          assert_equals(nonQuirksDoc.scrollingElement, nonQuirksDoc.documentElement);
+        }
+      }
+
+      nonQuirksDoc.removeChild(nonQuirksDoc.documentElement);
+      assert_equals(nonQuirksDoc.scrollingElement, null);
+      nonQuirksDoc.appendChild(nonQuirksDoc.createElement("foobar"));
+      assert_equals(nonQuirksDoc.scrollingElement.localName, "foobar");
+
+      nonQuirksFrame.remove();
+    });
+    nonQuirksFrame.src =
+      URL.createObjectURL(new Blob([`<!doctype html>`], { type: "text/html" }));
+    document.body.append(nonQuirksFrame);
+  }, `scrollingElement in no-quirks mode ${makeDescription(rootDisplay, bodyDisplay)}`);
+}
+
+for (let rootDisplay of ["", "table"]) {
+  for (let bodyDisplay of ["", "table"]) {
+    quirksTest(rootDisplay, bodyDisplay);
+    nonQuirksTest(rootDisplay, bodyDisplay);
+  }
+}
+</script>
