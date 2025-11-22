@@ -12,6 +12,7 @@
 #include <LibThreading/Mutex.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Process.h>
+#include <LibWebView/ProcessMonitor.h>
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {
@@ -24,7 +25,6 @@ class WEBVIEW_API ProcessManager {
 
 public:
     ProcessManager();
-    ~ProcessManager();
 
     void add_process(Process&&);
     Optional<Process> remove_process(pid_t);
@@ -42,7 +42,7 @@ public:
 private:
     Core::Platform::ProcessStatistics m_statistics;
     HashMap<pid_t, Process> m_processes;
-    [[maybe_unused]] int m_signal_handle { -1 };
+    ProcessMonitor m_process_monitor;
     Threading::Mutex m_lock;
 };
 
