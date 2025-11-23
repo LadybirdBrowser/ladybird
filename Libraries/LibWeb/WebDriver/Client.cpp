@@ -17,7 +17,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
-#include <LibHTTP/HttpResponse.h>
+#include <LibHTTP/Status.h>
 #include <LibWeb/WebDriver/Client.h>
 
 namespace Web::WebDriver {
@@ -326,7 +326,7 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
 {
     // FIXME: Implement to spec.
     dbgln_if(WEBDRIVER_DEBUG, "Sending error response: {} {}: {}", error.http_status, error.error, error.message);
-    auto reason = HTTP::HttpResponse::reason_phrase_for_code(error.http_status);
+    auto reason = HTTP::reason_phrase_for_code(error.http_status);
 
     JsonObject error_response;
     error_response.set("error"sv, error.error);
