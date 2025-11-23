@@ -8506,7 +8506,30 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const&
         key->set_usages(usages);
     }
     // FIXME -> If format is "pkcs8":
-    // FIXME -> If format is "raw-public":
+    //    -> If format is "raw-public":
+    else if (key_format == Bindings::KeyFormat::RawPublic) {
+        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        for (auto const usage : usages) {
+            if (usage != Bindings::KeyUsage::Verify)
+                return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        }
+
+        // 2. Let algorithm be a new KeyAlgorithm object.
+        auto algorithm = KeyAlgorithm::create(m_realm);
+
+        // 3. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // 4. Let key be a new CryptoKey representing the key data provided in keyData.
+        ASSERT(key_data.has<ByteBuffer>());
+        key = CryptoKey::create(m_realm, ::Crypto::PK::MLDSAPublicKey { key_data.get<ByteBuffer>() });
+
+        // 5. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+
+        // 6. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
     // FIXME -> If format is "raw-seed":
     // FIXME -> If format is "jwk":
     //    -> Otherwise:
