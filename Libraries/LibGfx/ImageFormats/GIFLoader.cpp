@@ -124,13 +124,13 @@ static void clear_rect(Bitmap& bitmap, IntRect const& rect, Color color)
     if (intersection_rect.is_empty())
         return;
 
-    BGRA8888* dst = bitmap.scanline(intersection_rect.top()) + intersection_rect.left();
-    size_t const dst_skip = bitmap.pitch() / sizeof(BGRA8888);
+    RawPixel* dst = bitmap.scanline(intersection_rect.top()) + intersection_rect.left();
+    size_t const dst_skip = bitmap.pitch() / sizeof(RawPixel);
 
     auto const value = color.value();
     auto const width = intersection_rect.width();
     for (int i = intersection_rect.height() - 1; i >= 0; --i) {
-        for (BGRA8888* p = dst; p < (dst + width); ++p) {
+        for (RawPixel* p = dst; p < (dst + width); ++p) {
             *p = value;
         }
         dst += dst_skip;

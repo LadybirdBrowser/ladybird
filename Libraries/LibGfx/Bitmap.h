@@ -17,6 +17,9 @@
 
 namespace Gfx {
 
+// A pixel value that does not express any information about its component order
+using RawPixel = u32;
+
 enum class BitmapFormat {
     Invalid,
     BGRx8888,
@@ -70,18 +73,18 @@ public:
 
     [[nodiscard]] u8* scanline_u8(int physical_y);
     [[nodiscard]] u8 const* scanline_u8(int physical_y) const;
-    [[nodiscard]] BGRA8888* scanline(int physical_y);
-    [[nodiscard]] BGRA8888 const* scanline(int physical_y) const;
+    [[nodiscard]] RawPixel* scanline(int physical_y);
+    [[nodiscard]] RawPixel const* scanline(int physical_y) const;
 
     [[nodiscard]] u8* unchecked_scanline_u8(int physical_y);
     [[nodiscard]] u8 const* unchecked_scanline_u8(int physical_y) const;
-    [[nodiscard]] BGRA8888* unchecked_scanline(int physical_y);
-    [[nodiscard]] BGRA8888 const* unchecked_scanline(int physical_y) const;
+    [[nodiscard]] RawPixel* unchecked_scanline(int physical_y);
+    [[nodiscard]] RawPixel const* unchecked_scanline(int physical_y) const;
 
-    [[nodiscard]] BGRA8888* begin();
-    [[nodiscard]] BGRA8888 const* begin() const;
-    [[nodiscard]] BGRA8888* end();
-    [[nodiscard]] BGRA8888 const* end() const;
+    [[nodiscard]] RawPixel* begin();
+    [[nodiscard]] RawPixel const* begin() const;
+    [[nodiscard]] RawPixel* end();
+    [[nodiscard]] RawPixel const* end() const;
     [[nodiscard]] size_t data_size() const;
 
     [[nodiscard]] IntRect rect() const { return { {}, m_size }; }
@@ -164,14 +167,14 @@ ALWAYS_INLINE u8 const* Bitmap::unchecked_scanline_u8(int y) const
     return reinterpret_cast<u8 const*>(m_data) + (y * m_pitch);
 }
 
-ALWAYS_INLINE BGRA8888* Bitmap::unchecked_scanline(int y)
+ALWAYS_INLINE RawPixel* Bitmap::unchecked_scanline(int y)
 {
-    return reinterpret_cast<BGRA8888*>(unchecked_scanline_u8(y));
+    return reinterpret_cast<RawPixel*>(unchecked_scanline_u8(y));
 }
 
-ALWAYS_INLINE BGRA8888 const* Bitmap::unchecked_scanline(int y) const
+ALWAYS_INLINE RawPixel const* Bitmap::unchecked_scanline(int y) const
 {
-    return reinterpret_cast<BGRA8888 const*>(unchecked_scanline_u8(y));
+    return reinterpret_cast<RawPixel const*>(unchecked_scanline_u8(y));
 }
 
 ALWAYS_INLINE u8* Bitmap::scanline_u8(int y)
@@ -188,34 +191,34 @@ ALWAYS_INLINE u8 const* Bitmap::scanline_u8(int y) const
     return unchecked_scanline_u8(y);
 }
 
-ALWAYS_INLINE BGRA8888* Bitmap::scanline(int y)
+ALWAYS_INLINE RawPixel* Bitmap::scanline(int y)
 {
-    return reinterpret_cast<BGRA8888*>(scanline_u8(y));
+    return reinterpret_cast<RawPixel*>(scanline_u8(y));
 }
 
-ALWAYS_INLINE BGRA8888 const* Bitmap::scanline(int y) const
+ALWAYS_INLINE RawPixel const* Bitmap::scanline(int y) const
 {
-    return reinterpret_cast<BGRA8888 const*>(scanline_u8(y));
+    return reinterpret_cast<RawPixel const*>(scanline_u8(y));
 }
 
-ALWAYS_INLINE BGRA8888* Bitmap::begin()
+ALWAYS_INLINE RawPixel* Bitmap::begin()
 {
     return scanline(0);
 }
 
-ALWAYS_INLINE BGRA8888 const* Bitmap::begin() const
+ALWAYS_INLINE RawPixel const* Bitmap::begin() const
 {
     return scanline(0);
 }
 
-ALWAYS_INLINE BGRA8888* Bitmap::end()
+ALWAYS_INLINE RawPixel* Bitmap::end()
 {
-    return reinterpret_cast<BGRA8888*>(reinterpret_cast<u8*>(m_data) + data_size());
+    return reinterpret_cast<RawPixel*>(reinterpret_cast<u8*>(m_data) + data_size());
 }
 
-ALWAYS_INLINE BGRA8888 const* Bitmap::end() const
+ALWAYS_INLINE RawPixel const* Bitmap::end() const
 {
-    return reinterpret_cast<BGRA8888 const*>(reinterpret_cast<u8 const*>(m_data) + data_size());
+    return reinterpret_cast<RawPixel const*>(reinterpret_cast<u8 const*>(m_data) + data_size());
 }
 
 ALWAYS_INLINE size_t Bitmap::data_size() const
