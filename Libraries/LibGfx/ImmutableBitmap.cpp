@@ -16,6 +16,18 @@
 
 namespace Gfx {
 
+StringView export_format_name(ExportFormat format)
+{
+    switch (format) {
+#define ENUMERATE_EXPORT_FORMAT(format) \
+    case Gfx::ExportFormat::format:     \
+        return #format##sv;
+        ENUMERATE_EXPORT_FORMATS(ENUMERATE_EXPORT_FORMAT)
+#undef ENUMERATE_EXPORT_FORMAT
+    }
+    VERIFY_NOT_REACHED();
+}
+
 struct ImmutableBitmapImpl {
     sk_sp<SkImage> sk_image;
     SkBitmap sk_bitmap;

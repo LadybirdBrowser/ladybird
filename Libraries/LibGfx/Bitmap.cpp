@@ -31,6 +31,18 @@ struct BackingStore {
     size_t size_in_bytes { 0 };
 };
 
+StringView bitmap_format_name(BitmapFormat format)
+{
+    switch (format) {
+#define ENUMERATE_BITMAP_FORMAT(format) \
+    case BitmapFormat::format:          \
+        return #format##sv;
+        ENUMERATE_BITMAP_FORMATS(ENUMERATE_BITMAP_FORMAT)
+#undef ENUMERATE_BITMAP_FORMAT
+    }
+    VERIFY_NOT_REACHED();
+}
+
 size_t Bitmap::minimum_pitch(size_t width, BitmapFormat format)
 {
     size_t element_size;

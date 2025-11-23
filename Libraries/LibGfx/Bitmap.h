@@ -20,13 +20,20 @@ namespace Gfx {
 // A pixel value that does not express any information about its component order
 using RawPixel = u32;
 
+#define ENUMERATE_BITMAP_FORMATS(X) \
+    X(Invalid)                      \
+    X(BGRx8888)                     \
+    X(BGRA8888)                     \
+    X(RGBx8888)                     \
+    X(RGBA8888)
+
 enum class BitmapFormat {
-    Invalid,
-    BGRx8888,
-    BGRA8888,
-    RGBx8888,
-    RGBA8888,
+#define ENUMERATE_BITMAP_FORMAT(format) format,
+    ENUMERATE_BITMAP_FORMATS(ENUMERATE_BITMAP_FORMAT)
+#undef ENUMERATE_BITMAP_FORMAT
 };
+
+[[nodiscard]] StringView bitmap_format_name(BitmapFormat);
 
 inline bool is_valid_bitmap_format(u32 const format)
 {
