@@ -126,18 +126,7 @@ public:
     [[nodiscard]] size_t size_in_bytes() const { return size_in_bytes(m_pitch, height()); }
 
     [[nodiscard]] Color get_pixel(int physical_x, int physical_y) const;
-    [[nodiscard]] Color get_pixel(IntPoint physical_position) const
-    {
-        return get_pixel(physical_position.x(), physical_position.y());
-    }
-
-    template<StorageFormat>
     void set_pixel(int physical_x, int physical_y, Color);
-    void set_pixel(int physical_x, int physical_y, Color);
-    void set_pixel(IntPoint physical_position, Color color)
-    {
-        set_pixel(physical_position.x(), physical_position.y(), color);
-    }
 
     [[nodiscard]] Core::AnonymousBuffer& anonymous_buffer() { return m_buffer; }
     [[nodiscard]] Core::AnonymousBuffer const& anonymous_buffer() const { return m_buffer; }
@@ -276,37 +265,18 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
     }
 }
 
-template<StorageFormat storage_format>
-ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
-{
-    VERIFY(x >= 0);
-    VERIFY(x < width());
-
-    if constexpr (storage_format == StorageFormat::BGRx8888 || storage_format == StorageFormat::BGRA8888) {
-        scanline(y)[x] = color.value();
-    } else if constexpr (storage_format == StorageFormat::RGBA8888) {
-        scanline(y)[x] = (color.alpha() << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
-    } else if constexpr (storage_format == StorageFormat::RGBx8888) {
-        scanline(y)[x] = (color.blue() << 16) | (color.green() << 8) | color.red();
-    } else {
-        static_assert(false, "There's a new storage format not in Bitmap::set_pixel");
-    }
-}
-
 ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
 {
     switch (determine_storage_format(m_format)) {
     case StorageFormat::BGRx8888:
-        set_pixel<StorageFormat::BGRx8888>(x, y, color);
-        return;
     case StorageFormat::BGRA8888:
-        set_pixel<StorageFormat::BGRA8888>(x, y, color);
+        scanline(y)[x] = color.value();
         return;
     case StorageFormat::RGBA8888:
-        set_pixel<StorageFormat::RGBA8888>(x, y, color);
+        scanline(y)[x] = (color.alpha() << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
     case StorageFormat::RGBx8888:
-        set_pixel<StorageFormat::RGBx8888>(x, y, color);
+        scanline(y)[x] = (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
     }
     VERIFY_NOT_REACHED();
