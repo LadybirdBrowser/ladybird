@@ -1221,19 +1221,34 @@ static void apply_dimension_attribute(CascadedProperties& cascaded_properties, D
 
 static void compute_transitioned_properties(ComputedProperties const& style, DOM::AbstractElement abstract_element)
 {
-    auto const source_declaration = style.transition_property_source();
-    if (!source_declaration)
-        return;
+    // FIXME: For now we don't bother registering transitions on the first computation since they can't run (because
+    //        there is nothing to transition from) but this will change once we implement @starting-style
     if (!abstract_element.computed_properties())
         return;
     // FIXME: Add transition helpers on AbstractElement.
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
-    if (source_declaration == element.cached_transition_property_source(pseudo_element))
+
+    element.clear_registered_transitions(pseudo_element);
+
+    auto const& delay = style.property(PropertyID::TransitionDelay);
+    auto const& duration = style.property(PropertyID::TransitionDuration);
+
+    // FIXME: Change this to support the associated StyleValueList values when we update
+    //        parse_simple_comma_separated_value_list to always return a StyleValueList.
+    // OPTIMIZATION: Registered transitions with a "combined duration" of less than or equal to 0s are equivalent to not
+    //               having a transition registered at all, except in the case that we already have an associated
+    //               transition for that property, so we can skip registering them. This implementation intentionally
+    //               ignores some of those cases (e.g. transitions being registered but for other properties, multiple
+    //               transitions, negative delays, etc) since it covers the common (initial property values) case and
+    //               the other cases are rare enough that the cost of identifying them would likely more than offset any
+    //               gains.
+    if (
+        element.property_ids_with_existing_transitions(pseudo_element).is_empty()
+        && delay.is_time() && delay.as_time().time().to_seconds() == 0
+        && duration.is_time() && duration.as_time().time().to_seconds() == 0) {
         return;
-    // Reparse this transition property
-    element.clear_transitions(pseudo_element);
-    element.set_cached_transition_property_source(pseudo_element, *source_declaration);
+    }
 
     auto coordinated_transition_list = style.assemble_coordinated_value_list(
         PropertyID::TransitionProperty,
@@ -1309,8 +1324,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
         auto existing_transition = element.property_transition(pseudo_element, property_id);
-        bool has_running_transition = existing_transition && !existing_transition->is_finished();
-        bool has_completed_transition = existing_transition && existing_transition->is_finished();
+        bool has_running_transition = existing_transition && !existing_transition->is_finished() && !existing_transition->is_idle();
+        bool has_completed_transition = existing_transition && (existing_transition->is_finished() || existing_transition->is_idle());
 
         auto start_a_transition = [&](auto delay, auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value.to_string(SerializationMode::Normal), end_value.to_string(SerializationMode::Normal));
@@ -1487,7 +1502,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
         auto const& existing_transition = element.property_transition(pseudo_element, property_id);
 
         dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
-        if (!existing_transition->is_finished())
+        if (!existing_transition->is_finished() && !existing_transition->is_idle())
             existing_transition->cancel();
         else
             element.remove_transition(pseudo_element, property_id);
@@ -2541,10 +2556,6 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         computed_style->set_property(property_id, value.release_nonnull(), inherited, cascaded_properties.is_property_important(property_id) ? Important::Yes : Important::No);
         if (animated_value.has_value())
             computed_style->set_animated_property(property_id, animated_value.value(), inherited);
-
-        if (property_id == PropertyID::TransitionProperty) {
-            computed_style->set_transition_property_source(cascaded_properties.property_source(property_id));
-        }
     }
 
     // Compute the value of custom properties

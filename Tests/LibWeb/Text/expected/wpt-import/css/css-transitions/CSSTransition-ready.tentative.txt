@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	ready promise is rejected when a transition is canceled by updating transition-property
+2 Pass
+Pass	ready promise is rejected when a transition is canceled by updating transition-property
 Pass	ready promise is rejected when a transition is canceled by changing the transition property to something not interpolable
