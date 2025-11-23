@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/BitmapExportResult.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Forward.h>
@@ -122,12 +123,7 @@ public:
         return get_offset_span(buffer->data(), src_offset, src_length_override);
     }
 
-    struct ConvertedTexture {
-        ByteBuffer buffer;
-        int width { 0 };
-        int height { 0 };
-    };
-    Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
+    Optional<Gfx::BitmapExportResult> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
 
 protected:
     static Vector<GLchar> null_terminated_string(StringView string)

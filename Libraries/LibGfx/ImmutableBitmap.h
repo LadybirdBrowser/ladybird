@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibGfx/BitmapExportResult.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
@@ -19,6 +20,27 @@ class SkImage;
 namespace Gfx {
 
 struct ImmutableBitmapImpl;
+
+enum class ExportFormat : u8 {
+    // 8 bit
+    Gray8,
+    Alpha8,
+    // 16 bit
+    RGB565,
+    RGBA5551,
+    RGBA4444,
+    // 24 bit
+    RGB888,
+    // 32 bit
+    RGBA8888,
+};
+
+struct ExportFlags {
+    enum : u8 {
+        PremultiplyAlpha = 1 << 0,
+        FlipY = 1 << 1,
+    };
+};
 
 class ImmutableBitmap final : public AtomicRefCounted<ImmutableBitmap> {
 public:
@@ -36,6 +58,7 @@ public:
     Gfx::AlphaType alpha_type() const;
 
     SkImage const* sk_image() const;
+    [[nodiscard]] ErrorOr<BitmapExportResult> export_to_byte_buffer(ExportFormat format, int flags, Optional<int> target_width, Optional<int> target_height) const;
 
     Color get_pixel(int x, int y) const;
 

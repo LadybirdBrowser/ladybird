@@ -9,8 +9,10 @@
 #include <LibGfx/SkiaUtils.h>
 
 #include <core/SkBitmap.h>
+#include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>
 #include <core/SkImage.h>
+#include <core/SkSurface.h>
 
 namespace Gfx {
 
@@ -49,6 +51,91 @@ Gfx::AlphaType ImmutableBitmap::alpha_type() const
 SkImage const* ImmutableBitmap::sk_image() const
 {
     return m_impl->sk_image.get();
+}
+
+static int bytes_per_pixel_for_export_format(ExportFormat format)
+{
+    switch (format) {
+    case ExportFormat::Gray8:
+    case ExportFormat::Alpha8:
+        return 1;
+    case ExportFormat::RGB565:
+    case ExportFormat::RGBA5551:
+    case ExportFormat::RGBA4444:
+        return 2;
+    case ExportFormat::RGB888:
+        return 3;
+    case ExportFormat::RGBA8888:
+        return 4;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+static SkColorType export_format_to_skia_color_type(ExportFormat format)
+{
+    switch (format) {
+    case ExportFormat::Gray8:
+        return SkColorType::kGray_8_SkColorType;
+    case ExportFormat::Alpha8:
+        return SkColorType::kAlpha_8_SkColorType;
+    case ExportFormat::RGB565:
+        return SkColorType::kRGB_565_SkColorType;
+    case ExportFormat::RGBA5551:
+        dbgln("FIXME: Support conversion to RGBA5551.");
+        return SkColorType::kUnknown_SkColorType;
+    case ExportFormat::RGBA4444:
+        return SkColorType::kARGB_4444_SkColorType;
+    case ExportFormat::RGB888:
+        return SkColorType::kRGB_888x_SkColorType;
+    case ExportFormat::RGBA8888:
+        return SkColorType::kRGBA_8888_SkColorType;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat format, int flags, Optional<int> target_width, Optional<int> target_height) const
+{
+    int width = target_width.value_or(this->width());
+    int height = target_height.value_or(this->height());
+
+    Checked<size_t> buffer_pitch = width;
+    int number_of_bytes = bytes_per_pixel_for_export_format(format);
+    buffer_pitch *= number_of_bytes;
+    if (buffer_pitch.has_overflow())
+        return Error::from_string_literal("Gfx::ImmutableBitmap::export_to_byte_buffer size overflow");
+
+    if (Checked<size_t>::multiplication_would_overflow(buffer_pitch.value(), height))
+        return Error::from_string_literal("Gfx::ImmutableBitmap::export_to_byte_buffer size overflow");
+
+    auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
+
+    if (width > 0 && height > 0) {
+        auto skia_format = export_format_to_skia_color_type(format);
+        auto color_space = SkColorSpace::MakeSRGB();
+
+        auto image_info = SkImageInfo::Make(width, height, skia_format, flags & ExportFlags::PremultiplyAlpha ? SkAlphaType::kPremul_SkAlphaType : SkAlphaType::kUnpremul_SkAlphaType, color_space);
+        auto surface = SkSurfaces::WrapPixels(image_info, buffer.data(), buffer_pitch.value());
+        VERIFY(surface);
+        auto* surface_canvas = surface->getCanvas();
+        auto dst_rect = Gfx::to_skia_rect(Gfx::Rect { 0, 0, width, height });
+
+        if (flags & ExportFlags::FlipY) {
+            surface_canvas->translate(0, dst_rect.height());
+            surface_canvas->scale(1, -1);
+        }
+
+        surface_canvas->drawImageRect(sk_image(), dst_rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor));
+    } else {
+        VERIFY(buffer.is_empty());
+    }
+
+    return BitmapExportResult {
+        .buffer = move(buffer),
+        .width = width,
+        .height = height,
+    };
 }
 
 RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const

@@ -31,44 +31,15 @@ extern "C" {
 
 namespace Web::WebGL {
 
-static constexpr Optional<int> opengl_format_and_type_number_of_bytes(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
-{
-    switch (format) {
-    case GL_LUMINANCE:
-    case GL_ALPHA:
-        if (type != GL_UNSIGNED_BYTE)
-            return OptionalNone {};
-
-        return 1;
-    case GL_LUMINANCE_ALPHA:
-        if (type != GL_UNSIGNED_BYTE)
-            return OptionalNone {};
-
-        return 2;
-    case GL_RGB:
-        if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT_5_6_5)
-            return OptionalNone {};
-
-        return type == GL_UNSIGNED_BYTE ? 3 : 2;
-    case GL_RGBA:
-        if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT_4_4_4_4 && type != GL_UNSIGNED_SHORT_5_5_5_1)
-            return OptionalNone {};
-
-        return type == GL_UNSIGNED_BYTE ? 4 : 2;
-    default:
-        return OptionalNone {};
-    }
-}
-
-static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
+static constexpr Optional<Gfx::ExportFormat> determine_export_format(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
 {
     switch (format) {
     case GL_RGB:
         switch (type) {
         case GL_UNSIGNED_BYTE:
-            return SkColorType::kRGB_888x_SkColorType;
+            return Gfx::ExportFormat::RGB888;
         case GL_UNSIGNED_SHORT_5_6_5:
-            return SkColorType::kRGB_565_SkColorType;
+            return Gfx::ExportFormat::RGB565;
         default:
             break;
         }
@@ -76,12 +47,12 @@ static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::U
     case GL_RGBA:
         switch (type) {
         case GL_UNSIGNED_BYTE:
-            return SkColorType::kRGBA_8888_SkColorType;
+            return Gfx::ExportFormat::RGBA8888;
         case GL_UNSIGNED_SHORT_4_4_4_4:
             // FIXME: This is not exactly the same as RGBA.
-            return SkColorType::kARGB_4444_SkColorType;
+            return Gfx::ExportFormat::RGBA4444;
         case GL_UNSIGNED_SHORT_5_5_5_1:
-            dbgln("WebGL FIXME: Support conversion to RGBA5551.");
+            return Gfx::ExportFormat::RGBA5551;
             break;
         default:
             break;
@@ -90,7 +61,7 @@ static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::U
     case GL_ALPHA:
         switch (type) {
         case GL_UNSIGNED_BYTE:
-            return SkColorType::kAlpha_8_SkColorType;
+            return Gfx::ExportFormat::Alpha8;
         default:
             break;
         }
@@ -98,7 +69,7 @@ static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::U
     case GL_LUMINANCE:
         switch (type) {
         case GL_UNSIGNED_BYTE:
-            return SkColorType::kGray_8_SkColorType;
+            return Gfx::ExportFormat::Gray8;
         default:
             break;
         }
@@ -108,10 +79,10 @@ static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::U
     }
 
     dbgln("WebGL: Unsupported format and type combination. format: 0x{:04x}, type: 0x{:04x}", format, type);
-    return SkColorType::kUnknown_SkColorType;
+    return {};
 }
 
-Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase::read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width, Optional<int> destination_height)
+Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width, Optional<int> destination_height)
 {
     // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
     //        an INVALID_VALUE error is generated.
@@ -147,53 +118,27 @@ Optional<WebGLRenderingContextBase::ConvertedTexture> WebGLRenderingContextBase:
     if (!bitmap)
         return OptionalNone {};
 
-    int width = destination_width.value_or(bitmap->width());
-    int height = destination_height.value_or(bitmap->height());
-
-    Checked<size_t> buffer_pitch = width;
-
-    auto number_of_bytes = opengl_format_and_type_number_of_bytes(format, type);
-    if (!number_of_bytes.has_value())
+    auto export_format = determine_export_format(format, type);
+    if (!export_format.has_value())
         return OptionalNone {};
 
-    buffer_pitch *= number_of_bytes.value();
-
-    if (buffer_pitch.has_overflow())
-        return OptionalNone {};
-
-    if (Checked<size_t>::multiplication_would_overflow(buffer_pitch.value(), height))
-        return OptionalNone {};
-
-    auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
-
-    if (width > 0 && height > 0) {
-        // FIXME: Respect unpackColorSpace
-        auto skia_format = opengl_format_and_type_to_skia_color_type(format, type);
-        auto color_space = SkColorSpace::MakeSRGB();
-        auto image_info = SkImageInfo::Make(width, height, skia_format, m_unpack_premultiply_alpha ? SkAlphaType::kPremul_SkAlphaType : SkAlphaType::kUnpremul_SkAlphaType, color_space);
-        auto surface = SkSurfaces::WrapPixels(image_info, buffer.data(), buffer_pitch.value());
-        VERIFY(surface);
-        auto surface_canvas = surface->getCanvas();
-        auto dst_rect = Gfx::to_skia_rect(Gfx::Rect { 0, 0, width, height });
-
+    // FIXME: Respect unpackColorSpace
+    auto export_flags = 0;
+    if (m_unpack_flip_y && !source.has<GC::Root<HTML::ImageBitmap>>())
         // The first pixel transferred from the source to the WebGL implementation corresponds to the upper left corner of
         // the source. This behavior is modified by the UNPACK_FLIP_Y_WEBGL pixel storage parameter, except for ImageBitmap
         // arguments, as described in the abovementioned section.
-        if (m_unpack_flip_y && !source.has<GC::Root<HTML::ImageBitmap>>()) {
-            surface_canvas->translate(0, dst_rect.height());
-            surface_canvas->scale(1, -1);
-        }
+        export_flags |= Gfx::ExportFlags::FlipY;
+    if (m_unpack_premultiply_alpha)
+        export_flags |= Gfx::ExportFlags::PremultiplyAlpha;
 
-        surface_canvas->drawImageRect(bitmap->sk_image(), dst_rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor));
-    } else {
-        VERIFY(buffer.is_empty());
+    auto result = bitmap->export_to_byte_buffer(export_format.value(), export_flags, destination_width, destination_height);
+    if (result.is_error()) {
+        dbgln("Could not export bitmap: {}", result.release_error());
+        return OptionalNone {};
     }
 
-    return ConvertedTexture {
-        .buffer = move(buffer),
-        .width = width,
-        .height = height,
-    };
+    return result.release_value();
 }
 
 // TODO: The glGetError spec allows for queueing errors which is something we should probably do, for now
