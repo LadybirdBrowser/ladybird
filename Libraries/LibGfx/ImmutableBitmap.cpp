@@ -89,7 +89,8 @@ static SkColorType export_format_to_skia_color_type(ExportFormat format)
     case ExportFormat::RGBA4444:
         return SkColorType::kARGB_4444_SkColorType;
     case ExportFormat::RGB888:
-        return SkColorType::kRGB_888x_SkColorType;
+        // This one needs to be converted manually because Skia has no valid 24-bit color type.
+        VERIFY_NOT_REACHED();
     case ExportFormat::RGBA8888:
         return SkColorType::kRGBA_8888_SkColorType;
     default:
@@ -101,6 +102,12 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
 {
     int width = target_width.value_or(this->width());
     int height = target_height.value_or(this->height());
+
+    if (format == ExportFormat::RGB888 && (width != this->width() || height != this->height())) {
+        dbgln("FIXME: Ignoring target width and height because scaling is not implemented for this export format.");
+        width = this->width();
+        height = this->height();
+    }
 
     Checked<size_t> buffer_pitch = width;
     int number_of_bytes = bytes_per_pixel_for_export_format(format);
@@ -114,21 +121,36 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
     auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
 
     if (width > 0 && height > 0) {
-        auto skia_format = export_format_to_skia_color_type(format);
-        auto color_space = SkColorSpace::MakeSRGB();
+        if (format == ExportFormat::RGB888) {
+            // 24 bit RGB is not supported by Skia, so we need to handle this format ourselves.
+            auto raw_buffer = buffer.data();
+            for (auto y = 0; y < height; y++) {
+                auto target_y = flags & ExportFlags::FlipY ? height - y - 1 : y;
+                for (auto x = 0; x < width; x++) {
+                    auto pixel = get_pixel(x, y);
+                    auto buffer_offset = (target_y * buffer_pitch.value()) + (x * 3ull);
+                    raw_buffer[buffer_offset + 0] = pixel.red();
+                    raw_buffer[buffer_offset + 1] = pixel.green();
+                    raw_buffer[buffer_offset + 2] = pixel.blue();
+                }
+            }
+        } else {
+            auto skia_format = export_format_to_skia_color_type(format);
+            auto color_space = SkColorSpace::MakeSRGB();
 
-        auto image_info = SkImageInfo::Make(width, height, skia_format, flags & ExportFlags::PremultiplyAlpha ? SkAlphaType::kPremul_SkAlphaType : SkAlphaType::kUnpremul_SkAlphaType, color_space);
-        auto surface = SkSurfaces::WrapPixels(image_info, buffer.data(), buffer_pitch.value());
-        VERIFY(surface);
-        auto* surface_canvas = surface->getCanvas();
-        auto dst_rect = Gfx::to_skia_rect(Gfx::Rect { 0, 0, width, height });
+            auto image_info = SkImageInfo::Make(width, height, skia_format, flags & ExportFlags::PremultiplyAlpha ? SkAlphaType::kPremul_SkAlphaType : SkAlphaType::kUnpremul_SkAlphaType, color_space);
+            auto surface = SkSurfaces::WrapPixels(image_info, buffer.data(), buffer_pitch.value());
+            VERIFY(surface);
+            auto* surface_canvas = surface->getCanvas();
+            auto dst_rect = Gfx::to_skia_rect(Gfx::Rect { 0, 0, width, height });
 
-        if (flags & ExportFlags::FlipY) {
-            surface_canvas->translate(0, dst_rect.height());
-            surface_canvas->scale(1, -1);
+            if (flags & ExportFlags::FlipY) {
+                surface_canvas->translate(0, dst_rect.height());
+                surface_canvas->scale(1, -1);
+            }
+
+            surface_canvas->drawImageRect(sk_image(), dst_rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor));
         }
-
-        surface_canvas->drawImageRect(sk_image(), dst_rect, Gfx::to_skia_sampling_options(Gfx::ScalingMode::NearestNeighbor));
     } else {
         VERIFY(buffer.is_empty());
     }
