@@ -10,7 +10,6 @@ set(SOURCES
     ColorSpace.cpp
     Cursor.cpp
     Filter.cpp
-    FontCascadeList.cpp
     Font/Font.cpp
     Font/FontData.cpp
     Font/FontDatabase.cpp
@@ -20,6 +19,7 @@ set(SOURCES
     Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp
     Font/WOFF2/Loader.cpp
+    FontCascadeList.cpp
     GradientPainting.cpp
     ImageFormats/AVIFLoader.cpp
     ImageFormats/BMPLoader.cpp
@@ -30,8 +30,8 @@ set(SOURCES
     ImageFormats/ICOLoader.cpp
     ImageFormats/ImageDecoder.cpp
     ImageFormats/JPEGLoader.cpp
-    ImageFormats/JPEGXLLoader.cpp
     ImageFormats/JPEGWriter.cpp
+    ImageFormats/JPEGXLLoader.cpp
     ImageFormats/PNGLoader.cpp
     ImageFormats/PNGWriter.cpp
     ImageFormats/TIFFLoader.cpp
@@ -41,22 +41,22 @@ set(SOURCES
     ImageFormats/WebPWriter.cpp
     ImageFormats/WebPWriterLossless.cpp
     ImmutableBitmap.cpp
-    SkiaUtils.cpp
+    Painter.cpp
+    PainterSkia.cpp
     PaintingSurface.cpp
     Palette.cpp
     Path.cpp
     PathSkia.cpp
-    Painter.cpp
-    PainterSkia.cpp
     Point.cpp
     Rect.cpp
     ShareableBitmap.cpp
     Size.cpp
+    SkiaBackendContext.cpp
+    SkiaUtils.cpp
     SystemTheme.cpp
     TextLayout.cpp
     Triangle.cpp
     VectorGraphic.cpp
-    SkiaBackendContext.cpp
 )
 
 set(SWIFT_EXCLUDE_HEADERS
