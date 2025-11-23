@@ -249,15 +249,17 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
 ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
 {
     switch (m_format) {
-    case BitmapFormat::BGRx8888:
     case BitmapFormat::BGRA8888:
         scanline(y)[x] = color.value();
+        return;
+    case BitmapFormat::BGRx8888:
+        scanline(y)[x] = color.value() | (0xFF << 24);
         return;
     case BitmapFormat::RGBA8888:
         scanline(y)[x] = (color.alpha() << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
     case BitmapFormat::RGBx8888:
-        scanline(y)[x] = (color.blue() << 16) | (color.green() << 8) | color.red();
+        scanline(y)[x] = (0xFF << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
     case BitmapFormat::Invalid:
         VERIFY_NOT_REACHED();
