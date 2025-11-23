@@ -8432,4 +8432,91 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { result };
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    GC::Ptr<CryptoKey> key = nullptr;
+
+    // 1. Let keyData be the key data to be imported.
+    // 2. -> If format is "spki":
+    if (key_format == Bindings::KeyFormat::Spki) {
+        // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+        for (auto const usage : usages) {
+            if (usage != Bindings::KeyUsage::Verify)
+                return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        }
+
+        // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        auto const spki = TRY(parse_a_subject_public_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        Array<int, 9> expected_oid;
+        // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
+        if (params.name == "ML-DSA-44") {
+            // Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17).
+            expected_oid = ::Crypto::ASN1::ml_dsa_44_oid;
+        }
+        // If the name member of normalizedAlgorithm is "ML-DSA-65":
+        else if (params.name == "ML-DSA-65") {
+            // Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18).
+            expected_oid = ::Crypto::ASN1::ml_dsa_65_oid;
+        }
+        // If the name member of normalizedAlgorithm is "ML-DSA-87":
+        else if (params.name == "ML-DSA-87") {
+            // Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19).
+            expected_oid = ::Crypto::ASN1::ml_dsa_87_oid;
+        }
+        // Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
+        }
+
+        // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
+        //    to expectedOid, then throw a DataError.
+        if (spki.algorithm.identifier != expected_oid)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
+
+        // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+        if (spki.algorithm.ec_parameters.has_value())
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_utf16);
+
+        // 7. Let publicKey be the ML-DSA public key identified by the subjectPublicKey field of spki.
+        auto const public_key = spki.raw_key;
+
+        // 8. Let key be a new CryptoKey that represents publicKey.
+        key = CryptoKey::create(m_realm, ::Crypto::PK::MLDSAPublicKey(public_key));
+
+        // 9. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+
+        // 10. Let algorithm be a new KeyAlgorithm.
+        auto const algorithm = KeyAlgorithm::create(m_realm);
+
+        // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // 12. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+
+        // 13. Set the [[extractable]] internal slot of key to extractable.
+        key->set_extractable(extractable);
+
+        // 14. Set the [[usages]] internal slot of key to usages.
+        key->set_usages(usages);
+    }
+    // FIXME -> If format is "pkcs8":
+    // FIXME -> If format is "raw-public":
+    // FIXME -> If format is "raw-seed":
+    // FIXME -> If format is "jwk":
+    //    -> Otherwise:
+    else {
+        // throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
+    }
+
+    // 3. Return key
+    return GC::Ref { *key };
+}
+
 }
