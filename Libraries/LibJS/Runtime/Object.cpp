@@ -90,7 +90,7 @@ Object::Object(Shape& shape, MayInterfereWithIndexedPropertyAccess may_interfere
     : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
     , m_shape(&shape)
 {
-    m_storage.resize(shape.property_count());
+    m_storage.resize_with_default_value(shape.property_count(), Value());
 }
 
 Object::~Object()
@@ -106,7 +106,7 @@ void Object::initialize(Realm&)
 void Object::unsafe_set_shape(Shape& shape)
 {
     m_shape = shape;
-    m_storage.resize(shape.property_count());
+    m_storage.resize_with_default_value(shape.property_count(), Value());
 }
 
 // 7.2 Testing and Comparison Operations, https://tc39.es/ecma262/#sec-testing-and-comparison-operations

@@ -4520,9 +4520,9 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     auto ensure_id_space = [&](ValueID id) {
         if (id >= parent.size()) {
             size_t old_size = parent.size();
-            parent.resize(id.value() + 1);
-            rank.resize(id.value() + 1);
-            final_roots.resize(id.value() + 1);
+            parent.resize_with_default_value(id.value() + 1, {});
+            rank.resize_with_default_value(id.value() + 1, {});
+            final_roots.resize_with_default_value(id.value() + 1, {});
             for (size_t i = old_size; i <= id; ++i) {
                 parent[i] = i;
                 rank[i] = 0;
@@ -4762,7 +4762,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         void place(IP start, IP end, ValueID root)
         {
             if (roots_at_position.size() <= end.value())
-                roots_at_position.resize(end.value() + 1);
+                roots_at_position.resize_with_default_value(end.value() + 1, {});
 
             occupied.set_range<true>(start.value(), end.value() - start.value() + 1);
             for (size_t i = start.value(); i <= end.value(); ++i)
