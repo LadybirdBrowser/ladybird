@@ -547,6 +547,62 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::last_index_of)
     return *result;
 }
 
+// clang-format off
+static constexpr AK::Array<u8, 128> ascii_collation_primary_weights {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  3,  4,  5,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    6, 12, 16, 28, 38, 29, 27, 15, 17, 18, 24, 32,  9,  8, 14, 25,
+   39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 11, 10, 33, 34, 35, 13,
+   23, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 19, 26, 20, 31,  7,
+   30, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 21, 36, 22, 37,  0,
+};
+
+static constexpr AK::Array<u8, 128> ascii_collation_tertiary_weights {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
+    2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,
+};
+// clang-format on
+
+static Optional<int> try_fast_ascii_string_compare(StringView a, StringView b)
+{
+    auto len = min(a.length(), b.length());
+
+    for (size_t i = 0; i < len; i++) {
+        auto a_character = a[i];
+        auto b_character = b[i];
+
+        if (a_character != b_character) {
+            auto a_primary_weight = ascii_collation_primary_weights[a_character];
+            // We bail for control characters so that we don't have to compare secondary weights.
+            if (a_primary_weight == 0)
+                return {};
+            auto b_primary_weight = ascii_collation_primary_weights[b_character];
+            if (b_primary_weight == 0)
+                return {};
+            if (a_primary_weight != b_primary_weight)
+                return a_primary_weight < b_primary_weight ? -1 : 1;
+            if (a.length() != b.length())
+                return a.length() < b.length() ? -1 : 1;
+            auto a_tertiary_weight = ascii_collation_tertiary_weights[a_character];
+            auto b_tertiary_weight = ascii_collation_tertiary_weights[b_character];
+            if (a_tertiary_weight != b_tertiary_weight)
+                return a_tertiary_weight < b_tertiary_weight ? -1 : 1;
+        }
+    }
+    if (a.length() != b.length())
+        return a.length() < b.length() ? -1 : 1;
+
+    return 0;
+}
+
 // 22.1.3.12 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.localecompare
 // 20.1.1 String.prototype.localeCompare ( that [ , locales [ , options ] ] ), https://tc39.es/ecma402/#sup-String.prototype.localeCompare
 JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
@@ -572,6 +628,11 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
         // OPTIMIZATION: Identical strings are equal with the default options.
         if (string == that_value)
             return Value(0);
+        // OPTIMIZATION: If both strings are ASCII, use a comparison that doesn't invoke ICU.
+        if (string.has_ascii_storage() && that_value.has_ascii_storage()) {
+            if (auto maybe_result = try_fast_ascii_string_compare(string.ascii_view(), that_value.ascii_view()); maybe_result.has_value())
+                return Value(*maybe_result);
+        }
         collator = realm.intrinsics().default_collator();
     } else {
         collator = TRY(construct(vm, realm.intrinsics().intl_collator_constructor(), locales, options));
