@@ -142,6 +142,16 @@ void EventLoop::unregister_notifier(Badge<Notifier>, Notifier& notifier)
     EventLoopManager::the().unregister_notifier(notifier);
 }
 
+void EventLoop::register_process(pid_t pid, ESCAPING Function<void(pid_t)> handler)
+{
+    EventLoopManager::the().register_process(pid, move(handler));
+}
+
+void EventLoop::unregister_process(pid_t pid)
+{
+    EventLoopManager::the().unregister_process(pid);
+}
+
 void EventLoop::wake()
 {
     m_impl->wake();
