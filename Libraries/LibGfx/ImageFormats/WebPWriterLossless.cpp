@@ -39,7 +39,7 @@ struct IsOpaque {
 NEVER_INLINE static ErrorOr<void> write_image_data(LittleEndianOutputBitStream& bit_stream, Bitmap const& bitmap, PrefixCodeGroup const& prefix_code_group)
 {
     // This is currently the hot loop. Keep performance in mind when you change it.
-    for (ARGB32 pixel : bitmap) {
+    for (BGRA8888 pixel : bitmap) {
         u8 a = pixel >> 24;
         u8 r = pixel >> 16;
         u8 g = pixel >> 8;
@@ -275,7 +275,7 @@ static ErrorOr<void> write_VP8L_coded_image(ImageKind image_kind, LittleEndianOu
     // FIXME: Consider using a meta-prefix image and using one prefix-code-group per tile.
 
     Array<Array<u16, 256>, 4> symbol_frequencies {};
-    for (ARGB32 pixel : bitmap) {
+    for (BGRA8888 pixel : bitmap) {
         static constexpr auto saturating_increment = [](u16& value) {
             if (value < UINT16_MAX)
                 value++;
@@ -322,10 +322,10 @@ static ErrorOr<void> write_VP8L_coded_image(ImageKind image_kind, LittleEndianOu
     return {};
 }
 
-static ARGB32 sub_argb32(ARGB32 a, ARGB32 b)
+static BGRA8888 sub_argb32(BGRA8888 a, BGRA8888 b)
 {
-    auto a_color = Color::from_argb(a);
-    auto b_color = Color::from_argb(b);
+    auto a_color = Color::from_bgra(a);
+    auto b_color = Color::from_bgra(b);
     return Color(a_color.red() - b_color.red(),
         a_color.green() - b_color.green(),
         a_color.blue() - b_color.blue(),
@@ -337,10 +337,10 @@ static ErrorOr<NonnullRefPtr<Bitmap const>> maybe_write_color_indexing_transform
 {
     // https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification#44_color_indexing_transform
     unsigned color_table_size = 0;
-    HashTable<ARGB32> seen_colors;
-    ARGB32 channels = 0;
-    ARGB32 first_pixel = bitmap->get_pixel(0, 0).value();
-    for (ARGB32 pixel : *bitmap) {
+    HashTable<BGRA8888> seen_colors;
+    BGRA8888 channels = 0;
+    BGRA8888 first_pixel = bitmap->get_pixel(0, 0).value();
+    for (BGRA8888 pixel : *bitmap) {
         auto result = seen_colors.set(pixel);
         if (result == HashSetResult::InsertedNewEntry) {
             ++color_table_size;
@@ -377,21 +377,21 @@ static ErrorOr<NonnullRefPtr<Bitmap const>> maybe_write_color_indexing_transform
     TRY(bit_stream.write_bits(color_table_size - 1, 8u));
 
     // Store color index to bit stream.
-    Vector<ARGB32, 256> colors;
-    for (ARGB32 color : seen_colors)
+    Vector<BGRA8888, 256> colors;
+    for (BGRA8888 color : seen_colors)
         colors.append(color);
     quick_sort(colors.begin(), colors.end());
 
     // "The color table is stored using the image storage format itself." [...]
     // "The color table is always subtraction-coded to reduce image entropy."
     auto color_index_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, { static_cast<int>(color_table_size), 1 }));
-    color_index_bitmap->set_pixel(0, 0, Color::from_argb(colors[0]));
+    color_index_bitmap->set_pixel(0, 0, Color::from_bgra(colors[0]));
     for (unsigned i = 1; i < color_table_size; ++i)
-        color_index_bitmap->set_pixel(i, 0, Color::from_argb(sub_argb32(colors[i], colors[i - 1])));
+        color_index_bitmap->set_pixel(i, 0, Color::from_bgra(sub_argb32(colors[i], colors[i - 1])));
     TRY(write_VP8L_coded_image(ImageKind::EntropyCoded, bit_stream, *color_index_bitmap, is_fully_opaque));
 
     // Return a new bitmap with the color indexing transform applied.
-    HashMap<ARGB32, u8> color_index_map;
+    HashMap<BGRA8888, u8> color_index_map;
     for (unsigned i = 0; i < color_table_size; ++i)
         color_index_map.set(colors[i], i);
 

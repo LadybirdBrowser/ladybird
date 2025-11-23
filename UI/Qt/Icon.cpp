@@ -29,7 +29,7 @@ QIcon create_tvg_icon_with_theme_colors(QString const& name, QPalette const& pal
     VERIFY(icon_engine);
 
     auto icon_filter = [](QColor color) {
-        return [color = Color::from_argb(color.rgba64().toArgb32())](Gfx::Color icon_color) {
+        return [color = Color::from_bgra(color.rgba64().toArgb32())](Gfx::Color icon_color) {
             return color.with_alpha((icon_color.alpha() * color.alpha()) / 255);
         };
     };

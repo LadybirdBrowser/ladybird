@@ -28,7 +28,7 @@ public:
     Color color(ColorRole role) const
     {
         VERIFY((int)role < (int)ColorRole::__Count);
-        return Color::from_argb(theme().color[(int)role]);
+        return Color::from_bgra(theme().color[(int)role]);
     }
 
     Gfx::TextAlignment alignment(AlignmentRole role) const
