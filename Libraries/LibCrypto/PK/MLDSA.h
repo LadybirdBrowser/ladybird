@@ -47,6 +47,8 @@ public:
     ByteBuffer const& public_key() const { return m_public_key; }
     ByteBuffer const& private_key() const { return m_private_key; }
 
+    ErrorOr<ByteBuffer> export_as_der() const;
+
 private:
     ByteBuffer m_seed;
     ByteBuffer m_public_key;
@@ -63,6 +65,7 @@ class MLDSA : public PKSystem<MLDSAPrivateKey, MLDSAPublicKey> {
 public:
     using KeyPairType = MLDSAKeyPair<PublicKeyType, PrivateKeyType>;
 
+    static ErrorOr<KeyPairType> parse_mldsa_key(MLDSASize, ReadonlyBytes der, Vector<StringView> current_scope);
     static ErrorOr<KeyPairType> generate_key_pair(MLDSASize, ByteBuffer seed = {});
 
     MLDSA(MLDSASize size, PrivateKeyType const& priv_key, ByteBuffer context)
