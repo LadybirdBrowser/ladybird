@@ -6,9 +6,17 @@
 
 #pragma once
 
+#include <AK/RefPtr.h>
+#include <AK/StringView.h>
+#include <AK/WeakPtr.h>
+#include <LibGC/Weak.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/PaintingSurface.h>
+#include <LibSyntax/Language.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -51,6 +59,9 @@ public:
 
     RefPtr<Gfx::Bitmap> bitmap() const;
 
+    void set_inherited_language(Optional<String>);
+    void set_inherited_direction(DOM::Element::Directionality);
+
     WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
     WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
 
@@ -67,6 +78,11 @@ public:
     void set_oncontextrestored(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncontextrestored();
 
+    void set_placeholder_canvas(AK::WeakPtr<HTML::HTMLCanvasElement> placeholder_canvas);
+
+    void allocate_painting_surface_if_needed();
+    RefPtr<Gfx::PaintingSurface> surface() const;
+
 private:
     OffscreenCanvas(JS::Realm&, RefPtr<Gfx::Bitmap> bitmap);
 
@@ -81,10 +97,14 @@ private:
 
     void reset_context_to_default_state();
     WebIDL::ExceptionOr<void> set_new_bitmap_size(Gfx::IntSize new_size);
-
-    Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
+    struct Detached { };
+    Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Detached, Empty> m_context;
 
     RefPtr<Gfx::Bitmap> m_bitmap;
+
+    Optional<GC::Weak<HTML::HTMLCanvasElement>> m_placeholder_canvas;
+    Optional<String> m_inherited_language;
+    DOM::Element::Directionality m_inherited_direction;
 };
 
 }
