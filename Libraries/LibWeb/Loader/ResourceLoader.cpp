@@ -10,7 +10,6 @@
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
 #include <LibGC/Function.h>
-#include <LibHTTP/HttpResponse.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>

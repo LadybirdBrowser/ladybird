@@ -1,6 +1,5 @@
 set(SOURCES
     HttpRequest.cpp
-    HttpResponse.cpp
 )
 
 ladybird_lib(LibHTTP http)
