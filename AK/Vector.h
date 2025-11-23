@@ -20,6 +20,7 @@
 #include <AK/TypedTransfer.h>
 #include <AK/kmalloc.h>
 #include <initializer_list>
+#include <string.h>
 
 namespace AK {
 
@@ -878,8 +879,14 @@ public:
 
         TRY(try_ensure_capacity(new_size));
 
-        for (size_t i = size(); i < new_size; ++i)
-            new (slot(i)) StorageType {};
+        if constexpr (Traits<StorageType>::is_trivial()) {
+            // For trivial types, we can just zero the new memory.
+            size_t old_size = size();
+            memset(slot(old_size), 0, (new_size - old_size) * sizeof(StorageType));
+        } else {
+            for (size_t i = size(); i < new_size; ++i)
+                new (slot(i)) StorageType {};
+        }
         m_size = new_size;
         update_metadata(); // We have *some* space, try_ensure_capacity above ensured nonzero.
         return {};
