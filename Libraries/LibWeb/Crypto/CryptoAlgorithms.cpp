@@ -8590,7 +8590,19 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
         result = JS::ArrayBuffer::create(m_realm, data);
     }
     // FIXME  -> If format is "pkcs8":
-    // FIXME  -> If format is "raw-public":
+    //   -> If format is "raw-public":
+    else if (format == Bindings::KeyFormat::RawPublic) {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Public)
+            return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
+
+        // 2. Let data be a byte sequence containing the ML-DSA public key represented by the [[handle]] internal slot of key.
+        VERIFY(handle.has<::Crypto::PK::MLDSAPublicKey>());
+        auto const data = handle.get<::Crypto::PK::MLDSAPublicKey>().public_key();
+
+        // 3. Let result be data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
     // FIXME  -> If format is "raw-seed":
     // FIXME  -> If format is "jwk":
     //   -> Otherwise:
