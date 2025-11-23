@@ -187,9 +187,10 @@ void FormAssociatedElement::reset_form_owner()
     if (is_listed() && html_element.has_attribute(HTML::AttributeNames::form) && html_element.is_connected()) {
         // 1. If the first element in element's tree, in tree order, to have an ID that is identical to element's form content attribute's value, is a form element, then associate the element with that form element.
         auto form_value = html_element.attribute(HTML::AttributeNames::form);
-        html_element.root().for_each_in_inclusive_subtree_of_type<HTMLFormElement>([this, &form_value](HTMLFormElement& form_element) {
-            if (form_element.id() == form_value) {
-                set_form(&form_element);
+        html_element.root().for_each_in_inclusive_subtree_of_type<HTMLElement>([this, &form_value](auto& element) {
+            if (element.id() == form_value) {
+                if (is<HTMLFormElement>(element))
+                    set_form(as<HTMLFormElement>(&element));
                 return TraversalDecision::Break;
             }
 
