@@ -2287,7 +2287,27 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
         auto animation_fill_mode_style_value = coordinated_properties.get(PropertyID::AnimationFillMode).value()[i];
         auto animation_composition_style_value = coordinated_properties.get(PropertyID::AnimationComposition).value()[i];
 
-        auto duration = Time::from_style_value(animation_duration_style_value, {}).to_milliseconds();
+        // https://drafts.csswg.org/css-animations-2/#animation-duration
+        auto duration = [&] -> Variant<double, String> {
+            // auto
+            if (animation_duration_style_value->to_keyword() == Keyword::Auto) {
+                // For time-driven animations, equivalent to 0s.
+                return 0;
+
+                // FIXME: For scroll-driven animations, equivalent to the duration necessary to fill the timeline in
+                //        consideration of animation-range, animation-delay, and animation-iteration-count. See
+                //        Scroll-driven Animations § 4.1 Finite Timeline Calculations.
+            }
+
+            // <time [0s,∞]>
+
+            // FIXME: For scroll-driven animations, treated as auto.
+
+            // For time-driven animations, specifies the length of time that an animation takes to complete one cycle.
+            // A negative <time> is invalid.
+            return Time::from_style_value(animation_duration_style_value, {}).to_milliseconds();
+        }();
+
         auto timing_function = EasingFunction::from_style_value(animation_timing_function_style_value);
 
         auto iteration_count = [&] {
