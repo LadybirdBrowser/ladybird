@@ -43,6 +43,11 @@ struct JsonWebKey {
     Optional<Vector<RsaOtherPrimesInfo>> oth;
     Optional<String> k;
 
+    // https://wicg.github.io/webcrypto-modern-algos/#partial-JsonWebKey-dictionary
+    // The following fields are defined in draft-ietf-cose-dilithium-07
+    Optional<String> pub;
+    Optional<String> priv;
+
     JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
 
     static JS::ThrowCompletionOr<JsonWebKey> parse(JS::Realm& realm, ReadonlyBytes data);
