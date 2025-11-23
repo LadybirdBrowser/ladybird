@@ -1371,6 +1371,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
         define_an_algorithm<MLDSA, ContextParams>("verify"_string, name);
         define_an_algorithm<MLDSA>("generateKey"_string, name);
         define_an_algorithm<MLDSA>("importKey"_string, name);
+        define_an_algorithm<MLDSA>("exportKey"_string, name);
     }
 
     return internal_object;
