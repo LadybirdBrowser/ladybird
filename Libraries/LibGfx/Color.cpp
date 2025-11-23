@@ -188,7 +188,7 @@ Optional<Color> Color::from_named_css_color_string(StringView string)
         return {};
 
     struct WebColor {
-        ARGB32 color;
+        BGRA8888 color;
         StringView name;
     };
 
@@ -349,7 +349,7 @@ Optional<Color> Color::from_named_css_color_string(StringView string)
 
     for (auto const& web_color : web_colors) {
         if (string.equals_ignoring_ascii_case(web_color.name))
-            return Color::from_rgb(web_color.color);
+            return Color::from_bgrx(web_color.color);
     }
 
     return {};
@@ -431,7 +431,7 @@ Optional<Color> Color::from_string(StringView string)
         return parse_rgba_color(string);
 
     if (string.equals_ignoring_ascii_case("transparent"sv))
-        return Color::from_argb(0x00000000);
+        return Color::from_bgra(0x00000000);
 
     if (auto const color = from_named_css_color_string(string); color.has_value())
         return color;
@@ -639,7 +639,7 @@ template<>
 ErrorOr<Gfx::Color> IPC::decode(Decoder& decoder)
 {
     auto rgba = TRY(decoder.decode<u32>());
-    return Gfx::Color::from_argb(rgba);
+    return Gfx::Color::from_bgra(rgba);
 }
 
 ErrorOr<void> AK::Formatter<Gfx::Color>::format(FormatBuilder& builder, Gfx::Color value)

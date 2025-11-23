@@ -70,18 +70,18 @@ public:
 
     [[nodiscard]] u8* scanline_u8(int physical_y);
     [[nodiscard]] u8 const* scanline_u8(int physical_y) const;
-    [[nodiscard]] ARGB32* scanline(int physical_y);
-    [[nodiscard]] ARGB32 const* scanline(int physical_y) const;
+    [[nodiscard]] BGRA8888* scanline(int physical_y);
+    [[nodiscard]] BGRA8888 const* scanline(int physical_y) const;
 
     [[nodiscard]] u8* unchecked_scanline_u8(int physical_y);
     [[nodiscard]] u8 const* unchecked_scanline_u8(int physical_y) const;
-    [[nodiscard]] ARGB32* unchecked_scanline(int physical_y);
-    [[nodiscard]] ARGB32 const* unchecked_scanline(int physical_y) const;
+    [[nodiscard]] BGRA8888* unchecked_scanline(int physical_y);
+    [[nodiscard]] BGRA8888 const* unchecked_scanline(int physical_y) const;
 
-    [[nodiscard]] ARGB32* begin();
-    [[nodiscard]] ARGB32 const* begin() const;
-    [[nodiscard]] ARGB32* end();
-    [[nodiscard]] ARGB32 const* end() const;
+    [[nodiscard]] BGRA8888* begin();
+    [[nodiscard]] BGRA8888 const* begin() const;
+    [[nodiscard]] BGRA8888* end();
+    [[nodiscard]] BGRA8888 const* end() const;
     [[nodiscard]] size_t data_size() const;
 
     [[nodiscard]] IntRect rect() const { return { {}, m_size }; }
@@ -164,14 +164,14 @@ ALWAYS_INLINE u8 const* Bitmap::unchecked_scanline_u8(int y) const
     return reinterpret_cast<u8 const*>(m_data) + (y * m_pitch);
 }
 
-ALWAYS_INLINE ARGB32* Bitmap::unchecked_scanline(int y)
+ALWAYS_INLINE BGRA8888* Bitmap::unchecked_scanline(int y)
 {
-    return reinterpret_cast<ARGB32*>(unchecked_scanline_u8(y));
+    return reinterpret_cast<BGRA8888*>(unchecked_scanline_u8(y));
 }
 
-ALWAYS_INLINE ARGB32 const* Bitmap::unchecked_scanline(int y) const
+ALWAYS_INLINE BGRA8888 const* Bitmap::unchecked_scanline(int y) const
 {
-    return reinterpret_cast<ARGB32 const*>(unchecked_scanline_u8(y));
+    return reinterpret_cast<BGRA8888 const*>(unchecked_scanline_u8(y));
 }
 
 ALWAYS_INLINE u8* Bitmap::scanline_u8(int y)
@@ -188,34 +188,34 @@ ALWAYS_INLINE u8 const* Bitmap::scanline_u8(int y) const
     return unchecked_scanline_u8(y);
 }
 
-ALWAYS_INLINE ARGB32* Bitmap::scanline(int y)
+ALWAYS_INLINE BGRA8888* Bitmap::scanline(int y)
 {
-    return reinterpret_cast<ARGB32*>(scanline_u8(y));
+    return reinterpret_cast<BGRA8888*>(scanline_u8(y));
 }
 
-ALWAYS_INLINE ARGB32 const* Bitmap::scanline(int y) const
+ALWAYS_INLINE BGRA8888 const* Bitmap::scanline(int y) const
 {
-    return reinterpret_cast<ARGB32 const*>(scanline_u8(y));
+    return reinterpret_cast<BGRA8888 const*>(scanline_u8(y));
 }
 
-ALWAYS_INLINE ARGB32* Bitmap::begin()
+ALWAYS_INLINE BGRA8888* Bitmap::begin()
 {
     return scanline(0);
 }
 
-ALWAYS_INLINE ARGB32 const* Bitmap::begin() const
+ALWAYS_INLINE BGRA8888 const* Bitmap::begin() const
 {
     return scanline(0);
 }
 
-ALWAYS_INLINE ARGB32* Bitmap::end()
+ALWAYS_INLINE BGRA8888* Bitmap::end()
 {
-    return reinterpret_cast<ARGB32*>(reinterpret_cast<u8*>(m_data) + data_size());
+    return reinterpret_cast<BGRA8888*>(reinterpret_cast<u8*>(m_data) + data_size());
 }
 
-ALWAYS_INLINE ARGB32 const* Bitmap::end() const
+ALWAYS_INLINE BGRA8888 const* Bitmap::end() const
 {
-    return reinterpret_cast<ARGB32 const*>(reinterpret_cast<u8 const*>(m_data) + data_size());
+    return reinterpret_cast<BGRA8888 const*>(reinterpret_cast<u8 const*>(m_data) + data_size());
 }
 
 ALWAYS_INLINE size_t Bitmap::data_size() const
@@ -230,13 +230,13 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
     auto pixel = scanline(y)[x];
     switch (m_format) {
     case BitmapFormat::BGRx8888:
-        return Color::from_rgb(pixel);
+        return Color::from_bgrx(pixel);
     case BitmapFormat::BGRA8888:
-        return Color::from_argb(pixel);
+        return Color::from_bgra(pixel);
     case BitmapFormat::RGBA8888:
-        return Color::from_abgr(pixel);
+        return Color::from_rgba(pixel);
     case BitmapFormat::RGBx8888:
-        return Color::from_bgr(pixel);
+        return Color::from_rgbx(pixel);
     case BitmapFormat::Invalid:
         VERIFY_NOT_REACHED();
     }

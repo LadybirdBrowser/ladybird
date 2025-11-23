@@ -17,7 +17,9 @@
 
 namespace Gfx {
 
-typedef u32 ARGB32;
+// Named after in memory-order (little-endian)
+// e.g. 0xAARRGGBB
+using BGRA8888 = u32;
 
 enum class AlphaType {
     Premultiplied,
@@ -139,14 +141,14 @@ public:
 
     static constexpr Color branded_color(BrandedColor);
 
-    static constexpr Color from_rgb(unsigned rgb) { return Color(rgb | 0xff000000); }
-    static constexpr Color from_argb(unsigned argb) { return Color(argb); }
-    static constexpr Color from_abgr(unsigned abgr)
+    static constexpr Color from_bgrx(unsigned bgrx) { return Color(bgrx | 0xff000000); }
+    static constexpr Color from_bgra(unsigned bgra) { return Color(bgra); }
+    static constexpr Color from_rgba(unsigned rgba)
     {
-        unsigned argb = (abgr & 0xff00ff00) | ((abgr & 0xff0000) >> 16) | ((abgr & 0xff) << 16);
-        return Color::from_argb(argb);
+        unsigned bgra = (rgba & 0xff00ff00) | ((rgba & 0xff0000) >> 16) | ((rgba & 0xff) << 16);
+        return Color::from_bgra(bgra);
     }
-    static constexpr Color from_bgr(unsigned bgr) { return Color::from_abgr(bgr | 0xff000000); }
+    static constexpr Color from_rgbx(unsigned rgbx) { return Color::from_rgba(rgbx | 0xff000000); }
 
     static constexpr Color from_yuv(YUV const& yuv) { return from_yuv(yuv.y, yuv.u, yuv.v); }
     static constexpr Color from_yuv(float y, float u, float v)
@@ -464,7 +466,7 @@ public:
         return Color(((other.m_value ^ m_value) & 0x00ffffff) | (m_value & 0xff000000));
     }
 
-    constexpr ARGB32 value() const { return m_value; }
+    constexpr BGRA8888 value() const { return m_value; }
 
     constexpr bool operator==(Color other) const
     {
@@ -595,12 +597,12 @@ public:
     }
 
 private:
-    constexpr explicit Color(ARGB32 argb)
+    constexpr explicit Color(BGRA8888 argb)
         : m_value(argb)
     {
     }
 
-    ARGB32 m_value { 0 };
+    BGRA8888 m_value { 0 };
 };
 
 constexpr Color::Color(NamedColor named)
@@ -695,41 +697,41 @@ constexpr Color Color::branded_color(BrandedColor color)
 {
     // clang-format off
     switch (color) {
-    case BrandedColor::Indigo10:     return from_rgb(0xa5'a6'f2);
-    case BrandedColor::Indigo20:     return from_rgb(0x8a'88'eb);
-    case BrandedColor::Indigo30:     return from_rgb(0x68'51'd6);
-    case BrandedColor::Indigo40:     return from_rgb(0x55'3f'c4);
-    case BrandedColor::Indigo50:     return from_rgb(0x4d'37'b8);
-    case BrandedColor::Indigo60:     return from_rgb(0x3c'28'a1);
-    case BrandedColor::Indigo80:     return from_rgb(0x30'1f'82);
-    case BrandedColor::Indigo100:    return from_rgb(0x2a'13'73);
-    case BrandedColor::Indigo300:    return from_rgb(0x26'0f'73);
-    case BrandedColor::Indigo500:    return from_rgb(0x1d'0c'59);
-    case BrandedColor::Indigo900:    return from_rgb(0x19'0c'4a);
+    case BrandedColor::Indigo10:     return from_bgrx(0xa5'a6'f2);
+    case BrandedColor::Indigo20:     return from_bgrx(0x8a'88'eb);
+    case BrandedColor::Indigo30:     return from_bgrx(0x68'51'd6);
+    case BrandedColor::Indigo40:     return from_bgrx(0x55'3f'c4);
+    case BrandedColor::Indigo50:     return from_bgrx(0x4d'37'b8);
+    case BrandedColor::Indigo60:     return from_bgrx(0x3c'28'a1);
+    case BrandedColor::Indigo80:     return from_bgrx(0x30'1f'82);
+    case BrandedColor::Indigo100:    return from_bgrx(0x2a'13'73);
+    case BrandedColor::Indigo300:    return from_bgrx(0x26'0f'73);
+    case BrandedColor::Indigo500:    return from_bgrx(0x1d'0c'59);
+    case BrandedColor::Indigo900:    return from_bgrx(0x19'0c'4a);
 
-    case BrandedColor::Violet10:     return from_rgb(0xe0'd4'ff);
-    case BrandedColor::Violet20:     return from_rgb(0xca'b5'ff);
-    case BrandedColor::Violet30:     return from_rgb(0xc3'ab'ff);
-    case BrandedColor::Violet40:     return from_rgb(0xb4'96'ff);
-    case BrandedColor::Violet50:     return from_rgb(0xab'8e'f5);
-    case BrandedColor::Violet60:     return from_rgb(0x9d'7c'f2);
-    case BrandedColor::Violet80:     return from_rgb(0x93'6f'ed);
-    case BrandedColor::Violet100:    return from_rgb(0x8a'64'e5);
-    case BrandedColor::Violet300:    return from_rgb(0x82'57'e6);
-    case BrandedColor::Violet500:    return from_rgb(0x7a'4c'e6);
-    case BrandedColor::Violet900:    return from_rgb(0x6a'39'db);
+    case BrandedColor::Violet10:     return from_bgrx(0xe0'd4'ff);
+    case BrandedColor::Violet20:     return from_bgrx(0xca'b5'ff);
+    case BrandedColor::Violet30:     return from_bgrx(0xc3'ab'ff);
+    case BrandedColor::Violet40:     return from_bgrx(0xb4'96'ff);
+    case BrandedColor::Violet50:     return from_bgrx(0xab'8e'f5);
+    case BrandedColor::Violet60:     return from_bgrx(0x9d'7c'f2);
+    case BrandedColor::Violet80:     return from_bgrx(0x93'6f'ed);
+    case BrandedColor::Violet100:    return from_bgrx(0x8a'64'e5);
+    case BrandedColor::Violet300:    return from_bgrx(0x82'57'e6);
+    case BrandedColor::Violet500:    return from_bgrx(0x7a'4c'e6);
+    case BrandedColor::Violet900:    return from_bgrx(0x6a'39'db);
 
-    case BrandedColor::SlateBlue10:  return from_rgb(0xcb'e0'f7);
-    case BrandedColor::SlateBlue20:  return from_rgb(0xc1'd9'f5);
-    case BrandedColor::SlateBlue30:  return from_rgb(0xb6'd2'f2);
-    case BrandedColor::SlateBlue40:  return from_rgb(0xa8'c8'ed);
-    case BrandedColor::SlateBlue50:  return from_rgb(0x97'bc'e6);
-    case BrandedColor::SlateBlue60:  return from_rgb(0x86'ad'd9);
-    case BrandedColor::SlateBlue80:  return from_rgb(0x77'a1'd1);
-    case BrandedColor::SlateBlue100: return from_rgb(0x6d'98'cc);
-    case BrandedColor::SlateBlue300: return from_rgb(0x5c'8e'cc);
-    case BrandedColor::SlateBlue500: return from_rgb(0x54'84'bf);
-    case BrandedColor::SlateBlue900: return from_rgb(0x48'72'a3);
+    case BrandedColor::SlateBlue10:  return from_bgrx(0xcb'e0'f7);
+    case BrandedColor::SlateBlue20:  return from_bgrx(0xc1'd9'f5);
+    case BrandedColor::SlateBlue30:  return from_bgrx(0xb6'd2'f2);
+    case BrandedColor::SlateBlue40:  return from_bgrx(0xa8'c8'ed);
+    case BrandedColor::SlateBlue50:  return from_bgrx(0x97'bc'e6);
+    case BrandedColor::SlateBlue60:  return from_bgrx(0x86'ad'd9);
+    case BrandedColor::SlateBlue80:  return from_bgrx(0x77'a1'd1);
+    case BrandedColor::SlateBlue100: return from_bgrx(0x6d'98'cc);
+    case BrandedColor::SlateBlue300: return from_bgrx(0x5c'8e'cc);
+    case BrandedColor::SlateBlue500: return from_bgrx(0x54'84'bf);
+    case BrandedColor::SlateBlue900: return from_bgrx(0x48'72'a3);
     }
     // clang-format on
 

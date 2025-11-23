@@ -21,7 +21,7 @@
 
 namespace Web::Painting {
 
-static constexpr auto CONTROL_BOX_COLOR = Gfx::Color::from_rgb(0x26'26'26);
+static constexpr auto CONTROL_BOX_COLOR = Gfx::Color::from_bgrx(0x26'26'26);
 static constexpr auto CONTROL_BUTTON_COLOR = Gfx::Color::branded_color(Gfx::Color::BrandedColor::Violet);
 static constexpr auto CONTROL_HIGHLIGHT_COLOR = Gfx::Color::branded_color(Gfx::Color::BrandedColor::Violet60);
 

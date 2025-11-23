@@ -586,7 +586,7 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
     auto palette = Gfx::Palette(move(palette_impl));
 
     auto translate = [&](Gfx::ColorRole gfx_color_role, QPalette::ColorRole qt_color_role) {
-        auto new_color = Gfx::Color::from_argb(qt_palette.color(qt_color_role).rgba());
+        auto new_color = Gfx::Color::from_bgra(qt_palette.color(qt_color_role).rgba());
         palette.set_color(gfx_color_role, new_color);
     };
 

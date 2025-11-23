@@ -32,7 +32,7 @@ public:
         return ExifOrientedBitmap(move(bitmap), size, orientation);
     }
 
-    template<OneOf<ARGB32, CMYK> Value>
+    template<OneOf<BGRA8888, CMYK> Value>
     void set_pixel(u32 x, u32 y, Value color)
     {
         auto const new_position = oriented_position(IntPoint(x, y));
