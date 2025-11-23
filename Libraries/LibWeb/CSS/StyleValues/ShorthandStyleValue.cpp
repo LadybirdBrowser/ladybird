@@ -78,19 +78,27 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return { value.release_nonnull() };
     };
 
-    auto const coordinating_value_list_shorthand_to_string = [&](StringView entry_when_all_longhands_initial, Vector<PropertyID> required_longhands = {}) {
+    auto const coordinating_value_list_shorthand_to_string = [&](StringView entry_when_all_longhands_initial, Vector<PropertyID> const& required_longhands = {}, Vector<PropertyID> const& reset_only_longhands = {}) {
+        for (auto reset_only_longhand : reset_only_longhands) {
+            if (!longhand(reset_only_longhand)->equals(property_initial_value(reset_only_longhand)))
+                return ""_string;
+        }
+
         auto entry_count = style_value_as_value_list(longhand(m_properties.sub_properties[0])).size();
 
-        // If we don't have the same number of values for each longhand, we can't serialize this shorthand.
-        if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return style_value_as_value_list(longhand(longhand_id)).size() != entry_count; }))
+        // If we don't have the same number of values for each non-reset-only longhand, we can't serialize this shorthand.
+        if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return !reset_only_longhands.contains_slow(longhand_id) && style_value_as_value_list(longhand(longhand_id)).size() != entry_count; }))
             return ""_string;
 
-        // We should serialize a longhand if:
+        // We should serialize a longhand if it is not a reset-only longhand and one of the following is true:
         // - The longhand is required
         // - The value is not the initial value
         // - Another longhand value which will be included later in the serialization is valid for this longhand.
         auto should_serialize_longhand = [&](size_t entry_index, size_t longhand_index) {
             auto longhand_id = m_properties.sub_properties[longhand_index];
+
+            if (reset_only_longhands.contains_slow(longhand_id))
+                return false;
 
             if (required_longhands.contains_slow(longhand_id))
                 return true;
@@ -102,6 +110,10 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
             for (size_t other_longhand_index = longhand_index + 1; other_longhand_index < m_properties.sub_properties.size(); other_longhand_index++) {
                 auto other_longhand_id = m_properties.sub_properties[other_longhand_index];
+
+                if (reset_only_longhands.contains_slow(other_longhand_id))
+                    continue;
+
                 auto other_longhand_value = style_value_as_value_list(longhand(other_longhand_id))[entry_index];
 
                 // FIXME: This should really account for the other longhand being included in the serialization for any reason, not just because it is not the initial value.
@@ -121,13 +133,14 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
 
             for (size_t longhand_index = 0; longhand_index < m_properties.sub_properties.size(); longhand_index++) {
                 auto longhand_id = m_properties.sub_properties[longhand_index];
-                auto longhand_value = style_value_as_value_list(longhand(longhand_id))[entry_index];
 
                 if (!should_serialize_longhand(entry_index, longhand_index))
                     continue;
 
                 if (!builder.is_empty() && !first)
                     builder.append(' ');
+
+                auto longhand_value = style_value_as_value_list(longhand(longhand_id))[entry_index];
 
                 builder.append(longhand_value->to_string(mode));
                 first = false;
