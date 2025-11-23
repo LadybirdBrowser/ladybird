@@ -7,6 +7,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>

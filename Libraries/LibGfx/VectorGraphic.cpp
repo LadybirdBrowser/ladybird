@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/VectorGraphic.h>
 

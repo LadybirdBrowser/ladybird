@@ -9,7 +9,6 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>

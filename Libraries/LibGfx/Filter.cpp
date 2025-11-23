@@ -6,6 +6,7 @@
 
 #include <LibGfx/Filter.h>
 #include <LibGfx/FilterImpl.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
 #include <core/SkBlendMode.h>
 #include <core/SkColorFilter.h>

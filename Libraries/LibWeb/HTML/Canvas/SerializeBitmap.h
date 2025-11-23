@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::HTML {

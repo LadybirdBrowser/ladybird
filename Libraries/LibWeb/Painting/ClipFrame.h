@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/ScrollFrame.h>

@@ -11,6 +11,7 @@
 
 #include <AK/Optional.h>
 #include <AK/TemporaryChange.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Enums.h>

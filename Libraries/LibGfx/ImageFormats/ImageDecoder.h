@@ -20,8 +20,6 @@
 
 namespace Gfx {
 
-class Bitmap;
-
 struct ImageFrameDescriptor {
     NonnullRefPtr<Bitmap> image;
     int duration { 0 };
