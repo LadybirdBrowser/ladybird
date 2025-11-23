@@ -98,7 +98,7 @@ RefPtr<StyleValue const> Parser::parse_simple_comma_separated_value_list(Propert
     });
 }
 
-RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenStream<ComponentValue>& tokens, PropertyID shorthand_id, Vector<PropertyID> const& longhand_ids)
+RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenStream<ComponentValue>& tokens, PropertyID shorthand_id, Vector<PropertyID> const& longhand_ids, Vector<PropertyID> const& reset_only_longhand_ids = {})
 {
     HashMap<PropertyID, StyleValueVector> longhand_vectors;
 
@@ -144,23 +144,25 @@ RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenSt
 
     transaction.commit();
 
+    Vector<PropertyID> longhand_ids_including_reset_only_longhands;
+    longhand_ids_including_reset_only_longhands.extend(longhand_ids);
+    longhand_ids_including_reset_only_longhands.extend(reset_only_longhand_ids);
+    StyleValueVector longhand_values {};
+
     // FIXME: This is for compatibility with parse_comma_separated_value_list(), which returns a single value directly
     //        instead of a list if there's only one, it would be nicer if we always returned a list.
     if (longhand_vectors.get(longhand_ids[0])->size() == 1) {
-        StyleValueVector longhand_values {};
-
         for (auto const& longhand_id : longhand_ids)
             longhand_values.append((*longhand_vectors.get(longhand_id))[0]);
-
-        return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
+    } else {
+        for (auto const& longhand_id : longhand_ids)
+            longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
     }
 
-    StyleValueVector longhand_values {};
+    for (auto reset_only_longhand_id : reset_only_longhand_ids)
+        longhand_values.append(property_initial_value(reset_only_longhand_id));
 
-    for (auto const& longhand_id : longhand_ids)
-        longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
-
-    return ShorthandStyleValue::create(shorthand_id, longhand_ids, longhand_values);
+    return ShorthandStyleValue::create(shorthand_id, longhand_ids_including_reset_only_longhands, longhand_values);
 }
 
 RefPtr<StyleValue const> Parser::parse_css_value_for_property(PropertyID property_id, TokenStream<ComponentValue>& tokens)
