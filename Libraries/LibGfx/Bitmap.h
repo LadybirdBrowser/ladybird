@@ -39,29 +39,6 @@ inline bool is_valid_bitmap_format(u32 const format)
     }
 }
 
-enum class StorageFormat {
-    BGRx8888,
-    BGRA8888,
-    RGBA8888,
-    RGBx8888,
-};
-
-inline StorageFormat determine_storage_format(BitmapFormat format)
-{
-    switch (format) {
-    case BitmapFormat::BGRx8888:
-        return StorageFormat::BGRx8888;
-    case BitmapFormat::BGRA8888:
-        return StorageFormat::BGRA8888;
-    case BitmapFormat::RGBA8888:
-        return StorageFormat::RGBA8888;
-    case BitmapFormat::RGBx8888:
-        return StorageFormat::RGBx8888;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 enum class MaskKind {
     Alpha,
     Luminance
@@ -251,33 +228,36 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
     VERIFY(x >= 0);
     VERIFY(x < width());
     auto pixel = scanline(y)[x];
-    switch (determine_storage_format(m_format)) {
-    case StorageFormat::BGRx8888:
+    switch (m_format) {
+    case BitmapFormat::BGRx8888:
         return Color::from_rgb(pixel);
-    case StorageFormat::BGRA8888:
+    case BitmapFormat::BGRA8888:
         return Color::from_argb(pixel);
-    case StorageFormat::RGBA8888:
+    case BitmapFormat::RGBA8888:
         return Color::from_abgr(pixel);
-    case StorageFormat::RGBx8888:
+    case BitmapFormat::RGBx8888:
         return Color::from_bgr(pixel);
-    default:
+    case BitmapFormat::Invalid:
         VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
 }
 
 ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
 {
-    switch (determine_storage_format(m_format)) {
-    case StorageFormat::BGRx8888:
-    case StorageFormat::BGRA8888:
+    switch (m_format) {
+    case BitmapFormat::BGRx8888:
+    case BitmapFormat::BGRA8888:
         scanline(y)[x] = color.value();
         return;
-    case StorageFormat::RGBA8888:
+    case BitmapFormat::RGBA8888:
         scanline(y)[x] = (color.alpha() << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
-    case StorageFormat::RGBx8888:
+    case BitmapFormat::RGBx8888:
         scanline(y)[x] = (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
+    case BitmapFormat::Invalid:
+        VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
 }
