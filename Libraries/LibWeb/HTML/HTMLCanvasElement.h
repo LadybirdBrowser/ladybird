@@ -6,14 +6,19 @@
 
 #pragma once
 
+#include <AK/Weakable.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibJS/Runtime/Completion.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
-class HTMLCanvasElement final : public HTMLElement {
+class HTMLCanvasElement final : public HTMLElement
+    , public AK::Weakable<HTMLCanvasElement> {
     WEB_PLATFORM_OBJECT(HTMLCanvasElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
@@ -42,6 +47,7 @@ public:
     String to_data_url(StringView type, JS::Value quality);
     WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality);
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
+    JS::ThrowCompletionOr<GC::Ref<OffscreenCanvas>> transfer_control_to_offscreen();
 
     void present();
 
@@ -65,7 +71,7 @@ private:
     void reset_context_to_default_state();
     void notify_context_about_canvas_size_change();
 
-    Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
+    Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, GC::Ref<OffscreenCanvas>, Empty> m_context;
 };
 
 }
