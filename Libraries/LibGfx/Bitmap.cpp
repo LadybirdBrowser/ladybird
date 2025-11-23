@@ -34,11 +34,11 @@ struct BackingStore {
 size_t Bitmap::minimum_pitch(size_t width, BitmapFormat format)
 {
     size_t element_size;
-    switch (determine_storage_format(format)) {
-    case StorageFormat::BGRx8888:
-    case StorageFormat::BGRA8888:
-    case StorageFormat::RGBx8888:
-    case StorageFormat::RGBA8888:
+    switch (format) {
+    case BitmapFormat::BGRx8888:
+    case BitmapFormat::BGRA8888:
+    case BitmapFormat::RGBx8888:
+    case BitmapFormat::RGBA8888:
         element_size = 4;
         break;
     default:
