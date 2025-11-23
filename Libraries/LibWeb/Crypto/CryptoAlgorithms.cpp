@@ -8645,7 +8645,19 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
         // 3. Let result be data.
         result = JS::ArrayBuffer::create(m_realm, data);
     }
-    // FIXME  -> If format is "raw-seed":
+    //   -> If format is "raw-seed":
+    else if (format == Bindings::KeyFormat::RawSeed) {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Private)
+            return WebIDL::InvalidAccessError::create(m_realm, "Key is not a private key"_utf16);
+
+        // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
+        VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
+        auto const data = handle.get<::Crypto::PK::MLDSAPrivateKey>().seed();
+
+        // 3. Let result be data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
     // FIXME  -> If format is "jwk":
     //   -> Otherwise:
     else {
