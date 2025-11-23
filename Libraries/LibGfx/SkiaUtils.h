@@ -32,7 +32,10 @@ constexpr SkColorType to_skia_color_type(Gfx::BitmapFormat format)
     case Gfx::BitmapFormat::Invalid:
         return kUnknown_SkColorType;
     case Gfx::BitmapFormat::BGRA8888:
+        return kBGRA_8888_SkColorType;
     case Gfx::BitmapFormat::BGRx8888:
+        // FIXME: This is not fully correct, since our bitmap's alpha component might contain garbage data.
+        // If the alpha component does not contain 0xFF, Skia might wrongly use that value as alpha.
         return kBGRA_8888_SkColorType;
     case Gfx::BitmapFormat::RGBA8888:
         return kRGBA_8888_SkColorType;
