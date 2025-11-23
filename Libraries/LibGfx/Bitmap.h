@@ -62,6 +62,11 @@ inline StorageFormat determine_storage_format(BitmapFormat format)
     }
 }
 
+enum class MaskKind {
+    Alpha,
+    Luminance
+};
+
 struct BackingStore;
 
 class Bitmap : public AtomicRefCounted<Bitmap> {
@@ -81,11 +86,6 @@ public:
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap_backed_by_anonymous_buffer() const;
 
     [[nodiscard]] ShareableBitmap to_shareable_bitmap() const;
-
-    enum class MaskKind {
-        Alpha,
-        Luminance
-    };
 
     void apply_mask(Gfx::Bitmap const& mask, MaskKind);
 

@@ -13,6 +13,7 @@
  */
 
 #include <AK/Debug.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>

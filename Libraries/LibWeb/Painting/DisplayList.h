@@ -12,7 +12,6 @@
 #include <AK/SegmentedVector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>

@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Cursor.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 

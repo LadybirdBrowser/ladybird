@@ -10,7 +10,9 @@
  */
 
 #include <AK/OwnPtr.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Runtime/TypedArray.h>

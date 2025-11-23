@@ -5,6 +5,7 @@
  */
 
 #include <AK/MemoryStream.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>

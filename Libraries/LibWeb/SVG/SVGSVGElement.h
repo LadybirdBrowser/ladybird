@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibGfx/Bitmap.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>

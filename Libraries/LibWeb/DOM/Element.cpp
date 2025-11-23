@@ -12,6 +12,8 @@
 #include <AK/IterationDecision.h>
 #include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>

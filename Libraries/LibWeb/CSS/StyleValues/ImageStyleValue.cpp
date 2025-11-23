@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>

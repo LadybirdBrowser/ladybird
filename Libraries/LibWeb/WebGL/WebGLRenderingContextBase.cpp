@@ -12,6 +12,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>

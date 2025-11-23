@@ -8,7 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Tuple.h>
-#include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ViewTransitionPrototype.h>
 #include <LibWeb/CSS/Enums.h>

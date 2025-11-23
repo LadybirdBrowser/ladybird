@@ -9,7 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
-#include <LibGfx/Bitmap.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 
 namespace Web::HTML {

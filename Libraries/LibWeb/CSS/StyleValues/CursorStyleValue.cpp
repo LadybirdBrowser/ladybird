@@ -5,6 +5,7 @@
  */
 
 #include "CursorStyleValue.h"
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Painter.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>

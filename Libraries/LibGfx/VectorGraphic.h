@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibGfx/Bitmap.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Size.h>

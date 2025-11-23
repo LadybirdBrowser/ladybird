@@ -7,22 +7,30 @@
 #pragma once
 
 #include <AK/RefPtr.h>
-#include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 
 namespace Gfx {
 
 class ShareableBitmap {
 public:
-    ShareableBitmap() = default;
+    ShareableBitmap();
 
     enum Tag { ConstructWithKnownGoodBitmap };
     ShareableBitmap(NonnullRefPtr<Gfx::Bitmap>, Tag);
 
-    bool is_valid() const { return m_bitmap; }
+    ~ShareableBitmap();
 
-    Bitmap const* bitmap() const { return m_bitmap; }
-    Bitmap* bitmap() { return m_bitmap; }
+    ShareableBitmap(ShareableBitmap const&);
+    ShareableBitmap(ShareableBitmap&&);
+
+    ShareableBitmap& operator=(ShareableBitmap const&);
+    ShareableBitmap& operator=(ShareableBitmap&&);
+
+    bool is_valid() const;
+
+    Bitmap const* bitmap() const;
+    Bitmap* bitmap();
 
 private:
     friend class Bitmap;

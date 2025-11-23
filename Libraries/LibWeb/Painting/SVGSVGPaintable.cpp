@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>

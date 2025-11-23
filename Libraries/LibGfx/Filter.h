@@ -9,7 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 

@@ -13,7 +13,7 @@
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
 
 namespace Web::HTML {

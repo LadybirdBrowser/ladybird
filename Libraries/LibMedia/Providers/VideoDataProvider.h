@@ -13,7 +13,6 @@
 #include <AK/Queue.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
-#include <LibGfx/Bitmap.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>

@@ -10,7 +10,6 @@
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Palette.h>
@@ -140,7 +139,7 @@ public:
     void apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
     void apply_filter(Gfx::Filter filter);
     void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
-    void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::Bitmap::MaskKind);
+    void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::MaskKind);
 
     DisplayListRecorder(DisplayList&);
     ~DisplayListRecorder();

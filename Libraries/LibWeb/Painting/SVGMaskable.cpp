@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
@@ -51,25 +52,25 @@ Optional<CSSPixelRect> SVGMaskable::get_masking_area_of_svg() const
     return masking_area;
 }
 
-static Gfx::Bitmap::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
+static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
 {
     switch (mask_type) {
     case CSS::MaskType::Alpha:
-        return Gfx::Bitmap::MaskKind::Alpha;
+        return Gfx::MaskKind::Alpha;
     case CSS::MaskType::Luminance:
-        return Gfx::Bitmap::MaskKind::Luminance;
+        return Gfx::MaskKind::Luminance;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
-Optional<Gfx::Bitmap::MaskKind> SVGMaskable::get_mask_type_of_svg() const
+Optional<Gfx::MaskKind> SVGMaskable::get_mask_type_of_svg() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     if (auto* mask_box = get_mask_box(graphics_element))
         return mask_type_to_gfx_mask_kind(mask_box->computed_values().mask_type());
     if (get_clip_box(graphics_element))
-        return Gfx::Bitmap::MaskKind::Alpha;
+        return Gfx::MaskKind::Alpha;
     return {};
 }
 
@@ -113,7 +114,7 @@ RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(DisplayListRecor
         auto clip_bitmap = paint_mask_or_clip(clip_paintable);
         // Combine the clip-path with the mask (if present).
         if (mask_bitmap && clip_bitmap)
-            mask_bitmap->apply_mask(*clip_bitmap, Gfx::Bitmap::MaskKind::Alpha);
+            mask_bitmap->apply_mask(*clip_bitmap, Gfx::MaskKind::Alpha);
         if (!mask_bitmap)
             mask_bitmap = clip_bitmap;
     }

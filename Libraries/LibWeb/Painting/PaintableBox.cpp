@@ -10,6 +10,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
@@ -1431,6 +1432,11 @@ Optional<CSSPixelRect> PaintableBox::get_masking_area() const
         return {};
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
     return absolute_border_box_rect();
+}
+
+RefPtr<Gfx::ImmutableBitmap> PaintableBox::calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const
+{
+    return {};
 }
 
 // https://www.w3.org/TR/css-transforms-1/#reference-box

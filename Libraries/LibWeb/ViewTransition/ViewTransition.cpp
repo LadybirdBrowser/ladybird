@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>

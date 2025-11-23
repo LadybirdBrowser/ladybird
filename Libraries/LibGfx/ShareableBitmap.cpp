@@ -13,10 +13,25 @@
 
 namespace Gfx {
 
+ShareableBitmap::ShareableBitmap() = default;
+
 ShareableBitmap::ShareableBitmap(NonnullRefPtr<Bitmap> bitmap, Tag)
     : m_bitmap(move(bitmap))
 {
 }
+
+ShareableBitmap::~ShareableBitmap() = default;
+
+ShareableBitmap::ShareableBitmap(ShareableBitmap const&) = default;
+ShareableBitmap::ShareableBitmap(ShareableBitmap&&) = default;
+
+ShareableBitmap& ShareableBitmap::operator=(ShareableBitmap const&) = default;
+ShareableBitmap& ShareableBitmap::operator=(ShareableBitmap&&) = default;
+
+bool ShareableBitmap::is_valid() const { return m_bitmap; }
+
+Bitmap const* ShareableBitmap::bitmap() const { return m_bitmap; }
+Bitmap* ShareableBitmap::bitmap() { return m_bitmap; }
 
 }
 

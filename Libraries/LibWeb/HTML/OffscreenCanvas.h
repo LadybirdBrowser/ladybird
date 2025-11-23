@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
