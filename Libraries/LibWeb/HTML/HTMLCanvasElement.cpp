@@ -4,8 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Base64.h>
 #include <AK/Checked.h>
+#include <AK/Format.h>
+#include <AK/Try.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
+#include <AK/WeakPtr.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -20,7 +28,9 @@
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/CanvasBox.h>
@@ -28,6 +38,8 @@
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -59,6 +71,9 @@ void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
             visitor.visit(context);
         },
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            visitor.visit(context);
+        },
+        [&](GC::Ref<OffscreenCanvas>& context) {
             visitor.visit(context);
         },
         [](Empty) {
@@ -142,6 +157,9 @@ void HTMLCanvasElement::reset_context_to_default_state()
         [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->reset_to_default_state();
         },
+        [](GC::Ref<OffscreenCanvas>&) {
+            // FIXME: reset offscreen canvas
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -158,6 +176,9 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
         },
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->set_size(bitmap_size_for_canvas());
+        },
+        [&](GC::Ref<OffscreenCanvas>&) {
+            // FIXME: throw invalid state error
         },
         [](Empty) {
             // Do nothing.
@@ -368,6 +389,33 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-transfercontroltooffscreen
+JS::ThrowCompletionOr<GC::Ref<OffscreenCanvas>> HTMLCanvasElement::transfer_control_to_offscreen()
+{
+    // 1. If this canvas element's context mode is not set to none, throw an "InvalidStateError" DOMException.
+    if (!m_context.has<Empty>()) {
+        return throw_completion(WebIDL::InvalidStateError::create(realm(), Utf16String::formatted("Context mode is none")));
+    }
+
+    // 2. Let offscreenCanvas be a new OffscreenCanvas object with its width and height equal to the values of the width and height content attributes of this canvas element.
+    auto offscreen_canvas = OffscreenCanvas::create(this->realm(), width(), height());
+
+    // 3. Set the offscreenCanvas's placeholder canvas element to a weak reference to this canvas element.
+    offscreen_canvas->set_placeholder_canvas(this->make_weak_ptr());
+
+    // 4. Set this canvas element's context mode to placeholder.
+    m_context = offscreen_canvas;
+
+    // 5. Set the offscreenCanvas's inherited language to the language of this canvas element.
+    offscreen_canvas->set_inherited_language(lang());
+
+    // 6. Set the offscreenCanvas's inherited direction to the directionality of this canvas element.
+    offscreen_canvas->set_inherited_direction(directionality());
+
+    // 7. Return offscreenCanvas.
+    return offscreen_canvas;
+}
+
 RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
 {
     // It is possible the canvas doesn't have an associated bitmap so create one
@@ -403,6 +451,9 @@ void HTMLCanvasElement::present()
         [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->present();
         },
+        [](GC::Ref<OffscreenCanvas>&) {
+            // Do nothing.
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -420,6 +471,9 @@ RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
         [&](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
             return context->surface();
         },
+        [&](GC::Ref<OffscreenCanvas> const& context) {
+            return context->surface();
+        },
         [](Empty) -> RefPtr<Gfx::PaintingSurface> {
             return {};
         });
@@ -435,6 +489,9 @@ void HTMLCanvasElement::allocate_painting_surface_if_needed()
             context->allocate_painting_surface_if_needed();
         },
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            context->allocate_painting_surface_if_needed();
+        },
+        [&](GC::Ref<OffscreenCanvas>& context) {
             context->allocate_painting_surface_if_needed();
         },
         [](Empty) {
