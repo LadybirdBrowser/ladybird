@@ -21,19 +21,22 @@ namespace Gfx {
 
 struct ImmutableBitmapImpl;
 
+#define ENUMERATE_EXPORT_FORMATS(X) \
+    X(Gray8)                        \
+    X(Alpha8)                       \
+    X(RGB565)                       \
+    X(RGBA5551)                     \
+    X(RGBA4444)                     \
+    X(RGB888)                       \
+    X(RGBA8888)
+
 enum class ExportFormat : u8 {
-    // 8 bit
-    Gray8,
-    Alpha8,
-    // 16 bit
-    RGB565,
-    RGBA5551,
-    RGBA4444,
-    // 24 bit
-    RGB888,
-    // 32 bit
-    RGBA8888,
+#define ENUMERATE_EXPORT_FORMAT(format) format,
+    ENUMERATE_EXPORT_FORMATS(ENUMERATE_EXPORT_FORMAT)
+#undef ENUMERATE_EXPORT_FORMAT
 };
+
+[[nodiscard]] StringView export_format_name(ExportFormat);
 
 struct ExportFlags {
     enum : u8 {

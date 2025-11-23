@@ -3,6 +3,7 @@ set(TEST_SOURCES
     TestColor.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
+    TestImmutableBitmap.cpp
     TestQuad.cpp
     TestRect.cpp
     TestWOFF.cpp
