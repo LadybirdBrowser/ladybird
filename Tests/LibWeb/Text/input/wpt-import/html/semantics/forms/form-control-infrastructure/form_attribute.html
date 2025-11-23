@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div>
+      <form id="f1"></form>
+      <form id="f2">
+        <input id="i1" />
+        <input id="i2" form="f1" />
+        <input id="i3" />
+      </form>
+      <script>
+        test(function() {
+          var i1 = document.getElementById("i1");
+          var i2 = document.getElementById("i2");
+          var i3 = document.getElementById("i3");
+          var f1 = document.getElementById("f1");
+          var f2 = document.getElementById("f2");
+
+          assert_equals(i1.form, f2,
+            "i1 must be associated with f2 by the parser");
+          assert_equals(i2.form, f1,
+            "i2 is not associated with f2 by the parser " +
+            "since it has the form attribute set to f1");
+
+          f1.appendChild(i1);
+          i3.setAttribute("form", "f1");
+
+          assert_equals(i1.form, f1,
+            "i1's form owner must be reset when parent changes");
+          assert_equals(i3.form, f1,
+            "i3's form owner must be reset when the form" +
+            "attribute is set");
+
+          assert_equals(i2.form, f1);
+        }, "Tests for parser inserted controls");
+      </script>
+    </div>
+
+    <div id="placeholder">
+    </div>
+
+    <script>
+      var reassociateableElements = [
+        "button",
+        "fieldset",
+        "input",
+        "object",
+        "output",
+        "select",
+        "textarea",
+      ];
+
+      var form1 = null;
+      var form2 = null;
+      var placeholder = document.getElementById("placeholder");
+
+      reassociateableElements.forEach(function(localName) {
+        function testControl(test_, desc) {
+          test(function() {
+            var control = document.createElement(localName);
+
+          while(placeholder.firstChild)
+            placeholder.removeChild(placeholder.firstChild);
+
+            form1 = document.createElement("form");
+            form2 = document.createElement("form");
+            form1.id = "form1";
+            form2.id = "form2";
+            placeholder.appendChild(form1);
+            placeholder.appendChild(form2);
+
+            test_.call(control);
+          }, "[" + localName.toUpperCase() + "] " + desc);
+        }
+
+        testControl(function() {
+          form1.appendChild(this);
+          assert_equals(this.form, form1);
+        }, "Basic form association - control with no form attribute is associated with ancestor");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+          form1.appendChild(this);
+          assert_equals(this.form, form1);
+
+          form1.id = "form-one";
+          assert_equals(this.form, null);
+        }, "Form owner is reset to null when control's form attribute is set to an ID " +
+           "that does not exist in the document");
+
+        testControl(function() {
+          this.setAttribute("form", "");
+          form1.appendChild(this);
+          assert_equals(this.form, null);
+        }, "Control whose form attribute is an empty string has no form owner");
+
+        testControl(function() {
+          form1.id = "";
+          this.setAttribute("form", "");
+          form1.appendChild(this);
+          assert_equals(this.form, null);
+        }, "Control whose form attribute is an empty string has no form owner " +
+           "even when form with empty attribute is present");
+
+        testControl(function() {
+          form1.id = "FORM1";
+          this.setAttribute("form", "form1");
+          form1.appendChild(this);
+          assert_equals(this.form, null);
+        }, "Control's form attribute must be a case sensitive match for the form's id");
+
+        testControl(function() {
+          form1.appendChild(this);
+          assert_equals(this.form, form1);
+
+          this.setAttribute("form", "form2");
+          assert_equals(this.form, form2);
+        }, "Setting the form attribute of a control to the id of a non-ancestor form works");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+
+          form2.appendChild(this);
+          assert_equals(this.form, form1);
+
+          this.removeAttribute("form");
+          assert_equals(this.form, form2);
+        }, "Removing form id from a control resets the form owner to ancestor");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+
+          form2.appendChild(this);
+          assert_equals(this.form, form1);
+
+          placeholder.removeChild(form1);
+
+          assert_equals(this.form, null);
+        }, "Removing the form owner of a control with form attribute resets " +
+           "the form owner to null");
+
+        testControl(function() {
+          var form3 = document.createElement("form");
+          form3.id = "form3";
+          placeholder.appendChild(form3);
+          form3.appendChild(this);
+          assert_equals(this.form, form3);
+
+          this.setAttribute("form", "form2");
+          assert_equals(this.form, form2);
+
+          this.setAttribute("form", "form1");
+          assert_equals(this.form, form1);
+        }, "Changing form attibute of control resets form owner to correct form");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+          var form3 = document.createElement("form");
+          form3.id = "form3";
+
+          placeholder.appendChild(form3);
+          placeholder.appendChild(this);
+          assert_equals(this.form, form1);
+
+          form1.appendChild(this);
+          assert_equals(this.form, form1);
+
+          form2.appendChild(this);
+          assert_equals(this.form, form1);
+        }, "Moving a control with form attribute within the document " +
+           "does not change the form owner");
+
+        testControl(function() {
+          form1.id = "form-one";
+          this.setAttribute("form", "form1");
+          form2.appendChild(this);
+          assert_equals(this.form, null);
+
+          form1.id = "form1";
+          assert_equals(this.form, form1);
+        }, "When the id of a non-ancestor form changes from not being a match for the " +
+           "form attribute to being a match, the control's form owner is reset");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+          form1.appendChild(this);
+          assert_equals(this.form, form1);
+
+          form2.id = "form1";
+          form1.parentNode.insertBefore(form2, form1);
+          assert_equals(this.form, form2);
+
+          form2.parentNode.removeChild(form2);
+          assert_equals(this.form, form1);
+
+          form1.parentNode.appendChild(form2);
+          assert_equals(this.form, form1);
+        }, "When form element with same ID as the control's form attribute is inserted " +
+           "earlier in tree order, the form owner is changed to the inserted form");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+          form2.appendChild(this);
+          assert_equals(this.form, form1);
+
+          var span = document.createElement("span");
+          span.id = "form1";
+          form1.parentNode.insertBefore(span, form1);
+          assert_equals(this.form, null);
+
+          form1.parentNode.appendChild(span);
+          assert_equals(this.form, form1);
+        }, "When non-form element with same ID as the control's form attribute is " +
+           "inserted earlier in tree order, the control does not have a form owner");
+
+        testControl(function() {
+          this.setAttribute("form", "form1");
+          form1.appendChild(this);
+          assert_equals(this.form, form1);
+
+          form1.parentNode.removeChild(form1);
+          assert_equals(this.form, form1);
+        }, "A control that is not in the document but has the form attribute set " +
+           "is associated with the nearest ancestor form if one exists");
+
+      });
+    </script>
+  </body>
+</html>
