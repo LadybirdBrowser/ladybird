@@ -11,6 +11,8 @@
 #include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
 #include <LibGC/DeferGC.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRegex/Regex.h>
 #include <LibWeb/Animations/Animation.h>
