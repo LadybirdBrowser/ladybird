@@ -60,6 +60,8 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
     JWK_PARSE_STRING_PROPERTY(dq);
     JWK_PARSE_STRING_PROPERTY(qi);
     JWK_PARSE_STRING_PROPERTY(k);
+    JWK_PARSE_STRING_PROPERTY(pub);
+    JWK_PARSE_STRING_PROPERTY(priv);
 
     key.ext = json_object.get_bool("ext"sv);
 
@@ -148,6 +150,12 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> JsonWebKey::to_object(JS::Realm& real
 
     if (k.has_value())
         TRY(object->create_data_property("k"_utf16_fly_string, JS::PrimitiveString::create(vm, k.value())));
+
+    if (pub.has_value())
+        TRY(object->create_data_property("pub"_utf16_fly_string, JS::PrimitiveString::create(vm, pub.value())));
+
+    if (priv.has_value())
+        TRY(object->create_data_property("priv"_utf16_fly_string, JS::PrimitiveString::create(vm, priv.value())));
 
     return object;
 }
