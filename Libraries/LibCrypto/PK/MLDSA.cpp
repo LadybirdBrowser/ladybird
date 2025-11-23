@@ -6,6 +6,7 @@
 
 #include <LibCrypto/PK/MLDSA.h>
 
+#include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/OpenSSL.h>
 
 #include <openssl/core_names.h>
@@ -30,6 +31,110 @@ char const* mldsa_size_to_openssl_name(MLDSASize size)
     }
 }
 
+}
+
+static ErrorOr<ByteBuffer> read_mldsa_seed(ASN1::Decoder& decoder, Vector<StringView>& current_scope)
+{
+    // seed ::= OCTET STRING (SIZE (32))
+    READ_OBJECT(OctetString, StringView, seed_bits);
+
+    auto const seed = seed_bits.bytes();
+    if (seed.size() != 32) {
+        ERROR_WITH_SCOPE("Invalid seed length");
+    }
+    POP_SCOPE();
+
+    return ByteBuffer::copy(seed);
+}
+
+static ErrorOr<ByteBuffer> read_mldsa_private_key(MLDSASize size, ASN1::Decoder& decoder, Vector<StringView>& current_scope)
+{
+    // expandedKey ::= OCTET STRING (SIZE (2560 | 4032 | 4896))
+
+    ENTER_TYPED_SCOPE(OctetString, "expandedKey");
+    READ_OBJECT(OctetString, StringView, expanded_key_bits);
+
+    auto const expanded_key = expanded_key_bits.bytes();
+    switch (size) {
+    case MLDSA44:
+        if (expanded_key.size() != 2560) {
+            ERROR_WITH_SCOPE("Invalid expandedKey size");
+        }
+        break;
+    case MLDSA65:
+        if (expanded_key.size() != 4032) {
+            ERROR_WITH_SCOPE("Invalid expandedKey size");
+        }
+        break;
+    case MLDSA87:
+        if (expanded_key.size() != 4896) {
+            ERROR_WITH_SCOPE("Invalid expandedKey size");
+        }
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+    POP_SCOPE();
+
+    return ByteBuffer::copy(expanded_key);
+}
+
+ErrorOr<ByteBuffer> MLDSAPrivateKey::export_as_der() const
+{
+    ASN1::Encoder encoder;
+
+    TRY(encoder.write<ReadonlyBytes>(m_seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
+
+    return encoder.finish();
+}
+
+// https://www.rfc-editor.org/rfc/rfc9881.html#section-6
+ErrorOr<MLDSA::KeyPairType> MLDSA::parse_mldsa_key(MLDSASize size, ReadonlyBytes der, Vector<StringView> current_scope)
+{
+    ASN1::Decoder decoder(der);
+
+    // ML-DSA-PrivateKey ::= CHOICE {
+    //      seed [0] IMPLICIT OCTET STRING (SIZE (32)),
+    //      expandedKey OCTET STRING (SIZE (2560 | 4032 | 4896)),
+    //      both SEQUENCE {
+    //           seed OCTET STRING (SIZE (32)),
+    //           expandedKey OCTET STRING (SIZE (2560 | 4032 | 4896))
+    //      }
+    // }
+
+    if (decoder.eof()) {
+        return Error::from_string_literal("Input key is empty");
+    }
+
+    auto const tag = TRY(decoder.peek());
+    if (static_cast<u8>(tag.kind) == 0) {
+        REWRITE_TAG(OctetString);
+        return generate_key_pair(size, TRY(read_mldsa_seed(decoder, current_scope)));
+    }
+    if (tag.kind == ASN1::Kind::OctetString) {
+        return KeyPairType {
+            {},
+            { {}, {}, TRY(read_mldsa_private_key(size, decoder, current_scope)) }
+        };
+    }
+    if (tag.kind == ASN1::Kind::Sequence) {
+        ENTER_TYPED_SCOPE(Sequence, "both");
+        ENTER_TYPED_SCOPE(OctetString, "seed");
+        auto key_pair = TRY(generate_key_pair(size, TRY(read_mldsa_seed(decoder, current_scope))));
+        POP_SCOPE()
+
+        ENTER_TYPED_SCOPE(OctetString, "expandedKey");
+        if (auto const expanded_key = TRY(read_mldsa_private_key(size, decoder, current_scope));
+            key_pair.private_key.private_key() != expanded_key) {
+            ERROR_WITH_SCOPE("Invalid expanded_key");
+        }
+        POP_SCOPE();
+
+        POP_SCOPE();
+        return key_pair;
+    }
+
+    return Error::from_string_literal("Invalid key format");
 }
 
 ErrorOr<MLDSA::KeyPairType> MLDSA::generate_key_pair(MLDSASize size, ByteBuffer seed)
