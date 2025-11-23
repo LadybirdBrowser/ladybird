@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	.selectedOptions with no selected option
 Pass	.selectedOptions with one selected option
 Pass	.selectedOptions using the 'multiple' attribute with no selected options
@@ -11,4 +10,4 @@ Pass	.selectedOptions using the 'multiple' attribute with two selected options
 Pass	.selectedOptions without the 'multiple' attribute but more than one selected option should return the last one
 Pass	.selectedOptions should return `HTMLCollection` instance
 Pass	.selectedOptions should always return the same value - [SameObject]
-Fail	.selectedOptions should return the same object after selection changes - [SameObject]
+Pass	.selectedOptions should return the same object after selection changes - [SameObject]
