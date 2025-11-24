@@ -245,8 +245,9 @@ public:
     ALWAYS_INLINE ThrowCompletionOr(ValueType value)
         : m_value_or_error(move(value))
     {
-        if constexpr (IsSame<ValueType, Value>)
-            VERIFY(!m_value_or_error.template get<ValueType>().is_special_empty_value());
+        if constexpr (IsSame<ValueType, Value>) {
+            ASSERT(!m_value_or_error.template get<ValueType>().is_special_empty_value());
+        }
     }
 
     ALWAYS_INLINE ThrowCompletionOr(ThrowCompletionOr const&) = default;
