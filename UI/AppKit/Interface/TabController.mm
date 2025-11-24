@@ -145,7 +145,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)onURLChange:(URL::URL const&)url
 {
     [self setLocationFieldText:url.serialize()];
-    [self.window makeFirstResponder:[self tab].web_view];
+
+    // Don't steal focus from the location bar when loading the new tab page
+    if (url != WebView::Application::settings().new_tab_page_url()) {
+        [self.window makeFirstResponder:[self tab].web_view];
+    }
 }
 
 - (void)clearHistory

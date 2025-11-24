@@ -189,6 +189,7 @@
 
     if (activate_tab == Web::HTML::ActivateTab::Yes) {
         [[controller window] orderFrontRegardless];
+        [controller focusLocationToolbarItem];
     }
 
     [self.managed_tabs addObject:controller];
