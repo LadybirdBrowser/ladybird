@@ -8754,7 +8754,46 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
         // 3. Let result be data.
         result = JS::ArrayBuffer::create(m_realm, data);
     }
-    // FIXME  -> If format is "jwk":
+    //   -> If format is "jwk":
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // 1. Let jwk be a new JsonWebKey dictionary.
+        auto jwk = Bindings::JsonWebKey {};
+
+        // 2. Set the kty attribute of jwk to "AKP".
+        jwk.kty = "AKP"_string;
+
+        // 3. Set the alg attribute of jwk to the name member of normalizedAlgorithm.
+        jwk.alg = key->algorithm_name();
+
+        // 4. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
+        jwk.pub = TRY_OR_THROW_OOM(
+            vm,
+            encode_base64url(handle.visit(
+                                 [](::Crypto::PK::MLDSAPublicKey const& public_key) -> ByteBuffer { return public_key.public_key(); },
+                                 [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ByteBuffer { return private_key.public_key(); },
+                                 [](auto) -> ByteBuffer { VERIFY_NOT_REACHED(); }),
+                AK::OmitPadding::Yes));
+
+        // 5. -> If the [[type]] internal slot of key is "private":
+        //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
+        if (key->type() == Bindings::KeyType::Private) {
+            VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
+            jwk.priv = TRY_OR_THROW_OOM(vm, encode_base64url(handle.get<::Crypto::PK::MLDSAPrivateKey>().seed(), AK::OmitPadding::Yes));
+        }
+
+        // 6. Set the key_ops attribute of jwk to the usages attribute of key.
+        jwk.key_ops = Vector<String> {};
+        jwk.key_ops->ensure_capacity(key->internal_usages().size());
+        for (auto const& usage : key->internal_usages()) {
+            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+        }
+
+        // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+        jwk.ext = key->extractable();
+
+        // 8. Let result be jwk.
+        result = TRY(jwk.to_object(m_realm));
+    }
     //   -> Otherwise:
     else {
         // throw a NotSupportedError.
