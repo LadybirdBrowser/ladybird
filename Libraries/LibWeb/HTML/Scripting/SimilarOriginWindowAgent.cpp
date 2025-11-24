@@ -14,7 +14,7 @@ namespace Web::HTML {
 NonnullOwnPtr<SimilarOriginWindowAgent> SimilarOriginWindowAgent::create(GC::Heap& heap)
 {
     // See 'creating an agent' step in: https://html.spec.whatwg.org/multipage/webappapis.html#obtain-similar-origin-window-agent
-    auto agent = adopt_own(*new SimilarOriginWindowAgent(CanBlock::No));
+    auto agent = adopt_own(*new SimilarOriginWindowAgent(heap, CanBlock::No));
     agent->event_loop = heap.allocate<HTML::EventLoop>(HTML::EventLoop::Type::Window);
     return agent;
 }

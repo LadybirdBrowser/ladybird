@@ -731,15 +731,8 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
         surrounding_agent.mutation_observer_microtask_queued = false;
 
         // 2. Let notifySet be a clone of the surrounding agent’s pending mutation observers.
-        GC::RootVector<DOM::MutationObserver*> notify_set(heap);
-        for (auto& observer : surrounding_agent.pending_mutation_observers)
-            notify_set.append(&observer);
-
         // 3. Empty the surrounding agent’s pending mutation observers.
-        // NB: We instead do this at the end of the microtask. Steps 2 and 3 are equivalent to moving
-        //     surrounding_agent.pending_mutation_observers, but it's unmovable. Actually copying the MutationObservers
-        //     causes issues, so for now, keep notify_set as pointers and defer this step until after we've finished
-        //     using the notify_set.
+        auto notify_set = move(surrounding_agent.pending_mutation_observers);
 
         // 4. Let signalSet be a clone of the surrounding agent’s signal slots.
         // 5. Empty the surrounding agent’s signal slots.
@@ -788,9 +781,6 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
             event_init.bubbles = true;
             slot->dispatch_event(DOM::Event::create(slot->realm(), HTML::EventNames::slotchange, event_init));
         }
-
-        // NB: Step 3, done later.
-        surrounding_agent.pending_mutation_observers.clear();
     }));
 }
 
