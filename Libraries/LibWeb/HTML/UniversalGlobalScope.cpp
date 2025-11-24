@@ -13,13 +13,13 @@
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -71,7 +71,7 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::atob(String const& data) 
 
     // 3. Return decodedData.
     // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use isomorphic decoding to convert bytes to UTF-8.
-    return Infra::isomorphic_decode(decoded_data.value());
+    return TextCodec::isomorphic_decode(decoded_data.value());
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask

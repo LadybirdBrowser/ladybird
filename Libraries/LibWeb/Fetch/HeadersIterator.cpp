@@ -6,10 +6,10 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/HeadersIteratorPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/HeadersIterator.h>
-#include <LibWeb/Infra/Strings.h>
 
 namespace Web::Bindings {
 
@@ -66,8 +66,8 @@ GC::Ref<JS::Object> HeadersIterator::next()
         return create_iterator_result_object(vm(), JS::js_undefined(), true);
 
     auto const& pair = pairs[m_index++];
-    auto pair_name = Infra::isomorphic_decode(pair.name);
-    auto pair_value = Infra::isomorphic_decode(pair.value);
+    auto pair_name = TextCodec::isomorphic_decode(pair.name);
+    auto pair_value = TextCodec::isomorphic_decode(pair.value);
 
     switch (m_iteration_kind) {
     case JS::Object::PropertyKind::Key:

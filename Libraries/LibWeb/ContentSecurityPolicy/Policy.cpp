@@ -6,6 +6,7 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveFactory.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/SerializedDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
@@ -14,7 +15,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Infra/CharacterTypes.h>
-#include <LibWeb/Infra/Strings.h>
 
 namespace Web::ContentSecurityPolicy {
 
@@ -31,7 +31,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
     // 1. If serialized is a byte sequence, then set serialized to be the result of isomorphic decoding serialized.
     auto serialized_string = serialized.has<String>()
         ? serialized.get<String>()
-        : Infra::isomorphic_decode(serialized.get<ByteString>());
+        : TextCodec::isomorphic_decode(serialized.get<ByteString>());
 
     // 2. Let policy be a new policy with an empty directive set, a source of source, and a disposition of disposition.
     auto policy = heap.allocate<Policy>();

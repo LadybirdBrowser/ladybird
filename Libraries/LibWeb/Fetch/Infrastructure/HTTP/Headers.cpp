@@ -14,10 +14,10 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibRegex/Regex.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibTextCodec/Encoder.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
@@ -28,8 +28,8 @@ GC_DEFINE_ALLOCATOR(HeaderList);
 Header Header::isomorphic_encode(StringView name, StringView value)
 {
     return {
-        .name = Infra::isomorphic_encode(name),
-        .value = Infra::isomorphic_encode(value),
+        .name = TextCodec::isomorphic_encode(name),
+        .value = TextCodec::isomorphic_encode(value),
     };
 }
 
@@ -523,7 +523,7 @@ Vector<String> get_decode_and_split_header_value(StringView value)
     // To get, decode, and split a header value value, run these steps:
 
     // 1. Let input be the result of isomorphic decoding value.
-    auto input = Infra::isomorphic_decode(value);
+    auto input = TextCodec::isomorphic_decode(value);
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     GenericLexer lexer { input };
@@ -612,7 +612,7 @@ ByteString build_content_range(u64 range_start, u64 range_end, u64 full_length)
 Optional<RangeHeaderValue> parse_single_range_header_value(StringView const value, bool const allow_whitespace)
 {
     // 1. Let data be the isomorphic decoding of value.
-    auto const data = Infra::isomorphic_decode(value);
+    auto const data = TextCodec::isomorphic_decode(value);
 
     // 2. If data does not start with "bytes", then return failure.
     if (!data.starts_with_bytes("bytes"sv))
@@ -709,7 +709,7 @@ bool is_cors_safelisted_request_header(Header const& header)
             return false;
 
         // 2. Let mimeType be the result of parsing the result of isomorphic decoding value.
-        auto decoded = Infra::isomorphic_decode(value);
+        auto decoded = TextCodec::isomorphic_decode(value);
         auto mime_type = MimeSniff::MimeType::parse(decoded);
 
         // 3. If mimeType is failure, then return false.

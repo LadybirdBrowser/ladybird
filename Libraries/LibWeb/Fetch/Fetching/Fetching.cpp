@@ -14,6 +14,7 @@
 #include <AK/ScopeGuard.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibRequests/RequestTimingInfo.h>
+#include <LibTextCodec/Encoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -51,7 +52,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
@@ -1831,7 +1831,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 11. If httpRequest’s referrer is a URL, then:
         if (auto const* referrer_url = http_request->referrer().get_pointer<URL::URL>()) {
             // 1. Let referrerValue be httpRequest’s referrer, serialized and isomorphic encoded.
-            auto referrer_value = Infra::isomorphic_encode(referrer_url->serialize());
+            auto referrer_value = TextCodec::isomorphic_encode(referrer_url->serialize());
 
             // 2. Append (`Referer`, referrerValue) to httpRequest’s header list.
             http_request->header_list()->append({ "Referer"sv, move(referrer_value) });
