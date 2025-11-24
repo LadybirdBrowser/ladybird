@@ -8573,7 +8573,103 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const&
         // Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
-    // FIXME -> If format is "jwk":
+    //  -> If format is "jwk":
+    else if (key_format == Bindings::KeyFormat::Jwk) {
+        // 1.  => If keyData is a JsonWebKey dictionary:
+        //        Let jwk equal keyData.
+        //     => Otherwise:
+        //        Throw a DataError.
+        auto* const jwk = key_data.get_pointer<Bindings::JsonWebKey>();
+
+        if (!jwk)
+            return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_utf16);
+
+        // 2. If the priv field is present and usages contains a value which is not "sign", or, if the priv field is
+        //    not present and usages contains a value which is not "verify" then throw a SyntaxError.
+        if ((jwk->priv.has_value()
+                && usages.first_matching([](auto usage) { return usage != Bindings::KeyUsage::Sign; }).has_value())
+            || (!jwk->priv.has_value()
+                && usages.first_matching([](auto usage) { return usage != Bindings::KeyUsage::Verify; }).has_value())) {
+            return WebIDL::SyntaxError::create(m_realm, "Invalid usage"_utf16);
+        }
+
+        // 3. If the kty field of jwk is not "AKP", then throw a DataError.
+        if (jwk->kty != "AKP"_string)
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_utf16);
+
+        // 4. If the alg field of jwk is not equal to the name member of normalizedAlgorithm, then throw a DataError.
+        if (jwk->alg != params.name)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
+
+        // 5. If usages is non-empty and the use field of jwk is present and is not equal to "sig", then throw a DataError.
+        if (!usages.is_empty() && jwk->use.has_value() && jwk->use == "sig"_string)
+            return WebIDL::DataError::create(m_realm, "Invalid usage type"_utf16);
+
+        // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web
+        //    Key [JWK], or it does not contain all of the specified usages values, then throw a DataError.
+        TRY(validate_jwk_key_ops(m_realm, *jwk, usages));
+
+        // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        if (jwk->ext.has_value() && jwk->ext == false && extractable)
+            return WebIDL::DataError::create(m_realm, "Invalid ext field"_utf16);
+
+        // 8. => If the priv field of jwk is present:
+        if (jwk->priv.has_value()) {
+            // 1. If the priv attribute of jwk does not contain a valid base64url encoded seed
+            //    representing an ML-DSA private key, then throw a DataError.
+            auto const seed = TRY(base64_url_bytes_decode(m_realm, jwk->priv.value()));
+
+            // 2. Let key be a new CryptoKey object that represents the ML-DSA private key
+            //    identified by interpreting the priv attribute of jwk as a base64url encoded seed.
+            auto const [public_key, private_key] = [&] {
+                if (params.name == "ML-DSA-44")
+                    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, seed));
+                if (params.name == "ML-DSA-65")
+                    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65, seed));
+                if (params.name == "ML-DSA-87")
+                    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87, seed));
+                VERIFY_NOT_REACHED();
+            }();
+            key = CryptoKey::create(m_realm, private_key);
+
+            // 3. Set the [[type]] internal slot of Key to "private".
+            key->set_type(Bindings::KeyType::Private);
+
+            // 4. If the pub attribute of jwk does not contain the base64url encoded public key
+            //    representing the ML-DSA public key corresponding to key, then throw a DataError.
+            if (!jwk->pub.has_value())
+                return WebIDL::DataError::create(m_realm, "JsonWebKey does not contain public key"_utf16);
+
+            if (auto pub_decoded = base64_url_bytes_decode(m_realm, jwk->pub.value());
+                pub_decoded.is_error() || pub_decoded.value() != public_key.public_key())
+                return WebIDL::DataError::create(m_realm, "JsonWebKey public key does not match"_utf16);
+        }
+        //    => Otherwise:
+        else {
+            // 1. If the pub attribute of jwk does not contain a valid base64url encoded public key
+            //    representing an ML-DSA public key, then throw a DataError.
+            if (!jwk->pub.has_value())
+                return WebIDL::DataError::create(m_realm, "JsonWebKey does not contain public key"_utf16);
+
+            auto public_key = TRY(base64_url_bytes_decode(m_realm, jwk->pub.value()));
+
+            // 2. Let key be a new CryptoKey object that represents the ML-DSA public key
+            //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
+            key = CryptoKey::create(m_realm, ::Crypto::PK::MLDSAPublicKey { public_key });
+
+            // 3. Set the [[type]] internal slot of Key to "public".
+            key->set_type(Bindings::KeyType::Public);
+        }
+
+        // 9. Let algorithm be a new instance of a KeyAlgorithm object.
+        auto const algorithm = KeyAlgorithm::create(m_realm);
+
+        // 10. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // 11. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
     //    -> Otherwise:
     else {
         // throw a NotSupportedError.
