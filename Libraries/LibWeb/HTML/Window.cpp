@@ -1826,14 +1826,12 @@ Vector<FlyString> Window::supported_property_names() const
     //   that have a non-empty name content attribute and are in a document tree with window's associated Document as their root; and
     // - the value of the id content attribute for all HTML elements that have a non-empty id content attribute
     //   and are in a document tree with window's associated Document as their root.
-    associated_document().for_each_in_subtree_of_type<DOM::Element>([&property_names](auto& element) -> TraversalDecision {
-        if (is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element)) {
-            if (element.name().has_value())
-                property_names.set(element.name().value(), AK::HashSetExistingEntryBehavior::Keep);
-        }
-        if (auto const& name = element.id(); name.has_value())
-            property_names.set(name.value().to_string(), AK::HashSetExistingEntryBehavior::Keep);
-        return TraversalDecision::Continue;
+    for (auto element : associated_document().potentially_named_elements()) {
+        if (auto name = element->name(); name.has_value())
+            property_names.set(*name, AK::HashSetExistingEntryBehavior::Keep);
+    }
+    associated_document().element_by_id().for_each_id([&](auto id) {
+        property_names.set(id, AK::HashSetExistingEntryBehavior::Keep);
     });
 
     return property_names.values();
