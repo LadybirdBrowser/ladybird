@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
@@ -21,7 +22,9 @@
 template<typename T>
 static inline void decode_video(StringView path, size_t expected_frame_count, T create_decoder)
 {
-    auto matroska_reader = MUST(Media::Matroska::Reader::from_file(path));
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_byte_buffer(MUST(file->read_until_eof()));
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_stream(stream));
     u64 video_track = 0;
     MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
         video_track = track_entry.track_number();
@@ -66,12 +69,13 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
 {
     Core::EventLoop loop;
 
-    auto mapped_file = TRY_OR_FAIL(Core::MappedFile::map(path));
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_byte_buffer(MUST(file->read_until_eof()));
     auto demuxer = MUST([&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
-        auto matroska_result = Media::Matroska::MatroskaDemuxer::from_data(mapped_file->bytes());
+        auto matroska_result = Media::Matroska::MatroskaDemuxer::from_incrementally_populated_stream(stream);
         if (!matroska_result.is_error())
             return matroska_result.release_value();
-        return Media::FFmpeg::FFmpegDemuxer::from_data(mapped_file->bytes());
+        return Media::FFmpeg::FFmpegDemuxer::from_data(stream->data());
     }());
     auto mutexed_demuxer = make_ref_counted<Media::MutexedDemuxer>(demuxer);
     auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));

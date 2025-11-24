@@ -13,6 +13,7 @@
 #include <LibCore/MappedFile.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "Document.h"
 
@@ -25,10 +26,7 @@ class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
 
-    static DecoderErrorOr<Reader> from_file(StringView path);
-    static DecoderErrorOr<Reader> from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file);
-
-    static DecoderErrorOr<Reader> from_data(ReadonlyBytes data);
+    static DecoderErrorOr<Reader> from_stream(NonnullRefPtr<IncrementallyPopulatedStream> data);
 
     EBMLHeader const& header() const { return m_header.value(); }
 
@@ -45,8 +43,8 @@ public:
     DecoderErrorOr<bool> has_cues_for_track(u64 track_number);
 
 private:
-    Reader(ReadonlyBytes data)
-        : m_data(data)
+    Reader(NonnullRefPtr<IncrementallyPopulatedStream> stream)
+        : m_stream(stream)
     {
     }
 
@@ -63,8 +61,7 @@ private:
     DecoderErrorOr<void> ensure_cues_are_parsed();
     DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&);
 
-    RefPtr<Core::SharedMappedFile> m_mapped_file;
-    ReadonlyBytes m_data;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
 
     Optional<EBMLHeader> m_header;
 
@@ -93,23 +90,23 @@ public:
 private:
     friend class Reader;
 
-    SampleIterator(RefPtr<Core::SharedMappedFile> file, ReadonlyBytes data, TrackEntry& track, u64 timestamp_scale, size_t position)
-        : m_file(move(file))
-        , m_data(data)
+    SampleIterator(NonnullRefPtr<IncrementallyPopulatedStream> stream, TrackEntry& track, u64 timestamp_scale, size_t segment_contents_position, size_t position)
+        : m_stream(stream)
         , m_track(track)
         , m_segment_timestamp_scale(timestamp_scale)
+        , m_segment_contents_position(segment_contents_position)
         , m_position(position)
     {
     }
 
     DecoderErrorOr<void> seek_to_cue_point(CuePoint const& cue_point);
 
-    RefPtr<Core::SharedMappedFile> m_file;
-    ReadonlyBytes m_data;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
     NonnullRefPtr<TrackEntry> m_track;
     u64 m_segment_timestamp_scale { 0 };
 
     // Must always point to an element ID or the end of the stream.
+    size_t m_segment_contents_position { 0 };
     size_t m_position { 0 };
 
     Optional<AK::Duration> m_last_timestamp;
@@ -119,14 +116,10 @@ private:
 
 class Streamer {
 public:
-    Streamer(ReadonlyBytes data)
-        : m_data(data)
+    Streamer(NonnullRefPtr<IncrementallyPopulatedStream> stream)
+        : m_stream(stream)
     {
     }
-
-    u8 const* data() { return m_data.data() + m_position; }
-
-    char const* data_as_chars() { return reinterpret_cast<char const*>(data()); }
 
     size_t octets_read() { return m_octets_read.last(); }
 
@@ -139,32 +132,28 @@ public:
             m_octets_read.last() += popped;
     }
 
-    ErrorOr<u8> read_octet();
+    DecoderErrorOr<u8> read_octet();
 
-    ErrorOr<i16> read_i16();
+    DecoderErrorOr<i16> read_i16();
 
-    ErrorOr<u64> read_variable_size_integer(bool mask_length = true);
-    ErrorOr<i64> read_variable_size_signed_integer();
+    DecoderErrorOr<u64> read_variable_size_integer(bool mask_length = true);
+    DecoderErrorOr<i64> read_variable_size_signed_integer();
 
-    ErrorOr<u64> read_u64();
-    ErrorOr<double> read_float();
+    DecoderErrorOr<u64> read_u64();
+    DecoderErrorOr<double> read_float();
 
-    ErrorOr<String> read_string();
+    DecoderErrorOr<String> read_string();
 
-    ErrorOr<void> read_unknown_element();
+    DecoderErrorOr<void> read_unknown_element();
 
-    ErrorOr<ReadonlyBytes> read_raw_octets(size_t num_octets);
+    DecoderErrorOr<ByteBuffer> read_raw_octets(size_t num_octets);
 
     size_t position() const { return m_position; }
-    size_t remaining() const { return m_data.size() - position(); }
 
-    bool at_end() const { return remaining() == 0; }
-    bool has_octet() const { return remaining() >= 1; }
-
-    ErrorOr<void> seek_to_position(size_t position);
+    DecoderErrorOr<void> seek_to_position(size_t position);
 
 private:
-    ReadonlyBytes m_data;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
     size_t m_position { 0 };
     Vector<size_t> m_octets_read { 0 };
 };

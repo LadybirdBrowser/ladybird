@@ -23,7 +23,8 @@ namespace Media {
 DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(ReadonlyBytes data)
 {
     auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        auto matroska_result = Matroska::MatroskaDemuxer::from_data(data);
+        auto stream = IncrementallyPopulatedStream::create_from_byte_buffer(MUST(ByteBuffer::copy(data)));
+        auto matroska_result = Matroska::MatroskaDemuxer::from_incrementally_populated_stream(stream);
         if (!matroska_result.is_error())
             return matroska_result.release_value();
         return TRY(FFmpeg::FFmpegDemuxer::from_data(data));
