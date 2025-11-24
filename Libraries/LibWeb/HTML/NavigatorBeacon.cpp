@@ -61,12 +61,12 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
             cors_mode = Fetch::Infrastructure::Request::Mode::CORS;
 
             // If contentType value is a CORS-safelisted request-header value for the Content-Type header, set corsMode to "no-cors".
-            auto content_type_header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, content_type.value());
+            auto content_type_header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, content_type.value());
             if (Fetch::Infrastructure::is_cors_safelisted_request_header(content_type_header))
                 cors_mode = Fetch::Infrastructure::Request::Mode::NoCORS;
 
             // Append a Content-Type header with value contentType to headerList.
-            header_list->append(content_type_header);
+            header_list->append(move(content_type_header));
         }
     }
 
@@ -74,12 +74,12 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
 
     // 7.1 Let req be a new request, initialized as follows:
     auto req = Fetch::Infrastructure::Request::create(vm);
-    req->set_method(MUST(ByteBuffer::copy("POST"sv.bytes()))); // method: POST
-    req->set_client(&relevant_settings_object);                // client: this's relevant settings object
-    req->set_url_list({ parsed_url.release_value() });         // url: parsedUrl
-    req->set_header_list(header_list);                         // header list: headerList
-    req->set_origin(origin);                                   // origin: origin
-    req->set_keepalive(true);                                  // keepalive: true
+    req->set_method("POST"sv);                         // method: POST
+    req->set_client(&relevant_settings_object);        // client: this's relevant settings object
+    req->set_url_list({ parsed_url.release_value() }); // url: parsedUrl
+    req->set_header_list(header_list);                 // header list: headerList
+    req->set_origin(origin);                           // origin: origin
+    req->set_keepalive(true);                          // keepalive: true
     if (transmitted_data)
         req->set_body(GC::Ref<Fetch::Infrastructure::Body> { *transmitted_data });       // body: transmittedData
     req->set_mode(cors_mode);                                                            // mode: corsMode

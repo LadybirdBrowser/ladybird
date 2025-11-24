@@ -22,13 +22,13 @@ namespace Web::ReferrerPolicy {
 ReferrerPolicy parse_a_referrer_policy_from_a_referrer_policy_header(Fetch::Infrastructure::Response const& response)
 {
     // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
-    auto policy_tokens_or_failure = response.header_list()->extract_header_list_values("Referrer-Policy"sv.bytes());
+    auto policy_tokens_or_failure = response.header_list()->extract_header_list_values("Referrer-Policy"sv);
 
     // 2. Let policy be the empty string.
     auto policy = ReferrerPolicy::EmptyString;
 
     // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
-    if (auto const* policy_tokens = policy_tokens_or_failure.get_pointer<Vector<ByteBuffer>>()) {
+    if (auto const* policy_tokens = policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
         for (auto const& token : *policy_tokens) {
             auto referrer_policy = from_string(token);
             if (referrer_policy.has_value() && referrer_policy.value() != ReferrerPolicy::EmptyString)

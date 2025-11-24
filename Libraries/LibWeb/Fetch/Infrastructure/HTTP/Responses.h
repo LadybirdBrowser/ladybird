@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>
@@ -78,8 +78,8 @@ public:
     [[nodiscard]] virtual Status status() const { return m_status; }
     virtual void set_status(Status status) { m_status = status; }
 
-    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND { return m_status_message; }
-    virtual void set_status_message(ByteBuffer status_message) { m_status_message = move(status_message); }
+    [[nodiscard]] virtual ByteString const& status_message() const { return m_status_message; }
+    virtual void set_status_message(ByteString status_message) { m_status_message = move(status_message); }
 
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const { return m_header_list; }
     virtual void set_header_list(GC::Ref<HeaderList> header_list) { m_header_list = header_list; }
@@ -90,8 +90,8 @@ public:
     [[nodiscard]] virtual Optional<CacheState> const& cache_state() const { return m_cache_state; }
     virtual void set_cache_state(Optional<CacheState> cache_state) { m_cache_state = move(cache_state); }
 
-    [[nodiscard]] virtual Vector<ByteBuffer> const& cors_exposed_header_name_list() const { return m_cors_exposed_header_name_list; }
-    virtual void set_cors_exposed_header_name_list(Vector<ByteBuffer> cors_exposed_header_name_list) { m_cors_exposed_header_name_list = move(cors_exposed_header_name_list); }
+    [[nodiscard]] virtual Vector<ByteString> const& cors_exposed_header_name_list() const { return m_cors_exposed_header_name_list; }
+    virtual void set_cors_exposed_header_name_list(Vector<ByteString> cors_exposed_header_name_list) { m_cors_exposed_header_name_list = move(cors_exposed_header_name_list); }
 
     [[nodiscard]] virtual bool range_requested() const { return m_range_requested; }
     virtual void set_range_requested(bool range_requested) { m_range_requested = range_requested; }
@@ -103,10 +103,10 @@ public:
     virtual void set_timing_allow_passed(bool timing_allow_passed) { m_timing_allow_passed = timing_allow_passed; }
 
     [[nodiscard]] virtual BodyInfo const& body_info() const { return m_body_info; }
-    virtual void set_body_info(BodyInfo body_info) { m_body_info = body_info; }
+    virtual void set_body_info(BodyInfo body_info) { m_body_info = move(body_info); }
 
     [[nodiscard]] RedirectTaint redirect_taint() const { return m_redirect_taint; }
-    void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = move(redirect_taint); }
+    void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = redirect_taint; }
 
     [[nodiscard]] bool is_aborted_network_error() const;
     [[nodiscard]] bool is_network_error() const;
@@ -153,7 +153,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-response-status-message
     // A response has an associated status message. Unless stated otherwise it is the empty byte sequence.
-    ByteBuffer m_status_message;
+    ByteString m_status_message;
 
     // https://fetch.spec.whatwg.org/#concept-response-header-list
     // A response has an associated header list (a header list). Unless stated otherwise it is empty.
@@ -169,7 +169,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-response-cors-exposed-header-name-list
     // A response has an associated CORS-exposed header-name list (a list of zero or more header names). The list is empty unless otherwise specified.
-    Vector<ByteBuffer> m_cors_exposed_header_name_list;
+    Vector<ByteString> m_cors_exposed_header_name_list;
 
     // https://fetch.spec.whatwg.org/#concept-response-range-requested-flag
     // A response has an associated range-requested flag, which is initially unset.
@@ -200,14 +200,14 @@ private:
     u64 stale_while_revalidate_lifetime() const;
 
     // Non-standard
-    ByteBuffer m_method;
+    ByteString m_method;
     MonotonicTime m_response_time;
 
     Optional<String> m_network_error_message;
 
 public:
-    [[nodiscard]] ByteBuffer const& method() const { return m_method; }
-    void set_method(ByteBuffer method) { m_method = move(method); }
+    [[nodiscard]] ByteString const& method() const { return m_method; }
+    void set_method(ByteString method) { m_method = move(method); }
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response
@@ -230,8 +230,8 @@ public:
     [[nodiscard]] virtual Status status() const override { return m_internal_response->status(); }
     virtual void set_status(Status status) override { m_internal_response->set_status(status); }
 
-    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND override { return m_internal_response->status_message(); }
-    virtual void set_status_message(ByteBuffer status_message) override { m_internal_response->set_status_message(move(status_message)); }
+    [[nodiscard]] virtual ByteString const& status_message() const override { return m_internal_response->status_message(); }
+    virtual void set_status_message(ByteString status_message) override { m_internal_response->set_status_message(move(status_message)); }
 
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_internal_response->header_list(); }
     virtual void set_header_list(GC::Ref<HeaderList> header_list) override { m_internal_response->set_header_list(header_list); }
@@ -242,8 +242,8 @@ public:
     [[nodiscard]] virtual Optional<CacheState> const& cache_state() const override { return m_internal_response->cache_state(); }
     virtual void set_cache_state(Optional<CacheState> cache_state) override { m_internal_response->set_cache_state(move(cache_state)); }
 
-    [[nodiscard]] virtual Vector<ByteBuffer> const& cors_exposed_header_name_list() const override { return m_internal_response->cors_exposed_header_name_list(); }
-    virtual void set_cors_exposed_header_name_list(Vector<ByteBuffer> cors_exposed_header_name_list) override { m_internal_response->set_cors_exposed_header_name_list(move(cors_exposed_header_name_list)); }
+    [[nodiscard]] virtual Vector<ByteString> const& cors_exposed_header_name_list() const override { return m_internal_response->cors_exposed_header_name_list(); }
+    virtual void set_cors_exposed_header_name_list(Vector<ByteString> cors_exposed_header_name_list) override { m_internal_response->set_cors_exposed_header_name_list(move(cors_exposed_header_name_list)); }
 
     [[nodiscard]] virtual bool range_requested() const override { return m_internal_response->range_requested(); }
     virtual void set_range_requested(bool range_requested) override { m_internal_response->set_range_requested(range_requested); }
@@ -317,7 +317,7 @@ public:
     [[nodiscard]] virtual Vector<URL::URL> const& url_list() const override { return m_url_list; }
     [[nodiscard]] virtual Vector<URL::URL>& url_list() override { return m_url_list; }
     [[nodiscard]] virtual Status status() const override { return 0; }
-    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND override { return {}; }
+    [[nodiscard]] virtual ByteString const& status_message() const override { return m_method; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
@@ -327,6 +327,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     Vector<URL::URL> m_url_list;
+    ByteString const m_method;
     GC::Ref<HeaderList> m_header_list;
 };
 
@@ -340,7 +341,7 @@ public:
 
     [[nodiscard]] virtual Type type() const override { return Type::OpaqueRedirect; }
     [[nodiscard]] virtual Status status() const override { return 0; }
-    [[nodiscard]] virtual ReadonlyBytes status_message() const LIFETIME_BOUND override { return {}; }
+    [[nodiscard]] virtual ByteString const& status_message() const override { return m_method; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
@@ -349,6 +350,7 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
+    ByteString const m_method;
     GC::Ref<HeaderList> m_header_list;
 };
 

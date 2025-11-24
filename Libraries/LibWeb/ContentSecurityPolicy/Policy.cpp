@@ -21,7 +21,7 @@ namespace Web::ContentSecurityPolicy {
 GC_DEFINE_ALLOCATOR(Policy);
 
 // https://w3c.github.io/webappsec-csp/#abstract-opdef-parse-a-serialized-csp
-GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteBuffer, String> serialized, Source source, Disposition disposition)
+GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteString, String> serialized, Source source, Disposition disposition)
 {
     // To parse a serialized CSP, given a byte sequence or string serialized, a source source, and a disposition disposition,
     // execute the following steps.
@@ -31,7 +31,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteBuffe
     // 1. If serialized is a byte sequence, then set serialized to be the result of isomorphic decoding serialized.
     auto serialized_string = serialized.has<String>()
         ? serialized.get<String>()
-        : Infra::isomorphic_decode(serialized.get<ByteBuffer>());
+        : Infra::isomorphic_decode(serialized.get<ByteString>());
 
     // 2. Let policy be a new policy with an empty directive set, a source of source, and a disposition of disposition.
     auto policy = heap.allocate<Policy>();
@@ -101,9 +101,9 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
 
     // 2. For each token returned by extracting header list values given Content-Security-Policy and response’s header
     //    list:
-    auto enforce_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy"sv.bytes());
+    auto enforce_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy"sv);
 
-    if (auto const* enforce_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteBuffer>>()) {
+    if (auto const* enforce_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
         for (auto const& enforce_policy_token : *enforce_policy_tokens) {
             // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "enforce".
             auto policy = parse_a_serialized_csp(heap, enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
@@ -116,9 +116,9 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
 
     // 3. For each token returned by extracting header list values given Content-Security-Policy-Report-Only and
     //    response’s header list:
-    auto report_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy-Report-Only"sv.bytes());
+    auto report_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy-Report-Only"sv);
 
-    if (auto const* report_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteBuffer>>()) {
+    if (auto const* report_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
         for (auto const& report_policy_token : *report_policy_tokens) {
             // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "report".
             auto policy = parse_a_serialized_csp(heap, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);

@@ -15,7 +15,7 @@ namespace Web::Fetch::Fetching {
 bool cors_check(Infrastructure::Request const& request, Infrastructure::Response const& response)
 {
     // 1. Let origin be the result of getting `Access-Control-Allow-Origin` from response’s header list.
-    auto origin = response.header_list()->get("Access-Control-Allow-Origin"sv.bytes());
+    auto origin = response.header_list()->get("Access-Control-Allow-Origin"sv);
 
     // 2. If origin is null, then return failure.
     // NOTE: Null is not `null`.
@@ -23,7 +23,7 @@ bool cors_check(Infrastructure::Request const& request, Infrastructure::Response
         return false;
 
     // 3. If request’s credentials mode is not "include" and origin is `*`, then return success.
-    if (request.credentials_mode() != Infrastructure::Request::CredentialsMode::Include && origin->span() == "*"sv.bytes())
+    if (request.credentials_mode() != Infrastructure::Request::CredentialsMode::Include && *origin == "*"sv)
         return true;
 
     // 4. If the result of byte-serializing a request origin with request is not origin, then return failure.
@@ -35,10 +35,10 @@ bool cors_check(Infrastructure::Request const& request, Infrastructure::Response
         return true;
 
     // 6. Let credentials be the result of getting `Access-Control-Allow-Credentials` from response’s header list.
-    auto credentials = response.header_list()->get("Access-Control-Allow-Credentials"sv.bytes());
+    auto credentials = response.header_list()->get("Access-Control-Allow-Credentials"sv);
 
     // 7. If credentials is `true`, then return success.
-    if (credentials.has_value() && credentials->span() == "true"sv.bytes())
+    if (credentials == "true"sv)
         return true;
 
     // 8. Return failure.
@@ -53,7 +53,7 @@ bool tao_check(Infrastructure::Request const& request, Infrastructure::Response 
         return false;
 
     // 2. Let values be the result of getting, decoding, and splitting `Timing-Allow-Origin` from response’s header list.
-    auto values = response.header_list()->get_decode_and_split("Timing-Allow-Origin"sv.bytes());
+    auto values = response.header_list()->get_decode_and_split("Timing-Allow-Origin"sv);
 
     // 3. If values contains "*", then return success.
     if (values.has_value() && values->contains_slow("*"sv))

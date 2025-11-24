@@ -74,7 +74,7 @@ private:
 // A body with type is a tuple that consists of a body (a body) and a type (a header value or null).
 struct BodyWithType {
     GC::Ref<Body> body;
-    Optional<ByteBuffer> type;
+    Optional<ByteString> type;
 };
 
 WEB_API GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);

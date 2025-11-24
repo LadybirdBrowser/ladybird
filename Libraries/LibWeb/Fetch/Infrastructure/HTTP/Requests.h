@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>
@@ -171,8 +172,8 @@ public:
 
     [[nodiscard]] static GC::Ref<Request> create(JS::VM&);
 
-    [[nodiscard]] ReadonlyBytes method() const LIFETIME_BOUND { return m_method; }
-    void set_method(ByteBuffer method) { m_method = move(method); }
+    [[nodiscard]] ByteString const& method() const { return m_method; }
+    void set_method(ByteString method) { m_method = move(method); }
 
     [[nodiscard]] bool local_urls_only() const { return m_local_urls_only; }
     void set_local_urls_only(bool local_urls_only) { m_local_urls_only = local_urls_only; }
@@ -307,7 +308,7 @@ public:
     [[nodiscard]] RedirectTaint redirect_taint() const;
 
     [[nodiscard]] String serialize_origin() const;
-    [[nodiscard]] ByteBuffer byte_serialize_origin() const;
+    [[nodiscard]] ByteString byte_serialize_origin() const;
 
     [[nodiscard]] GC::Ref<Request> clone(JS::Realm&) const;
 
@@ -335,7 +336,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-request-method
     // A request has an associated method (a method). Unless stated otherwise it is `GET`.
-    ByteBuffer m_method { ByteBuffer::copy("GET"sv.bytes()).release_value() };
+    ByteString m_method { "GET"sv };
 
     // https://fetch.spec.whatwg.org/#local-urls-only-flag
     // A request has an associated local-URLs-only flag. Unless stated otherwise it is unset.

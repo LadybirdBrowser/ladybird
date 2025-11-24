@@ -29,7 +29,7 @@ GC_DEFINE_ALLOCATOR(Violation);
 Violation::Violation(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive)
     : m_global_object(global_object)
     , m_policy(policy)
-    , m_effective_directive(directive)
+    , m_effective_directive(move(directive))
 {
 }
 
@@ -38,7 +38,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
 {
     // 1. Let violation be a new violation whose global object is global, policy is policy, effective directive is
     //    directive, and resource is null.
-    auto violation = realm.create<Violation>(global_object, policy, directive);
+    auto violation = realm.create<Violation>(global_object, policy, move(directive));
 
     // FIXME: 2. If the user agent is currently executing script, and can extract a source file’s URL, line number,
     //           and column number from the global, set violation’s source file, line number, and column number
@@ -406,7 +406,7 @@ void Violation::report_a_violation(JS::Realm& realm)
 
                         // method
                         //    "POST"
-                        request->set_method(MUST(ByteBuffer::copy("POST"sv.bytes())));
+                        request->set_method("POST"sv);
 
                         // url
                         //    violation’s url
@@ -448,8 +448,7 @@ void Violation::report_a_violation(JS::Realm& realm)
                         //    A header list containing a single header whose name is "Content-Type", and value is
                         //    "application/csp-report"
                         auto header_list = Fetch::Infrastructure::HeaderList::create(vm);
-                        auto content_type_header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "application/csp-report"sv);
-                        header_list->append(move(content_type_header));
+                        header_list->append({ "Content-Type"sv, "application/csp-report"sv });
                         request->set_header_list(header_list);
 
                         // body

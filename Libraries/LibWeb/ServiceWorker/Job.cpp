@@ -216,7 +216,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
         // 1. Append `Service-Worker`/`script` to request’s header list.
         // Note: See https://w3c.github.io/ServiceWorker/#service-worker
-        request->header_list()->append(Fetch::Infrastructure::Header::from_string_pair("Service-Worker"sv, "script"sv));
+        request->header_list()->append(Fetch::Infrastructure::Header::isomorphic_encode("Service-Worker"sv, "script"sv));
 
         // 2. Set request’s cache mode to "no-cache" if any of the following are true:
         //  - registration’s update via cache mode is not "all".
@@ -266,7 +266,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
             // 8. Let serviceWorkerAllowed be the result of extracting header list values given `Service-Worker-Allowed` and response’s header list.
             // Note: See the definition of the Service-Worker-Allowed header in Appendix B: Extended HTTP headers. https://w3c.github.io/ServiceWorker/#service-worker-allowed
-            auto service_worker_allowed = response->header_list()->extract_header_list_values("Service-Worker-Allowed"sv.bytes());
+            auto service_worker_allowed = response->header_list()->extract_header_list_values("Service-Worker-Allowed"sv);
 
             // 9. Set policyContainer to the result of creating a policy container from a fetch response given response.
             // FIXME: CSP not implemented yet
@@ -304,7 +304,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 14. Else:
             else {
                 // 1. Let maxScope be the result of parsing serviceWorkerAllowed using job’s script url as the base URL.
-                auto max_scope = DOMURL::parse(service_worker_allowed.get<Vector<ByteBuffer>>()[0], job->script_url);
+                auto max_scope = DOMURL::parse(service_worker_allowed.get<Vector<ByteString>>()[0], job->script_url);
 
                 // 2. If maxScope’s origin is job’s script url's origin, then:
                 if (max_scope->origin().is_same_origin(job->script_url.origin())) {

@@ -183,7 +183,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // method
     //     request’s method.
-    request->set_method(MUST(ByteBuffer::copy(input_request->method())));
+    request->set_method(input_request->method());
 
     // header list
     //     A copy of request’s header list.
@@ -369,16 +369,16 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         auto method = *init.method;
 
         // 2. If method is not a method or method is a forbidden method, then throw a TypeError.
-        if (!Infrastructure::is_method(method.bytes()))
+        if (!Infrastructure::is_method(method))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method has invalid value"sv };
-        if (Infrastructure::is_forbidden_method(method.bytes()))
+        if (Infrastructure::is_forbidden_method(method))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be one of CONNECT, TRACE, or TRACK"sv };
 
         // 3. Normalize method.
-        method = MUST(String::from_utf8(Infrastructure::normalize_method(method.bytes())));
+        auto normalized_method = Infrastructure::normalize_method(method);
 
         // 4. Set request’s method to method.
-        request->set_method(MUST(ByteBuffer::copy(method.bytes())));
+        request->set_method(move(normalized_method));
     }
 
     // 26. If init["signal"] exists, then set signal to it.
@@ -431,7 +431,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         // 4. If headers is a Headers object, then for each header of its header list, append header to this’s headers.
         if (auto* header_list = headers.get_pointer<GC::Ref<Infrastructure::HeaderList>>()) {
             for (auto& header : *header_list->ptr())
-                TRY(request_object->headers()->append(Infrastructure::Header::from_string_pair(header.name, header.value)));
+                TRY(request_object->headers()->append(Infrastructure::Header::isomorphic_encode(header.name, header.value)));
         }
         // 5. Otherwise, fill this’s headers with headers.
         else {
@@ -445,7 +445,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         input_body = input.get<GC::Root<Request>>()->request()->body();
 
     // 35. If either init["body"] exists and is non-null or inputBody is non-null, and request’s method is `GET` or `HEAD`, then throw a TypeError.
-    if (((init.body.has_value() && (*init.body).has_value()) || (input_body.has_value() && !input_body.value().has<Empty>())) && StringView { request->method() }.is_one_of("GET"sv, "HEAD"sv))
+    if (((init.body.has_value() && (*init.body).has_value()) || (input_body.has_value() && !input_body.value().has<Empty>())) && request->method().is_one_of("GET"sv, "HEAD"sv))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be GET or HEAD when body is provided"sv };
 
     // 36. Let initBody be null.
@@ -463,8 +463,8 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         auto const& type = body_with_type.type;
 
         // 4. If type is non-null and this’s headers’s header list does not contain `Content-Type`, then append (`Content-Type`, type) to this’s headers.
-        if (type.has_value() && !request_object->headers()->header_list()->contains("Content-Type"sv.bytes()))
-            TRY(request_object->headers()->append(Infrastructure::Header::from_string_pair("Content-Type"sv, type->span())));
+        if (type.has_value() && !request_object->headers()->header_list()->contains("Content-Type"sv))
+            TRY(request_object->headers()->append(Infrastructure::Header::isomorphic_encode("Content-Type"sv, *type)));
     }
 
     // 38. Let inputOrInitBody be initBody if it is non-null; otherwise inputBody.
@@ -508,7 +508,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 String Request::method() const
 {
     // The method getter steps are to return this’s request’s method.
-    return MUST(String::from_utf8(m_request->method()));
+    return MUST(String::from_byte_string(m_request->method()));
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-url

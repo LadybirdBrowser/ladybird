@@ -125,8 +125,8 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
         return Optional<URL::URL> {};
 
     // 2. Let location be the result of extracting header list values given `Location` and response’s header list.
-    auto location_values_or_failure = m_header_list->extract_header_list_values("Location"sv.bytes());
-    auto const* location_values = location_values_or_failure.get_pointer<Vector<ByteBuffer>>();
+    auto location_values_or_failure = m_header_list->extract_header_list_values("Location"sv);
+    auto const* location_values = location_values_or_failure.get_pointer<Vector<ByteString>>();
 
     if (!location_values || location_values->size() != 1)
         return OptionalNone {};
@@ -246,8 +246,8 @@ u64 Response::current_age() const
 {
     // The term "age_value" denotes the value of the Age header field (Section 5.1), in a form appropriate for arithmetic operation; or 0, if not available.
     Optional<AK::Duration> age;
-    if (auto const age_header = header_list()->get("Age"sv.bytes()); age_header.has_value()) {
-        if (auto converted_age = StringView { *age_header }.to_number<u64>(); converted_age.has_value())
+    if (auto const age_header = header_list()->get("Age"sv); age_header.has_value()) {
+        if (auto converted_age = age_header->to_number<u64>(); converted_age.has_value())
             age = AK::Duration::from_seconds(converted_age.value());
     }
 
@@ -281,7 +281,7 @@ u64 Response::current_age() const
 // https://httpwg.org/specs/rfc9111.html#calculating.freshness.lifetime
 u64 Response::freshness_lifetime() const
 {
-    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv.bytes());
+    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv);
     if (!elem.has_value())
         return 0;
 
@@ -314,7 +314,7 @@ u64 Response::freshness_lifetime() const
 // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
 u64 Response::stale_while_revalidate_lifetime() const
 {
-    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv.bytes());
+    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv);
     if (!elem.has_value())
         return 0;
 
@@ -386,9 +386,11 @@ GC::Ref<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, GC::Ref<R
     // A CORS filtered response is a filtered response whose type is "cors" and header list excludes
     // any headers in internal response’s header list whose name is not a CORS-safelisted response-header
     // name, given internal response’s CORS-exposed header-name list.
-    Vector<ReadonlyBytes> cors_exposed_header_name_list;
+    Vector<StringView> cors_exposed_header_name_list;
+    cors_exposed_header_name_list.ensure_capacity(internal_response->cors_exposed_header_name_list().size());
+
     for (auto const& header_name : internal_response->cors_exposed_header_name_list())
-        cors_exposed_header_name_list.append(header_name.span());
+        cors_exposed_header_name_list.unchecked_append(header_name);
 
     auto header_list = HeaderList::create(vm);
     for (auto const& header : *internal_response->header_list()) {

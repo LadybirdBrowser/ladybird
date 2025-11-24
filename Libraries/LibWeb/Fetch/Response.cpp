@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
     m_response->set_status(init.status);
 
     // 4. Set response’s response’s status message to init["statusText"].
-    m_response->set_status_message(MUST(ByteBuffer::copy(init.status_text.bytes())));
+    m_response->set_status_message(init.status_text.to_byte_string());
 
     // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
     if (init.headers.has_value())
@@ -127,13 +127,8 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
         m_response->set_body(body->body);
 
         // 3. If body’s type is non-null and response’s header list does not contain `Content-Type`, then append (`Content-Type`, body’s type) to response’s header list.
-        if (body->type.has_value() && !m_response->header_list()->contains("Content-Type"sv.bytes())) {
-            auto header = Infrastructure::Header {
-                .name = MUST(ByteBuffer::copy("Content-Type"sv.bytes())),
-                .value = MUST(ByteBuffer::copy(body->type->span())),
-            };
-            m_response->header_list()->append(move(header));
-        }
+        if (body->type.has_value() && !m_response->header_list()->contains("Content-Type"sv))
+            m_response->header_list()->append({ "Content-Type"sv, *body->type });
     }
 
     return {};
@@ -204,7 +199,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
     auto value = parsed_url->serialize();
 
     // 7. Append (`Location`, value) to responseObject’s response’s header list.
-    auto header = Infrastructure::Header::from_string_pair("Location"sv, value);
+    auto header = Infrastructure::Header::isomorphic_encode("Location"sv, value);
     response_object->response()->header_list()->append(move(header));
 
     // 8. Return responseObject.
@@ -229,7 +224,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::VM& vm, JS::Value data
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
     auto body_with_type = Infrastructure::BodyWithType {
         .body = body,
-        .type = MUST(ByteBuffer::copy("application/json"sv.bytes()))
+        .type = "application/json"sv,
     };
     TRY(response_object->initialize_response(init, move(body_with_type)));
 
@@ -278,7 +273,7 @@ bool Response::ok() const
 String Response::status_text() const
 {
     // The statusText getter steps are to return this’s response’s status message.
-    return MUST(String::from_utf8(m_response->status_message()));
+    return MUST(String::from_byte_string(m_response->status_message()));
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-headers
