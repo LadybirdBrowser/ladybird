@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Declarative Shadow DOM</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://github.com/whatwg/dom/issues/831">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="host" style="display:none">
+  <template shadowrootmode="open">
+    <slot id="s1" name="slot1"></slot>
+  </template>
+  <div id="c1" slot="slot1"></div>
+</div>
+
+<script>
+
+// Uncaught exceptions (which will manifest as test harness
+// errors) constitute a failure of this test. No parsing
+// operations, whether imperative (setHTMLUnsafe) or declarative
+// (main document parsing) should ever throw exceptions.
+// More context:
+// https://github.com/whatwg/html/issues/10527#issuecomment-2275253439
+
+test(() => {
+  const host = document.querySelector('#host');
+  const c1 = host.querySelector('#c1');
+  assert_true(!!c1);
+  assert_equals(host.querySelector('#s1'), null, "Should be inside shadow root");
+  assert_equals(host.querySelector('template'), null, "No leftover template node");
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  const s1 = host.shadowRoot.querySelector('#s1');
+  assert_equals(c1.assignedSlot, s1);
+  assert_array_equals(s1.assignedNodes(), [c1]);
+}, 'Declarative Shadow DOM: Basic test');
+
+test(() => {
+  assert_true(HTMLTemplateElement.prototype.hasOwnProperty("shadowRootMode"),'Unable to feature detect');
+}, 'Declarative Shadow DOM: Feature detection');
+
+test(() => {
+  const t = document.createElement('template');
+  t.setAttribute('shadowrootmode','open');
+  assert_equals(t.shadowRootMode,'open','The shadowRootMode IDL should reflect the content attribute');
+  t.setAttribute('shadowrootmode','closed');
+  assert_equals(t.shadowRootMode,'closed','"open" and "closed" should both be valid values');
+  t.setAttribute('shadowrootmode','OpEn');
+  assert_equals(t.shadowRootMode,'open','Case insensitive');
+  t.setAttribute('shadowrootmode','INVALID');
+  assert_equals(t.shadowRootMode,'','Invalid values map to empty string');
+  t.removeAttribute('shadowrootmode');
+  assert_equals(t.shadowRootMode,'','No shadowrootmode attribute maps to empty string');
+}, 'Shadowrootmode reflection');
+
+test(() => {
+  const t = document.createElement('template');
+  t.shadowRootMode = 'blah';
+  assert_equals(t.shadowRootMode, '');
+  t.getAttribute('shadowrootmode', 'blah');
+  t.shadowRootMode = 'CLOSED';
+  assert_equals(t.shadowRootMode, 'closed');
+  t.getAttribute('shadowrootmode', 'CLOSED');
+}, 'Shadowrootmode reflection, setter');
+
+test(() => {
+  const t = document.createElement('template');
+  t.setAttribute('shadowrootdelegatesfocus','');
+  assert_equals(t.shadowRootDelegatesFocus,true,'The shadowRootDelegatesFocus IDL should reflect the content attribute');
+  t.setAttribute('shadowrootdelegatesfocus','foobar');
+  assert_equals(t.shadowRootDelegatesFocus,true,'The value doesn\'t matter');
+  t.removeAttribute('shadowrootdelegatesfocus');
+  assert_equals(t.shadowRootDelegatesFocus,false,'No shadowRootDelegatesFocus attribute maps to false');
+}, 'Shadowrootdelegatesfocus reflection');
+
+test(() => {
+  const t = document.createElement('template');
+  assert_equals(t.getAttribute('shadowrootdelegatesfocus'), null);
+  t.shadowRootDelegatesFocus = true;
+  assert_equals(t.getAttribute('shadowrootdelegatesfocus'), '');
+  assert_equals(t.shadowRootDelegatesFocus, true);
+  t.shadowRootDelegatesFocus = false;
+  assert_equals(t.getAttribute('shadowrootdelegatesfocus'), null);
+  assert_equals(t.shadowRootDelegatesFocus, false);
+}, 'Shadowrootdelegatesfocus reflection, setter');
+
+
+test(() => {
+  const t = document.createElement('template');
+  t.setAttribute('shadowrootclonable','');
+  assert_equals(t.shadowRootClonable,true,'The shadowRootClonable IDL should reflect the content attribute');
+  t.setAttribute('shadowrootclonable','foobar');
+  assert_equals(t.shadowRootClonable,true,'The value doesn\'t matter');
+  t.removeAttribute('shadowrootclonable');
+  assert_equals(t.shadowRootClonable,false,'No shadowRootClonable attribute maps to false');
+}, 'Shadowrootclonable reflection');
+
+test(() => {
+  const t = document.createElement('template');
+  assert_equals(t.getAttribute('shadowrootclonable'), null);
+  t.shadowRootClonable = true;
+  assert_equals(t.getAttribute('shadowrootclonable'), '');
+  assert_equals(t.shadowRootClonable, true);
+  t.shadowRootClonable = false;
+  assert_equals(t.getAttribute('shadowrootclonable'), null);
+  assert_equals(t.shadowRootClonable, false);
+}, 'Shadowrootclonable reflection, setter');
+
+test(() => {
+  const div = document.createElement('div');
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="open">
+        <slot id="s1" name="slot1"></slot>
+      </template>
+      <div id="c1" slot="slot1"></div>
+    </div>
+    `);
+  const host = div.querySelector('#host');
+  const c1 = host.querySelector('#c1');
+  assert_true(!!c1);
+  assert_equals(host.querySelector('#s1'), null, "Should be inside shadow root");
+  assert_equals(host.querySelector('template'), null, "No leftover template node");
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  const s1 = host.shadowRoot.querySelector('#s1');
+  assert_equals(c1.assignedSlot, s1);
+  assert_array_equals(s1.assignedNodes(), [c1]);
+}, 'Declarative Shadow DOM: Fragment parser basic test');
+
+test(() => {
+  const div = document.createElement('div');
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="invalid">
+      </template>
+    </div>
+    `);
+  const host = div.querySelector('#host');
+  assert_equals(host.shadowRoot, null, "Shadow root was found");
+  const tmpl = host.querySelector('template');
+  assert_true(!!tmpl,"Template should still be present");
+  const shadowrootAttr = tmpl.getAttribute('shadowrootmode');
+  assert_equals(shadowrootAttr,"invalid","'shadowrootmode' attribute should still be present");
+}, 'Declarative Shadow DOM: Invalid shadow root attribute');
+
+test(() => {
+  const div = document.createElement('div');
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="closed">
+      </template>
+    </div>
+    `);
+  const host = div.querySelector('#host');
+  assert_equals(host.shadowRoot, null, "Closed shadow root");
+  assert_equals(host.querySelector('template'), null, "No template - converted to shadow root");
+}, 'Declarative Shadow DOM: Closed shadow root attribute');
+
+test(() => {
+  const div = document.createElement('div');
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="open">
+        <slot id="s1" name="slot1"></slot>
+    </div>
+    `);
+  const host = div.querySelector('#host');
+  assert_equals(host.querySelector('#s1'), null, "Should be inside shadow root");
+  assert_equals(host.querySelector('template'), null, "No leftover template node");
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  const s1 = host.shadowRoot.querySelector('#s1');
+  assert_true(!!s1,"Slot should be inside the shadow root");
+}, 'Declarative Shadow DOM: Missing closing tag');
+
+test(() => {
+  const div = document.createElement('div');
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="open" shadowrootdelegatesfocus>
+      </template>
+    </div>
+    `);
+  var host = div.querySelector('#host');
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  assert_true(host.shadowRoot.delegatesFocus,"delegatesFocus should be true");
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="open">
+      </template>
+    </div>
+    `);
+  host = div.querySelector('#host');
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  assert_false(host.shadowRoot.delegatesFocus,"delegatesFocus should be false without the shadowrootdelegatesfocus attribute");
+}, 'Declarative Shadow DOM: delegates focus attribute');
+
+test(() => {
+  const div = document.createElement('div');
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="open" shadowrootclonable>
+      </template>
+    </div>
+    `);
+  var host = div.querySelector('#host');
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  assert_true(host.shadowRoot.clonable,"clonable should be true");
+  div.setHTMLUnsafe(`
+    <div id="host">
+      <template shadowrootmode="open">
+      </template>
+    </div>
+    `);
+  host = div.querySelector('#host');
+  assert_true(!!host.shadowRoot,"No shadow root found");
+  assert_false(host.shadowRoot.clonable,"clonable should be false without the shadowrootclonable attribute");
+}, 'Declarative Shadow DOM: clonable attribute');
+</script>
+
+<div id="multi-host" style="display:none">
+  <template shadowrootmode="open">
+    <span>root 1</span>
+  </template>
+  <template shadowrootmode="closed">
+    <span>root 2</span>
+  </template>
+</div>
+<script>
+test(() => {
+  const host = document.querySelector('#multi-host');
+  const leftover = host.querySelector('template');
+  assert_true(!!leftover, "The second (duplicate) template should be left in the DOM");
+  assert_true(leftover instanceof HTMLTemplateElement);
+  assert_equals(leftover.getAttribute('shadowrootmode'),"closed");
+  assert_equals(leftover.shadowRootMode,"closed");
+  assert_true(!!host.shadowRoot,"No open shadow root found - first root should remain");
+  const innerSpan = host.shadowRoot.querySelector('span');
+  assert_equals(innerSpan.textContent, 'root 1', "Content should come from first declarative shadow root");
+}, 'Declarative Shadow DOM: Multiple roots');
+
+</script>
+
+<template id="template-containing-shadow">
+  <div class="innerdiv">
+    <template shadowrootmode=open shadowrootclonable>Content</template>
+  </div>
+</template>
+<script>
+test(() => {
+  const template = document.querySelector('#template-containing-shadow');
+  const container1 = document.createElement('div');
+  container1.style.display = 'none';
+  document.body.appendChild(container1);
+  container1.appendChild(template.content.cloneNode(true));
+  let innerDiv = container1.querySelector('div.innerdiv');
+  const shadowRoot1 = innerDiv.shadowRoot;
+  assert_true(!!shadowRoot1,"Inner div should have a shadow root");
+  assert_equals(innerDiv.querySelector('template'), null, "No leftover template node");
+
+  const container2 = document.createElement('div');
+  container2.style.display = 'none';
+  document.body.appendChild(container2);
+  container2.appendChild(template.content.cloneNode(true));
+  innerDiv = container2.querySelector('div.innerdiv');
+  const shadowRoot2 = innerDiv.shadowRoot;
+  assert_true(!!shadowRoot2,"Inner div should have a shadow root");
+  assert_equals(innerDiv.querySelector('template'), null, "No leftover template node");
+
+  assert_not_equals(shadowRoot1,shadowRoot2,'Should not get back the same shadow root');
+
+  // Make sure importNode also works.
+  const container3 = document.createElement('div');
+  container3.style.display = 'none';
+  document.body.appendChild(container3);
+  container3.appendChild(document.importNode(template.content,true));
+  innerDiv = container3.querySelector('div.innerdiv');
+  const shadowRoot3 = innerDiv.shadowRoot;
+  assert_true(!!shadowRoot3,"Inner div should have a shadow root");
+  assert_equals(innerDiv.querySelector('template'), null, "No leftover template node");
+  assert_not_equals(shadowRoot1,shadowRoot3,'Should not get back the same shadow root');
+
+}, 'Declarative Shadow DOM: template containing declarative shadow root (with shadowrootclonable)');
+</script>
+
+<template id="template-containing-deep-shadow">
+  <div><div><div><div><div>
+    <div class="innerdiv">
+      <template shadowrootmode=open shadowrootclonable>Content</template>
+    </div>
+  </div></div></div></div></div>
+</template>
+<script>
+test(() => {
+  const template = document.querySelector('#template-containing-deep-shadow');
+  const host = document.createElement('div');
+  host.style.display = 'none';
+  document.body.appendChild(host);
+  host.appendChild(template.content.cloneNode(true));
+  assert_true(!!host.querySelector('div.innerdiv').shadowRoot,"Inner div should have a shadow root");
+}, 'Declarative Shadow DOM: template containing (deeply nested) declarative shadow root');
+</script>
+
+<template id="template-containing-template">
+  <div>
+    <template id="inner-template">
+      <div class="innerdiv">
+        <template shadowrootmode=open shadowrootclonable>Content</template>
+      </div>
+    </template>
+  </div>
+</template>
+<script>
+test(() => {
+  const template = document.querySelector('#template-containing-template');
+  const host = document.createElement('div');
+  host.style.display = 'none';
+  document.body.appendChild(host);
+  host.appendChild(template.content.cloneNode(true));
+  const innerTemplate = host.querySelector('#inner-template');
+  assert_true(!!innerTemplate.content.querySelector('div.innerdiv').shadowRoot,"Inner div should have a shadow root");
+}, 'Declarative Shadow DOM: template containing a template containing declarative shadow root');
+</script>
+
+<template id="template-containing-ua-shadow">
+  <div class="innerdiv">
+    <template shadowrootmode=open shadowrootclonable>
+      <video></video> <!--Assumed to have UA shadow root-->
+    </template>
+  </div>
+</template>
+<script>
+test(() => {
+  const template = document.querySelector('#template-containing-ua-shadow');
+  const host = document.createElement('div');
+  host.style.display = 'none';
+  document.body.appendChild(host);
+  // Mostly make sure clone of template *does* clone the
+  // shadow root, and doesn't crash on cloning the <video>.
+  host.appendChild(template.content.cloneNode(true));
+  let innerDiv = host.querySelector('div.innerdiv');
+  const shadowRoot = innerDiv.shadowRoot;
+  assert_true(!!shadowRoot,"Inner div should have a shadow root");
+  assert_equals(innerDiv.querySelector('template'), null, "No leftover template node");
+  assert_true(!!innerDiv.shadowRoot.querySelector('video'),'Video element should be present');
+}, 'Declarative Shadow DOM: template containing declarative shadow root and UA shadow root');
+</script>
+
+<template id="template-containing-ua-shadow-closed">
+  <div class="innerdiv">
+    <template shadowrootmode=closed>
+      <video></video> <!--Assumed to have UA shadow root-->
+    </template>
+  </div>
+</template>
+<script>
+test(() => {
+  const template = document.querySelector('#template-containing-ua-shadow-closed');
+  const host = document.createElement('div');
+  host.style.display = 'none';
+  document.body.appendChild(host);
+  host.appendChild(template.content.cloneNode(true));
+  let innerDiv = host.querySelector('div.innerdiv');
+  assert_true(!innerDiv.shadowRoot,"Inner div should have a closed shadow root");
+}, 'Declarative Shadow DOM: template containing closed declarative shadow root and UA shadow root');
+</script>
+
+<template id="root-element-shadow">
+    <template shadowrootmode=open>Content</template>
+</template>
+<script>
+test(() => {
+  // Root element of this template is a <template shadowroot>:
+  const template = document.querySelector('#root-element-shadow');
+  const host = document.createElement('div');
+  host.appendChild(template.content.cloneNode(true));
+  assert_equals(host.shadowRoot, null, "Shadow root should not be present");
+  const tmpl = host.querySelector('template');
+  assert_true(!!tmpl,"Template should still be present");
+  assert_equals(tmpl.getAttribute('shadowrootmode'),"open","'shadowrootmode' attribute should still be present");
+}, 'Declarative Shadow DOM: declarative shadow roots are not supported by the template element');
+</script>
+
+<script>
+  let gotError = false;
+  window.addEventListener('error',() => {gotError = true;});
+</script>
+<progress id="invalid-element-exception">
+  <template shadowrootmode=open>Content</template>
+</progress>
+<script>
+test(() => {
+  assert_false(gotError,'Exceptions should not be thrown by the parser');
+  const host = document.querySelector('#invalid-element-exception');
+  const leftover = host.querySelector('template');
+  assert_true(!host.shadowRoot,"Progress elements don't allow shadow roots");
+  assert_true(!!leftover, "The template should be left in the DOM");
+  // This also should not throw exceptions:
+  const div = document.createElement('div');
+  document.body.appendChild(div);
+  div.setHTMLUnsafe('<progress><template shadowrootmode=open></template></progress>');
+  assert_false(gotError,'Exceptions should not be thrown by the parser');
+  assert_true(!!div.querySelector('template'),'parsing should have succeeded and left the template child');
+  host.remove();
+  div.remove();
+}, 'Declarative Shadow DOM: explicit test that exceptions are not thrown');
+</script>

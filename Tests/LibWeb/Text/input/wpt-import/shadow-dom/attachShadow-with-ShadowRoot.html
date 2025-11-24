@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<head>
+    <title>Shadow DOM: Element.attachShadow with ShadowRoot</title>
+    <meta name="author" title="Jesse Jurman" href="mailto:j.r.jurman@gmail.com">
+    <meta name="assert" content="It should be possible to use an existing ShadowRoot as input for Element.attachShadow">
+    <link rel=help href="https://bugs.webkit.org/show_bug.cgi?id=295174">
+
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="../resources/testdriver.js"></script>
+    <script src="../resources/testdriver-actions.js"></script>
+    <script src="../resources/testdriver-vendor.js"></script>
+</head>
+
+
+<body>
+    <div id="elementSource">
+        <span>
+            <template shadowrootmode="open"></template>
+        </span>
+    </div>
+
+    <div id="elementTarget"></div>
+
+    <template id="templateSource">
+        <span>
+            <template shadowrootmode="open"></template>
+        </span>
+    </template>
+
+    <div id="templateTarget"></div>
+</body>
+
+<script>
+'use strict';
+
+// test that we can use a ShadowRoot as an input for attachShadow
+promise_test(async () => {
+    const shadowRoot = elementSource.children[0].shadowRoot;
+
+    // validate that the ShadowRoot is an object, and has properties we expect (like "mode")
+    assert_equals(typeof shadowRoot, 'object');
+    assert_equals(shadowRoot.mode, 'open');
+
+    // attach the shadowRoot to our target element
+    elementTarget.attachShadow(shadowRoot);
+
+    // validate that our target element has a shadowRoot with the same options
+    assert_equals(typeof elementTarget.shadowRoot, 'object');
+    assert_equals(elementTarget.shadowRoot.mode, 'open');
+}, 'can use ShadowRoot as options for attachShadow');
+
+// test that we can use a ShadowRoot in a template element as an input for attachShadow
+promise_test(async () => {
+    const shadowRoot = templateSource.content.children[0].shadowRoot;
+
+    // validate that the ShadowRoot is an object, and has properties we expect (like "mode")
+    assert_equals(typeof shadowRoot, 'object');
+    assert_equals(shadowRoot.mode, 'open');
+
+    // attach the shadowRoot to our target element
+    templateTarget.attachShadow(shadowRoot);
+
+    // validate that our target element has a shadowRoot with the same options
+    assert_equals(typeof templateTarget.shadowRoot, 'object');
+    assert_equals(templateTarget.shadowRoot.mode, 'open');
+}, 'can use ShadowRoot in document fragment as options for attachShadow');
+
+</script>
