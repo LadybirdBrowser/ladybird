@@ -23,6 +23,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/Segmenter.h>
@@ -425,7 +426,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 15. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
-        auto value = Infra::isomorphic_decode(maybe_refresh.value());
+        auto value = TextCodec::isomorphic_decode(maybe_refresh.value());
 
         // 2. Run the shared declarative refresh steps with document and value.
         document->shared_declarative_refresh_steps(value, nullptr);

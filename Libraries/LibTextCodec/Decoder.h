@@ -135,4 +135,6 @@ TEXTCODEC_API ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_t
 
 TEXTCODEC_API StringView get_output_encoding(StringView encoding);
 
+TEXTCODEC_API String isomorphic_decode(StringView);
+
 }

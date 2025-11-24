@@ -90,4 +90,6 @@ private:
 TEXTCODEC_API Optional<Encoder&> encoder_for_exact_name(StringView encoding);
 TEXTCODEC_API Optional<Encoder&> encoder_for(StringView label);
 
+TEXTCODEC_API ByteString isomorphic_encode(StringView);
+
 }

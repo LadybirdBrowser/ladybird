@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibTextCodec/Encoder.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
@@ -14,7 +15,6 @@
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
-#include <LibWeb/Infra/Strings.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -217,7 +217,7 @@ ByteString Request::byte_serialize_origin() const
 {
     // Byte-serializing a request origin, given a request request, is to return the result of serializing a request
     // origin with request, isomorphic encoded.
-    return Infra::isomorphic_encode(serialize_origin());
+    return TextCodec::isomorphic_encode(serialize_origin());
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-clone

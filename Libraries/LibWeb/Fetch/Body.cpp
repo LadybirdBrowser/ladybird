@@ -24,7 +24,6 @@
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Infra/JSON.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -353,7 +352,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
             header_value = header_value.trim(Infrastructure::HTTP_TAB_OR_SPACE, TrimMode::Right);
 
             // 3. Set contentType to the isomorphic decoding of header value.
-            header.content_type = Infra::isomorphic_decode(header_value.bytes());
+            header.content_type = TextCodec::isomorphic_decode(header_value);
         }
         // -> Otherwise
         else {

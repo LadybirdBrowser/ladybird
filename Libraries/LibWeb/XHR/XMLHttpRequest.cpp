@@ -43,7 +43,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/ByteSequences.h>
 #include <LibWeb/Infra/JSON.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -968,7 +967,7 @@ Optional<String> XMLHttpRequest::get_response_header(String const& name) const
         return {};
 
     // FIXME: The spec doesn't mention isomorphic decode. Spec bug?
-    return Infra::isomorphic_decode(header_bytes->bytes());
+    return TextCodec::isomorphic_decode(*header_bytes);
 }
 
 // https://xhr.spec.whatwg.org/#legacy-uppercased-byte-less-than
@@ -1002,7 +1001,7 @@ String XMLHttpRequest::get_all_response_headers() const
     // 4. For each header in headers, append header’s name, followed by a 0x3A 0x20 byte pair, followed by header’s value, followed by a 0x0D 0x0A byte pair, to output.
     for (auto const& header : initial_headers) {
         // FIXME: The spec does not mention isomorphic decode. Spec bug?
-        output.appendff("{}: {}\r\n", header.name, Infra::isomorphic_decode(header.value));
+        output.appendff("{}: {}\r\n", header.name, TextCodec::isomorphic_decode(header.value));
     }
 
     // 5. Return output.
