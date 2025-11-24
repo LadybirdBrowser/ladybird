@@ -758,7 +758,6 @@ set(SOURCES
     Loader/ContentFilter.cpp
     Loader/FileRequest.cpp
     Loader/GeneratedPagesLoader.cpp
-    Loader/LoadRequest.cpp
     Loader/ProxyMappings.cpp
     Loader/ResourceLoader.cpp
     MathML/AttributeNames.cpp
