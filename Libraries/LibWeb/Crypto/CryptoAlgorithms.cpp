@@ -8530,7 +8530,49 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const&
         // 6. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(algorithm);
     }
-    // FIXME -> If format is "raw-seed":
+    //  -> If format is "raw-seed":
+    else if (key_format == Bindings::KeyFormat::RawSeed) {
+        // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+        for (auto const usage : usages) {
+            if (usage != Bindings::KeyUsage::Sign)
+                return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        }
+
+        // 2. Let data be keyData.
+        VERIFY(key_data.has<ByteBuffer>());
+        auto const data = key_data.get<ByteBuffer>();
+
+        // 3. If the length in bits of data is not 256 then throw a DataError.
+        if (data.size() * 8 != 256)
+            return WebIDL::DataError::create(m_realm, Utf16String::formatted("Seed must be 256 bits long"));
+
+        // 4. Let privateKey be the result of performing the ML-DSA.KeyGen_internal function described in Section 6.1
+        //    of [FIPS-204] with the parameter set indicated by the name member of normalizedAlgorithm, using data as ξ.
+        auto const [_, private_key] = [&] {
+            if (params.name == "ML-DSA-44")
+                return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, data));
+            if (params.name == "ML-DSA-65")
+                return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65, data));
+            if (params.name == "ML-DSA-87")
+                return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87, data));
+            VERIFY_NOT_REACHED();
+        }();
+
+        // 5. Let key be a new CryptoKey that represents the ML-DSA private key identified by privateKey.
+        key = CryptoKey::create(m_realm, private_key);
+
+        // 6. Set the [[type]] internal slot of key to "private"
+        key->set_type(Bindings::KeyType::Private);
+
+        // 7. Let algorithm be a new KeyAlgorithm.
+        auto algorithm = KeyAlgorithm::create(m_realm);
+
+        // 8. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
     // FIXME -> If format is "jwk":
     //    -> Otherwise:
     else {
