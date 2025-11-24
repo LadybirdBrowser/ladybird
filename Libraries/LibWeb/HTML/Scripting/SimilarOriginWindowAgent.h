@@ -12,9 +12,7 @@
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Agent.h>
-#include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionsStack.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 
@@ -38,7 +36,7 @@ struct SimilarOriginWindowAgent : public Agent {
 
     // https://dom.spec.whatwg.org/#signal-slot-list
     // Each similar-origin window agent has signal slots (a set of slots), which is initially empty. [HTML]
-    Vector<GC::Root<HTML::HTMLSlotElement>> signal_slots;
+    GC::RootVector<GC::Ref<HTMLSlotElement>> signal_slots;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#current-element-queue
     // A similar-origin window agent's current element queue is the element queue at the top of its custom element reactions stack.
@@ -46,11 +44,7 @@ struct SimilarOriginWindowAgent : public Agent {
     Vector<GC::Root<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
 
 private:
-    SimilarOriginWindowAgent(GC::Heap& heap, CanBlock can_block)
-        : Agent(can_block)
-        , pending_mutation_observers(heap)
-    {
-    }
+    SimilarOriginWindowAgent(GC::Heap&, CanBlock);
 };
 
 WEB_API SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&);
