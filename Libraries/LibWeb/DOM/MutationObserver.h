@@ -64,11 +64,6 @@ private:
 
     // https://dom.spec.whatwg.org/#concept-mo-queue
     Vector<GC::Ref<MutationRecord>> m_record_queue;
-
-    IntrusiveListNode<MutationObserver> m_list_node;
-
-public:
-    using List = IntrusiveList<&MutationObserver::m_list_node>;
 };
 
 // https://dom.spec.whatwg.org/#registered-observer
