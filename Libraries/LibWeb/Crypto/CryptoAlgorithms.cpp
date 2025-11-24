@@ -8801,7 +8801,59 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
         // 3. Let result be the result of DER-encoding data.
         result = JS::ArrayBuffer::create(m_realm, data);
     }
-    // FIXME  -> If format is "pkcs8":
+    //   -> If format is "pkcs8":
+    else if (format == Bindings::KeyFormat::Pkcs8) {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Private)
+            return WebIDL::InvalidAccessError::create(m_realm, "Key is not a private key"_utf16);
+
+        // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+        //    * Set the version field to 0.
+        //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+        //      * => If the name member of normalizedAlgorithm is "ML-DSA-44":
+        //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
+        //      * => If the name member of normalizedAlgorithm is "ML-DSA-65":
+        //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
+        //      * => If the name member of normalizedAlgorithm is "ML-DSA-87":
+        //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
+        //      * => Otherwise:
+        //           throw a NotSupportedError.
+        //    * Set the privateKey field as follows:
+        //      * => If the name member of normalizedAlgorithm is "ML-DSA-44":
+        //           Set the privateKey field to the result of DER-encoding a ML-DSA-44-PrivateKey
+        //           ASN.1 type that represents the ML-DSA private key seed represented by the
+        //           [[handle]] internal slot of key using the seed-only format (using a context-
+        //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+        //      * => If the name member of normalizedAlgorithm is "ML-DSA-65":
+        //           Set the privateKey field to the result of DER-encoding a ML-DSA-65-PrivateKey
+        //           ASN.1 type that represents the ML-DSA private key seed represented by the
+        //           [[handle]] internal slot of key using the seed-only format (using a context-
+        //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+        //      * => If the name member of normalizedAlgorithm is "ML-DSA-87":
+        //           Set the privateKey field to the result of DER-encoding a ML-DSA-87-PrivateKey
+        //           ASN.1 type that represents the ML-DSA private key seed represented by the
+        //           [[handle]] internal slot of key using the seed-only format (using a context-
+        //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+        //      * => Otherwise:
+        //           throw a NotSupportedError.
+        Array<int, 9> algorithm_oid {};
+        if (key->algorithm_name() == "ML-DSA-44") {
+            algorithm_oid = ::Crypto::ASN1::ml_dsa_44_oid;
+        } else if (key->algorithm_name() == "ML-DSA-65") {
+            algorithm_oid = ::Crypto::ASN1::ml_dsa_65_oid;
+        } else if (key->algorithm_name() == "ML-DSA-87") {
+            algorithm_oid = ::Crypto::ASN1::ml_dsa_87_oid;
+        } else {
+            return WebIDL::NotSupportedError::create(m_realm, "Invalid algorithm"_utf16);
+        }
+
+        ::Crypto::ASN1::Encoder encoder;
+        VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
+        auto const data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(handle.get<::Crypto::PK::MLDSAPrivateKey>(), algorithm_oid));
+
+        // 3. Let result be the result of DER-encoding data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
     //   -> If format is "raw-public":
     else if (format == Bindings::KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
