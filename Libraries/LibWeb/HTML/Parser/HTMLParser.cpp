@@ -1154,7 +1154,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     // -> A start tag whose tag name is "template"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::template_) {
         // Run these steps:
-        // 1. Let template start tag be the start tag.
+        // 1. Let templateStartTag be the start tag.
         auto const& template_start_tag = token;
 
         // 2. Insert a marker at the end of the list of active formatting elements.
@@ -1191,7 +1191,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         }
 
         // 9. If any of the following are false:
-        //    - templateStartTag's shadowrootmode is not in the none state;
+        //    - templateStartTag's shadowrootmode is not in the None state;
         //    - document's allow declarative shadow roots is true; or
         //    - the adjusted current node is not the topmost element in the stack of open elements,
         if (!shadowrootmode.has_value()
@@ -1213,13 +1213,13 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             auto mode = shadowrootmode.value();
 
             // 4. Let clonable be true if templateStartTag has a shadowrootclonable attribute; otherwise false.
-            auto clonable = template_start_tag.attribute(HTML::AttributeNames::shadowrootclonable).has_value();
+            auto clonable = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootclonable);
 
             // 5. Let serializable be true if templateStartTag has a shadowrootserializable attribute; otherwise false.
-            auto serializable = template_start_tag.attribute(HTML::AttributeNames::shadowrootserializable).has_value();
+            auto serializable = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootserializable);
 
             // 6. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise false.
-            auto delegates_focus = template_start_tag.attribute(HTML::AttributeNames::shadowrootdelegatesfocus).has_value();
+            auto delegates_focus = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootdelegatesfocus);
 
             // 7. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location with template.
             if (declarative_shadow_host_element.is_shadow_host()) {
@@ -1231,31 +1231,39 @@ void HTMLParser::handle_in_head(HTMLToken& token)
 
             // 8. Otherwise:
             else {
-                // FIXME: The spec substeps here now deal with custom element registries. Update to match that.
+                // FIXME: 1. Let registry be null if templateStartTag has a shadowrootcustomelementregistry attribute; otherwise declarativeShadowHostElement's node document's custom element registry.
 
-                // 1. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, and "named".
-                //    If an exception is thrown, then catch it, report the exception, insert an element at the adjusted insertion location with template, and return.
+                // 2. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable, delegatesFocus, "named", and registry.
+                // FIXME: and registry.
                 auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
+                //    If an exception is thrown, then catch it and:
                 if (result.is_error()) {
-                    report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
+                    // 1. Insert an element at the adjusted insertion location with template.
                     // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
                     //        Otherwise, the new insertion location will be inside the template's contents, which is not what we want here.
                     //        This might be a spec bug(?)
                     adjusted_insertion_location.parent->insert_before(*template_, adjusted_insertion_location.insert_before_sibling);
+
+                    // 2. The user agent may report an error to the developer console.
+                    report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
+
+                    // 3. Return.
                     return;
                 }
 
-                // 2. Let shadow be declarativeShadowHostElement's shadow root.
+                // 3. Let shadow be declarativeShadowHostElement's shadow root.
                 auto& shadow = *declarative_shadow_host_element.shadow_root();
 
-                // 3. Set shadow's declarative to true.
+                // 4. Set shadow's declarative to true.
                 shadow.set_declarative(true);
 
-                // 4. Set template's template contents property to shadow.
+                // 5. Set template's template contents property to shadow.
                 as<HTMLTemplateElement>(*template_).set_template_contents(shadow);
 
-                // 5. Set shadow's available to element internals to true.
+                // 6. Set shadow's available to element internals to true.
                 shadow.set_available_to_element_internals(true);
+
+                // FIXME: 7. If templateStartTag has a shadowrootcustomelementregistry attribute, then set shadow's keep custom element registry null to true.
             }
         }
 
