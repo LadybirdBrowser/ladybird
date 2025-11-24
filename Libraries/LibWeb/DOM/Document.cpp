@@ -4026,14 +4026,17 @@ Vector<GC::Root<HTML::Navigable>> Document::document_tree_child_navigables()
 
     // 3. Let navigableContainers be a list of all descendants of document that are navigable containers, in tree order.
     // 4. For each navigableContainer of navigableContainers:
-    for_each_in_subtree_of_type<HTML::NavigableContainer>([&](HTML::NavigableContainer& navigable_container) {
-        // 1. If navigableContainer's content navigable is null, then continue.
-        if (!navigable_container.content_navigable())
-            return TraversalDecision::Continue;
-        // 2. Append navigableContainer's content navigable to navigables.
-        navigables.append(*navigable_container.content_navigable());
-        return TraversalDecision::Continue;
-    });
+    //     1. If navigableContainer's content navigable is null, then continue.
+    //     2. Append navigableContainer's content navigable to navigables.
+    // OPTIMIZATION: Iterate all registered navigables to avoid a full tree traversal.
+    for (auto const& navigable : HTML::all_navigables()) {
+        auto container = navigable->container();
+        if (!container || !is_ancestor_of(*container))
+            continue;
+        navigables.insert_before_matching(*navigable, [&](auto const& existing_navigable) {
+            return container->is_before(*existing_navigable->container());
+        });
+    }
 
     // 5. Return navigables.
     return navigables;
