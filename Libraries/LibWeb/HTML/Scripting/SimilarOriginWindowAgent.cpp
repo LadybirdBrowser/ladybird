@@ -1,10 +1,13 @@
 /*
  * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/DOM/MutationObserver.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -25,6 +28,13 @@ SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&
     // The relevant agent for a platform object platformObject is platformObject's relevant Realm's agent.
     // Spec Note: This pointer is not yet defined in the JavaScript specification; see tc39/ecma262#1357.
     return as<SimilarOriginWindowAgent>(*relevant_realm(object).vm().agent());
+}
+
+SimilarOriginWindowAgent::SimilarOriginWindowAgent(GC::Heap& heap, CanBlock can_block)
+    : Agent(can_block)
+    , pending_mutation_observers(heap)
+    , signal_slots(heap)
+{
 }
 
 }
