@@ -47,7 +47,17 @@ public:
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
 
+    void notify_stream_has_new_data();
+
+    bool is_buffering() const;
+
 private:
+    enum class ThreadState {
+        Running,
+        Buffering,
+        Error
+    };
+
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
         ThreadData(NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<VideoDecoder>&&, RefPtr<MediaTimeProvider> const&);
@@ -69,10 +79,13 @@ private:
         template<typename T>
         void process_seek_on_main_thread(u32 seek_id, T&&);
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
+        void notify_stream_has_new_data();
         void push_data_and_decode_some_frames();
 
         [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
         void wake() { m_wait_condition.broadcast(); }
+
+        ThreadState state() const { return m_state.load(); }
 
     private:
         Core::EventLoop& m_main_thread_event_loop;
@@ -90,13 +103,14 @@ private:
         size_t m_queue_max_size { 4 };
         ImageQueue m_queue;
         ErrorHandler m_error_handler;
-        bool m_is_in_error_state { false };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
         SeekMode m_seek_mode { SeekMode::Accurate };
+
+        Atomic<ThreadState> m_state { ThreadState::Running };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

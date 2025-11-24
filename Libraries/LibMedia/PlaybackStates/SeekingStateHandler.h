@@ -46,6 +46,15 @@ public:
         return PlaybackState::Seeking;
     }
 
+    virtual void enter_buffering() override
+    {
+        dbgln(">SeekingStateHandler enter buffering");
+    }
+    virtual void exit_buffering() override
+    {
+        dbgln(">SeekingStateHandler exit buffering");
+    }
+
 private:
     struct SeekData : public RefCounted<SeekData> {
         SeekData(PlaybackManager& manager)

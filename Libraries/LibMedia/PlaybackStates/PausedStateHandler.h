@@ -41,6 +41,15 @@ public:
     {
         return PlaybackState::Paused;
     }
+
+    virtual void enter_buffering() override
+    {
+        dbgln(">PausedStateHandler enter buffering");
+    }
+    virtual void exit_buffering() override
+    {
+        dbgln(">PausedStateHandler exit buffering");
+    }
 };
 
 }

@@ -46,6 +46,15 @@ public:
         return m_playing;
     }
 
+    virtual void enter_buffering() override
+    {
+        dbgln(">ResumingStateHandler enter buffering");
+    }
+    virtual void exit_buffering() override
+    {
+        dbgln(">ResumingStateHandler exit buffering");
+    }
+
 private:
     bool m_playing { false };
 };

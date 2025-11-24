@@ -44,7 +44,7 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(NonnullRefPtr<MutexedDemuxer>);
     ~PlaybackManager();
 
     AK::Duration duration() const;
@@ -79,6 +79,8 @@ public:
 
     Function<void()> on_playback_state_change;
     Function<void(DecoderError&&)> on_error;
+
+    void notify_stream_has_new_data();
 
 private:
     class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {

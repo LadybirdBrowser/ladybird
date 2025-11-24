@@ -58,6 +58,11 @@ void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& com
     m_thread_data->seek(timestamp, move(completion_handler));
 }
 
+void AudioDataProvider::notify_stream_has_new_data()
+{
+    m_thread_data->notify_stream_has_new_data();
+}
+
 AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track, NonnullOwnPtr<AudioDecoder>&& decoder)
     : m_main_thread_event_loop(Core::EventLoop::current())
     , m_demuxer(demuxer)
@@ -136,7 +141,7 @@ void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
     process_seek_on_main_thread(seek_id, [self = NonnullRefPtr(*this)] {
         {
             auto locker = self->take_lock();
-            self->m_is_in_error_state = false;
+            self->m_state = ThreadState::Running;
             self->m_wait_condition.broadcast();
         }
         auto handler = move(self->m_seek_completion_handler);
@@ -152,6 +157,8 @@ bool AudioDataProvider::ThreadData::handle_seek()
         return false;
 
     auto handle_error = [&](DecoderError&& error) {
+        VERIFY(error.category() != DecoderErrorCategory::NeedsMoreInput);
+
         {
             auto locker = take_lock();
             m_queue.clear();
@@ -164,6 +171,20 @@ bool AudioDataProvider::ThreadData::handle_seek()
             });
     };
 
+    auto wait_for_new_data_or_seek_change = [&](auto seek_id) {
+        m_state = ThreadState::Buffering;
+        while (true) {
+            auto locker = take_lock();
+            m_wait_condition.wait();
+            if (should_thread_exit())
+                break;
+            if (m_seek_id.load() != seek_id)
+                break;
+            if (m_state == ThreadState::Running)
+                break;
+        }
+    };
+
     AK::Duration timestamp;
 
     while (true) {
@@ -174,8 +195,16 @@ bool AudioDataProvider::ThreadData::handle_seek()
         }
 
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp);
-        if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
-            handle_error(demuxer_seek_result_or_error.release_error());
+        if (demuxer_seek_result_or_error.is_error()) {
+            auto const& error = demuxer_seek_result_or_error.error();
+            if (error.category() == DecoderErrorCategory::NeedsMoreInput) {
+                wait_for_new_data_or_seek_change(seek_id);
+                continue;
+            }
+            if (error.category() != DecoderErrorCategory::EndOfStream) {
+                handle_error(demuxer_seek_result_or_error.release_error());
+                return true;
+            }
             return true;
         }
         auto demuxer_seek_result = demuxer_seek_result_or_error.value_or(DemuxerSeekResult::MovedPosition);
@@ -189,6 +218,11 @@ bool AudioDataProvider::ThreadData::handle_seek()
         while (new_seek_id == seek_id) {
             auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
             if (coded_frame_result.is_error()) {
+                if (coded_frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput) {
+                    wait_for_new_data_or_seek_change(seek_id);
+                    new_seek_id = m_seek_id.load();
+                    continue;
+                }
                 if (coded_frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                     m_decoder->signal_end_of_stream();
                 } else {
@@ -241,14 +275,23 @@ bool AudioDataProvider::ThreadData::handle_seek()
     }
 }
 
+void AudioDataProvider::ThreadData::notify_stream_has_new_data()
+{
+    auto locker = take_lock();
+    if (m_state == ThreadState::Buffering) {
+        m_state = ThreadState::Running;
+        m_wait_condition.broadcast();
+    }
+}
+
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
-        auto is_in_error_state = true;
+        auto is_in_running_state = false;
 
         {
             auto locker = take_lock();
-            m_is_in_error_state = true;
+            m_state = error.category() == DecoderErrorCategory::NeedsMoreInput ? ThreadState::Buffering : ThreadState::Error;
             while (!m_error_handler)
                 m_wait_condition.wait();
             m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), error = move(error)] mutable {
@@ -257,14 +300,14 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }
 
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Audio Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (is_in_error_state) {
+        while (!is_in_running_state) {
             if (handle_seek())
                 break;
 
             {
                 auto locker = take_lock();
                 m_wait_condition.wait();
-                is_in_error_state = m_is_in_error_state;
+                is_in_running_state = m_state == ThreadState::Running;
             }
         }
     };

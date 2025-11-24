@@ -41,6 +41,8 @@ public:
     void pause_updates();
     void resume_updates();
 
+    Function<void()> m_on_start_buffering;
+
 private:
     static constexpr size_t DEFAULT_QUEUE_SIZE = 8;
 

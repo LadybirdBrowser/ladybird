@@ -20,17 +20,8 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(ReadonlyBytes data)
+DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(NonnullRefPtr<MutexedDemuxer> demuxer)
 {
-    auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        auto stream = IncrementallyPopulatedStream::create_from_byte_buffer(MUST(ByteBuffer::copy(data)));
-        auto matroska_result = Matroska::MatroskaDemuxer::from_incrementally_populated_stream(stream);
-        if (!matroska_result.is_error())
-            return matroska_result.release_value();
-        return TRY(FFmpeg::FFmpegDemuxer::from_data(data));
-    }());
-    auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
-
     // Create the weak wrapper.
     auto weak_playback_manager = DECODER_TRY_ALLOC(try_make_ref_counted<WeakPlaybackManager>());
 
@@ -174,6 +165,10 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
     if (track_data.display == nullptr) {
         track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
         track_data.display->set_provider(track, track_data.provider);
+        track_data.display->m_on_start_buffering = [this] {
+            dbgln(">m_on_start_buffering");
+            m_handler->enter_buffering();
+        };
         track_data.provider->seek(m_time_provider->current_time(), SeekMode::Accurate);
     }
 
@@ -244,6 +239,14 @@ void PlaybackManager::set_volume(double volume)
 {
     if (m_audio_sink)
         m_audio_sink->set_volume(volume);
+}
+
+void PlaybackManager::notify_stream_has_new_data()
+{
+    for (auto const& video_track_data : m_video_track_datas)
+        video_track_data.provider->notify_stream_has_new_data();
+    for (auto const& audio_track_data : m_audio_track_datas)
+        audio_track_data.provider->notify_stream_has_new_data();
 }
 
 }
