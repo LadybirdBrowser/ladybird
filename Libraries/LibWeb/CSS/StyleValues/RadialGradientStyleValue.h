@@ -31,13 +31,13 @@ public:
     };
 
     struct CircleSize {
-        Length radius;
+        NonnullRefPtr<StyleValue const> radius;
         bool operator==(CircleSize const&) const = default;
     };
 
     struct EllipseSize {
-        LengthPercentage radius_a;
-        LengthPercentage radius_b;
+        NonnullRefPtr<StyleValue const> radius_a;
+        NonnullRefPtr<StyleValue const> radius_b;
         bool operator==(EllipseSize const&) const = default;
     };
 

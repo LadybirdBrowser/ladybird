@@ -540,10 +540,10 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
         return {};
     };
 
-    auto length_percentage_is_non_negative = [](LengthPercentage const& length_percentage) -> bool {
-        if (length_percentage.is_length() && length_percentage.length().raw_value() < 0)
+    auto length_percentage_is_non_negative = [](StyleValue const& value) -> bool {
+        if (value.is_length() && value.as_length().length().raw_value() < 0)
             return false;
-        if (length_percentage.is_percentage() && length_percentage.percentage().value() < 0)
+        if (value.is_percentage() && value.as_percentage().percentage().value() < 0)
             return false;
         return true;
     };
@@ -563,23 +563,22 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
                 return {};
             return commit_value(*extent, transaction_size);
         }
-        auto first_radius = parse_length_percentage(tokens);
-        if (!first_radius.has_value() || !length_percentage_is_non_negative(*first_radius))
+        auto first_radius = parse_length_percentage_value(tokens);
+        if (!first_radius || !length_percentage_is_non_negative(*first_radius))
             return {};
         auto transaction_second_dimension = tokens.begin_transaction();
         tokens.discard_whitespace();
         if (tokens.has_next_token()) {
-            auto second_radius = parse_length_percentage(tokens);
-            if (second_radius.has_value()) {
+            if (auto second_radius = parse_length_percentage_value(tokens)) {
                 if (!length_percentage_is_non_negative(*second_radius))
                     return {};
-                return commit_value(EllipseSize { first_radius.release_value(), second_radius.release_value() },
+                return commit_value(EllipseSize { first_radius.release_nonnull(), second_radius.release_nonnull() },
                     transaction_size, transaction_second_dimension);
             }
         }
-        // FIXME: Support calculated lengths
-        if (first_radius->is_length())
-            return commit_value(CircleSize { first_radius->length() }, transaction_size);
+        // We parsed the first value as a <length-percentage>, but here we only want <length>s.
+        if (first_radius->is_length() || (first_radius->is_calculated() && !first_radius->as_calculated().contains_percentage()))
+            return commit_value(CircleSize { first_radius.release_nonnull() }, transaction_size);
         return {};
     };
 
