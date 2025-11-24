@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <AK/Forward.h>
+#include <AK/ByteString.h>
+#include <AK/StringView.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Fetch::Infrastructure {
 
-[[nodiscard]] bool is_method(ReadonlyBytes);
-[[nodiscard]] WEB_API bool is_cors_safelisted_method(ReadonlyBytes);
-[[nodiscard]] bool is_forbidden_method(ReadonlyBytes);
-[[nodiscard]] ByteBuffer normalize_method(ReadonlyBytes);
+[[nodiscard]] bool is_method(StringView);
+[[nodiscard]] WEB_API bool is_cors_safelisted_method(StringView);
+[[nodiscard]] bool is_forbidden_method(StringView);
+[[nodiscard]] ByteString normalize_method(StringView);
 
 }

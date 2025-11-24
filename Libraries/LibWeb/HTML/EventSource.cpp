@@ -69,8 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     request->set_client(&settings);
 
     // 10. User agents may set (`Accept`, `text/event-stream`) in request's header list.
-    auto header = Fetch::Infrastructure::Header::from_string_pair("Accept"sv, "text/event-stream"sv);
-    request->header_list()->set(move(header));
+    request->header_list()->set({ "Accept"sv, "text/event-stream"sv });
 
     // 11. Set request's cache mode to "no-store".
     request->set_cache_mode(Fetch::Infrastructure::Request::CacheMode::NoStore);
@@ -319,8 +318,8 @@ void EventSource::reestablish_the_connection()
         if (!m_last_event_id.is_empty()) {
             // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
             // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-            auto header = Fetch::Infrastructure::Header::from_string_pair("Last-Event-ID"sv, m_last_event_id);
-            request->header_list()->set(header);
+            auto header = Fetch::Infrastructure::Header::isomorphic_encode("Last-Event-ID"sv, m_last_event_id);
+            request->header_list()->set(move(header));
         }
 
         // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.

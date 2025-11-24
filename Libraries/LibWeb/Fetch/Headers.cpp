@@ -57,20 +57,19 @@ void Headers::visit_edges(JS::Cell::Visitor& visitor)
 WebIDL::ExceptionOr<void> Headers::append(String const& name_string, String const& value_string)
 {
     // The append(name, value) method steps are to append (name, value) to this.
-    auto header = Infrastructure::Header::from_string_pair(name_string, value_string);
+    auto header = Infrastructure::Header::isomorphic_encode(name_string, value_string);
     TRY(append(move(header)));
     return {};
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers-delete
-WebIDL::ExceptionOr<void> Headers::delete_(String const& name_string)
+WebIDL::ExceptionOr<void> Headers::delete_(String const& name)
 {
     // The delete(name) method steps are:
-    auto name = name_string.bytes();
 
     // 1. If validating (name, ``) for headers returns false, then return.
     // NOTE: Passing a dummy header value ought not to have any negative repercussions.
-    auto header = Infrastructure::Header::from_string_pair(name, ""sv);
+    auto header = Infrastructure::Header::isomorphic_encode(name, ""sv);
     if (!TRY(validate(header)))
         return {};
 
@@ -93,10 +92,9 @@ WebIDL::ExceptionOr<void> Headers::delete_(String const& name_string)
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers-get
-WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name_string)
+WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name)
 {
     // The get(name) method steps are:
-    auto name = name_string.bytes();
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!Infrastructure::is_header_name(name))
@@ -114,23 +112,22 @@ Vector<String> Headers::get_set_cookie()
     auto values = Vector<String> {};
 
     // 1. If this’s header list does not contain `Set-Cookie`, then return « ».
-    if (!m_header_list->contains("Set-Cookie"sv.bytes()))
+    if (!m_header_list->contains("Set-Cookie"sv))
         return values;
 
     // 2. Return the values of all headers in this’s header list whose name is a byte-case-insensitive match for
     //    `Set-Cookie`, in order.
     for (auto const& header : *m_header_list) {
-        if (StringView { header.name }.equals_ignoring_ascii_case("Set-Cookie"sv))
+        if (header.name.equals_ignoring_ascii_case("Set-Cookie"sv))
             values.append(Infra::isomorphic_decode(header.value));
     }
     return values;
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers-has
-WebIDL::ExceptionOr<bool> Headers::has(String const& name_string)
+WebIDL::ExceptionOr<bool> Headers::has(String const& name)
 {
     // The has(name) method steps are:
-    auto name = name_string.bytes();
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!Infrastructure::is_header_name(name))
@@ -141,16 +138,14 @@ WebIDL::ExceptionOr<bool> Headers::has(String const& name_string)
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers-set
-WebIDL::ExceptionOr<void> Headers::set(String const& name_string, String const& value_string)
+WebIDL::ExceptionOr<void> Headers::set(String const& name, String const& value)
 {
     // The set(name, value) method steps are:
-    auto name = name_string.bytes();
-    auto value = value_string.bytes();
 
     // 1. Normalize value.
     auto normalized_value = Infrastructure::normalize_header_value(value);
 
-    auto header = Infrastructure::Header::from_string_pair(name, normalized_value);
+    auto header = Infrastructure::Header::isomorphic_encode(name, normalized_value);
 
     // 2. If validating (name, value) for headers returns false, then return.
     if (!TRY(validate(header)))
@@ -252,17 +247,15 @@ WebIDL::ExceptionOr<void> Headers::append(Infrastructure::Header header)
 
         // 2. If temporaryValue is null, then set temporaryValue to value.
         if (!temporary_value.has_value()) {
-            temporary_value = MUST(ByteBuffer::copy(value));
+            temporary_value = move(value);
         }
         // 3. Otherwise, set temporaryValue to temporaryValue, followed by 0x2C 0x20, followed by value.
         else {
-            temporary_value->append(0x2c);
-            temporary_value->append(0x20);
-            temporary_value->append(value);
+            temporary_value = ByteString::formatted("{}, {}", *temporary_value, value);
         }
 
         auto temporary_header = Infrastructure::Header {
-            .name = MUST(ByteBuffer::copy(name)),
+            .name = move(name),
             .value = temporary_value.release_value(),
         };
 
@@ -294,7 +287,7 @@ WebIDL::ExceptionOr<void> Headers::fill(HeadersInit const& object)
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Array must contain header key/value pair"sv };
 
                 // 2. Append (header[0], header[1]) to headers.
-                auto header = Infrastructure::Header::from_string_pair(entry[0], entry[1]);
+                auto header = Infrastructure::Header::isomorphic_encode(entry[0], entry[1]);
                 TRY(append(move(header)));
             }
             return {};
@@ -302,7 +295,7 @@ WebIDL::ExceptionOr<void> Headers::fill(HeadersInit const& object)
         // 2. Otherwise, object is a record, then for each key → value of object, append (key, value) to headers.
         [&](OrderedHashMap<String, String> const& object) -> WebIDL::ExceptionOr<void> {
             for (auto const& entry : object) {
-                auto header = Infrastructure::Header::from_string_pair(entry.key, entry.value);
+                auto header = Infrastructure::Header::isomorphic_encode(entry.key, entry.value);
                 TRY(append(move(header)));
             }
             return {};
@@ -321,7 +314,7 @@ void Headers::remove_privileged_no_cors_request_headers()
     // 1. For each headerName of privileged no-CORS request-header names:
     for (auto const& header_name : privileged_no_cors_request_header_names) {
         // 1. Delete headerName from headers’s header list.
-        m_header_list->delete_(header_name.bytes());
+        m_header_list->delete_(header_name);
     }
 }
 

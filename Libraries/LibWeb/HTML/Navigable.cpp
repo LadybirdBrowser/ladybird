@@ -794,10 +794,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    body: the UTF-8 encoding of documentResource, as a body
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(URL::about_srcdoc());
-
-    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
-    response->header_list()->append(move(header));
-
+    response->header_list()->append({ "Content-Type"sv, "text/html"sv });
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource.get<String>().bytes()));
 
     // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's sandboxing flags, and entry's document state's origin.
@@ -1128,7 +1125,7 @@ static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> en
     // 6. If documentResource is a POST resource:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.
-        request->set_method(MUST(ByteBuffer::copy("POST"sv.bytes())));
+        request->set_method("POST"sv);
 
         // 2. Set request's body to documentResource's request body.
         request->set_body(document_resource.get<POSTResource>().request_body.value());
@@ -1157,7 +1154,7 @@ static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> en
             request_content_type = request_content_type_buffer.string_view();
         }
 
-        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, request_content_type);
+        auto header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, request_content_type);
         request->header_list()->append(move(header));
     }
 
@@ -2043,10 +2040,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
     //     body: the UTF-8 encoding of result, as a body
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(active_document()->url());
-
-    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
-    response->header_list()->append(move(header));
-
+    response->header_list()->append({ "Content-Type"sv, "text/html"sv });
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result.bytes()));
 
     // 12. Let policyContainer be targetNavigable's active document's policy container.

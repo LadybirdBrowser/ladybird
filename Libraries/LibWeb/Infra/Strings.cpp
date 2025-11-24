@@ -157,31 +157,35 @@ ErrorOr<String> convert_to_scalar_value_string(StringView string)
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-encode
-ByteBuffer isomorphic_encode(StringView input)
+ByteString isomorphic_encode(StringView input)
 {
     // To isomorphic encode an isomorphic string input: return a byte sequence whose length is equal to input’s code
     // point length and whose bytes have the same values as the values of input’s code points, in the same order.
-    // NOTE: This is essentially spec-speak for "Encode as ISO-8859-1 / Latin-1".
-    ByteBuffer buf = {};
+    // NB: This is essentially spec-speak for "Encode as ISO-8859-1 / Latin-1".
+    StringBuilder builder(input.length());
+
     for (auto code_point : Utf8View { input }) {
         // VERIFY(code_point <= 0xFF);
         if (code_point > 0xFF)
             dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
-        buf.append((u8)code_point);
+
+        builder.append(static_cast<u8>(code_point));
     }
-    return buf;
+
+    return builder.to_byte_string();
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode
-String isomorphic_decode(ReadonlyBytes input)
+String isomorphic_decode(StringView input)
 {
-    // To isomorphic decode a byte sequence input, return a string whose code point length is equal
-    // to input’s length and whose code points have the same values as the values of input’s bytes, in the same order.
-    // NOTE: This is essentially spec-speak for "Decode as ISO-8859-1 / Latin-1".
-    StringBuilder builder(input.size());
-    for (u8 code_point : input) {
-        builder.append_code_point(code_point);
-    }
+    // To isomorphic decode a byte sequence input, return a string whose code point length is equal to input’s length
+    // and whose code points have the same values as the values of input’s bytes, in the same order.
+    // NB: This is essentially spec-speak for "Decode as ISO-8859-1 / Latin-1".
+    StringBuilder builder(input.length());
+
+    for (auto byte : input.bytes())
+        builder.append_code_point(byte);
+
     return builder.to_string_without_validation();
 }
 

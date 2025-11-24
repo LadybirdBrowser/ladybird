@@ -411,12 +411,9 @@ Optional<StringView> XMLHttpRequest::get_final_encoding() const
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-setrequestheader
-WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_string, String const& value_string)
+WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name, String const& value)
 {
     auto& realm = this->realm();
-
-    auto name = name_string.bytes();
-    auto value = value_string.bytes();
 
     // 1. If this’s state is not opened, then throw an "InvalidStateError" DOMException.
     if (m_state != State::Opened)
@@ -436,7 +433,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_
         return WebIDL::SyntaxError::create(realm, "Header value contains invalid characters."_utf16);
 
     auto header = Fetch::Infrastructure::Header {
-        .name = MUST(ByteBuffer::copy(name)),
+        .name = name.to_byte_string(),
         .value = move(normalized_value),
     };
 
@@ -451,16 +448,14 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-open
-WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, String const& url)
+WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String const& url)
 {
     // 7. If the async argument is omitted, set async to true, and set username and password to null.
-    return open(method_string, url, true, Optional<String> {}, Optional<String> {});
+    return open(method, url, true, {}, {});
 }
 
-WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, String const& url, bool async, Optional<String> const& username, Optional<String> const& password)
+WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String const& url, bool async, Optional<String> const& username, Optional<String> const& password)
 {
-    auto method = method_string.bytes();
-
     // 1. If this’s relevant global object is a Window object and its associated Document is not fully active, then throw an "InvalidStateError" DOMException.
     if (is<HTML::Window>(HTML::relevant_global_object(*this))) {
         auto const& window = static_cast<HTML::Window const&>(HTML::relevant_global_object(*this));
@@ -520,7 +515,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     // Unset this’s upload listener flag.
     m_upload_listener = false;
     // Set this’s request method to method.
-    m_request_method = normalized_method.span();
+    m_request_method = move(normalized_method);
     // Set this’s request URL to parsedURL.
     m_request_url = parsed_url.release_value();
     // Set this’s synchronous flag if async is false; otherwise unset this’s synchronous flag.
@@ -568,7 +563,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
     // 4. If body is not null, then:
     if (body.has_value()) {
         // 1. Let extractedContentType be null.
-        Optional<ByteBuffer> extracted_content_type;
+        Optional<ByteString> extracted_content_type;
 
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
         if (body->has<GC::Root<DOM::Document>>()) {
@@ -589,7 +584,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
 
         // 4. Let originalAuthorContentType be the result of getting `Content-Type` from this’s author request headers.
-        auto original_author_content_type = m_author_request_headers->get("Content-Type"sv.bytes());
+        auto original_author_content_type = m_author_request_headers->get("Content-Type"sv);
 
         // 5. If originalAuthorContentType is non-null, then:
         if (original_author_content_type.has_value()) {
@@ -609,7 +604,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                         auto new_content_type_serialized = content_type_record->serialized();
 
                         // 3. Set (`Content-Type`, newContentTypeSerialized) in this’s author request headers.
-                        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, new_content_type_serialized);
+                        auto header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, new_content_type_serialized);
                         m_author_request_headers->set(move(header));
                     }
                 }
@@ -623,20 +618,18 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                 // NOTE: A document can only be an HTML document or XML document.
                 // 1. If body is an HTML document, then set (`Content-Type`, `text/html;charset=UTF-8`) in this’s author request headers.
                 if (document->is_html_document()) {
-                    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html;charset=UTF-8"sv);
-                    m_author_request_headers->set(move(header));
+                    m_author_request_headers->set({ "Content-Type"sv, "text/html;charset=UTF-8"sv });
                 }
                 // 2. Otherwise, if body is an XML document, set (`Content-Type`, `application/xml;charset=UTF-8`) in this’s author request headers.
                 else if (document->is_xml_document()) {
-                    auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "application/xml;charset=UTF-8"sv);
-                    m_author_request_headers->set(move(header));
+                    m_author_request_headers->set({ "Content-Type"sv, "application/xml;charset=UTF-8"sv });
                 } else {
                     VERIFY_NOT_REACHED();
                 }
             }
             // 3. Otherwise, if extractedContentType is not null, set (`Content-Type`, extractedContentType) in this’s author request headers.
             else if (extracted_content_type.has_value()) {
-                auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, extracted_content_type.value());
+                auto header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, extracted_content_type.value());
                 m_author_request_headers->set(move(header));
             }
         }
@@ -650,7 +643,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
     // method
     //    This’s request method.
-    request->set_method(MUST(ByteBuffer::copy(m_request_method.bytes())));
+    request->set_method(m_request_method);
 
     // URL
     //    This’s request URL.
@@ -970,7 +963,7 @@ void XMLHttpRequest::set_onreadystatechange(WebIDL::CallbackType* value)
 Optional<String> XMLHttpRequest::get_response_header(String const& name) const
 {
     // The getResponseHeader(name) method steps are to return the result of getting name from this’s response’s header list.
-    auto header_bytes = m_response->header_list()->get(name.bytes());
+    auto header_bytes = m_response->header_list()->get(name);
     if (!header_bytes.has_value())
         return {};
 
@@ -979,18 +972,16 @@ Optional<String> XMLHttpRequest::get_response_header(String const& name) const
 }
 
 // https://xhr.spec.whatwg.org/#legacy-uppercased-byte-less-than
-static ErrorOr<bool> is_legacy_uppercased_byte_less_than(ReadonlyBytes a, ReadonlyBytes b)
+static bool is_legacy_uppercased_byte_less_than(ByteString const& a, ByteString const& b)
 {
     // 1. Let A be a, byte-uppercased.
-    auto uppercased_a = TRY(ByteBuffer::copy(a));
-    Infra::byte_uppercase(uppercased_a);
+    auto uppercased_a = a.to_uppercase();
 
     // 2. Let B be b, byte-uppercased.
-    auto uppercased_b = TRY(ByteBuffer::copy(b));
-    Infra::byte_uppercase(uppercased_b);
+    auto uppercased_b = b.to_uppercase();
 
     // 3. Return A is byte less than B.
-    return Infra::is_byte_less_than(uppercased_a, uppercased_b);
+    return Infra::is_byte_less_than(uppercased_a.bytes(), uppercased_b.bytes());
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-getallresponseheaders
@@ -1003,22 +994,15 @@ String XMLHttpRequest::get_all_response_headers() const
     auto initial_headers = m_response->header_list()->sort_and_combine();
 
     // 3. Let headers be the result of sorting initialHeaders in ascending order, with a being less than b if a’s name is legacy-uppercased-byte less than b’s name.
-    // Spec Note: Unfortunately, this is needed for compatibility with deployed content.
-    // NOTE: quick_sort mutates the collection instead of returning a sorted copy.
+    // NOTE: Unfortunately, this is needed for compatibility with deployed content.
     quick_sort(initial_headers, [](Fetch::Infrastructure::Header const& a, Fetch::Infrastructure::Header const& b) {
-        return MUST(is_legacy_uppercased_byte_less_than(a.name, b.name));
+        return is_legacy_uppercased_byte_less_than(a.name, b.name);
     });
 
     // 4. For each header in headers, append header’s name, followed by a 0x3A 0x20 byte pair, followed by header’s value, followed by a 0x0D 0x0A byte pair, to output.
     for (auto const& header : initial_headers) {
-        output.append(header.name);
-        output.append(0x3A); // ':'
-        output.append(0x20); // ' '
         // FIXME: The spec does not mention isomorphic decode. Spec bug?
-        auto decoder_header = Infra::isomorphic_decode(header.value);
-        output.append(decoder_header.bytes());
-        output.append(0x0D); // '\r'
-        output.append(0x0A); // '\n'
+        output.appendff("{}: {}\r\n", header.name, Infra::isomorphic_decode(header.value));
     }
 
     // 5. Return output.
@@ -1157,10 +1141,8 @@ Fetch::Infrastructure::Status XMLHttpRequest::status() const
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-statustext
 WebIDL::ExceptionOr<String> XMLHttpRequest::status_text() const
 {
-    auto& vm = this->vm();
-
     // The statusText getter steps are to return this’s response’s status message.
-    return TRY_OR_THROW_OOM(vm, String::from_utf8(m_response->status_message()));
+    return MUST(String::from_byte_string(m_response->status_message()));
 }
 
 // https://xhr.spec.whatwg.org/#handle-response-end-of-body

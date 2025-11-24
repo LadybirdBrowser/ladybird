@@ -38,7 +38,7 @@ public:
 
     ~Policy() = default;
 
-    [[nodiscard]] static GC::Ref<Policy> parse_a_serialized_csp(GC::Heap&, Variant<ByteBuffer, String> serialized, Source source, Disposition disposition);
+    [[nodiscard]] static GC::Ref<Policy> parse_a_serialized_csp(GC::Heap&, Variant<ByteString, String> serialized, Source source, Disposition disposition);
     [[nodiscard]] static GC::Ref<PolicyList> parse_a_responses_content_security_policies(GC::Heap&, GC::Ref<Fetch::Infrastructure::Response const> response);
     [[nodiscard]] static GC::Ref<Policy> create_from_serialized_policy(GC::Heap&, SerializedPolicy const&);
 
