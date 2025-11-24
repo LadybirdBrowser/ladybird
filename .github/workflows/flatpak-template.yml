@@ -19,7 +19,7 @@ jobs:
       options: --privileged
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: Ladybird.flatpak
