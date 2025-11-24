@@ -24,6 +24,18 @@ public:
             callback(id);
     }
 
+    template<typename Callback>
+    void for_each_element_with_id(StringView id, Callback callback)
+    {
+        auto maybe_elements_with_id = m_map.get(id);
+        if (!maybe_elements_with_id.has_value())
+            return;
+        for (auto const& element : *maybe_elements_with_id) {
+            if (element)
+                callback(GC::Ref { *element });
+        }
+    }
+
 private:
     HashMap<FlyString, Vector<GC::Weak<Element>>> m_map;
 };

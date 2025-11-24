@@ -1901,13 +1901,16 @@ Window::NamedObjects Window::named_objects(StringView name)
     // embed, form, img, or object elements that have a name content attribute whose value is name
     // and are in a document tree with window's associated Document as their root; and
     // HTML elements that have an id content attribute whose value is name and are in a document tree with window's associated Document as their root.
-    associated_document().for_each_in_subtree_of_type<DOM::Element>([&objects, &name](auto& element) -> TraversalDecision {
-        if ((is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element))
-            && (element.name() == name))
-            objects.elements.append(element);
-        else if (element.id() == name)
-            objects.elements.append(element);
-        return TraversalDecision::Continue;
+    for (auto element : associated_document().potentially_named_elements()) {
+        if (element->id().has_value()) {
+            // NOTE: The element will be added when we iterate over the element_by_id() map below.
+            continue;
+        }
+        if (auto element_name = element->name(); element_name.has_value() && *element_name == name)
+            objects.elements.append(*element);
+    }
+    associated_document().element_by_id().for_each_element_with_id(name, [&](auto element) {
+        objects.elements.append(*element);
     });
 
     return objects;
