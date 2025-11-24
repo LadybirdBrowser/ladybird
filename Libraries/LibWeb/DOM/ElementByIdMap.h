@@ -17,6 +17,13 @@ public:
     void remove(FlyString const& element_id, Element&);
     GC::Ptr<Element> get(FlyString const& element_id) const;
 
+    template<typename Callback>
+    void for_each_id(Callback callback)
+    {
+        for (auto const& id : m_map.keys())
+            callback(id);
+    }
+
 private:
     HashMap<FlyString, Vector<GC::Weak<Element>>> m_map;
 };
