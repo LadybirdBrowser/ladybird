@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.reference_to_build }}
 

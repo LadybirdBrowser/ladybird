@@ -22,28 +22,28 @@ jobs:
           rm -rf "${{ github.workspace }}/*"
 
       - name: Checkout LadybirdBrowser/ladybird
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Checkout LadybirdBrowser/libjs-test262
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: LadybirdBrowser/libjs-test262
           path: libjs-test262
 
       - name: Checkout LadybirdBrowser/libjs-data
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: LadybirdBrowser/libjs-data
           path: libjs-data
 
       - name: Checkout tc39/test262
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: tc39/test262
           path: test262
 
       - name: Checkout tc39/test262-parser-tests
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: tc39/test262-parser-tests
           path: test262-parser-tests
