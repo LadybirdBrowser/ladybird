@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 22 tests
 
-18 Pass
-4 Fail
+22 Pass
 Pass	Declarative Shadow DOM: Basic test
 Pass	Declarative Shadow DOM: Feature detection
 Pass	Shadowrootmode reflection
@@ -19,10 +18,10 @@ Pass	Declarative Shadow DOM: Missing closing tag
 Pass	Declarative Shadow DOM: delegates focus attribute
 Pass	Declarative Shadow DOM: clonable attribute
 Pass	Declarative Shadow DOM: Multiple roots
-Fail	Declarative Shadow DOM: template containing declarative shadow root (with shadowrootclonable)
-Fail	Declarative Shadow DOM: template containing (deeply nested) declarative shadow root
-Fail	Declarative Shadow DOM: template containing a template containing declarative shadow root
-Fail	Declarative Shadow DOM: template containing declarative shadow root and UA shadow root
+Pass	Declarative Shadow DOM: template containing declarative shadow root (with shadowrootclonable)
+Pass	Declarative Shadow DOM: template containing (deeply nested) declarative shadow root
+Pass	Declarative Shadow DOM: template containing a template containing declarative shadow root
+Pass	Declarative Shadow DOM: template containing declarative shadow root and UA shadow root
 Pass	Declarative Shadow DOM: template containing closed declarative shadow root and UA shadow root
 Pass	Declarative Shadow DOM: declarative shadow roots are not supported by the template element
 Pass	Declarative Shadow DOM: explicit test that exceptions are not thrown
