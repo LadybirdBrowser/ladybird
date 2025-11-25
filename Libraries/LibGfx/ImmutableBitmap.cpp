@@ -41,9 +41,11 @@ IntSize ImmutableBitmap::size() const
     return { width(), height() };
 }
 
-Gfx::AlphaType ImmutableBitmap::alpha_type() const
+AlphaType ImmutableBitmap::alpha_type() const
 {
-    return m_impl->sk_image->alphaType() == kPremul_SkAlphaType ? Gfx::AlphaType::Premultiplied : Gfx::AlphaType::Unpremultiplied;
+    // We assume premultiplied alpha type for opaque surfaces since that is Skia's preferred alpha type and the
+    // effective pixel data is identical between premultiplied and unpremultiplied in that case.
+    return m_impl->sk_image->alphaType() == kUnpremul_SkAlphaType ? AlphaType::Unpremultiplied : AlphaType::Premultiplied;
 }
 
 SkImage const* ImmutableBitmap::sk_image() const

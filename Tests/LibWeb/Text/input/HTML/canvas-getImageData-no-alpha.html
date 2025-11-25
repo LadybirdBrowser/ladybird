@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const ctx = document.createElement("canvas").getContext("2d", {alpha: false});
+    ctx.fillStyle = "rgba(100, 150, 200, 0.5)";
+    ctx.fillRect(0, 0, 300, 150);
+    const color = ctx.getImageData(0, 0, 300, 150);
+    println(`${color.data[0]}, ${color.data[1]}, ${color.data[2]}, ${color.data[3]}`);
+});
+</script>

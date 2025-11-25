@@ -33,7 +33,7 @@ public:
     IntRect rect() const;
     IntSize size() const;
 
-    Gfx::AlphaType alpha_type() const;
+    AlphaType alpha_type() const;
 
     SkImage const* sk_image() const;
 
