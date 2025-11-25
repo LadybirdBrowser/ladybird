@@ -2395,12 +2395,22 @@ ThrowCompletionOr<bool> is_loosely_equal(VM& vm, Value lhs, Value rhs)
     // B.3.6.2 Changes to IsLooselyEqual, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot-aec
     // 4. Perform the following steps:
     // a. If Type(x) is Object and x has an [[IsHTMLDDA]] internal slot and y is either null or undefined, return true.
-    if (lhs.is_object() && lhs.as_object().is_htmldda() && rhs.is_nullish())
-        return true;
+    if (lhs.is_object() && rhs.is_nullish()) {
+        if (lhs.as_object().is_htmldda())
+            return true;
+
+        // OPTIMIZATION: We can return early here since non-HTMLDDA objects and nullish values are never equal.
+        return false;
+    }
 
     // b. If x is either null or undefined and Type(y) is Object and y has an [[IsHTMLDDA]] internal slot, return true.
-    if (lhs.is_nullish() && rhs.is_object() && rhs.as_object().is_htmldda())
-        return true;
+    if (lhs.is_nullish() && rhs.is_object()) {
+        if (rhs.as_object().is_htmldda())
+            return true;
+
+        // OPTIMIZATION: We can return early here since non-HTMLDDA objects and nullish values are never equal.
+        return false;
+    }
 
     // == End of B.3.6.2 ==
 
