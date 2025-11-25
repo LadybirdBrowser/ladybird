@@ -748,29 +748,30 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
         // 3. If there is a last template and either there is no last table,
         //    or there is one, but last template is lower (more recently added) than last table in the stack of open elements,
         if (last_template.element && (!last_table.element || last_template.index > last_table.index)) {
-            // then: let adjusted insertion location be inside last template's template contents, after its last child (if any), and abort these steps.
+            // then: let adjusted insertion location be inside last template's template contents, after its last child
+            // (if any), and abort these steps.
 
             // NOTE: This returns the template content, so no need to check the parent is a template.
             return { as<HTMLTemplateElement>(*last_template.element).content().ptr(), nullptr };
         }
-        // 4. If there is no last table, then let adjusted insertion location be inside the first element in the stack of open elements (the html element),
-        //    after its last child (if any), and abort these steps. (fragment case)
+        // 4. If there is no last table, then let adjusted insertion location be inside the first element in the stack
+        //    of open elements (the html element), after its last child (if any), and abort these steps. (fragment case)
         if (!last_table.element) {
             VERIFY(m_parsing_fragment);
             // Guaranteed not to be a template element (it will be the html element),
             // so no need to check the parent is a template.
             return { *m_stack_of_open_elements.elements().first(), nullptr };
         }
-        // 5. If last table has a parent node, then let adjusted insertion location be inside last table's parent node, immediately before last table, and abort these steps.
-        if (last_table.element->parent_node()) {
-            adjusted_insertion_location = { last_table.element->parent_node(), last_table.element.ptr() };
-        } else {
-            // 6. Let previous element be the element immediately above last table in the stack of open elements.
-            auto previous_element = m_stack_of_open_elements.element_immediately_above(*last_table.element);
+        // 5. If last table has a parent node, then let adjusted insertion location be inside last table's parent node,
+        //    immediately before last table, and abort these steps.
+        if (last_table.element->parent_node())
+            return { last_table.element->parent_node(), last_table.element.ptr() };
 
-            // 7. Let adjusted insertion location be inside previous element, after its last child (if any).
-            adjusted_insertion_location = { previous_element.ptr(), nullptr };
-        }
+        // 6. Let previous element be the element immediately above last table in the stack of open elements.
+        auto previous_element = m_stack_of_open_elements.element_immediately_above(*last_table.element);
+
+        // 7. Let adjusted insertion location be inside previous element, after its last child (if any).
+        adjusted_insertion_location = { previous_element.ptr(), nullptr };
     } else {
         // `-> Otherwise
         //     Let adjusted insertion location be inside target, after its last child (if any).
