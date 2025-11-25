@@ -496,19 +496,20 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                     // 1. Let headerNames be the result of extracting header list values given
                     //    `Access-Control-Expose-Headers` and response’s header list.
                     auto header_names_or_failure = response->header_list()->extract_header_list_values("Access-Control-Expose-Headers"sv.bytes());
-                    auto header_names = header_names_or_failure.has<Vector<ByteBuffer>>() ? header_names_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
 
-                    // 2. If request’s credentials mode is not "include" and headerNames contains `*`, then set
-                    //    response’s CORS-exposed header-name list to all unique header names in response’s header
-                    //    list.
-                    if (request->credentials_mode() != Infrastructure::Request::CredentialsMode::Include && header_names.contains_slow("*"sv.bytes())) {
-                        auto unique_header_names = response->header_list()->unique_names();
-                        response->set_cors_exposed_header_name_list(move(unique_header_names));
-                    }
-                    // 3. Otherwise, if headerNames is not null or failure, then set response’s CORS-exposed
-                    //    header-name list to headerNames.
-                    else if (!header_names.is_empty()) {
-                        response->set_cors_exposed_header_name_list(move(header_names));
+                    if (auto* header_names = header_names_or_failure.get_pointer<Vector<ByteBuffer>>()) {
+                        // 2. If request’s credentials mode is not "include" and headerNames contains `*`, then set
+                        //    response’s CORS-exposed header-name list to all unique header names in response’s header
+                        //    list.
+                        if (request->credentials_mode() != Infrastructure::Request::CredentialsMode::Include && header_names->contains_slow("*"sv.bytes())) {
+                            auto unique_header_names = response->header_list()->unique_names();
+                            response->set_cors_exposed_header_name_list(move(unique_header_names));
+                        }
+                        // 3. Otherwise, if headerNames is not null or failure, then set response’s CORS-exposed
+                        //    header-name list to headerNames.
+                        else if (!header_names->is_empty()) {
+                            response->set_cors_exposed_header_name_list(move(*header_names));
+                        }
                     }
                 }
 
@@ -2531,10 +2532,14 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
             }
 
             // NOTE: We treat "methods_or_failure" being `Empty` as empty Vector here.
-            auto methods = methods_or_failure.has<Vector<ByteBuffer>>() ? methods_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
+            auto methods = methods_or_failure.visit(
+                [](Vector<ByteBuffer>& methods) { return move(methods); },
+                [](auto) -> Vector<ByteBuffer> { return {}; });
 
             // NOTE: We treat "header_names_or_failure" being `Empty` as empty Vector here.
-            auto header_names = header_names_or_failure.has<Vector<ByteBuffer>>() ? header_names_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
+            auto header_names = header_names_or_failure.visit(
+                [](Vector<ByteBuffer>& header_names) { return move(header_names); },
+                [](auto) -> Vector<ByteBuffer> { return {}; });
 
             // 4. If methods is null and request’s use-CORS-preflight flag is set, then set methods to a new list containing request’s method.
             // NOTE: This ensures that a CORS-preflight fetch that happened due to request’s use-CORS-preflight flag being set is cached.

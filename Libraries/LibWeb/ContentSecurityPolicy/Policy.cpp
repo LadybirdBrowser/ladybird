@@ -102,28 +102,30 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
     // 2. For each token returned by extracting header list values given Content-Security-Policy and response’s header
     //    list:
     auto enforce_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy"sv.bytes());
-    auto enforce_policy_tokens = enforce_policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? enforce_policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
-    for (auto const& enforce_policy_token : enforce_policy_tokens) {
-        // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "enforce".
-        auto policy = parse_a_serialized_csp(heap, enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
 
-        // 2. If policy’s directive set is not empty, append policy to policies.
-        if (!policy->m_directives.is_empty()) {
-            policies.append(policy);
+    if (auto const* enforce_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteBuffer>>()) {
+        for (auto const& enforce_policy_token : *enforce_policy_tokens) {
+            // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "enforce".
+            auto policy = parse_a_serialized_csp(heap, enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
+
+            // 2. If policy’s directive set is not empty, append policy to policies.
+            if (!policy->m_directives.is_empty())
+                policies.append(policy);
         }
     }
 
     // 3. For each token returned by extracting header list values given Content-Security-Policy-Report-Only and
     //    response’s header list:
     auto report_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy-Report-Only"sv.bytes());
-    auto report_policy_tokens = report_policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? report_policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
-    for (auto const& report_policy_token : report_policy_tokens) {
-        // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "report".
-        auto policy = parse_a_serialized_csp(heap, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
 
-        // 2. If policy’s directive set is not empty, append policy to policies.
-        if (!policy->m_directives.is_empty()) {
-            policies.append(policy);
+    if (auto const* report_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteBuffer>>()) {
+        for (auto const& report_policy_token : *report_policy_tokens) {
+            // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "report".
+            auto policy = parse_a_serialized_csp(heap, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
+
+            // 2. If policy’s directive set is not empty, append policy to policies.
+            if (!policy->m_directives.is_empty())
+                policies.append(policy);
         }
     }
 

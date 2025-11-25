@@ -126,15 +126,13 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
 
     // 2. Let location be the result of extracting header list values given `Location` and response’s header list.
     auto location_values_or_failure = m_header_list->extract_header_list_values("Location"sv.bytes());
-    if (location_values_or_failure.has<Infrastructure::HeaderList::ExtractHeaderParseFailure>() || location_values_or_failure.has<Empty>())
-        return Optional<URL::URL> {};
+    auto const* location_values = location_values_or_failure.get_pointer<Vector<ByteBuffer>>();
 
-    auto const& location_values = location_values_or_failure.get<Vector<ByteBuffer>>();
-    if (location_values.size() != 1)
-        return Optional<URL::URL> {};
+    if (!location_values || location_values->size() != 1)
+        return OptionalNone {};
 
     // 3. If location is a header value, then set location to the result of parsing location with response’s URL.
-    auto location = DOMURL::parse(location_values.first(), url());
+    auto location = DOMURL::parse(location_values->first(), url());
     if (!location.has_value())
         return Error::from_string_literal("Invalid 'Location' header URL");
 
