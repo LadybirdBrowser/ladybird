@@ -573,7 +573,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
         if (body->has<GC::Root<DOM::Document>>()) {
             auto string_serialized_document = TRY(body->get<GC::Root<DOM::Document>>().cell()->serialize_fragment(HTML::RequireWellFormed::No));
-            m_request_body = Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document.to_utf8().bytes());
+            auto string_serialized_document_utf8 = string_serialized_document.to_utf8();
+            m_request_body = Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document_utf8.bytes());
         }
         // 3. Otherwise:
         else {
@@ -1014,7 +1015,8 @@ String XMLHttpRequest::get_all_response_headers() const
         output.append(0x3A); // ':'
         output.append(0x20); // ' '
         // FIXME: The spec does not mention isomorphic decode. Spec bug?
-        output.append(Infra::isomorphic_decode(header.value).bytes());
+        auto decoder_header = Infra::isomorphic_decode(header.value);
+        output.append(decoder_header.bytes());
         output.append(0x0D); // '\r'
         output.append(0x0A); // '\n'
     }

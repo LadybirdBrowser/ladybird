@@ -861,7 +861,8 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, Vec
         auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
 
         // 2. Let body be the result of running the application/x-www-form-urlencoded serializer with pairs and encoding.
-        body = TRY(ByteBuffer::copy(url_encode(pairs, encoding).bytes()));
+        auto query = url_encode(pairs, encoding);
+        body = TRY(ByteBuffer::copy(query.bytes()));
 
         // 3. Set body to the result of encoding body.
         // NOTE: `encoding` refers to `UTF-8 encode`, which body already is encoded as because it uses AK::String.
@@ -888,7 +889,8 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, Vec
         auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
 
         // 2. Let body be the result of running the text/plain encoding algorithm with pairs.
-        body = TRY(ByteBuffer::copy(TRY(plain_text_encode(pairs)).bytes()));
+        auto serialized_body = TRY(plain_text_encode(pairs));
+        body = TRY(ByteBuffer::copy(serialized_body.bytes()));
 
         // FIXME: 3. Set body to the result of encoding body using encoding.
 

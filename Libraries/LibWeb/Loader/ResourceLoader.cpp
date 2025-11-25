@@ -326,7 +326,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
         }
 
         FileLoadResult load_result;
-        load_result.data = maybe_response.release_value().bytes();
+        load_result.data = maybe_response.value().bytes();
         load_result.response_headers.set("Content-Type"sv, "text/html"sv);
         on_resource(load_result);
         return;
