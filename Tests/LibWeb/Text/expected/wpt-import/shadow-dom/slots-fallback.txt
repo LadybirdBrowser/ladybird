@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 13 tests
 
-12 Pass
-1 Fail
+13 Pass
 Pass	Slots fallback: Basic.
 Pass	Slots fallback: Basic, elements only.
 Pass	Slots fallback: Slots in Slots.
@@ -16,4 +15,4 @@ Pass	Slots fallback: Mutation. Append fallback contents.
 Pass	Slots fallback: Mutation. Remove fallback contents.
 Pass	Slots fallback: Mutation. Assign a node to a slot so that fallback contens are no longer used.
 Pass	Slots fallback: Mutation. Remove an assigned node from a slot so that fallback contens will be used.
-Fail	Slots fallback: Mutation.  Remove a slot which is a fallback content of another slot.
+Pass	Slots fallback: Mutation.  Remove a slot which is a fallback content of another slot.
