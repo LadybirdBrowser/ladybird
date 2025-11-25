@@ -87,7 +87,7 @@ struct RangeHeaderValue {
 [[nodiscard]] Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes);
 [[nodiscard]] OrderedHashTable<ByteBuffer> convert_header_names_to_a_sorted_lowercase_set(Span<ReadonlyBytes>);
 
-[[nodiscard]] WEB_API ByteString build_content_range(u64 const& range_start, u64 const& range_end, u64 const& full_length);
+[[nodiscard]] WEB_API ByteString build_content_range(u64 range_start, u64 range_end, u64 full_length);
 [[nodiscard]] WEB_API Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes, bool);
 
 [[nodiscard]] bool is_cors_safelisted_request_header(Header const&);
