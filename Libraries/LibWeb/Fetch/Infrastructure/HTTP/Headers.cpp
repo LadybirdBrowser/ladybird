@@ -638,7 +638,7 @@ OrderedHashTable<ByteBuffer> convert_header_names_to_a_sorted_lowercase_set(Span
 }
 
 // https://fetch.spec.whatwg.org/#build-a-content-range
-ByteString build_content_range(u64 const& range_start, u64 const& range_end, u64 const& full_length)
+ByteString build_content_range(u64 range_start, u64 range_end, u64 full_length)
 {
     // 1. Let contentRange be `bytes `.
     // 2. Append rangeStart, serialized and isomorphic encoded, to contentRange.
@@ -647,7 +647,7 @@ ByteString build_content_range(u64 const& range_start, u64 const& range_end, u64
     // 5. Append 0x2F (/) to contentRange.
     // 6. Append fullLength, serialized and isomorphic encoded to contentRange.
     // 7. Return contentRange.
-    return ByteString::formatted("bytes {}-{}/{}", String::number(range_start), String::number(range_end), String::number(full_length));
+    return ByteString::formatted("bytes {}-{}/{}", range_start, range_end, full_length);
 }
 
 // https://fetch.spec.whatwg.org/#simple-range-header-value
