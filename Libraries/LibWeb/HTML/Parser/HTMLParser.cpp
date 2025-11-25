@@ -2095,14 +2095,9 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     }
 
     // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title"
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title)) {
-        // Process the token using the rules for the "in head" insertion mode.
-        process_using_the_rules_for(InsertionMode::InHead, token);
-        return;
-    }
-
     // -> An end tag whose tag name is "template"
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
+    if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title))
+        || (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_)) {
         // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
@@ -4373,13 +4368,10 @@ void HTMLParser::handle_in_template(HTMLToken& token)
     }
 
     // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title"
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title)) {
-        process_using_the_rules_for(InsertionMode::InHead, token);
-        return;
-    }
-
     // -> An end tag whose tag name is "template"
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
+    if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title))
+        || (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_)) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
