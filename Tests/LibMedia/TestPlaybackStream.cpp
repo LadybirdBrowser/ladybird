@@ -38,10 +38,15 @@ TEST_CASE(create_and_destroy_playback_stream)
             return buffer.trim(writing_stream.offset());
         });
         EXPECT_EQ(!stream_result.is_error(), has_implementation);
-        MUST(Core::System::sleep_ms(100));
     }
 
 #if defined(HAVE_PULSEAUDIO)
-    VERIFY(!Audio::PulseAudioContext::is_connected());
+    // The PulseAudio context is kept alive by the PlaybackStream's control thread, which blocks on
+    // some operations, so it won't necessarily be destroyed immediately.
+    auto wait_start = MonotonicTime::now_coarse();
+    while (Audio::PulseAudioContext::is_connected()) {
+        if (MonotonicTime::now_coarse() - wait_start > AK::Duration::from_milliseconds(100))
+            VERIFY_NOT_REACHED();
+    }
 #endif
 }
