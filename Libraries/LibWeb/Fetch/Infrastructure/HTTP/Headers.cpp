@@ -66,25 +66,38 @@ Header Header::from_latin1_pair(StringView name, StringView value)
     };
 }
 
+// https://fetch.spec.whatwg.org/#extract-header-values
+Optional<Vector<ByteBuffer>> Header::extract_header_values() const
+{
+    // FIXME: 1. If parsing header’s value, per the ABNF for header’s name, fails, then return failure.
+    // FIXME: 2. Return one or more values resulting from parsing header’s value, per the ABNF for header’s name.
+
+    // For now we only parse some headers that are of the ABNF list form "#something"
+    if (StringView { name }.is_one_of_ignoring_ascii_case(
+            "Access-Control-Request-Headers"sv,
+            "Access-Control-Expose-Headers"sv,
+            "Access-Control-Allow-Headers"sv,
+            "Access-Control-Allow-Methods"sv)
+        && !value.is_empty()) {
+        auto split_values = StringView { value }.split_view(',');
+        Vector<ByteBuffer> trimmed_values;
+
+        for (auto const& value : split_values) {
+            auto trimmed_value = value.trim(" \t"sv);
+            auto trimmed_value_as_byte_buffer = MUST(ByteBuffer::copy(trimmed_value.bytes()));
+            trimmed_values.append(move(trimmed_value_as_byte_buffer));
+        }
+
+        return trimmed_values;
+    }
+
+    // This always ignores the ABNF rules for now and returns the header value as a single list item.
+    return Vector { MUST(ByteBuffer::copy(value)) };
+}
+
 GC::Ref<HeaderList> HeaderList::create(JS::VM& vm)
 {
     return vm.heap().allocate<HeaderList>();
-}
-
-// Non-standard
-Vector<ByteBuffer> HeaderList::unique_names() const
-{
-    Vector<ByteBuffer> header_names_set;
-    HashTable<ReadonlyBytes, CaseInsensitiveBytesTraits<u8 const>> header_names_seen;
-
-    for (auto const& header : *this) {
-        if (header_names_seen.contains(header.name))
-            continue;
-        header_names_seen.set(header.name);
-        header_names_set.append(MUST(ByteBuffer::copy(header.name)));
-    }
-
-    return header_names_set;
 }
 
 // https://fetch.spec.whatwg.org/#header-list-contains
@@ -136,60 +149,6 @@ Optional<Vector<String>> HeaderList::get_decode_and_split(ReadonlyBytes name) co
 
     // 3. Return the result of getting, decoding, and splitting value.
     return get_decode_and_split_header_value(*value);
-}
-
-// https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
-Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
-{
-    // To get, decode, and split a header value value, run these steps:
-
-    // 1. Let input be the result of isomorphic decoding value.
-    auto input = Infra::isomorphic_decode(value);
-
-    // 2. Let position be a position variable for input, initially pointing at the start of input.
-    auto lexer = GenericLexer { input };
-
-    // 3. Let values be a list of strings, initially « ».
-    Vector<String> values;
-
-    // 4. Let temporaryValue be the empty string.
-    StringBuilder temporary_value_builder;
-
-    // 5. While true:
-    while (true) {
-        // 1. Append the result of collecting a sequence of code points that are not U+0022 (") or U+002C (,) from input, given position, to temporaryValue.
-        // NOTE: The result might be the empty string.
-        temporary_value_builder.append(lexer.consume_until(is_any_of("\","sv)));
-
-        // 2. If position is not past the end of input and the code point at position within input is U+0022 ("):
-        if (!lexer.is_eof() && lexer.peek() == '"') {
-            // 1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
-            temporary_value_builder.append(collect_an_http_quoted_string(lexer));
-
-            // 2. If position is not past the end of input, then continue.
-            if (!lexer.is_eof())
-                continue;
-        }
-
-        // 3. Remove all HTTP tab or space from the start and end of temporaryValue.
-        auto temporary_value = MUST(String::from_utf8(temporary_value_builder.string_view().trim(HTTP_TAB_OR_SPACE, TrimMode::Both)));
-
-        // 4. Append temporaryValue to values.
-        values.append(move(temporary_value));
-
-        // 5. Set temporaryValue to the empty string.
-        temporary_value_builder.clear();
-
-        // 6. If position is past the end of input, then return values.
-        if (lexer.is_eof())
-            return values;
-
-        // 7. Assert: the code point at position within input is U+002C (,).
-        VERIFY(lexer.peek() == ',');
-
-        // 8. Advance position by 1.
-        lexer.ignore(1);
-    }
 }
 
 // https://fetch.spec.whatwg.org/#concept-header-list-append
@@ -323,15 +282,48 @@ Vector<Header> HeaderList::sort_and_combine() const
     return headers;
 }
 
+// https://fetch.spec.whatwg.org/#extract-header-list-values
+Variant<Empty, Vector<ByteBuffer>, HeaderList::ExtractHeaderParseFailure> HeaderList::extract_header_list_values(ReadonlyBytes name) const
+{
+    // 1. If list does not contain name, then return null.
+    if (!contains(name))
+        return {};
+
+    // FIXME: 2. If the ABNF for name allows a single header and list contains more than one, then return failure.
+    // NOTE: If different error handling is needed, extract the desired header first.
+
+    // 3. Let values be an empty list.
+    auto values = Vector<ByteBuffer> {};
+
+    // 4. For each header header list contains whose name is name:
+    for (auto const& header : *this) {
+        if (!StringView { header.name }.equals_ignoring_ascii_case(name))
+            continue;
+
+        // 1. Let extract be the result of extracting header values from header.
+        auto extract = header.extract_header_values();
+
+        // 2. If extract is failure, then return failure.
+        if (!extract.has_value())
+            return ExtractHeaderParseFailure {};
+
+        // 3. Append each value in extract, in order, to values.
+        values.extend(extract.release_value());
+    }
+
+    // 5. Return values.
+    return values;
+}
+
 // https://fetch.spec.whatwg.org/#header-list-extract-a-length
-HeaderList::ExtractLengthResult HeaderList::extract_length() const
+Variant<Empty, u64, HeaderList::ExtractLengthFailure> HeaderList::extract_length() const
 {
     // 1. Let values be the result of getting, decoding, and splitting `Content-Length` from headers.
     auto values = get_decode_and_split("Content-Length"sv.bytes());
 
     // 2. If values is null, then return null.
     if (!values.has_value())
-        return Empty {};
+        return {};
 
     // 3. Let candidateValue be null.
     Optional<String> candidate_value;
@@ -349,14 +341,13 @@ HeaderList::ExtractLengthResult HeaderList::extract_length() const
     }
 
     // 5. If candidateValue is the empty string or has a code point that is not an ASCII digit, then return null.
-    // NOTE: to_number does this for us.
     // 6. Return candidateValue, interpreted as decimal number.
-    // NOTE: The spec doesn't say anything about trimming here, so we don't trim. If it contains a space, step 5 will cause us to return null.
     // FIXME: This will return an empty Optional if it cannot fit into a u64, is this correct?
-    auto conversion_result = candidate_value.value().to_number<u64>(TrimWhitespace::No);
-    if (!conversion_result.has_value())
-        return Empty {};
-    return ExtractLengthResult { conversion_result.release_value() };
+    auto result = candidate_value->to_number<u64>(TrimWhitespace::No);
+    if (!result.has_value())
+        return {};
+
+    return *result;
 }
 
 // https://fetch.spec.whatwg.org/#concept-header-extract-mime-type
@@ -414,58 +405,20 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
     return mime_type;
 }
 
-// https://fetch.spec.whatwg.org/#legacy-extract-an-encoding
-StringView legacy_extract_an_encoding(Optional<MimeSniff::MimeType> const& mime_type, StringView fallback_encoding)
+// Non-standard
+Vector<ByteBuffer> HeaderList::unique_names() const
 {
-    // 1. If mimeType is failure, then return fallbackEncoding.
-    if (!mime_type.has_value())
-        return fallback_encoding;
-
-    // 2. If mimeType["charset"] does not exist, then return fallbackEncoding.
-    auto charset = mime_type->parameters().get("charset"sv);
-    if (!charset.has_value())
-        return fallback_encoding;
-
-    // 3. Let tentativeEncoding be the result of getting an encoding from mimeType["charset"].
-    auto tentative_encoding = TextCodec::get_standardized_encoding(*charset);
-
-    // 4. If tentativeEncoding is failure, then return fallbackEncoding.
-    if (!tentative_encoding.has_value())
-        return fallback_encoding;
-
-    // 5. Return tentativeEncoding.
-    return *tentative_encoding;
-}
-
-// https://fetch.spec.whatwg.org/#convert-header-names-to-a-sorted-lowercase-set
-OrderedHashTable<ByteBuffer> convert_header_names_to_a_sorted_lowercase_set(Span<ReadonlyBytes> header_names)
-{
-    // To convert header names to a sorted-lowercase set, given a list of names headerNames, run these steps:
-
-    // 1. Let headerNamesSet be a new ordered set.
     Vector<ByteBuffer> header_names_set;
     HashTable<ReadonlyBytes, CaseInsensitiveBytesTraits<u8 const>> header_names_seen;
 
-    // 2. For each name of headerNames, append the result of byte-lowercasing name to headerNamesSet.
-    for (auto name : header_names) {
-        if (header_names_seen.contains(name))
+    for (auto const& header : *this) {
+        if (header_names_seen.contains(header.name))
             continue;
-        auto bytes = MUST(ByteBuffer::copy(name));
-        Infra::byte_lowercase(bytes);
-        header_names_seen.set(name);
-        header_names_set.append(move(bytes));
+        header_names_seen.set(header.name);
+        header_names_set.append(MUST(ByteBuffer::copy(header.name)));
     }
 
-    // 3. Return the result of sorting headerNamesSet in ascending order with byte less than.
-    quick_sort(header_names_set, [](auto const& a, auto const& b) {
-        return StringView { a } < StringView { b };
-    });
-    OrderedHashTable<ByteBuffer> ordered { header_names_set.size() };
-    for (auto& name : header_names_set) {
-        auto result = ordered.set(move(name));
-        VERIFY(result == AK::HashSetResult::InsertedNewEntry);
-    }
-    return ordered;
+    return header_names_set;
 }
 
 // https://fetch.spec.whatwg.org/#header-name
@@ -501,6 +454,268 @@ ByteBuffer normalize_header_value(ReadonlyBytes potential_value)
         return {};
     auto trimmed = StringView { potential_value }.trim(HTTP_WHITESPACE, TrimMode::Both);
     return MUST(ByteBuffer::copy(trimmed.bytes()));
+}
+
+// https://fetch.spec.whatwg.org/#forbidden-header-name
+bool is_forbidden_request_header(Header const& header)
+{
+    // A header (name, value) is forbidden request-header if these steps return true:
+    auto name = StringView { header.name };
+
+    // 1. If name is a byte-case-insensitive match for one of:
+    // [...]
+    // then return true.
+    if (name.is_one_of_ignoring_ascii_case(
+            "Accept-Charset"sv,
+            "Accept-Encoding"sv,
+            "Access-Control-Request-Headers"sv,
+            "Access-Control-Request-Method"sv,
+            "Connection"sv,
+            "Content-Length"sv,
+            "Cookie"sv,
+            "Cookie2"sv,
+            "Date"sv,
+            "DNT"sv,
+            "Expect"sv,
+            "Host"sv,
+            "Keep-Alive"sv,
+            "Origin"sv,
+            "Referer"sv,
+            "Set-Cookie"sv,
+            "TE"sv,
+            "Trailer"sv,
+            "Transfer-Encoding"sv,
+            "Upgrade"sv,
+            "Via"sv)) {
+        return true;
+    }
+
+    // 2. If name when byte-lowercased starts with `proxy-` or `sec-`, then return true.
+    if (name.starts_with("proxy-"sv, CaseSensitivity::CaseInsensitive)
+        || name.starts_with("sec-"sv, CaseSensitivity::CaseInsensitive)) {
+        return true;
+    }
+
+    // 3. If name is a byte-case-insensitive match for one of:
+    // - `X-HTTP-Method`
+    // - `X-HTTP-Method-Override`
+    // - `X-Method-Override`
+    // then:
+    if (name.is_one_of_ignoring_ascii_case(
+            "X-HTTP-Method"sv,
+            "X-HTTP-Method-Override"sv,
+            "X-Method-Override"sv)) {
+        // 1. Let parsedValues be the result of getting, decoding, and splitting value.
+        auto parsed_values = get_decode_and_split_header_value(header.value);
+
+        // 2. For each method of parsedValues: if the isomorphic encoding of method is a forbidden method, then return true.
+        // Note: The values returned from get_decode_and_split_header_value have already been decoded.
+        if (parsed_values.has_value() && any_of(*parsed_values, [](auto method) { return is_forbidden_method(method.bytes()); }))
+            return true;
+    }
+
+    // 4. Return false.
+    return false;
+}
+
+// https://fetch.spec.whatwg.org/#forbidden-response-header-name
+bool is_forbidden_response_header_name(ReadonlyBytes header_name)
+{
+    // A forbidden response-header name is a header name that is a byte-case-insensitive match for one of:
+    // - `Set-Cookie`
+    // - `Set-Cookie2`
+    return StringView { header_name }.is_one_of_ignoring_ascii_case(
+        "Set-Cookie"sv,
+        "Set-Cookie2"sv);
+}
+
+// https://fetch.spec.whatwg.org/#legacy-extract-an-encoding
+StringView legacy_extract_an_encoding(Optional<MimeSniff::MimeType> const& mime_type, StringView fallback_encoding)
+{
+    // 1. If mimeType is failure, then return fallbackEncoding.
+    if (!mime_type.has_value())
+        return fallback_encoding;
+
+    // 2. If mimeType["charset"] does not exist, then return fallbackEncoding.
+    auto charset = mime_type->parameters().get("charset"sv);
+    if (!charset.has_value())
+        return fallback_encoding;
+
+    // 3. Let tentativeEncoding be the result of getting an encoding from mimeType["charset"].
+    auto tentative_encoding = TextCodec::get_standardized_encoding(*charset);
+
+    // 4. If tentativeEncoding is failure, then return fallbackEncoding.
+    if (!tentative_encoding.has_value())
+        return fallback_encoding;
+
+    // 5. Return tentativeEncoding.
+    return *tentative_encoding;
+}
+
+// https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
+Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
+{
+    // To get, decode, and split a header value value, run these steps:
+
+    // 1. Let input be the result of isomorphic decoding value.
+    auto input = Infra::isomorphic_decode(value);
+
+    // 2. Let position be a position variable for input, initially pointing at the start of input.
+    GenericLexer lexer { input };
+
+    // 3. Let values be a list of strings, initially « ».
+    Vector<String> values;
+
+    // 4. Let temporaryValue be the empty string.
+    StringBuilder temporary_value_builder;
+
+    // 5. While true:
+    while (true) {
+        // 1. Append the result of collecting a sequence of code points that are not U+0022 (") or U+002C (,) from input, given position, to temporaryValue.
+        // NOTE: The result might be the empty string.
+        temporary_value_builder.append(lexer.consume_until(is_any_of("\","sv)));
+
+        // 2. If position is not past the end of input and the code point at position within input is U+0022 ("):
+        if (!lexer.is_eof() && lexer.peek() == '"') {
+            // 1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
+            temporary_value_builder.append(collect_an_http_quoted_string(lexer));
+
+            // 2. If position is not past the end of input, then continue.
+            if (!lexer.is_eof())
+                continue;
+        }
+
+        // 3. Remove all HTTP tab or space from the start and end of temporaryValue.
+        auto temporary_value = MUST(String::from_utf8(temporary_value_builder.string_view().trim(HTTP_TAB_OR_SPACE, TrimMode::Both)));
+
+        // 4. Append temporaryValue to values.
+        values.append(move(temporary_value));
+
+        // 5. Set temporaryValue to the empty string.
+        temporary_value_builder.clear();
+
+        // 6. If position is past the end of input, then return values.
+        if (lexer.is_eof())
+            return values;
+
+        // 7. Assert: the code point at position within input is U+002C (,).
+        VERIFY(lexer.peek() == ',');
+
+        // 8. Advance position by 1.
+        lexer.ignore(1);
+    }
+}
+
+// https://fetch.spec.whatwg.org/#convert-header-names-to-a-sorted-lowercase-set
+OrderedHashTable<ByteBuffer> convert_header_names_to_a_sorted_lowercase_set(Span<ReadonlyBytes> header_names)
+{
+    // To convert header names to a sorted-lowercase set, given a list of names headerNames, run these steps:
+
+    // 1. Let headerNamesSet be a new ordered set.
+    Vector<ByteBuffer> header_names_set;
+    HashTable<ReadonlyBytes, CaseInsensitiveBytesTraits<u8 const>> header_names_seen;
+
+    // 2. For each name of headerNames, append the result of byte-lowercasing name to headerNamesSet.
+    for (auto name : header_names) {
+        if (header_names_seen.contains(name))
+            continue;
+        auto bytes = MUST(ByteBuffer::copy(name));
+        Infra::byte_lowercase(bytes);
+        header_names_seen.set(name);
+        header_names_set.append(move(bytes));
+    }
+
+    // 3. Return the result of sorting headerNamesSet in ascending order with byte less than.
+    quick_sort(header_names_set, [](auto const& a, auto const& b) {
+        return StringView { a } < StringView { b };
+    });
+    OrderedHashTable<ByteBuffer> ordered { header_names_set.size() };
+    for (auto& name : header_names_set) {
+        auto result = ordered.set(move(name));
+        VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+    }
+    return ordered;
+}
+
+// https://fetch.spec.whatwg.org/#build-a-content-range
+ByteString build_content_range(u64 const& range_start, u64 const& range_end, u64 const& full_length)
+{
+    // 1. Let contentRange be `bytes `.
+    // 2. Append rangeStart, serialized and isomorphic encoded, to contentRange.
+    // 3. Append 0x2D (-) to contentRange.
+    // 4. Append rangeEnd, serialized and isomorphic encoded to contentRange.
+    // 5. Append 0x2F (/) to contentRange.
+    // 6. Append fullLength, serialized and isomorphic encoded to contentRange.
+    // 7. Return contentRange.
+    return ByteString::formatted("bytes {}-{}/{}", String::number(range_start), String::number(range_end), String::number(full_length));
+}
+
+// https://fetch.spec.whatwg.org/#simple-range-header-value
+Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes const value, bool const allow_whitespace)
+{
+    // 1. Let data be the isomorphic decoding of value.
+    auto const data = Infra::isomorphic_decode(value);
+
+    // 2. If data does not start with "bytes", then return failure.
+    if (!data.starts_with_bytes("bytes"sv))
+        return {};
+
+    // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.
+    GenericLexer lexer { data };
+    lexer.ignore(5);
+
+    // 4. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 5. If the code point at position within data is not U+003D (=), then return failure.
+    // 6. Advance position by 1.
+    if (!lexer.consume_specific('='))
+        return {};
+
+    // 7. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits, from data given position.
+    auto range_start = lexer.consume_while(is_ascii_digit);
+
+    // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the empty string; otherwise null.
+    auto range_start_value = range_start.to_number<u64>();
+
+    // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 11. If the code point at position within data is not U+002D (-), then return failure.
+    // 12. Advance position by 1.
+    if (!lexer.consume_specific('-'))
+        return {};
+
+    // 13. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 14. Let rangeEnd be the result of collecting a sequence of code points that are ASCII digits, from data given position.
+    auto range_end = lexer.consume_while(is_ascii_digit);
+
+    // 15. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd is not the empty string; otherwise null.
+    auto range_end_value = range_end.to_number<u64>();
+
+    // 16. If position is not past the end of data, then return failure.
+    if (!lexer.is_eof())
+        return {};
+
+    // 17. If rangeEndValue and rangeStartValue are null, then return failure.
+    if (!range_end_value.has_value() && !range_start_value.has_value())
+        return {};
+
+    // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is greater than rangeEndValue, then return failure.
+    if (range_start_value.has_value() && range_end_value.has_value() && *range_start_value > *range_end_value)
+        return {};
+
+    // 19. Return (rangeStartValue, rangeEndValue).
+    return RangeHeaderValue { move(range_start_value), move(range_end_value) };
 }
 
 // https://fetch.spec.whatwg.org/#cors-safelisted-request-header
@@ -688,237 +903,6 @@ bool is_no_cors_safelisted_request_header(Header const& header)
 
     // 2. Return whether (name, value) is a CORS-safelisted request-header.
     return is_cors_safelisted_request_header(header);
-}
-
-// https://fetch.spec.whatwg.org/#forbidden-header-name
-bool is_forbidden_request_header(Header const& header)
-{
-    // A header (name, value) is forbidden request-header if these steps return true:
-    auto name = StringView { header.name };
-
-    // 1. If name is a byte-case-insensitive match for one of:
-    // [...]
-    // then return true.
-    if (name.is_one_of_ignoring_ascii_case(
-            "Accept-Charset"sv,
-            "Accept-Encoding"sv,
-            "Access-Control-Request-Headers"sv,
-            "Access-Control-Request-Method"sv,
-            "Connection"sv,
-            "Content-Length"sv,
-            "Cookie"sv,
-            "Cookie2"sv,
-            "Date"sv,
-            "DNT"sv,
-            "Expect"sv,
-            "Host"sv,
-            "Keep-Alive"sv,
-            "Origin"sv,
-            "Referer"sv,
-            "Set-Cookie"sv,
-            "TE"sv,
-            "Trailer"sv,
-            "Transfer-Encoding"sv,
-            "Upgrade"sv,
-            "Via"sv)) {
-        return true;
-    }
-
-    // 2. If name when byte-lowercased starts with `proxy-` or `sec-`, then return true.
-    if (name.starts_with("proxy-"sv, CaseSensitivity::CaseInsensitive)
-        || name.starts_with("sec-"sv, CaseSensitivity::CaseInsensitive)) {
-        return true;
-    }
-
-    // 3. If name is a byte-case-insensitive match for one of:
-    // - `X-HTTP-Method`
-    // - `X-HTTP-Method-Override`
-    // - `X-Method-Override`
-    // then:
-    if (name.is_one_of_ignoring_ascii_case(
-            "X-HTTP-Method"sv,
-            "X-HTTP-Method-Override"sv,
-            "X-Method-Override"sv)) {
-        // 1. Let parsedValues be the result of getting, decoding, and splitting value.
-        auto parsed_values = get_decode_and_split_header_value(header.value);
-
-        // 2. For each method of parsedValues: if the isomorphic encoding of method is a forbidden method, then return true.
-        // Note: The values returned from get_decode_and_split_header_value have already been decoded.
-        if (parsed_values.has_value() && any_of(*parsed_values, [](auto method) { return is_forbidden_method(method.bytes()); }))
-            return true;
-    }
-
-    // 4. Return false.
-    return false;
-}
-
-// https://fetch.spec.whatwg.org/#forbidden-response-header-name
-bool is_forbidden_response_header_name(ReadonlyBytes header_name)
-{
-    // A forbidden response-header name is a header name that is a byte-case-insensitive match for one of:
-    // - `Set-Cookie`
-    // - `Set-Cookie2`
-    return StringView { header_name }.is_one_of_ignoring_ascii_case(
-        "Set-Cookie"sv,
-        "Set-Cookie2"sv);
-}
-
-// https://fetch.spec.whatwg.org/#request-body-header-name
-bool is_request_body_header_name(ReadonlyBytes header_name)
-{
-    // A request-body-header name is a header name that is a byte-case-insensitive match for one of:
-    // - `Content-Encoding`
-    // - `Content-Language`
-    // - `Content-Location`
-    // - `Content-Type`
-    return StringView { header_name }.is_one_of_ignoring_ascii_case(
-        "Content-Encoding"sv,
-        "Content-Language"sv,
-        "Content-Location"sv,
-        "Content-Type"sv);
-}
-
-// https://fetch.spec.whatwg.org/#extract-header-values
-Optional<Vector<ByteBuffer>> extract_header_values(Header const& header)
-{
-    // FIXME: 1. If parsing header’s value, per the ABNF for header’s name, fails, then return failure.
-    // FIXME: 2. Return one or more values resulting from parsing header’s value, per the ABNF for header’s name.
-
-    // For now we only parse some headers that are of the ABNF list form "#something"
-    if (StringView { header.name }.is_one_of_ignoring_ascii_case(
-            "Access-Control-Request-Headers"sv,
-            "Access-Control-Expose-Headers"sv,
-            "Access-Control-Allow-Headers"sv,
-            "Access-Control-Allow-Methods"sv)
-        && !header.value.is_empty()) {
-        auto split_values = StringView { header.value }.split_view(',');
-        Vector<ByteBuffer> trimmed_values;
-
-        for (auto const& value : split_values) {
-            auto trimmed_value = value.trim(" \t"sv);
-            auto trimmed_value_as_byte_buffer = MUST(ByteBuffer::copy(trimmed_value.bytes()));
-            trimmed_values.append(move(trimmed_value_as_byte_buffer));
-        }
-
-        return trimmed_values;
-    }
-
-    // This always ignores the ABNF rules for now and returns the header value as a single list item.
-    return Vector { MUST(ByteBuffer::copy(header.value)) };
-}
-
-// https://fetch.spec.whatwg.org/#extract-header-list-values
-Variant<Vector<ByteBuffer>, ExtractHeaderParseFailure, Empty> extract_header_list_values(ReadonlyBytes name, HeaderList const& list)
-{
-    // 1. If list does not contain name, then return null.
-    if (!list.contains(name))
-        return Empty {};
-
-    // FIXME: 2. If the ABNF for name allows a single header and list contains more than one, then return failure.
-    // NOTE: If different error handling is needed, extract the desired header first.
-
-    // 3. Let values be an empty list.
-    auto values = Vector<ByteBuffer> {};
-
-    // 4. For each header header list contains whose name is name:
-    for (auto const& header : list) {
-        if (!StringView { header.name }.equals_ignoring_ascii_case(name))
-            continue;
-
-        // 1. Let extract be the result of extracting header values from header.
-        auto extract = extract_header_values(header);
-
-        // 2. If extract is failure, then return failure.
-        if (!extract.has_value())
-            return ExtractHeaderParseFailure {};
-
-        // 3. Append each value in extract, in order, to values.
-        values.extend(extract.release_value());
-    }
-
-    // 5. Return values.
-    return values;
-}
-
-// https://fetch.spec.whatwg.org/#build-a-content-range
-ByteString build_content_range(u64 const& range_start, u64 const& range_end, u64 const& full_length)
-{
-    // 1. Let contentRange be `bytes `.
-    // 2. Append rangeStart, serialized and isomorphic encoded, to contentRange.
-    // 3. Append 0x2D (-) to contentRange.
-    // 4. Append rangeEnd, serialized and isomorphic encoded to contentRange.
-    // 5. Append 0x2F (/) to contentRange.
-    // 6. Append fullLength, serialized and isomorphic encoded to contentRange.
-    // 7. Return contentRange.
-    return ByteString::formatted("bytes {}-{}/{}", String::number(range_start), String::number(range_end), String::number(full_length));
-}
-
-// https://fetch.spec.whatwg.org/#simple-range-header-value
-Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes const value, bool const allow_whitespace)
-{
-    // 1. Let data be the isomorphic decoding of value.
-    auto const data = Infra::isomorphic_decode(value);
-
-    // 2. If data does not start with "bytes", then return failure.
-    if (!data.starts_with_bytes("bytes"sv))
-        return {};
-
-    // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.
-    auto lexer = GenericLexer { data };
-    lexer.ignore(5);
-
-    // 4. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
-    if (allow_whitespace)
-        lexer.consume_while(is_http_tab_or_space);
-
-    // 5. If the code point at position within data is not U+003D (=), then return failure.
-    // 6. Advance position by 1.
-    if (!lexer.consume_specific('='))
-        return {};
-
-    // 7. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
-    if (allow_whitespace)
-        lexer.consume_while(is_http_tab_or_space);
-
-    // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits, from data given position.
-    auto range_start = lexer.consume_while(is_ascii_digit);
-
-    // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the empty string; otherwise null.
-    auto range_start_value = range_start.to_number<u64>();
-
-    // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
-    if (allow_whitespace)
-        lexer.consume_while(is_http_tab_or_space);
-
-    // 11. If the code point at position within data is not U+002D (-), then return failure.
-    // 12. Advance position by 1.
-    if (!lexer.consume_specific('-'))
-        return {};
-
-    // 13. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
-    if (allow_whitespace)
-        lexer.consume_while(is_http_tab_or_space);
-
-    // 14. Let rangeEnd be the result of collecting a sequence of code points that are ASCII digits, from data given position.
-    auto range_end = lexer.consume_while(is_ascii_digit);
-
-    // 15. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd is not the empty string; otherwise null.
-    auto range_end_value = range_end.to_number<u64>();
-
-    // 16. If position is not past the end of data, then return failure.
-    if (!lexer.is_eof())
-        return {};
-
-    // 17. If rangeEndValue and rangeStartValue are null, then return failure.
-    if (!range_end_value.has_value() && !range_start_value.has_value())
-        return {};
-
-    // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is greater than rangeEndValue, then return failure.
-    if (range_start_value.has_value() && range_end_value.has_value() && *range_start_value > *range_end_value)
-        return {};
-
-    // 19. Return (rangeStartValue, rangeEndValue).
-    return RangeHeaderValue { move(range_start_value), move(range_end_value) };
 }
 
 // https://fetch.spec.whatwg.org/#default-user-agent-value

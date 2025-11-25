@@ -266,13 +266,13 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
             // 8. Let serviceWorkerAllowed be the result of extracting header list values given `Service-Worker-Allowed` and response’s header list.
             // Note: See the definition of the Service-Worker-Allowed header in Appendix B: Extended HTTP headers. https://w3c.github.io/ServiceWorker/#service-worker-allowed
-            auto service_worker_allowed = Fetch::Infrastructure::extract_header_list_values("Service-Worker-Allowed"sv.bytes(), response->header_list());
+            auto service_worker_allowed = response->header_list()->extract_header_list_values("Service-Worker-Allowed"sv.bytes());
 
             // 9. Set policyContainer to the result of creating a policy container from a fetch response given response.
             // FIXME: CSP not implemented yet
 
             // 10. If serviceWorkerAllowed is failure, then:
-            if (service_worker_allowed.has<Fetch::Infrastructure::ExtractHeaderParseFailure>()) {
+            if (service_worker_allowed.has<Fetch::Infrastructure::HeaderList::ExtractHeaderParseFailure>()) {
                 // FIXME: Should we reject the job promise with a security error here?
 
                 // 1. Asynchronously complete these steps with a network error.

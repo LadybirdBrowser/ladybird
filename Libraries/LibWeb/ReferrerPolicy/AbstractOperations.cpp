@@ -22,7 +22,7 @@ namespace Web::ReferrerPolicy {
 ReferrerPolicy parse_a_referrer_policy_from_a_referrer_policy_header(Fetch::Infrastructure::Response const& response)
 {
     // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
-    auto policy_tokens_or_failure = Fetch::Infrastructure::extract_header_list_values("Referrer-Policy"sv.bytes(), response.header_list());
+    auto policy_tokens_or_failure = response.header_list()->extract_header_list_values("Referrer-Policy"sv.bytes());
     auto policy_tokens = policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
 
     // 2. Let policy be the empty string.
