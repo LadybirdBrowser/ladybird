@@ -226,6 +226,69 @@ test("Unicode properties of strings", () => {
         matchStrings: ["#\uFE0F\u20E3", "*\uFE0F\u20E3", "0\uFE0F\u20E3"],
         nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
     });
+
+    testExtendedCharacterClass({
+        regExp: /^[\d--\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\d--\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["1", "9"],
+        nonMatchStrings: ["0", "9\uFE0F\u20E3", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\d&&\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\d&&\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["0", "2", "4"],
+        nonMatchStrings: ["1", "9\uFE0F\u20E3", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\d\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\d\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["0", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["6\uFE0F\u20E3", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}--\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\p{Emoji_Keycap_Sequence}--\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["#\uFE0F\u20E3", "8\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "9\uFE0F\u20E3", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\p{Emoji_Keycap_Sequence}\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\p{Emoji_Keycap_Sequence}\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["#\uFE0F\u20E3", "0", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\q{0|2|4|9\uFE0F\u20E3}--\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\q{0|2|4|9\uFE0F\u20E3}--\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: [],
+        nonMatchStrings: ["0", "9\uFE0F\u20E3", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\q{0|2|4|9\uFE0F\u20E3}&&\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\q{0|2|4|9\uFE0F\u20E3}&&\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["0", "2", "4", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["6\uFE0F\u20E3", "7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\q{0|2|4|9\uFE0F\u20E3}\q{0|2|4|9\uFE0F\u20E3}]+$/v,
+        expression: "[\q{0|2|4|9\uFE0F\u20E3}\q{0|2|4|9\uFE0F\u20E3}]",
+        matchStrings: ["0", "2", "4", "9\uFE0F\u20E3"],
+        nonMatchStrings: ["6\uFE0F\u20E3", "7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
+
+    testExtendedCharacterClass({
+        regExp: /^[\q{0|2|4|9\uFE0F\u20E3}&&\p{Emoji_Keycap_Sequence}]+$/v,
+        expression: "[\q{0|2|4|9\uFE0F\u20E3}&&\p{Emoji_Keycap_Sequence}]",
+        matchStrings: ["9\uFE0F\u20E3"],
+        nonMatchStrings: ["0", "2", "4", "6\uFE0F\u20E3", "7", "C", "\u2603", "\u{1D306}", "\u{1F1E7}\u{1F1EA}"],
+    });
 });
 
 test("Unicode matching with u and v flags", () => {
@@ -260,4 +323,54 @@ test("Unicode matching with u and v flags", () => {
         const result = test.match.match(test.pattern);
         expect(result).toEqual(test.expected);
     }
+});
+
+test("RegExp string literal", () => {
+    [
+        { pattern: /[\q{abc}]/v, match: "abc", expected: ["abc"] },
+        { pattern: /[\q{abc}]/v, match: "a", expected: null },
+        { pattern: /[\q{a|b}]/v, match: "b", expected: ["b"] },
+        { pattern: /[\q{a\\b}]/v, match: "a\\b", expected: ["a\\b"] },
+        { pattern: /[\q{}]/v, match: "", expected: [""] },
+        { pattern: /[\q{😀|😁|😂}]/v, match: "😁", expected: ["😁"] },
+        { pattern: /[\q{1|1\uFE0F\u20E3}]/v, match: "1️⃣", expected: ["1️⃣"] },
+        { pattern: /[\q{1}]/v, match: "1️⃣", expected: ["1"] },
+        { pattern: /[\d&&\q{2}]/v, match: "123", expected: ["2"] },
+        { pattern: /[^\q{a|b}]/v, match: "abc", expected: ["c"] },
+        { pattern: /[\q{\n}]/v, match: "\n", expected: ["\n"] },
+        { pattern: /[\q{\b}]/v, match: "\b", expected: ["\b"] },
+        { pattern: /[\q{\0}]/v, match: "\0", expected: ["\0"] },
+        { pattern: /[\q{\|}]/v, match: "|", expected: ["|"] },
+        { pattern: /[\q{\x41}]/v, match: "A", expected: ["A"] },
+        {
+            pattern: /[\q{\uD83D\uDC68\u200d\uD83D\uDC69\u200d\uD83D\uDC66\u200d\uD83D\uDC66}]/v,
+            match: "👨‍👩‍👦‍👦",
+            expected: ["👨‍👩‍👦‍👦"],
+        },
+        { pattern: /[\q{\u{1F600}}]/v, match: "😀", expected: ["😀"] },
+        { pattern: /[\q{\cZ}]/v, match: "\x1A", expected: ["\x1A"] },
+        { pattern: /[\q{  }]/v, match: "  ", expected: ["  "] },
+        { pattern: /[[\d+]--[\q{1}]]/gv, match: "12", expected: ["2"] },
+        { pattern: /[[\d]&&[\q{1}]]/gv, match: "21", expected: ["1"] },
+        { pattern: /[\d\q{a}]/gv, match: "a1", expected: ["a", "1"] },
+    ].forEach(test => {
+        const result = test.match.match(test.pattern);
+        expect(result).toEqual(test.expected);
+    });
+
+    [
+        "[\\q{(a)}]",
+        "[\\q{[a]}]",
+        "[\\q{{a}}]",
+        "[^\\q{bad}]",
+        "[\\q{a-b}]",
+        "[^\\q{a|bc}]",
+        "[^\\q{\\b+}]",
+        "[\\q{\\d}]",
+        "[\\q{\\w}]",
+        "[\\q{\\q}]",
+        "[^\\q{\\(\\)}]",
+    ].forEach(pattern => {
+        expect(() => new RegExp(pattern, "v")).toThrow(SyntaxError);
+    });
 });

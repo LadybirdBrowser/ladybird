@@ -486,6 +486,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
         bool active { false };
         bool is_conjunction { false };
         bool is_subtraction { false };
+        bool is_and_operation { false };
         bool fail { false };
         bool inverse_matched { false };
         size_t subtraction_operand_index { 0 };
@@ -774,6 +775,11 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
                 auto const* current = &trie;
                 size_t current_code_unit_offset = state.string_position_in_code_units;
 
+                if (current->has_metadata() && current->metadata_value()) {
+                    matched = true;
+                    longest_match_length = 0;
+                }
+
                 while (true) {
                     u32 value;
 
@@ -855,6 +861,8 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             }
 
             if (matched) {
+                if (longest_match_length == 0)
+                    had_zero_length_match = true;
                 if (current_inversion_state()) {
                     inverse_matched = true;
                 } else {
@@ -872,6 +880,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             disjunction_states.append({
                 .active = true,
                 .is_conjunction = current_inversion_state(),
+                .is_and_operation = true,
                 .fail = current_inversion_state(),
                 .inverse_matched = current_inversion_state(),
                 .initial_position = state.string_position,
@@ -932,6 +941,13 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
         if (!has_single_argument && new_disjunction_state.active) {
             auto failed = (!had_zero_length_match && string_position == state.string_position) || state.string_position > input.view.length();
+
+            if (!failed && new_disjunction_state.is_and_operation
+                && new_disjunction_state.last_accepted_position.has_value()
+                && new_disjunction_state.last_accepted_position.value() != state.string_position) {
+
+                failed = true;
+            }
 
             if (!failed) {
                 new_disjunction_state.last_accepted_position = state.string_position;
