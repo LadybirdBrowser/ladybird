@@ -1004,13 +1004,13 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    // 14. For each shadow-including descendant descendant of node, in shadow-including tree order, then:
+    // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
     for_each_shadow_including_descendant([&](Node& descendant) {
-        // 1. Run the removing steps with descendant
+        // 1. Run the removing steps with descendant and null.
         descendant.removed_from(nullptr, parent_root);
 
-        // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction with descendant,
-        //    callback name "disconnectedCallback", and an empty argument list.
+        // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction
+        //    with descendant, callback name "disconnectedCallback", and « ».
         if (auto* element = as_if<DOM::Element>(descendant)) {
             if (element->is_custom() && is_parent_connected) {
                 GC::RootVector<JS::Value> empty_arguments { vm().heap() };
@@ -1021,9 +1021,10 @@ void Node::remove(bool suppress_observers)
         return TraversalDecision::Continue;
     });
 
-    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s registered observer list,
-    //     if registered’s options["subtree"] is true, then append a new transient registered observer
-    //     whose observer is registered’s observer, options is registered’s options, and source is registered to node’s registered observer list.
+    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s
+    //     registered observer list, if registered’s options["subtree"] is true, then append a new transient registered
+    //     observer whose observer is registered’s observer, options is registered’s options, and source is registered
+    //     to node’s registered observer list.
     for (auto* inclusive_ancestor = parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
         if (!inclusive_ancestor->m_registered_observer_list)
             continue;
@@ -1035,7 +1036,8 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    // 16. If suppress observers flag is unset, then queue a tree mutation record for parent with « », « node », oldPreviousSibling, and oldNextSibling.
+    // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
+    //     oldPreviousSibling, and oldNextSibling.
     if (!suppress_observers) {
         parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling.ptr(), old_next_sibling.ptr());
     }
