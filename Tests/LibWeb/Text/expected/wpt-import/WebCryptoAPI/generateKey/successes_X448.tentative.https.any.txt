@@ -1,8 +1,16 @@
 Harness status: OK
 
-Found 16 tests
+Found 32 tests
 
-16 Pass
+32 Pass
+Pass	Success: generateKey(X448, false, [deriveKey])
+Pass	Success: generateKey(X448, true, [deriveKey])
+Pass	Success: generateKey(X448, false, [deriveBits, deriveKey])
+Pass	Success: generateKey(X448, true, [deriveBits, deriveKey])
+Pass	Success: generateKey(X448, false, [deriveBits])
+Pass	Success: generateKey(X448, true, [deriveBits])
+Pass	Success: generateKey(X448, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey(X448, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: X448}, false, [deriveKey])
 Pass	Success: generateKey({name: X448}, true, [deriveKey])
 Pass	Success: generateKey({name: X448}, false, [deriveBits, deriveKey])
@@ -11,6 +19,14 @@ Pass	Success: generateKey({name: X448}, false, [deriveBits])
 Pass	Success: generateKey({name: X448}, true, [deriveBits])
 Pass	Success: generateKey({name: X448}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: X448}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey(x448, false, [deriveKey])
+Pass	Success: generateKey(x448, true, [deriveKey])
+Pass	Success: generateKey(x448, false, [deriveBits, deriveKey])
+Pass	Success: generateKey(x448, true, [deriveBits, deriveKey])
+Pass	Success: generateKey(x448, false, [deriveBits])
+Pass	Success: generateKey(x448, true, [deriveBits])
+Pass	Success: generateKey(x448, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Success: generateKey(x448, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Success: generateKey({name: x448}, false, [deriveKey])
 Pass	Success: generateKey({name: x448}, true, [deriveKey])
 Pass	Success: generateKey({name: x448}, false, [deriveBits, deriveKey])
