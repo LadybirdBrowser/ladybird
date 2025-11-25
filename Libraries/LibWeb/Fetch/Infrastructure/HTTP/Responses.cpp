@@ -125,8 +125,8 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
         return Optional<URL::URL> {};
 
     // 2. Let location be the result of extracting header list values given `Location` and response’s header list.
-    auto location_values_or_failure = extract_header_list_values("Location"sv.bytes(), m_header_list);
-    if (location_values_or_failure.has<Infrastructure::ExtractHeaderParseFailure>() || location_values_or_failure.has<Empty>())
+    auto location_values_or_failure = m_header_list->extract_header_list_values("Location"sv.bytes());
+    if (location_values_or_failure.has<Infrastructure::HeaderList::ExtractHeaderParseFailure>() || location_values_or_failure.has<Empty>())
         return Optional<URL::URL> {};
 
     auto const& location_values = location_values_or_failure.get<Vector<ByteBuffer>>();

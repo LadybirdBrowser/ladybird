@@ -495,7 +495,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS) {
                     // 1. Let headerNames be the result of extracting header list values given
                     //    `Access-Control-Expose-Headers` and response’s header list.
-                    auto header_names_or_failure = Infrastructure::extract_header_list_values("Access-Control-Expose-Headers"sv.bytes(), response->header_list());
+                    auto header_names_or_failure = response->header_list()->extract_header_list_values("Access-Control-Expose-Headers"sv.bytes());
                     auto header_names = header_names_or_failure.has<Vector<ByteBuffer>>() ? header_names_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
 
                     // 2. If request’s credentials mode is not "include" and headerNames contains `*`, then set
@@ -2513,19 +2513,19 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
         // NOTE: The CORS check is done on request rather than preflight to ensure the correct credentials mode is used.
         if (cors_check(request, response) && Infrastructure::is_ok_status(response->status())) {
             // 1. Let methods be the result of extracting header list values given `Access-Control-Allow-Methods` and response’s header list.
-            auto methods_or_failure = Infrastructure::extract_header_list_values("Access-Control-Allow-Methods"sv.bytes(), response->header_list());
+            auto methods_or_failure = response->header_list()->extract_header_list_values("Access-Control-Allow-Methods"sv.bytes());
 
             // 2. Let headerNames be the result of extracting header list values given `Access-Control-Allow-Headers` and
             //    response’s header list.
-            auto header_names_or_failure = Infrastructure::extract_header_list_values("Access-Control-Allow-Headers"sv.bytes(), response->header_list());
+            auto header_names_or_failure = response->header_list()->extract_header_list_values("Access-Control-Allow-Headers"sv.bytes());
 
             // 3. If either methods or headerNames is failure, return a network error.
-            if (methods_or_failure.has<Infrastructure::ExtractHeaderParseFailure>()) {
+            if (methods_or_failure.has<Infrastructure::HeaderList::ExtractHeaderParseFailure>()) {
                 returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "The Access-Control-Allow-Methods in the CORS-preflight response is syntactically invalid"_string));
                 return;
             }
 
-            if (header_names_or_failure.has<Infrastructure::ExtractHeaderParseFailure>()) {
+            if (header_names_or_failure.has<Infrastructure::HeaderList::ExtractHeaderParseFailure>()) {
                 returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "The Access-Control-Allow-Headers in the CORS-preflight response is syntactically invalid"_string));
                 return;
             }
