@@ -1795,8 +1795,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
         // 8. If contentLength is non-null, then set contentLengthHeaderValue to contentLength, serialized and
         //    isomorphic encoded.
-        if (content_length.has_value())
-            content_length_header_value = MUST(ByteBuffer::copy(String::number(*content_length).bytes()));
+        if (content_length.has_value()) {
+            auto content_length_string = String::number(*content_length);
+            content_length_header_value = MUST(ByteBuffer::copy(content_length_string.bytes()));
+        }
 
         // 9. If contentLengthHeaderValue is non-null, then append (`Content-Length`, contentLengthHeaderValue) to
         //    httpRequest’s header list.

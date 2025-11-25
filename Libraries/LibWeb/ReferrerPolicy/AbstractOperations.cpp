@@ -108,8 +108,11 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
 
     // 6. If the result of serializing referrerURL is a string whose length is greater than 4096, set referrerURL to
     //    referrerOrigin.
-    if (referrer_url.has_value() && referrer_url.value().serialize().bytes().size() > 4096)
-        referrer_url = referrer_origin;
+    if (referrer_url.has_value()) {
+        auto serialized_referrer_url = referrer_url.value().serialize();
+        if (serialized_referrer_url.bytes().size() > 4096)
+            referrer_url = referrer_origin;
+    }
 
     // 7. The user agent MAY alter referrerURL or referrerOrigin at this point to enforce arbitrary policy
     //    considerations in the interests of minimizing data leakage. For example, the user agent could strip the URL
