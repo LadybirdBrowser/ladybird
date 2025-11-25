@@ -790,25 +790,26 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
 GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
 {
-    // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given given namespace, the tag name of the given token, and the attributes of the given token.
-    // FIXME: 2. Otherwise, optionally create a speculative mock element given given namespace, the tag name of the given token, and the attributes of the given token.
+    // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given given namespace, token's tag name, and token's attributes.
+    // FIXME: 2. Otherwise, optionally create a speculative mock element given given namespace, token's tag name, and token's attributes.
 
-    // 3. Let document be intended parent's node document.
+    // 3. Let document be intendedParent's node document.
     GC::Ref<DOM::Document> document = intended_parent.document();
 
-    // 4. Let local name be the tag name of the token.
+    // 4. Let localName be token's tag name.
     auto const& local_name = token.tag_name();
 
-    // 5. Let is be the value of the "is" attribute in the given token, if such an attribute exists, or null otherwise.
+    // 5. Let is be the value of the "is" attribute in token, if such an attribute exists; otherwise null.
     auto is_value = token.attribute(AttributeNames::is);
 
-    // 6. Let definition be the result of looking up a custom element definition given document, given namespace, local name, and is.
+    // FIXME: 6. Let registry be the result of looking up a custom element registry given intendedParent.
+    // 7. Let definition be the result of looking up a custom element definition given registry, namespace, localName, and is.
     auto definition = document->lookup_custom_element_definition(namespace_, local_name, is_value);
 
-    // 7. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML fragment parsing algorithm; otherwise false.
+    // 8. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML fragment parsing algorithm; otherwise false.
     bool will_execute_script = definition && !m_parsing_fragment;
 
-    // 8. If willExecuteScript is true:
+    // 9. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Increment document's throw-on-dynamic-markup-insertion counter.
         document->increment_throw_on_dynamic_markup_insertion_counter({});
@@ -822,7 +823,8 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.append({});
     }
 
-    // 9. Let element be the result of creating an element given document, localName, given namespace, null, is, and willExecuteScript.
+    // 10. Let element be the result of creating an element given document, localName, namespace, null, is, willExecuteScript, and registry.
+    // FIXME: and registry.
     auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script).release_value_but_fixme_should_propagate_errors();
 
     // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is done.
@@ -838,7 +840,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         link_element.set_was_enabled_when_created_by_parser({}, !token.has_attribute(HTML::AttributeNames::disabled));
     }
 
-    // 10. Append each attribute in the given token to element.
+    // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
         DOM::QualifiedName qualified_name { attribute.local_name, attribute.prefix, attribute.namespace_ };
         auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), attribute.value, element);
@@ -857,9 +859,10 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         }
     }
 
-    // 11. If willExecuteScript is true:
+    // 12. If willExecuteScript is true:
     if (will_execute_script) {
-        // 1. Let queue be the result of popping from document's relevant agent's custom element reactions stack. (This will be the same element queue as was pushed above.)
+        // 1. Let queue be the result of popping from document's relevant agent's custom element reactions stack.
+        //    (This will be the same element queue as was pushed above.)
         auto queue = relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.take_last();
 
         // 2. Invoke custom element reactions in queue.
@@ -869,14 +872,16 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         document->decrement_throw_on_dynamic_markup_insertion_counter({});
     }
 
-    // FIXME: 12. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
+    // FIXME: 13. If element has an xmlns attribute in the XMLNS namespace whose value is not exactly the same as the element's namespace, that is a parse error.
     //            Similarly, if element has an xmlns:xlink attribute in the XMLNS namespace whose value is not the XLink Namespace, that is a parse error.
 
-    // FIXME: 13. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm. (This initializes the element's value and checkedness based on the element's attributes.)
+    // FIXME: 14. If element is a resettable element and not a form-associated custom element, then invoke its reset algorithm. (This initializes the element's value and checkedness based on the element's attributes.)
 
-    // 14. If element is a form-associated element and not a form-associated custom element, the form element pointer is not null, there is no template element on the stack of open elements,
-    //     element is either not listed or doesn't have a form attribute, and the intended parent is in the same tree as the element pointed to by the form element pointer,
-    //     then associate element with the form element pointed to by the form element pointer and set element's parser inserted flag.
+    // 15. If element is a form-associated element and not a form-associated custom element, the form element pointer
+    //     is not null, there is no template element on the stack of open elements, element is either not listed or
+    //     doesn't have a form attribute, and the intendedParent is in the same tree as the element pointed to by the
+    //     form element pointer, then associate element with the form element pointed to by the form element pointer
+    //     and set element's parser inserted flag.
     // FIXME: Check if the element is not a form-associated custom element.
     if (auto* form_associated_element = as_if<FormAssociatedElement>(*element)) {
         auto& html_element = form_associated_element->form_associated_element_to_html_element();
@@ -890,7 +895,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         }
     }
 
-    // 15. Return element.
+    // 16. Return element.
     return element;
 }
 
