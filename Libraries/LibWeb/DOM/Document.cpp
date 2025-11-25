@@ -4511,6 +4511,11 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
             if (document_type() == Type::HTML)
                 new_document->set_document_type(Type::HTML);
 
+            // AD-HOC: Copy over the "allow declarative shadow roots" flag, otherwise no elements inside templates will
+            //         be able to have declarative shadow roots.
+            // Spec issue: https://github.com/whatwg/html/issues/11955
+            new_document->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
+
             // 3. Set doc's associated inert template document to new doc.
             m_associated_inert_template_document = new_document;
         }
